@@ -1,0 +1,33 @@
+{
+  "folders": [
+    {
+      "name": "Frontend",
+      "path": "../apps/web"
+    },
+    {
+      "name": "API",
+      "path": "../apps/api"
+    },
+    {
+      "name": "Documentation",
+      "path": "../apps/docs"
+    },
+    {
+      "name": "Root",
+      "path": "../"
+    }
+  ],
+  "extensions": {
+    "recommendations": ["joshx.workspace-terminals"]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [],
+    "compounds": [
+      {
+        "name": "Launch Frontend and Backend",
+        "configurations": ["Next.js: Chrome", "Python: FastAPI"]
+      }
+    ]
+  }
+}

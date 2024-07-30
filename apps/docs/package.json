@@ -1,0 +1,13 @@
+{
+    "name": "docs",
+    "version": "0.1.0",
+    "scripts": {
+        "dev": "mintlify dev --port 3001",
+        "generate-api": "npx @mintlify/scraping@latest openapi-file https://next-fast-turbo-api.vercel.app/openapi.json --outDir ./api/",
+        "generate-api:dev": "npx @mintlify/scraping@latest openapi-file https://127.0.0.1:8000/openapi.json --outDir ./api/"
+    },
+    "dependencies": {
+        "@mintlify/scraping": "^3.0.88",
+        "mintlify": "^4.0.127"
+    }
+}
