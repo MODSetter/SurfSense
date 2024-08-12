@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { goTo } from "react-chrome-extension-router";
 import { Popup } from "../popup";
+import { BACKEND_URL } from "../env";
 
 export const LoginForm = () => {
   const [username, setUsername] = useState('');
@@ -28,7 +29,7 @@ export const LoginForm = () => {
     formDetails.append('password', password);
 
     try {
-      const response = await fetch('http://localhost:8000/token', {
+      const response = await fetch(`${BACKEND_URL}/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
