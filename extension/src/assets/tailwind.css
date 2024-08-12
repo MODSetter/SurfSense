@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.loading{
+  margin: 0;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80vh;
+}
+
+body {
+  min-width: 400px;
+}
+
+.btn1 {
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  border: none;
+  background-color: hotpink;
+  color: white;
+  font-size: 1.2em;
+}
+
+@keyframes move {
+  25% {
+    transform: translateY(50px);
+  }
+  50% {
+    background-color: dodgerblue;
+    transform: translateY(0px);
+  }
+  75% {
+    transform: translateY(-50px);
+  }
+}
