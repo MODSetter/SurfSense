@@ -102,7 +102,7 @@ function ProtectedPage() {
       }),
     };
 
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL!}`, requestOptions)
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL!}/`, requestOptions)
     .then(res=>res.json())
     .then(data=> {
       let cur = currentChat;
