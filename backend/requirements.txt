@@ -6,3 +6,10 @@ python-multipart
 SQLAlchemy
 uvicorn
 passlib
+langchain
+langchain-core
+langchain-community
+langchain-experimental
+langchain_openai
+psycopg2
+neo4j
