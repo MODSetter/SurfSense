@@ -1,54 +1,81 @@
-<h1 align="center">Next-Fast-Turbo</h1>
+# Turborepo starter
 
-<p align="center">
-  <a href="#introduction"><strong>Introduction</strong></a> |   
-  <a href="#features"><strong>Features</strong></a> |   
-  <a href="#tech-stack"><strong>Tech Stack</strong></a> |   
-  <a href="#getting-started"><strong>Getting started</strong></a> |   
-  <a href="#contributing"><strong>Contributing</strong></a>
-</p>
-<p align="center">
-  <a href="https://next-fast-turbo.mintlify.app/">
-    <img src="https://img.shields.io/badge/Read%20the%20Documentation-8A2BE2" alt="Documentation" />
-  </a>
-</p>
-<br/>
+This is an official starter Turborepo.
 
-## Introduction
+## Using this example
 
-Next-Fast-Turbo is an open-source project scaffold. It's designed to be easy to get up and running both locally and in production. It's a monorepo that includes a Next.js frontend, a FastAPI backend, and a fully built and annotated Mintlify documentation site. It's built with TypeScript, and includes ESLint and Prettier for code quality. It's also set up to use Vercel for deployments and Remote Caching.
+Run the following command:
 
-View the live frontend at [next-fast-turbo-web.vercel.app](https://next-fast-turbo-web.vercel.app/) and the live backend at [next-fast-turbo-api.vercel.app](https://next-fast-turbo-api.vercel.app/).
+```sh
+npx create-turbo@latest
+```
 
-## Features
+## What's inside?
 
-- Pre-configured [FastAPI backend](https://next-fast-turbo.mintlify.app/documentation/configuration/fastapi)
-- Pre-configured [Next.js frontend](https://next-fast-turbo.mintlify.app/documentation/configuration/nextjs)
-- Pre-configured [Mintlify documentation site](https://next-fast-turbo.mintlify.app/documentation/configuration/docs)
+This Turborepo includes the following packages/apps:
 
-## Tech Stack
+### Apps and Packages
 
-- [Next.js](https://nextjs.org/) – Frontend Framework
-- [Tailwind](https://tailwindcss.com/) – CSS Framework
-- [ShadCN UI](https://ui.shadcn.com/) – UI Components
-- [FastAPI](https://fastapi.tiangolo.com/) – Python Backend
-- [Mintlify](https://mintlify.com/) – Documentation
-- [Supabase](https://supabase.com/) – Database
-- [Turborepo](https://turbo.build/repo) – Monorepo
-- [Vercel](https://vercel.com/) – deployments
+- `docs`: a [Next.js](https://nextjs.org/) app
+- `web`: another [Next.js](https://nextjs.org/) app
+- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
+- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
+- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
 
-## Getting started
+Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
 
-Next-Fast-Turbo is designed to be cloned and modified to each project. For more information on getting started, [view the documentation](https://next-fast-turbo.mintlify.app/documentation/introduction).
+### Utilities
 
-## Contributing
+This Turborepo has some additional tools already setup for you:
 
-Contributions are welcome. Here's how you can contribute:
+- [TypeScript](https://www.typescriptlang.org/) for static type checking
+- [ESLint](https://eslint.org/) for code linting
+- [Prettier](https://prettier.io) for code formatting
 
-- [Open an issue](https://github.com/cording12/next-fast-turbo/issues) if you believe you've encountered a bug.
-- Follow the [local development guide](https://next-fast-turbo.mintlify.app/documentation/local-development) to get your local dev environment set up.
-- Make a [pull request](https://github.com/cording12/next-fast-turbo/pulls) to add new features/make quality-of-life improvements/fix bugs.
+### Build
 
-## License
+To build all apps and packages, run the following command:
 
-Next-Fast-Turbo is open-source under the GNU General Public License Version 3 (GPLv3) or any later version.
+```
+cd my-turborepo
+pnpm build
+```
+
+### Develop
+
+To develop all apps and packages, run the following command:
+
+```
+cd my-turborepo
+pnpm dev
+```
+
+### Remote Caching
+
+Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+
+By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
+
+```
+cd my-turborepo
+npx turbo login
+```
+
+This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+
+Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+
+```
+npx turbo link
+```
+
+## Useful Links
+
+Learn more about the power of Turborepo:
+
+- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
+- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
+- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
+- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
+- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
+- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)

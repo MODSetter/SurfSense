@@ -1,4 +1,0 @@
-/* Vars here are coming from /DashboardLayout.module.css */
-.dashboardFooter {
-  @apply mt-[var(--small-spacing)] min-h-[var(--footer-height)];
-}
