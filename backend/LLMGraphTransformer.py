@@ -72,6 +72,8 @@ system_prompt = (
     "## 1. Overview\n"
     "You are a top-tier algorithm designed for extracting information in structured "
     "formats to build a knowledge graph.\n"
+    "You are given a text containing a user's browsing history with a unique session ID, including the following details for each webpage in this session: "
+    "Webpage URL visited, its referring URL, duration of time in milliseconds spent on this Webpage URL, date and time of the visit on this Webpage URL , title of the webpage, and webpage content in Markdown format"
     "Try to capture as much information from the text as possible without "
     "sacrificing accuracy. Do not add any information that is not explicitly "
     "mentioned in the text.\n"
