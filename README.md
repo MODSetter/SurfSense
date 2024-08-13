@@ -125,12 +125,15 @@ As an example lets visit : https://myanimelist.net/anime/season (Summer 2024 Ani
 Now lets ask SurfSense "Give list of summer 2024 animes with images."
 
 Sample Response:
+
 ![res](https://i.ibb.co/k23FHzs/frontres.png)
 
 Now Let's ask it more information about our related session.
+
 ![more](https://i.ibb.co/PWzM97G/front-more-info.png)
 
 Sample More Description Response:
+
 ![enter image description here](https://i.ibb.co/cYtWJbB/more-info-out.png)
     
 
