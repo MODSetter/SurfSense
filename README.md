@@ -68,9 +68,13 @@ When you start the extension you should see a Login page like this
 
 ![extension login](https://i.ibb.co/qkkR5Lt/extlogin.png)
 
+---
+
 After logging in you will need to fill your Neo4j Credentials & OpenAPI Key.
 
 ![settings](https://i.ibb.co/j5PT171/extreqvalues.png)
+
+---
 
 After Saving you should be able to use extension now.
 ![main](https://i.ibb.co/pvHCDSb/extmain.png)
