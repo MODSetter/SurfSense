@@ -48,12 +48,12 @@ export const FillEnvVariables = () => {
               <form className="space-y-4 md:space-y-6" onSubmit={handleSubmit}>
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Neo4J URL</label>
-                  <input type="text" value={neourl} onChange={(e) => setNeourl(e.target.value)}  name="neourl" id="neourl" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="name@company.com" />
+                  <input type="text" value={neourl} onChange={(e) => setNeourl(e.target.value)}  name="neourl" id="neourl" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="neo4j url" />
                 </div>
   
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Neo4J Username</label>
-                  <input type="text" value={neouser} onChange={(e) => setNeouser(e.target.value)}  name="neouser" id="neouser" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="name@company.com" />
+                  <input type="text" value={neouser} onChange={(e) => setNeouser(e.target.value)}  name="neouser" id="neouser" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="neo4j username" />
                 </div>
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Neo4J Password</label>
@@ -61,7 +61,7 @@ export const FillEnvVariables = () => {
                 </div>
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">OpenAI API Key</label>
-                  <input type="text" value={openaikey} onChange={(e) => setOpenaiKey(e.target.value)}  name="openaikey" id="openaikey" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="name@company.com" />
+                  <input type="text" value={openaikey} onChange={(e) => setOpenaiKey(e.target.value)}  name="openaikey" id="openaikey" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="OpenAI API Key" />
                 </div>
                 <button type="submit" className="mt-4 w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800">{loading ? 'Saving....' : 'Save & Proceed'}</button>
                 {error && <p style={{ color: 'red' }}>{error}</p>}

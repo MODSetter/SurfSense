@@ -70,7 +70,7 @@ export const Popup = () => {
   useEffect(() => {
     const verifyToken = async () => {
       const token = localStorage.getItem('token');
-      console.log(token)
+      // console.log(token)
       try {
         const response = await fetch(`${BACKEND_URL}/verify-token/${token}`);
 
