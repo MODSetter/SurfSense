@@ -134,7 +134,11 @@ Now Let's ask it more information about our related session.
 
 Sample More Description Response:
 
+<<<<<<< HEAD
 ![enter image description here](https://i.ibb.co/cYtWJbB/more-info-out.png)
+=======
+![desc](https://i.ibb.co/cYtWJbB/more-info-out.png)
+>>>>>>> 87fdd31 (readme)
     
 
 
