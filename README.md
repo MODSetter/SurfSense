@@ -18,6 +18,7 @@ https://github.com/user-attachments/assets/08b650ed-d84b-441b-a0e1-cf9f06431bf4
 - 💬 **Chat with your Web History**: Interact in Natural Language with your saved Web Browsing Sessions.
 - 🏠 **Self Hostable**: Open source and easy to deploy locally.
 - 📊 **Use GraphRAG**: Utilize the power of GraphRAG to find meaningful relations in your saved content.
+- 🔟% **Cheap On Wallet**: Works Flawlessly with OpenAI gpt-4o-mini model.
 
 ## How to get started?
 
