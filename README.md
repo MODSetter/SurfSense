@@ -90,7 +90,7 @@ After Saving you should be able to use extension now.
 Now just start browsing the Internet. Whatever you want to save any content take its Snapshot and save it to SurfSense. After Save Job is completed you are ready to ask anything about it to your Knowledge Graph Brain 🧠.
 
 If you don't want to deal with frontend local setup you can quickly go to https://www.surfsense.net/ and start interacting with your Knowledge Graph Brain 🧠.
-Just login to SurfSense at https://www.surfsense.net/ using these demo credentials
+Just login to SurfSense at https://www.surfsense.net/login using these demo credentials
 |key|val|
 |--|--|
 | Username | test  |
