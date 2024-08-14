@@ -151,7 +151,11 @@ Sample More Description Response:
 #### Architecture:
 In Progress...........
 
-
+## Future Work
+- Saving Chats,
+- Basic keyword search page for saved sessions
+- Multi & Single Document Chat
+- Implement some tricks from GraphRAG papers to optimize current GraphRAG logic. 
 
 ## Contribute 
 
