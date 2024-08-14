@@ -39,3 +39,7 @@ class UserQueryResponse(BaseModel):
     response: str
     relateddocs: List[DocMeta]
     
+
+class VectorSearchQuery(BaseModel):
+    searchquery: str
+    

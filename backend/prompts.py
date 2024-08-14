@@ -3,20 +3,44 @@ from langchain_core.prompts import ChatPromptTemplate
 from datetime import datetime, timezone
 
 
+
+
 DATE_TODAY = "Today's date is " + datetime.now(timezone.utc).astimezone().isoformat() + '\n'
+
+GRAPH_QUERY_GEN_TEMPLATE = DATE_TODAY + """You are a top tier Prompt Engineering Expert.
+A User's Data is stored in a Knowledge Graph.
+Your main task is to read the User Question below and give a optimized Question prompt in Natural Language.
+Question prompt will be used by a LLM to easlily get data from Knowledge Graph's.
+
+Make sure to only return the promt text thats it. Never change the meaning of users question.
+
+Here are the examples of the User's Data Documents that is stored in Knowledge Graph:
+{context}
+
+Note: Do not include any explanations or apologies in your responses.
+Do not include any text except the generated promt text.
+
+Question: {question}
+Prompt For Cypher Query Construction:"""
+
+GRAPH_QUERY_GEN_PROMPT = PromptTemplate(
+    input_variables=["context", "question"], template=GRAPH_QUERY_GEN_TEMPLATE
+)
 
 CYPHER_QA_TEMPLATE = DATE_TODAY + """You are an assistant that helps to form nice and human understandable answers.
 The information part contains the provided information that you must use to construct an answer.
 The provided information is authoritative, you must never doubt it or try to use your internal knowledge to correct it.
 Make the answer sound as a response to the question. Do not mention that you based the result on the given information.
+Only give the answer if it satisfies the user requirements in Question. Else return exactly 'don't know' as answer.
+
 Here are the examples:
 
-Question: Website on which the most time was spend on?
-Context:[{'d.VisitedWebPageURL': 'https://stackoverflow.com/questions/59873698/the-default-export-is-not-a-react-component-in-page-nextjs', 'totalDuration': 8889167}]
-Helpful Answer: You visited https://stackoverflow.com/questions/59873698/the-default-export-is-not-a-react-component-in-page-nextjs for 8889167 milliseconds or 8889.167 seconds.
+Question: What type of general topics I explore the most?
+Context:[['Topic': 'Langchain', 'topicCount': 5], ['Topic': 'Graphrag', 'topicCount': 2], ['Topic': 'Ai', 'topicCount': 2], ['Topic': 'Fastapi', 'topicCount': 2], ['Topic': 'Nextjs', 'topicCount': 1]]
+Helpful Answer: You mostly explore about Langchain, Graphrag, Ai, Fastapi and Nextjs.
 
 Follow this example when generating answers.
-If the provided information is empty, then and only then, return exactly 'don't know' as answer.
+If the provided information is empty or incomplete, return exactly 'don't know' as answer.
 
 Information:
 {context}
@@ -53,7 +77,6 @@ Schema:
 Note: Do not include any explanations or apologies in your responses.
 Do not respond to any questions that might ask anything else than for you to construct a Cypher statement.
 Do not include any text except the generated Cypher statement.
-
 
 The question is:
 {question}"""

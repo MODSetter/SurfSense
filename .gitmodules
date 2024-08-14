@@ -1,0 +1,3 @@
+[submodule "SurfSense-Frontend"]
+	path = SurfSense-Frontend
+	url = https://github.com/MODSetter/SurfSense-Frontend.git
