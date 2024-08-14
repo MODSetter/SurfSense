@@ -25,6 +25,10 @@ https://github.com/user-attachments/assets/08b650ed-d84b-441b-a0e1-cf9f06431bf4
 
 ## How to get started?
 
+**UPDATE**: SurfSense extension is now live at : https://chromewebstore.google.com/detail/surfsense/jihmihbdpfjhppdlifphccgefjhifblf . For those who dont want to deal with local setups can directly download surfsense extension and start interacting with your saved data at https://www.surfsense.net/chat
+
+---
+
 Since the official Chrome extension for SurfSense is still under review, you'll need to set up the SurfSense Backend and SurfSense extension yourself for now. Don’t worry, it’s dead simple—just change a few environment variables, and you’ll be ready to go.
 
 Before we begin, we need to set up our Neo4j Graph Database. This is where SurfSense stores all your saved information. For a quick setup, I suggest getting your free Neo4j Aura DB from [https://neo4j.com/cloud/platform/aura-graph-database/](https://neo4j.com/cloud/platform/aura-graph-database/) or setting it up locally.
