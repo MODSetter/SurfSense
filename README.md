@@ -1,4 +1,6 @@
-![og image](https://surfsense.net/og-image.png)
+
+![header](https://github.com/user-attachments/assets/f5faf53e-799f-43dd-9470-6695bf2dea3e)
+
 
 # SurfSense
 
