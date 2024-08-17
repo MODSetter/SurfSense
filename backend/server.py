@@ -6,9 +6,11 @@ from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Neo4jVector
 from envs import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, API_SECRET_KEY, SECRET_KEY
-from prompts import CYPHER_QA_PROMPT, DOC_DESCRIPTION_PROMPT, GRAPH_QUERY_GEN_PROMPT, SIMILARITY_SEARCH_PROMPT , CYPHER_GENERATION_PROMPT, DOCUMENT_METADATA_EXTRACTION_PROMT
-from pydmodels import DescriptionResponse, UserQuery, DocMeta, RetrivedDocList, UserQueryResponse, VectorSearchQuery
+from prompts import CYPHER_QA_PROMPT, DATE_TODAY, DOC_DESCRIPTION_PROMPT, GRAPH_QUERY_GEN_PROMPT, SIMILARITY_SEARCH_PROMPT , CYPHER_GENERATION_PROMPT, DOCUMENT_METADATA_EXTRACTION_PROMT
+from pydmodels import DescriptionResponse, PrecisionQuery, PrecisionResponse, UserQuery, DocMeta, RetrivedDocList, UserQueryResponse, UserQueryWithChatHistory, VectorSearchQuery
 from langchain_experimental.text_splitter import SemanticChunker
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 #Our Imps
 from LLMGraphTransformer import LLMGraphTransformer
@@ -32,7 +34,7 @@ app = FastAPI()
 
 
   
-  
+# GraphCypherQAChain
 @app.post("/")
 def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
     
@@ -53,9 +55,9 @@ def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
     # Query Expansion
     searchchain = GRAPH_QUERY_GEN_PROMPT | llm
         
-    qry = searchchain.invoke({"question": data.query, "context": examples})
+    # qry = searchchain.invoke({"question": data.query, "context": examples})
     
-    query = qry.content
+    query = data.query #qry.content
     
     embeddings = OpenAIEmbeddings(
         model="text-embedding-ada-002",
@@ -84,7 +86,7 @@ def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
         embedding_node_property="embedding",
     )
     
-    docs = vector_index.similarity_search(query,k=5)
+    docs = vector_index.similarity_search(data.query,k=5)
     
     docstoreturn = []
     
@@ -144,7 +146,99 @@ def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
         response = searchchain.invoke({"question": data.query, "context": docs})
         
         return UserQueryResponse(relateddocs=docstoreturn,response=response.content)
+ 
+ #RETURN n LIMIT 25;
+ 
+ 
+@app.post("/precision")
+def get_precision_search_response(data: PrecisionQuery, response_model=PrecisionResponse):
+    if(data.apisecretkey != API_SECRET_KEY):
+        raise HTTPException(status_code=401, detail="Unauthorized")
     
+    graph = Neo4jGraph(url=data.neourl, username=data.neouser, password=data.neopass)
+    
+    GRAPH_QUERY = "MATCH (d:Document) WHERE d.VisitedWebPageDateWithTimeInISOString >= " + "'" + data.daterange[0] + "'" + " AND d.VisitedWebPageDateWithTimeInISOString <= "  + "'" + data.daterange[1] + "'"
+    
+    if(data.timerange[0] >= data.timerange[1]):
+        GRAPH_QUERY += " AND d.VisitedWebPageVisitDurationInMilliseconds >= 0"
+    else:
+        GRAPH_QUERY += " AND d.VisitedWebPageVisitDurationInMilliseconds >= "+ str(data.timerange[0]) + " AND d.VisitedWebPageVisitDurationInMilliseconds <= " + str(data.timerange[1])
+    
+    if(data.webpageurl):
+            GRAPH_QUERY += " AND d.VisitedWebPageURL CONTAINS " + "'" + data.webpageurl.lower() + "'"
+            
+    if(data.sessionid):
+        GRAPH_QUERY += " AND d.BrowsingSessionId = " + "'" + data.sessionid + "'"
+        
+    GRAPH_QUERY += " RETURN d;"
+    
+    graphdocs = graph.query(GRAPH_QUERY)
+    
+    docsDict = {}
+    
+    for d in graphdocs:
+        if d['d']['BrowsingSessionId'] not in docsDict:
+            docsDict[d['d']['BrowsingSessionId']] = d['d']
+        else:
+            docsDict[d['d']['BrowsingSessionId']]['text'] += d['d']['text']
+            
+    docs = []
+    
+    for x in docsDict.values():
+        docs.append(DocMeta(
+            BrowsingSessionId=x['BrowsingSessionId'],
+            VisitedWebPageURL=x['VisitedWebPageURL'],
+            VisitedWebPageVisitDurationInMilliseconds=x['VisitedWebPageVisitDurationInMilliseconds'],
+            VisitedWebPageTitle=x['VisitedWebPageTitle'],
+            VisitedWebPageReffererURL=x['VisitedWebPageReffererURL'],
+            VisitedWebPageDateWithTimeInISOString=x['VisitedWebPageDateWithTimeInISOString'],
+            VisitedWebPageContent=x['text']
+        ))
+    
+    return PrecisionResponse(documents=docs)
+
+
+# Multi DOC Chat
+@app.post("/chat/docs")
+def doc_chat_with_history(data: UserQueryWithChatHistory, response_model=DescriptionResponse):
+    if(data.apisecretkey != API_SECRET_KEY):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        max_tokens=None,
+        timeout=None,
+        api_key=data.openaikey
+    )
+    
+    chatHistory = []
+    
+    for chat in data.chat:
+        if(chat.type == 'system'):
+            chatHistory.append(SystemMessage(content=DATE_TODAY + """You are an helpful assistant for question-answering tasks.
+    Use the following pieces of retrieved context to answer the question.
+    If you don't know the answer, just say that you don't know. 
+    Context:""" + str(chat.content)))
+            
+        if(chat.type == 'ai'):
+            chatHistory.append(AIMessage(content=chat.content))
+            
+        if(chat.type == 'human'):
+            chatHistory.append(HumanMessage(content=chat.content))
+            
+    chatHistory.append(("human", "{input}"));
+    
+
+    qa_prompt = ChatPromptTemplate.from_messages(chatHistory)
+        
+    descriptionchain = qa_prompt | llm
+        
+    response = descriptionchain.invoke({"input": data.query})
+    
+    return DescriptionResponse(response=response.content)
+
+      
 # DOC DESCRIPTION
 @app.post("/kb/doc")
 def get_doc_description(data: UserQuery, response_model=DescriptionResponse):

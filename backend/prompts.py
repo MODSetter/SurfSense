@@ -85,7 +85,7 @@ CYPHER_GENERATION_PROMPT = PromptTemplate(
 )
 
 
-DOC_DESCRIPTION_TEMPLATE = """Task:Give Detailed Description of the page content of the given document.
+DOC_DESCRIPTION_TEMPLATE = DATE_TODAY + """Task:Give Detailed Description of the page content of the given document.
 Instructions:
 Provide as much details about metadata & page content as if you need to give human readable report of this Browsing session event. 
 
@@ -101,6 +101,26 @@ DOCUMENT_METADATA_EXTRACTION_SYSTEM_MESSAGE = DATE_TODAY + """You are a helpful 
 Generate a very good Query that can be used to perform similarity search on the vector store of the Neo4j graph database"""
 
 DOCUMENT_METADATA_EXTRACTION_PROMT = ChatPromptTemplate.from_messages([("system", DOCUMENT_METADATA_EXTRACTION_SYSTEM_MESSAGE), ("human", "{input}")])
+
+
+
+VECTOR_QUERY_GENERATION_TEMPLATE = DATE_TODAY + """You are a helpful assistant. You are given a user query and the examples of document on which user is asking query about.
+Give instruction to machine how to search for the data based on user query.
+
+Document Examples:
+{examples}
+
+Note: Only return the Query and nothing else. No explanation.
+
+User Query: {query}
+Helpful Answer:"""
+
+VECTOR_QUERY_GENERATION_PROMT = PromptTemplate(
+    input_variables=["examples", "query"], template=VECTOR_QUERY_GENERATION_TEMPLATE
+)
+
+
+
 
 
 

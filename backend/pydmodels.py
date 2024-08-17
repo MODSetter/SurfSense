@@ -1,18 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
-class UserQuery(BaseModel):
-    query: str
-    neourl: str
-    neouser: str
-    neopass: str
-    openaikey: str
-    apisecretkey: str
-    
-class DescriptionResponse(BaseModel):
-    response: str
-
-    
 class DocMeta(BaseModel):
     BrowsingSessionId: Optional[str] = Field(default=None, description="BrowsingSessionId of Document")
     VisitedWebPageURL: Optional[str] = Field(default=None, description="VisitedWebPageURL of Document")
@@ -21,6 +9,48 @@ class DocMeta(BaseModel):
     VisitedWebPageReffererURL: Optional[str] = Field(default=None, description="VisitedWebPageReffererURL of Document")
     VisitedWebPageVisitDurationInMilliseconds: Optional[int] = Field(default=None, description="VisitedWebPageVisitDurationInMilliseconds of Document"),
     VisitedWebPageContent: Optional[str] = Field(default=None, description="Visited WebPage Content in markdown of Document")
+    
+class PrecisionQuery(BaseModel):
+    sessionid: Optional[str] = Field(default=None)
+    webpageurl: Optional[str] = Field(default=None)
+    daterange: Optional[List[str]]
+    timerange: Optional[List[int]]
+    neourl: str
+    neouser: str
+    neopass: str
+    openaikey: str
+    apisecretkey: str
+    
+class PrecisionResponse(BaseModel):
+    documents: List[DocMeta]
+    
+    
+    
+class UserQuery(BaseModel):
+    query: str
+    neourl: str
+    neouser: str
+    neopass: str
+    openaikey: str
+    apisecretkey: str
+    
+class ChatHistory(BaseModel):
+    type: str
+    content: str | List[DocMeta]
+    
+class UserQueryWithChatHistory(BaseModel):
+    chat: List[ChatHistory]
+    query: str
+    neourl: str
+    neouser: str
+    neopass: str
+    openaikey: str
+    apisecretkey: str
+    
+    
+class DescriptionResponse(BaseModel):
+    response: str
+
     
 class RetrivedDocListItem(BaseModel):
     metadata: DocMeta
