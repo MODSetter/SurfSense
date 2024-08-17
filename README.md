@@ -188,7 +188,7 @@ You should see your Next.js frontend running at `localhost:3000`
 In Progress...........
 
 ## Future Work
-- Generalize the way SurfSense uses Graphs. Will soon make a integration with FalkorDB soon.
+- Generalize the way SurfSense uses Graphs. Will soon make an integration with FalkorDB soon.
 - Saving Chats
 - Basic keyword search page for saved sessions **[Done]**
 - Multi & Single Document Chat **[Done]**
