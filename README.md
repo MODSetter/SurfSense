@@ -1,4 +1,5 @@
 
+
 ![header](https://github.com/user-attachments/assets/f5faf53e-799f-43dd-9470-6695bf2dea3e)
 
 
@@ -21,60 +22,16 @@ https://github.com/user-attachments/assets/08b650ed-d84b-441b-a0e1-cf9f06431bf4
 - 🏠 **Self Hostable**: Open source and easy to deploy locally.
 - 📊 **Use GraphRAG**: Utilize the power of GraphRAG to find meaningful relations in your saved content.
 - 🔟% **Cheap On Wallet**: Works Flawlessly with OpenAI gpt-4o-mini model.
-- 🕸️ **No WebScraping**: Extension directly reads the data from dom.
+- 🕸️ **No WebScraping**: Extension directly reads the data from DOM.
 
 ## How to get started?
-
-**UPDATE**: SurfSense extension is now live at : https://chromewebstore.google.com/detail/surfsense/jihmihbdpfjhppdlifphccgefjhifblf . For those who dont want to deal with local setups can directly download surfsense extension and start interacting with your saved data at https://www.surfsense.net/chat
-
----
-
-Since the official Chrome extension for SurfSense is still under review, you'll need to set up the SurfSense Backend and SurfSense extension yourself for now. Don’t worry, it’s dead simple—just change a few environment variables, and you’ll be ready to go.
 
 Before we begin, we need to set up our Neo4j Graph Database. This is where SurfSense stores all your saved information. For a quick setup, I suggest getting your free Neo4j Aura DB from [https://neo4j.com/cloud/platform/aura-graph-database/](https://neo4j.com/cloud/platform/aura-graph-database/) or setting it up locally.
 
 After obtaining your Neo4j credentials, make sure to get your OpenAI API Key from [https://platform.openai.com/](https://platform.openai.com/).
 
-For authentication purposes, you’ll also need a PostgreSQL instance running on your machine.
-
-Now lets setup the SurfSense BackEnd
-1. Clone this repo.
-2. Go to ./backend subdirectory.
-3. Setup Python Virtual Enviroment
-4. Run `pip install -r requirements.txt` to install all required dependencies.
-5. Update the required Environment variables in envs.py
- 
-|ENV VARIABLE|Description  |
-|--|--|
-| POSTGRES_DATABASE_URL | postgresql+psycopg2://user:pass@host:5432/database|
-| API_SECRET_KEY | Can be any Random String value. Make Sure to remember it for as you need to send it in request to Backend for security purposes.|
-
-
-6. Backend is a FastAPI Backend so now just run the server on unicorn using command `uvicorn server:app --host 0.0.0.0 --port 8000`
-7. If everything worked fine you should see screen like this.
-
-![backend](https://i.ibb.co/542Vhqw/backendrunning.png)
-
-After Setting up the BackEnd Lets do a quick build of the extension.
-
-1. Go to ./extension subdirectory.
-2. Run `pnpm i` to install required dependencies.
-3. Update Env variables at `./src/env.tsx`
-
-|ENV VARIABLE|Description  |
-|--|--|
-| API_SECRET_KEY | Same String value your set for Backend |
-| BACKEND_URL | Give hosted backend url here. Eg. `http://127.0.0.1:8000`|
-
-4. Run `pnpm run build` to build your extension. Build will be generated in `./dist` folder
-5. Enable Developer Mode in Chrome and load the extinction from `./dist` folder.
-6. Extension will load successfully.
-
-Now resister a quick user through Swagger API > Try it Out: http://127.0.0.1:8000/docs#/default/register_user_register_post
-
-Make Sure in request body `"apisecretkey"` value is same value as `API_SECRET_KEY` we been assigning.
-
----
+1. Register Your SurfSense account at https://www.surfsense.net/signup
+2. Download SurfSense Extension from https://chromewebstore.google.com/detail/surfsense/jihmihbdpfjhppdlifphccgefjhifblf
 
 Now you are ready to use SurfSense. Start by first logging into the Extension.
 
@@ -100,34 +57,39 @@ After Saving you should be able to use extension now.
 | Save Current Webpage Snapshot | Stores the current webpage session info into SurfSense history store|
 | Save to SurfSense | Processes the SurfSense History Store & Initiates a Save Job |
 
----
-Now just start browsing the Internet. Whatever you want to save any content take its Snapshot and save it to SurfSense. After Save Job is completed you are ready to ask anything about it to your Knowledge Graph Brain 🧠.
+4. Now just start browsing the Internet. Whatever you want to save any content take its Snapshot and save it to SurfSense. After Save Job is completed you are ready to ask anything about it to your Knowledge Graph Brain 🧠.
+5. Now go to SurfSense Chat Options at https://www.surfsense.net/chat & fill the Neo4j Credentials & OpenAPI Key if asked.
 
-If you don't want to deal with frontend local setup you can quickly go to https://www.surfsense.net/ and start interacting with your Knowledge Graph Brain 🧠.
-Just login to SurfSense at https://www.surfsense.net/login using these demo credentials
-|key|val|
+![newchatwindow](https://github.com/user-attachments/assets/71cfabdb-b6ee-403e-9f74-53eef026064c)
+
+
+|OPTIONS|DESCRIPTION|
 |--|--|
-| Username | test  |
-| Password | test|
+| Precision Chat | Used for detailed search and chatting with your saved web sessions and their content. |
+| General Chat | Used for general questions about your content. Doesn't work well with Dates & Time.|
 
-and then set the credentials of Neo4j & OpenAPI in https://www.surfsense.net/settings.
+### Chat Screenshots
+---
+#### PRECISION
+
+##### Search
+
+![precision search](https://github.com/user-attachments/assets/88d32490-e8e8-4aec-bff4-8c3c42dc0e86)
+
+
+##### Results
+
+![pretable](https://github.com/user-attachments/assets/a4f90b6b-a455-43ee-85fa-1f74514b5854)
+
+
+##### Multi Webpage Chat
+
+
+![multichat](https://github.com/user-attachments/assets/57753233-23d6-4e59-a693-0380429f0987)
 
 ---
 
-For local frontend setup just fill out the `.env` file of frontend.
-
-|ENV VARIABLE|Description  |
-|--|--|
-| NEXT_PUBLIC_API_SECRET_KEY | Same String value your set for Backend & Extension |
-| NEXT_PUBLIC_BACKEND_URL | Give hosted backend url here. Eg. `http://127.0.0.1:8000`|
-| NEXT_PUBLIC_RECAPTCHA_SITE_KEY | Google Recaptcha v2 Client Key |
-| RECAPTCHA_SECRET_KEY | Google Recaptcha v2 Server Key|
-
-and run it using `pnpm run dev`
-
----
-
-After that just go to https://www.surfsense.net/chat and start interacting.
+#### GENERAL
 As an example lets visit : https://myanimelist.net/anime/season (Summer 2024 Anime atm) and save it to SurfSense.
 
 Now lets ask SurfSense "Give list of summer 2024 animes with images."
@@ -146,6 +108,69 @@ Sample More Description Response:
 
   
 
+
+
+### Local Setup Guide
+
+For authentication purposes, you’ll also need a PostgreSQL instance running on your machine.
+
+Now lets setup the SurfSense BackEnd
+1. Clone this repo.
+2. Go to ./backend subdirectory.
+3. Setup Python Virtual Enviroment
+4. Run `pip install -r requirements.txt` to install all required dependencies.
+5. Update the required Environment variables in envs.py
+ 
+|ENV VARIABLE|Description  |
+|--|--|
+| POSTGRES_DATABASE_URL | postgresql+psycopg2://user:pass@host:5432/database|
+| API_SECRET_KEY | Can be any Random String value. Make Sure to remember it for as you need to send it in request to Backend for security purposes.|
+
+
+6. Backend is a FastAPI Backend so now just run the server on unicorn using command `uvicorn server:app --host 0.0.0.0 --port 8000`
+7. If everything worked fine you should see screen like this.
+
+![backend](https://i.ibb.co/542Vhqw/backendrunning.png)
+
+---
+
+After Setting up the BackEnd Lets do a quick build of the extension.
+
+1. Go to ./extension subdirectory.
+2. Run `pnpm i` to install required dependencies.
+3. Update Env variables at `./src/env.tsx`
+
+|ENV VARIABLE|DESCRIPTION|
+|--|--|
+| API_SECRET_KEY | Same String value your set for Backend |
+| BACKEND_URL | Give hosted backend url here. Eg. `http://127.0.0.1:8000`|
+
+4. Run `pnpm run build` to build your extension. Build will be generated in `./dist` folder
+5. Enable Developer Mode in Chrome and load the extinction from `./dist` folder.
+6. Extension will load successfully.
+
+Now resister a quick user through Swagger API > Try it Out: http://127.0.0.1:8000/docs#/default/register_user_register_post
+
+Make Sure in request body `"apisecretkey"` value is same value as `API_SECRET_KEY` we been assigning.
+
+---
+
+For local frontend setup just fill out the `.env` file of frontend.
+
+|ENV VARIABLE|DESCRIPTION|
+|--|--|
+| NEXT_PUBLIC_API_SECRET_KEY | Same String value your set for Backend & Extension |
+| NEXT_PUBLIC_BACKEND_URL | Give hosted backend url here. Eg. `http://127.0.0.1:8000`|
+| NEXT_PUBLIC_RECAPTCHA_SITE_KEY | Google Recaptcha v2 Client Key |
+| RECAPTCHA_SECRET_KEY | Google Recaptcha v2 Server Key|
+
+and run it using `pnpm run dev`
+
+You should see your Next.js frontend running at `localhost:3000`
+
+---
+
+
 ##  Tech Stack
 
  - **Extenstion** : Chrome Manifest v3
@@ -156,9 +181,9 @@ Sample More Description Response:
 In Progress...........
 
 ## Future Work
-- Saving Chats,
-- Basic keyword search page for saved sessions
-- Multi & Single Document Chat
+- Saving Chats
+- Basic keyword search page for saved sessions **[Done]**
+- Multi & Single Document Chat **[Done]**
 - Implement some tricks from GraphRAG papers to optimize current GraphRAG logic. 
 
 ## Contribute 
