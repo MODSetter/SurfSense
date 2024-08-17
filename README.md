@@ -113,6 +113,8 @@ Sample More Description Response:
 
 ### Local Setup Guide
 
+#### Backend
+
 For authentication purposes, you’ll also need a PostgreSQL instance running on your machine.
 
 Now lets setup the SurfSense BackEnd
@@ -135,6 +137,8 @@ Now lets setup the SurfSense BackEnd
 
 ---
 
+#### Extension
+
 After Setting up the BackEnd Lets do a quick build of the extension.
 
 1. Go to ./extension subdirectory.
@@ -155,6 +159,8 @@ Now resister a quick user through Swagger API > Try it Out: http://127.0.0.1:800
 Make Sure in request body `"apisecretkey"` value is same value as `API_SECRET_KEY` we been assigning.
 
 ---
+
+#### FrontEnd
 
 For local frontend setup just fill out the `.env` file of frontend.
 
