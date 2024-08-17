@@ -10,7 +10,8 @@ Well when I’m browsing the internet, I tend to save a ton of content—but rem
 # Video
 
 
-https://github.com/user-attachments/assets/08b650ed-d84b-441b-a0e1-cf9f06431bf4
+
+https://github.com/user-attachments/assets/dd63bb04-6061-4331-a8e6-32a1a20bd350
 
 
 
