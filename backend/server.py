@@ -34,7 +34,7 @@ app = FastAPI()
 
 
   
-# GraphCypherQAChain
+# General GraphCypherQAChain
 @app.post("/")
 def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
     
@@ -53,7 +53,7 @@ def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
     )
     
     # Query Expansion
-    searchchain = GRAPH_QUERY_GEN_PROMPT | llm
+    # searchchain = GRAPH_QUERY_GEN_PROMPT | llm
         
     # qry = searchchain.invoke({"question": data.query, "context": examples})
     
@@ -86,26 +86,29 @@ def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
         embedding_node_property="embedding",
     )
     
-    docs = vector_index.similarity_search(data.query,k=5)
+    graphdocs = vector_index.similarity_search(data.query,k=15)
+    docsDict = {}
     
+    for d in graphdocs:
+        if d.metadata['BrowsingSessionId'] not in docsDict:
+            newVal = d.metadata.copy()
+            newVal['VisitedWebPageContent'] = d.page_content
+            docsDict[d.metadata['BrowsingSessionId']] = newVal
+        else:
+            docsDict[d.metadata['BrowsingSessionId']]['VisitedWebPageContent'] += d.page_content
+            
     docstoreturn = []
     
-    for doc in docs:
-        docstoreturn.append(
-            DocMeta(
-                BrowsingSessionId=doc.metadata["BrowsingSessionId"] if "BrowsingSessionId" in doc.metadata.keys() else "NOT AVAILABLE",
-                VisitedWebPageURL=doc.metadata["VisitedWebPageURL"] if "VisitedWebPageURL" in doc.metadata.keys()else "NOT AVAILABLE",
-                VisitedWebPageTitle=doc.metadata["VisitedWebPageTitle"] if "VisitedWebPageTitle" in doc.metadata.keys() else "NOT AVAILABLE",
-                VisitedWebPageDateWithTimeInISOString= doc.metadata["VisitedWebPageDateWithTimeInISOString"] if "VisitedWebPageDateWithTimeInISOString" in doc.metadata.keys() else "NOT AVAILABLE",
-                VisitedWebPageReffererURL= doc.metadata["VisitedWebPageReffererURL"] if "VisitedWebPageReffererURL" in doc.metadata.keys() else "NOT AVAILABLE",
-                VisitedWebPageVisitDurationInMilliseconds= doc.metadata["VisitedWebPageVisitDurationInMilliseconds"] if "VisitedWebPageVisitDurationInMilliseconds" in doc.metadata.keys() else None,
-                VisitedWebPageContent= doc.page_content if doc.page_content else "NOT AVAILABLE"
-            )
-        )
-                
-    docstoreturn = [i for n, i in enumerate(docstoreturn) if i not in docstoreturn[n + 1:]]
-    
-    # responsegrp = chain.invoke({"query": query})
+    for x in docsDict.values():
+        docstoreturn.append(DocMeta(
+            BrowsingSessionId=x['BrowsingSessionId'],
+            VisitedWebPageURL=x['VisitedWebPageURL'],
+            VisitedWebPageVisitDurationInMilliseconds=x['VisitedWebPageVisitDurationInMilliseconds'],
+            VisitedWebPageTitle=x['VisitedWebPageTitle'],
+            VisitedWebPageReffererURL=x['VisitedWebPageReffererURL'],
+            VisitedWebPageDateWithTimeInISOString=x['VisitedWebPageDateWithTimeInISOString'],
+            VisitedWebPageContent=x['VisitedWebPageContent']
+        ))
  
 
     try:
@@ -119,37 +122,42 @@ def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
         
         newquery = doc_extract_chain.invoke(responsegrp["intermediate_steps"][1]["context"])
         
-        docs = vector_index.similarity_search(newquery.searchquery,k=5)
+        graphdocs = vector_index.similarity_search(newquery.searchquery,k=15)
     
+        docsDict = {}
+        
+        for d in graphdocs:
+            if d.metadata['BrowsingSessionId'] not in docsDict:
+                newVal = d.metadata.copy()
+                newVal['VisitedWebPageContent'] = d.page_content
+                docsDict[d.metadata['BrowsingSessionId']] = newVal
+            else:
+                docsDict[d.metadata['BrowsingSessionId']]['VisitedWebPageContent'] += d.page_content
+                
         docstoreturn = []
         
-        for doc in docs:
-            docstoreturn.append(
-                DocMeta(
-                    BrowsingSessionId=doc.metadata["BrowsingSessionId"] if "BrowsingSessionId" in doc.metadata.keys() else "NOT AVAILABLE",
-                    VisitedWebPageURL=doc.metadata["VisitedWebPageURL"] if "VisitedWebPageURL" in doc.metadata.keys()else "NOT AVAILABLE",
-                    VisitedWebPageTitle=doc.metadata["VisitedWebPageTitle"] if "VisitedWebPageTitle" in doc.metadata.keys() else "NOT AVAILABLE",
-                    VisitedWebPageDateWithTimeInISOString= doc.metadata["VisitedWebPageDateWithTimeInISOString"] if "VisitedWebPageDateWithTimeInISOString" in doc.metadata.keys() else "NOT AVAILABLE",
-                    VisitedWebPageReffererURL= doc.metadata["VisitedWebPageReffererURL"] if "VisitedWebPageReffererURL" in doc.metadata.keys() else "NOT AVAILABLE",
-                    VisitedWebPageVisitDurationInMilliseconds= doc.metadata["VisitedWebPageVisitDurationInMilliseconds"] if "VisitedWebPageVisitDurationInMilliseconds" in doc.metadata.keys() else None,
-                    VisitedWebPageContent= doc.page_content if doc.page_content else "NOT AVAILABLE"
-                )
-            )
-                    
-        docstoreturn = [i for n, i in enumerate(docstoreturn) if i not in docstoreturn[n + 1:]]
+        for x in docsDict.values():
+            docstoreturn.append(DocMeta(
+                BrowsingSessionId=x['BrowsingSessionId'],
+                VisitedWebPageURL=x['VisitedWebPageURL'],
+                VisitedWebPageVisitDurationInMilliseconds=x['VisitedWebPageVisitDurationInMilliseconds'],
+                VisitedWebPageTitle=x['VisitedWebPageTitle'],
+                VisitedWebPageReffererURL=x['VisitedWebPageReffererURL'],
+                VisitedWebPageDateWithTimeInISOString=x['VisitedWebPageDateWithTimeInISOString'],
+                VisitedWebPageContent=x['VisitedWebPageContent']
+            ))
         
         return UserQueryResponse(relateddocs=docstoreturn,response=responsegrp["result"])
     except:
         # Fallback to Similarity Search RAG
         searchchain = SIMILARITY_SEARCH_PROMPT | llm
         
-        response = searchchain.invoke({"question": data.query, "context": docs})
+        response = searchchain.invoke({"question": data.query, "context": docstoreturn})
         
         return UserQueryResponse(relateddocs=docstoreturn,response=response.content)
  
- #RETURN n LIMIT 25;
- 
- 
+
+# Precision Search
 @app.post("/precision")
 def get_precision_search_response(data: PrecisionQuery, response_model=PrecisionResponse):
     if(data.apisecretkey != API_SECRET_KEY):
