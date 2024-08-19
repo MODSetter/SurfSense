@@ -22,9 +22,11 @@ import { API_SECRET_KEY, BACKEND_URL } from "./env";
 export async function clearMem(): Promise<void> {
   try {
 
-    let result = await chrome.storage.local.get(["webhistory"]);
+    let webHistory = await chrome.storage.local.get(["webhistory"]);
+    let urlQueue = await chrome.storage.local.get(["urlQueueList"]);
+    let timeQueue = await chrome.storage.local.get(["timeQueueList"]);
 
-    if (!result.webhistory) {
+    if (!webHistory.webhistory) {
       return
     }
 
@@ -42,7 +44,21 @@ export async function clearMem(): Promise<void> {
 
   
       //Only retain which is still active
-      const newHistory = result.webhistory.map((element: any) => {
+      const newHistory = webHistory.webhistory.map((element: any) => {
+        //@ts-ignore
+        if (actives.includes(element.tabsessionId)) {
+          return element
+        }
+      })
+
+      const newUrlQueue = urlQueue.urlQueueList.map((element: any) => {
+        //@ts-ignore
+        if (actives.includes(element.tabsessionId)) {
+          return element
+        }
+      })
+
+      const newTimeQueue = timeQueue.timeQueueList.map((element: any) => {
         //@ts-ignore
         if (actives.includes(element.tabsessionId)) {
           return element
@@ -51,6 +67,8 @@ export async function clearMem(): Promise<void> {
 
 
       await chrome.storage.local.set({ webhistory: newHistory.filter((item: any) => item) });
+      await chrome.storage.local.set({ urlQueueList: newUrlQueue.filter((item: any) => item) });
+      await chrome.storage.local.set({ timeQueueList: newTimeQueue.filter((item: any) => item) });
 
       toast.info("History Store Deleted!", {
         position: "bottom-center"
