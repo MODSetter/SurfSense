@@ -10,8 +10,9 @@ Well when I’m browsing the internet, I tend to save a ton of content—but rem
 # Video
 
 
+https://github.com/user-attachments/assets/37985a8b-acbd-4fff-b276-512bbf0bf6aa
 
-https://github.com/user-attachments/assets/dd63bb04-6061-4331-a8e6-32a1a20bd350
+
 
 
 
@@ -24,6 +25,7 @@ https://github.com/user-attachments/assets/dd63bb04-6061-4331-a8e6-32a1a20bd350
 - 📊 **Use GraphRAG**: Utilize the power of GraphRAG to find meaningful relations in your saved content.
 - 🔟% **Cheap On Wallet**: Works Flawlessly with OpenAI gpt-4o-mini model.
 - 🕸️ **No WebScraping**: Extension directly reads the data from DOM.
+- 🔔 **Automatic Important Notifications**: Get critical notifications such as important meetings, invites etc.
 
 ## How to get started?
 
@@ -189,7 +191,8 @@ In Progress...........
 
 ## Future Work
 - Generalize the way SurfSense uses Graphs. Will soon make an integration with FalkorDB soon.
-- Saving Chats
+- Critical Notifications **[Done]**
+- Saving Chats **[Done]**
 - Basic keyword search page for saved sessions **[Done]**
 - Multi & Single Document Chat **[Done]**
 - Implement some tricks from GraphRAG papers to optimize current GraphRAG logic. 
