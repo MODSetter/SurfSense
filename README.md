@@ -5,7 +5,7 @@
 
 # SurfSense
 
-Well when I’m browsing the internet, I tend to save a ton of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is like a Knowledge Graph Brain 🧠 for anything you see ( 📱 Social Media Chats, 📅Calender Invites, 📧 Important Mails, ⚓ Tutorials, 😋 Recipies and anything ) on the World Wide Web. Now, you’ll never forget any browsing session. Easily capture your web browsing session and desired webpage content using an easy-to-use Chrome extension. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
+Well when I’m browsing the internet, I tend to save a ton of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is like a Knowledge Graph Brain 🧠 for anything you see (Social Media Chats, Calender Invites, Important Mails, Tutorials, Recipies and anything ) on the World Wide Web. Now, you’ll never forget any browsing session. Easily capture your web browsing session and desired webpage content using an easy-to-use Chrome extension. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
 
 # Video
 
