@@ -61,7 +61,13 @@ After Saving you should be able to use extension now.
 | Save to SurfSense | Processes the SurfSense History Store & Initiates a Save Job |
 
 4. Now just start browsing the Internet. Whatever you want to save any content take its Snapshot and save it to SurfSense. After Save Job is completed you are ready to ask anything about it to your Knowledge Graph Brain 🧠.
-5. Now go to SurfSense Chat Options at https://www.surfsense.net/chat & fill the Neo4j Credentials & OpenAPI Key if asked.
+5. Critical Notifications are automatically generated. Check them out at https://www.surfsense.net/notifications .
+
+
+![notifseg](https://github.com/user-attachments/assets/e7e23958-a57f-486c-a9af-c8f2cb2daba9)
+
+
+6. Now go to SurfSense Chat Options at https://www.surfsense.net/chat & fill the Neo4j Credentials & OpenAPI Key if asked.
 
 ![newchatwindow](https://github.com/user-attachments/assets/71cfabdb-b6ee-403e-9f74-53eef026064c)
 
