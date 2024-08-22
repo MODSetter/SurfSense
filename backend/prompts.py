@@ -120,6 +120,23 @@ VECTOR_QUERY_GENERATION_PROMT = PromptTemplate(
 )
 
 
+NOTIFICATION_GENERATION_TEMPLATE = """You are a highly attentive assistant. You are provided with a collection of User Browsing History Events containing page content. Your task is to thoroughly analyze these events and generate a concise list of critical notifications that the User must be aware of.
+
+User Browsing History Events Documents:
+{documents}
+
+Instructions:
+Return only the notification text, and nothing else.
+Exclude any notifications that are not essential.
+
+Response:"""
+
+NOTIFICATION_GENERATION_PROMT = PromptTemplate(
+    input_variables=["documents"], template=NOTIFICATION_GENERATION_TEMPLATE
+)
+
+
+
 
 
 

@@ -3,7 +3,7 @@
 
   "name": "SurfSense",
   "description": "Extension to collect Browsing History for SurfSense.",
-  "version": "0.0.2",
+  "version": "0.0.3",
 
   "action": {
     "default_popup": "popup.html"

@@ -216,7 +216,7 @@ export const Popup = () => {
           neouser: localStorage.getItem('neouser'),
           neopass: localStorage.getItem('neopass'),
           openaikey: localStorage.getItem('openaikey'),
-          apisecretkey: API_SECRET_KEY
+          token: localStorage.getItem('token')
         }
 
         // console.log("toSend",toSend)

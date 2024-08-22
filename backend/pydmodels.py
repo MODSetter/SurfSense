@@ -62,7 +62,7 @@ class RetrivedDocList(BaseModel):
     neouser: str
     neopass: str
     openaikey: str
-    apisecretkey: str
+    token: str
     
     
 class UserQueryResponse(BaseModel):
@@ -72,4 +72,33 @@ class UserQueryResponse(BaseModel):
 
 class VectorSearchQuery(BaseModel):
     searchquery: str
+    
+    
+class NewUserData(BaseModel):
+    token: str
+    userid: str
+    chats: str
+    notifications: str
+    
+class NewUserChat(BaseModel):
+    token: str
+    type: str
+    title: str
+    chats_list: str
+    
+    
+class ChatToUpdate(BaseModel):
+    chatid: str
+    token: str
+    # type: str
+    # title: str
+    chats_list: str
+    
+class GraphDocs(BaseModel):
+    documents: List[RetrivedDocListItem]
+    token: str
+    
+    
+class Notifications(BaseModel):
+    notifications: List[str]
     
