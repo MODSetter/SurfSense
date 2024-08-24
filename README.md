@@ -5,7 +5,7 @@
 
 # SurfSense
 
-Well when I’m browsing the internet, I tend to save a ton of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is like a Knowledge Graph Brain 🧠 for anything you see (Social Media Chats, Calender Invites, Important Mails, Tutorials, Recipies and anything ) on the World Wide Web. Now, you’ll never forget any browsing session. Easily capture your web browsing session and desired webpage content using an easy-to-use Chrome extension. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
+Well when I’m browsing the internet, I tend to save a ton of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is like a Knowledge Graph Brain 🧠 for anything you see (Social Media Chats, Calender Invites, Important Mails, Tutorials, Recipies and anything ) on the World Wide Web. Now, you’ll never forget any browsing session. Easily capture your web browsing session and desired webpage content using an easy-to-use cross browser extension. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
 
 # Video
 
@@ -32,6 +32,8 @@ https://github.com/user-attachments/assets/37985a8b-acbd-4fff-b276-512bbf0bf6aa
 Before we begin, we need to set up our Neo4j Graph Database. This is where SurfSense stores all your saved information. For a quick setup, I suggest getting your free Neo4j Aura DB from [https://neo4j.com/cloud/platform/aura-graph-database/](https://neo4j.com/cloud/platform/aura-graph-database/) or setting it up locally.
 
 After obtaining your Neo4j credentials, make sure to get your OpenAI API Key from [https://platform.openai.com/](https://platform.openai.com/).
+
+**UPDATE 24 AUGUST 2024:** Extension code is now migrated to Plasmo. You can use extension in any webbrowser. All Webstore links will be updated soon.
 
 1. Register Your SurfSense account at https://www.surfsense.net/signup
 2. Download SurfSense Extension from https://chromewebstore.google.com/detail/surfsense/jihmihbdpfjhppdlifphccgefjhifblf
@@ -147,20 +149,9 @@ Now lets setup the SurfSense BackEnd
 
 #### Extension
 
-After Setting up the BackEnd Lets do a quick build of the extension.
+**UPDATE:** Extension code is now migrated to Plasmo. Follow this guide to build for your target browser now : https://docs.plasmo.com/framework/workflows/build
 
-1. Go to ./extension subdirectory.
-2. Run `pnpm i` to install required dependencies.
-3. Update Env variables at `./src/env.tsx`
-
-|ENV VARIABLE|DESCRIPTION|
-|--|--|
-| API_SECRET_KEY | Same String value your set for Backend |
-| BACKEND_URL | Give hosted backend url here. Eg. `http://127.0.0.1:8000`|
-
-4. Run `pnpm run build` to build your extension. Build will be generated in `./dist` folder
-5. Enable Developer Mode in Chrome and load the extinction from `./dist` folder.
-6. Extension will load successfully.
+env eg in `.env.local`
 
 Now resister a quick user through Swagger API > Try it Out: http://127.0.0.1:8000/docs#/default/register_user_register_post
 
