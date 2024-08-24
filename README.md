@@ -19,6 +19,7 @@ https://github.com/user-attachments/assets/37985a8b-acbd-4fff-b276-512bbf0bf6aa
 ## Key Features
 
 - 💡 **Idea**: Save any content you see on the internet in your own Knowledge Graph.
+- ⚙️ **Cross Browser Extension**: Save content from your favourite browser.
 - 🔍 **Powerful Search**: Quickly find anything in your Web Browsing Sessions.
 - 💬 **Chat with your Web History**: Interact in Natural Language with your saved Web Browsing Sessions.
 - 🏠 **Self Hostable**: Open source and easy to deploy locally.
