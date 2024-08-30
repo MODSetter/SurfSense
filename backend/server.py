@@ -205,10 +205,10 @@ def get_precision_search_response(data: PrecisionQuery, response_model=Precision
     docsDict = {}
     
     for d in graphdocs:
-        if d['d']['BrowsingSessionId'] not in docsDict:
-            docsDict[d['d']['BrowsingSessionId']] = d['d']
+        if d['d']['VisitedWebPageVisitDurationInMilliseconds'] not in docsDict:
+            docsDict[d['d']['VisitedWebPageVisitDurationInMilliseconds']] = d['d']
         else:
-            docsDict[d['d']['BrowsingSessionId']]['text'] += d['d']['text']
+            docsDict[d['d']['VisitedWebPageVisitDurationInMilliseconds']]['text'] += d['d']['text']
             
     docs = []
     
