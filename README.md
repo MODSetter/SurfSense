@@ -31,7 +31,7 @@ https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 ## How to get started?
 **UPDATE 20 SEPTEMBER 2024:** 
 
- - SursSense now works on Hierarchical Indices.
+ - SurfSense now works on Hierarchical Indices.
  - Knowledge Graph dependency is removed for now until I find some better Graph RAG solutions.
  - Added support for Local LLMs
 
