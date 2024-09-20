@@ -1,144 +1,58 @@
 
 
-![header](https://github.com/user-attachments/assets/f5faf53e-799f-43dd-9470-6695bf2dea3e)
+![git-header](https://github.com/user-attachments/assets/1c4ed2dc-eacc-494f-b393-8ea6502189e5)
 
 
 # SurfSense
 
-Well when I’m browsing the internet, I tend to save a ton of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is like a Knowledge Graph Brain 🧠 for anything you see (Social Media Chats, Calender Invites, Important Mails, Tutorials, Recipies and anything ) on the World Wide Web. Now, you’ll never forget any browsing session. Easily capture your web browsing session and desired webpage content using an easy-to-use cross browser extension. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
+Well when I’m browsing the internet, I tend to save a ton of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is a Personal AI Assistant for anything you see (Social Media Chats, Calender Invites, Important Mails, Tutorials, Recipies and anything ) on the World Wide Web. Now, you’ll never forget any browsing session. Easily capture your web browsing session and desired webpage content using an easy-to-use cross browser extension. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
 
 # Video
 
 
-https://github.com/user-attachments/assets/37985a8b-acbd-4fff-b276-512bbf0bf6aa
 
 
+https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 
 
 
 ## Key Features
 
-- 💡 **Idea**: Save any content you see on the internet in your own Knowledge Graph.
+- 💡 **Idea**: Save any content you see on the internet in your own personal knowledge base.
 - ⚙️ **Cross Browser Extension**: Save content from your favourite browser.
 - 🔍 **Powerful Search**: Quickly find anything in your Web Browsing Sessions.
 - 💬 **Chat with your Web History**: Interact in Natural Language with your saved Web Browsing Sessions.
+- 🔔 **Local LLM Support**: Works Flawlessly with Ollama local LLMs.
 - 🏠 **Self Hostable**: Open source and easy to deploy locally.
-- 📊 **Use GraphRAG**: Utilize the power of GraphRAG to find meaningful relations in your saved content.
-- 🔟% **Cheap On Wallet**: Works Flawlessly with OpenAI gpt-4o-mini model.
-- 🕸️ **No WebScraping**: Extension directly reads the data from DOM.
-- 🔔 **Automatic Important Notifications**: Get critical notifications such as important meetings, invites etc.
+- 📊 **Advanced RAG Techniques**: Utilize the power of Advanced RAG Techniques.
+- 🔟% **Cheap On Wallet**: Works Flawlessly with OpenAI gpt-4o-mini model and Ollama local LLMs.
+- 🕸️ **No WebScraping**: Extension directly reads the data from DOM to get accurate data.
 
 ## How to get started?
+**UPDATE 20 SEPTEMBER 2024:** 
 
-Before we begin, we need to set up our Neo4j Graph Database. This is where SurfSense stores all your saved information. For a quick setup, I suggest getting your free Neo4j Aura DB from [https://neo4j.com/cloud/platform/aura-graph-database/](https://neo4j.com/cloud/platform/aura-graph-database/) or setting it up locally.
+ - SursSense now works on Hierarchical Indices.
+ - Knowledge Graph dependency is removed for now until I find some better Graph RAG solutions.
+ - Added support for Local LLMs
 
-After obtaining your Neo4j credentials, make sure to get your OpenAI API Key from [https://platform.openai.com/](https://platform.openai.com/).
+Until I find a good host for my backend you need to setup SurfSense locally for now. 
 
-**UPDATE 24 AUGUST 2024:** Extension code is now migrated to Plasmo. You can use extension in any webbrowser. All Webstore links will be updated soon.
-
-1. Register Your SurfSense account at https://www.surfsense.net/signup
-2. Download SurfSense Extension from https://chromewebstore.google.com/detail/surfsense/jihmihbdpfjhppdlifphccgefjhifblf
-
-Now you are ready to use SurfSense. Start by first logging into the Extension.
-
-When you start the extension you should see a Login page like this
-
-![extension login](https://i.ibb.co/qkkR5Lt/extlogin.png)
-
-
-
-After logging in you will need to fill your Neo4j Credentials & OpenAPI Key.
-
-![settings](https://i.ibb.co/j5PT171/extreqvalues.png)
-
-
-
-After Saving you should be able to use extension now.
-
-![main](https://i.ibb.co/pvHCDSb/extmain.png)
-
-|Options|Explanations|
-|--|--|
-| Clear Inactive History Sessions | It clears the saved content for Inactive Tab Sessions.  |
-| Save Current Webpage Snapshot | Stores the current webpage session info into SurfSense history store|
-| Save to SurfSense | Processes the SurfSense History Store & Initiates a Save Job |
-
-4. Now just start browsing the Internet. Whatever you want to save any content take its Snapshot and save it to SurfSense. After Save Job is completed you are ready to ask anything about it to your Knowledge Graph Brain 🧠.
-5. Critical Notifications are automatically generated. Check them out at https://www.surfsense.net/notifications .
-
-
-![notifseg](https://github.com/user-attachments/assets/e7e23958-a57f-486c-a9af-c8f2cb2daba9)
-
-
-6. Now go to SurfSense Chat Options at https://www.surfsense.net/chat & fill the Neo4j Credentials & OpenAPI Key if asked.
-
-![newchatwindow](https://github.com/user-attachments/assets/71cfabdb-b6ee-403e-9f74-53eef026064c)
-
-
-|OPTIONS|DESCRIPTION|
-|--|--|
-| Precision Chat | Used for detailed search and chatting with your saved web sessions and their content. |
-| General Chat | Used for general questions about your content. Doesn't work well with Dates & Time.|
-
-### Chat Screenshots
----
-#### PRECISION
-
-##### Search
-
-![precision search](https://github.com/user-attachments/assets/88d32490-e8e8-4aec-bff4-8c3c42dc0e86)
-
-
-##### Results
-
-![pretable](https://github.com/user-attachments/assets/a4f90b6b-a455-43ee-85fa-1f74514b5854)
-
-
-##### Multi Webpage Chat
-
-
-![multichat](https://github.com/user-attachments/assets/57753233-23d6-4e59-a693-0380429f0987)
-
----
-
-#### GENERAL
-As an example lets visit : https://myanimelist.net/anime/season (Summer 2024 Anime atm) and save it to SurfSense.
-
-Now lets ask SurfSense "Give list of summer 2024 animes with images."
-
-Sample Response:
-
-![res](https://i.ibb.co/k23FHzs/frontres.png)
-
-Now Let's ask it more information about our related session.
-
-![more](https://i.ibb.co/PWzM97G/front-more-info.png)
-
-Sample More Description Response:
-
-![res](https://i.ibb.co/cYtWJbB/more-info-out.png)
-
-  
-
-
-
-### Local Setup Guide
-
-#### Backend
+### Backend
 
 For authentication purposes, you’ll also need a PostgreSQL instance running on your machine.
 
 Now lets setup the SurfSense BackEnd
 1. Clone this repo.
 2. Go to ./backend subdirectory.
-3. Setup Python Virtual Enviroment
+3. Setup Python Virtual Environment
 4. Run `pip install -r requirements.txt` to install all required dependencies.
-5. Update the required Environment variables in envs.py
+5. Update/Make the required Environment variables in .env
  
 |ENV VARIABLE|Description  |
 |--|--|
+| IS_LOCAL_SETUP | 'true' for Ollama mistral-nemo or 'false' from OpenAI gpt-4o-mini|
 | POSTGRES_DATABASE_URL | postgresql+psycopg2://user:pass@host:5432/database|
-| API_SECRET_KEY | Can be any Random String value. Make Sure to remember it for as you need to send it in request to Backend for security purposes.|
+| API_SECRET_KEY | Can be any Random String value. Make Sure to remember it for as you need to send it in user registration request to Backend for security purposes.|
 
 
 6. Backend is a FastAPI Backend so now just run the server on unicorn using command `uvicorn server:app --host 0.0.0.0 --port 8000`
@@ -148,25 +62,13 @@ Now lets setup the SurfSense BackEnd
 
 ---
 
-#### Extension
-
-**UPDATE:** Extension code is now migrated to Plasmo. Follow this guide to build for your target browser now : https://docs.plasmo.com/framework/workflows/build
-
-env eg in `.env.local`
-
-Now resister a quick user through Swagger API > Try it Out: http://127.0.0.1:8000/docs#/default/register_user_register_post
-
-Make Sure in request body `"apisecretkey"` value is same value as `API_SECRET_KEY` we been assigning.
-
----
-
-#### FrontEnd
+### FrontEnd
 
 For local frontend setup just fill out the `.env` file of frontend.
 
 |ENV VARIABLE|DESCRIPTION|
 |--|--|
-| NEXT_PUBLIC_API_SECRET_KEY | Same String value your set for Backend & Extension |
+| NEXT_PUBLIC_API_SECRET_KEY | Same String value your set for Backend |
 | NEXT_PUBLIC_BACKEND_URL | Give hosted backend url here. Eg. `http://127.0.0.1:8000`|
 | NEXT_PUBLIC_RECAPTCHA_SITE_KEY | Google Recaptcha v2 Client Key |
 | RECAPTCHA_SECRET_KEY | Google Recaptcha v2 Server Key|
@@ -175,12 +77,80 @@ and run it using `pnpm run dev`
 
 You should see your Next.js frontend running at `localhost:3000`
 
+**Make sure to register a account from frontend so you can login to extension.**
+
 ---
+
+### Extension
+
+Extension is in plasmo framework which is a cross browser extension framework.
+
+For building extension just fill out the `.env` file of frontend.
+
+|ENV VARIABLE|DESCRIPTION|
+|--|--|
+| PLASMO_PUBLIC_BACKEND_URL| SurfSense Backend URL eg. "http://127.0.0.1:8000" |
+
+Build the extension for your favorite browser using this guide: https://docs.plasmo.com/framework/workflows/build#with-a-specific-target 
+
+When you load and start the extension you should see a Login page like this
+
+![extension login](https://i.ibb.co/qkkR5Lt/extlogin.png)
+
+
+
+After logging in you will need to fill your OpenAPI Key. Fill random value if you are using Ollama.
+
+
+![ext-settings](https://github.com/user-attachments/assets/49d8aa30-0ae1-4065-b504-e7e84dfb0d19)
+
+
+After Saving you should be able to use extension now.
+
+![ext-home](https://github.com/user-attachments/assets/34c6dc54-6853-4ef5-a74e-03f7ab555e42)
+
+
+|Options|Explanations|
+|--|--|
+| Search Space | Think of it like a category tag for the webpages you want to save.  |
+| Clear Inactive History Sessions | It clears the saved content for Inactive Tab Sessions.  |
+| Save Current Webpage Snapshot | Stores the current webpage session info into SurfSense history store|
+| Save to SurfSense | Processes the SurfSense History Store & Initiates a Save Job |
+
+4. Now just start browsing the Internet. Whatever you want to save any content take its Snapshot and save it to SurfSense. After Save Job is completed you are ready to ask anything about it to SurfSense 🧠.
+
+6. Now go to SurfSense Dashboard After Logging in.
+
+|DASHBOARD OPTIONS|DESCRIPTION|
+|--|--|
+| Playground | See saved documents and can have chat with multiple docs. |
+| Search Space Chat | Used for questions about your content in particular search space.|
+| Saved Chats | All your saved chats.|
+| Settings | If you want to update your Open API key.|
+
+## Screenshots
+
+#### Playground
+
+![front-dash](https://github.com/user-attachments/assets/fabcb78b-9bab-4b14-90e7-efb63addf237)
+
+#### Search Spaces Chat (Ollama LLM)
+
+![space-localllm](https://github.com/user-attachments/assets/b43c2e86-3bfe-4f09-8683-cb60f53ec4ca)
+![front-spacechat](https://github.com/user-attachments/assets/3feb6942-518b-4100-adef-25edc67ff877)
+
+#### Multiple Document Chat (Ollama LLM)
+
+![multidocs-localllm](https://github.com/user-attachments/assets/453a4406-1757-47f2-83d3-faf1b08f3d9d)
+
+#### Saved Chats
+
+![front-savedchat](https://github.com/user-attachments/assets/a6e1df2b-0b5e-4b46-93fd-416f51905064)
 
 
 ##  Tech Stack
 
- - **Extenstion** : Chrome Manifest v3
+ - **Extenstion** : Manifest v3 on Plasmo
  - **BackEnd** : FastAPI with LangChain
  - **FrontEnd**: Next.js with Aceternity.
 
@@ -188,14 +158,15 @@ You should see your Next.js frontend running at `localhost:3000`
 In Progress...........
 
 ## Future Work
-- Based on feedback, I will work on making it compatible with local models.
+- Implement Canvas. 
+- Add support for file uploads QA.
+- Based on feedback, I will work on making it compatible with local models. **[Done]**
 - Cross Browser Extension **[Done]**
-- Generalize the way SurfSense uses Graphs. Will soon make an integration with FalkorDB soon.
-- Critical Notifications **[Done]**
+- Critical Notifications **[Done | PAUSED]**
 - Saving Chats **[Done]**
 - Basic keyword search page for saved sessions **[Done]**
 - Multi & Single Document Chat **[Done]**
-- Implement some tricks from GraphRAG papers to optimize current GraphRAG logic. 
+
 
 ## Contribute 
 
