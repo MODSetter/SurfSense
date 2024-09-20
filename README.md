@@ -160,6 +160,7 @@ In Progress...........
 ## Future Work
 - Implement Canvas. 
 - Add support for file uploads QA.
+- Shift to WebSockets for Streaming responses.
 - Based on feedback, I will work on making it compatible with local models. **[Done]**
 - Cross Browser Extension **[Done]**
 - Critical Notifications **[Done | PAUSED]**
