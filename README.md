@@ -77,7 +77,7 @@ and run it using `pnpm run dev`
 
 You should see your Next.js frontend running at `localhost:3000`
 
-**Make sure to register a account from frontend so you can login to extension.**
+**Make sure to register an account from frontend so you can login to extension.**
 
 ---
 
