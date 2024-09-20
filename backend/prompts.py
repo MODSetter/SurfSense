@@ -1,5 +1,4 @@
 from langchain_core.prompts.prompt import PromptTemplate
-from langchain_core.prompts import ChatPromptTemplate
 from datetime import datetime, timezone
 
 
@@ -7,133 +6,54 @@ from datetime import datetime, timezone
 
 DATE_TODAY = "Today's date is " + datetime.now(timezone.utc).astimezone().isoformat() + '\n'
 
-GRAPH_QUERY_GEN_TEMPLATE = DATE_TODAY + """You are a top tier Prompt Engineering Expert.
-A User's Data is stored in a Knowledge Graph.
-Your main task is to read the User Question below and give a optimized Question prompt in Natural Language.
-Question prompt will be used by a LLM to easlily get data from Knowledge Graph's.
+# Create a prompt template for sub-query decomposition
+SUBQUERY_DECOMPOSITION_TEMPLATE = DATE_TODAY + """You are an AI assistant tasked with breaking down complex queries into simpler sub-queries for a vector store.
+Given the original query, decompose it into 2-4 simpler sub-queries for vector search that helps in expanding context.
 
-Make sure to only return the promt text thats it. Never change the meaning of users question.
+Original query: {original_query}
 
-Here are the examples of the User's Data Documents that is stored in Knowledge Graph:
-{context}
+IMPORTANT INSTRUCTION: Make sure to only return sub-queries and no explanation.
 
-Note: Do not include any explanations or apologies in your responses.
-Do not include any text except the generated promt text.
+EXAMPLE: 
 
-Question: {question}
-Prompt For Cypher Query Construction:"""
+User Query: What are the impacts of climate change on the environment?
 
-GRAPH_QUERY_GEN_PROMPT = PromptTemplate(
-    input_variables=["context", "question"], template=GRAPH_QUERY_GEN_TEMPLATE
-)
-
-CYPHER_QA_TEMPLATE = DATE_TODAY + """You are an assistant that helps to form nice and human understandable answers.
-The information part contains the provided information that you must use to construct an answer.
-The provided information is authoritative, you must never doubt it or try to use your internal knowledge to correct it.
-Make the answer sound as a response to the question. Do not mention that you based the result on the given information.
-Only give the answer if it satisfies the user requirements in Question. Else return exactly 'don't know' as answer.
-
-Here are the examples:
-
-Question: What type of general topics I explore the most?
-Context:[['Topic': 'Langchain', 'topicCount': 5], ['Topic': 'Graphrag', 'topicCount': 2], ['Topic': 'Ai', 'topicCount': 2], ['Topic': 'Fastapi', 'topicCount': 2], ['Topic': 'Nextjs', 'topicCount': 1]]
-Helpful Answer: You mostly explore about Langchain, Graphrag, Ai, Fastapi and Nextjs.
-
-Follow this example when generating answers.
-If the provided information is empty or incomplete, return exactly 'don't know' as answer.
-
-Information:
-{context}
-
-Question: {question}
-Helpful Answer:"""
-
-CYPHER_QA_PROMPT = PromptTemplate(
-    input_variables=["context", "question"], template=CYPHER_QA_TEMPLATE
-)
-
-SIMILARITY_SEARCH_RAG = DATE_TODAY + """You are an assistant for question-answering tasks. 
-Use the following pieces of retrieved context to answer the question. 
-If you don't know the answer, return exactly 'don't know' as answer.
-Question: {question} 
-Context: {context} 
-Answer:"""
-
-
-SIMILARITY_SEARCH_PROMPT = PromptTemplate(
-    input_variables=["context", "question"], template=SIMILARITY_SEARCH_RAG
-)
-
-# doc_extract_chain = DOCUMENT_METADATA_EXTRACTION_PROMT | structured_llm
-
-
-CYPHER_GENERATION_TEMPLATE = DATE_TODAY + """Task:Generate Cypher statement to query a graph database.
-Instructions:
-Use only the provided relationship types and properties in the schema.
-Do not use any other relationship types or properties that are not provided.
-
-Schema:
-{schema}
-Note: Do not include any explanations or apologies in your responses.
-Do not respond to any questions that might ask anything else than for you to construct a Cypher statement.
-Do not include any text except the generated Cypher statement.
-
-The question is:
-{question}"""
-CYPHER_GENERATION_PROMPT = PromptTemplate(
-    input_variables=["schema", "question"], template=CYPHER_GENERATION_TEMPLATE
-)
-
-
-DOC_DESCRIPTION_TEMPLATE = DATE_TODAY + """Task:Give Detailed Description of the page content of the given document.
-Instructions:
-Provide as much details about metadata & page content as if you need to give human readable report of this Browsing session event. 
-
-Document:
-{document}
+AI Answer: 
+What are the impacts of climate change on biodiversity?
+How does climate change affect the oceans?
+What are the effects of climate change on agriculture?
+What are the impacts of climate change on human health?
 """
-DOC_DESCRIPTION_PROMPT = PromptTemplate(
-    input_variables=["document"], template=DOC_DESCRIPTION_TEMPLATE
+
+# SUBQUERY_DECOMPOSITION_TEMPLATE_TWO = DATE_TODAY + """You are an AI language model assistant. Your task is to generate five 
+#     different versions of the given user question to retrieve relevant documents from a vector 
+#     database. By generating multiple perspectives on the user question, your goal is to help
+#     the user overcome some of the limitations of the distance-based similarity search. 
+#     Provide these alternative questions separated by newlines.
+#     Original question: {original_query}"""
+
+
+SUBQUERY_DECOMPOSITION_PROMT = PromptTemplate(
+    input_variables=["original_query"],
+    template=SUBQUERY_DECOMPOSITION_TEMPLATE
 )
 
+CONTEXT_ANSWER_TEMPLATE = DATE_TODAY + """You are a phd in english litrature. You are given the task to give detailed report and explanation to the user query based on the given context.
 
-DOCUMENT_METADATA_EXTRACTION_SYSTEM_MESSAGE = DATE_TODAY + """You are a helpful assistant. You are given a Cypher statement result after quering the Neo4j graph database.
-Generate a very good Query that can be used to perform similarity search on the vector store of the Neo4j graph database"""
+IMPORTANT INSTRUCTION: Only return answer if you can find it in given context otherwise just say you don't know.
 
-DOCUMENT_METADATA_EXTRACTION_PROMT = ChatPromptTemplate.from_messages([("system", DOCUMENT_METADATA_EXTRACTION_SYSTEM_MESSAGE), ("human", "{input}")])
-
-
-
-VECTOR_QUERY_GENERATION_TEMPLATE = DATE_TODAY + """You are a helpful assistant. You are given a user query and the examples of document on which user is asking query about.
-Give instruction to machine how to search for the data based on user query.
-
-Document Examples:
-{examples}
-
-Note: Only return the Query and nothing else. No explanation.
+Context: {context}
 
 User Query: {query}
-Helpful Answer:"""
+Detailed Report:"""
 
-VECTOR_QUERY_GENERATION_PROMT = PromptTemplate(
-    input_variables=["examples", "query"], template=VECTOR_QUERY_GENERATION_TEMPLATE
+
+CONTEXT_ANSWER_PROMPT = PromptTemplate(
+    input_variables=["context","query"],
+    template=CONTEXT_ANSWER_TEMPLATE
 )
 
 
-NOTIFICATION_GENERATION_TEMPLATE = """You are a highly attentive assistant. You are provided with a collection of User Browsing History Events containing page content. Your task is to thoroughly analyze these events and generate a concise list of critical notifications that the User must be aware of.
-
-User Browsing History Events Documents:
-{documents}
-
-Instructions:
-Return only the notification text, and nothing else.
-Exclude any notifications that are not essential.
-
-Response:"""
-
-NOTIFICATION_GENERATION_PROMT = PromptTemplate(
-    input_variables=["documents"], template=NOTIFICATION_GENERATION_TEMPLATE
-)
 
 
 

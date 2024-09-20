@@ -1,3 +1,5 @@
+python-dotenv
+pydantic
 bcrypt
 cryptography
 fastapi
@@ -11,5 +13,7 @@ langchain-core
 langchain-community
 langchain-experimental
 langchain_openai
+langchain_ollama
+langchain_chroma
+flashrank
 psycopg2
-neo4j
