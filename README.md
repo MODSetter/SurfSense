@@ -21,7 +21,7 @@ https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 - 💡 **Idea**: Save any content you see on the internet in your own personal knowledge base.
 - ⚙️ **Cross Browser Extension**: Save content from your favourite browser.
 - 🔍 **Powerful Search**: Quickly find anything in your Web Browsing Sessions.
-- 💬 **Chat with your Web History**: Interact in Natural Language with your saved Web Browsing Sessions.
+- 💬 **Chat with your Web History**: Interact in Natural Language with your saved Web Browsing Sessions and get cited answers.
 - 🔔 **Local LLM Support**: Works Flawlessly with Ollama local LLMs.
 - 🏠 **Self Hostable**: Open source and easy to deploy locally.
 - 📊 **Advanced RAG Techniques**: Utilize the power of Advanced RAG Techniques.
@@ -136,7 +136,8 @@ After Saving you should be able to use extension now.
 
 #### Search Spaces Chat (Ollama LLM)
 
-![space-localllm](https://github.com/user-attachments/assets/b43c2e86-3bfe-4f09-8683-cb60f53ec4ca)
+![citations](https://github.com/user-attachments/assets/14263161-0ea9-41ea-a3e9-587e95828815)
+
 ![front-spacechat](https://github.com/user-attachments/assets/3feb6942-518b-4100-adef-25edc67ff877)
 
 #### Multiple Document Chat (Ollama LLM)
