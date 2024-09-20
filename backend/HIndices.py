@@ -215,9 +215,7 @@ class HIndices:
             db.commit()
         
         return "success"
-            
-            
-            
+                       
     def is_query_answerable(self, query, context):
         prompt = PromptTemplate(
             template="""You are a grader assessing relevance of a retrieved document to a user question. \n 
@@ -263,7 +261,18 @@ class HIndices:
             
             context_to_answer = ""
             for i, doc in enumerate(contextdocs):
-                context_to_answer += "DOCUMENT " + str(i) + " PAGECONTENT CHUCK: \n\n ===================================== \n\n" + doc.page_content + '\n\n ==============================================='
+                content = f":DOCUMENT {str(i)}\n"
+                content += f"=======================================METADATA==================================== \n"
+                content += f"Webpage Url : {doc.metadata['VisitedWebPageURL']} \n"
+                content += f"Webpage Title : {doc.metadata['VisitedWebPageTitle']} \n"
+                content += f"Accessed on (Date With Time In ISO String): {doc.metadata['VisitedWebPageDateWithTimeInISOString']} \n"
+                content += f"===================================================================================== \n"
+                content += f"Webpage CONTENT CHUCK: \n\n {doc.page_content} \n\n"
+                content += f"===================================================================================== \n"
+                
+                context_to_answer += content
+                
+                content = ""
                 
             if(self.is_query_answerable(query=query, context=context_to_answer).lower() == 'yes'):
                 ans_chain = CONTEXT_ANSWER_PROMPT | self.llm
@@ -290,8 +299,17 @@ class HIndices:
         
         context_to_answer = ""
         for i, doc in enumerate(top_summaries_compressed_docs):
-            context_to_answer += "DOCUMENT " + str(i) + " PAGECONTENT: \n\n ===================================== \n\n" + doc.page_content + '\n\n ==============================================='
+            content = f":DOCUMENT {str(i)}\n"
+            content += f"=======================================METADATA==================================== \n"
+            content += f"Webpage Url : {doc.metadata['VisitedWebPageURL']} \n"
+            content += f"Webpage Title : {doc.metadata['VisitedWebPageTitle']} \n"
+            content += f"Accessed on (Date With Time In ISO String): {doc.metadata['VisitedWebPageDateWithTimeInISOString']} \n"
+            content += f"===================================================================================== \n"
+            content += f"Webpage CONTENT CHUCK: \n\n {doc.page_content} \n\n"
+            content += f"===================================================================================== \n"
             
+            context_to_answer += content
+                
         ans_chain = CONTEXT_ANSWER_PROMPT | self.llm
         
         finalans = ans_chain.invoke({"query": query, "context": context_to_answer})

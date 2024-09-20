@@ -38,7 +38,7 @@ SUBQUERY_DECOMPOSITION_PROMT = PromptTemplate(
     template=SUBQUERY_DECOMPOSITION_TEMPLATE
 )
 
-CONTEXT_ANSWER_TEMPLATE = DATE_TODAY + """You are a phd in english litrature. You are given the task to give detailed report and explanation to the user query based on the given context.
+CONTEXT_ANSWER_TEMPLATE = DATE_TODAY + """You are a phd in english litrature. You are given the task to give detailed research report and explanation to the user query based on the given context.
 
 IMPORTANT INSTRUCTION: Only return answer if you can find it in given context otherwise just say you don't know.
 
@@ -47,10 +47,27 @@ Context: {context}
 User Query: {query}
 Detailed Report:"""
 
+ANSWER_WITH_CITATIONS = DATE_TODAY + """You're a helpful AI assistant. Given a user question and some Webpage article snippets, \
+answer the user question and provide citations. If none of the articles answer the question, just say you don't know.
+
+Remember, you must return both an answer and citations. Citation information is in given Document Metadata.
+A citation consists of a “Web Page Title.” Website Name, URL. Accessed Day Month Year.
+
+Citations Example: 
+Citations
+1. “Citing Sources in Academic Writing.” Scribbr. www.scribbr.com/category/citing-sources/. Accessed 4 March 2021.
+2. “What is SEO?” Backlinko. www.backlinko.com/seo. Accessed 10 March 2022.
+
+Here are the Webpage article snippets:
+{context}
+
+User Query: {query}
+Your Answer:"""
+
 
 CONTEXT_ANSWER_PROMPT = PromptTemplate(
     input_variables=["context","query"],
-    template=CONTEXT_ANSWER_TEMPLATE
+    template=ANSWER_WITH_CITATIONS
 )
 
 
