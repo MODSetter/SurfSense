@@ -12,6 +12,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - surfsense-network
+    ports:
+      - "5432:5432"
 
   # Backend Service (FastAPI)
   backend:
@@ -23,6 +25,7 @@ services:
       - ./backend/.env
     depends_on:
       - db
+    privileged: true
     networks:
       - surfsense-network
 

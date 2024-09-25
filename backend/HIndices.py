@@ -23,16 +23,26 @@ IS_LOCAL_SETUP = os.environ.get("IS_LOCAL_SETUP")
 
 # Dependency
 def get_db():
+    """
+    Dependency to get a database session.
+    
+    Yields:
+        Session: A SQLAlchemy database session.
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-        
 
 class HIndices:
     def __init__(self, username, api_key='local'):
         """
+        Initialize the HIndices object.
+        
+        Args:
+            username (str): The username for the indices.
+            api_key (str, optional): API key for non-local setups. Defaults to 'local'.
         """
         self.username = username
         if(IS_LOCAL_SETUP == 'true'):
