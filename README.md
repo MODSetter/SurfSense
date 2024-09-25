@@ -128,6 +128,9 @@ After Saving you should be able to use extension now.
 | Saved Chats | All your saved chats.|
 | Settings | If you want to update your Open API key.|
 
+### Docker Support
+Afer setting SurfSense-Frontend/.env and backend/.env run `docker-compose build --no-cache`. After building image run `docker-compose up -d`
+
 ## Screenshots
 
 #### Playground

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: your_postgres_user
+      POSTGRES_PASSWORD: your_postgres_password
+      POSTGRES_DB: surfsense_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - surfsense-network
+
+  # Backend Service (FastAPI)
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+    networks:
+      - surfsense-network
+
+  # Frontend Service (Next.js)
+  frontend:
+    build:
+      context: ./SurfSense-Frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./SurfSense-Frontend/.env
+    networks:
+      - surfsense-network
+
+# Volumes for persistent storage
+volumes:
+  postgres_data:
+
+# Docker network
+networks:
+  surfsense-network:
+    driver: bridge
