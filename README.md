@@ -29,6 +29,20 @@ https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 - 🕸️ **No WebScraping**: Extension directly reads the data from DOM to get accurate data.
 
 ## How to get started?
+---
+**UPDATE 25 SEPTEMBER 2024:** 
+
+ - Thanks [@hnico21](https://github.com/hnico21) for adding Docker Support
+   
+### Docker Support
+
+1. Setup `SurfSense-Frontend/.env` and `backend/.env`
+2. Run `docker-compose build --no-cache`.
+3. After building image run `docker-compose up -d`
+4. Now connect the extension with docker live backend url by updating `ss-cross-browser-extension/.env` and building it.
+
+---
+   
 **UPDATE 20 SEPTEMBER 2024:** 
 
  - SurfSense now works on Hierarchical Indices.
@@ -37,6 +51,7 @@ https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 
 Until I find a good host for my backend you need to setup SurfSense locally for now. 
 
+---
 ### Backend
 
 For authentication purposes, you’ll also need a PostgreSQL instance running on your machine.
@@ -128,8 +143,6 @@ After Saving you should be able to use extension now.
 | Saved Chats | All your saved chats.|
 | Settings | If you want to update your Open API key.|
 
-### Docker Support
-Afer setting SurfSense-Frontend/.env and backend/.env run `docker-compose build --no-cache`. After building image run `docker-compose up -d`
 
 ## Screenshots
 
