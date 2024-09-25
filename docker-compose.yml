@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: surfsense_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
       - surfsense-network
 
@@ -23,6 +25,7 @@ services:
       - ./backend/.env
     depends_on:
       - db
+    # privileged: true #when backend is pointing to the hostmaschine with localhost or 127.0.0.1 you need to add privileged: true else the container points at itself
     networks:
       - surfsense-network
 
