@@ -36,6 +36,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
 ALGORITHM = os.environ.get("ALGORITHM")
 API_SECRET_KEY = os.environ.get("API_SECRET_KEY")
 SECRET_KEY = os.environ.get("SECRET_KEY")
+UNSTRUCTURED_API_KEY = os.environ.get("UNSTRUCTURED_API_KEY")
 
 app = FastAPI()
 
@@ -65,7 +66,7 @@ async def upload_files(files: list[UploadFile], token: str = Depends(oauth2_sche
             
             loader = UnstructuredLoader(
                     file=file.file, 
-                    api_key="nWDzKHygqnQzbb1pBsxYnMoQ3nQBja",
+                    api_key=UNSTRUCTURED_API_KEY,
                     partition_via_api=True,
                     chunking_strategy="basic",
                     max_characters=90000,

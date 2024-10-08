@@ -75,6 +75,7 @@ Now lets setup the SurfSense BackEnd
 |ENV VARIABLE|Description  |
 |--|--|
 | IS_LOCAL_SETUP | 'true' for Ollama mistral-nemo or 'false' from OpenAI gpt-4o-mini|
+| UNSTRUCTURED_API_KEY | Your Unstructured IO API Key. Use any value if running a local instance or file upload support isn't needed.|
 | POSTGRES_DATABASE_URL | postgresql+psycopg2://user:pass@host:5432/database|
 | API_SECRET_KEY | Can be any Random String value. Make Sure to remember it for as you need to send it in user registration request to Backend for security purposes.|
 
