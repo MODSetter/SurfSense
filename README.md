@@ -35,18 +35,10 @@ https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 - SurfSense now lets you upload your own files such as pdfs, docx, images etc into your SurfSense Knowledge Base.
 - SurfSense uses [Unstructured-IO](https://github.com/Unstructured-IO/unstructured) to support files.
 
----
+
 **UPDATE 25 SEPTEMBER 2024:** 
  - Thanks [@hnico21](https://github.com/hnico21) for adding Docker Support
-   
-### Docker Setup
 
-1. Setup `SurfSense-Frontend/.env` and `backend/.env`
-2. Run `docker-compose build --no-cache`.
-3. After building image run `docker-compose up -d`
-4. Now connect the extension with docker live backend url by updating `ss-cross-browser-extension/.env` and building it.
-
----
    
 **UPDATE 20 SEPTEMBER 2024:** 
 
@@ -57,9 +49,21 @@ https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 Until I find a good host for my backend you need to setup SurfSense locally for now. 
 
 ---
+
+### Docker Setup
+
+1. Setup `SurfSense-Frontend/.env` and `backend/.env`
+2. Run `docker-compose build --no-cache`.
+3. After building image run `docker-compose up -d`
+4. Now connect the extension with docker live backend url by updating `ss-cross-browser-extension/.env` and building it.
+
+
+---
 ### Backend
 
 For authentication purposes, you’ll also need a PostgreSQL instance running on your machine.
+
+**UPDATE** : SurfSense now supports uploading various file types. To enable this feature, please set up the Unstructured.io library. You can follow the setup guide here: https://github.com/Unstructured-IO/unstructured?tab=readme-ov-file#installing-the-library
 
 Now lets setup the SurfSense BackEnd
 1. Clone this repo.
