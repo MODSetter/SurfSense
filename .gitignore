@@ -18,6 +18,7 @@ backend/examples
 backend/old
 backend/RAGAgent
 backend/testfiles
+backend/.env
 
 vectorstores/*
 vectorstores/
