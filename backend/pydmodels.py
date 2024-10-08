@@ -14,14 +14,18 @@ class DocMeta(BaseModel):
     VisitedWebPageReffererURL: Optional[str] = Field(default=None, description="VisitedWebPageReffererURL of Document")
     VisitedWebPageVisitDurationInMilliseconds: Optional[int] = Field(default=None, description="VisitedWebPageVisitDurationInMilliseconds of Document"),
     
+# class DocWithContent(BaseModel):
+#     BrowsingSessionId: Optional[str] = Field(default=None, description="BrowsingSessionId of Document")
+#     VisitedWebPageURL: Optional[str] = Field(default=None, description="VisitedWebPageURL of Document")
+#     VisitedWebPageTitle: Optional[str] = Field(default=None, description="VisitedWebPageTitle of Document")
+#     VisitedWebPageDateWithTimeInISOString: Optional[str] = Field(default=None, description="VisitedWebPageDateWithTimeInISOString of Document")
+#     VisitedWebPageReffererURL: Optional[str] = Field(default=None, description="VisitedWebPageReffererURL of Document")
+#     VisitedWebPageVisitDurationInMilliseconds: Optional[int] = Field(default=None, description="VisitedWebPageVisitDurationInMilliseconds of Document"),
+#     VisitedWebPageContent: Optional[str] = Field(default=None, description="Visited WebPage Content in markdown of Document")
+
 class DocWithContent(BaseModel):
-    BrowsingSessionId: Optional[str] = Field(default=None, description="BrowsingSessionId of Document")
-    VisitedWebPageURL: Optional[str] = Field(default=None, description="VisitedWebPageURL of Document")
-    VisitedWebPageTitle: Optional[str] = Field(default=None, description="VisitedWebPageTitle of Document")
-    VisitedWebPageDateWithTimeInISOString: Optional[str] = Field(default=None, description="VisitedWebPageDateWithTimeInISOString of Document")
-    VisitedWebPageReffererURL: Optional[str] = Field(default=None, description="VisitedWebPageReffererURL of Document")
-    VisitedWebPageVisitDurationInMilliseconds: Optional[int] = Field(default=None, description="VisitedWebPageVisitDurationInMilliseconds of Document"),
-    VisitedWebPageContent: Optional[str] = Field(default=None, description="Visited WebPage Content in markdown of Document")
+    DocMetadata: Optional[str] = Field(default=None, description="Document Metadata")
+    Content: Optional[str] = Field(default=None, description="Document Page Content")
       
 class DocumentsToDelete(BaseModel):
     ids_to_delete: List[str]

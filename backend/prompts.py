@@ -50,13 +50,7 @@ Detailed Report:"""
 ANSWER_WITH_CITATIONS = DATE_TODAY + """You're a helpful AI assistant. Given a user question and some Webpage article snippets, \
 answer the user question and provide citations. If none of the articles answer the question, just say you don't know.
 
-Remember, you must return both an answer and citations. Citation information is in given Document Metadata.
-A citation consists of a “Web Page Title.” Website Name, URL. Accessed Day Month Year.
-
-Citations Example: 
-Citations
-1. “Citing Sources in Academic Writing.” Scribbr. www.scribbr.com/category/citing-sources/. Accessed 4 March 2021.
-2. “What is SEO?” Backlinko. www.backlinko.com/seo. Accessed 10 March 2022.
+Remember, you must return both an answer and citations. Citation information is given in Document Metadata.
 
 Here are the Webpage article snippets:
 {context}

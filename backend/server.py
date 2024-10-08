@@ -216,14 +216,9 @@ def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
         returnDocs = []
         for doc in combined_docs_unique_documents:
             entry = DocWithContent(
-                BrowsingSessionId=doc.metadata['BrowsingSessionId'],
-                VisitedWebPageURL=doc.metadata['VisitedWebPageURL'],
-                VisitedWebPageContent=doc.page_content,
-                VisitedWebPageTitle=doc.metadata['VisitedWebPageTitle'],
-                VisitedWebPageDateWithTimeInISOString=doc.metadata['VisitedWebPageDateWithTimeInISOString'],
-                VisitedWebPageReffererURL=doc.metadata['VisitedWebPageReffererURL'],
-                VisitedWebPageVisitDurationInMilliseconds=doc.metadata['VisitedWebPageVisitDurationInMilliseconds'],
-                )
+                DocMetadata=stringify(doc.metadata),
+                Content=doc.page_content
+            )
             
             returnDocs.append(entry)
         

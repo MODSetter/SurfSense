@@ -324,11 +324,9 @@ class HIndices:
             for i, doc in enumerate(contextdocs):
                 content = f":DOCUMENT {str(i)}\n"
                 content += f"=======================================METADATA==================================== \n"
-                content += f"Webpage Url : {doc.metadata['VisitedWebPageURL']} \n"
-                content += f"Webpage Title : {doc.metadata['VisitedWebPageTitle']} \n"
-                content += f"Accessed on (Date With Time In ISO String): {doc.metadata['VisitedWebPageDateWithTimeInISOString']} \n"
+                content += f"{doc.metadata} \n"
                 content += f"===================================================================================== \n"
-                content += f"Webpage CONTENT CHUCK: \n\n {doc.page_content} \n\n"
+                content += f"DOCUMENT CONTENT: \n\n {doc.page_content} \n\n"
                 content += f"===================================================================================== \n"
                 
                 context_to_answer += content
@@ -362,11 +360,9 @@ class HIndices:
         for i, doc in enumerate(top_summaries_compressed_docs):
             content = f":DOCUMENT {str(i)}\n"
             content += f"=======================================METADATA==================================== \n"
-            content += f"Webpage Url : {doc.metadata['VisitedWebPageURL']} \n"
-            content += f"Webpage Title : {doc.metadata['VisitedWebPageTitle']} \n"
-            content += f"Accessed on (Date With Time In ISO String): {doc.metadata['VisitedWebPageDateWithTimeInISOString']} \n"
+            content += f"{doc.metadata} \n"
             content += f"===================================================================================== \n"
-            content += f"Webpage CONTENT CHUCK: \n\n {doc.page_content} \n\n"
+            content += f"DOCUMENT CONTENT: \n\n {doc.page_content} \n\n"
             content += f"===================================================================================== \n"
             
             context_to_answer += content
