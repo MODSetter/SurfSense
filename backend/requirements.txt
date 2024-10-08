@@ -17,3 +17,5 @@ langchain_ollama
 langchain_chroma
 flashrank
 psycopg2
+unstructured-client
+langchain-unstructured

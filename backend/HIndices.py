@@ -1,6 +1,6 @@
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaLLM, OllamaEmbeddings
-
+from langchain_community.vectorstores.utils import filter_complex_metadata
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.docstore.document import Document
 from langchain_experimental.text_splitter import SemanticChunker
@@ -55,90 +55,146 @@ class HIndices:
         
         # self.summary_store_size = len(self.summary_store.get()['documents'])
         # self.detailed_store_size = len(self.detailed_store.get()['documents'])
+    
+    def summarize_file_doc(self, page_no, doc, search_space):
 
+        report_template = """You are a forensic investigator expert in making detailed report of the document. You are given the document make a report of it.
+
+        DOCUMENT: {document}
+        
+        Detailed Report:"""
+
+
+        report_prompt = PromptTemplate(
+            input_variables=["document"],
+            template=report_template
+        )
+        
+        # Create an LLMChain for sub-query decomposition
+        report_chain = report_prompt | self.llm
+        
+        
+        if(IS_LOCAL_SETUP == 'true'):
+            # Local LLMS suck at summaries so need this slow and painful procedure
+            text_splitter = SemanticChunker(embeddings=self.embeddings)
+            chunks = text_splitter.split_documents([doc]) 
+            combined_summary = ""
+            for i, chunk in enumerate(chunks):
+                print("GENERATING SUMMARY FOR CHUNK "+ str(i))
+                chunk_summary = report_chain.invoke({"document": chunk})
+                combined_summary += "\n\n" + chunk_summary +  "\n\n"
+                
+            response = combined_summary
+            
+                            
+            metadict = {
+                    "page": page_no, 
+                    "summary": True,
+                    "search_space": search_space,
+                    }
+            
+            # metadict['languages'] = metadict['languages'][0]
+            
+            metadict.update(doc.metadata)
+            
+            return Document(
+                id=str(page_no),
+                page_content=response,
+                metadata=metadict
+            )
+            
+        else:
+            response = report_chain.invoke({"document": doc})
+            
+            metadict = {
+                    "page": page_no, 
+                    "summary": True,
+                    "search_space": search_space,
+                    }
+            
+            metadict.update(doc.metadata)
+                
+            # metadict['languages'] = metadict['languages'][0]
+            
+            return Document(
+                id=str(page_no),
+                page_content=response.content,
+                metadata=metadict
+            )      
+        
+    def summarize_webpage_doc(self, page_no, doc, search_space):
+
+        
+        report_template = """You are a forensic investigator expert in making detailed report of the document. You are given the document make a report of it.
+
+        DOCUMENT: {document}
+        
+        Detailed Report:"""
+
+
+        report_prompt = PromptTemplate(
+            input_variables=["document"],
+            template=report_template
+        )
+        
+        # Create an LLMChain for sub-query decomposition
+        report_chain = report_prompt | self.llm
+        
+        
+        if(IS_LOCAL_SETUP == 'true'):
+            # Local LLMS suck at summaries so need this slow and painful procedure
+            text_splitter = SemanticChunker(embeddings=self.embeddings)
+            chunks = text_splitter.split_documents([doc]) 
+            combined_summary = ""
+            for i, chunk in enumerate(chunks):
+                print("GENERATING SUMMARY FOR CHUNK "+ str(i))
+                chunk_summary = report_chain.invoke({"document": chunk})
+                combined_summary += "\n\n" + chunk_summary +  "\n\n"
+                
+            response = combined_summary
+            
+            return Document(
+                id=str(page_no),
+                page_content=response,
+                metadata={
+                    "filetype": 'WEBPAGE',
+                    "page": page_no, 
+                    "summary": True,
+                    "search_space": search_space,
+                    "BrowsingSessionId": doc.metadata['BrowsingSessionId'],
+                    "VisitedWebPageURL": doc.metadata['VisitedWebPageURL'],
+                    "VisitedWebPageTitle": doc.metadata['VisitedWebPageTitle'],
+                    "VisitedWebPageDateWithTimeInISOString": doc.metadata['VisitedWebPageDateWithTimeInISOString'],
+                    "VisitedWebPageReffererURL": doc.metadata['VisitedWebPageReffererURL'],
+                    "VisitedWebPageVisitDurationInMilliseconds": doc.metadata['VisitedWebPageVisitDurationInMilliseconds'],
+                    }
+            )
+        else:
+            response = report_chain.invoke({"document": doc})
+            
+            return Document(
+                id=str(page_no),
+                page_content=response.content,
+                metadata={
+                    "filetype": 'WEBPAGE',
+                    "page": page_no, 
+                    "summary": True,
+                    "search_space": search_space,
+                    "BrowsingSessionId": doc.metadata['BrowsingSessionId'],
+                    "VisitedWebPageURL": doc.metadata['VisitedWebPageURL'],
+                    "VisitedWebPageTitle": doc.metadata['VisitedWebPageTitle'],
+                    "VisitedWebPageDateWithTimeInISOString": doc.metadata['VisitedWebPageDateWithTimeInISOString'],
+                    "VisitedWebPageReffererURL": doc.metadata['VisitedWebPageReffererURL'],
+                    "VisitedWebPageVisitDurationInMilliseconds": doc.metadata['VisitedWebPageVisitDurationInMilliseconds'],
+                    }
+            )
+         
     def encode_docs_hierarchical(self, documents, files_type, search_space='GENERAL', db: Session = Depends(get_db)):
         """
         Creates and Saves/Updates docs in hierarchical indices and postgres table
         """
         
-        def summarize_doc(page_no,doc):
-            """
-            Summarizes a single document.
-            
-            Args:
-                page_no: Page no in Summary Vector store
-                doc: The document to be summarized.
-                
-            Returns:
-                A summarized Document object.
-            """
-            
-            
-            report_template = """You are a forensic investigator expert in making detailed report of the document. You are given the document make a report of it.
-    
-            DOCUMENT: {document}
-            
-            Detailed Report:"""
 
-
-            report_prompt = PromptTemplate(
-                input_variables=["document"],
-                template=report_template
-            )
-            
-            # Create an LLMChain for sub-query decomposition
-            report_chain = report_prompt | self.llm
-            
-            
-            if(IS_LOCAL_SETUP == 'true'):
-                # Local LLMS suck at summaries so need this slow and painful procedure
-                text_splitter = SemanticChunker(embeddings=self.embeddings)
-                chunks = text_splitter.split_documents([doc]) 
-                combined_summary = ""
-                for i, chunk in enumerate(chunks):
-                    print("GENERATING SUMMARY FOR CHUNK "+ str(i))
-                    chunk_summary = report_chain.invoke({"document": chunk})
-                    combined_summary += "\n\n" + chunk_summary +  "\n\n"
-                    
-                response = combined_summary
-                
-                return Document(
-                    id=str(page_no),
-                    page_content=response,
-                    metadata={
-                        "filetype": files_type,
-                        "page": page_no, 
-                        "summary": True,
-                        "search_space": search_space,
-                        "BrowsingSessionId": doc.metadata['BrowsingSessionId'],
-                        "VisitedWebPageURL": doc.metadata['VisitedWebPageURL'],
-                        "VisitedWebPageTitle": doc.metadata['VisitedWebPageTitle'],
-                        "VisitedWebPageDateWithTimeInISOString": doc.metadata['VisitedWebPageDateWithTimeInISOString'],
-                        "VisitedWebPageReffererURL": doc.metadata['VisitedWebPageReffererURL'],
-                        "VisitedWebPageVisitDurationInMilliseconds": doc.metadata['VisitedWebPageVisitDurationInMilliseconds'],
-                        }
-                )
-            else:
-                response = report_chain.invoke({"document": doc})
-                
-                return Document(
-                    id=str(page_no),
-                    page_content=response.content,
-                    metadata={
-                        "filetype": files_type,
-                        "page": page_no, 
-                        "summary": True,
-                        "search_space": search_space,
-                        "BrowsingSessionId": doc.metadata['BrowsingSessionId'],
-                        "VisitedWebPageURL": doc.metadata['VisitedWebPageURL'],
-                        "VisitedWebPageTitle": doc.metadata['VisitedWebPageTitle'],
-                        "VisitedWebPageDateWithTimeInISOString": doc.metadata['VisitedWebPageDateWithTimeInISOString'],
-                        "VisitedWebPageReffererURL": doc.metadata['VisitedWebPageReffererURL'],
-                        "VisitedWebPageVisitDurationInMilliseconds": doc.metadata['VisitedWebPageVisitDurationInMilliseconds'],
-                        }
-                )
-         
-         
         # DocumentPgEntry = []   
         # searchspace = db.query(SearchSpace).filter(SearchSpace.search_space == search_space).first()
         
@@ -149,8 +205,8 @@ class HIndices:
         #         DocumentPgEntry.append(Documents(file_type='WEBPAGE',title=doc.metadata.VisitedWebPageTitle,search_space=search_space, document_metadata=pgdocmeta, page_content=doc.page_content))
         #     else:
         #         DocumentPgEntry.append(Documents(file_type='WEBPAGE',title=doc.metadata.VisitedWebPageTitle,search_space=SearchSpace(search_space=search_space), document_metadata=pgdocmeta, page_content=doc.page_content))
-            
         
+
         prev_doc_idx = len(documents) + 1
         # #Save docs in PG
         user = db.query(User).filter(User.username == self.username).first()
@@ -165,7 +221,12 @@ class HIndices:
              
         # Process documents
         summaries = []
-        batch_summaries = [summarize_doc(i + summary_last_id, doc) for i, doc in enumerate(documents)]
+        if(files_type=='WEBPAGE'):
+            batch_summaries = [self.summarize_webpage_doc(page_no = i + summary_last_id, doc=doc, search_space=search_space) for i, doc in enumerate(documents)]
+        else:
+            batch_summaries = [self.summarize_file_doc(page_no = i + summary_last_id, doc=doc, search_space=search_space) for i, doc in enumerate(documents)]
+            
+        # batch_summaries = [summarize_doc(i + summary_last_id, doc) for i, doc in enumerate(documents)]
         summaries.extend(batch_summaries)
         
         detailed_chunks = []
@@ -198,8 +259,8 @@ class HIndices:
             detailed_chunks.extend(chunks)
             
         #update vector stores
-        self.summary_store.add_documents(summaries)
-        self.detailed_store.add_documents(detailed_chunks)
+        self.summary_store.add_documents(filter_complex_metadata(summaries))
+        self.detailed_store.add_documents(filter_complex_metadata(detailed_chunks))
 
         return self.summary_store, self.detailed_store
     
