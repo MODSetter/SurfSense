@@ -19,7 +19,8 @@ https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 ## Key Features
 
 - 💡 **Idea**: Save any content you see on the internet in your own personal knowledge base.
-- ⚙️ **Cross Browser Extension**: Save content from your favourite browser.
+- ⚙️ **Cross Browser Extension**: Save your browsing content from your favourite browser.
+- 📁 **Multiple File Format Uploading Support**: Save content from your own personal files(Documents, images and more) to your own personal knowledge base .
 - 🔍 **Powerful Search**: Quickly find anything in your Web Browsing Sessions.
 - 💬 **Chat with your Web History**: Interact in Natural Language with your saved Web Browsing Sessions and get cited answers.
 - 🔔 **Local LLM Support**: Works Flawlessly with Ollama local LLMs.
@@ -30,11 +31,15 @@ https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
 
 ## How to get started?
 ---
-**UPDATE 25 SEPTEMBER 2024:** 
+**UPDATE 8 OCTOBER 2024:** 
+- SurfSense now lets you upload your own files such as pdfs, docx, images etc into your SurfSense Knowledge Base.
+- SurfSense uses [Unstructured-IO](https://github.com/Unstructured-IO/unstructured) to support files.
 
+---
+**UPDATE 25 SEPTEMBER 2024:** 
  - Thanks [@hnico21](https://github.com/hnico21) for adding Docker Support
    
-### Docker Support
+### Docker Setup
 
 1. Setup `SurfSense-Frontend/.env` and `backend/.env`
 2. Run `docker-compose build --no-cache`.
@@ -176,7 +181,7 @@ In Progress...........
 
 ## Future Work
 - Implement Canvas. 
-- Add support for file uploads QA.
+- Add support for file uploads QA. **[Done]**
 - Shift to WebSockets for Streaming responses.
 - Based on feedback, I will work on making it compatible with local models. **[Done]**
 - Cross Browser Extension **[Done]**
