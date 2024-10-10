@@ -11,14 +11,6 @@ class BaseModel(Base):
     id = Column(Integer, primary_key=True, index=True)
 
 
-# class Notification(BaseModel):
-#     __tablename__ = "notifications"
-
-#     text = Column(String)
-#     user_id = Column(ForeignKey('users.id'))
-#     user = relationship('User')
-
-
 class Chat(BaseModel):
     __tablename__ = "chats"
 
