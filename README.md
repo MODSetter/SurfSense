@@ -5,14 +5,16 @@
 
 # SurfSense
 
-Well when I’m browsing the internet, I tend to save a ton of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is a Personal AI Assistant for anything you see (Social Media Chats, Calender Invites, Important Mails, Tutorials, Recipies and anything ) on the World Wide Web. Now, you’ll never forget any browsing session. Easily capture your web browsing session and desired webpage content using an easy-to-use cross browser extension. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
+Well when I’m browsing the internet or reading any files such as pdfs, docs or images, I see a lot of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is a Personal AI Assistant for anything you see (Social Media Chats, Calender Invites, Important Mails, Tutorials, Recipies and anything ) on the Internet or your files. Now, you’ll never forget anything. Easily capture your web browsing session and desired webpage content using an easy-to-use cross browser extension or upload your files to SurfSense. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
 
 # Video
 
 
 
 
-https://github.com/user-attachments/assets/f9c49698-f868-4a66-9601-16d375eaad64
+https://github.com/user-attachments/assets/cc6a0c51-7de0-45cd-982d-21768dc2dd38
+
+
 
 
 
