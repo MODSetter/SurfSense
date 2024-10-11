@@ -158,23 +158,14 @@ After Saving you should be able to use extension now.
 
 ## Screenshots
 
-#### Playground
-
-![front-dash](https://github.com/user-attachments/assets/fabcb78b-9bab-4b14-90e7-efb63addf237)
-
 #### Search Spaces Chat (Ollama LLM)
+![1](https://github.com/user-attachments/assets/1b60fa01-36dd-44d3-93d0-a179e10452f3)
 
-![citations](https://github.com/user-attachments/assets/14263161-0ea9-41ea-a3e9-587e95828815)
-
-![front-spacechat](https://github.com/user-attachments/assets/3feb6942-518b-4100-adef-25edc67ff877)
 
 #### Multiple Document Chat (Ollama LLM)
 
 ![multidocs-localllm](https://github.com/user-attachments/assets/453a4406-1757-47f2-83d3-faf1b08f3d9d)
 
-#### Saved Chats
-
-![front-savedchat](https://github.com/user-attachments/assets/a6e1df2b-0b5e-4b46-93fd-416f51905064)
 
 
 ##  Tech Stack
