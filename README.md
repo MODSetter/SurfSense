@@ -23,8 +23,8 @@ https://github.com/user-attachments/assets/cc6a0c51-7de0-45cd-982d-21768dc2dd38
 - 💡 **Idea**: Save any content you see on the internet in your own personal knowledge base.
 - ⚙️ **Cross Browser Extension**: Save your browsing content from your favourite browser.
 - 📁 **Multiple File Format Uploading Support**: Save content from your own personal files(Documents, images and more) to your own personal knowledge base .
-- 🔍 **Powerful Search**: Quickly find anything in your Web Browsing Sessions.
-- 💬 **Chat with your Web History**: Interact in Natural Language with your saved Web Browsing Sessions and get cited answers.
+- 🔍 **Powerful Search**: Quickly find anything in your saved content.
+- 💬 **Chat with your Saved Content**: Interact in Natural Language with your saved Web Browsing Sessions and get cited answers.
 - 🔔 **Local LLM Support**: Works Flawlessly with Ollama local LLMs.
 - 🏠 **Self Hostable**: Open source and easy to deploy locally.
 - 📊 **Advanced RAG Techniques**: Utilize the power of Advanced RAG Techniques.
