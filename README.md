@@ -155,7 +155,7 @@ After Saving you should be able to use extension now.
 ## Screenshots
 
 #### Search Spaces Chat (Ollama LLM)
-![1](https://github.com/user-attachments/assets/1b60fa01-36dd-44d3-93d0-a179e10452f3)
+![upd res](https://github.com/user-attachments/assets/ab3fad32-4eee-47a3-bdf6-187d027abe82)
 
 
 #### Multiple Document Chat (Ollama LLM)
