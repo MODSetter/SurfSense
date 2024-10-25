@@ -23,6 +23,19 @@ class DocMeta(BaseModel):
 #     VisitedWebPageVisitDurationInMilliseconds: Optional[int] = Field(default=None, description="VisitedWebPageVisitDurationInMilliseconds of Document"),
 #     VisitedWebPageContent: Optional[str] = Field(default=None, description="Visited WebPage Content in markdown of Document")
 
+
+
+class Reference(BaseModel):
+    id: str = Field(..., description="reference no")
+    title: str = Field(..., description="reference title")
+    url: str = Field(..., description="reference url")
+
+
+class AIAnswer(BaseModel):
+    answer: str = Field(..., description="Given Answer including its intext citation no's like [1], [2] etc.")
+    references: List[Reference] = Field(..., description="References")
+
+
 class DocWithContent(BaseModel):
     DocMetadata: Optional[str] = Field(default=None, description="Document Metadata")
     Content: Optional[str] = Field(default=None, description="Document Page Content")

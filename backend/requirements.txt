@@ -19,3 +19,9 @@ flashrank
 psycopg2
 unstructured-client
 langchain-unstructured
+langgraph
+gpt_researcher
+langgraph-cli
+weasyprint
+json5
+loguru
