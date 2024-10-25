@@ -403,8 +403,9 @@ class HIndices:
         
         Ensure the answer includes:
         - A detailed yet concise explanation with IEEE-style in-text citations (e.g., [1], [2]).
-        - A list of non-duplicated sources at the end, following IEEE format. Hyperlink each source using: [Website Name](URL).
+        - A list of non-duplicated sources only from document's metadata not document's page content at the end, following IEEE format.
         - Where applicable, provide sources in the text to back up key points.
+        - Reference should follow this format : (Access Date and Time). [Title or Filename](Source)
         
         FOR EXAMPLE:
         User Query : Explain the impact of artificial intelligence on modern healthcare.
@@ -417,7 +418,6 @@ class HIndices:
             ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
             Page Content Chunk: \n\nArtificial intelligence (AI) has significantly transformed modern healthcare by enhancing diagnostic accuracy, personalizing patient care, and optimizing operational efficiency. AI algorithms can analyze vast datasets to identify patterns that may be missed by human practitioners, leading to improved diagnostic outcomes. \n\n
             ===================================================================================== \n
-            
             =======================================DOCUMENT METADATA==================================== \n"
             Source: https://github.com/MODSetter/SurfSense \n
             Title: MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers. \n
@@ -425,7 +425,6 @@ class HIndices:
             ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
             Page Content Chunk: \n\nAI systems have been deployed in radiology to detect anomalies in medical imaging with high precision,  reducing the risk of misdiagnosis and improving patient outcomes. Additionally, AI-powered chatbots and virtual assistants are being used to provide 24/7 support, answer queries, and offer personalized health advice\n\n
             ===================================================================================== \n
-            
             =======================================DOCUMENT METADATA==================================== \n"
             Source: filename.pdf \n
             ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
@@ -442,7 +441,7 @@ class HIndices:
         **References:**
         1. (2024, October 23). [Artificial intelligence — GPT-4 Optimized: r/ChatGPT.](https://www.reddit.com/r/ChatGPT/comments/13na8yp/highly_effective_prompt_for_summarizing_gpt4/)  
         2. (2024, October 23). [MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers.](https://github.com/MODSetter/SurfSense)
-        3. (2024, October 23). filename.pdf  
+        3. (2024, October 23). [filename.pdf](filename.pdf)
 
         ---
 

@@ -77,7 +77,6 @@ async def upload_files(files: list[UploadFile], token: str = Depends(oauth2_sche
                     chunking_strategy="basic",
                     max_characters=90000,
                     include_orig_elements=False,
-                    strategy="fast",
                 )
 
             filedocs = loader.load()
