@@ -30,8 +30,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-FAST_LLM = os.environ.get("FAST_LLM")
-IS_LOCAL_SETUP = True if FAST_LLM.startswith("ollama") else False
+SMART_LLM = os.environ.get("SMART_LLM")
+IS_LOCAL_SETUP = True if SMART_LLM.startswith("ollama") else False
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
 ALGORITHM = os.environ.get("ALGORITHM")
 API_SECRET_KEY = os.environ.get("API_SECRET_KEY")
@@ -42,7 +42,7 @@ def extract_model_name(model_string: str) -> tuple[str, str]:
     part1, part2 = model_string.split(":", 1)  # Split into two parts at the first colon
     return part2
 
-MODEL_NAME = extract_model_name(FAST_LLM)
+MODEL_NAME = extract_model_name(SMART_LLM)
 
 app = FastAPI()
 

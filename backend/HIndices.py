@@ -24,16 +24,16 @@ from models import Documents, User
 from prompts import CONTEXT_ANSWER_PROMPT
 load_dotenv()
 
-FAST_LLM = os.environ.get("FAST_LLM")
+SMART_LLM = os.environ.get("SMART_LLM")
 EMBEDDING = os.environ.get("EMBEDDING")
-IS_LOCAL_SETUP = True if FAST_LLM.startswith("ollama") else False
+IS_LOCAL_SETUP = True if SMART_LLM.startswith("ollama") else False
 
 
 def extract_model_name(model_string: str) -> tuple[str, str]:
     part1, part2 = model_string.split(":", 1)  # Split into two parts at the first colon
     return part2
 
-MODEL_NAME = extract_model_name(FAST_LLM)
+MODEL_NAME = extract_model_name(SMART_LLM)
 EMBEDDING_MODEL = extract_model_name(EMBEDDING)
 
 # Dependency
