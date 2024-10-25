@@ -77,15 +77,7 @@ Now lets setup the SurfSense BackEnd
 2. Go to ./backend subdirectory.
 3. Setup Python Virtual Environment
 4. Run `pip install -r requirements.txt` to install all required dependencies.
-5. Update/Make the required Environment variables in .env
- 
-|ENV VARIABLE|Description  |
-|--|--|
-| UNSTRUCTURED_API_KEY | Your Unstructured IO API Key. Use any value if running a local instance or file upload support isn't needed.|
-| POSTGRES_DATABASE_URL | postgresql+psycopg2://user:pass@host:5432/database|
-| API_SECRET_KEY | Can be any Random String value. Make Sure to remember it for as you need to send it in user registration request to Backend for security purposes.|
-
-
+5. Update/Make the required Environment variables in .env following the .env.example
 6. Backend is a FastAPI Backend so now just run the server on unicorn using command `uvicorn server:app --host 0.0.0.0 --port 8000`
 7. If everything worked fine you should see screen like this.
 
