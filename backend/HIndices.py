@@ -406,15 +406,43 @@ class HIndices:
         - A list of non-duplicated sources at the end, following IEEE format. Hyperlink each source using: [Website Name](URL).
         - Where applicable, provide sources in the text to back up key points.
         
-        Ensure your response is structured something like this (here user query : Explain the impact of artificial intelligence on modern healthcare.):
+        FOR EXAMPLE:
+        User Query : Explain the impact of artificial intelligence on modern healthcare.
+        
+        Given Documents:
+            =======================================DOCUMENT METADATA==================================== \n"
+            Source: https://www.reddit.com/r/ChatGPT/comments/13na8yp/highly_effective_prompt_for_summarizing_gpt4/ \n
+            Title: Artificial intelligence\n
+            Visited Date and Time : 2024-10-23T22:44:03-07:00 \n
+            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
+            Page Content Chunk: \n\nArtificial intelligence (AI) has significantly transformed modern healthcare by enhancing diagnostic accuracy, personalizing patient care, and optimizing operational efficiency. AI algorithms can analyze vast datasets to identify patterns that may be missed by human practitioners, leading to improved diagnostic outcomes. \n\n
+            ===================================================================================== \n
+            
+            =======================================DOCUMENT METADATA==================================== \n"
+            Source: https://github.com/MODSetter/SurfSense \n
+            Title: MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers. \n
+            Visited Date and Time : 2024-10-23T22:44:03-07:00 \n
+            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
+            Page Content Chunk: \n\nAI systems have been deployed in radiology to detect anomalies in medical imaging with high precision,  reducing the risk of misdiagnosis and improving patient outcomes. Additionally, AI-powered chatbots and virtual assistants are being used to provide 24/7 support, answer queries, and offer personalized health advice\n\n
+            ===================================================================================== \n
+            
+            =======================================DOCUMENT METADATA==================================== \n"
+            Source: filename.pdf \n
+            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
+            Page Content Chunk: \n\nApart from diagnostics, AI-driven tools facilitate personalized treatment plans by considering individual patient data, thereby improving patient outcomes\n\n
+            ===================================================================================== \n
+                    
+        
+        
+        Ensure your response is structured something like this:
         ---
         **Answer:**
         Artificial intelligence (AI) has significantly transformed modern healthcare by enhancing diagnostic accuracy, personalizing patient care, and optimizing operational efficiency. AI algorithms can analyze vast datasets to identify patterns that may be missed by human practitioners, leading to improved diagnostic outcomes [1]. For instance, AI systems have been deployed in radiology to detect anomalies in medical imaging with high precision [2]. Moreover, AI-driven tools facilitate personalized treatment plans by considering individual patient data, thereby improving patient outcomes [3].
 
         **References:**
-        1. (2024, October 23). [Highly Effective Prompt for Summarizing — GPT-4 Optimized: r/ChatGPT.](https://www.reddit.com/r/ChatGPT/comments/13na8yp/highly_effective_prompt_for_summarizing_gpt4/)  
+        1. (2024, October 23). [Artificial intelligence — GPT-4 Optimized: r/ChatGPT.](https://www.reddit.com/r/ChatGPT/comments/13na8yp/highly_effective_prompt_for_summarizing_gpt4/)  
         2. (2024, October 23). [MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers.](https://github.com/MODSetter/SurfSense)
-        3. filename.pdf  
+        3. (2024, October 23). filename.pdf  
 
         ---
 
