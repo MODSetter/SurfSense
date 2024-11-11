@@ -1,18 +1,15 @@
 
 
-![surfheader](https://github.com/user-attachments/assets/3bb180df-008d-4bad-9d9a-f4308e6b6aff)
+![header](https://github.com/user-attachments/assets/90f5ae85-94c4-4119-bbb4-8c3f308b7e39)
+
 
 
 # SurfSense
-
-Well when I’m browsing the internet or reading any files such as pdfs, docs or images, I see a lot of content—but remembering when and what you saved? Total brain freeze! That’s where SurfSense comes in. SurfSense is a Personal AI Assistant for anything you see (Social Media Chats, Calender Invites, Important Mails, Tutorials, Recipies and anything ) on the Internet or your files. Now, you’ll never forget anything. Easily capture your web browsing session and desired webpage content using an easy-to-use cross browser extension or upload your files to SurfSense. Then, ask your personal knowledge base anything about your saved content, and voilà—instant recall! 
+While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic, imagine having both at your disposal with complete privacy control. That's exactly what SurfSense offers. With SurfSense, you can create your own knowledge base for research, similar to NotebookLM, or easily research the web just like Perplexity. SurfSense also includes an effective cross-browser extension to directly save dynamic content bookmarks, such as social media chats, calendar invites, important emails, tutorials, recipes, and more to your SurfSense knowledge base. Now, you’ll never forget anything and can easily research everything.
 
 # Video
 
-
-
-
-https://github.com/user-attachments/assets/cc6a0c51-7de0-45cd-982d-21768dc2dd38
+....TO BE ADDED for latest v0.0.5.........
 
 
 
@@ -20,40 +17,30 @@ https://github.com/user-attachments/assets/cc6a0c51-7de0-45cd-982d-21768dc2dd38
 
 ## Key Features
 
-- 💡 **Idea**: Save any content you see on the internet in your own personal knowledge base.
-- ⚙️ **Cross Browser Extension**: Save your browsing content from your favourite browser.
+- 💡 **Idea**: Have your own private NotebookLM and Perplexity with better  integrations.
+- ⚙️ **Cross Browser Extension**: Save your dynamic content bookmarks from your favourite browser.
 - 📁 **Multiple File Format Uploading Support**: Save content from your own personal files(Documents, images and more) to your own personal knowledge base .
-- 🔍 **Powerful Search**: Quickly find anything in your saved content.
+- 🔍 **Powerful Search**: Quickly research or find anything in your saved content.
 - 💬 **Chat with your Saved Content**: Interact in Natural Language with your saved Web Browsing Sessions and get cited answers.
+- 🎤 **Podcasts your Saved Content**: Create podcasts over your saved content in SurfSense knowledge base.
+- 📄 **Cited Answers**: Get Cited answers just like Perplexity.
 - 🔔 **Local LLM Support**: Works Flawlessly with Ollama local LLMs.
 - 🏠 **Self Hostable**: Open source and easy to deploy locally.
-- 📊 **Advanced RAG Techniques**: Utilize the power of Advanced RAG Techniques.
+- 📊 **Advanced RAG Techniques**: Utilize the power of Hierarchical Indices RAG.
 - 🔟% **Cheap On Wallet**: Works Flawlessly with OpenAI gpt-4o-mini model and Ollama local LLMs.
 - 🕸️ **No WebScraping**: Extension directly reads the data from DOM to get accurate data.
 
 ## How to get started?
----
-**UPDATE 24 OCTOBER 2024:** 
-- SurfSense now uses custom gpt-researcher agent to format responses.
-- Added better markdown rendering to UI.
 
+### PRE-START NOTE's
 
-**UPDATE 8 OCTOBER 2024:** 
-- SurfSense now lets you upload your own files such as pdfs, docx, images etc into your SurfSense Knowledge Base.
-- SurfSense uses [Unstructured-IO](https://github.com/Unstructured-IO/unstructured) to support files.
+#### File Uploading Support
 
+SurfSense now supports uploading various file types. To enable this feature, please set up the Unstructured.io library + its prerequisites. You can follow the setup guide here: https://github.com/Unstructured-IO/unstructured?tab=readme-ov-file#installing-the-library
 
-**UPDATE 25 SEPTEMBER 2024:** 
- - Thanks [@hnico21](https://github.com/hnico21) for adding Docker Support
+#### Podcast Support
 
-   
-**UPDATE 20 SEPTEMBER 2024:** 
-
- - SurfSense now works on Hierarchical Indices.
- - Knowledge Graph dependency is removed for now until I find some better Graph RAG solutions.
- - Added support for Local LLMs
-
-Until I find a good host for my backend you need to setup SurfSense locally for now. 
+Make sure you correctly setup `ffmpeg`  in your system so mering of audios can happen.
 
 ---
 
@@ -70,14 +57,12 @@ Until I find a good host for my backend you need to setup SurfSense locally for 
 
 For authentication purposes, you’ll also need a PostgreSQL instance running on your machine.
 
-**UPDATE** : SurfSense now supports uploading various file types. To enable this feature, please set up the Unstructured.io library. You can follow the setup guide here: https://github.com/Unstructured-IO/unstructured?tab=readme-ov-file#installing-the-library
-
 Now lets setup the SurfSense BackEnd
 1. Clone this repo.
 2. Go to ./backend subdirectory.
 3. Setup Python Virtual Environment
 4. Run `pip install -r requirements.txt` to install all required dependencies.
-5. Update/Make the required Environment variables in .env following the .env.example
+5. Update/Make the required Environment variables in `.env` following the `.env.example`
 6. Backend is a FastAPI Backend so now just run the server on unicorn using command `uvicorn server:app --host 0.0.0.0 --port 8000`
 7. If everything worked fine you should see screen like this.
 
@@ -118,55 +103,39 @@ Build the extension for your favorite browser using this guide: https://docs.pla
 
 When you load and start the extension you should see a Login page like this
 
-![extension login](https://i.ibb.co/qkkR5Lt/extlogin.png)
+![extlogin](https://github.com/user-attachments/assets/e69af4ed-9477-4cd5-9ec7-ad2efb1bec9a)
 
 
+After logging in you should be able to use extension now.
 
-After logging in you will need to fill your OpenAPI Key. Fill random value if you are using Ollama.
-
-
-![ext-settings](https://github.com/user-attachments/assets/49d8aa30-0ae1-4065-b504-e7e84dfb0d19)
-
-
-After Saving you should be able to use extension now.
-
-![ext-home](https://github.com/user-attachments/assets/34c6dc54-6853-4ef5-a74e-03f7ab555e42)
+![extmain](https://github.com/user-attachments/assets/86903ff2-7672-4010-8fb8-88c228cf05e3)
 
 
 |Options|Explanations|
 |--|--|
-| Search Space | Think of it like a category tag for the webpages you want to save.  |
+| Search Space | Search Space to save your dynamic bookmarks.  |
 | Clear Inactive History Sessions | It clears the saved content for Inactive Tab Sessions.  |
 | Save Current Webpage Snapshot | Stores the current webpage session info into SurfSense history store|
 | Save to SurfSense | Processes the SurfSense History Store & Initiates a Save Job |
 
-4. Now just start browsing the Internet. Whatever you want to save any content take its Snapshot and save it to SurfSense. After Save Job is completed you are ready to ask anything about it to SurfSense 🧠.
-
-6. Now go to SurfSense Dashboard After Logging in.
-
-|DASHBOARD OPTIONS|DESCRIPTION|
-|--|--|
-| Playground | See saved documents and can have chat with multiple docs. |
-| Search Space Chat | Used for questions about your content in particular search space.|
-| Saved Chats | All your saved chats.|
-| Settings | If you want to update your Open API key.|
 
 
 ## Screenshots
 
-#### Search Spaces Chat (Ollama LLM)
-![upd res](https://github.com/user-attachments/assets/ab3fad32-4eee-47a3-bdf6-187d027abe82)
+![searchspacemain](https://github.com/user-attachments/assets/4941dadf-8dd6-45d8-8d62-20342d5f76a0)
 
+---
 
-#### Multiple Document Chat (Ollama LLM)
+![mainchat](https://github.com/user-attachments/assets/b2ceb449-df98-47e8-90c5-ddc84a1979b7)
 
-![multidocs-localllm](https://github.com/user-attachments/assets/453a4406-1757-47f2-83d3-faf1b08f3d9d)
+---
 
+![chat](https://github.com/user-attachments/assets/2f639710-31a4-4e54-90ae-9117a29b2d1a)
 
 
 ##  Tech Stack
 
- - **Extenstion** : Manifest v3 on Plasmo
+ - **Extension** : Manifest v3 on Plasmo
  - **BackEnd** : FastAPI with LangChain
  - **FrontEnd**: Next.js with Aceternity.
 
@@ -175,8 +144,9 @@ In Progress...........
 
 ## Future Work
 - Implement Canvas. 
+- Complete Hybrid Search.
 - Add support for file uploads QA. **[Done]**
-- Shift to WebSockets for Streaming responses.
+- Shift to WebSockets for Streaming responses. **[Done]**
 - Based on feedback, I will work on making it compatible with local models. **[Done]**
 - Cross Browser Extension **[Done]**
 - Critical Notifications **[Done | PAUSED]**
