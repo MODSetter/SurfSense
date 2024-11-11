@@ -53,8 +53,8 @@ all at https://github.com/MODSetter/SurfSense/blob/main/CHANGELOGs.md
 SurfSense now supports uploading various file types. To enable this feature, please set up the Unstructured.io library + its prerequisites. You can follow the setup guide here: https://github.com/Unstructured-IO/unstructured?tab=readme-ov-file#installing-the-library
 
 #### Podcast Support
-
-Make sure you correctly setup `ffmpeg`  in your system so mering of audios can happen.
+- SurfSense internally uses https://github.com/souzatharsis/podcastfy for generation podcasts. Thanks to original author to let me use his library.
+- Make sure you correctly setup `ffmpeg`  in your system so merging of audio's can happen.
 
 ---
 
