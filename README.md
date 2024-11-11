@@ -34,6 +34,16 @@ https://github.com/user-attachments/assets/1105b5f6-3030-43e9-9f83-2df980eb2140
 - 🔟% **Cheap On Wallet**: Works Flawlessly with OpenAI gpt-4o-mini model and Ollama local LLMs.
 - 🕸️ **No WebScraping**: Extension directly reads the data from DOM to get accurate data.
 
+
+## CHANGELOG
+
+**UPDATE 11 NOVEMBER 2024:** 
+- Too many changes just fully rebranded it for better direction.
+- SurfSense is now A Personal NotebookLM and Perplexity-like AI Assistant for Everyone.
+
+all at https://github.com/MODSetter/SurfSense/blob/main/CHANGELOGs.md
+
+
 ## How to get started?
 
 ### PRE-START NOTE's
