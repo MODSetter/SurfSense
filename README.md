@@ -56,6 +56,12 @@ SurfSense now supports uploading various file types. To enable this feature, ple
 - SurfSense internally uses https://github.com/souzatharsis/podcastfy for generation podcasts. Thanks to original author to let me use his library.
 - Make sure you correctly setup `ffmpeg`  in your system so merging of audio's can happen.
 
+**Podcast Example**
+
+
+https://github.com/user-attachments/assets/7dc6719d-201c-4c59-9467-1b60f283fb32
+
+
 ---
 
 ### Docker Setup
