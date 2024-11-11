@@ -1,5 +1,5 @@
-import asyncio
 from datetime import datetime
+import json
 from typing import List
 from gpt_researcher import GPTResearcher
 from langchain_chroma import Chroma
@@ -10,18 +10,19 @@ from langchain.docstore.document import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import FlashrankRerank
+import numpy as np
 from sqlalchemy.orm import Session
-from fastapi import Depends
+from fastapi import Depends, WebSocket
 
 from langchain_core.prompts import PromptTemplate
 
 import os
 from dotenv import load_dotenv
 
+from Utils.stringify import stringify
 from pydmodels import AIAnswer, Reference
 from database import SessionLocal
-from models import Documents, User
-from prompts import CONTEXT_ANSWER_PROMPT
+from models import Documents
 load_dotenv()
 
 SMART_LLM = os.environ.get("SMART_LLM")
@@ -43,6 +44,26 @@ def get_db():
         yield db
     finally:
         db.close()
+ 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)       
+        
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
         
 
 class HIndices:
@@ -74,7 +95,8 @@ class HIndices:
     def summarize_file_doc(self, page_no, doc, search_space):
 
         report_template = """
-                You are an eagle-eyed researcher, skilled at summarizing lengthy documents with precision and clarity.
+        You are an eagle-eyed researcher, skilled at summarizing lengthy documents with precision and clarity.
+        
         I would like you to assist me in summarizing the following text. Please create a comprehensive summary that captures the main ideas, key details, and essential arguments presented in the text. Your summary should adhere to the following guidelines:
 
         Length and Depth: Provide a detailed summary that is approximately [insert desired word count or length, e.g., 300-500 words]. Ensure that it is thorough enough to convey the core message without losing important nuances.
@@ -122,7 +144,6 @@ class HIndices:
             # metadict['languages'] = metadict['languages'][0]
             
             return Document(
-                id=str(page_no),
                 page_content=response,
                 metadata=metadict
             )     
@@ -141,14 +162,11 @@ class HIndices:
             # metadict['languages'] = metadict['languages'][0]
             
             return Document(
-                id=str(page_no),
                 page_content=response.content,
                 metadata=metadict
             )      
         
     def summarize_webpage_doc(self, page_no, doc, search_space):
-
-        
         report_template = """
         You are an eagle-eyed researcher, skilled at summarizing lengthy documents with precision and clarity.
         I would like you to assist me in summarizing the following text. Please create a comprehensive summary that captures the main ideas, key details, and essential arguments presented in the text. Your summary should adhere to the following guidelines:
@@ -187,7 +205,6 @@ class HIndices:
             response = report_chain.invoke({"document": doc})
             
             return Document(
-                id=str(page_no),
                 page_content=response,
                 metadata={
                     "filetype": 'WEBPAGE',
@@ -207,7 +224,6 @@ class HIndices:
             response = report_chain.invoke({"document": doc})
             
             return Document(
-                id=str(page_no),
                 page_content=response.content,
                 metadata={
                     "filetype": 'WEBPAGE',
@@ -223,29 +239,17 @@ class HIndices:
                     }
             )
          
-    def encode_docs_hierarchical(self, documents, files_type, search_space='GENERAL', db: Session = Depends(get_db)):
+    def encode_docs_hierarchical(self, documents, search_space_instance, files_type, db: Session = Depends(get_db)):
         """
         Creates and Saves/Updates docs in hierarchical indices and postgres table
         """
-
-        prev_doc_idx = len(documents) + 1
-        # #Save docs in PG
-        user = db.query(User).filter(User.username == self.username).first()
-        
-        if(len(user.documents) < prev_doc_idx):
-            summary_last_id = 0
-            detail_id_counter = 0
-        else:
-            summary_last_id = int(user.documents[-prev_doc_idx].id)
-            detail_id_counter = int(user.documents[-prev_doc_idx].desc_vector_end)
-            
-             
+        page_no_offset = len(self.detailed_store.get()['documents'])    
         # Process documents
         summaries = []
         if(files_type=='WEBPAGE'):
-            batch_summaries = [self.summarize_webpage_doc(page_no = i + summary_last_id, doc=doc, search_space=search_space) for i, doc in enumerate(documents)]
+            batch_summaries = [self.summarize_webpage_doc(page_no = i + page_no_offset, doc=doc, search_space=search_space_instance.name) for i, doc in enumerate(documents)]
         else:
-            batch_summaries = [self.summarize_file_doc(page_no = i + summary_last_id, doc=doc, search_space=search_space) for i, doc in enumerate(documents)]
+            batch_summaries = [self.summarize_file_doc(page_no = i + page_no_offset , doc=doc, search_space=search_space_instance.name) for i, doc in enumerate(documents)]
             
       
         summaries.extend(batch_summaries)
@@ -254,21 +258,37 @@ class HIndices:
         
         for i, summary in enumerate(summaries):
             
+            # Add single summary in vector store
+            added_doc_id = self.summary_store.add_documents(filter_complex_metadata([summary]))
+            
+            if(files_type=='WEBPAGE'):
+                new_pg_doc = Documents(
+                    title=summary.metadata['VisitedWebPageTitle'],
+                    document_metadata=stringify(summary.metadata),
+                    page_content=documents[i].page_content,
+                    file_type='WEBPAGE',
+                    summary_vector_id=added_doc_id[0],
+                )
+            else:
+                new_pg_doc = Documents(
+                    title=summary.metadata['filename'],
+                    document_metadata=stringify(summary.metadata),
+                    page_content=documents[i].page_content,
+                    file_type=summary.metadata['filetype'],
+                    summary_vector_id=added_doc_id[0],
+                )
+            
+            # Store it in PG
+            search_space_instance.documents.append(new_pg_doc)
+            db.commit()
+            
             # Semantic chucking for better contexual compression
             text_splitter = SemanticChunker(embeddings=self.embeddings)
             chunks = text_splitter.split_documents([documents[i]])
             
-            user.documents[-(len(summaries) - i)].desc_vector_start = detail_id_counter
-            user.documents[-(len(summaries) - i)].desc_vector_end = detail_id_counter + len(chunks)
-
-            
-            db.commit()
-
             # Update metadata for detailed chunks
             for i, chunk in enumerate(chunks):
-                chunk.id = str(detail_id_counter)
                 chunk.metadata.update({
-                    "chunk_id": detail_id_counter,
                     "summary": False,
                     "page": summary.metadata['page'],
                 })
@@ -297,27 +317,15 @@ class HIndices:
                 
                 chunk.page_content = ieee_content
                 
-                detail_id_counter += 1
-                
             detailed_chunks.extend(chunks)
             
         #update vector stores
-        self.summary_store.add_documents(filter_complex_metadata(summaries))
         self.detailed_store.add_documents(filter_complex_metadata(detailed_chunks))
 
         return self.summary_store, self.detailed_store
     
     def delete_vector_stores(self, summary_ids_to_delete: list[str], db: Session = Depends(get_db)):
-        self.summary_store.delete(ids=summary_ids_to_delete)
-        for id in summary_ids_to_delete:
-            summary_entry = db.query(Documents).filter(Documents.id == int(id) + 1).first()
-            
-            desc_ids_to_del = [str(id) for id in range(summary_entry.desc_vector_start, summary_entry.desc_vector_end)]
-            
-            self.detailed_store.delete(ids=desc_ids_to_del)
-            db.delete(summary_entry)
-            db.commit()
-        
+        self.summary_store.delete(ids=summary_ids_to_delete)       
         return "success"
                            
     def summary_vector_search(self,query, search_space='GENERAL'):
@@ -344,7 +352,7 @@ class HIndices:
         unique_refs = {}
         id_mapping = {
             ref.id: unique_refs.setdefault(
-                ref.url, Reference(id=str(len(unique_refs) + 1), title=ref.title, url=ref.url)
+                ref.source, Reference(id=str(len(unique_refs) + 1), title=ref.title, source=ref.source)
             ).id
             for ref in references
         }
@@ -356,25 +364,131 @@ class HIndices:
         
         return updated_answer, list(unique_refs.values())
 
-    async def get_vectorstore_report(self, query: str, report_type: str, report_source: str, documents: List[Document]) -> str:
-        researcher = GPTResearcher(query=query, report_type=report_type, report_source=report_source, documents=documents, report_format="IEEE")
+    async def ws_get_vectorstore_report(self, query: str, report_type: str, report_source: str, documents: List[Document],websocket: WebSocket) -> str:
+        researcher = GPTResearcher(query=query, report_type=report_type, report_source=report_source, documents=documents, report_format="APA",websocket=websocket)
         await researcher.conduct_research()
         report = await researcher.write_report()
         return report
 
-    async def get_web_report(self, query: str, report_type: str, report_source: str) -> str:
-        researcher = GPTResearcher(query=query, report_type=report_type, report_source=report_source, report_format="IEEE")
+    async def ws_get_web_report(self, query: str, report_type: str, report_source: str, websocket: WebSocket) -> str:
+        researcher = GPTResearcher(query=query, report_type=report_type, report_source=report_source, report_format="APA",websocket=websocket)
         await researcher.conduct_research()
         report = await researcher.write_report()
         return report
 
-    def new_search(self, query, search_space='GENERAL'):
-        report_type = "custom_report"
-        report_source = "langchain_documents"
-        contextdocs = []
+    async def ws_experimental_search(self, websocket: WebSocket, manager: ConnectionManager , query, search_space='GENERAL', report_type = "custom_report",  report_source = "langchain_documents"):
+        custom_prompt = """
+        Please answer the following user query using only the **Document Page Content** provided below, while citing sources exclusively from the **Document Metadata** section, in the format shown. **Do not add any external information.**
+
+        **USER QUERY:** """ + query + """
+
+        **Answer Requirements:**
+        - Provide a detailed long response using IEEE-style in-text citations (e.g., [1], [2]) based solely on the **Document Page Content**.
+        - Use **Document Metadata** only for citation details and format each reference exactly once, with no duplicates.
+        - Structure references in this format at the end of your response, using this format: (Access Date and Time). [Title or Filename](Source)
         
+        FOR EXAMPLE:
+        EXAMPLE User Query : Explain the impact of artificial intelligence on modern healthcare.
+        
+        EXAMPLE Given Documents:
+            =======================================DOCUMENT METADATA==================================== \n"
+            Source: https://www.reddit.com/r/ChatGPT/comments/13na8yp/highly_effective_prompt_for_summarizing_gpt4/ \n
+            Title: Artificial intelligence\n
+            Visited Date and Time : 2024-10-23T22:44:03-07:00 \n
+            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
+            Page Content Chunk: \n\nArtificial intelligence (AI) has significantly transformed modern healthcare by enhancing diagnostic accuracy, personalizing patient care, and optimizing operational efficiency. AI algorithms can analyze vast datasets to identify patterns that may be missed by human practitioners, leading to improved diagnostic outcomes. \n\n
+            ===================================================================================== \n
+            
+            
+            =======================================DOCUMENT METADATA==================================== \n"
+            Source: https://github.com/MODSetter/SurfSense \n
+            Title: MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers. \n
+            Visited Date and Time : 2024-10-23T22:44:03-07:00 \n
+            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
+            Page Content Chunk: \n\nAI systems have been deployed in radiology to detect anomalies in medical imaging with high precision,  reducing the risk of misdiagnosis and improving patient outcomes. Additionally, AI-powered chatbots and virtual assistants are being used to provide 24/7 support, answer queries, and offer personalized health advice\n\n
+            ===================================================================================== \n
+            
+                        
+            =======================================DOCUMENT METADATA==================================== \n"
+            Source: https://github.com/MODSetter/SurfSense \n
+            Title: MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers. \n
+            Visited Date and Time : 2024-10-23T22:44:03-07:00 \n
+            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
+            Page Content Chunk: \n\nAI algorithms can analyze a patient's genetic information to predict their risk of certain diseases and recommend tailored treatment plans. \n\n
+            ===================================================================================== \n
+            
+            
+            =======================================DOCUMENT METADATA==================================== \n"
+            Source: filename.pdf \n
+            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
+            Page Content Chunk: \n\nApart from diagnostics, AI-driven tools facilitate personalized treatment plans by considering individual patient data, thereby improving patient outcomes\n\n
+            ===================================================================================== \n
+                    
+        
+        
+        Ensure your response is structured something like this:
+        **OUTPUT FORMAT:**
 
+        ---
 
+        **Answer:**
+        Artificial intelligence (AI) has significantly transformed modern healthcare by enhancing diagnostic accuracy, personalizing patient care, and optimizing operational efficiency. AI algorithms can analyze vast datasets to identify patterns that may be missed by human practitioners, leading to improved diagnostic outcomes [1]. For instance, AI systems have been deployed in radiology to detect anomalies in medical imaging with high precision [2]. Moreover, AI-driven tools facilitate personalized treatment plans by considering individual patient data, thereby improving patient outcomes [3].
+
+        **References:**
+        1. (2024, October 23). [Artificial intelligence — GPT-4 Optimized: r/ChatGPT](https://www.reddit.com/r/ChatGPT/comments/13na8yp/highly_effective_prompt_for_summarizing_gpt4)  
+        2. (2024, October 23). [MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers](https://github.com/MODSetter/SurfSense)
+        3. (2024, October 23). [filename.pdf](filename.pdf)
+
+        ---
+
+        """
+        
+        structured_llm = self.llm.with_structured_output(AIAnswer)
+        
+        if report_source == "web" :
+            if report_type == "custom_report" :
+                ret_report = await self.ws_get_web_report(query=custom_prompt, report_type=report_type, report_source="web", websocket=websocket)
+            else:
+                ret_report = await self.ws_get_web_report(
+                    query=query,
+                    report_type=report_type, 
+                    report_source="web", 
+                    websocket=websocket
+                )
+                await manager.send_personal_message(
+                        json.dumps({"type": "stream", "content": "Converting to IEEE format..."}),
+                        websocket
+                    )
+                ret_report = self.llm.invoke("I have a report written in APA format. Please convert it to IEEE format, ensuring that all citations, references, headings, and overall formatting adhere to the IEEE style guidelines. Maintain the original content and structure while applying the correct IEEE formatting rules. Just return the converted report thats it. NOW MY REPORT : " + ret_report).content
+                
+             
+         
+                
+            
+            
+            for chuck in structured_llm.stream(
+                    "Please extract and separate the references from the main text. "
+                    "References are formatted as follows:"
+                    "[Reference Id]. (Access Date and Time). [Title or Filename](Source or URL). "
+                    "Provide the text and references as distinct outputs. "
+                    "IMPORTANT : Never hallucinate the references. If there is no reference just return nothing in the reference field."
+                    "Here is the content to process: \n\n\n" + ret_report):
+                # ans, sources = self.deduplicate_references_and_update_answer(answer=chuck.answer, references=chuck.references)
+                
+                await manager.send_personal_message(
+                                json.dumps({"type": "stream", "sources": [source.model_dump() for source in chuck.references]}),
+                                websocket
+                            )
+                    
+                await manager.send_personal_message(
+                        json.dumps({"type": "stream", "content": ret_report}),
+                        websocket
+                    )
+            
+            return 
+        
+        
+        contextdocs = []
         top_summaries_compressor = FlashrankRerank(top_n=5)
         details_compressor = FlashrankRerank(top_n=50)
         top_summaries_retreiver = ContextualCompressionRetriever(
@@ -382,6 +496,13 @@ class HIndices:
         )
         
         top_summaries_compressed_docs = top_summaries_retreiver.invoke(query)
+        
+        rel_docs = filter_complex_metadata(top_summaries_compressed_docs)
+        
+        await manager.send_personal_message(
+                            json.dumps({"type": "stream", "relateddocs": [relateddoc.model_dump() for relateddoc in rel_docs]}, cls=NumpyEncoder),
+                            websocket
+                        )
         
         for summary in top_summaries_compressed_docs:
             # For each summary, retrieve relevant detailed chunks
@@ -396,66 +517,45 @@ class HIndices:
             )
             
             contextdocs.extend(detailed_compressed_docs)
+            
+            
+
         
-        custom_prompt = """
-        Please answer the following user query in the format shown below, using in-text citations and IEEE-style references based on the provided documents. 
-        USER QUERY : """+ query +"""
-        
-        Ensure the answer includes:
-        - A detailed yet concise explanation with IEEE-style in-text citations (e.g., [1], [2]).
-        - A list of non-duplicated sources only from document's metadata not document's page content at the end, following IEEE format.
-        - Where applicable, provide sources in the text to back up key points.
-        - Reference should follow this format : (Access Date and Time). [Title or Filename](Source)
-        
-        FOR EXAMPLE:
-        User Query : Explain the impact of artificial intelligence on modern healthcare.
-        
-        Given Documents:
-            =======================================DOCUMENT METADATA==================================== \n"
-            Source: https://www.reddit.com/r/ChatGPT/comments/13na8yp/highly_effective_prompt_for_summarizing_gpt4/ \n
-            Title: Artificial intelligence\n
-            Visited Date and Time : 2024-10-23T22:44:03-07:00 \n
-            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
-            Page Content Chunk: \n\nArtificial intelligence (AI) has significantly transformed modern healthcare by enhancing diagnostic accuracy, personalizing patient care, and optimizing operational efficiency. AI algorithms can analyze vast datasets to identify patterns that may be missed by human practitioners, leading to improved diagnostic outcomes. \n\n
-            ===================================================================================== \n
-            =======================================DOCUMENT METADATA==================================== \n"
-            Source: https://github.com/MODSetter/SurfSense \n
-            Title: MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers. \n
-            Visited Date and Time : 2024-10-23T22:44:03-07:00 \n
-            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
-            Page Content Chunk: \n\nAI systems have been deployed in radiology to detect anomalies in medical imaging with high precision,  reducing the risk of misdiagnosis and improving patient outcomes. Additionally, AI-powered chatbots and virtual assistants are being used to provide 24/7 support, answer queries, and offer personalized health advice\n\n
-            ===================================================================================== \n
-            =======================================DOCUMENT METADATA==================================== \n"
-            Source: filename.pdf \n
-            ============================DOCUMENT PAGE CONTENT CHUNK===================================== \n
-            Page Content Chunk: \n\nApart from diagnostics, AI-driven tools facilitate personalized treatment plans by considering individual patient data, thereby improving patient outcomes\n\n
-            ===================================================================================== \n
+        # local_report = asyncio.run(self.get_vectorstore_report(query=custom_prompt, report_type=report_type, report_source=report_source, documents=contextdocs))
+        if report_source == "langchain_documents" :
+            if report_type == "custom_report" :
+                ret_report = await self.ws_get_vectorstore_report(query=custom_prompt, report_type=report_type, report_source=report_source, documents=contextdocs, websocket=websocket)
+            else:
+                ret_report = await self.ws_get_vectorstore_report(query=query, report_type=report_type, report_source=report_source, documents=contextdocs, websocket=websocket)
+                await manager.send_personal_message(
+                        json.dumps({"type": "stream", "content": "Converting to IEEE format..."}),
+                        websocket
+                    )
+                ret_report = self.llm.invoke("I have a report written in APA format. Please convert it to IEEE format, ensuring that all citations, references, headings, and overall formatting adhere to the IEEE style guidelines. Maintain the original content and structure while applying the correct IEEE formatting rules. Just return the converted report thats it. NOW MY REPORT : " + ret_report).content
+                
+            
+            for chuck in structured_llm.stream(
+                    "Please extract and separate the references from the main text. "
+                    "References are formatted as follows:"
+                    "[Reference Id]. (Access Date and Time). [Title or Filename](Source or URL). "
+                    "Provide the text and references as distinct outputs. "
+                    "Ensure that in-text citation numbers such as [1], [2], (1), (2), etc., as well as in-text links or in-text citation links within the content, remain unaltered and are accurately extracted."
+                    "IMPORTANT : Never hallucinate the references. If there is no reference just return nothing in the reference field."
+                    "Here is the content to process: \n\n\n" + ret_report):
+                ans, sources = self.deduplicate_references_and_update_answer(answer=chuck.answer, references=chuck.references)
+                
+                await manager.send_personal_message(
+                                json.dumps({"type": "stream", "sources": [source.model_dump() for source in sources]}),
+                                websocket
+                            )
                     
-        
-        
-        Ensure your response is structured something like this:
-        ---
-        **Answer:**
-        Artificial intelligence (AI) has significantly transformed modern healthcare by enhancing diagnostic accuracy, personalizing patient care, and optimizing operational efficiency. AI algorithms can analyze vast datasets to identify patterns that may be missed by human practitioners, leading to improved diagnostic outcomes [1]. For instance, AI systems have been deployed in radiology to detect anomalies in medical imaging with high precision [2]. Moreover, AI-driven tools facilitate personalized treatment plans by considering individual patient data, thereby improving patient outcomes [3].
+                await manager.send_personal_message(
+                        json.dumps({"type": "stream", "content": ans}),
+                        websocket
+                    )
+                
 
-        **References:**
-        1. (2024, October 23). [Artificial intelligence — GPT-4 Optimized: r/ChatGPT.](https://www.reddit.com/r/ChatGPT/comments/13na8yp/highly_effective_prompt_for_summarizing_gpt4/)  
-        2. (2024, October 23). [MODSetter/SurfSense: Personal AI Assistant for Internet Surfers and Researchers.](https://github.com/MODSetter/SurfSense)
-        3. (2024, October 23). [filename.pdf](filename.pdf)
-
-        ---
-
-        """
         
-        local_report = asyncio.run(self.get_vectorstore_report(query=custom_prompt, report_type=report_type, report_source=report_source, documents=contextdocs))
+            return 
         
-        # web_report = asyncio.run(get_web_report(query=custom_prompt, report_type=report_type, report_source="web"))
-
-        # structured_llm = self.llm.with_structured_output(AIAnswer)
-        
-        # out = structured_llm.invoke("Extract exact(i.e without changing) answer string and references information from : \n\n\n" + local_report)
-        
-        # mod_out = self.deduplicate_references_and_update_answer(answer=out.answer, references=out.references)
-        
-        return local_report
         

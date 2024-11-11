@@ -1,27 +1,32 @@
 from __future__ import annotations
+import asyncio
+import json
+from typing import List
+
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
 from langchain_ollama import OllamaLLM
 from langchain_openai import ChatOpenAI
 from sqlalchemy import insert
-from prompts import DATE_TODAY
-from pydmodels import ChatToUpdate, DescriptionResponse, DocWithContent, DocumentsToDelete, NewUserChat, UserCreate, UserQuery, RetrivedDocList, UserQueryResponse, UserQueryWithChatHistory
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_unstructured import UnstructuredLoader
 
-#Heirerical Indices class
-from HIndices import HIndices
+# OUR LIBS
+from HIndices import ConnectionManager, HIndices
 from Utils.stringify import stringify
+from prompts import DATE_TODAY
+from pydmodels import ChatToUpdate, CreatePodcast, CreateStorageSpace, DescriptionResponse, DocWithContent, DocumentsToDelete, MainUserQuery, NewUserChat, NewUserQueryResponse, UserCreate, UserQuery, RetrivedDocList, UserQueryResponse, UserQueryWithChatHistory
+from podcastfy.client import generate_podcast
 
 # Auth Libs
-from fastapi import FastAPI, Depends, Form, HTTPException, status, UploadFile
+from fastapi import FastAPI, Depends, Form, HTTPException, Response, WebSocket, status, UploadFile, BackgroundTasks
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
-from models import Chat, Documents, SearchSpace, User
+from models import Chat, Documents, Podcast, SearchSpace, User
 from database import SessionLocal
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -30,6 +35,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 SMART_LLM = os.environ.get("SMART_LLM")
 IS_LOCAL_SETUP = True if SMART_LLM.startswith("ollama") else False
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
@@ -45,6 +51,7 @@ def extract_model_name(model_string: str) -> tuple[str, str]:
 MODEL_NAME = extract_model_name(SMART_LLM)
 
 app = FastAPI()
+manager = ConnectionManager()
 
 # Dependency
 def get_db():
@@ -53,315 +60,9 @@ def get_db():
         yield db
     finally:
         db.close()
-        
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-        
-@app.post("/uploadfiles/")
-async def upload_files(files: list[UploadFile], token: str = Depends(oauth2_scheme), search_space: str = Form(...), api_key: str = Form(...), db: Session = Depends(get_db)):
-    try:
-        # Decode and verify the token
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=403, detail="Token is invalid or expired")
-    
-        docs = []
-        
-        for file in files:
-            
-            loader = UnstructuredLoader(
-                    file=file.file, 
-                    api_key=UNSTRUCTURED_API_KEY,
-                    partition_via_api=True,
-                    chunking_strategy="basic",
-                    max_characters=90000,
-                    include_orig_elements=False,
-                )
-
-            filedocs = loader.load()
-            
-            fileswithfilename = []
-            for f in filedocs:
-                temp = f
-                temp.metadata['filename'] = file.filename
-                fileswithfilename.append(temp)
-            
-            docs.extend(fileswithfilename)
-        
-        # Initialize containers for documents and entries
-        DocumentPgEntry = []
-        raw_documents = []
-        
-        # Fetch the search space from the database or create it if it doesn't exist
-        searchspace = db.query(SearchSpace).filter(SearchSpace.search_space == search_space.upper()).first()
-        if not searchspace:
-            stmt = insert(SearchSpace).values(search_space=search_space.upper())
-            db.execute(stmt)
-            db.commit()
-        
-        # Process each document in the retrieved document list
-        for doc in docs:
-
-            raw_documents.append(Document(page_content=doc.page_content, metadata=doc.metadata))
-            
-            # Stringify the document metadata
-            pgdocmeta = stringify(doc.metadata)
-            
-            DocumentPgEntry.append(Documents(
-                file_type=doc.metadata['filetype'],
-                title=doc.metadata['filename'],
-                search_space=db.query(SearchSpace).filter(SearchSpace.search_space == search_space.upper()).first(),
-                document_metadata=pgdocmeta,
-                page_content=doc.page_content
-            ))
-
-        
-        # Save documents in PostgreSQL
-        user = db.query(User).filter(User.username == username).first()
-        user.documents.extend(DocumentPgEntry)
-        db.commit()   
-        
-        # Create hierarchical indices
-        if IS_LOCAL_SETUP == True:
-            index = HIndices(username=username)
-        else:
-            index = HIndices(username=username, api_key=api_key)    
-        
-        # Save indices in vector stores
-        index.encode_docs_hierarchical(documents=raw_documents, files_type='OTHER', search_space=search_space.upper(), db=db)
-        
-        print("FINISHED")
-        
-        return {
-            "message": "Files Uploaded Successfully"
-        }
-
-    except JWTError:
-        raise HTTPException(status_code=403, detail="Token is invalid or expired")
-
-@app.post("/chat/")
-def get_user_query_response(data: UserQuery, response_model=UserQueryResponse):
-    try:
-        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-        query = data.query
-        search_space = data.search_space
-     
-        
-        # Create Heirarical Indecices
-        if(IS_LOCAL_SETUP == True):
-            index = HIndices(username=username)
-        else:
-            index = HIndices(username=username,api_key=data.openaikey) 
-            
-        #Implement HyDe over it if you crazy
-        sub_queries = []
-        sub_queries.append(query)
-
-        duplicate_related_summary_docs = []
-        for sub_query in sub_queries:
-            # I know this is not the best way to do it, but I am too lazy to change it now
-            related_summary_docs = index.summary_vector_search(query=sub_query, search_space=search_space)
-            duplicate_related_summary_docs.extend(related_summary_docs)
-         
-            
-        combined_docs_seen_metadata = set()
-        combined_docs_unique_documents = []
-
-        for doc in duplicate_related_summary_docs:
-            # Convert metadata to a tuple of its items (this allows it to be added to a set)
-            doc.metadata['relevance_score'] = 0.0
-            metadata_tuple = tuple(sorted(doc.metadata.items()))
-            if metadata_tuple not in combined_docs_seen_metadata:
-                combined_docs_seen_metadata.add(metadata_tuple)
-                combined_docs_unique_documents.append(doc)
-                
-        returnDocs = []
-        for doc in combined_docs_unique_documents:
-            entry = DocWithContent(
-                DocMetadata=stringify(doc.metadata),
-                Content=doc.page_content
-            )
-            
-            returnDocs.append(entry)
-        
-
-        
-        finalans = index.new_search(query=query, search_space=search_space)
-        
-        return UserQueryResponse(response=finalans, relateddocs=returnDocs)
-    
-    
-    except JWTError:
-        raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-# SAVE DOCS
-@app.post("/save/")
-def save_data(apires: RetrivedDocList, db: Session = Depends(get_db)):
-    """
-    Save retrieved documents to the database and encode them for hierarchical indexing.
-
-    This endpoint processes the provided documents, saves related information
-    in the PostgreSQL database, and updates hierarchical indices for the user.
-    Args:
-        apires (RetrivedDocList): The list of retrieved documents with metadata.
-        db (Session, optional): Dependency-injected session for database operations.
-
-    Returns:
-        dict: A message indicating the success of the operation.
-    
-    Raises:
-        HTTPException: If the token is invalid or expired.
-    """
-    try:
-        # Decode token and extract username
-        payload = jwt.decode(apires.token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-        print("STARTED")
-        
-        # Initialize containers for documents and entries
-        DocumentPgEntry = []
-        raw_documents = []
-        
-        # Fetch the search space from the database
-        searchspace = db.query(SearchSpace).filter(SearchSpace.search_space == apires.search_space.upper()).first()
-        if not searchspace:
-            stmt = insert(SearchSpace).values(search_space=apires.search_space.upper())
-            db.execute(stmt)
-            db.commit()
-        
-        # Process each document in the retrieved document list
-        for doc in apires.documents:
-            # Construct document content
-            content = (
-                f"USER BROWSING SESSION EVENT: \n"
-                f"=======================================METADATA==================================== \n"
-                f"User Browsing Session ID : {doc.metadata.BrowsingSessionId} \n"
-                f"User Visited website with url : {doc.metadata.VisitedWebPageURL} \n"
-                f"This visited website url had title : {doc.metadata.VisitedWebPageTitle} \n"
-                f"User Visited this website from referring url : {doc.metadata.VisitedWebPageReffererURL} \n"
-                f"User Visited this website url at this Date and Time : {doc.metadata.VisitedWebPageDateWithTimeInISOString} \n"
-                f"User Visited this website for : {str(doc.metadata.VisitedWebPageVisitDurationInMilliseconds)} milliseconds. \n"
-                f"===================================================================================== \n"
-                f"Webpage Content of the visited webpage url in markdown format : \n\n{doc.pageContent}\n\n"
-                f"===================================================================================== \n"
-            )
-            raw_documents.append(Document(page_content=content, metadata=doc.metadata.__dict__))
-            
-            # Stringify the document metadata
-            pgdocmeta = stringify(doc.metadata.__dict__)
-            
-            DocumentPgEntry.append(Documents(
-                file_type='WEBPAGE',
-                title=doc.metadata.VisitedWebPageTitle,
-                search_space=searchspace,
-                document_metadata=pgdocmeta,
-                page_content=content
-            ))
-        
-        # Save documents in PostgreSQL
-        user = db.query(User).filter(User.username == username).first()
-        user.documents.extend(DocumentPgEntry)
-        db.commit()   
-        
-        # Create hierarchical indices
-        if IS_LOCAL_SETUP == True:
-            index = HIndices(username=username)
-        else:
-            index = HIndices(username=username, api_key=apires.openaikey)    
-        
-        # Save indices in vector stores
-        index.encode_docs_hierarchical(documents=raw_documents, files_type='WEBPAGE', search_space=apires.search_space.upper(), db=db)
-        
-        print("FINISHED")
-        
-        return {
-            "success": "Graph Will be populated Shortly"
-        }
-        
-    except JWTError:
-        raise HTTPException(status_code=403, detail="Token is invalid or expired")
-     
-# Multi DOC Chat
-@app.post("/chat/docs")
-def doc_chat_with_history(data: UserQueryWithChatHistory, response_model=DescriptionResponse):
-    try:
-        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-        if(IS_LOCAL_SETUP == True):
-            llm = OllamaLLM(model=MODEL_NAME,temperature=0)
-        else:
-            llm = ChatOpenAI(temperature=0, model_name=MODEL_NAME, api_key=data.openaikey)
-        
-        chatHistory = []
-        
-        for chat in data.chat:
-            if(chat.type == 'system'):
-                chatHistory.append(SystemMessage(content=DATE_TODAY + """You are an helpful assistant for question-answering tasks.
-        Use the following pieces of retrieved context to answer the question.
-        If you don't know the answer, just say that you don't know. 
-        Context:""" + str(chat.content)))
-                
-            if(chat.type == 'ai'):
-                chatHistory.append(AIMessage(content=chat.content))
-                
-            if(chat.type == 'human'):
-                chatHistory.append(HumanMessage(content=chat.content))
-                
-        chatHistory.append(("human", "{input}"));
-        
-
-        qa_prompt = ChatPromptTemplate.from_messages(chatHistory)
-            
-        descriptionchain = qa_prompt | llm
-            
-        response = descriptionchain.invoke({"input": data.query})
-        
-        if(IS_LOCAL_SETUP == True):
-            return DescriptionResponse(response=response)
-        else:
-            return DescriptionResponse(response=response.content)
-            
-    except JWTError:
-        raise HTTPException(status_code=403, detail="Token is invalid or expired")
-
-
- # Multi DOC Chat
-
-@app.post("/delete/docs")
-def delete_all_related_data(data: DocumentsToDelete, db: Session = Depends(get_db)):
-    try:
-        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-        if(IS_LOCAL_SETUP == True):
-            index = HIndices(username=username)
-        else:
-            index = HIndices(username=username,api_key=data.openaikey)
-            
-        message = index.delete_vector_stores(summary_ids_to_delete=data.ids_to_delete,db=db )
-        
-        return {
-            "message": message
-        }
-            
-    except JWTError:
-        raise HTTPException(status_code=403, detail="Token is invalid or expired")
-
-
-
 
 # Manual Origins
 # origins = [
@@ -393,11 +94,11 @@ def create_user(db: Session, user: UserCreate):
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
     if(user.apisecretkey != API_SECRET_KEY):
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     db_user = get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
-    
+
     del user.apisecretkey
     return create_user(db=db, user=user)
 
@@ -451,100 +152,730 @@ async def verify_user_token(token: str):
     verify_token(token=token)
     return {"message": "Token is valid"}
 
-@app.post("/user/chat/save")
-def populate_user_chat(chat: NewUserChat, db: Session = Depends(get_db)):
+
+@app.post("/searchspace/{search_space_id}/chat/create")
+def create_chat_in_searchspace(chat: NewUserChat, search_space_id: int, db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(chat.token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-        user = db.query(User).filter(User.username == username).first()
-        newchat = Chat(type=chat.type, title=chat.title, chats_list=chat.chats_list)
-        
-        user.chats.append(newchat)
+
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == db.query(User).filter(User.username == username).first().id
+        ).first()
+
+        if not search_space:
+            raise HTTPException(status_code=404, detail="SearchSpace not found or does not belong to the user")
+
+        new_chat = Chat(type=chat.type, title=chat.title, chats_list=chat.chats_list)
+
+        search_space.chats.append(new_chat)
+
         db.commit()
-        return {
-            "message": "Chat Saved"
-        }
+        db.refresh(new_chat)
+
+        return {"chat_id": new_chat.id}
+
     except JWTError:
         raise HTTPException(status_code=403, detail="Token is invalid or expired")
 
-@app.post("/user/chat/update")
-def populate_user_chat(chat: ChatToUpdate, db: Session = Depends(get_db)):
+@app.post("/searchspace/{search_space_id}/chat/update")
+def update_chat_in_searchspace(chat: ChatToUpdate, search_space_id: int, db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(chat.token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-        chatindb = db.query(Chat).filter(Chat.id == chat.chatid).first()
+
+        chatindb = db.query(Chat).join(SearchSpace).filter(
+            Chat.id == chat.chatid,
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == db.query(User).filter(User.username == username).first().id
+        ).first()
+
+        if not chatindb:
+            raise HTTPException(status_code=404, detail="Chat not found or does not belong to the searchspace owned by the user")
+
         chatindb.chats_list = chat.chats_list
-        
         db.commit()
-        return {
-            "message": "Chat Updated"
-        }
+        return {"message": "Chat Updated"}
     except JWTError:
         raise HTTPException(status_code=403, detail="Token is invalid or expired")
 
-@app.get("/user/chat/delete/{token}/{chatid}")
-async def delete_chat_of_user(token: str, chatid: str, db: Session = Depends(get_db)):
+@app.get("/searchspace/{search_space_id}/chat/delete/{token}/{chatid}")
+async def delete_chat_in_searchspace(token: str, search_space_id: int, chatid: str, db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-        chatindb = db.query(Chat).filter(Chat.id == chatid).first()
+
+        chatindb = db.query(Chat).join(SearchSpace).filter(
+            Chat.id == chatid,
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == db.query(User).filter(User.username == username).first().id
+        ).first()
+
+        if not chatindb:
+            raise HTTPException(status_code=404, detail="Chat not found or does not belong to the searchspace owned by the user")
+
         db.delete(chatindb)
         db.commit()
-        return {
-            "message": "Chat Deleted"
-        }
+        return {"message": "Chat Deleted"}
     except JWTError:
         raise HTTPException(status_code=403, detail="Token is invalid or expired")
-    
-#Gets user id & name
-@app.get("/user/{token}")
-async def get_user_with_token(token: str, db: Session = Depends(get_db)):
+
+@app.get("/searchspace/{search_space_id}/chat/{token}/{chatid}")
+def get_chat_by_id_in_searchspace(chatid: int, search_space_id: int, token: str, db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
+
+        chat = db.query(Chat).join(SearchSpace).filter(
+            Chat.id == chatid,
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == db.query(User).filter(User.username == username).first().id
+        ).first()
+
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found or does not belong to the searchspace owned by the user")
+
+        return chat
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+@app.get("/searchspace/{search_space_id}/chats/{token}")
+def get_chats_in_searchspace(search_space_id: int, token: str, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
         user = db.query(User).filter(User.username == username).first()
-        return {
-            "userid": user.id,
-            "username": user.username,
-            "chats": user.chats,
-            "documents": user.documents
-        }
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Filter chats that are specifically in the given search space
+        chats = db.query(Chat).filter(
+            Chat.search_space_id == search_space_id,
+            SearchSpace.user_id == user.id
+        ).join(SearchSpace).all()
+
+        return chats
+        
     except JWTError:
         raise HTTPException(status_code=403, detail="Token is invalid or expired")
 
-@app.get("/searchspaces/{token}")
-async def get_user_with_token(token: str, db: Session = Depends(get_db)):
+
+
+
+@app.get("/user/{token}/searchspace/{search_space_id}/documents/")
+def get_user_documents(search_space_id: int, token: str, db: Session = Depends(get_db)):
+    try:
+        # Decode the token to get the username
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        # Get the user by username and ensure they exist
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify the search space belongs to the user
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+
+        # Retrieve documents associated with the search space
+        return db.query(Documents).filter(Documents.search_space_id == search_space_id).all()
+
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+@app.get("/user/{token}/searchspace/{search_space_id}/")
+def get_user_search_space_by_id(search_space_id: int, token: str, db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=403, detail="Token is invalid or expired")
-        
-        search_spaces = db.query(SearchSpace).all()
-        return {
-            "search_spaces": search_spaces
-        }
+
+        # Get the user by username
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Get the search space by ID and verify it belongs to this user
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+
+        return search_space
     except JWTError:
         raise HTTPException(status_code=403, detail="Token is invalid or expired")
 
-    
+@app.get("/user/{token}/searchspaces/")
+def get_user_search_spaces(token: str, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        user = db.query(User).filter(User.username == username).first()
+
+        return db.query(SearchSpace).filter(SearchSpace.user_id == user.id).all()
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+@app.post("/user/create/searchspace/")
+def create_user_search_space(data: CreateStorageSpace, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        user = db.query(User).filter(User.username == username).first()
+
+        db_search_space = SearchSpace(user_id=user.id, name=data.name, description=data.description)
+        db.add(db_search_space)
+        db.commit()
+        db.refresh(db_search_space)
+        return db_search_space
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+@app.post("/user/save/")
+def save_user_extension_documents(data: RetrivedDocList, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        # Get the user by username and ensure they exist
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify the search space belongs to the user
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == data.search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+        
+        
+        # all_search_space_docs = db.query(SearchSpace).filter(
+        #     SearchSpace.user_id == user.id
+        # ).all()
+        
+        # total_doc_count = 0
+        # for search_space in all_search_space_docs:
+        #     total_doc_count += db.query(Documents).filter(Documents.search_space_id == search_space.id).count()
+            
+        print(f"STARTED")
+
+        # Initialize containers for documents and entries
+        # DocumentPgEntry = []
+        raw_documents = []
+
+                # Process each document in the retrieved document list
+        for doc in data.documents:
+            # Construct document content
+            content = (
+                f"USER BROWSING SESSION EVENT: \n"
+                f"=======================================METADATA==================================== \n"
+                f"User Browsing Session ID : {doc.metadata.BrowsingSessionId} \n"
+                f"User Visited website with url : {doc.metadata.VisitedWebPageURL} \n"
+                f"This visited website url had title : {doc.metadata.VisitedWebPageTitle} \n"
+                f"User Visited this website from referring url : {doc.metadata.VisitedWebPageReffererURL} \n"
+                f"User Visited this website url at this Date and Time : {doc.metadata.VisitedWebPageDateWithTimeInISOString} \n"
+                f"User Visited this website for : {str(doc.metadata.VisitedWebPageVisitDurationInMilliseconds)} milliseconds. \n"
+                f"===================================================================================== \n"
+                f"Webpage Content of the visited webpage url in markdown format : \n\n{doc.pageContent}\n\n"
+                f"===================================================================================== \n"
+            )
+            raw_documents.append(Document(page_content=content, metadata=doc.metadata.__dict__))
+
+           
+            
+            
+        # pgdocmeta = stringify(doc.metadata.__dict__)
+
+        #  DocumentPgEntry.append(Documents(
+        #         file_type='WEBPAGE',
+        #         title=doc.metadata.VisitedWebPageTitle,
+        #         search_space=search_space,
+        #         document_metadata=pgdocmeta,
+        #         page_content=content
+        #     ))
+
+        # # Save documents in PostgreSQL
+        # search_space.documents.extend(DocumentPgEntry)
+        # db.commit()
+
+        # Create hierarchical indices
+        if IS_LOCAL_SETUP == True:
+            index = HIndices(username=username)
+        else:
+            index = HIndices(username=username, api_key=OPENAI_API_KEY)
+
+        # Save indices in vector stores
+        index.encode_docs_hierarchical(
+            documents=raw_documents, 
+            search_space_instance=search_space, 
+            files_type='WEBPAGE', 
+            db=db
+            )
+
+        print("FINISHED")
+
+        return {
+            "success": "Save Job Completed Successfully"
+        }
+
+
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+@app.post("/user/uploadfiles/")
+def save_user_documents(files: list[UploadFile], token: str = Depends(oauth2_scheme), search_space_id: int = Form(...), db: Session = Depends(get_db)):
+    try:
+        # Decode and verify the token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        # Get the user by username and ensure they exist
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify the search space belongs to the user
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+
+        docs = []
+
+        for file in files:
+            if file.content_type.startswith('image'):
+                loader = UnstructuredLoader(
+                        file=file.file,
+                        api_key=UNSTRUCTURED_API_KEY,
+                        partition_via_api=True,
+                        chunking_strategy="basic",
+                        max_characters=90000,
+                        include_orig_elements=False,
+                    )
+            else:
+                loader = UnstructuredLoader(
+                        file=file.file,
+                        api_key=UNSTRUCTURED_API_KEY,
+                        partition_via_api=True,
+                        chunking_strategy="basic",
+                        max_characters=90000,
+                        include_orig_elements=False,
+                        strategy="fast"
+                    )
+
+            filedocs = loader.load()
+
+
+            fileswithfilename = []
+            for f in filedocs:
+                temp = f
+                temp.metadata['filename'] = file.filename
+                fileswithfilename.append(temp)
+
+            docs.extend(fileswithfilename)
+
+        raw_documents = []
+
+        # Process each document in the retrieved document list
+        for doc in docs:
+            raw_documents.append(Document(page_content=doc.page_content, metadata=doc.metadata))
+
+        # Create hierarchical indices
+        if IS_LOCAL_SETUP == True:
+            index = HIndices(username=username)
+        else:
+            index = HIndices(username=username, api_key=OPENAI_API_KEY)
+
+        # Save indices in vector stores
+        index.encode_docs_hierarchical(documents=raw_documents, search_space_instance=search_space, files_type='OTHER', db=db)
+
+        print("FINISHED")
+
+        return {
+            "message": "Files Uploaded Successfully"
+        }
+
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+@app.websocket("/beta/chat/{search_space_id}/{token}")
+async def searchspace_chat_websocket_endpoint(websocket: WebSocket, search_space_id: int, token: str, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        # Get the user by username and ensure they exist
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify the search space belongs to the user
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+
+        await manager.connect(websocket)
+        try:
+            while True:
+                data = await websocket.receive_text()
+                message = json.loads(data)
+                # print(message)
+                if message["type"] == "search_space_chat":
+                    query = message["content"]
+
+                    if message["searchtype"] == "local" :
+                        report_source = "langchain_documents"
+                    else:
+                        report_source = message["searchtype"]
+
+                    if message["answertype"] == "general_answer" :
+                        report_type = "custom_report"
+                    else:
+                        report_type = message["answertype"]
+
+
+                    # Create Heirarical Indecices
+                    if(IS_LOCAL_SETUP == True):
+                        index = HIndices(username=username)
+                    else:
+                        index = HIndices(username=username,api_key=OPENAI_API_KEY)
+
+
+                    await index.ws_experimental_search(websocket=websocket, manager=manager, query=query, search_space=search_space.name, report_type=report_type,  report_source=report_source)
+
+                    await manager.send_personal_message(
+                        json.dumps({"type": "end"}),
+                        websocket
+                    )
+
+
+
+                if message["type"] == "multiple_documents_chat":
+                    query = message["content"]
+                    received_chat_history = message["chat_history"]
+                    
+                    chatHistory = []
+                    
+                    chatHistory = [
+                        SystemMessage(
+                            content=DATE_TODAY + """You are an helpful assistant for question-answering tasks.
+                            Use the following pieces of retrieved context to answer the question.
+                            If you don't know the answer, just say that you don't know.
+                            Context:""" + str(received_chat_history[0]['relateddocs']))
+                    ]
+                    
+                    for data in received_chat_history[1:]:
+                        if data["role"] == "user":
+                            chatHistory.append(HumanMessage(content=data["content"]))
+                        
+                        if data["role"] == "assistant":
+                            chatHistory.append(AIMessage(content=data["content"]))
+
+
+                    chatHistory.append(("human", "{input}"))
+                    
+                    qa_prompt = ChatPromptTemplate.from_messages(chatHistory)
+                    
+                    if(IS_LOCAL_SETUP == True):
+                        llm = OllamaLLM(model=MODEL_NAME,temperature=0)
+                    else:
+                        llm = ChatOpenAI(temperature=0, model_name=MODEL_NAME, api_key=OPENAI_API_KEY)
+
+                    descriptionchain = qa_prompt | llm
+                    
+                    streamingResponse = ""
+                    counter = 0
+                    for res in descriptionchain.stream({"input": query}):
+                        streamingResponse += res.content
+                        
+                        if (counter < 20) : 
+                            counter += 1
+                        else :
+                            await manager.send_personal_message(
+                                json.dumps({"type": "stream", "content": streamingResponse}),
+                                websocket
+                            )
+                            
+                            counter = 0
+                            
+                    await manager.send_personal_message(
+                                json.dumps({"type": "stream", "content": streamingResponse}),
+                                websocket
+                            )
+                     
+                    await manager.send_personal_message(
+                        json.dumps({"type": "end"}),
+                        websocket
+                    )
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            manager.disconnect(websocket)
+    except JWTError:
+        await websocket.close(code=4003, reason="Invalid token")
+
+@app.post("/user/searchspace/create-podcast")
+async def create_podcast(
+    data: CreatePodcast,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verify token and get username
+        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        # Get user
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify search space belongs to user
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == data.search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+
+        # Create new podcast entry
+        new_podcast = Podcast(
+            title=data.title,
+            podcast_content=data.podcast_content,
+            search_space_id=search_space.id
+        )
+
+        db.add(new_podcast)
+        db.commit()
+        db.refresh(new_podcast)
+        
+        podcast_config = {
+            'word_count': data.wordcount, 
+            'podcast_name': 'SurfSense Podcast', 
+            'podcast_tagline': 'Your Own Personal Podcast.', 
+            'output_language': 'English', 
+            'user_instructions': 'Make if fun and engaging', 
+            'engagement_techniques': ['Rhetorical Questions', 'Personal Testimonials', 'Quotes', 'Anecdotes', 'Analogies', 'Humor'], 
+        }
+        
+        try:
+            background_tasks.add_task(
+                generate_podcast_background,
+                new_podcast.id,
+                data.podcast_content,
+                MODEL_NAME,
+                "OPENAI_API_KEY",
+                podcast_config,
+                db
+            )
+            # # Check MODEL NAME behavior on Local Setups
+            # saved_file_location = generate_podcast(
+            #     text=data.podcast_content,
+            #     llm_model_name=MODEL_NAME,
+            #     api_key_label="OPENAI_API_KEY",
+            #     conversation_config=podcast_config,
+            # )
+            
+            # new_podcast.file_location = saved_file_location
+            # new_podcast.is_generated = True
+            
+            # db.commit()
+            # db.refresh(new_podcast)
+            
+            
+            return {"message": "Podcast created successfully", "podcast_id": new_podcast.id}
+        except JWTError:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired") 
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+        
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def generate_podcast_background(
+    podcast_id: int,
+    podcast_content: str,
+    model_name: str,
+    api_key_label: str,
+    conversation_config: dict,
+    db: Session
+):
+    try:
+        saved_file_location = generate_podcast(
+            text=podcast_content,
+            llm_model_name=model_name,
+            api_key_label=api_key_label,
+            conversation_config=conversation_config,
+        )
+
+        # Update podcast in database
+        podcast = db.query(Podcast).filter(Podcast.id == podcast_id).first()
+        if podcast:
+            podcast.file_location = saved_file_location
+            podcast.is_generated = True
+            db.commit()
+    except Exception as e:
+        # Log the error or handle it appropriately
+        print(f"Error generating podcast: {str(e)}")
+        
+        
+@app.get("/user/{token}/searchspace/{search_space_id}/download-podcast/{podcast_id}")
+async def download_podcast(search_space_id: int, podcast_id: int, token: str, db: Session = Depends(get_db)):
+    try:
+        # Verify the token and get the username
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        # Get the user by username
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify the search space belongs to the user
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+
+        # Retrieve the podcast file from the database
+        podcast = db.query(Podcast).filter(
+            Podcast.id == podcast_id,
+            Podcast.search_space_id == search_space_id
+        ).first()
+        if not podcast:
+            raise HTTPException(status_code=404, detail="Podcast not found in the specified search space")
+
+        # Read the file content
+        with open(podcast.file_location, "rb") as file:
+            file_content = file.read()
+
+        # Create a response with the file content
+        response = Response(content=file_content)
+        response.headers["Content-Disposition"] = f"attachment; filename={podcast.title}.mp3"
+        response.headers["Content-Type"] = "audio/mpeg"
+
+        return response
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/user/{token}/searchspace/{search_space_id}/podcasts")
+async def get_user_podcasts(token: str, search_space_id: int, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+
+        podcasts = db.query(Podcast).filter(Podcast.search_space_id == search_space_id).all()
+        return podcasts
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+# Incomplete function, needs to be implemented based on the actual requirements and database structure
+@app.post("/searchspace/{search_space_id}/delete/docs")
+def delete_all_related_data(search_space_id: int, data: DocumentsToDelete, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+        # Get the user by username and ensure they exist
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify the search space belongs to the user
+        search_space = db.query(SearchSpace).filter(
+            SearchSpace.id == search_space_id,
+            SearchSpace.user_id == user.id
+        ).first()
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found or does not belong to the user")
+        
+        if IS_LOCAL_SETUP:
+            index = HIndices(username=username)
+        else:
+            index = HIndices(username=username, api_key=OPENAI_API_KEY)
+
+        message = index.delete_vector_stores(summary_ids_to_delete=data.ids_to_delete, db=db, search_space=search_space.name)
+
+        return {
+            "message": message
+        }
+
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Token is invalid or expired")
+
+
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
-    
-    
-    
+    uvicorn.run(app, ws="wsproto", host="127.0.0.1", port=8000)

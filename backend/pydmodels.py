@@ -1,3 +1,4 @@
+# This have many unused shit will clean in future
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
@@ -24,15 +25,28 @@ class DocMeta(BaseModel):
 #     VisitedWebPageContent: Optional[str] = Field(default=None, description="Visited WebPage Content in markdown of Document")
 
 
+class CreatePodcast(BaseModel):
+    token: str
+    search_space_id: int
+    title: str
+    wordcount: int
+    podcast_content: str
+
+
+class CreateStorageSpace(BaseModel):
+    name: str
+    description: str
+    token : str
+
 
 class Reference(BaseModel):
     id: str = Field(..., description="reference no")
-    title: str = Field(..., description="reference title")
-    url: str = Field(..., description="reference url")
+    title: str = Field(..., description="reference title.")
+    source: str = Field(..., description="reference Source or URL. Prefer URL only include file names if no URL available.")
 
 
 class AIAnswer(BaseModel):
-    answer: str = Field(..., description="Given Answer including its intext citation no's like [1], [2] etc.")
+    answer: str = Field(..., description="The provided answer, excluding references, but including in-text citation numbers such as [1], [2], (1), (2), etc.")
     references: List[Reference] = Field(..., description="References")
 
 
@@ -42,13 +56,16 @@ class DocWithContent(BaseModel):
       
 class DocumentsToDelete(BaseModel):
     ids_to_delete: List[str]
-    openaikey: str
     token: str   
     
 class UserQuery(BaseModel):
     query: str
     search_space: str
-    openaikey: str
+    token: str
+    
+class MainUserQuery(BaseModel):
+    query: str
+    search_space: str
     token: str
     
 class ChatHistory(BaseModel):
@@ -58,7 +75,6 @@ class ChatHistory(BaseModel):
 class UserQueryWithChatHistory(BaseModel):
     chat: List[ChatHistory]
     query: str
-    openaikey: str
     token: str
     
 class DescriptionResponse(BaseModel):
@@ -70,12 +86,16 @@ class RetrivedDocListItem(BaseModel):
 
 class RetrivedDocList(BaseModel):
     documents: List[RetrivedDocListItem]
-    search_space: str | None
-    openaikey: str
+    search_space_id: int
     token: str
     
 class UserQueryResponse(BaseModel):
     response: str
+    relateddocs: List[DocWithContent]
+    
+class NewUserQueryResponse(BaseModel):
+    response: str
+    sources: List[Reference]
     relateddocs: List[DocWithContent]
     
 class NewUserChat(BaseModel):

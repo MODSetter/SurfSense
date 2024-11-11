@@ -25,3 +25,6 @@ langgraph-cli
 weasyprint
 json5
 loguru
+ffmpeg
+podcastfy
+wsproto

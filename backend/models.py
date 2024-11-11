@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List
+# from typing import List
 from database import Base, engine
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, create_engine
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Boolean, create_engine
 from sqlalchemy.orm import relationship
 
 class BaseModel(Base):
@@ -18,8 +18,8 @@ class Chat(BaseModel):
     title = Column(String)
     chats_list = Column(String)
     
-    user_id = Column(ForeignKey('users.id'))
-    user = relationship('User')
+    search_space_id = Column(Integer, ForeignKey('searchspaces.id'))
+    search_space = relationship('SearchSpace', back_populates='chats')
 
     
 class Documents(BaseModel):
@@ -31,29 +31,49 @@ class Documents(BaseModel):
     file_type = Column(String)
     document_metadata = Column(String)
     page_content = Column(String)
-    desc_vector_start = Column(Integer, default=0)
-    desc_vector_end = Column(Integer, default=0)
     
-    search_space_id = Column(ForeignKey('searchspaces.id'))
-    search_space = relationship('SearchSpace')
+    summary_vector_id = Column(String)
     
-    user_id = Column(ForeignKey('users.id'))
-    user = relationship('User')
+    search_space_id = Column(Integer, ForeignKey("searchspaces.id"))
+    search_space = relationship("SearchSpace", back_populates="documents")
+    
+    
+class Podcast(BaseModel):
+    __tablename__ = "podcasts"
+    
+    title = Column(String)
+    created_at = Column(DateTime, default=datetime.now)
+    is_generated = Column(Boolean, default=False)
+    podcast_content = Column(String, default="")
+    file_location = Column(String, default="")
+    
+    search_space_id = Column(Integer, ForeignKey("searchspaces.id"))
+    search_space = relationship("SearchSpace", back_populates="podcasts")
+    
+    
     
 class SearchSpace(BaseModel):
     __tablename__ = "searchspaces"
     
-    search_space = Column(String, unique=True)
+    name = Column(String, index=True)
+    description = Column(String)
+    created_at = Column(DateTime, default=datetime.now)
     
-    documents = relationship(Documents)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    user = relationship("User", back_populates="search_spaces")
+    
+    documents = relationship("Documents", back_populates="search_space", order_by="Documents.id")
+    podcasts = relationship("Podcast", back_populates="search_space", order_by="Podcast.id")
+
+    chats = relationship('Chat', back_populates='search_space', order_by='Chat.id')
     
 class User(BaseModel):
     __tablename__ = "users"
 
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    chats = relationship(Chat, order_by="Chat.id")
-    documents = relationship(Documents, order_by="Documents.id")
+    
+    search_spaces = relationship("SearchSpace", back_populates="user")
     
 
 # Create the database tables if they don't exist
