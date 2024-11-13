@@ -18,6 +18,8 @@ langchain_chroma
 flashrank
 psycopg2
 unstructured-client
+python-libmagic
+poppler-utils
 langchain-unstructured
 langgraph
 gpt_researcher
