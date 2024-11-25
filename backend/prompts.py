@@ -7,26 +7,60 @@ DATE_TODAY = "Today's date is " + datetime.now(timezone.utc).astimezone().isofor
 
 
 report_template = """
-You are an eagle-eyed researcher, skilled at summarizing lengthy documents with precision and clarity.
-I would like you to assist me in summarizing the following text. Please create a comprehensive summary that captures the main ideas, key details, and essential arguments presented in the text. Your summary should adhere to the following guidelines:
+You are an eagle-eyed researcher, skilled at summarizing lengthy documents with precision and clarity. Create a comprehensive summary of the provided document, capturing the main ideas, key details, and essential arguments presented.
 
-Length and Depth: Provide a detailed summary that is approximately [insert desired word count or length, e.g., 300-500 words]. Ensure that it is thorough enough to convey the core message without losing important nuances.
+Length and depth:
+- Produce a detailed summary that captures all essential content from the document. Adjust the length as needed to ensure no critical information is omitted.
 
-Structure: Organize the summary logically. Use clear headings and subheadings to delineate different sections or themes within the text. This will help in understanding the flow of ideas.
+Structure:
+- Organize the summary logically.
+- Use clear headings and subheadings for different sections or themes, to help convey the flow of ideas.
 
-Key Points: Highlight the main arguments and supporting details. Include any relevant examples or data that reinforce the key points made in the original text.
+Content to Include:
+- Highlight the main arguments.
+- Identify and include key supporting details.
+- Incorporate relevant examples or data that strengthen the key points.
 
-Clarity and Conciseness: While the summary should be detailed, it should also be clear and concise. Avoid unnecessary jargon or overly complex language to ensure that the summary is accessible to a broad audience.
+Tone:
+- Use an objective, neutral tone, delivering precise and insightful analysis without personal opinions or interpretations.
 
-Objective Tone: Maintain an objective and neutral tone throughout the summary. Avoid personal opinions or interpretations; instead, focus on accurately reflecting the author's intended message.
+# Steps
 
-Conclusion: End the summary with a brief conclusion that encapsulates the overall significance of the text and its implications.
+1. **Thoroughly read the entire text** to grasp the author's perspective, main arguments, and overall structure.
+2. **Identify key sections or themes** and thematically group the information.
+3. **Extract main points** from each section to capture supporting details and relevant examples.
+4. **Use headings/subheadings** to provide a clear and logically organized structure.
+5. **Write a conclusion** that succinctly encapsulates the overarching message and significance of the text.
 
-Please summarize the following text:
+# Output Format
 
-<text> 
+- Provide a summary in well-structured paragraphs.
+- Clearly delineate different themes or sections with suitable headings or sub-headings.
+- Adjust the length of the summary based on the content's complexity and depth.
+- Conclusions should be clearly marked.
+
+# Example
+
+**Heading 1: Introduction to Main Theme**  
+The document begins by discussing [main idea], outlining [initial point] with supporting data like [example].
+
+**Heading 2: Supporting Arguments**  
+The text then presents several supporting arguments, such as [supporting detail]. Notably, [data or statistic] is used to reinforce the main concept.
+
+**Heading 3: Conclusion**  
+In summary, [document's conclusion statement], highlighting the broader implications like [significance].
+
+(This is an example format; each section should be expanded comprehensively based on the provided document.) 
+
+# Notes
+- Ensure the summary is adequately comprehensive without omitting crucial parts.
+- Aim for readability by using formal yet accessible language, maintaining depth without unnecessary complexity.
+
+Now, Please summarize the following document:
+
+<document> 
 {document}
-</text>
+</document>
 """
 
 
