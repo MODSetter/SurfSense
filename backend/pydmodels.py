@@ -1,4 +1,3 @@
-# This have many unused shit will clean in future
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
@@ -13,17 +12,7 @@ class DocMeta(BaseModel):
     VisitedWebPageTitle: Optional[str] = Field(default=None, description="VisitedWebPageTitle of Document")
     VisitedWebPageDateWithTimeInISOString: Optional[str] = Field(default=None, description="VisitedWebPageDateWithTimeInISOString of Document")
     VisitedWebPageReffererURL: Optional[str] = Field(default=None, description="VisitedWebPageReffererURL of Document")
-    VisitedWebPageVisitDurationInMilliseconds: Optional[int] = Field(default=None, description="VisitedWebPageVisitDurationInMilliseconds of Document"),
-    
-# class DocWithContent(BaseModel):
-#     BrowsingSessionId: Optional[str] = Field(default=None, description="BrowsingSessionId of Document")
-#     VisitedWebPageURL: Optional[str] = Field(default=None, description="VisitedWebPageURL of Document")
-#     VisitedWebPageTitle: Optional[str] = Field(default=None, description="VisitedWebPageTitle of Document")
-#     VisitedWebPageDateWithTimeInISOString: Optional[str] = Field(default=None, description="VisitedWebPageDateWithTimeInISOString of Document")
-#     VisitedWebPageReffererURL: Optional[str] = Field(default=None, description="VisitedWebPageReffererURL of Document")
-#     VisitedWebPageVisitDurationInMilliseconds: Optional[int] = Field(default=None, description="VisitedWebPageVisitDurationInMilliseconds of Document"),
-#     VisitedWebPageContent: Optional[str] = Field(default=None, description="Visited WebPage Content in markdown of Document")
-
+    VisitedWebPageVisitDurationInMilliseconds: Optional[int] = Field(default=None, description="VisitedWebPageVisitDurationInMilliseconds of Document")
 
 class CreatePodcast(BaseModel):
     token: str
@@ -32,32 +21,28 @@ class CreatePodcast(BaseModel):
     wordcount: int
     podcast_content: str
 
-
 class CreateStorageSpace(BaseModel):
     name: str
     description: str
     token : str
-
 
 class Reference(BaseModel):
     id: str = Field(..., description="reference no")
     title: str = Field(..., description="reference title.")
     source: str = Field(..., description="reference Source or URL. Prefer URL only include file names if no URL available.")
 
-
 class AIAnswer(BaseModel):
     answer: str = Field(..., description="The provided answer, excluding references, but including in-text citation numbers such as [1], [2], (1), (2), etc.")
     references: List[Reference] = Field(..., description="References")
 
-
 class DocWithContent(BaseModel):
     DocMetadata: Optional[str] = Field(default=None, description="Document Metadata")
     Content: Optional[str] = Field(default=None, description="Document Page Content")
-      
+
 class DocumentsToDelete(BaseModel):
     ids_to_delete: List[str]
     token: str   
-    
+
 class UserQuery(BaseModel):
     query: str
     search_space: str
