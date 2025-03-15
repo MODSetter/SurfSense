@@ -1,6 +1,6 @@
-[submodule "surfsense_frontend"]
-	path = surfsense_frontend
-	url = https://github.com/MODSetter/surfsense_frontend.git
 [submodule "ss-cross-browser-extension"]
 	path = ss-cross-browser-extension
 	url = https://github.com/MODSetter/ss-cross-browser-extension.git
+[submodule "surfsense_frontend"]
+	path = surfsense_frontend
+	url = https://github.com/MODSetter/surfsense_frontend.git
