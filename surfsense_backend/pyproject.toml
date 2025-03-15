@@ -1,0 +1,27 @@
+[project]
+name = "surf-new-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "chonkie[all]>=0.4.1",
+    "fastapi>=0.115.8",
+    "fastapi-users[oauth,sqlalchemy]>=14.0.1",
+    "firecrawl-py>=1.12.0",
+    "gpt-researcher>=0.12.12",
+    "langchain-community>=0.3.17",
+    "langchain-unstructured>=0.1.6",
+    "litellm>=1.61.4",
+    "markdownify>=0.14.1",
+    "notion-client>=2.3.0",
+    "pgvector>=0.3.6",
+    "playwright>=1.50.0",
+    "rerankers[flashrank]>=0.7.1",
+    "slack-sdk>=3.34.0",
+    "tavily-python>=0.3.2",
+    "unstructured-client>=0.30.0",
+    "uvicorn[standard]>=0.34.0",
+    "validators>=0.34.0",
+]

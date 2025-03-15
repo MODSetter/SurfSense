@@ -1,0 +1,385 @@
+import json
+from typing import List, Dict, Any, Optional, Tuple
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
+from app.db import SearchSourceConnector, SearchSourceConnectorType
+from tavily import TavilyClient
+
+
+class ConnectorService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.retriever = ChucksHybridSearchRetriever(session)
+        self.source_id_counter = 1
+    
+    async def search_crawled_urls(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for crawled URLs and return both the source information and langchain documents
+        
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        crawled_urls_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="CRAWLED_URL"
+        )
+
+        # Map crawled_urls_chunks to the required format
+        mapped_sources = {}
+        for i, chunk in enumerate(crawled_urls_chunks):
+            #Fix for UI
+            crawled_urls_chunks[i]['document']['id'] = self.source_id_counter
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Create a mapped source entry
+            source = {
+                "id":  self.source_id_counter,
+                "title": document.get('title', 'Untitled Document'),
+                "description": metadata.get('og:description', metadata.get('ogDescription', chunk.get('content', '')[:100])),
+                "url": metadata.get('url', '')
+            }
+
+            self.source_id_counter += 1
+
+            # Use a unique identifier for tracking unique sources
+            source_key = source.get("url") or source.get("title")
+            if source_key and source_key not in mapped_sources:
+                mapped_sources[source_key] = source
+        
+        # Convert to list of sources
+        sources_list = list(mapped_sources.values())
+        
+        # Create result object
+        result_object = {
+            "id": 1,
+            "name": "Crawled URLs",
+            "type": "CRAWLED_URL",
+            "sources": sources_list,
+        }
+        
+
+        return result_object, crawled_urls_chunks
+    
+    async def search_files(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for files and return both the source information and langchain documents
+        
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        files_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="FILE"
+        )
+
+        # Map crawled_urls_chunks to the required format
+        mapped_sources = {}
+        for i, chunk in enumerate(files_chunks):
+            #Fix for UI
+            files_chunks[i]['document']['id'] = self.source_id_counter
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Create a mapped source entry
+            source = {
+                "id":  self.source_id_counter,
+                "title": document.get('title', 'Untitled Document'),
+                "description": metadata.get('og:description', metadata.get('ogDescription', chunk.get('content', '')[:100])),
+                "url": metadata.get('url', '')
+            }
+
+            self.source_id_counter += 1
+
+            # Use a unique identifier for tracking unique sources
+            source_key = source.get("url") or source.get("title")
+            if source_key and source_key not in mapped_sources:
+                mapped_sources[source_key] = source
+        
+        # Convert to list of sources
+        sources_list = list(mapped_sources.values())
+        
+        # Create result object
+        result_object = {
+            "id": 2,
+            "name": "Files",
+            "type": "FILE",
+            "sources": sources_list,
+        }
+        
+        return result_object, files_chunks
+    
+    async def get_connector_by_type(self, user_id: int, connector_type: SearchSourceConnectorType) -> Optional[SearchSourceConnector]:
+        """
+        Get a connector by type for a specific user
+        
+        Args:
+            user_id: The user's ID
+            connector_type: The connector type to retrieve
+            
+        Returns:
+            Optional[SearchSourceConnector]: The connector if found, None otherwise
+        """
+        result = await self.session.execute(
+            select(SearchSourceConnector)
+            .filter(
+                SearchSourceConnector.user_id == user_id,
+                SearchSourceConnector.connector_type == connector_type
+            )
+        )
+        return result.scalars().first()
+    
+    async def search_tavily(self, user_query: str, user_id: int, top_k: int = 20) -> tuple:
+        """
+        Search using Tavily API and return both the source information and documents
+        
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            top_k: Maximum number of results to return
+            
+        Returns:
+            tuple: (sources_info, documents)
+        """
+        # Get Tavily connector configuration
+        tavily_connector = await self.get_connector_by_type(user_id, SearchSourceConnectorType.TAVILY_API)
+        
+        if not tavily_connector:
+            # Return empty results if no Tavily connector is configured
+            return {
+                "id": 3,
+                "name": "Tavily Search",
+                "type": "TAVILY_API",
+                "sources": [],
+            }, []
+        
+        # Initialize Tavily client with API key from connector config
+        tavily_api_key = tavily_connector.config.get("TAVILY_API_KEY")
+        tavily_client = TavilyClient(api_key=tavily_api_key)
+        
+        # Perform search with Tavily
+        try:
+            response = tavily_client.search(
+                query=user_query,
+                max_results=top_k,
+                search_depth="advanced"  # Use advanced search for better results
+            )
+            
+            # Extract results from Tavily response
+            tavily_results = response.get("results", [])
+            
+            # Map Tavily results to the required format
+            sources_list = []
+            documents = []
+            
+            # Start IDs from 1000 to avoid conflicts with other connectors
+            base_id = 100
+            
+            for i, result in enumerate(tavily_results):
+                
+                # Create a source entry
+                source = {
+                    "id": self.source_id_counter,
+                    "title": result.get("title", "Tavily Result"),
+                    "description": result.get("content", "")[:100],
+                    "url": result.get("url", "")
+                }
+                sources_list.append(source)
+                
+                # Create a document entry
+                document = {
+                    "chunk_id": f"tavily_chunk_{i}",
+                    "content": result.get("content", ""),
+                    "score": result.get("score", 0.0),
+                    "document": {
+                        "id": self.source_id_counter,
+                        "title": result.get("title", "Tavily Result"),
+                        "document_type": "TAVILY_API",
+                        "metadata": {
+                            "url": result.get("url", ""),
+                            "published_date": result.get("published_date", ""),
+                            "source": "TAVILY_API"
+                        }
+                    }
+                }
+                documents.append(document)
+                self.source_id_counter += 1
+
+            # Create result object
+            result_object = {
+                "id": 3,
+                "name": "Tavily Search",
+                "type": "TAVILY_API",
+                "sources": sources_list,
+            }
+            
+            return result_object, documents
+            
+        except Exception as e:
+            # Log the error and return empty results
+            print(f"Error searching with Tavily: {str(e)}")
+            return {
+                "id": 3,
+                "name": "Tavily Search",
+                "type": "TAVILY_API",
+                "sources": [],
+            }, []
+    
+    async def search_slack(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for slack and return both the source information and langchain documents
+        
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        slack_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="SLACK_CONNECTOR"
+        )
+
+        # Map slack_chunks to the required format
+        mapped_sources = {}
+        for i, chunk in enumerate(slack_chunks):
+            #Fix for UI
+            slack_chunks[i]['document']['id'] = self.source_id_counter
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Create a mapped source entry with Slack-specific metadata
+            channel_name = metadata.get('channel_name', 'Unknown Channel')
+            channel_id = metadata.get('channel_id', '')
+            message_date = metadata.get('start_date', '')
+            
+            # Create a more descriptive title for Slack messages
+            title = f"Slack: {channel_name}"
+            if message_date:
+                title += f" ({message_date})"
+                
+            # Create a more descriptive description for Slack messages
+            description = chunk.get('content', '')[:100]
+            if len(description) == 100:
+                description += "..."
+                
+            # For URL, we can use a placeholder or construct a URL to the Slack channel if available
+            url = ""
+            if channel_id:
+                url = f"https://slack.com/app_redirect?channel={channel_id}"
+
+            source = {
+                "id": self.source_id_counter,
+                "title": title,
+                "description": description,
+                "url": url,
+            }
+
+            self.source_id_counter += 1
+
+            # Use channel_id and content as a unique identifier for tracking unique sources
+            source_key = f"{channel_id}_{chunk.get('chunk_id', i)}"
+            if source_key and source_key not in mapped_sources:
+                mapped_sources[source_key] = source
+        
+        # Convert to list of sources
+        sources_list = list(mapped_sources.values())
+        
+        # Create result object
+        result_object = {
+            "id": 4,
+            "name": "Slack",
+            "type": "SLACK_CONNECTOR",
+            "sources": sources_list,
+        }
+        
+        return result_object, slack_chunks
+        
+    async def search_notion(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for Notion pages and return both the source information and langchain documents
+        
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        notion_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="NOTION_CONNECTOR"
+        )
+
+        # Map notion_chunks to the required format
+        mapped_sources = {}
+        for i, chunk in enumerate(notion_chunks):
+            # Fix for UI
+            notion_chunks[i]['document']['id'] = self.source_id_counter
+            
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Create a mapped source entry with Notion-specific metadata
+            page_title = metadata.get('page_title', 'Untitled Page')
+            page_id = metadata.get('page_id', '')
+            indexed_at = metadata.get('indexed_at', '')
+            
+            # Create a more descriptive title for Notion pages
+            title = f"Notion: {page_title}"
+            if indexed_at:
+                title += f" (indexed: {indexed_at})"
+                
+            # Create a more descriptive description for Notion pages
+            description = chunk.get('content', '')[:100]
+            if len(description) == 100:
+                description += "..."
+                
+            # For URL, we can use a placeholder or construct a URL to the Notion page if available
+            url = ""
+            if page_id:
+                # Notion page URLs follow this format
+                url = f"https://notion.so/{page_id.replace('-', '')}"
+
+            source = {
+                "id": self.source_id_counter,
+                "title": title,
+                "description": description,
+                "url": url,
+            }
+
+            self.source_id_counter += 1
+
+            # Use page_id and content as a unique identifier for tracking unique sources
+            source_key = f"{page_id}_{chunk.get('chunk_id', i)}"
+            if source_key and source_key not in mapped_sources:
+                mapped_sources[source_key] = source
+        
+        # Convert to list of sources
+        sources_list = list(mapped_sources.values())
+        
+        # Create result object
+        result_object = {
+            "id": 5,
+            "name": "Notion",
+            "type": "NOTION_CONNECTOR",
+            "sources": sources_list,
+        }
+        
+        return result_object, notion_chunks

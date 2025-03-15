@@ -1,0 +1,6 @@
+.env
+.venv
+venv/
+data/
+__pycache__/
+.flashrank_cache
