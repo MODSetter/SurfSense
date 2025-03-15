@@ -1,115 +1,132 @@
 
 
-![header](https://github.com/user-attachments/assets/90f5ae85-94c4-4119-bbb4-8c3f308b7e39)
+![header](https://github.com/user-attachments/assets/eb82ff33-1383-440a-8bb0-c707f12f0dac)
+
+
 
 
 
 # SurfSense
-While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic, imagine having both at your disposal with complete privacy control. That's exactly what SurfSense offers. With SurfSense, you can create your own knowledge base for research, similar to NotebookLM, or easily research the web just like Perplexity. SurfSense also includes an effective cross-browser extension to directly save dynamic content bookmarks, such as social media chats, calendar invites, important emails, tutorials, recipes, and more to your SurfSense knowledge base. Now, you’ll never forget anything and can easily research everything.
+While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily), Slack, Notion, and more—truly an all-in-one AI research suite.
 
 # Video
 
-
-https://github.com/user-attachments/assets/1105b5f6-3030-43e9-9f83-2df980eb2140
-
-
-
-
+https://github.com/user-attachments/assets/48142909-6391-4084-b7e8-81da388bb1fc
 
 
 
 
 ## Key Features
+### 1. Latest
 
-- 💡 **Idea**: Have your own private NotebookLM and Perplexity with better  integrations.
-- ⚙️ **Cross Browser Extension**: Save your dynamic content bookmarks from your favourite browser.
-- 📁 **Multiple File Format Uploading Support**: Save content from your own personal files(Documents, images and more) to your own personal knowledge base .
-- 🔍 **Powerful Search**: Quickly research or find anything in your saved content.
-- 💬 **Chat with your Saved Content**: Interact in Natural Language with your saved Web Browsing Sessions and get cited answers.
-- 🎤 **Podcasts your Saved Content**: Create podcasts over your saved content in SurfSense knowledge base.
-- 📄 **Cited Answers**: Get Cited answers just like Perplexity.
-- 🔔 **Local LLM Support**: Works Flawlessly with Ollama local LLMs.
-- 🏠 **Self Hostable**: Open source and easy to deploy locally.
-- 📊 **Advanced RAG Techniques**: Utilize the power of Hierarchical Indices RAG.
-- 🔟% **Cheap On Wallet**: Works Flawlessly with OpenAI gpt-4o-mini model and Ollama local LLMs.
-- 🕸️ **No WebScraping**: Extension directly reads the data from DOM to get accurate data.
+#### 💡 **Idea**: 
+Have your own highly customizable private NotebookLM and Perplexity integrated with external sources.
+#### 📁 **Multiple File Format Uploading Support**
+Save content from your own personal files *(Documents, images and supports **27 file extensions**)* to your own personal knowledge base .
+#### 🔍 **Powerful Search**
+Quickly research or find anything in your saved content .
+#### 💬 **Chat with your Saved Content**
+ Interact in Natural Language and get cited answers.
+#### 📄 **Cited Answers**
+Get Cited answers just like Perplexity.
+#### 🔔 **Privacy & Local LLM Support**
+Works Flawlessly with Ollama local LLMs.
+#### 🏠 **Self Hostable**
+Open source and easy to deploy locally.
+#### 📊 **Advanced RAG Techniques**
+- Supports 150+ LLM's
+- Supports 6000+ Embedding Models.
+- Supports all major Rerankers (Pinecode, Cohere, Flashrank etc)
+- Uses Hierarchical Indices (2 tiered RAG setup).
+- Utilizes Hybrid Search (Semantic + Full Text Search combined with Reciprocal Rank Fusion).
+- RAG as a Service API Backend.
+
+#### ℹ️ **External Sources**
+- Search Engines (Tavily)
+- Slack
+- Notion
+- and more to come.....
 
 
-## CHANGELOG
+### 2. Temporarily Deprecated
+#### Cross Browser Extension
+- The SurfSense extension is currently being reworked for better UI and stability. Expect it soon.
 
-**UPDATE 11 NOVEMBER 2024:** 
-- Too many changes just fully rebranded it for better direction.
-- SurfSense is now A Personal NotebookLM and Perplexity-like AI Assistant for Everyone.
-
-all at https://github.com/MODSetter/SurfSense/blob/main/CHANGELOG.md
+#### Podcasts 
+- The SurfSense Podcast feature is currently being reworked for better UI and stability. Expect it soon.
 
 
 ## How to get started?
 
-### PRE-START NOTE's
+### PRE-START CHECKS
 
 #### File Uploading Support
+For File uploading you need Unstructured.io API key. You can get it at http://platform.unstructured.io/
 
-SurfSense now supports uploading various file types. To enable this feature, please set up the Unstructured.io library + its prerequisites. You can follow the setup guide here: https://github.com/Unstructured-IO/unstructured?tab=readme-ov-file#installing-the-library
+#### Auth
+SurfSense now only works with Google OAuth. Make sure to set your OAuth Client at https://developers.google.com/identity/protocols/oauth2 . We need client id and client secret for backend.
 
-#### Podcast Support
-- SurfSense internally uses https://github.com/souzatharsis/podcastfy for generation podcasts. Thanks to original author to let me use his library.
-- Make sure you correctly setup `ffmpeg`  in your system so merging of audio's can happen.
-
-**Podcast Example**
+![gauth](https://github.com/user-attachments/assets/80d60fe5-889b-48a6-b947-200fdaf544c1)
 
 
-https://github.com/user-attachments/assets/7dc6719d-201c-4c59-9467-1b60f283fb32
+#### Crawler Support
+SurfSense currently uses Firecrawl.py right now. Playwright crawler support will be added soon. 
 
 
----
-
-### Docker Setup
-
-1. Setup `SurfSense-Frontend/.env` and `backend/.env`
-2. Run `docker-compose build --no-cache`.
-3. After building image run `docker-compose up -d`
-4. Now connect the extension with docker live backend url by updating `ss-cross-browser-extension/.env` and building it.
 
 
 ---
 ### Backend
+This is the core of SurfSense. Before we begin let's look at `.env` variables' that we need to successfully setup SurfSense.
 
-For authentication purposes, you’ll also need a PostgreSQL instance running on your machine.
+|ENV VARIABLE|DESCRIPTION|
+|--|--|
+| DATABASE_URL| Your PostgreSQL database connection string. Eg. `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`|
+| SECRET_KEY| JWT Secret key used for authentication. Should be a secure random string. Eg. `SURFSENSE_SECRET_KEY_123456789`|
+| GOOGLE_OAUTH_CLIENT_ID| Google OAuth client ID obtained from Google Cloud Console when setting up OAuth authentication|
+| GOOGLE_OAUTH_CLIENT_SECRET| Google OAuth client secret obtained from Google Cloud Console when setting up OAuth authentication|
+| NEXT_FRONTEND_URL| URL where your frontend application is hosted. Eg. `http://localhost:3000`|
+| EMBEDDING_MODEL| Name of the embedding model to use for vector embeddings. Currently works with Sentence Transformers only. Expect other embeddings soon. Eg. `mixedbread-ai/mxbai-embed-large-v1`|
+| RERANKERS_MODEL_NAME| Name of the reranker model for search result reranking. Eg. `ms-marco-MiniLM-L-12-v2`|
+| RERANKERS_MODEL_TYPE| Type of reranker model being used. Eg. `flashrank`|
+| FAST_LLM| LiteLLM routed Smaller, faster LLM for quick responses. Eg. `litellm:openai/gpt-4o`|
+| SMART_LLM| LiteLLM routed  Balanced LLM for general use. Eg. `litellm:openai/gpt-4o`|
+| STRATEGIC_LLM| LiteLLM routed  Advanced LLM for complex reasoning tasks. Eg. `litellm:openai/gpt-4o`|
+| LONG_CONTEXT_LLM| LiteLLM routed  LLM capable of handling longer context windows. Eg. `litellm:gemini/gemini-2.0-flash`|
+| UNSTRUCTURED_API_KEY| API key for Unstructured.io service for document parsing|
+| FIRECRAWL_API_KEY| API key for Firecrawl service for web crawling and data extraction|
 
-Now lets setup the SurfSense BackEnd
-1. Clone this repo.
-2. Go to ./backend subdirectory.
-3. Setup Python Virtual Environment
-4. Run `pip install -r requirements.txt` to install all required dependencies.
-5. Update/Make the required Environment variables in `.env` following the `.env.example`
-6. Backend is a FastAPI Backend so now just run the server on unicorn using command `uvicorn server:app --host 0.0.0.0 --port 8000`
-7. If everything worked fine you should see screen like this.
+IMPORTANT: Since LLM calls are routed through LiteLLM make sure to include API keys of LLM models you are using. For example if you used `litellm:openai/gpt-4o` make sure to include OpenAI API Key `OPENAI_API_KEY` or if you use `litellm:gemini/gemini-2.0-flash` then you include `GEMINI_API_KEY`.
+
+You can also integrate any LLM just follow this https://docs.litellm.ai/docs/providers
+
+Now once you have everything let's proceed to run SurfSense. 
+1. Install `uv` : https://docs.astral.sh/uv/getting-started/installation/
+2. Now just run this command to install dependencies i.e `uv sync`
+3. That's it. Now just run the `main.py` file using `uv run main.py`.
+4. If everything worked fine you should see screen like this.
 
 ![backend](https://i.ibb.co/542Vhqw/backendrunning.png)
 
 ---
 
-### FrontEnd
+### FrontEnd 
 
 For local frontend setup just fill out the `.env` file of frontend.
 
 |ENV VARIABLE|DESCRIPTION|
 |--|--|
-| NEXT_PUBLIC_API_SECRET_KEY | Same String value your set for Backend |
-| NEXT_PUBLIC_BACKEND_URL | Give hosted backend url here. Eg. `http://127.0.0.1:8000`|
-| NEXT_PUBLIC_RECAPTCHA_SITE_KEY | Google Recaptcha v2 Client Key |
-| RECAPTCHA_SECRET_KEY | Google Recaptcha v2 Server Key|
+| NEXT_PUBLIC_FASTAPI_BACKEND_URL | Give hosted backend url here. Eg. `http://localhost:8000`|
 
-and run it using `pnpm run dev`
+1. Now install dependencies using `pnpm install`
+2. Run it using `pnpm run dev`
 
 You should see your Next.js frontend running at `localhost:3000`
 
-**Make sure to register an account from frontend so you can login to extension.**
 
 ---
 
-### Extension
+### Extension | Temporarily Deprecated
 
 Extension is in plasmo framework which is a cross browser extension framework.
 
@@ -140,39 +157,92 @@ After logging in you should be able to use extension now.
 
 
 
-## Screenshots
-
-![searchspacemain](https://github.com/user-attachments/assets/4941dadf-8dd6-45d8-8d62-20342d5f76a0)
-
----
-
-![mainchat](https://github.com/user-attachments/assets/b2ceb449-df98-47e8-90c5-ddc84a1979b7)
-
----
-
-![chat](https://github.com/user-attachments/assets/2f639710-31a4-4e54-90ae-9117a29b2d1a)
-
 
 ##  Tech Stack
 
- - **Extension** : Manifest v3 on Plasmo
- - **BackEnd** : FastAPI with LangChain
- - **FrontEnd**: Next.js with Aceternity.
 
-#### Architecture:
-In Progress...........
+ ### **BackEnd** 
+
+-  **FastAPI**: Modern, fast web framework for building APIs with Python
+
+-  **PostgreSQL with pgvector**: Database with vector search capabilities for similarity searches
+
+-  **SQLAlchemy**: SQL toolkit and ORM (Object-Relational Mapping) for database interactions
+
+-  **FastAPI Users**: Authentication and user management with JWT and OAuth support
+-  **LangChain**: Framework for developing AI-powered applications
+
+-  **GPT Integration**: Integration with LLM models through LiteLLM
+
+-  **Rerankers**: Advanced result ranking for improved search relevance
+
+-  **GPT-Researcher**: Advanced research capabilities
+
+-  **Hybrid Search**: Combines vector similarity and full-text search for optimal results using Reciprocal Rank Fusion (RRF)
+
+-  **Vector Embeddings**: Document and text embeddings for semantic search
+
+-  **pgvector**: PostgreSQL extension for efficient vector similarity operations
+
+-  **Chonkie**: Advanced document chunking and embedding library
+
+- Uses `AutoEmbeddings` for flexible embedding model selection
+
+-  `LateChunker` for optimized document chunking based on embedding model's max sequence length
+
+
+  
+---
+ ### **FrontEnd**
+
+-  **Next.js 15.2.0**: React framework featuring App Router, server components, automatic code-splitting, and optimized rendering.
+
+-  **React 19.0.0**: JavaScript library for building user interfaces.
+
+-  **TypeScript**: Static type-checking for JavaScript, enhancing code quality and developer experience.
+- **Vercel AI SDK Kit UI Stream Protocol**: To create scalable chat UI.
+
+-  **Tailwind CSS 4.x**: Utility-first CSS framework for building custom UI designs.
+
+-  **Shadcn**: Headless components library.
+
+-  **Lucide React**: Icon set implemented as React components.
+
+-  **Framer Motion**: Animation library for React.
+
+-  **Sonner**: Toast notification library.
+
+-  **Geist**: Font family from Vercel.
+
+-  **React Hook Form**: Form state management and validation.
+
+-  **Zod**: TypeScript-first schema validation with static type inference.
+
+-  **@hookform/resolvers**: Resolvers for using validation libraries with React Hook Form.
+
+-  **@tanstack/react-table**: Headless UI for building powerful tables & datagrids.
+
+
+
+### **Extension** 
+ Manifest v3 on Plasmo
 
 ## Future Work
+- Add More Connectors.
+- Patch minor bugs.
 - Implement Canvas. 
-- Complete Hybrid Search.
+- Complete Hybrid Search. **[Done]**
 - Add support for file uploads QA. **[Done]**
-- Shift to WebSockets for Streaming responses. **[Done]**
+- Shift to WebSockets for Streaming responses. **[Deprecated in favor of AI SDK Stream Protocol]**
 - Based on feedback, I will work on making it compatible with local models. **[Done]**
 - Cross Browser Extension **[Done]**
 - Critical Notifications **[Done | PAUSED]**
 - Saving Chats **[Done]**
 - Basic keyword search page for saved sessions **[Done]**
 - Multi & Single Document Chat **[Done]**
+
+## CHANGELOG
+ https://github.com/MODSetter/SurfSense/blob/main/CHANGELOG.md
 
 
 ## Contribute 
