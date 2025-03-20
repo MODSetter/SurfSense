@@ -46,6 +46,9 @@ class QueryService:
                 - FILE: Searches through user's uploaded files
                 - CRAWLED_URL: Searches through previously crawled web pages
                 
+                IMPORTANT: Keep the reformulated query as concise as possible while still being effective.
+                Avoid unnecessary verbosity and limit the query to only essential terms and concepts.
+                
                 Please optimize the query to work effectively across these different data sources.
                 
                 Return ONLY the reformulated query without explanations, prefixes, or commentary.
