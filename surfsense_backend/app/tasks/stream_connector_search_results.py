@@ -8,6 +8,7 @@ from app.utils.connector_service import ConnectorService
 from app.utils.research_service import ResearchService
 from app.utils.streaming_service import StreamingService
 from app.utils.reranker_service import RerankerService
+from app.utils.query_service import QueryService
 from app.config import config
 from app.utils.document_converters import convert_chunks_to_langchain_documents
 
@@ -37,6 +38,10 @@ async def stream_connector_search_results(
     connector_service = ConnectorService(session)
     streaming_service = StreamingService()
     
+    # Reformulate the user query using the strategic LLM
+    yield streaming_service.add_terminal_message("Reformulating your query for better results...", "info")
+    reformulated_query = await QueryService.reformulate_query(user_query)
+    yield streaming_service.add_terminal_message(f"Searching for: {reformulated_query}", "success")
     
     reranker_service = RerankerService.get_reranker_instance(config)
     
@@ -59,9 +64,9 @@ async def stream_connector_search_results(
             # Send terminal message about starting search
             yield streaming_service.add_terminal_message("Starting to search for crawled URLs...")
             
-            # Search for crawled URLs
+            # Search for crawled URLs using reformulated query
             result_object, crawled_urls_chunks = await connector_service.search_crawled_urls(
-                user_query=user_query,
+                user_query=reformulated_query,
                 user_id=user_id,
                 search_space_id=search_space_id,
                 top_k=TOP_K
@@ -86,9 +91,9 @@ async def stream_connector_search_results(
             # Send terminal message about starting search
             yield streaming_service.add_terminal_message("Starting to search for files...")
             
-            # Search for files
+            # Search for files using reformulated query
             result_object, files_chunks = await connector_service.search_files(
-                user_query=user_query,
+                user_query=reformulated_query,
                 user_id=user_id,
                 search_space_id=search_space_id,
                 top_k=TOP_K
@@ -112,9 +117,9 @@ async def stream_connector_search_results(
             # Send terminal message about starting search
             yield streaming_service.add_terminal_message("Starting to search with Tavily API...")
             
-            # Search using Tavily API
+            # Search using Tavily API with reformulated query
             result_object, tavily_chunks = await connector_service.search_tavily(
-                user_query=user_query,
+                user_query=reformulated_query,
                 user_id=user_id,
                 top_k=TOP_K
             )
@@ -137,9 +142,9 @@ async def stream_connector_search_results(
             # Send terminal message about starting search
             yield streaming_service.add_terminal_message("Starting to search for slack connector...")   
             
-            # Search using Slack API
+            # Search using Slack API with reformulated query
             result_object, slack_chunks = await connector_service.search_slack(
-                user_query=user_query,
+                user_query=reformulated_query,
                 user_id=user_id,
                 search_space_id=search_space_id,
                 top_k=TOP_K
@@ -164,9 +169,9 @@ async def stream_connector_search_results(
             # Send terminal message about starting search
             yield streaming_service.add_terminal_message("Starting to search for notion connector...")  
             
-            # Search using Notion API
+            # Search using Notion API with reformulated query
             result_object, notion_chunks = await connector_service.search_notion(
-                user_query=user_query,
+                user_query=reformulated_query,
                 user_id=user_id,
                 search_space_id=search_space_id,
                 top_k=TOP_K
@@ -209,8 +214,8 @@ async def stream_connector_search_results(
                 } for i, doc in enumerate(all_raw_documents)
             ]
             
-            # Rerank documents
-            reranked_docs = reranker_service.rerank_documents(user_query, reranker_input_docs)
+            # Rerank documents using the reformulated query
+            reranked_docs = reranker_service.rerank_documents(reformulated_query, reranker_input_docs)
             
             # Sort by score in descending order
             reranked_docs.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -301,7 +306,7 @@ async def stream_connector_search_results(
         # Start the research process in a separate task
         research_task = asyncio.create_task(
             ResearchService.stream_research(
-                user_query=user_query,
+                user_query=reformulated_query,
                 documents=all_langchain_documents_to_research,
                 on_progress=stream_handler.handle_progress,
                 research_mode=research_mode
