@@ -72,7 +72,7 @@ SurfSense now only works with Google OAuth. Make sure to set your OAuth Client a
 
 
 #### Crawler Support
-SurfSense currently uses Firecrawl.py right now. Playwright crawler support will be added soon. 
+SurfSense currently uses [Firecrawl.py](https://www.firecrawl.dev/) right now. Playwright crawler support will be added soon. 
 
 
 ## Quick Start
