@@ -11,7 +11,7 @@ This document explains how to run the SurfSense project using Docker Compose.
 
 1. Make sure you have all the necessary environment variables set up:
    - Copy `surfsense_backend/.env.example` to `surfsense_backend/.env` and fill in the required values
-   - Copy `surfsense_frontend/.env.example` to `surfsense_frontend/.env.local` if needed
+   - Copy `surfsense_frontend/.env.example` to `surfsense_frontend/.env.local` and fill in the required values
 
 2. Build and start the containers:
    ```bash
