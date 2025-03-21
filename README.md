@@ -7,6 +7,7 @@
 # SurfSense
 While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily), Slack, Notion, and more to come.
 
+
 # Video
 
 https://github.com/user-attachments/assets/48142909-6391-4084-b7e8-81da388bb1fc
@@ -71,9 +72,22 @@ SurfSense now only works with Google OAuth. Make sure to set your OAuth Client a
 SurfSense currently uses Firecrawl.py right now. Playwright crawler support will be added soon. 
 
 
+## Quick Start
 
+### Preferred Method: Docker Setup
+The recommended way to run SurfSense is using Docker, which ensures consistent environment across different systems.
+
+1. Make sure you have Docker and Docker Compose installed
+2. Follow the detailed instructions in our [Docker Setup Guide](DOCKER_SETUP.md)
+
+```bash
+# Start all services with one command
+docker-compose up --build
+```
 
 ---
+### Alternative: Manual Setup
+
 ### Backend
 This is the core of SurfSense. Before we begin let's look at `.env` variables' that we need to successfully setup SurfSense.
 

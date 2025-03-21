@@ -7,6 +7,14 @@ from app.schemas import DocumentsCreate, DocumentUpdate, DocumentRead
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 from app.tasks.background_tasks import add_extension_received_document, add_received_file_document, add_crawled_url_document
+# Force asyncio to use standard event loop before unstructured imports
+import asyncio
+try:
+    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+except RuntimeError:
+    pass
+import os
+os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 from langchain_unstructured import UnstructuredLoader
 from app.config import config
 import json
@@ -73,23 +81,27 @@ async def create_documents(
             
         for file in files:
             try:
-                unstructured_loader = UnstructuredLoader(
-                    file=file.file,
-                    api_key=config.UNSTRUCTURED_API_KEY,
-                    partition_via_api=True,
-                    languages=["eng"],
-                    include_orig_elements=False,
-                    strategy="fast",
-                )
+                # Save file to a temporary location to avoid stream issues
+                import tempfile
+                import aiofiles
+                import os
                 
-                unstructured_processed_elements = await unstructured_loader.aload()
+                # Create temp file
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+                    temp_path = temp_file.name
                 
+                # Write uploaded file to temp file
+                content = await file.read()
+                with open(temp_path, "wb") as f:
+                    f.write(content)
+                
+                # Process in background to avoid uvloop conflicts
                 fastapi_background_tasks.add_task(
-                    add_received_file_document,
-                    session,
+                    process_file_in_background,
+                    temp_path,
                     file.filename,
-                    unstructured_processed_elements,
-                    search_space_id
+                    search_space_id,
+                    session
                 )
             except Exception as e:
                 raise HTTPException(
@@ -98,15 +110,52 @@ async def create_documents(
                 )
         
         await session.commit()
-        return {"message": "Files added for processing successfully"}
+        return {"message": "Files uploaded for processing"}
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to process documents: {str(e)}"
+            detail=f"Failed to upload files: {str(e)}"
         )
+
+async def process_file_in_background(
+    file_path: str,
+    filename: str,
+    search_space_id: int,
+    session: AsyncSession
+):
+    try:
+        # Use synchronous unstructured API to avoid event loop issues
+        from langchain_community.document_loaders import UnstructuredFileLoader
+        
+        # Process the file
+        loader = UnstructuredFileLoader(
+            file_path,
+            mode="elements",
+            post_processors=[],
+        )
+        
+        docs = loader.load()
+        
+        # Clean up the temp file
+        import os
+        try:
+            os.unlink(file_path)
+        except:
+            pass
+        
+        # Pass the documents to the existing background task
+        await add_received_file_document(
+            session,
+            filename,
+            docs,
+            search_space_id
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Error processing file in background: {str(e)}")
 
 @router.get("/documents/", response_model=List[DocumentRead])
 async def read_documents(

@@ -19,9 +19,11 @@ dependencies = [
     "pgvector>=0.3.6",
     "playwright>=1.50.0",
     "rerankers[flashrank]>=0.7.1",
+    "sentence-transformers>=3.4.1",
     "slack-sdk>=3.34.0",
     "tavily-python>=0.3.2",
     "unstructured-client>=0.30.0",
+    "unstructured[all-docs]>=0.16.25",
     "uvicorn[standard]>=0.34.0",
     "validators>=0.34.0",
 ]
