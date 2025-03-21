@@ -59,6 +59,9 @@ Open source and easy to deploy locally.
 
 ### PRE-START CHECKS
 
+#### PGVector
+Make sure pgvector extension is installed on your machine. Setup Guide https://github.com/pgvector/pgvector?tab=readme-ov-file#installation
+
 #### File Uploading Support
 For File uploading you need Unstructured.io API key. You can get it at http://platform.unstructured.io/
 
