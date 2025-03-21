@@ -135,6 +135,10 @@ async def process_file_in_background(
             file_path,
             mode="elements",
             post_processors=[],
+            languages=["eng"],
+            include_orig_elements=False,
+            include_metadata=False,
+            strategy="auto",
         )
         
         docs = loader.load()

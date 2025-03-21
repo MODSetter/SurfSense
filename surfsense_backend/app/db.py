@@ -28,6 +28,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, relationship
 
 from app.config import config
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
+from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
 
 DATABASE_URL = config.DATABASE_URL
 
@@ -179,3 +180,6 @@ async def get_user_db(session: AsyncSession = Depends(get_async_session)):
     
 async def get_chucks_hybrid_search_retriever(session: AsyncSession = Depends(get_async_session)):
     return ChucksHybridSearchRetriever(session)
+
+async def get_documents_hybrid_search_retriever(session: AsyncSession = Depends(get_async_session)):
+    return DocumentHybridSearchRetriever(session)
