@@ -46,10 +46,12 @@ Open source and easy to deploy locally.
 - Notion
 - and more to come.....
 
+#### 🔖 Cross Browser Extension
+- The SurfSense extension can be used to save any webpage you like.
+- Its main usecase is to save any webpages beyond authentication.
+
 
 ### 2. Temporarily Deprecated
-#### Cross Browser Extension
-- The SurfSense extension is currently being reworked for better UI and stability. Expect it soon.
 
 #### Podcasts 
 - The SurfSense Podcast feature is currently being reworked for better UI and stability. Expect it soon.
@@ -141,7 +143,7 @@ You should see your Next.js frontend running at `localhost:3000`
 
 ---
 
-### Extension | Temporarily Deprecated
+### Extension 
 
 Extension is in plasmo framework which is a cross browser extension framework.
 
@@ -155,12 +157,14 @@ Build the extension for your favorite browser using this guide: https://docs.pla
 
 When you load and start the extension you should see a Login page like this
 
-![extlogin](https://github.com/user-attachments/assets/e69af4ed-9477-4cd5-9ec7-ad2efb1bec9a)
+![ext1](https://github.com/user-attachments/assets/1f042b7a-6349-422b-94fb-d40d0df16c40)
+
 
 
 After logging in you should be able to use extension now.
 
-![extmain](https://github.com/user-attachments/assets/86903ff2-7672-4010-8fb8-88c228cf05e3)
+
+![ext2](https://github.com/user-attachments/assets/a9b9f1aa-2677-404d-b0a0-c1b2dddf24a7)
 
 
 |Options|Explanations|
