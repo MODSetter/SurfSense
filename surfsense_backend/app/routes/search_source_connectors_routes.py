@@ -255,8 +255,7 @@ async def index_connector_content(
             # Add the indexing task to background tasks
             if background_tasks:
                 background_tasks.add_task(
-                    run_slack_indexing,
-                    session,
+                    run_slack_indexing_with_new_session,
                     connector_id,
                     search_space_id
                 )
@@ -292,8 +291,7 @@ async def index_connector_content(
             # Add the indexing task to background tasks
             if background_tasks:
                 background_tasks.add_task(
-                    run_notion_indexing,
-                    session,
+                    run_notion_indexing_with_new_session,
                     connector_id,
                     search_space_id
                 )
@@ -355,6 +353,19 @@ async def update_connector_last_indexed(
         logger.error(f"Failed to update last_indexed_at for connector {connector_id}: {str(e)}")
         await session.rollback()
 
+async def run_slack_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int
+):
+    """
+    Create a new session and run the Slack indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    from app.db import async_session_maker
+    
+    async with async_session_maker() as session:
+        await run_slack_indexing(session, connector_id, search_space_id)
+
 async def run_slack_indexing(
     session: AsyncSession,
     connector_id: int,
@@ -385,6 +396,19 @@ async def run_slack_indexing(
             logger.error(f"Slack indexing failed or no documents processed: {error_or_warning}")
     except Exception as e:
         logger.error(f"Error in background Slack indexing task: {str(e)}")
+
+async def run_notion_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int
+):
+    """
+    Create a new session and run the Notion indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    from app.db import async_session_maker
+    
+    async with async_session_maker() as session:
+        await run_notion_indexing(session, connector_id, search_space_id)
 
 async def run_notion_indexing(
     session: AsyncSession,

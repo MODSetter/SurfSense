@@ -67,14 +67,6 @@ app.include_router(
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 
 
-@app.get("/authenticated-route")
+@app.get("/verify-token")
 async def authenticated_route(user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)):
-    retriever = ChucksHybridSearchRetriever(session)
-    results = await retriever.hybrid_search(
-        query_text="SurfSense", 
-        top_k=1, 
-        user_id=user.id,
-        search_space_id=1,
-        document_type="CRAWLED_URL"
-    )
-    return results
+    return {"message": "Token is valid"}
