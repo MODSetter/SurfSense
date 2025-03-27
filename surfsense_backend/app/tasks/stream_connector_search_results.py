@@ -59,6 +59,33 @@ async def stream_connector_search_results(
 
     # Process each selected connector
     for connector in selected_connectors:
+        # Extension Docs
+        if connector == "EXTENSION":
+            # Send terminal message about starting search
+            yield streaming_service.add_terminal_message("Starting to search for extension...")
+            
+            # Search for crawled URLs using reformulated query
+            result_object, extension_chunks = await connector_service.search_extension(
+                user_query=reformulated_query,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                top_k=TOP_K
+            )
+            
+            # Send terminal message about search results
+            yield streaming_service.add_terminal_message(
+                f"Found {len(result_object['sources'])} relevant extension documents",
+                "success"
+            )
+            
+            # Update sources
+            all_sources.append(result_object)
+            yield streaming_service.update_sources(all_sources)
+            
+            # Add documents to collection
+            all_raw_documents.extend(extension_chunks)
+            
+            
         # Crawled URLs
         if connector == "CRAWLED_URL":
             # Send terminal message about starting search

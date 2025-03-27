@@ -383,3 +383,100 @@ class ConnectorService:
         }
         
         return result_object, notion_chunks
+    
+    async def search_extension(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for extension data and return both the source information and langchain documents
+        
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        extension_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="EXTENSION"
+        )
+
+        # Map extension_chunks to the required format
+        mapped_sources = {}
+        for i, chunk in enumerate(extension_chunks):
+            # Fix for UI
+            extension_chunks[i]['document']['id'] = self.source_id_counter
+            
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Extract extension-specific metadata
+            webpage_title = metadata.get('VisitedWebPageTitle', 'Untitled Page')
+            webpage_url = metadata.get('VisitedWebPageURL', '')
+            visit_date = metadata.get('VisitedWebPageDateWithTimeInISOString', '')
+            visit_duration = metadata.get('VisitedWebPageVisitDurationInMilliseconds', '')
+            browsing_session_id = metadata.get('BrowsingSessionId', '')
+            
+            # Create a more descriptive title for extension data
+            title = webpage_title
+            if visit_date:
+                # Format the date for display (simplified)
+                try:
+                    # Just extract the date part for display
+                    formatted_date = visit_date.split('T')[0] if 'T' in visit_date else visit_date
+                    title += f" (visited: {formatted_date})"
+                except:
+                    # Fallback if date parsing fails
+                    title += f" (visited: {visit_date})"
+                
+            # Create a more descriptive description for extension data
+            description = chunk.get('content', '')[:100]
+            if len(description) == 100:
+                description += "..."
+                
+            # Add visit duration if available
+            if visit_duration:
+                try:
+                    duration_seconds = int(visit_duration) / 1000
+                    if duration_seconds < 60:
+                        duration_text = f"{duration_seconds:.1f} seconds"
+                    else:
+                        duration_text = f"{duration_seconds/60:.1f} minutes"
+                    
+                    if description:
+                        description += f" | Duration: {duration_text}"
+                except:
+                    # Fallback if duration parsing fails
+                    pass
+
+            source = {
+                "id": self.source_id_counter,
+                "title": title,
+                "description": description,
+                "url": webpage_url
+            }
+
+            self.source_id_counter += 1
+
+            # Use URL and timestamp as a unique identifier for tracking unique sources
+            source_key = f"{webpage_url}_{visit_date}"
+            if source_key and source_key not in mapped_sources:
+                mapped_sources[source_key] = source
+        
+        # Convert to list of sources
+        sources_list = list(mapped_sources.values())
+        
+        # Create result object
+        result_object = {
+            "id": 6,
+            "name": "Extension",
+            "type": "EXTENSION",
+            "sources": sources_list,
+        }
+        
+        return result_object, extension_chunks
