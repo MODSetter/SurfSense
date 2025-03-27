@@ -401,18 +401,18 @@ async def run_notion_indexing(
     """
     try:
         # Index Notion pages without updating last_indexed_at (we'll do it separately)
-        documents_indexed, error_or_warning = await index_notion_pages(
+        documents_processed, error_or_warning = await index_notion_pages(
             session=session,
             connector_id=connector_id,
             search_space_id=search_space_id,
             update_last_indexed=False  # Don't update timestamp in the indexing function
         )
         
-        # Only update last_indexed_at if indexing was successful
-        if documents_indexed > 0 and (error_or_warning is None or "Indexed" in error_or_warning):
+        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
+        if documents_processed > 0:
             await update_connector_last_indexed(session, connector_id)
-            logger.info(f"Notion indexing completed successfully: {documents_indexed} documents indexed")
+            logger.info(f"Notion indexing completed successfully: {documents_processed} documents processed")
         else:
-            logger.error(f"Notion indexing failed or no documents indexed: {error_or_warning}")
+            logger.error(f"Notion indexing failed or no documents processed: {error_or_warning}")
     except Exception as e:
         logger.error(f"Error in background Notion indexing task: {str(e)}")
