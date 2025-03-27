@@ -48,7 +48,7 @@ Open source and easy to deploy locally.
 
 #### 🔖 Cross Browser Extension
 - The SurfSense extension can be used to save any webpage you like.
-- Its main usecase is to save any webpages beyond authentication.
+- Its main usecase is to save any webpages protected beyond authentication.
 
 
 ### 2. Temporarily Deprecated
@@ -145,7 +145,7 @@ You should see your Next.js frontend running at `localhost:3000`
 
 ### Extension 
 
-Extension is in plasmo framework which is a cross browser extension framework.
+Extension is in plasmo framework which is a cross browser extension framework. Extension main usecase is to save any webpages protected beyond authentication.
 
 For building extension just fill out the `.env` file of frontend.
 
@@ -155,13 +155,13 @@ For building extension just fill out the `.env` file of frontend.
 
 Build the extension for your favorite browser using this guide: https://docs.plasmo.com/framework/workflows/build#with-a-specific-target 
 
-When you load and start the extension you should see a Login page like this
+When you load and start the extension you should see a Apu page like this
 
 ![ext1](https://github.com/user-attachments/assets/1f042b7a-6349-422b-94fb-d40d0df16c40)
 
 
 
-After logging in you should be able to use extension now.
+After filling in your SurfSense API key you should be able to use extension now.
 
 
 ![ext2](https://github.com/user-attachments/assets/a9b9f1aa-2677-404d-b0a0-c1b2dddf24a7)
