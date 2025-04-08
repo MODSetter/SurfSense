@@ -93,7 +93,7 @@ docker-compose up --build
 ---
 ### Alternative: Manual Setup
 
-### Backend
+### Backend (./surfsense_backend)
 This is the core of SurfSense. Before we begin let's look at `.env` variables' that we need to successfully setup SurfSense.
 
 |ENV VARIABLE|DESCRIPTION|
@@ -127,7 +127,7 @@ Now once you have everything let's proceed to run SurfSense.
 
 ---
 
-### FrontEnd 
+### FrontEnd (./surfsense_web)
 
 For local frontend setup just fill out the `.env` file of frontend.
 
@@ -143,7 +143,7 @@ You should see your Next.js frontend running at `localhost:3000`
 
 ---
 
-### Extension 
+### Extension (./surfsense_browser_extension)
 
 Extension is in plasmo framework which is a cross browser extension framework. Extension main usecase is to save any webpages protected beyond authentication.
 
