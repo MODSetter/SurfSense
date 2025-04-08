@@ -3,12 +3,12 @@ version: '3.8'
 services:
   frontend:
     build:
-      context: ./surfsense_frontend
+      context: ./surfsense_web
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
     volumes:
-      - ./surfsense_frontend:/app
+      - ./surfsense_web:/app
       - /app/node_modules
     depends_on:
       - backend
