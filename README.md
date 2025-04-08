@@ -214,7 +214,7 @@ After filling in your SurfSense API key you should be able to use extension now.
 ---
  ### **FrontEnd**
 
--  **Next.js 15.2.0**: React framework featuring App Router, server components, automatic code-splitting, and optimized rendering.
+-  **Next.js 15.2.3**: React framework featuring App Router, server components, automatic code-splitting, and optimized rendering.
 
 -  **React 19.0.0**: JavaScript library for building user interfaces.
 
