@@ -46,6 +46,13 @@ async def create_documents(
                     url, 
                     request.search_space_id
                 )
+        elif request.document_type == DocumentType.YOUTUBE_VIDEO:
+            for url in request.content:
+                fastapi_background_tasks.add_task(
+                    process_youtube_video_with_new_session,
+                    url,
+                    request.search_space_id
+                )
         else:
             raise HTTPException(
                 status_code=400,
@@ -117,44 +124,6 @@ async def create_documents(
             detail=f"Failed to upload files: {str(e)}"
         )
 
-async def process_extension_document_with_new_session(
-    individual_document,
-    search_space_id: int
-):
-    """Create a new session and process extension document."""
-    from app.db import async_session_maker
-    
-    async with async_session_maker() as session:
-        try:
-            await add_extension_received_document(session, individual_document, search_space_id)
-        except Exception as e:
-            import logging
-            logging.error(f"Error processing extension document: {str(e)}")
-
-async def process_crawled_url_with_new_session(
-    url: str,
-    search_space_id: int
-):
-    """Create a new session and process crawled URL."""
-    from app.db import async_session_maker
-    
-    async with async_session_maker() as session:
-        try:
-            await add_crawled_url_document(session, url, search_space_id)
-        except Exception as e:
-            import logging
-            logging.error(f"Error processing crawled URL: {str(e)}")
-
-async def process_file_in_background_with_new_session(
-    file_path: str,
-    filename: str,
-    search_space_id: int
-):
-    """Create a new session and process file."""
-    from app.db import async_session_maker
-    
-    async with async_session_maker() as session:
-        await process_file_in_background(file_path, filename, search_space_id, session)
 
 async def process_file_in_background(
     file_path: str,
@@ -349,3 +318,59 @@ async def delete_document(
             status_code=500,
             detail=f"Failed to delete document: {str(e)}"
         ) 
+        
+        
+async def process_extension_document_with_new_session(
+    individual_document,
+    search_space_id: int
+):
+    """Create a new session and process extension document."""
+    from app.db import async_session_maker
+    
+    async with async_session_maker() as session:
+        try:
+            await add_extension_received_document(session, individual_document, search_space_id)
+        except Exception as e:
+            import logging
+            logging.error(f"Error processing extension document: {str(e)}")
+
+async def process_crawled_url_with_new_session(
+    url: str,
+    search_space_id: int
+):
+    """Create a new session and process crawled URL."""
+    from app.db import async_session_maker
+    
+    async with async_session_maker() as session:
+        try:
+            await add_crawled_url_document(session, url, search_space_id)
+        except Exception as e:
+            import logging
+            logging.error(f"Error processing crawled URL: {str(e)}")
+
+async def process_file_in_background_with_new_session(
+    file_path: str,
+    filename: str,
+    search_space_id: int
+):
+    """Create a new session and process file."""
+    from app.db import async_session_maker
+    
+    async with async_session_maker() as session:
+        await process_file_in_background(file_path, filename, search_space_id, session)
+
+async def process_youtube_video_with_new_session(
+    url: str,
+    search_space_id: int
+):
+    """Create a new session and process YouTube video."""
+    from app.db import async_session_maker
+    
+    async with async_session_maker() as session:
+        try:
+            # TODO: Implement YouTube video processing
+            print("Processing YouTube video with new session")
+        except Exception as e:
+            import logging
+            logging.error(f"Error processing YouTube video: {str(e)}")
+
