@@ -57,6 +57,15 @@ Open source and easy to deploy locally.
 - The SurfSense Podcast feature is currently being reworked for better UI and stability. Expect it soon.
 
 
+## FEATURE REQUESTS AND FUTURE
+
+
+**SurfSense is actively being developed.** While it's not yet production-ready, you can help us speed up the process.
+
+Join the [SurfSense Discord](https://discord.gg/ejRNvftDp9) and help shape the future of SurfSense!
+
+
+
 ## How to get started?
 
 ### PRE-START CHECKS
@@ -260,8 +269,6 @@ After filling in your SurfSense API key you should be able to use extension now.
 - Basic keyword search page for saved sessions **[Done]**
 - Multi & Single Document Chat **[Done]**
 
-## CHANGELOG
- https://github.com/MODSetter/SurfSense/blob/main/CHANGELOG.md
 
 
 ## Contribute 
