@@ -13,11 +13,11 @@ export function Footer() {
   const pages = [
     {
       title: "Privacy",
-      href: "#",
+      href: "/privacy",
     },
     {
       title: "Terms",
-      href: "#",
+      href: "/terms",
     },
   ];
 
