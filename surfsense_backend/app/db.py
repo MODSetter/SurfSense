@@ -39,6 +39,7 @@ class DocumentType(str, Enum):
     FILE = "FILE"
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
+    YOUTUBE_VIDEO = "YOUTUBE_VIDEO"
 
 class SearchSourceConnectorType(str, Enum):
     SERPER_API = "SERPER_API"

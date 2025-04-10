@@ -1,6 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import {
+  IconBrandDiscord,
   IconBrandGithub,
   IconBrandLinkedin,
   IconBrandTwitter,
@@ -58,6 +59,9 @@ export function Footer() {
             </Link>
             <Link href="https://github.com/MODSetter">
               <IconBrandGithub className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
+            </Link>
+            <Link href="https://discord.gg/ejRNvftDp9">
+              <IconBrandDiscord className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
             </Link>
           </div>
         </div>

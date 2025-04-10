@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { IconArrowRight, IconBrandGithub } from "@tabler/icons-react";
+import { IconArrowRight, IconBrandGithub, IconBrandDiscord } from "@tabler/icons-react";
 import Link from "next/link";
 import React from "react";
 import { motion } from "framer-motion";
@@ -40,10 +40,11 @@ export function ModernHeroWithGradients() {
                         </p>
                         <div className="flex flex-col items-center gap-6 py-6 sm:flex-row">
                             <Link
-                                href="/login"
-                                className="w-48 gap-1 rounded-full border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 px-5 py-3 text-center text-sm font-medium text-gray-800 shadow-sm dark:border-[#404040] dark:bg-gradient-to-b dark:from-[#5B5B5D] dark:to-[#262627] dark:text-white dark:shadow-inner dark:shadow-purple-500/10"
+                                href="https://discord.gg/ejRNvftDp9"
+                                className="w-48 gap-1 rounded-full border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 px-5 py-3 text-center text-sm font-medium text-gray-800 shadow-sm dark:border-[#404040] dark:bg-gradient-to-b dark:from-[#5B5B5D] dark:to-[#262627] dark:text-white dark:shadow-inner dark:shadow-purple-500/10 flex items-center justify-center"
                             >
-                                Get Started
+                                <IconBrandDiscord className="h-5 w-5 mr-2" />
+                                <span>Discord</span>
                             </Link>
                             <Link
                                 href="https://github.com/MODSetter/SurfSense"
