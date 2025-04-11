@@ -211,6 +211,7 @@ const DashboardPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {searchSpaces && searchSpaces.map((space) => (
+              <Link href={`/dashboard/${space.id}/documents`}>
               <motion.div
                 key={space.id}
                 variants={itemVariants}
@@ -243,44 +244,39 @@ const DashboardPage = () => {
                         alt={space.name}
                         className="h-full w-full object-cover grayscale duration-700 group-hover:grayscale-0"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                      <div className="absolute bottom-2 left-3 flex items-center gap-2">
-                        <Link href={`/dashboard/${space.id}/documents`}>
-                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100/80 dark:bg-blue-950/80">
-                            <Search className="h-4 w-4 text-blue-500" />
-                          </span>
-                        </Link>
-                      </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
                       <div className="absolute top-2 right-2">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-destructive/90 hover:text-destructive-foreground"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Search Space</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{space.name}"? This action cannot be undone.
-                                All documents, chats, and podcasts in this search space will be permanently deleted.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteSearchSpace(space.id)}
-                                className="bg-destructive hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                          <div onClick={(e) => e.preventDefault()}>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-destructive/90 cursor-pointer"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Search Space</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete &quot;{space.name}&quot;? This action cannot be undone.
+                                    All documents, chats, and podcasts in this search space will be permanently deleted.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteSearchSpace(space.id)}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                       </div>
                     </div>
              
@@ -298,6 +294,7 @@ const DashboardPage = () => {
                 </Tilt>
 
               </motion.div>
+              </Link>
             ))}
 
             {searchSpaces.length === 0 && (
