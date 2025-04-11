@@ -190,7 +190,7 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
               <Button
                 onClick={handleGoogleLogin}
                 variant="outline"
-                className="hidden md:flex items-center gap-2 rounded-full dark:bg-white/20 dark:hover:bg-white/30 dark:text-white bg-gray-100 hover:bg-gray-200 text-gray-800 border-0"
+                className="hidden cursor-pointer md:flex items-center gap-2 rounded-full dark:bg-white/20 dark:hover:bg-white/30 dark:text-white bg-gray-100 hover:bg-gray-200 text-gray-800 border-0"
               >
                 <IconBrandGoogleFilled className="h-4 w-4" />
                 <span>Sign in with Google</span>
@@ -293,7 +293,7 @@ const MobileNav = ({ navItems, visible }: NavbarProps) => {
               <Button
                 onClick={handleGoogleLogin}
                 variant="outline"
-                className="flex items-center gap-2 mt-4 w-full justify-center rounded-full dark:bg-white/20 dark:hover:bg-white/30 dark:text-white bg-gray-100 hover:bg-gray-200 text-gray-800 border-0"
+                className="flex cursor-pointer items-center gap-2 mt-4 w-full justify-center rounded-full dark:bg-white/20 dark:hover:bg-white/30 dark:text-white bg-gray-100 hover:bg-gray-200 text-gray-800 border-0"
               >
                 <IconBrandGoogleFilled className="h-4 w-4" />
                 <span>Sign in with Google</span>
