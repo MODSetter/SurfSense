@@ -78,7 +78,7 @@ Make sure pgvector extension is installed on your machine. Setup Guide https://g
 For File uploading you need Unstructured.io API key. You can get it at http://platform.unstructured.io/
 
 #### Auth
-SurfSense now only works with Google OAuth. Make sure to set your OAuth Client at https://developers.google.com/identity/protocols/oauth2 . We need client id and client secret for backend.
+SurfSense now only works with Google OAuth. Make sure to set your OAuth Client at https://developers.google.com/identity/protocols/oauth2 . We need client id and client secret for backend. Make sure to enable people api and add the required scopes under data access (openid, userinfo.email, userinfo.profile)
 
 ![gauth](https://github.com/user-attachments/assets/80d60fe5-889b-48a6-b947-200fdaf544c1)
 
@@ -145,8 +145,8 @@ For local frontend setup just fill out the `.env` file of frontend.
 |--|--|
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | Give hosted backend url here. Eg. `http://localhost:8000`|
 
-1. Now install dependencies using `pnpm install`
-2. Run it using `pnpm run dev`
+1. Now install dependencies using `npm install`
+2. Run it using `npm run dev`
 
 You should see your Next.js frontend running at `localhost:3000`
 
