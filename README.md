@@ -44,6 +44,7 @@ Open source and easy to deploy locally.
 - Search Engines (Tavily)
 - Slack
 - Notion
+- Youtube Videos
 - and more to come.....
 
 #### 🔖 Cross Browser Extension
