@@ -15,4 +15,9 @@ export const connectorSourcesMenu = [
       name: "Extension",
       type: "EXTENSION",
     },
+    {
+      id: 4,
+      name: "Youtube Video",
+      type: "YOUTUBE_VIDEO",
+    }
   ];

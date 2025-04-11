@@ -480,3 +480,82 @@ class ConnectorService:
         }
         
         return result_object, extension_chunks
+    
+    async def search_youtube(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for YouTube videos and return both the source information and langchain documents
+        
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        youtube_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="YOUTUBE_VIDEO"
+        )
+
+        # Map youtube_chunks to the required format
+        mapped_sources = {}
+        for i, chunk in enumerate(youtube_chunks):
+            # Fix for UI
+            youtube_chunks[i]['document']['id'] = self.source_id_counter
+            
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Extract YouTube-specific metadata
+            video_title = metadata.get('video_title', 'Untitled Video')
+            video_id = metadata.get('video_id', '')
+            channel_name = metadata.get('channel_name', '')
+            published_date = metadata.get('published_date', '')
+            
+            # Create a more descriptive title for YouTube videos
+            title = video_title
+            if channel_name:
+                title += f" - {channel_name}"
+                
+            # Create a more descriptive description for YouTube videos
+            description = metadata.get('description', chunk.get('content', '')[:100])
+            if len(description) == 100:
+                description += "..."
+                
+            # For URL, construct a URL to the YouTube video
+            url = f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
+
+            source = {
+                "id": self.source_id_counter,
+                "title": title,
+                "description": description,
+                "url": url,
+                "video_id": video_id,  # Additional field for YouTube videos
+                "channel_name": channel_name  # Additional field for YouTube videos
+            }
+
+            self.source_id_counter += 1
+
+            # Use video_id as a unique identifier for tracking unique sources
+            source_key = video_id or f"youtube_{i}"
+            if source_key and source_key not in mapped_sources:
+                mapped_sources[source_key] = source
+        
+        # Convert to list of sources
+        sources_list = list(mapped_sources.values())
+        
+        # Create result object
+        result_object = {
+            "id": 6,  # Assign a unique ID for the YouTube connector
+            "name": "YouTube Videos",
+            "type": "YOUTUBE_VIDEO",
+            "sources": sources_list,
+        }
+        
+        return result_object, youtube_chunks

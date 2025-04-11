@@ -6,7 +6,7 @@ from app.db import get_async_session, User, SearchSpace, Document, DocumentType
 from app.schemas import DocumentsCreate, DocumentUpdate, DocumentRead
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
-from app.tasks.background_tasks import add_extension_received_document, add_received_file_document, add_crawled_url_document
+from app.tasks.background_tasks import add_extension_received_document, add_received_file_document, add_crawled_url_document, add_youtube_video_document
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
 try:
@@ -368,8 +368,7 @@ async def process_youtube_video_with_new_session(
     
     async with async_session_maker() as session:
         try:
-            # TODO: Implement YouTube video processing
-            print("Processing YouTube video with new session")
+            await add_youtube_video_document(session, url, search_space_id)
         except Exception as e:
             import logging
             logging.error(f"Error processing YouTube video: {str(e)}")

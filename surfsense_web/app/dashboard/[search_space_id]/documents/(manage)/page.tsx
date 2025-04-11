@@ -94,7 +94,7 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { DocumentViewer } from "@/components/document-viewer";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
-import { IconBrandNotion, IconBrandSlack } from "@tabler/icons-react";
+import { IconBrandNotion, IconBrandSlack, IconBrandYoutube } from "@tabler/icons-react";
 
 // Define animation variants for reuse
 const fadeInScale = {
@@ -114,7 +114,7 @@ const fadeInScale = {
 type Document = {
     id: number;
     title: string;
-    document_type: "EXTENSION" | "CRAWLED_URL" | "SLACK_CONNECTOR" | "NOTION_CONNECTOR" | "FILE";
+    document_type: "EXTENSION" | "CRAWLED_URL" | "SLACK_CONNECTOR" | "NOTION_CONNECTOR" | "FILE" | "YOUTUBE_VIDEO";
     document_metadata: any;
     content: string;
     created_at: string;
@@ -141,6 +141,7 @@ const documentTypeIcons = {
     SLACK_CONNECTOR: IconBrandSlack,
     NOTION_CONNECTOR: IconBrandNotion,
     FILE: File,
+    YOUTUBE_VIDEO: IconBrandYoutube,
 } as const;
 
 const columns: ColumnDef<Document>[] = [
