@@ -130,7 +130,7 @@ You can also integrate any LLM just follow this https://docs.litellm.ai/docs/pro
 Now once you have everything let's proceed to run SurfSense. 
 1. Install `uv` : https://docs.astral.sh/uv/getting-started/installation/
 2. Now just run this command to install dependencies i.e `uv sync`
-3. That's it. Now just run the `main.py` file using `uv run main.py`.
+3. That's it. Now just run the `main.py` file using `uv run main.py`. You can also optionally pass `--reload` as an argument to enable hot reloading.
 4. If everything worked fine you should see screen like this.
 
 ![backend](https://i.ibb.co/542Vhqw/backendrunning.png)
