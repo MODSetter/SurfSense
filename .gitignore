@@ -1,15 +1,1 @@
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-data/
-.data
-__pycache__
-__pycache__/
-.__pycache__
-surfsense_backend/.env
-.flashrank_cache
+.flashrank_cache*
