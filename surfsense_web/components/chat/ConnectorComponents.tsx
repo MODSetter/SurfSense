@@ -4,15 +4,14 @@ import {
   Plus,
   Search,
   Globe,
-  BookOpen,
   Sparkles,
   Microscope,
   Telescope,
   File,
   Link,
-  Slack,
-  Webhook
+  Webhook,
 } from 'lucide-react';
+import { IconBrandNotion, IconBrandSlack, IconBrandYoutube } from "@tabler/icons-react";
 import { Button } from '@/components/ui/button';
 import { Connector, ResearchMode } from './types';
 
@@ -21,6 +20,8 @@ export const getConnectorIcon = (connectorType: string) => {
   const iconProps = { className: "h-4 w-4" };
   
   switch(connectorType) {
+    case 'YOUTUBE_VIDEO':
+      return <IconBrandYoutube {...iconProps} />;
     case 'CRAWLED_URL':
       return <Globe {...iconProps} />;
     case 'FILE':
@@ -31,9 +32,9 @@ export const getConnectorIcon = (connectorType: string) => {
     case 'TAVILY_API':
       return <Link {...iconProps} />;
     case 'SLACK_CONNECTOR':
-      return <Slack {...iconProps} />;
+      return <IconBrandSlack {...iconProps} />;
     case 'NOTION_CONNECTOR':
-      return <BookOpen {...iconProps} />;
+      return <IconBrandNotion {...iconProps} />;
     case 'DEEP':
       return <Sparkles {...iconProps} />;
     case 'DEEPER':

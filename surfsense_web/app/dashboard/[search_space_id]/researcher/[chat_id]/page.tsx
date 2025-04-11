@@ -239,12 +239,10 @@ const SourcesDialogContent = ({
 
 const ChatPage = () => {
   const [token, setToken] = React.useState<string | null>(null);
-  const [showAnswer, setShowAnswer] = useState(true);
   const [activeTab, setActiveTab] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sourcesPage, setSourcesPage] = useState(1);
   const [expandedSources, setExpandedSources] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [sourceFilter, setSourceFilter] = useState("");
@@ -258,7 +256,6 @@ const ChatPage = () => {
   const terminalMessagesRef = useRef<HTMLDivElement>(null);
   const { connectorSourceItems, isLoading: isLoadingConnectors } = useSearchSourceConnectors();
 
-  const SOURCES_PER_PAGE = 5;
   const INITIAL_SOURCES_DISPLAY = 3;
 
   const { search_space_id, chat_id } = useParams();
@@ -836,7 +833,7 @@ const ChatPage = () => {
                         {connectorSources.map(connector => (
                           <TabsContent key={connector.id} value={connector.type} className="mt-0">
                             <div className="space-y-3">
-                              {getMainViewSources(connector).map((source: any) => (
+                              {getMainViewSources(connector)?.map((source: any) => (
                                 <Card key={source.id} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
                                   <div className="flex items-start gap-3">
                                     <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
@@ -874,7 +871,7 @@ const ChatPage = () => {
                                       setSourcesPage={setSourcesPage}
                                       setSourceFilter={setSourceFilter}
                                       setExpandedSources={setExpandedSources}
-                                      isLoadingMore={isLoadingMore}
+                                      isLoadingMore={false}
                                     />
                                   </DialogContent>
                                 </Dialog>
@@ -887,7 +884,7 @@ const ChatPage = () => {
 
                     {/* Answer Section */}
                     <div className="mb-6">
-                      {showAnswer && (
+                      {
                         <div className="prose dark:prose-invert max-w-none">
                           {message.annotations && (() => {
                             // Get all ANSWER annotations
@@ -913,7 +910,7 @@ const ChatPage = () => {
                             return <MarkdownViewer content={message.content} getCitationSource={getCitationSource} />;
                           })()}
                         </div>
-                      )}
+                      }
                     </div>
                     {/* Scroll to bottom button */}
                     <div className="fixed bottom-8 right-8">

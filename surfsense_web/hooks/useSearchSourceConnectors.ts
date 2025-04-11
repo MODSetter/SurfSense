@@ -43,6 +43,12 @@ export const useSearchSourceConnectors = () => {
       name: "Extension",
       type: "EXTENSION",
       sources: [],
+    },
+    {
+      id: 4,
+      name: "Youtube Video",
+      type: "YOUTUBE_VIDEO",
+      sources: [],
     }
   ]);
 
@@ -107,6 +113,12 @@ export const useSearchSourceConnectors = () => {
         id: 3,
         name: "Extension",
         type: "EXTENSION",
+        sources: [],
+      },
+      {
+        id: 4,
+        name: "Youtube Video",
+        type: "YOUTUBE_VIDEO",
         sources: [],
       }
     ];

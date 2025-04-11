@@ -26,4 +26,5 @@ dependencies = [
     "unstructured[all-docs]>=0.16.25",
     "uvicorn[standard]>=0.34.0",
     "validators>=0.34.0",
+    "youtube-transcript-api>=1.0.3",
 ]

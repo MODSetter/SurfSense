@@ -49,6 +49,10 @@ export default function DashboardLayout({
           url: `/dashboard/${search_space_id}/documents/webpage`,
         },
         {
+          title: "Add Youtube Videos",
+          url: `/dashboard/${search_space_id}/documents/youtube`,
+        },
+        {
           title: "Manage Documents",
           url: `/dashboard/${search_space_id}/documents`,
         },
