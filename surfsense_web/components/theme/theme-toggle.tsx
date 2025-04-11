@@ -20,7 +20,7 @@ export function ThemeTogglerComponent() {
         onClick={() => {
           theme === "dark" ? setTheme("light") : setTheme("dark");
         }}
-        className="w-8 h-8 flex hover:bg-gray-50 dark:hover:bg-white/[0.1] rounded-lg items-center justify-center outline-none focus:ring-0 focus:outline-none active:ring-0 active:outline-none overflow-hidden"
+        className="w-8 h-8 flex hover:bg-gray-50 dark:hover:bg-white/[0.1] rounded-lg items-center cursor-pointer justify-center outline-none focus:ring-0 focus:outline-none active:ring-0 active:outline-none overflow-hidden"
       >
         {theme === "light" && (
           <motion.div
