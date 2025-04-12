@@ -78,7 +78,7 @@ Make sure pgvector extension is installed on your machine. Setup Guide https://g
 For File uploading you need Unstructured.io API key. You can get it at http://platform.unstructured.io/
 
 #### Auth
-SurfSense now only works with Google OAuth. Make sure to set your OAuth Client at https://developers.google.com/identity/protocols/oauth2 . We need client id and client secret for backend.
+SurfSense now only works with Google OAuth. Make sure to set your OAuth Client at https://developers.google.com/identity/protocols/oauth2 . We need client id and client secret for backend. Make sure to enable people api and add the required scopes under data access (openid, userinfo.email, userinfo.profile)
 
 ![gauth](https://github.com/user-attachments/assets/80d60fe5-889b-48a6-b947-200fdaf544c1)
 
@@ -130,7 +130,7 @@ You can also integrate any LLM just follow this https://docs.litellm.ai/docs/pro
 Now once you have everything let's proceed to run SurfSense. 
 1. Install `uv` : https://docs.astral.sh/uv/getting-started/installation/
 2. Now just run this command to install dependencies i.e `uv sync`
-3. That's it. Now just run the `main.py` file using `uv run main.py`.
+3. That's it. Now just run the `main.py` file using `uv run main.py`. You can also optionally pass `--reload` as an argument to enable hot reloading.
 4. If everything worked fine you should see screen like this.
 
 ![backend](https://i.ibb.co/542Vhqw/backendrunning.png)
