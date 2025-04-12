@@ -211,7 +211,7 @@ const DashboardPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {searchSpaces && searchSpaces.map((space) => (
-              <Link href={`/dashboard/${space.id}/documents`}>
+              <Link href={`/dashboard/${space.id}/documents`} key={space.id}>
               <motion.div
                 key={space.id}
                 variants={itemVariants}
