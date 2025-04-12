@@ -33,7 +33,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/surfsense_backend
           tags: |
-            type=raw,value=./surfsense_backend/VERSION
+            type=raw,value=0.0.1
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
