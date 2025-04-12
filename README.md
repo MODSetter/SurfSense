@@ -145,8 +145,8 @@ For local frontend setup just fill out the `.env` file of frontend.
 |--|--|
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | Give hosted backend url here. Eg. `http://localhost:8000`|
 
-1. Now install dependencies using `npm install`
-2. Run it using `npm run dev`
+1. Now install dependencies using `pnpm install`
+2. Run it using `pnpm run dev`
 
 You should see your Next.js frontend running at `localhost:3000`
 
