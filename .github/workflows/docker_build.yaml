@@ -31,8 +31,8 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          flavor: latest
-          from_path: ./surfsense_backend
+          tags: |
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
