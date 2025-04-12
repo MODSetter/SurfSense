@@ -31,8 +31,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
+          images: ghcr.io/${{ github.repository_owner }}/surfsense_backend
           tags: |
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=./surfsense_backend/VERSION
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
