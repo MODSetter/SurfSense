@@ -5,12 +5,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.13.0",
     "asyncpg>=0.30.0",
     "chonkie[all]>=0.4.1",
     "fastapi>=0.115.8",
     "fastapi-users[oauth,sqlalchemy]>=14.0.1",
     "firecrawl-py>=1.12.0",
     "gpt-researcher>=0.12.12",
+    "github3.py==4.0.1",
     "langchain-community>=0.3.17",
     "langchain-unstructured>=0.1.6",
     "litellm>=1.61.4",

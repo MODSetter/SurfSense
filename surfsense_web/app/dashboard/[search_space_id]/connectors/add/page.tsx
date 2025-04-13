@@ -14,6 +14,7 @@ import {
   IconMail,
   IconBrandZoom,
   IconChevronRight,
+  IconWorldWww,
 } from "@tabler/icons-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
@@ -22,36 +23,43 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useForm } from "react-hook-form";
+
+// Define the Connector type
+interface Connector {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  status: "available" | "coming-soon" | "connected"; // Added connected status example
+}
+
+interface ConnectorCategory {
+  id: string;
+  title: string;
+  connectors: Connector[];
+}
 
 // Define connector categories and their connectors
-const connectorCategories = [
+const connectorCategories: ConnectorCategory[] = [
   {
     id: "search-engines",
     title: "Search Engines",
-    description: "Connect to search engines to enhance your research capabilities.",
-    icon: <IconSearch className="h-5 w-5" />,
     connectors: [
       {
-        id: "tavily-api",
-        title: "Tavily Search API",
-        description: "Connect to Tavily Search API to search the web.",
-        icon: <IconSearch className="h-6 w-6" />,
-        status: "available",
+        id: "web-search",
+        title: "Web Search",
+        description: "Enable web search capabilities for broader context.",
+        icon: <IconWorldWww className="h-6 w-6" />,
+        status: "available", // Example status
+        // Potentially add config form here if needed (e.g., choosing provider)
       },
-      {
-        id: "serper-api",
-        title: "Serper API",
-        description: "Connect to Serper API to search the web.",
-        icon: <IconBrandGoogle className="h-6 w-6" />,
-        status: "coming-soon",
-      },
+      // Add other search engine connectors like Tavily, Serper if they have UI config
     ],
   },
   {
     id: "team-chats",
     title: "Team Chats",
-    description: "Connect to your team communication platforms.",
-    icon: <IconMessages className="h-5 w-5" />,
     connectors: [
       {
         id: "slack-connector",
@@ -79,8 +87,6 @@ const connectorCategories = [
   {
     id: "knowledge-bases",
     title: "Knowledge Bases",
-    description: "Connect to your knowledge bases and documentation.",
-    icon: <IconDatabase className="h-5 w-5" />,
     connectors: [
       {
         id: "notion-connector",
@@ -88,21 +94,20 @@ const connectorCategories = [
         description: "Connect to your Notion workspace to access pages and databases.",
         icon: <IconBrandNotion className="h-6 w-6" />,
         status: "available",
+        // No form here, assumes it links to its own page
       },
       {
-        id: "github",
+        id: "github-connector", // Keep the id simple
         title: "GitHub",
-        description: "Connect to GitHub repositories to access code and documentation.",
+        description: "Connect a GitHub PAT to index code and docs from accessible repositories.",
         icon: <IconBrandGithub className="h-6 w-6" />,
-        status: "coming-soon",
+        status: "available",
       },
     ],
   },
   {
     id: "communication",
     title: "Communication",
-    description: "Connect to your email and meeting platforms.",
-    icon: <IconMail className="h-5 w-5" />,
     connectors: [
       {
         id: "gmail",
@@ -125,7 +130,7 @@ const connectorCategories = [
 export default function ConnectorsPage() {
   const params = useParams();
   const searchSpaceId = params.search_space_id as string;
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines"]);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines", "knowledge-bases"]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => 
@@ -150,104 +155,68 @@ export default function ConnectorsPage() {
       </motion.div>
 
       <div className="space-y-6">
-        {connectorCategories.map((category, categoryIndex) => (
+        {connectorCategories.map((category) => (
           <Collapsible
             key={category.id}
             open={expandedCategories.includes(category.id)}
             onOpenChange={() => toggleCategory(category.id)}
-            className="border rounded-lg overflow-hidden bg-card"
+            className="space-y-2"
           >
-            <CollapsibleTrigger asChild>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: categoryIndex * 0.1 }}
-                className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-primary/10 text-primary">
-                    {category.icon}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold">{category.title}</h2>
-                    <p className="text-sm text-muted-foreground">{category.description}</p>
-                  </div>
-                </div>
-                <IconChevronRight 
-                  className={cn(
-                    "h-5 w-5 text-muted-foreground transition-transform duration-200",
-                    expandedCategories.includes(category.id) && "rotate-90"
-                  )} 
-                />
-              </motion.div>
-            </CollapsibleTrigger>
+            <div className="flex items-center justify-between space-x-4 px-1">
+              <h3 className="text-lg font-semibold dark:text-gray-200">{category.title}</h3>
+              <CollapsibleTrigger asChild>
+                {/* Replace with your preferred expand/collapse icon/button */}
+                <button className="text-sm text-indigo-600 hover:underline dark:text-indigo-400">
+                  {expandedCategories.includes(category.id) ? "Collapse" : "Expand"}
+                </button>
+              </CollapsibleTrigger>
+            </div>
             <CollapsibleContent>
-              <Separator />
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <AnimatePresence>
-                  {category.connectors.map((connector, index) => (
-                    <motion.div
-                      key={connector.id}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ 
-                        duration: 0.2, 
-                        delay: index * 0.05,
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 30
-                      }}
-                      className={cn(
-                        "relative group flex flex-col p-4 rounded-lg border",
-                        connector.status === "coming-soon" ? "opacity-70" : ""
-                      )}
-                    >
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-200 bg-gradient-to-t from-accent/50 to-transparent rounded-lg pointer-events-none" />
-                      
-                      <div className="mb-4 relative z-10 text-primary">
-                        {connector.icon}
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 p-1">
+                {category.connectors.map((connector) => (
+                  <div key={connector.id} className="col-span-1 flex flex-col divide-y divide-gray-200 dark:divide-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow">
+                    <div className="flex w-full items-center justify-between space-x-6 p-6 flex-grow">
+                      <div className="flex-1 truncate">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-gray-900 dark:text-gray-100">{connector.icon}</span>
+                          <h3 className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {connector.title}
+                          </h3>
+                          {connector.status === "coming-soon" && (
+                            <span className="inline-block flex-shrink-0 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                              Coming soon
+                            </span>
+                          )}
+                          {/* TODO: Add 'Connected' badge based on actual state */} 
+                        </div>
+                        <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">
+                          {connector.description}
+                        </p>
                       </div>
-                      
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-semibold group-hover:translate-x-1 transition duration-200">
-                          {connector.title}
-                        </h3>
-                        {connector.status === "coming-soon" && (
-                          <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming soon</span>
-                        )}
-                      </div>
-                      
-                      <p className="text-sm text-muted-foreground mb-4 flex-grow">
-                        {connector.description}
-                      </p>
-                      
-                      {connector.status === "available" ? (
-                        <Link 
-                          href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}
-                          className="w-full mt-auto"
-                        >
-                          <Button 
-                            variant="default"
-                            className="w-full"
-                          >
+                    </div>
+                    {/* Always render Link button if available */}
+                    {connector.status === 'available' && (
+                      <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                        <Link href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}>
+                          <Button variant="default" className="w-full">
                             Connect
                           </Button>
                         </Link>
-                      ) : (
-                        <Button 
-                          variant="outline"
-                          className="w-full mt-auto"
-                          disabled
-                        >
-                          Notify Me
+                      </div>
+                    )}
+                    {connector.status === 'coming-soon' && (
+                      <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                        <Button variant="outline" disabled className="w-full">
+                          Coming Soon
                         </Button>
-                      )}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+                      </div>
+                    )}
+                    {/* TODO: Add logic for 'connected' status */}
+                  </div>
+                ))}
               </div>
             </CollapsibleContent>
+            <Separator className="my-4" />
           </Collapsible>
         ))}
       </div>
