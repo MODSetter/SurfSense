@@ -46,7 +46,7 @@ async def handle_chat_data(
     response = StreamingResponse(stream_connector_search_results(
         user_query,
         user.id,
-        search_space_id,
+        int(search_space_id),
         session,
         research_mode,
         selected_connectors

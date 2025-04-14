@@ -13,6 +13,7 @@ dependencies = [
     "gpt-researcher>=0.12.12",
     "langchain-community>=0.3.17",
     "langchain-unstructured>=0.1.6",
+    "langgraph>=0.3.29",
     "litellm>=1.61.4",
     "markdownify>=0.14.1",
     "notion-client>=2.3.0",
