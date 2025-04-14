@@ -13,7 +13,7 @@ class ConnectorService:
         self.retriever = ChucksHybridSearchRetriever(session)
         self.source_id_counter = 1
     
-    async def search_crawled_urls(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+    async def search_crawled_urls(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20) -> tuple:
         """
         Search for crawled URLs and return both the source information and langchain documents
         
@@ -28,16 +28,16 @@ class ConnectorService:
             document_type="CRAWLED_URL"
         )
 
-        # Map crawled_urls_chunks to the required format
-        mapped_sources = {}
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
         for i, chunk in enumerate(crawled_urls_chunks):
-            #Fix for UI
+            # Fix for UI
             crawled_urls_chunks[i]['document']['id'] = self.source_id_counter
             # Extract document metadata
             document = chunk.get('document', {})
             metadata = document.get('metadata', {})
 
-            # Create a mapped source entry
+            # Create a source entry
             source = {
                 "id":  self.source_id_counter,
                 "title": document.get('title', 'Untitled Document'),
@@ -46,14 +46,7 @@ class ConnectorService:
             }
 
             self.source_id_counter += 1
-
-            # Use a unique identifier for tracking unique sources
-            source_key = source.get("url") or source.get("title")
-            if source_key and source_key not in mapped_sources:
-                mapped_sources[source_key] = source
-        
-        # Convert to list of sources
-        sources_list = list(mapped_sources.values())
+            sources_list.append(source)
         
         # Create result object
         result_object = {
@@ -63,10 +56,9 @@ class ConnectorService:
             "sources": sources_list,
         }
         
-
         return result_object, crawled_urls_chunks
     
-    async def search_files(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+    async def search_files(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20) -> tuple:
         """
         Search for files and return both the source information and langchain documents
         
@@ -81,16 +73,16 @@ class ConnectorService:
             document_type="FILE"
         )
 
-        # Map crawled_urls_chunks to the required format
-        mapped_sources = {}
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
         for i, chunk in enumerate(files_chunks):
-            #Fix for UI
+            # Fix for UI
             files_chunks[i]['document']['id'] = self.source_id_counter
             # Extract document metadata
             document = chunk.get('document', {})
             metadata = document.get('metadata', {})
 
-            # Create a mapped source entry
+            # Create a source entry
             source = {
                 "id":  self.source_id_counter,
                 "title": document.get('title', 'Untitled Document'),
@@ -99,14 +91,7 @@ class ConnectorService:
             }
 
             self.source_id_counter += 1
-
-            # Use a unique identifier for tracking unique sources
-            source_key = source.get("url") or source.get("title")
-            if source_key and source_key not in mapped_sources:
-                mapped_sources[source_key] = source
-        
-        # Convert to list of sources
-        sources_list = list(mapped_sources.values())
+            sources_list.append(source)
         
         # Create result object
         result_object = {
@@ -118,7 +103,7 @@ class ConnectorService:
         
         return result_object, files_chunks
     
-    async def get_connector_by_type(self, user_id: int, connector_type: SearchSourceConnectorType) -> Optional[SearchSourceConnector]:
+    async def get_connector_by_type(self, user_id: str, connector_type: SearchSourceConnectorType) -> Optional[SearchSourceConnector]:
         """
         Get a connector by type for a specific user
         
@@ -138,7 +123,7 @@ class ConnectorService:
         )
         return result.scalars().first()
     
-    async def search_tavily(self, user_query: str, user_id: int, top_k: int = 20) -> tuple:
+    async def search_tavily(self, user_query: str, user_id: str, top_k: int = 20) -> tuple:
         """
         Search using Tavily API and return both the source information and documents
         
@@ -177,12 +162,9 @@ class ConnectorService:
             # Extract results from Tavily response
             tavily_results = response.get("results", [])
             
-            # Map Tavily results to the required format
+            # Process each result and create sources directly without deduplication
             sources_list = []
             documents = []
-            
-            # Start IDs from 1000 to avoid conflicts with other connectors
-            base_id = 100
             
             for i, result in enumerate(tavily_results):
                 
@@ -234,7 +216,7 @@ class ConnectorService:
                 "sources": [],
             }, []
     
-    async def search_slack(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+    async def search_slack(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20) -> tuple:
         """
         Search for slack and return both the source information and langchain documents
         
@@ -249,10 +231,10 @@ class ConnectorService:
             document_type="SLACK_CONNECTOR"
         )
 
-        # Map slack_chunks to the required format
-        mapped_sources = {}
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
         for i, chunk in enumerate(slack_chunks):
-            #Fix for UI
+            # Fix for UI
             slack_chunks[i]['document']['id'] = self.source_id_counter
             # Extract document metadata
             document = chunk.get('document', {})
@@ -286,14 +268,7 @@ class ConnectorService:
             }
 
             self.source_id_counter += 1
-
-            # Use channel_id and content as a unique identifier for tracking unique sources
-            source_key = f"{channel_id}_{chunk.get('chunk_id', i)}"
-            if source_key and source_key not in mapped_sources:
-                mapped_sources[source_key] = source
-        
-        # Convert to list of sources
-        sources_list = list(mapped_sources.values())
+            sources_list.append(source)
         
         # Create result object
         result_object = {
@@ -305,7 +280,7 @@ class ConnectorService:
         
         return result_object, slack_chunks
         
-    async def search_notion(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+    async def search_notion(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20) -> tuple:
         """
         Search for Notion pages and return both the source information and langchain documents
         
@@ -326,8 +301,8 @@ class ConnectorService:
             document_type="NOTION_CONNECTOR"
         )
 
-        # Map notion_chunks to the required format
-        mapped_sources = {}
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
         for i, chunk in enumerate(notion_chunks):
             # Fix for UI
             notion_chunks[i]['document']['id'] = self.source_id_counter
@@ -365,14 +340,7 @@ class ConnectorService:
             }
 
             self.source_id_counter += 1
-
-            # Use page_id and content as a unique identifier for tracking unique sources
-            source_key = f"{page_id}_{chunk.get('chunk_id', i)}"
-            if source_key and source_key not in mapped_sources:
-                mapped_sources[source_key] = source
-        
-        # Convert to list of sources
-        sources_list = list(mapped_sources.values())
+            sources_list.append(source)
         
         # Create result object
         result_object = {
@@ -384,7 +352,7 @@ class ConnectorService:
         
         return result_object, notion_chunks
     
-    async def search_extension(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+    async def search_extension(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20) -> tuple:
         """
         Search for extension data and return both the source information and langchain documents
         
@@ -405,8 +373,8 @@ class ConnectorService:
             document_type="EXTENSION"
         )
 
-        # Map extension_chunks to the required format
-        mapped_sources = {}
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
         for i, chunk in enumerate(extension_chunks):
             # Fix for UI
             extension_chunks[i]['document']['id'] = self.source_id_counter
@@ -462,14 +430,7 @@ class ConnectorService:
             }
 
             self.source_id_counter += 1
-
-            # Use URL and timestamp as a unique identifier for tracking unique sources
-            source_key = f"{webpage_url}_{visit_date}"
-            if source_key and source_key not in mapped_sources:
-                mapped_sources[source_key] = source
-        
-        # Convert to list of sources
-        sources_list = list(mapped_sources.values())
+            sources_list.append(source)
         
         # Create result object
         result_object = {
@@ -481,7 +442,7 @@ class ConnectorService:
         
         return result_object, extension_chunks
     
-    async def search_youtube(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+    async def search_youtube(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20) -> tuple:
         """
         Search for YouTube videos and return both the source information and langchain documents
         
@@ -502,8 +463,8 @@ class ConnectorService:
             document_type="YOUTUBE_VIDEO"
         )
 
-        # Map youtube_chunks to the required format
-        mapped_sources = {}
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
         for i, chunk in enumerate(youtube_chunks):
             # Fix for UI
             youtube_chunks[i]['document']['id'] = self.source_id_counter
@@ -541,18 +502,11 @@ class ConnectorService:
             }
 
             self.source_id_counter += 1
-
-            # Use video_id as a unique identifier for tracking unique sources
-            source_key = video_id or f"youtube_{i}"
-            if source_key and source_key not in mapped_sources:
-                mapped_sources[source_key] = source
-        
-        # Convert to list of sources
-        sources_list = list(mapped_sources.values())
+            sources_list.append(source)
         
         # Create result object
         result_object = {
-            "id": 6,  # Assign a unique ID for the YouTube connector
+            "id": 7,  # Assign a unique ID for the YouTube connector
             "name": "YouTube Videos",
             "type": "YOUTUBE_VIDEO",
             "sources": sources_list,

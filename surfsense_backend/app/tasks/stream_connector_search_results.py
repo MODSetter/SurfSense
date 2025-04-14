@@ -14,7 +14,7 @@ from app.utils.document_converters import convert_chunks_to_langchain_documents
 
 async def stream_connector_search_results(
     user_query: str, 
-    user_id: int, 
+    user_id: str, 
     search_space_id: int, 
     session: AsyncSession, 
     research_mode: str, 
