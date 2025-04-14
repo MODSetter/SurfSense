@@ -244,6 +244,33 @@ async def stream_connector_search_results(
             all_raw_documents.extend(notion_chunks)
             
             
+        # Github Connector
+        if connector == "GITHUB_CONNECTOR":
+            # Send terminal message about starting search
+            yield streaming_service.add_terminal_message("Starting to search for GitHub connector...")  
+            print("Starting to search for GitHub connector...")
+            # Search using Github API with reformulated query
+            result_object, github_chunks = await connector_service.search_github(
+                user_query=reformulated_query,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                top_k=TOP_K
+            )
+            
+            # Send terminal message about search results
+            yield streaming_service.add_terminal_message(
+                f"Found {len(result_object['sources'])} relevant results from Github",
+                "success"
+            )
+            
+            # Update sources
+            all_sources.append(result_object)
+            yield streaming_service.update_sources(all_sources)
+            
+            # Add documents to collection
+            all_raw_documents.extend(github_chunks)
+            
+            
     
 
     # If we have documents to research

@@ -559,3 +559,56 @@ class ConnectorService:
         }
         
         return result_object, youtube_chunks
+
+    async def search_github(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for GitHub documents and return both the source information and langchain documents
+        
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        github_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="GITHUB_CONNECTOR"
+        )
+
+        # Map github_chunks to the required format
+        mapped_sources = {}
+        for i, chunk in enumerate(github_chunks):
+            # Fix for UI - assign a unique ID for citation/source tracking
+            github_chunks[i]['document']['id'] = self.source_id_counter
+            
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Create a mapped source entry
+            source = {
+                "id": self.source_id_counter,
+                "title": document.get('title', 'GitHub Document'), # Use specific title if available
+                "description": metadata.get('description', chunk.get('content', '')[:100]), # Use description or content preview
+                "url": metadata.get('url', '') # Use URL if available in metadata
+            }
+
+            self.source_id_counter += 1
+
+            # Use a unique identifier for tracking unique sources (URL preferred)
+            source_key = source.get("url") or source.get("title")
+            if source_key and source_key not in mapped_sources:
+                mapped_sources[source_key] = source
+        
+        # Convert to list of sources
+        sources_list = list(mapped_sources.values())
+        
+        # Create result object
+        result_object = {
+            "id": 7, # Assuming 7 is the next available ID
+            "name": "GitHub",
+            "type": "GITHUB_CONNECTOR",
+            "sources": sources_list,
+        }
+        
+        return result_object, github_chunks

@@ -2,7 +2,6 @@ import base64
 import logging
 from typing import List, Optional, Dict, Any, Tuple
 from github3 import login as github_login, exceptions as github_exceptions
-from github3.repos.repo import Repository
 from github3.repos.contents import Contents
 from github3.exceptions import ForbiddenError, NotFoundError
 
@@ -25,6 +24,33 @@ MAX_FILE_SIZE = 1 * 1024 * 1024
 
 class GitHubConnector:
     """Connector for interacting with the GitHub API."""
+
+    # Directories to skip during file traversal
+    SKIPPED_DIRS = {
+        # Version control
+        '.git',
+        # Dependencies
+        'node_modules',
+        'vendor', 
+        # Build artifacts / Caches
+        'build',
+        'dist',
+        'target',
+        '__pycache__',
+        # Virtual environments
+        'venv',
+        '.venv',
+        'env',
+        # IDE/Editor config
+        '.vscode',
+        '.idea',
+        '.project',
+        '.settings',
+        # Temporary / Logs
+        'tmp',
+        'logs',
+        # Add other project-specific irrelevant directories if needed
+    }
 
     def __init__(self, token: str):
         """
@@ -54,17 +80,16 @@ class GitHubConnector:
             # type='owner' fetches repos owned by the user
             # type='member' fetches repos the user is a collaborator on (including orgs)
             # type='all' fetches both
-            for repo in self.gh.repositories(type='all', sort='updated'):
-                if isinstance(repo, Repository):
-                    repos_data.append({
-                        "id": repo.id,
-                        "name": repo.name,
-                        "full_name": repo.full_name,
-                        "private": repo.private,
-                        "url": repo.html_url,
-                        "description": repo.description or "",
-                        "last_updated": repo.updated_at.isoformat() if repo.updated_at else None,
-                    })
+            for repo in self.gh.repositories(type='owner', sort='updated'):
+                repos_data.append({
+                    "id": repo.id,
+                    "name": repo.name,
+                    "full_name": repo.full_name,
+                    "private": repo.private,
+                    "url": repo.html_url,
+                    "description": repo.description or "",
+                    "last_updated": repo.updated_at if repo.updated_at else None,
+                })
             logger.info(f"Fetched {len(repos_data)} repositories.")
             return repos_data
         except Exception as e:
@@ -90,8 +115,7 @@ class GitHubConnector:
             if not repo:
                 logger.warning(f"Repository '{repo_full_name}' not found.")
                 return []
-                
-            contents = repo.directory_contents(path=path) # Use directory_contents for clarity
+            contents = repo.directory_contents(directory_path=path) # Use directory_contents for clarity
             
             # contents returns a list of tuples (name, content_obj)
             for item_name, content_item in contents:
@@ -99,6 +123,11 @@ class GitHubConnector:
                     continue
 
                 if content_item.type == 'dir':
+                    # Check if the directory name is in the skipped list
+                    if content_item.name in self.SKIPPED_DIRS:
+                        logger.debug(f"Skipping directory: {content_item.path}")
+                        continue # Skip recursion for this directory
+                    
                     # Recursively fetch contents of subdirectory
                     files_list.extend(self.get_repository_files(repo_full_name, path=content_item.path))
                 elif content_item.type == 'file':
