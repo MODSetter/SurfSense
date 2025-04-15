@@ -529,8 +529,8 @@ class ConnectorService:
             document_type="GITHUB_CONNECTOR"
         )
 
-        # Map github_chunks to the required format
-        mapped_sources = {}
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
         for i, chunk in enumerate(github_chunks):
             # Fix for UI - assign a unique ID for citation/source tracking
             github_chunks[i]['document']['id'] = self.source_id_counter
@@ -539,7 +539,7 @@ class ConnectorService:
             document = chunk.get('document', {})
             metadata = document.get('metadata', {})
 
-            # Create a mapped source entry
+            # Create a source entry
             source = {
                 "id": self.source_id_counter,
                 "title": document.get('title', 'GitHub Document'), # Use specific title if available
@@ -548,18 +548,11 @@ class ConnectorService:
             }
 
             self.source_id_counter += 1
-
-            # Use a unique identifier for tracking unique sources (URL preferred)
-            source_key = source.get("url") or source.get("title")
-            if source_key and source_key not in mapped_sources:
-                mapped_sources[source_key] = source
-        
-        # Convert to list of sources
-        sources_list = list(mapped_sources.values())
+            sources_list.append(source)
         
         # Create result object
         result_object = {
-            "id": 7, # Assuming 7 is the next available ID
+            "id": 8,
             "name": "GitHub",
             "type": "GITHUB_CONNECTOR",
             "sources": sources_list,
