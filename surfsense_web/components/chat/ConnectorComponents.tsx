@@ -11,7 +11,7 @@ import {
   Link,
   Webhook,
 } from 'lucide-react';
-import { IconBrandNotion, IconBrandSlack, IconBrandYoutube } from "@tabler/icons-react";
+import { IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconBrandGithub } from "@tabler/icons-react";
 import { Button } from '@/components/ui/button';
 import { Connector, ResearchMode } from './types';
 
@@ -20,6 +20,8 @@ export const getConnectorIcon = (connectorType: string) => {
   const iconProps = { className: "h-4 w-4" };
   
   switch(connectorType) {
+    case 'GITHUB_CONNECTOR':
+      return <IconBrandGithub {...iconProps} />;
     case 'YOUTUBE_VIDEO':
       return <IconBrandYoutube {...iconProps} />;
     case 'CRAWLED_URL':
