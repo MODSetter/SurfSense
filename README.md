@@ -158,6 +158,9 @@ You should see your Next.js frontend running at `localhost:3000`
 
 ![search_spaces](https://github.com/user-attachments/assets/e254c38c-f937-44b6-9e9d-770db583d099)
 
+**Manage Documents** 
+![documents](https://github.com/user-attachments/assets/7001e306-eb06-4009-89c6-8fadfdc3fc4d)
+
 **Research Agent** 
 
 ![researcher](https://github.com/user-attachments/assets/fda3e61f-f936-4b66-b565-d84edde44a67)
