@@ -1,32 +1,24 @@
 "use client";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  IconBrandGoogle,
-  IconBrandSlack,
-  IconBrandWindows,
   IconBrandDiscord,
-  IconSearch,
-  IconMessages,
-  IconDatabase,
-  IconCloud,
   IconBrandGithub,
   IconBrandNotion,
-  IconMail,
+  IconBrandSlack,
+  IconBrandWindows,
   IconBrandZoom,
-  IconChevronRight,
-  IconWorldWww,
   IconChevronDown,
+  IconChevronRight,
+  IconMail,
+  IconWorldWww,
 } from "@tabler/icons-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { useForm } from "react-hook-form";
+import { useParams } from "next/navigation";
+import { useState } from "react";
 
 // Define the Connector type
 interface Connector {
