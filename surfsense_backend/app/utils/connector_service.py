@@ -513,3 +513,49 @@ class ConnectorService:
         }
         
         return result_object, youtube_chunks
+
+    async def search_github(self, user_query: str, user_id: int, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for GitHub documents and return both the source information and langchain documents
+        
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        github_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="GITHUB_CONNECTOR"
+        )
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        for i, chunk in enumerate(github_chunks):
+            # Fix for UI - assign a unique ID for citation/source tracking
+            github_chunks[i]['document']['id'] = self.source_id_counter
+            
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Create a source entry
+            source = {
+                "id": self.source_id_counter,
+                "title": document.get('title', 'GitHub Document'), # Use specific title if available
+                "description": metadata.get('description', chunk.get('content', '')[:100]), # Use description or content preview
+                "url": metadata.get('url', '') # Use URL if available in metadata
+            }
+
+            self.source_id_counter += 1
+            sources_list.append(source)
+        
+        # Create result object
+        result_object = {
+            "id": 8,
+            "name": "GitHub",
+            "type": "GITHUB_CONNECTOR",
+            "sources": sources_list,
+        }
+        
+        return result_object, github_chunks

@@ -94,7 +94,7 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { DocumentViewer } from "@/components/document-viewer";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
-import { IconBrandNotion, IconBrandSlack, IconBrandYoutube } from "@tabler/icons-react";
+import { IconBrandGithub, IconBrandNotion, IconBrandSlack, IconBrandYoutube } from "@tabler/icons-react";
 
 // Define animation variants for reuse
 const fadeInScale = {
@@ -142,6 +142,7 @@ const documentTypeIcons = {
     NOTION_CONNECTOR: IconBrandNotion,
     FILE: File,
     YOUTUBE_VIDEO: IconBrandYoutube,
+    GITHUB_CONNECTOR: IconBrandGithub,
 } as const;
 
 const columns: ColumnDef<Document>[] = [

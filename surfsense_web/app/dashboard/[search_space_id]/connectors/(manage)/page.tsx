@@ -44,6 +44,7 @@ const getConnectorTypeDisplay = (type: string): string => {
     "TAVILY_API": "Tavily API",
     "SLACK_CONNECTOR": "Slack",
     "NOTION_CONNECTOR": "Notion",
+    "GITHUB_CONNECTOR": "GitHub",
     // Add other connector types here as needed
   };
   return typeMap[type] || type;

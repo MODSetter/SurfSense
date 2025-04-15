@@ -57,6 +57,16 @@ class SearchSourceConnectorBase(BaseModel):
             # Ensure the integration token is not empty
             if not config.get("NOTION_INTEGRATION_TOKEN"):
                 raise ValueError("NOTION_INTEGRATION_TOKEN cannot be empty")
+        
+        elif connector_type == SearchSourceConnectorType.GITHUB_CONNECTOR:
+            # For GITHUB_CONNECTOR, only allow GITHUB_PAT
+            allowed_keys = ["GITHUB_PAT"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(f"For GITHUB_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
+        
+            # Ensure the token is not empty
+            if not config.get("GITHUB_PAT"):
+                raise ValueError("GITHUB_PAT cannot be empty")
 
         return config
 
