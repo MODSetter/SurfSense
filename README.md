@@ -1,11 +1,12 @@
 
 
-![headnew](https://github.com/user-attachments/assets/a44fd1e7-1861-46d0-aff7-19cf33e86baa)
+
+![new_header](https://github.com/user-attachments/assets/e236b764-0ddc-42ff-a1f1-8fbb3d2e0e65)
 
 
 
 # SurfSense
-While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily), Slack, Notion, and more to come.
+While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily), Slack, Notion, YouTube, GitHub and more to come.
 
 
 # Video
@@ -45,6 +46,7 @@ Open source and easy to deploy locally.
 - Slack
 - Notion
 - Youtube Videos
+- GitHub
 - and more to come.....
 
 #### 🔖 Cross Browser Extension
@@ -150,6 +152,20 @@ For local frontend setup just fill out the `.env` file of frontend.
 
 You should see your Next.js frontend running at `localhost:3000`
 
+#### Some FrontEnd Screens
+
+**Search Spaces** 
+
+![search_spaces](https://github.com/user-attachments/assets/e254c38c-f937-44b6-9e9d-770db583d099)
+
+**Research Agent** 
+
+![researcher](https://github.com/user-attachments/assets/fda3e61f-f936-4b66-b565-d84edde44a67)
+
+
+**Agent Chat** 
+
+![chat](https://github.com/user-attachments/assets/bb352d52-1c6d-4020-926b-722d0b98b491)
 
 ---
 
@@ -193,12 +209,15 @@ After filling in your SurfSense API key you should be able to use extension now.
  ### **BackEnd** 
 
 -  **FastAPI**: Modern, fast web framework for building APIs with Python
-
+  
 -  **PostgreSQL with pgvector**: Database with vector search capabilities for similarity searches
 
 -  **SQLAlchemy**: SQL toolkit and ORM (Object-Relational Mapping) for database interactions
 
+-  **Alembic**: A database migrations tool for SQLAlchemy.
+
 -  **FastAPI Users**: Authentication and user management with JWT and OAuth support
+  
 -  **LangChain**: Framework for developing AI-powered applications
 
 -  **GPT Integration**: Integration with LLM models through LiteLLM
@@ -214,10 +233,8 @@ After filling in your SurfSense API key you should be able to use extension now.
 -  **pgvector**: PostgreSQL extension for efficient vector similarity operations
 
 -  **Chonkie**: Advanced document chunking and embedding library
-
-- Uses `AutoEmbeddings` for flexible embedding model selection
-
--  `LateChunker` for optimized document chunking based on embedding model's max sequence length
+ - Uses `AutoEmbeddings` for flexible embedding model selection
+ -  `LateChunker` for optimized document chunking based on embedding model's max sequence length
 
 
   
