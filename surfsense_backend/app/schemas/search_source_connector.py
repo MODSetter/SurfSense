@@ -67,6 +67,16 @@ class SearchSourceConnectorBase(BaseModel):
             # Ensure the token is not empty
             if not config.get("GITHUB_PAT"):
                 raise ValueError("GITHUB_PAT cannot be empty")
+            
+        elif connector_type == SearchSourceConnectorType.LINEAR_CONNECTOR:
+            # For LINEAR_CONNECTOR, only allow LINEAR_API_KEY
+            allowed_keys = ["LINEAR_API_KEY"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(f"For LINEAR_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
+        
+            # Ensure the token is not empty
+            if not config.get("LINEAR_API_KEY"):
+                raise ValueError("LINEAR_API_KEY cannot be empty")
 
         return config
 

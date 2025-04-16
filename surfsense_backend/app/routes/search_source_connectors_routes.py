@@ -7,7 +7,7 @@ PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
 POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
 
-Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR).
+Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR, GITHUB_CONNECTOR, LINEAR_CONNECTOR).
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,8 +19,8 @@ from app.schemas import SearchSourceConnectorCreate, SearchSourceConnectorUpdate
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 from pydantic import ValidationError
-from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos
-from datetime import datetime, timezone
+from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues
+from datetime import datetime, timezone, timedelta
 import logging
 
 # Set up logging
@@ -37,7 +37,7 @@ async def create_search_source_connector(
     """
     Create a new search source connector.
     
-    Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR).
+    Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, etc.).
     The config must contain the appropriate keys for the connector type.
     """
     try:
@@ -131,7 +131,7 @@ async def update_search_source_connector(
     """
     Update a search source connector.
     
-    Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR).
+    Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, etc.).
     The config must contain the appropriate keys for the connector type.
     """
     try:
@@ -216,10 +216,10 @@ async def index_connector_content(
     Index content from a connector to a search space.
     
     Currently supports:
-    - SLACK_CONNECTOR: Indexes messages from all accessible Slack channels since the last indexing
-      (or the last 365 days if never indexed before)
-    - NOTION_CONNECTOR: Indexes pages from all accessible Notion pages since the last indexing
-      (or the last 365 days if never indexed before)
+    - SLACK_CONNECTOR: Indexes messages from all accessible Slack channels
+    - NOTION_CONNECTOR: Indexes pages from all accessible Notion pages
+    - GITHUB_CONNECTOR: Indexes code and documentation from GitHub repositories
+    - LINEAR_CONNECTOR: Indexes issues and comments from Linear
     
     Args:
         connector_id: ID of the connector to use
@@ -251,7 +251,7 @@ async def index_connector_content(
                 today = datetime.now().date()
                 if connector.last_indexed_at.date() == today:
                     # If last indexed today, go back 1 day to ensure we don't miss anything
-                    start_date = (today - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+                    start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
                 else:
                     start_date = connector.last_indexed_at.strftime("%Y-%m-%d")
             
@@ -272,7 +272,7 @@ async def index_connector_content(
                 today = datetime.now().date()
                 if connector.last_indexed_at.date() == today:
                     # If last indexed today, go back 1 day to ensure we don't miss anything
-                    start_date = (today - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+                    start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
                 else:
                     start_date = connector.last_indexed_at.strftime("%Y-%m-%d")
             
@@ -294,6 +294,27 @@ async def index_connector_content(
             logger.info(f"Triggering GitHub indexing for connector {connector_id} into search space {search_space_id}")
             background_tasks.add_task(run_github_indexing_with_new_session, connector_id, search_space_id)
             response_message = "GitHub indexing started in the background."
+            
+        elif connector.connector_type == SearchSourceConnectorType.LINEAR_CONNECTOR:
+            # Determine the time range that will be indexed
+            if not connector.last_indexed_at:
+                start_date = "365 days ago"
+            else:
+                # Check if last_indexed_at is today
+                today = datetime.now().date()
+                if connector.last_indexed_at.date() == today:
+                    # If last indexed today, go back 1 day to ensure we don't miss anything
+                    start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+                else:
+                    start_date = connector.last_indexed_at.strftime("%Y-%m-%d")
+            
+            indexing_from = start_date
+            indexing_to = today_str
+
+            # Run indexing in background
+            logger.info(f"Triggering Linear indexing for connector {connector_id} into search space {search_space_id}")
+            background_tasks.add_task(run_linear_indexing_with_new_session, connector_id, search_space_id)
+            response_message = "Linear indexing started in the background."
 
         else:
             raise HTTPException(
@@ -459,4 +480,38 @@ async def run_github_indexing(
     except Exception as e:
         await session.rollback()
         logger.error(f"Critical error in run_github_indexing for connector {connector_id}: {e}", exc_info=True)
+        # Optionally update status in DB to indicate failure
+
+# Add new helper functions for Linear indexing
+async def run_linear_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int
+):
+    """Wrapper to run Linear indexing with its own database session."""
+    logger.info(f"Background task started: Indexing Linear connector {connector_id} into space {search_space_id}")
+    async with async_session_maker() as session:
+        await run_linear_indexing(session, connector_id, search_space_id)
+    logger.info(f"Background task finished: Indexing Linear connector {connector_id}")
+
+async def run_linear_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int
+):
+    """Runs the Linear indexing task and updates the timestamp."""
+    try:
+        indexed_count, error_message = await index_linear_issues(
+            session, connector_id, search_space_id, update_last_indexed=False
+        )
+        if error_message:
+            logger.error(f"Linear indexing failed for connector {connector_id}: {error_message}")
+            # Optionally update status in DB to indicate failure
+        else:
+            logger.info(f"Linear indexing successful for connector {connector_id}. Indexed {indexed_count} documents.")
+            # Update the last indexed timestamp only on success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit() # Commit timestamp update
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Critical error in run_linear_indexing for connector {connector_id}: {e}", exc_info=True)
         # Optionally update status in DB to indicate failure
