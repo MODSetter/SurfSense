@@ -559,3 +559,87 @@ class ConnectorService:
         }
         
         return result_object, github_chunks
+
+    async def search_linear(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20) -> tuple:
+        """
+        Search for Linear issues and comments and return both the source information and langchain documents
+        
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        linear_chunks = await self.retriever.hybrid_search(
+            query_text=user_query,
+            top_k=top_k,
+            user_id=user_id,
+            search_space_id=search_space_id,
+            document_type="LINEAR_CONNECTOR"
+        )
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        for i, chunk in enumerate(linear_chunks):
+            # Fix for UI
+            linear_chunks[i]['document']['id'] = self.source_id_counter
+            
+            # Extract document metadata
+            document = chunk.get('document', {})
+            metadata = document.get('metadata', {})
+
+            # Extract Linear-specific metadata
+            issue_identifier = metadata.get('issue_identifier', '')
+            issue_title = metadata.get('issue_title', 'Untitled Issue')
+            issue_state = metadata.get('state', '')
+            comment_count = metadata.get('comment_count', 0)
+            
+            # Create a more descriptive title for Linear issues
+            title = f"Linear: {issue_identifier} - {issue_title}"
+            if issue_state:
+                title += f" ({issue_state})"
+                
+            # Create a more descriptive description for Linear issues
+            description = chunk.get('content', '')[:100]
+            if len(description) == 100:
+                description += "..."
+                
+            # Add comment count info to description
+            if comment_count:
+                if description:
+                    description += f" | Comments: {comment_count}"
+                else:
+                    description = f"Comments: {comment_count}"
+                
+            # For URL, we could construct a URL to the Linear issue if we have the workspace info
+            # For now, use a generic placeholder
+            url = ""
+            if issue_identifier:
+                # This is a generic format, may need to be adjusted based on actual Linear workspace
+                url = f"https://linear.app/issue/{issue_identifier}"
+
+            source = {
+                "id": self.source_id_counter,
+                "title": title,
+                "description": description,
+                "url": url,
+                "issue_identifier": issue_identifier,
+                "state": issue_state,
+                "comment_count": comment_count
+            }
+
+            self.source_id_counter += 1
+            sources_list.append(source)
+        
+        # Create result object
+        result_object = {
+            "id": 9,  # Assign a unique ID for the Linear connector
+            "name": "Linear Issues",
+            "type": "LINEAR_CONNECTOR",
+            "sources": sources_list,
+        }
+        
+        return result_object, linear_chunks

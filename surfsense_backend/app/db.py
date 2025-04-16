@@ -41,6 +41,7 @@ class DocumentType(str, Enum):
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     YOUTUBE_VIDEO = "YOUTUBE_VIDEO"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
+    LINEAR_CONNECTOR = "LINEAR_CONNECTOR"
 
 class SearchSourceConnectorType(str, Enum):
     SERPER_API = "SERPER_API"
@@ -48,6 +49,7 @@ class SearchSourceConnectorType(str, Enum):
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
+    LINEAR_CONNECTOR = "LINEAR_CONNECTOR"
     
 class ChatType(str, Enum):
     GENERAL = "GENERAL"

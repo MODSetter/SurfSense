@@ -10,6 +10,7 @@ from app.prompts import SUMMARY_PROMPT_TEMPLATE
 from app.connectors.slack_history import SlackHistory
 from app.connectors.notion_history import NotionHistoryConnector
 from app.connectors.github_connector import GitHubConnector
+from app.connectors.linear_connector import LinearConnector
 from slack_sdk.errors import SlackApiError
 import logging
 
@@ -60,8 +61,20 @@ async def index_slack_messages(
         end_date = datetime.now()
         
         # Use last_indexed_at as start date if available, otherwise use 365 days ago
-
-        start_date = end_date - timedelta(days=365)
+        if connector.last_indexed_at:
+            # Convert dates to be comparable (both timezone-naive)
+            last_indexed_naive = connector.last_indexed_at.replace(tzinfo=None) if connector.last_indexed_at.tzinfo else connector.last_indexed_at
+            
+            # Check if last_indexed_at is in the future or after end_date
+            if last_indexed_naive > end_date:
+                logger.warning(f"Last indexed date ({last_indexed_naive.strftime('%Y-%m-%d')}) is in the future. Using 30 days ago instead.")
+                start_date = end_date - timedelta(days=30)
+            else:
+                start_date = last_indexed_naive
+                logger.info(f"Using last_indexed_at ({start_date.strftime('%Y-%m-%d')}) as start date")
+        else:
+            start_date = end_date - timedelta(days=30)  # Use 30 days instead of 365 to catch recent issues
+            logger.info(f"No last_indexed_at found, using {start_date.strftime('%Y-%m-%d')} (30 days ago) as start date")
         
         # Format dates for Slack API
         start_date_str = start_date.strftime("%Y-%m-%d")
@@ -782,3 +795,280 @@ async def index_github_repos(
 
     error_message = "; ".join(errors) if errors else None
     return documents_processed, error_message
+
+async def index_linear_issues(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    update_last_indexed: bool = True
+) -> Tuple[int, Optional[str]]:
+    """
+    Index Linear issues and comments.
+    
+    Args:
+        session: Database session
+        connector_id: ID of the Linear connector
+        search_space_id: ID of the search space to store documents in
+        update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        
+    Returns:
+        Tuple containing (number of documents indexed, error message or None)
+    """
+    try:
+        # Get the connector
+        result = await session.execute(
+            select(SearchSourceConnector)
+            .filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.connector_type == SearchSourceConnectorType.LINEAR_CONNECTOR
+            )
+        )
+        connector = result.scalars().first()
+        
+        if not connector:
+            return 0, f"Connector with ID {connector_id} not found or is not a Linear connector"
+        
+        # Get the Linear token from the connector config
+        linear_token = connector.config.get("LINEAR_API_KEY")
+        if not linear_token:
+            return 0, "Linear API token not found in connector config"
+        
+        # Initialize Linear client
+        linear_client = LinearConnector(token=linear_token)
+        
+        # Calculate date range
+        end_date = datetime.now()
+        
+        # Use last_indexed_at as start date if available, otherwise use 365 days ago
+        if connector.last_indexed_at:
+            # Convert dates to be comparable (both timezone-naive)
+            last_indexed_naive = connector.last_indexed_at.replace(tzinfo=None) if connector.last_indexed_at.tzinfo else connector.last_indexed_at
+            
+            # Check if last_indexed_at is in the future or after end_date
+            if last_indexed_naive > end_date:
+                logger.warning(f"Last indexed date ({last_indexed_naive.strftime('%Y-%m-%d')}) is in the future. Using 30 days ago instead.")
+                start_date = end_date - timedelta(days=30)
+            else:
+                start_date = last_indexed_naive
+                logger.info(f"Using last_indexed_at ({start_date.strftime('%Y-%m-%d')}) as start date")
+        else:
+            start_date = end_date - timedelta(days=30)  # Use 30 days instead of 365 to catch recent issues
+            logger.info(f"No last_indexed_at found, using {start_date.strftime('%Y-%m-%d')} (30 days ago) as start date")
+        
+        # Format dates for Linear API
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+        
+        logger.info(f"Fetching Linear issues from {start_date_str} to {end_date_str}")
+        
+        # Get issues within date range
+        try:
+            issues, error = linear_client.get_issues_by_date_range(
+                start_date=start_date_str,
+                end_date=end_date_str,
+                include_comments=True
+            )
+            
+            if error:
+                logger.error(f"Failed to get Linear issues: {error}")
+                
+                # Don't treat "No issues found" as an error that should stop indexing
+                if "No issues found" in error:
+                    logger.info("No issues found is not a critical error, continuing with update")
+                    if update_last_indexed:
+                        connector.last_indexed_at = datetime.now()
+                        await session.commit()
+                        logger.info(f"Updated last_indexed_at to {connector.last_indexed_at} despite no issues found")
+                    return 0, None
+                else:
+                    return 0, f"Failed to get Linear issues: {error}"
+            
+            logger.info(f"Retrieved {len(issues)} issues from Linear API")
+            
+        except Exception as e:
+            logger.error(f"Exception when calling Linear API: {str(e)}", exc_info=True)
+            return 0, f"Failed to get Linear issues: {str(e)}"
+        
+        if not issues:
+            logger.info("No Linear issues found for the specified date range")
+            if update_last_indexed:
+                connector.last_indexed_at = datetime.now()
+                await session.commit()
+                logger.info(f"Updated last_indexed_at to {connector.last_indexed_at} despite no issues found")
+            return 0, None  # Return None instead of error message when no issues found
+        
+        # Log issue IDs and titles for debugging
+        logger.info("Issues retrieved from Linear API:")
+        for idx, issue in enumerate(issues[:10]):  # Log first 10 issues
+            logger.info(f"  {idx+1}. {issue.get('identifier', 'Unknown')} - {issue.get('title', 'Unknown')} - Created: {issue.get('createdAt', 'Unknown')} - Updated: {issue.get('updatedAt', 'Unknown')}")
+        if len(issues) > 10:
+            logger.info(f"  ...and {len(issues) - 10} more issues")
+        
+        # Get existing documents for this search space and connector type to prevent duplicates
+        existing_docs_result = await session.execute(
+            select(Document)
+            .filter(
+                Document.search_space_id == search_space_id,
+                Document.document_type == DocumentType.LINEAR_CONNECTOR
+            )
+        )
+        existing_docs = existing_docs_result.scalars().all()
+        
+        # Create a lookup dictionary of existing documents by issue_id
+        existing_docs_by_issue_id = {}
+        for doc in existing_docs:
+            if "issue_id" in doc.document_metadata:
+                existing_docs_by_issue_id[doc.document_metadata["issue_id"]] = doc
+        
+        logger.info(f"Found {len(existing_docs_by_issue_id)} existing Linear documents in database")
+        
+        # Log existing document IDs for debugging
+        if existing_docs_by_issue_id:
+            logger.info("Existing Linear document issue IDs in database:")
+            for idx, (issue_id, doc) in enumerate(list(existing_docs_by_issue_id.items())[:10]):  # Log first 10
+                logger.info(f"  {idx+1}. {issue_id} - {doc.document_metadata.get('issue_identifier', 'Unknown')} - {doc.document_metadata.get('issue_title', 'Unknown')}")
+            if len(existing_docs_by_issue_id) > 10:
+                logger.info(f"  ...and {len(existing_docs_by_issue_id) - 10} more existing documents")
+        
+        # Track the number of documents indexed
+        documents_indexed = 0
+        documents_updated = 0
+        documents_skipped = 0
+        skipped_issues = []
+        
+        # Process each issue
+        for issue in issues:
+            try:
+                issue_id = issue.get("id")
+                issue_identifier = issue.get("identifier", "")
+                issue_title = issue.get("title", "")
+                
+                if not issue_id or not issue_title:
+                    logger.warning(f"Skipping issue with missing ID or title: {issue_id or 'Unknown'}")
+                    skipped_issues.append(f"{issue_identifier or 'Unknown'} (missing data)")
+                    documents_skipped += 1
+                    continue
+                
+                # Format the issue first to get well-structured data
+                formatted_issue = linear_client.format_issue(issue)
+                
+                # Convert issue to markdown format
+                issue_content = linear_client.format_issue_to_markdown(formatted_issue)
+                
+                if not issue_content:
+                    logger.warning(f"Skipping issue with no content: {issue_identifier} - {issue_title}")
+                    skipped_issues.append(f"{issue_identifier} (no content)")
+                    documents_skipped += 1
+                    continue
+                
+                # Create a short summary for the embedding
+                # This avoids using the LLM and just uses the issue data directly
+                state = formatted_issue.get("state", "Unknown")
+                description = formatted_issue.get("description", "")
+                # Truncate description if it's too long for the summary
+                if description and len(description) > 500:
+                    description = description[:497] + "..."
+                
+                # Create a simple summary from the issue data
+                summary_content = f"Linear Issue {issue_identifier}: {issue_title}\n\nStatus: {state}\n\n"
+                if description:
+                    summary_content += f"Description: {description}\n\n"
+                
+                # Add comment count
+                comment_count = len(formatted_issue.get("comments", []))
+                summary_content += f"Comments: {comment_count}"
+                
+                # Generate embedding for the summary
+                summary_embedding = config.embedding_model_instance.embed(summary_content)
+                
+                # Process chunks - using the full issue content with comments
+                chunks = [
+                    Chunk(content=chunk.text, embedding=chunk.embedding)
+                    for chunk in config.chunker_instance.chunk(issue_content)
+                ]
+                
+                # Check if this issue already exists in our database
+                existing_document = existing_docs_by_issue_id.get(issue_id)
+                
+                if existing_document:
+                    # Update existing document instead of creating a new one
+                    logger.info(f"Updating existing document for issue {issue_identifier} - {issue_title}")
+                    
+                    # Update document fields
+                    existing_document.title = f"Linear - {issue_identifier}: {issue_title}"
+                    existing_document.document_metadata = {
+                        "issue_id": issue_id,
+                        "issue_identifier": issue_identifier,
+                        "issue_title": issue_title,
+                        "state": state,
+                        "comment_count": comment_count,
+                        "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    existing_document.content = summary_content
+                    existing_document.embedding = summary_embedding
+                    
+                    # Delete existing chunks and add new ones
+                    await session.execute(
+                        delete(Chunk)
+                        .where(Chunk.document_id == existing_document.id)
+                    )
+                    
+                    # Assign new chunks to existing document
+                    for chunk in chunks:
+                        chunk.document_id = existing_document.id
+                        session.add(chunk)
+                    
+                    documents_updated += 1
+                else:
+                    # Create and store new document
+                    logger.info(f"Creating new document for issue {issue_identifier} - {issue_title}")
+                    document = Document(
+                        search_space_id=search_space_id,
+                        title=f"Linear - {issue_identifier}: {issue_title}",
+                        document_type=DocumentType.LINEAR_CONNECTOR,
+                        document_metadata={
+                            "issue_id": issue_id,
+                            "issue_identifier": issue_identifier,
+                            "issue_title": issue_title,
+                            "state": state,
+                            "comment_count": comment_count,
+                            "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        },
+                        content=summary_content,
+                        embedding=summary_embedding,
+                        chunks=chunks
+                    )
+                    
+                    session.add(document)
+                    documents_indexed += 1
+                    logger.info(f"Successfully indexed new issue {issue_identifier} - {issue_title}")
+                
+            except Exception as e:
+                logger.error(f"Error processing issue {issue.get('identifier', 'Unknown')}: {str(e)}", exc_info=True)
+                skipped_issues.append(f"{issue.get('identifier', 'Unknown')} (processing error)")
+                documents_skipped += 1
+                continue  # Skip this issue and continue with others
+        
+        # Update the last_indexed_at timestamp for the connector only if requested
+        total_processed = documents_indexed + documents_updated
+        if update_last_indexed:
+            connector.last_indexed_at = datetime.now()
+            logger.info(f"Updated last_indexed_at to {connector.last_indexed_at}")
+        
+        # Commit all changes
+        await session.commit()
+        logger.info(f"Successfully committed all Linear document changes to database")
+        
+       
+        logger.info(f"Linear indexing completed: {documents_indexed} new issues, {documents_updated} updated, {documents_skipped} skipped")
+        return total_processed, None  # Return None as the error message to indicate success
+    
+    except SQLAlchemyError as db_error:
+        await session.rollback()
+        logger.error(f"Database error: {str(db_error)}", exc_info=True)
+        return 0, f"Database error: {str(db_error)}"
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to index Linear issues: {str(e)}", exc_info=True)
+        return 0, f"Failed to index Linear issues: {str(e)}"
