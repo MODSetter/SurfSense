@@ -4,7 +4,6 @@ from typing import Dict, Any
 from pydantic import BaseModel, field_validator
 from .base import IDModel, TimestampModel
 from app.db import SearchSourceConnectorType
-from fastapi import HTTPException
 
 class SearchSourceConnectorBase(BaseModel):
     name: str
@@ -59,14 +58,19 @@ class SearchSourceConnectorBase(BaseModel):
                 raise ValueError("NOTION_INTEGRATION_TOKEN cannot be empty")
         
         elif connector_type == SearchSourceConnectorType.GITHUB_CONNECTOR:
-            # For GITHUB_CONNECTOR, only allow GITHUB_PAT
-            allowed_keys = ["GITHUB_PAT"]
+            # For GITHUB_CONNECTOR, only allow GITHUB_PAT and repo_full_names
+            allowed_keys = ["GITHUB_PAT", "repo_full_names"]
             if set(config.keys()) != set(allowed_keys):
                 raise ValueError(f"For GITHUB_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
         
             # Ensure the token is not empty
             if not config.get("GITHUB_PAT"):
                 raise ValueError("GITHUB_PAT cannot be empty")
+            
+            # Ensure the repo_full_names is present and is a non-empty list
+            repo_full_names = config.get("repo_full_names")
+            if not isinstance(repo_full_names, list) or not repo_full_names:
+                raise ValueError("repo_full_names must be a non-empty list of strings")
 
         return config
 

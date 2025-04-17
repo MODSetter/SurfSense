@@ -9,7 +9,7 @@ POST /search-source-connectors/{connector_id}/index - Index content from a conne
 
 Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR).
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
@@ -18,8 +18,9 @@ from app.db import get_async_session, User, SearchSourceConnector, SearchSourceC
 from app.schemas import SearchSourceConnectorCreate, SearchSourceConnectorUpdate, SearchSourceConnectorRead
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel, Field
 from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos
+from app.connectors.github_connector import GitHubConnector
 from datetime import datetime, timezone
 import logging
 
@@ -27,6 +28,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# --- New Schema for GitHub PAT ---
+class GitHubPATRequest(BaseModel):
+    github_pat: str = Field(..., description="GitHub Personal Access Token")
+
+# --- New Endpoint to list GitHub Repositories ---
+@router.post("/github/repositories/", response_model=List[Dict[str, Any]])
+async def list_github_repositories(
+    pat_request: GitHubPATRequest,
+    user: User = Depends(current_active_user) # Ensure the user is logged in
+):
+    """
+    Fetches a list of repositories accessible by the provided GitHub PAT.
+    The PAT is used for this request only and is not stored.
+    """
+    try:
+        # Initialize GitHubConnector with the provided PAT
+        github_client = GitHubConnector(token=pat_request.github_pat)
+        # Fetch repositories
+        repositories = github_client.get_user_repositories()
+        return repositories
+    except ValueError as e:
+        # Handle invalid token error specifically
+        logger.error(f"GitHub PAT validation failed for user {user.id}: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid GitHub PAT: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to fetch GitHub repositories for user {user.id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch GitHub repositories.")
 
 @router.post("/search-source-connectors/", response_model=SearchSourceConnectorRead)
 async def create_search_source_connector(
