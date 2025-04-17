@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pydantic import BaseModel, field_validator
 from .base import IDModel, TimestampModel
 from app.db import SearchSourceConnectorType
@@ -9,7 +9,7 @@ class SearchSourceConnectorBase(BaseModel):
     name: str
     connector_type: SearchSourceConnectorType
     is_indexable: bool
-    last_indexed_at: datetime | None
+    last_indexed_at: Optional[datetime] = None
     config: Dict[str, Any]
     
     @field_validator('config')
@@ -77,8 +77,12 @@ class SearchSourceConnectorBase(BaseModel):
 class SearchSourceConnectorCreate(SearchSourceConnectorBase):
     pass
 
-class SearchSourceConnectorUpdate(SearchSourceConnectorBase):
-    pass
+class SearchSourceConnectorUpdate(BaseModel):
+    name: Optional[str] = None
+    connector_type: Optional[SearchSourceConnectorType] = None
+    is_indexable: Optional[bool] = None
+    last_indexed_at: Optional[datetime] = None
+    config: Optional[Dict[str, Any]] = None
 
 class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampModel):
     user_id: uuid.UUID
