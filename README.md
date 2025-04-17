@@ -6,7 +6,7 @@
 
 
 # SurfSense
-While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily), Slack, Notion, YouTube, GitHub and more to come.
+While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily), Slack, Linear, Notion, YouTube, GitHub and more to come.
 
 
 # Video
@@ -44,6 +44,7 @@ Open source and easy to deploy locally.
 #### ℹ️ **External Sources**
 - Search Engines (Tavily)
 - Slack
+- Linear
 - Notion
 - Youtube Videos
 - GitHub

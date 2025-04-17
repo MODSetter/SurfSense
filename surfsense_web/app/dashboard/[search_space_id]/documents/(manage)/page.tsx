@@ -1,6 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { DocumentViewer } from "@/components/document-viewer";
+import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -12,7 +13,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -43,6 +43,9 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { useDocuments } from "@/hooks/use-documents";
+import { cn } from "@/lib/utils";
+import { IconBrandGithub, IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconLayoutKanban } from "@tabler/icons-react";
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -59,6 +62,7 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table";
+import { AnimatePresence, motion } from "framer-motion";
 import {
     AlertCircle,
     ChevronDown,
@@ -70,31 +74,22 @@ import {
     CircleAlert,
     CircleX,
     Columns3,
-    Filter,
-    ListFilter,
-    Plus,
-    FileText,
-    Globe,
-    MessageSquare,
-    FileX,
     File,
-    Trash,
+    FileX,
+    Filter,
+    Globe,
+    ListFilter,
     MoreHorizontal,
-    Webhook,
+    Trash,
+    Webhook
 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState, useContext } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useParams } from "next/navigation";
-import { useDocuments } from "@/hooks/use-documents";
-import React from "react";
-import { toast } from "sonner";
+import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import { DocumentViewer } from "@/components/document-viewer";
-import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
-import { IconBrandGithub, IconBrandNotion, IconBrandSlack, IconBrandYoutube } from "@tabler/icons-react";
+import { toast } from "sonner";
 
 // Define animation variants for reuse
 const fadeInScale = {
@@ -114,7 +109,7 @@ const fadeInScale = {
 type Document = {
     id: number;
     title: string;
-    document_type: "EXTENSION" | "CRAWLED_URL" | "SLACK_CONNECTOR" | "NOTION_CONNECTOR" | "FILE" | "YOUTUBE_VIDEO";
+    document_type: "EXTENSION" | "CRAWLED_URL" | "SLACK_CONNECTOR" | "NOTION_CONNECTOR" | "FILE" | "YOUTUBE_VIDEO" | "LINEAR_CONNECTOR";
     document_metadata: any;
     content: string;
     created_at: string;
@@ -143,6 +138,7 @@ const documentTypeIcons = {
     FILE: File,
     YOUTUBE_VIDEO: IconBrandYoutube,
     GITHUB_CONNECTOR: IconBrandGithub,
+    LINEAR_CONNECTOR: IconLayoutKanban,
 } as const;
 
 const columns: ColumnDef<Document>[] = [
@@ -1029,4 +1025,5 @@ function RowActions({ row }: { row: Row<Document> }) {
     );
 }
 
-export { DocumentsTable }
+export { DocumentsTable };
+

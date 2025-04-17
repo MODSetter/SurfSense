@@ -14,6 +14,8 @@ import {
   IconChevronRight,
   IconMail,
   IconWorldWww,
+  IconTicket,
+  IconLayoutKanban,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
@@ -74,6 +76,26 @@ const connectorCategories: ConnectorCategory[] = [
         title: "Discord",
         description: "Connect to Discord servers to access messages and channels.",
         icon: <IconBrandDiscord className="h-6 w-6" />,
+        status: "coming-soon",
+      },
+    ],
+  },
+  {
+    id: "project-management",
+    title: "Project Management",
+    connectors: [
+      {
+        id: "linear-connector",
+        title: "Linear",
+        description: "Connect to Linear to search issues, comments and project data.",
+        icon: <IconLayoutKanban className="h-6 w-6" />,
+        status: "available",
+      },
+      {
+        id: "jira-connector",
+        title: "Jira",
+        description: "Connect to Jira to search issues, tickets and project data.",
+        icon: <IconTicket className="h-6 w-6" />,
         status: "coming-soon",
       },
     ],
@@ -161,7 +183,7 @@ const cardVariants = {
 export default function ConnectorsPage() {
   const params = useParams();
   const searchSpaceId = params.search_space_id as string;
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines", "knowledge-bases"]);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines", "knowledge-bases", "project-management"]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => 

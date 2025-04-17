@@ -270,6 +270,32 @@ async def stream_connector_search_results(
             # Add documents to collection
             all_raw_documents.extend(github_chunks)
             
+        # Linear Connector
+        if connector == "LINEAR_CONNECTOR":
+            # Send terminal message about starting search
+            yield streaming_service.add_terminal_message("Starting to search for Linear issues...")  
+            
+            # Search using Linear API with reformulated query
+            result_object, linear_chunks = await connector_service.search_linear(
+                user_query=reformulated_query,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                top_k=TOP_K
+            )
+            
+            # Send terminal message about search results
+            yield streaming_service.add_terminal_message(
+                f"Found {len(result_object['sources'])} relevant results from Linear",
+                "success"
+            )
+            
+            # Update sources
+            all_sources.append(result_object)
+            yield streaming_service.update_sources(all_sources)
+            
+            # Add documents to collection
+            all_raw_documents.extend(linear_chunks)
+            
             
     
 
