@@ -7,19 +7,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Info, Loader2, Github, CircleAlert, ListChecks, Edit, KeyRound } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Github, } from "lucide-react";
 
 import { useSearchSourceConnectors, SearchSourceConnector } from "@/hooks/useSearchSourceConnectors";
 import {
     Form,
-    FormControl,
-    FormDescription,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -29,13 +22,11 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import {
-    Alert,
-    AlertDescription,
-    AlertTitle,
-} from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EditConnectorLoadingSkeleton } from "@/components/editConnector/EditConnectorLoadingSkeleton";
+import { EditConnectorNameForm } from "@/components/editConnector/EditConnectorNameForm";
+import { EditGitHubConnectorConfig } from "@/components/editConnector/EditGitHubConnectorConfig";
+import { EditSimpleTokenForm } from "@/components/editConnector/EditSimpleTokenForm";
+
 
 // Helper function to get connector type display name (copied from manage page)
 const getConnectorTypeDisplay = (type: string): string => {
@@ -341,21 +332,7 @@ export default function EditConnectorPage() { // Renamed for clarity
     };
 
     if (connectorsLoading || !connector) {
-        return (
-            <div className="container mx-auto py-8 max-w-3xl">
-                <Skeleton className="h-8 w-48 mb-6" />
-                <Card className="border-2 border-border">
-                    <CardHeader>
-                        <Skeleton className="h-7 w-3/4 mb-2" />
-                        <Skeleton className="h-4 w-full" />
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-20 w-full" />
-                    </CardContent>
-                </Card>
-            </div>
-        );
+        return <EditConnectorLoadingSkeleton />;
     }
 
     return (
@@ -389,148 +366,70 @@ export default function EditConnectorPage() { // Renamed for clarity
                     <Form {...editForm}>
                         <form onSubmit={editForm.handleSubmit(handleSaveChanges)} className="space-y-6">
                             <CardContent className="space-y-6">
-                                {/* Name Field (Common) */}
-                                <FormField
-                                    control={editForm.control}
-                                    name="name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Connector Name</FormLabel>
-                                            <FormControl><Input {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                {/* Name Component */}
+                                <EditConnectorNameForm control={editForm.control} />
 
                                 <hr />
 
-                                {/* --- Conditional Configuration Section --- */}
                                 <h3 className="text-lg font-semibold">Configuration</h3>
 
                                 {/* == GitHub == */}
                                 {connector.connector_type === 'GITHUB_CONNECTOR' && (
-                                    <div className="space-y-4">
-                                        <h4 className="font-medium text-muted-foreground">Repository Selection & Access</h4>
-                                        {editMode === 'viewing' && (
-                                            <div className="space-y-3 p-4 border rounded-md bg-muted/50">
-                                                <FormLabel>Currently Indexed Repositories:</FormLabel>
-                                                {currentSelectedRepos.length > 0 ? (
-                                                    <ul className="list-disc pl-5 text-sm">
-                                                        {currentSelectedRepos.map(repo => <li key={repo}>{repo}</li>)}
-                                                    </ul>
-                                                ) : (
-                                                    <p className="text-sm text-muted-foreground">(No repositories currently selected)</p>
-                                                )}
-                                                <Button type="button" variant="outline" size="sm" onClick={() => setEditMode('editing_repos')}>
-                                                    <Edit className="mr-2 h-4 w-4" /> Change Selection / Update PAT
-                                                </Button>
-                                                <FormDescription>To change repo selections or update the PAT, click above.</FormDescription>
-                                            </div>
-                                        )}
-                                        {editMode === 'editing_repos' && (
-                                            <div className="space-y-4 p-4 border rounded-md">
-                                                {/* PAT Input */}
-                                                <div className="flex items-end gap-4 p-4 border rounded-md bg-muted/90">
-                                                    <FormField control={patForm.control} name="github_pat" render={({ field }) => (
-                                                        <FormItem className="flex-grow">
-                                                            <FormLabel className="flex items-center gap-1"><KeyRound className="h-4 w-4" /> GitHub PAT</FormLabel>
-                                                            <FormControl><Input type="password" placeholder="ghp_... or github_pat_..." {...field} /></FormControl>
-                                                            <FormDescription>Enter PAT to fetch/update repos or if you need to update the stored token.</FormDescription>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )} />
-                                                    <Button type="button" disabled={isFetchingRepos} size="sm" onClick={async () => { const isValid = await patForm.trigger('github_pat'); if (isValid) { handleFetchRepositories(patForm.getValues()); } }}>
-                                                        {isFetchingRepos ? <Loader2 className="h-4 w-4 animate-spin" /> : "Fetch Repositories"}
-                                                    </Button>
-                                                </div>
-                                                {/* Repo List */}
-                                                {isFetchingRepos && <Skeleton className="h-40 w-full" />}
-                                                {!isFetchingRepos && fetchedRepos !== null && (
-                                                    fetchedRepos.length === 0 ? (
-                                                        <Alert variant="destructive"><CircleAlert className="h-4 w-4" /><AlertTitle>No Repositories Found</AlertTitle><AlertDescription>Check PAT & permissions.</AlertDescription></Alert>
-                                                    ) : (
-                                                        <div className="space-y-2">
-                                                            <FormLabel>Select Repositories to Index ({newSelectedRepos.length} selected):</FormLabel>
-                                                            <div className="h-64 w-full rounded-md border p-4 overflow-y-auto">
-                                                                {fetchedRepos.map((repo) => (
-                                                                    <div key={repo.id} className="flex items-center space-x-2 mb-2 py-1">
-                                                                        <Checkbox id={`repo-${repo.id}`} checked={newSelectedRepos.includes(repo.full_name)} onCheckedChange={(checked) => handleRepoSelectionChange(repo.full_name, !!checked)} />
-                                                                        <label htmlFor={`repo-${repo.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{repo.full_name} {repo.private && "(Private)"}</label>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                )}
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => { setEditMode('viewing'); setFetchedRepos(null); setNewSelectedRepos(currentSelectedRepos); patForm.reset({ github_pat: originalPat }); }}>
-                                                    Cancel Repo Change
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <EditGitHubConnectorConfig
+                                        editMode={editMode}
+                                        originalPat={originalPat}
+                                        currentSelectedRepos={currentSelectedRepos}
+                                        fetchedRepos={fetchedRepos}
+                                        newSelectedRepos={newSelectedRepos}
+                                        isFetchingRepos={isFetchingRepos}
+                                        patForm={patForm}
+                                        setEditMode={setEditMode}
+                                        handleFetchRepositories={handleFetchRepositories}
+                                        handleRepoSelectionChange={handleRepoSelectionChange}
+                                        setNewSelectedRepos={setNewSelectedRepos}
+                                        setFetchedRepos={setFetchedRepos}
+                                    />
                                 )}
 
                                 {/* == Slack == */}
                                 {connector.connector_type === 'SLACK_CONNECTOR' && (
-                                    <FormField
-                                        control={editForm.control}
-                                        name="SLACK_BOT_TOKEN"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="flex items-center gap-1"><KeyRound className="h-4 w-4" /> Slack Bot Token</FormLabel>
-                                                <FormControl><Input type="password" placeholder="Begins with xoxb-..." {...field} /></FormControl>
-                                                <FormDescription>Update the Slack Bot Token if needed.</FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
+                                    <EditSimpleTokenForm
+                                        control={editForm.control} 
+                                        fieldName="SLACK_BOT_TOKEN"
+                                        fieldLabel="Slack Bot Token"
+                                        fieldDescription="Update the Slack Bot Token if needed."
+                                        placeholder="Begins with xoxb-..."
                                     />
                                 )}
 
                                 {/* == Notion == */}
                                 {connector.connector_type === 'NOTION_CONNECTOR' && (
-                                    <FormField
-                                        control={editForm.control}
-                                        name="NOTION_INTEGRATION_TOKEN"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="flex items-center gap-1"><KeyRound className="h-4 w-4" /> Notion Integration Token</FormLabel>
-                                                <FormControl><Input type="password" placeholder="Begins with secret_..." {...field} /></FormControl>
-                                                <FormDescription>Update the Notion Integration Token if needed.</FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
+                                    <EditSimpleTokenForm
+                                        control={editForm.control} 
+                                        fieldName="NOTION_INTEGRATION_TOKEN"
+                                        fieldLabel="Notion Integration Token"
+                                        fieldDescription="Update the Notion Integration Token if needed."
+                                        placeholder="Begins with secret_..."
                                     />
                                 )}
 
                                 {/* == Serper API == */}
                                 {connector.connector_type === 'SERPER_API' && (
-                                    <FormField
-                                        control={editForm.control}
-                                        name="SERPER_API_KEY"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="flex items-center gap-1"><KeyRound className="h-4 w-4" /> Serper API Key</FormLabel>
-                                                <FormControl><Input type="password" {...field} /></FormControl>
-                                                <FormDescription>Update the Serper API Key if needed.</FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
+                                    <EditSimpleTokenForm
+                                        control={editForm.control} 
+                                        fieldName="SERPER_API_KEY"
+                                        fieldLabel="Serper API Key"
+                                        fieldDescription="Update the Serper API Key if needed."
                                     />
                                 )}
 
                                 {/* == Tavily API == */}
                                 {connector.connector_type === 'TAVILY_API' && (
-                                    <FormField
-                                        control={editForm.control}
-                                        name="TAVILY_API_KEY"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="flex items-center gap-1"><KeyRound className="h-4 w-4" /> Tavily API Key</FormLabel>
-                                                <FormControl><Input type="password" {...field} /></FormControl>
-                                                <FormDescription>Update the Tavily API Key if needed.</FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
+                                    <EditSimpleTokenForm
+                                        control={editForm.control} 
+                                        fieldName="TAVILY_API_KEY"
+                                        fieldLabel="Tavily API Key"
+                                        fieldDescription="Update the Tavily API Key if needed."
                                     />
                                 )}
 
