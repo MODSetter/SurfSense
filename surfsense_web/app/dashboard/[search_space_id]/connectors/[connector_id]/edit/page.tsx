@@ -149,6 +149,17 @@ export default function EditConnectorPage() {
                                     />
                                 )}
 
+                                {/* == Linear == */}
+                                {connector.connector_type === 'LINEAR_CONNECTOR' && (
+                                    <EditSimpleTokenForm
+                                        control={editForm.control}
+                                        fieldName="LINEAR_API_KEY"
+                                        fieldLabel="Linear API Key"
+                                        fieldDescription="Update your Linear API Key if needed."
+                                        placeholder="Begins with lin_api_..."
+                                    />
+                                )}
+
                             </CardContent>
                             <CardFooter className="border-t pt-6">
                                 <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">

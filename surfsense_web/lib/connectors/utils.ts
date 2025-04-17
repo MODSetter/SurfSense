@@ -6,6 +6,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
         "SLACK_CONNECTOR": "Slack",
         "NOTION_CONNECTOR": "Notion",
         "GITHUB_CONNECTOR": "GitHub",
+        "LINEAR_CONNECTOR": "Linear",
     };
     return typeMap[type] || type;
 }; 

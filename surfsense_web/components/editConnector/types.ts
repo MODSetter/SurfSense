@@ -29,5 +29,6 @@ export const editConnectorSchema = z.object({
     NOTION_INTEGRATION_TOKEN: z.string().optional(),
     SERPER_API_KEY: z.string().optional(),
     TAVILY_API_KEY: z.string().optional(),
+    LINEAR_API_KEY: z.string().optional(),
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>; 

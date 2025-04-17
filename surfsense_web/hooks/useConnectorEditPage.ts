@@ -35,7 +35,14 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
     });
     const editForm = useForm<EditConnectorFormValues>({
         resolver: zodResolver(editConnectorSchema),
-        defaultValues: { name: "", SLACK_BOT_TOKEN: "", NOTION_INTEGRATION_TOKEN: "", SERPER_API_KEY: "", TAVILY_API_KEY: "" },
+        defaultValues: { 
+            name: "", 
+            SLACK_BOT_TOKEN: "", 
+            NOTION_INTEGRATION_TOKEN: "", 
+            SERPER_API_KEY: "", 
+            TAVILY_API_KEY: "",
+            LINEAR_API_KEY: ""
+        }, 
     });
 
     // Effect to load initial data
@@ -52,6 +59,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
                     NOTION_INTEGRATION_TOKEN: config.NOTION_INTEGRATION_TOKEN || "",
                     SERPER_API_KEY: config.SERPER_API_KEY || "",
                     TAVILY_API_KEY: config.TAVILY_API_KEY || "",
+                    LINEAR_API_KEY: config.LINEAR_API_KEY || ""
                 });
                 if (currentConnector.connector_type === 'GITHUB_CONNECTOR') {
                     const savedRepos = config.repo_full_names || [];
@@ -127,25 +135,35 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
                      newConfig = { SLACK_BOT_TOKEN: formData.SLACK_BOT_TOKEN };
                  }
                  break;
-            // ... other cases ...
              case 'NOTION_CONNECTOR':
                   if (formData.NOTION_INTEGRATION_TOKEN !== originalConfig.NOTION_INTEGRATION_TOKEN) {
                       if (!formData.NOTION_INTEGRATION_TOKEN) { toast.error("Notion Token empty."); setIsSaving(false); return; }
                       newConfig = { NOTION_INTEGRATION_TOKEN: formData.NOTION_INTEGRATION_TOKEN };
                   }
                   break;
-              case 'SERPER_API':
-                  if (formData.SERPER_API_KEY !== originalConfig.SERPER_API_KEY) {
-                      if (!formData.SERPER_API_KEY) { toast.error("Serper Key empty."); setIsSaving(false); return; }
-                      newConfig = { SERPER_API_KEY: formData.SERPER_API_KEY };
-                  }
-                  break;
-              case 'TAVILY_API':
-                  if (formData.TAVILY_API_KEY !== originalConfig.TAVILY_API_KEY) {
-                      if (!formData.TAVILY_API_KEY) { toast.error("Tavily Key empty."); setIsSaving(false); return; }
-                      newConfig = { TAVILY_API_KEY: formData.TAVILY_API_KEY };
-                  }
-                  break;
+               case 'SERPER_API':
+                   if (formData.SERPER_API_KEY !== originalConfig.SERPER_API_KEY) {
+                       if (!formData.SERPER_API_KEY) { toast.error("Serper Key empty."); setIsSaving(false); return; }
+                       newConfig = { SERPER_API_KEY: formData.SERPER_API_KEY };
+                   }
+                   break;
+               case 'TAVILY_API':
+                   if (formData.TAVILY_API_KEY !== originalConfig.TAVILY_API_KEY) {
+                       if (!formData.TAVILY_API_KEY) { toast.error("Tavily Key empty."); setIsSaving(false); return; }
+                       newConfig = { TAVILY_API_KEY: formData.TAVILY_API_KEY };
+                   }
+                   break;
+            
+            case 'LINEAR_CONNECTOR':
+                if (formData.LINEAR_API_KEY !== originalConfig.LINEAR_API_KEY) {
+                    if (!formData.LINEAR_API_KEY) { 
+                        toast.error("Linear API Key cannot be empty."); 
+                        setIsSaving(false); 
+                        return; 
+                    }
+                    newConfig = { LINEAR_API_KEY: formData.LINEAR_API_KEY };
+                }
+                break;
         }
 
         if (newConfig !== null) {
@@ -168,12 +186,24 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
             if (updatePayload.name) {
                  setConnector(prev => prev ? { ...prev, name: updatePayload.name!, config: newlySavedConfig } : null);
             }
-            if (connector.connector_type === 'GITHUB_CONNECTOR' && configChanged) {
-                 const savedGitHubConfig = newlySavedConfig as { GITHUB_PAT?: string; repo_full_names?: string[] };
-                 setCurrentSelectedRepos(savedGitHubConfig.repo_full_names || []);
-                 setOriginalPat(savedGitHubConfig.GITHUB_PAT || "");
-                 setNewSelectedRepos(savedGitHubConfig.repo_full_names || []);
-                 patForm.reset({ github_pat: savedGitHubConfig.GITHUB_PAT || "" });
+            if (configChanged) {
+                if (connector.connector_type === 'GITHUB_CONNECTOR') {
+                     const savedGitHubConfig = newlySavedConfig as { GITHUB_PAT?: string; repo_full_names?: string[] };
+                     setCurrentSelectedRepos(savedGitHubConfig.repo_full_names || []);
+                     setOriginalPat(savedGitHubConfig.GITHUB_PAT || "");
+                     setNewSelectedRepos(savedGitHubConfig.repo_full_names || []);
+                     patForm.reset({ github_pat: savedGitHubConfig.GITHUB_PAT || "" });
+                 } else if(connector.connector_type === 'SLACK_CONNECTOR') {
+                    editForm.setValue('SLACK_BOT_TOKEN', newlySavedConfig.SLACK_BOT_TOKEN || "");
+                 } else if(connector.connector_type === 'NOTION_CONNECTOR') {
+                    editForm.setValue('NOTION_INTEGRATION_TOKEN', newlySavedConfig.NOTION_INTEGRATION_TOKEN || "");
+                 } else if(connector.connector_type === 'SERPER_API') {
+                    editForm.setValue('SERPER_API_KEY', newlySavedConfig.SERPER_API_KEY || "");
+                 } else if(connector.connector_type === 'TAVILY_API') {
+                    editForm.setValue('TAVILY_API_KEY', newlySavedConfig.TAVILY_API_KEY || "");
+                 } else if(connector.connector_type === 'LINEAR_CONNECTOR') {
+                    editForm.setValue('LINEAR_API_KEY', newlySavedConfig.LINEAR_API_KEY || "");
+                 }
              }
             if (connector.connector_type === 'GITHUB_CONNECTOR') {
                  setEditMode('viewing');
@@ -184,7 +214,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
             console.error("Error updating connector:", error);
             toast.error(error instanceof Error ? error.message : "Failed to update connector.");
         } finally { setIsSaving(false); }
-    }, [connector, originalConfig, updateConnector, connectorId, patForm, originalPat, currentSelectedRepos, newSelectedRepos, editMode, fetchedRepos]); // Added dependencies
+    }, [connector, originalConfig, updateConnector, connectorId, patForm, originalPat, currentSelectedRepos, newSelectedRepos, editMode, fetchedRepos, editForm]); // Added editForm to dependencies
 
     // Return values needed by the component
     return {

@@ -18,8 +18,9 @@ from app.db import get_async_session, User, SearchSourceConnector, SearchSourceC
 from app.schemas import SearchSourceConnectorCreate, SearchSourceConnectorUpdate, SearchSourceConnectorRead, SearchSourceConnectorBase
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues
+from app.connectors.github_connector import GitHubConnector
 from datetime import datetime, timezone, timedelta
 import logging
 
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# --- New Schema for GitHub PAT ---
+# Use Pydantic's BaseModel here
 class GitHubPATRequest(BaseModel):
     github_pat: str = Field(..., description="GitHub Personal Access Token")
 
@@ -104,6 +105,7 @@ async def create_search_source_connector(
         await session.rollback()
         raise
     except Exception as e:
+        logger.error(f"Failed to create search source connector: {str(e)}")
         await session.rollback()
         raise HTTPException(
             status_code=500,
