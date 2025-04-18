@@ -88,16 +88,19 @@ async def create_chat(
 async def read_chats(
     skip: int = 0,
     limit: int = 100,
+    search_space_id: int = None,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     try:
+        query = select(Chat).join(SearchSpace).filter(SearchSpace.user_id == user.id)
+        
+        # Filter by search_space_id if provided
+        if search_space_id is not None:
+            query = query.filter(Chat.search_space_id == search_space_id)
+            
         result = await session.execute(
-            select(Chat)
-            .join(SearchSpace)
-            .filter(SearchSpace.user_id == user.id)
-            .offset(skip)
-            .limit(limit)
+            query.offset(skip).limit(limit)
         )
         return result.scalars().all()
     except OperationalError:
