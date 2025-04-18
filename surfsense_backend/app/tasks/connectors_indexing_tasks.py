@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
@@ -639,10 +639,15 @@ async def index_github_repos(
         if not connector:
             return 0, f"Connector with ID {connector_id} not found or is not a GitHub connector"
 
-        # 2. Get the GitHub PAT from the connector config
+        # 2. Get the GitHub PAT and selected repositories from the connector config
         github_pat = connector.config.get("GITHUB_PAT")
+        repo_full_names_to_index = connector.config.get("repo_full_names")
+
         if not github_pat:
             return 0, "GitHub Personal Access Token (PAT) not found in connector config"
+        
+        if not repo_full_names_to_index or not isinstance(repo_full_names_to_index, list):
+             return 0, "'repo_full_names' not found or is not a list in connector config"
 
         # 3. Initialize GitHub connector client
         try:
@@ -650,13 +655,10 @@ async def index_github_repos(
         except ValueError as e:
             return 0, f"Failed to initialize GitHub client: {str(e)}"
 
-        # 4. Get list of accessible repositories
-        repositories = github_client.get_user_repositories()
-        if not repositories:
-            logger.info("No accessible GitHub repositories found for the provided token.")
-            return 0, "No accessible GitHub repositories found."
-
-        logger.info(f"Found {len(repositories)} repositories to potentially index.")
+        # 4. Validate selected repositories
+        #    For simplicity, we'll proceed with the list provided.
+        #    If a repo is inaccessible, get_repository_files will likely fail gracefully later.
+        logger.info(f"Starting indexing for {len(repo_full_names_to_index)} selected repositories.")
 
         # 5. Get existing documents for this search space and connector type to prevent duplicates
         existing_docs_result = await session.execute(
@@ -671,11 +673,10 @@ async def index_github_repos(
         existing_docs_lookup = {doc.document_metadata.get("full_path"): doc for doc in existing_docs if doc.document_metadata.get("full_path")}
         logger.info(f"Found {len(existing_docs_lookup)} existing GitHub documents in database for search space {search_space_id}")
 
-        # 6. Iterate through repositories and index files
-        for repo_info in repositories:
-            repo_full_name = repo_info.get("full_name")
-            if not repo_full_name:
-                logger.warning(f"Skipping repository with missing full_name: {repo_info.get('name')}")
+        # 6. Iterate through selected repositories and index files
+        for repo_full_name in repo_full_names_to_index:
+            if not repo_full_name or not isinstance(repo_full_name, str):
+                logger.warning(f"Skipping invalid repository entry: {repo_full_name}")
                 continue
 
             logger.info(f"Processing repository: {repo_full_name}")

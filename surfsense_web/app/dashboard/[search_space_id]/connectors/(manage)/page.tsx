@@ -206,7 +206,7 @@ export default function ConnectorsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}`)}
+                            onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`)}
                           >
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Edit</span>

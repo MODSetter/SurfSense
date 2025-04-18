@@ -9,17 +9,18 @@ POST /search-source-connectors/{connector_id}/index - Index content from a conne
 
 Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR, GITHUB_CONNECTOR, LINEAR_CONNECTOR).
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
 from typing import List, Dict, Any
 from app.db import get_async_session, User, SearchSourceConnector, SearchSourceConnectorType, SearchSpace, async_session_maker
-from app.schemas import SearchSourceConnectorCreate, SearchSourceConnectorUpdate, SearchSourceConnectorRead
+from app.schemas import SearchSourceConnectorCreate, SearchSourceConnectorUpdate, SearchSourceConnectorRead, SearchSourceConnectorBase
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues
+from app.connectors.github_connector import GitHubConnector
 from datetime import datetime, timezone, timedelta
 import logging
 
@@ -27,6 +28,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Use Pydantic's BaseModel here
+class GitHubPATRequest(BaseModel):
+    github_pat: str = Field(..., description="GitHub Personal Access Token")
+
+# --- New Endpoint to list GitHub Repositories ---
+@router.post("/github/repositories/", response_model=List[Dict[str, Any]])
+async def list_github_repositories(
+    pat_request: GitHubPATRequest,
+    user: User = Depends(current_active_user) # Ensure the user is logged in
+):
+    """
+    Fetches a list of repositories accessible by the provided GitHub PAT.
+    The PAT is used for this request only and is not stored.
+    """
+    try:
+        # Initialize GitHubConnector with the provided PAT
+        github_client = GitHubConnector(token=pat_request.github_pat)
+        # Fetch repositories
+        repositories = github_client.get_user_repositories()
+        return repositories
+    except ValueError as e:
+        # Handle invalid token error specifically
+        logger.error(f"GitHub PAT validation failed for user {user.id}: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid GitHub PAT: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to fetch GitHub repositories for user {user.id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch GitHub repositories.")
 
 @router.post("/search-source-connectors/", response_model=SearchSourceConnectorRead)
 async def create_search_source_connector(
@@ -76,6 +105,7 @@ async def create_search_source_connector(
         await session.rollback()
         raise
     except Exception as e:
+        logger.error(f"Failed to create search source connector: {str(e)}")
         await session.rollback()
         raise HTTPException(
             status_code=500,
@@ -130,54 +160,84 @@ async def update_search_source_connector(
 ):
     """
     Update a search source connector.
-    
-    Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, etc.).
-    The config must contain the appropriate keys for the connector type.
+    Handles partial updates, including merging changes into the 'config' field.
     """
-    try:
-        db_connector = await check_ownership(session, SearchSourceConnector, connector_id, user)
+    db_connector = await check_ownership(session, SearchSourceConnector, connector_id, user)
+    
+    # Convert the sparse update data (only fields present in request) to a dict
+    update_data = connector_update.model_dump(exclude_unset=True)
+
+    # Special handling for 'config' field
+    if "config" in update_data:
+        incoming_config = update_data["config"] # Config data from the request
+        existing_config = db_connector.config if db_connector.config else {} # Current config from DB
         
-        # If connector type is being changed, check if one of that type already exists
-        if connector_update.connector_type != db_connector.connector_type:
+        # Merge incoming config into existing config
+        # This preserves existing keys (like GITHUB_PAT) if they are not in the incoming data
+        merged_config = existing_config.copy()
+        merged_config.update(incoming_config)
+
+        # -- Validation after merging --
+        # Validate the *merged* config based on the connector type
+        # We need the connector type - use the one from the update if provided, else the existing one
+        current_connector_type = connector_update.connector_type if connector_update.connector_type is not None else db_connector.connector_type
+        
+        try:
+            # We can reuse the base validator by creating a temporary base model instance
+            # Note: This assumes 'name' and 'is_indexable' are not crucial for config validation itself
+            temp_data_for_validation = {
+                "name": db_connector.name, # Use existing name
+                "connector_type": current_connector_type,
+                "is_indexable": db_connector.is_indexable, # Use existing value
+                "last_indexed_at": db_connector.last_indexed_at, # Not used by validator
+                "config": merged_config
+            }
+            SearchSourceConnectorBase.model_validate(temp_data_for_validation)
+        except ValidationError as e:
+            # Raise specific validation error for the merged config
+            raise HTTPException(
+                status_code=422,
+                detail=f"Validation error for merged config: {str(e)}"
+            )
+        
+        # If validation passes, update the main update_data dict with the merged config
+        update_data["config"] = merged_config
+
+    # Apply all updates (including the potentially merged config)
+    for key, value in update_data.items():
+        # Prevent changing connector_type if it causes a duplicate (check moved here)
+        if key == "connector_type" and value != db_connector.connector_type:
             result = await session.execute(
                 select(SearchSourceConnector)
                 .filter(
                     SearchSourceConnector.user_id == user.id,
-                    SearchSourceConnector.connector_type == connector_update.connector_type,
+                    SearchSourceConnector.connector_type == value,
                     SearchSourceConnector.id != connector_id
                 )
             )
             existing_connector = result.scalars().first()
-            
             if existing_connector:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"A connector with type {connector_update.connector_type} already exists. Each user can have only one connector of each type."
+                    detail=f"A connector with type {value} already exists. Each user can have only one connector of each type."
                 )
         
-        update_data = connector_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_connector, key, value)
+        setattr(db_connector, key, value)
+
+    try:
         await session.commit()
         await session.refresh(db_connector)
         return db_connector
-    except ValidationError as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=422,
-            detail=f"Validation error: {str(e)}"
-        )
     except IntegrityError as e:
         await session.rollback()
+        # This might occur if connector_type constraint is violated somehow after the check
         raise HTTPException(
             status_code=409,
-            detail=f"Integrity error: A connector with this type already exists. {str(e)}"
+            detail=f"Database integrity error during update: {str(e)}"
         )
-    except HTTPException:
-        await session.rollback()
-        raise
     except Exception as e:
         await session.rollback()
+        logger.error(f"Failed to update search source connector {connector_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update search source connector: {str(e)}"

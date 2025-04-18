@@ -1,16 +1,15 @@
 from datetime import datetime
 import uuid
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pydantic import BaseModel, field_validator
 from .base import IDModel, TimestampModel
 from app.db import SearchSourceConnectorType
-from fastapi import HTTPException
 
 class SearchSourceConnectorBase(BaseModel):
     name: str
     connector_type: SearchSourceConnectorType
     is_indexable: bool
-    last_indexed_at: datetime | None
+    last_indexed_at: Optional[datetime] = None
     config: Dict[str, Any]
     
     @field_validator('config')
@@ -59,8 +58,8 @@ class SearchSourceConnectorBase(BaseModel):
                 raise ValueError("NOTION_INTEGRATION_TOKEN cannot be empty")
         
         elif connector_type == SearchSourceConnectorType.GITHUB_CONNECTOR:
-            # For GITHUB_CONNECTOR, only allow GITHUB_PAT
-            allowed_keys = ["GITHUB_PAT"]
+            # For GITHUB_CONNECTOR, only allow GITHUB_PAT and repo_full_names
+            allowed_keys = ["GITHUB_PAT", "repo_full_names"]
             if set(config.keys()) != set(allowed_keys):
                 raise ValueError(f"For GITHUB_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
         
@@ -68,6 +67,10 @@ class SearchSourceConnectorBase(BaseModel):
             if not config.get("GITHUB_PAT"):
                 raise ValueError("GITHUB_PAT cannot be empty")
             
+            # Ensure the repo_full_names is present and is a non-empty list
+            repo_full_names = config.get("repo_full_names")
+            if not isinstance(repo_full_names, list) or not repo_full_names:
+                raise ValueError("repo_full_names must be a non-empty list of strings")
         elif connector_type == SearchSourceConnectorType.LINEAR_CONNECTOR:
             # For LINEAR_CONNECTOR, only allow LINEAR_API_KEY
             allowed_keys = ["LINEAR_API_KEY"]
@@ -83,8 +86,12 @@ class SearchSourceConnectorBase(BaseModel):
 class SearchSourceConnectorCreate(SearchSourceConnectorBase):
     pass
 
-class SearchSourceConnectorUpdate(SearchSourceConnectorBase):
-    pass
+class SearchSourceConnectorUpdate(BaseModel):
+    name: Optional[str] = None
+    connector_type: Optional[SearchSourceConnectorType] = None
+    is_indexable: Optional[bool] = None
+    last_indexed_at: Optional[datetime] = None
+    config: Optional[Dict[str, Any]] = None
 
 class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampModel):
     user_id: uuid.UUID
