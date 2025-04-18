@@ -116,16 +116,18 @@ async def create_search_source_connector(
 async def read_search_source_connectors(
     skip: int = 0,
     limit: int = 100,
+    search_space_id: int = None,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """List all search source connectors for the current user."""
     try:
+        query = select(SearchSourceConnector).filter(SearchSourceConnector.user_id == user.id)
+        
+        # No need to filter by search_space_id as connectors are user-owned, not search space specific
+        
         result = await session.execute(
-            select(SearchSourceConnector)
-            .filter(SearchSourceConnector.user_id == user.id)
-            .offset(skip)
-            .limit(limit)
+            query.offset(skip).limit(limit)
         )
         return result.scalars().all()
     except Exception as e:
