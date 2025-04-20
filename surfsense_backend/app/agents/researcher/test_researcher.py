@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 # These imports should now work with the correct path
 from app.agents.researcher.graph import graph
 from app.agents.researcher.state import State
-from app.agents.researcher.nodes import write_answer_outline, process_sections
+
 
 # Load environment variables
 load_dotenv()
@@ -68,31 +68,25 @@ async def run_test():
             # Initialize state with database session and engine
             initial_state = State(db_session=db_session, engine=engine)
             
-            # Instead of using the graph directly, let's run the nodes manually
-            # to track the state transitions explicitly
-            print("\nSTEP 1: Running write_answer_outline node...")
-            outline_result = await write_answer_outline(initial_state, config)
+            # Run the graph directly
+            print("\nRunning the complete researcher workflow...")
+            result = await graph.ainvoke(initial_state, config)
             
-            # Update the state with the outline
-            if "answer_outline" in outline_result:
-                initial_state.answer_outline = outline_result["answer_outline"]
-                print(f"Generated answer outline with {len(initial_state.answer_outline.answer_outline)} sections")
+            # Extract the answer outline for display
+            if "answer_outline" in result and result["answer_outline"]:
+                print(f"\nGenerated answer outline with {len(result['answer_outline'].answer_outline)} sections")
                 
                 # Print the outline
                 print("\nGenerated Answer Outline:")
-                for section in initial_state.answer_outline.answer_outline:
+                for section in result["answer_outline"].answer_outline:
                     print(f"\nSection {section.section_id}: {section.section_title}")
                     print("Research Questions:")
                     for q in section.questions:
                         print(f"  - {q}")
             
-            # Run the second node with the updated state
-            print("\nSTEP 2: Running process_sections node...")
-            sections_result = await process_sections(initial_state, config)
-            
             # Check if we got a final report
-            if "final_written_report" in sections_result:
-                final_report = sections_result["final_written_report"]
+            if "final_written_report" in result and result["final_written_report"]:
+                final_report = result["final_written_report"]
                 print("\nFinal Research Report generated successfully!")
                 print(f"Report length: {len(final_report)} characters")
                 
@@ -101,9 +95,9 @@ async def run_test():
                 print(final_report)
             else:
                 print("\nNo final report was generated.")
-                print(f"Result keys: {list(sections_result.keys())}")
+                print(f"Available result keys: {list(result.keys())}")
             
-            return sections_result
+            return result
             
         except Exception as e:
             print(f"Error running researcher agent: {str(e)}")

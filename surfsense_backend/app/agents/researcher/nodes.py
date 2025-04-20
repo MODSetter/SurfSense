@@ -232,71 +232,7 @@ async def fetch_relevant_documents(
     
     return deduplicated_docs
 
-async def process_section(
-    section_title: str, 
-    user_id: str, 
-    search_space_id: int, 
-    session_maker,
-    research_questions: List[str],
-    connectors_to_search: List[str]
-) -> str:
-    """
-    Process a single section by sending it to the sub_section_writer graph.
-    
-    Args:
-        section_title: The title of the section
-        user_id: The user ID
-        search_space_id: The search space ID
-        session_maker: Factory for creating new database sessions
-        research_questions: List of research questions for this section
-        connectors_to_search: List of connectors to search
-        
-    Returns:
-        The written section content
-    """
-    try:
-        # Create a new database session for this section
-        async with session_maker() as db_session:
-            # Fetch relevant documents using all research questions for this section
-            relevant_documents = await fetch_relevant_documents(
-                research_questions=research_questions,
-                user_id=user_id,
-                search_space_id=search_space_id,
-                db_session=db_session,
-                connectors_to_search=connectors_to_search
-            )
-            
-            # Fallback if no documents found
-            if not relevant_documents:
-                print(f"No relevant documents found for section: {section_title}")
-                relevant_documents = [
-                    {"content": f"No specific information was found for: {question}"}
-                    for question in research_questions
-                ]
-            
-            # Call the sub_section_writer graph with the appropriate config
-            config = {
-                "configurable": {
-                    "sub_section_title": section_title,
-                    "relevant_documents": relevant_documents,
-                    "user_id": user_id,
-                    "search_space_id": search_space_id
-                }
-            }
-            
-            # Create the initial state with db_session
-            state = {"db_session": db_session}
-            
-            # Invoke the sub-section writer graph
-            print(f"Invoking sub_section_writer for: {section_title}")
-            result = await sub_section_writer_graph.ainvoke(state, config)
-            
-            # Return the final answer from the sub_section_writer
-            final_answer = result.get("final_answer", "No content was generated for this section.")
-            return final_answer
-    except Exception as e:
-        print(f"Error processing section '{section_title}': {str(e)}")
-        return f"Error processing section: {section_title}. Details: {str(e)}"
+
 
 async def process_sections(state: State, config: RunnableConfig) -> Dict[str, Any]:
     """
@@ -395,8 +331,7 @@ async def process_sections(state: State, config: RunnableConfig) -> Dict[str, An
     # Combine the results into a final report with section titles
     final_report = []
     for i, (section, content) in enumerate(zip(answer_outline.answer_outline, processed_results)):
-        section_header = f"## {section.section_title}"
-        final_report.append(section_header)
+        # Skip adding the section header since the content already contains the title
         final_report.append(content)
         final_report.append("\n")  # Add spacing between sections
     
