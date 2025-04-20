@@ -18,6 +18,6 @@ class State:
     db_session: AsyncSession
     
     # OUTPUT: Populated by agent nodes
-    relevant_documents_fetched: Optional[List[Any]] = None
+    reranked_documents: Optional[List[Any]] = None
     final_answer: Optional[str] = None
 
