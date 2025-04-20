@@ -42,10 +42,8 @@ class Config:
     
     # GPT Researcher
     FAST_LLM = os.getenv("FAST_LLM")
-    SMART_LLM = os.getenv("SMART_LLM")
     STRATEGIC_LLM = os.getenv("STRATEGIC_LLM")
     fast_llm_instance = ChatLiteLLM(model=extract_model_name(FAST_LLM))
-    smart_llm_instance = ChatLiteLLM(model=extract_model_name(SMART_LLM))
     strategic_llm_instance = ChatLiteLLM(model=extract_model_name(STRATEGIC_LLM))
     
 

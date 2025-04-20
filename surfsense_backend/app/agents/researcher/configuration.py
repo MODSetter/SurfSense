@@ -13,9 +13,9 @@ class Configuration:
     """The configuration for the agent."""
 
     # Input parameters provided at invocation
-    sub_section_title: str
-    sub_section_questions: List[str]
-    relevant_documents: List[Any]  # Documents provided directly to the agent
+    user_query: str
+    num_sections: int
+    connectors_to_search: List[str]
     user_id: str
     search_space_id: int
 
