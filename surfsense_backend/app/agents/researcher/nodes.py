@@ -3,7 +3,7 @@ from langchain_core.runnables import RunnableConfig
 from .state import State
 from typing import Any, Dict, List
 from app.config import config as app_config
-from .prompts import answer_outline_system_prompt
+from .prompts import get_answer_outline_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 import json
@@ -70,7 +70,7 @@ async def write_answer_outline(state: State, config: RunnableConfig) -> Dict[str
     
     # Create messages for the LLM
     messages = [
-        SystemMessage(content=answer_outline_system_prompt),
+        SystemMessage(content=get_answer_outline_system_prompt()),
         HumanMessage(content=human_message_content)
     ]
     
@@ -259,7 +259,6 @@ async def process_section(
         async with session_maker() as db_session:
             # Fetch relevant documents using all research questions for this section
             relevant_documents = await fetch_relevant_documents(
-                section_title=section_title,
                 research_questions=research_questions,
                 user_id=user_id,
                 search_space_id=search_space_id,
@@ -271,10 +270,8 @@ async def process_section(
             if not relevant_documents:
                 print(f"No relevant documents found for section: {section_title}")
                 relevant_documents = [
-                    {
-                        "content": f"No specific information was found for: {question}" 
-                        for question in research_questions
-                    }
+                    {"content": f"No specific information was found for: {question}"}
+                    for question in research_questions
                 ]
             
             # Call the sub_section_writer graph with the appropriate config
@@ -443,10 +440,8 @@ async def process_section_with_documents(
             if not documents_to_use:
                 print(f"No relevant documents found for section: {section_title}")
                 documents_to_use = [
-                    {
-                        "content": f"No specific information was found for: {question}" 
-                        for question in section_questions
-                    }
+                    {"content": f"No specific information was found for: {question}"}
+                    for question in section_questions
                 ]
             
             # Call the sub_section_writer graph with the appropriate config

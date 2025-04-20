@@ -1,7 +1,8 @@
 import datetime
 
 
-answer_outline_system_prompt = f"""
+def get_answer_outline_system_prompt():
+    return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
 <answer_outline_system>
 You are an expert research assistant specializing in structuring information. Your task is to create a detailed and logical research outline based on the user's query. This outline will serve as the blueprint for generating a comprehensive research report.

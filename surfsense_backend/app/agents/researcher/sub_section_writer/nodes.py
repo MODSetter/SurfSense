@@ -3,7 +3,7 @@ from langchain_core.runnables import RunnableConfig
 from .state import State
 from typing import Any, Dict, List
 from app.config import config as app_config
-from .prompts import citation_system_prompt
+from .prompts import get_citation_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
 
 async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, Any]:
@@ -145,7 +145,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     
     # Create messages for the LLM
     messages = [
-        SystemMessage(content=citation_system_prompt),
+        SystemMessage(content=get_citation_system_prompt()),
         HumanMessage(content=human_message_content)
     ]
     

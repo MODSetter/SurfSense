@@ -1,7 +1,8 @@
 import datetime
 
 
-citation_system_prompt = f"""
+def get_citation_system_prompt():
+    return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
 You are a research assistant tasked with analyzing documents and providing comprehensive answers with proper citations in IEEE format.
 
