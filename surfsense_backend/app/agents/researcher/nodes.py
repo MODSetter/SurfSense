@@ -12,7 +12,6 @@ from .sub_section_writer.graph import graph as sub_section_writer_graph
 from app.utils.connector_service import ConnectorService
 from app.utils.reranker_service import RerankerService
 from sqlalchemy.ext.asyncio import AsyncSession
-import copy
 
 class Section(BaseModel):
     """A section in the answer outline."""
@@ -133,7 +132,6 @@ async def fetch_relevant_documents(
     """
     # Initialize services
     connector_service = ConnectorService(db_session)
-    reranker_service = RerankerService.get_reranker_instance(app_config)
 
     all_raw_documents = []  # Store all raw documents before reranking
     
@@ -289,13 +287,20 @@ async def process_sections(state: State, config: RunnableConfig) -> Dict[str, An
     relevant_documents = []
     async with session_maker() as db_session:
 
-        relevant_documents = await fetch_relevant_documents(
-            research_questions=all_questions,
-            user_id=configuration.user_id,
-            search_space_id=configuration.search_space_id,
-            db_session=db_session,
-            connectors_to_search=configuration.connectors_to_search
-        )
+        try:
+            relevant_documents = await fetch_relevant_documents(
+                research_questions=all_questions,
+                user_id=configuration.user_id,
+                search_space_id=configuration.search_space_id,
+                db_session=db_session,
+                connectors_to_search=configuration.connectors_to_search
+            )
+        except Exception as e:
+            print(f"Error fetching relevant documents: {str(e)}")
+            # Log the error and continue with an empty list of documents
+            # This allows the process to continue, but the report might lack information
+            relevant_documents = []
+            # Consider adding more robust error handling or reporting if needed
     
     print(f"Fetched {len(relevant_documents)} relevant documents for all sections")
     

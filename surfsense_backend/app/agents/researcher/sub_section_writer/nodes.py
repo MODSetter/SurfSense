@@ -1,7 +1,7 @@
 from .configuration import Configuration
 from langchain_core.runnables import RunnableConfig
 from .state import State
-from typing import Any, Dict, List
+from typing import Any, Dict
 from app.config import config as app_config
 from .prompts import get_citation_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
