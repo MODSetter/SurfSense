@@ -10,7 +10,6 @@ import json
 import asyncio
 from .sub_section_writer.graph import graph as sub_section_writer_graph
 from app.utils.connector_service import ConnectorService
-from app.utils.reranker_service import RerankerService
 from sqlalchemy.ext.asyncio import AsyncSession
 
 class Section(BaseModel):
