@@ -119,13 +119,13 @@ This is the core of SurfSense. Before we begin let's look at `.env` variables' t
 | EMBEDDING_MODEL| Name of the embedding model to use for vector embeddings. Currently works with Sentence Transformers only. Expect other embeddings soon. Eg. `mixedbread-ai/mxbai-embed-large-v1`|
 | RERANKERS_MODEL_NAME| Name of the reranker model for search result reranking. Eg. `ms-marco-MiniLM-L-12-v2`|
 | RERANKERS_MODEL_TYPE| Type of reranker model being used. Eg. `flashrank`|
-| FAST_LLM| LiteLLM routed Smaller, faster LLM for quick responses. Eg. `litellm:openai/gpt-4o`|
-| STRATEGIC_LLM| LiteLLM routed  Advanced LLM for complex reasoning tasks. Eg. `litellm:openai/gpt-4o`|
-| LONG_CONTEXT_LLM| LiteLLM routed  LLM capable of handling longer context windows. Eg. `litellm:gemini/gemini-2.0-flash`|
+| FAST_LLM| LiteLLM routed Smaller, faster LLM for quick responses. Eg. `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`|
+| STRATEGIC_LLM| LiteLLM routed  Advanced LLM for complex reasoning tasks. Eg. `openai/gpt-4o`, `ollama/gemma3:12b`|
+| LONG_CONTEXT_LLM| LiteLLM routed  LLM capable of handling longer context windows. Eg. `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`|
 | UNSTRUCTURED_API_KEY| API key for Unstructured.io service for document parsing|
 | FIRECRAWL_API_KEY| API key for Firecrawl service for web crawling and data extraction|
 
-IMPORTANT: Since LLM calls are routed through LiteLLM make sure to include API keys of LLM models you are using. For example if you used `litellm:openai/gpt-4o` make sure to include OpenAI API Key `OPENAI_API_KEY` or if you use `litellm:gemini/gemini-2.0-flash` then you include `GEMINI_API_KEY`.
+IMPORTANT: Since LLM calls are routed through LiteLLM make sure to include API keys of LLM models you are using. For example if you used `openai/gpt-4o` make sure to include OpenAI API Key `OPENAI_API_KEY` or if you use `gemini/gemini-2.0-flash` then you include `GEMINI_API_KEY`.
 
 You can also integrate any LLM just follow this https://docs.litellm.ai/docs/providers
 

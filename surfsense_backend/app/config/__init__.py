@@ -15,17 +15,6 @@ env_file = BASE_DIR / ".env"
 load_dotenv(env_file)
 
 
-def extract_model_name(llm_string: str) -> str:
-    """Extract the model name from an LLM string.
-    Example: "litellm:openai/gpt-4o-mini" -> "openai/gpt-4o-mini"
-    
-    Args:
-        llm_string: The LLM string with optional prefix
-        
-    Returns:
-        str: The extracted model name
-    """
-    return llm_string.split(":", 1)[1] if ":" in llm_string else llm_string
 
 class Config:
     # Database
@@ -38,13 +27,13 @@ class Config:
     
     # LONG-CONTEXT LLMS
     LONG_CONTEXT_LLM = os.getenv("LONG_CONTEXT_LLM")
-    long_context_llm_instance = ChatLiteLLM(model=extract_model_name(LONG_CONTEXT_LLM))
+    long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM)
     
     # GPT Researcher
     FAST_LLM = os.getenv("FAST_LLM")
     STRATEGIC_LLM = os.getenv("STRATEGIC_LLM")
-    fast_llm_instance = ChatLiteLLM(model=extract_model_name(FAST_LLM))
-    strategic_llm_instance = ChatLiteLLM(model=extract_model_name(STRATEGIC_LLM))
+    fast_llm_instance = ChatLiteLLM(model=FAST_LLM)
+    strategic_llm_instance = ChatLiteLLM(model=STRATEGIC_LLM)
     
 
     # Chonkie Configuration | Edit this to your needs

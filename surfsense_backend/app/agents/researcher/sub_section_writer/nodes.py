@@ -37,8 +37,9 @@ async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, An
     if reranker_service:
         try:
             # Use the sub-section questions for reranking context
-            rerank_query = "\n".join(sub_section_questions)
-            
+            # rerank_query = "\n".join(sub_section_questions)
+            rerank_query = configuration.user_query
+
             # Convert documents to format expected by reranker if needed
             reranker_input_docs = [
                 {
