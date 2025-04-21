@@ -15,6 +15,7 @@ class Configuration:
     # Input parameters provided at invocation
     sub_section_title: str
     sub_section_questions: List[str]
+    user_query: str
     relevant_documents: List[Any]  # Documents provided directly to the agent
     user_id: str
     search_space_id: int

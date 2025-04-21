@@ -120,7 +120,6 @@ This is the core of SurfSense. Before we begin let's look at `.env` variables' t
 | RERANKERS_MODEL_NAME| Name of the reranker model for search result reranking. Eg. `ms-marco-MiniLM-L-12-v2`|
 | RERANKERS_MODEL_TYPE| Type of reranker model being used. Eg. `flashrank`|
 | FAST_LLM| LiteLLM routed Smaller, faster LLM for quick responses. Eg. `litellm:openai/gpt-4o`|
-| SMART_LLM| LiteLLM routed  Balanced LLM for general use. Eg. `litellm:openai/gpt-4o`|
 | STRATEGIC_LLM| LiteLLM routed  Advanced LLM for complex reasoning tasks. Eg. `litellm:openai/gpt-4o`|
 | LONG_CONTEXT_LLM| LiteLLM routed  LLM capable of handling longer context windows. Eg. `litellm:gemini/gemini-2.0-flash`|
 | UNSTRUCTURED_API_KEY| API key for Unstructured.io service for document parsing|
@@ -221,14 +220,14 @@ After filling in your SurfSense API key you should be able to use extension now.
 -  **Alembic**: A database migrations tool for SQLAlchemy.
 
 -  **FastAPI Users**: Authentication and user management with JWT and OAuth support
-  
--  **LangChain**: Framework for developing AI-powered applications
 
--  **GPT Integration**: Integration with LLM models through LiteLLM
+-  **LangGraph**: Framework for developing AI-agents.
+  
+-  **LangChain**: Framework for developing AI-powered applications.
+
+-  **LLM Integration**: Integration with LLM models through LiteLLM
 
 -  **Rerankers**: Advanced result ranking for improved search relevance
-
--  **GPT-Researcher**: Advanced research capabilities
 
 -  **Hybrid Search**: Combines vector similarity and full-text search for optimal results using Reciprocal Rank Fusion (RRF)
 

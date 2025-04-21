@@ -117,13 +117,21 @@ function processCitationsInReactChildren(children: React.ReactNode, getCitationS
 
 // Process citation references in text content
 function processCitationsInText(text: string, getCitationSource: (id: number) => Source | null): React.ReactNode[] {
+  // Use improved regex to catch citation numbers more reliably
+  // This will match patterns like [1], [42], etc. including when they appear at the end of a line or sentence
   const citationRegex = /\[(\d+)\]/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match;
   let position = 0;
 
+  // Debug log for troubleshooting
+  console.log("Processing citations in text:", text);
+  
   while ((match = citationRegex.exec(text)) !== null) {
+    // Log each match for debugging
+    console.log("Citation match found:", match[0], "at index", match.index);
+    
     // Add text before the citation
     if (match.index > lastIndex) {
       parts.push(text.substring(lastIndex, match.index));
@@ -131,13 +139,18 @@ function processCitationsInText(text: string, getCitationSource: (id: number) =>
     
     // Add the citation component
     const citationId = parseInt(match[1], 10);
+    const source = getCitationSource(citationId);
+    
+    // Log the citation details
+    console.log("Citation ID:", citationId, "Source:", source ? "found" : "not found");
+    
     parts.push(
       <Citation 
         key={`citation-${citationId}-${position}`}
         citationId={citationId}
         citationText={match[0]}
         position={position}
-        source={getCitationSource(citationId)}
+        source={source}
       />
     );
     

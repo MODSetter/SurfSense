@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Any, Dict, Annotated
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine
-from langchain_core.messages import BaseMessage, HumanMessage
-from pydantic import BaseModel
+from typing import Optional, Any
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.utils.streaming_service import StreamingService
 
 @dataclass
 class State:
@@ -18,7 +17,9 @@ class State:
     """
     # Runtime context (not part of actual graph state)
     db_session: AsyncSession
-    engine: Optional[AsyncEngine] = None
+    
+    # Streaming service
+    streaming_service: StreamingService
     
     # Intermediate state - populated during workflow
     # Using field to explicitly mark as part of state

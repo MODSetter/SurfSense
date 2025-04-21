@@ -1,5 +1,6 @@
 import json
-from typing import List, Dict, Any, Generator
+from typing import Any, Dict, List
+
 
 class StreamingService:
     def __init__(self):
@@ -18,55 +19,7 @@ class StreamingService:
                 "content": []
             }
         ]
-    
-    def add_terminal_message(self, text: str, message_type: str = "info") -> str:
-        """
-        Add a terminal message to the annotations and return the formatted response
-        
-        Args:
-            text: The message text
-            message_type: The message type (info, success, error)
-            
-        Returns:
-            str: The formatted response string
-        """
-        self.message_annotations[0]["content"].append({
-            "id": self.terminal_idx,
-            "text": text,
-            "type": message_type
-        })
-        self.terminal_idx += 1
-        return self._format_annotations()
-    
-    def update_sources(self, sources: List[Dict[str, Any]]) -> str:
-        """
-        Update the sources in the annotations and return the formatted response
-        
-        Args:
-            sources: List of source objects
-            
-        Returns:
-            str: The formatted response string
-        """
-        self.message_annotations[1]["content"] = sources
-        return self._format_annotations()
-    
-    def update_answer(self, answer_content: List[str]) -> str:
-        """
-        Update the answer in the annotations and return the formatted response
-        
-        Args:
-            answer_content: The answer content as a list of strings
-            
-        Returns:
-            str: The formatted response string
-        """
-        self.message_annotations[2] = {
-            "type": "ANSWER",
-            "content": answer_content
-        }
-        return self._format_annotations()
-    
+    # It is used to send annotations to the frontend
     def _format_annotations(self) -> str:
         """
         Format the annotations as a string
@@ -76,6 +29,7 @@ class StreamingService:
         """
         return f'8:{json.dumps(self.message_annotations)}\n'
     
+    # It is used to end Streaming
     def format_completion(self, prompt_tokens: int = 156, completion_tokens: int = 204) -> str:
         """
         Format a completion message
@@ -97,3 +51,22 @@ class StreamingService:
             }
         }
         return f'd:{json.dumps(completion_data)}\n' 
+    
+    def only_update_terminal(self, text: str, message_type: str = "info") -> str:
+        self.message_annotations[0]["content"].append({
+            "id": self.terminal_idx,
+            "text": text,
+            "type": message_type
+        })
+        self.terminal_idx += 1
+        return self.message_annotations
+
+    def only_update_sources(self, sources: List[Dict[str, Any]]) -> str:
+        self.message_annotations[1]["content"] = sources
+        return self.message_annotations
+    
+    def only_update_answer(self, answer: List[str]) -> str:
+        self.message_annotations[2]["content"] = answer
+        return self.message_annotations
+    
+    
