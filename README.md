@@ -85,6 +85,16 @@ SurfSense now only works with Google OAuth. Make sure to set your OAuth Client a
 
 ![gauth](https://github.com/user-attachments/assets/80d60fe5-889b-48a6-b947-200fdaf544c1)
 
+#### LLM Observability
+One easy way to observe SurfSense Researcher Agent is to use LangSmith. Get its API KEY from https://smith.langchain.com/
+
+**Open AI LLMS**
+![openai_langraph](https://github.com/user-attachments/assets/b1f4c7a1-0a66-4d21-9053-2e09a5634f95)
+
+
+**Ollama LLMS**
+![ollama_langgraph](https://github.com/user-attachments/assets/5b6c870e-095c-4368-86e6-f7488e0fca28)
+
 
 #### Crawler Support
 SurfSense currently uses [Firecrawl.py](https://www.firecrawl.dev/) right now. Playwright crawler support will be added soon. 
