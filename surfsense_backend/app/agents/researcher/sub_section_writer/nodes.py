@@ -119,6 +119,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     # Create the query that uses the section title and questions
     section_title = configuration.sub_section_title
     sub_section_questions = configuration.sub_section_questions
+    user_query = configuration.user_query  # Get the original user query
     documents_text = "\n".join(formatted_documents)
     
     # Format the questions as bullet points for clarity
@@ -126,17 +127,16 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     
     # Construct a clear, structured query for the LLM
     human_message_content = f"""
-    Please write a comprehensive answer for the title: 
+    Now user's query is: 
+    <user_query>
+        {user_query}
+    </user_query>
     
-    <title>
+    The sub-section title is:
+    <sub_section_title>
         {section_title}
-    </title>
+    </sub_section_title>
     
-    Focus on answering these specific questions related to the title:
-    <questions>
-        {questions_text}
-    </questions>
-
     Use the provided documents as your source material and cite them properly using the IEEE citation format [X] where X is the source_id.
     <documents>
         {documents_text}

@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.exc import IntegrityError, OperationalError
 from typing import List
-from app.db import get_async_session, User, SearchSpace, Chat
-from app.schemas import ChatCreate, ChatUpdate, ChatRead, AISDKChatRequest
+
+from app.db import Chat, SearchSpace, User, get_async_session
+from app.schemas import AISDKChatRequest, ChatCreate, ChatRead, ChatUpdate
 from app.tasks.stream_connector_search_results import stream_connector_search_results
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 router = APIRouter()
 
