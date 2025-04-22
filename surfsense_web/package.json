@@ -1,7 +1,8 @@
 {
-  "name": "surf_new_frontend",
-  "version": "0.1.0",
+  "name": "surfsense_web",
+  "version": "0.0.6",
   "private": true,
+  "description": "SurfSense Frontend",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
