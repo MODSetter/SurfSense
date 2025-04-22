@@ -5,6 +5,7 @@ import { Roboto } from "next/font/google";
 
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { RootProvider } from 'fumadocs-ui/provider';
 
 const roboto = Roboto({ 
   subsets: ["latin"],
@@ -64,8 +65,10 @@ export default async function RootLayout({
           disableTransitionOnChange
           defaultTheme="light"
         >
-          {children}
-          <Toaster />
+          <RootProvider>
+            {children}
+            <Toaster />
+          </RootProvider>
         </ThemeProvider>
       </body>
     </html>
