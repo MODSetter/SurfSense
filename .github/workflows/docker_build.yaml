@@ -12,12 +12,16 @@ on:
         - patch
         - minor
         - major
+      branch:
+        description: 'Branch to tag (leave empty for default branch)'
+        required: false
+        default: ''
+
 permissions:
   contents: write
 
 jobs:
   tag_release:
-    needs: tag_release
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ needs.tag_release.outputs.new_tag }}
@@ -108,6 +112,7 @@ jobs:
 
   build__and_push_docker_image:
     runs-on: ubuntu-latest
+    needs: tag_release
     permissions:
       packages: write
       contents: read
