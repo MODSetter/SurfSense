@@ -1,0 +1,143 @@
+name: Build and Push Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type (patch, minor, major)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+permissions:
+  contents: write
+
+jobs:
+  tag_release:
+    needs: tag_release
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: ${{ needs.tag_release.outputs.new_tag }}
+    outputs:
+      # Define output to pass the tag to the next job
+      new_tag: ${{ steps.tag_version.outputs.next_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history and tags to find the latest SemVer tag
+          fetch-depth: 0
+          # Checkout the specific branch if provided, otherwise default
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Get latest SemVer tag and calculate next version
+        id: tag_version
+        run: |
+          # Fetch all tags from remote just in case
+          git fetch --tags
+
+          # Get the latest SemVer tag (handles vX.Y.Z pattern)
+          # Filters tags, sorts them version-aware, takes the last one
+          LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort='v:refname' | tail -n 1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous SemVer tag found. Starting with v0.1.0"
+            NEXT_VERSION="v0.1.0"
+            # Optionally adjust starting version based on bump_type, but v0.1.0 is common start
+            if [ "${{ github.event.inputs.bump_type }}" == "minor" ]; then
+              NEXT_VERSION="v0.1.0" # Or maybe v0.1.0 ? Depends on convention
+            elif [ "${{ github.event.inputs.bump_type }}" == "major" ]; then
+              NEXT_VERSION="v1.0.0" # Or maybe v1.0.0 ? Depends on convention
+            fi
+          else
+            echo "Latest tag found: $LATEST_TAG"
+            # Remove 'v' prefix for calculation
+            VERSION=${LATEST_TAG#v}
+
+            # Split into parts
+            MAJOR=$(echo $VERSION | cut -d. -f1)
+            MINOR=$(echo $VERSION | cut -d. -f2)
+            PATCH=$(echo $VERSION | cut -d. -f3)
+
+            # Bump version based on input
+            case "${{ github.event.inputs.bump_type }}" in
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              *)
+                echo "Invalid bump type: ${{ github.event.inputs.bump_type }}"
+                exit 1
+                ;;
+            esac
+            NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+
+          echo "Calculated next version: $NEXT_VERSION"
+          # Set output for subsequent steps
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create and Push Tag
+        run: |
+          NEXT_TAG="${{ steps.tag_version.outputs.next_version }}"
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Tagging commit $COMMIT_SHA with $NEXT_TAG"
+
+          # Create an annotated tag (recommended)
+          git tag -a "$NEXT_TAG" -m "Release $NEXT_TAG"
+
+          # Push the tag to the remote repository
+          git push origin "$NEXT_TAG"
+
+      - name: Verify Tag Push
+        run: |
+          echo "Checking if tag ${{ steps.tag_version.outputs.next_version }} exists remotely..."
+          git ls-remote --tags origin | grep "refs/tags/${{ steps.tag_version.outputs.next_version }}" || (echo "Tag push verification failed!" && exit 1)
+          echo "Tag successfully pushed."
+
+  build__and_push_docker_image:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker build
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/surfsense_backend
+          tags: |
+            type=raw,value=0.0.1
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./surfsense_backend
+          push: true
+          tags: $IMAGE_TAG
+          labels: ${{ steps.meta.outputs.labels }}
