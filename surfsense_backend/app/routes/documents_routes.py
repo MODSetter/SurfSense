@@ -170,16 +170,19 @@ async def process_file_in_background(
 async def read_documents(
     skip: int = 0,
     limit: int = 300,
+    search_space_id: int = None,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     try:
+        query = select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
+        
+        # Filter by search_space_id if provided
+        if search_space_id is not None:
+            query = query.filter(Document.search_space_id == search_space_id)
+            
         result = await session.execute(
-            select(Document)
-            .join(SearchSpace)
-            .filter(SearchSpace.user_id == user.id)
-            .offset(skip)
-            .limit(limit)
+            query.offset(skip).limit(limit)
         )
         db_documents = result.scalars().all()
         

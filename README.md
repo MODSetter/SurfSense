@@ -1,11 +1,12 @@
 
 
-![headnew](https://github.com/user-attachments/assets/a44fd1e7-1861-46d0-aff7-19cf33e86baa)
+
+![new_header](https://github.com/user-attachments/assets/e236b764-0ddc-42ff-a1f1-8fbb3d2e0e65)
 
 
 
 # SurfSense
-While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily), Slack, Notion, and more to come.
+While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily), Slack, Linear, Notion, YouTube, GitHub and more to come.
 
 
 # Video
@@ -43,8 +44,10 @@ Open source and easy to deploy locally.
 #### ℹ️ **External Sources**
 - Search Engines (Tavily)
 - Slack
+- Linear
 - Notion
 - Youtube Videos
+- GitHub
 - and more to come.....
 
 #### 🔖 Cross Browser Extension
@@ -82,6 +85,16 @@ SurfSense now only works with Google OAuth. Make sure to set your OAuth Client a
 
 ![gauth](https://github.com/user-attachments/assets/80d60fe5-889b-48a6-b947-200fdaf544c1)
 
+#### LLM Observability
+One easy way to observe SurfSense Researcher Agent is to use LangSmith. Get its API KEY from https://smith.langchain.com/
+
+**Open AI LLMS**
+![openai_langraph](https://github.com/user-attachments/assets/b1f4c7a1-0a66-4d21-9053-2e09a5634f95)
+
+
+**Ollama LLMS**
+![ollama_langgraph](https://github.com/user-attachments/assets/5b6c870e-095c-4368-86e6-f7488e0fca28)
+
 
 #### Crawler Support
 SurfSense currently uses [Firecrawl.py](https://www.firecrawl.dev/) right now. Playwright crawler support will be added soon. 
@@ -116,14 +129,13 @@ This is the core of SurfSense. Before we begin let's look at `.env` variables' t
 | EMBEDDING_MODEL| Name of the embedding model to use for vector embeddings. Currently works with Sentence Transformers only. Expect other embeddings soon. Eg. `mixedbread-ai/mxbai-embed-large-v1`|
 | RERANKERS_MODEL_NAME| Name of the reranker model for search result reranking. Eg. `ms-marco-MiniLM-L-12-v2`|
 | RERANKERS_MODEL_TYPE| Type of reranker model being used. Eg. `flashrank`|
-| FAST_LLM| LiteLLM routed Smaller, faster LLM for quick responses. Eg. `litellm:openai/gpt-4o`|
-| SMART_LLM| LiteLLM routed  Balanced LLM for general use. Eg. `litellm:openai/gpt-4o`|
-| STRATEGIC_LLM| LiteLLM routed  Advanced LLM for complex reasoning tasks. Eg. `litellm:openai/gpt-4o`|
-| LONG_CONTEXT_LLM| LiteLLM routed  LLM capable of handling longer context windows. Eg. `litellm:gemini/gemini-2.0-flash`|
+| FAST_LLM| LiteLLM routed Smaller, faster LLM for quick responses. Eg. `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`|
+| STRATEGIC_LLM| LiteLLM routed  Advanced LLM for complex reasoning tasks. Eg. `openai/gpt-4o`, `ollama/gemma3:12b`|
+| LONG_CONTEXT_LLM| LiteLLM routed  LLM capable of handling longer context windows. Eg. `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`|
 | UNSTRUCTURED_API_KEY| API key for Unstructured.io service for document parsing|
 | FIRECRAWL_API_KEY| API key for Firecrawl service for web crawling and data extraction|
 
-IMPORTANT: Since LLM calls are routed through LiteLLM make sure to include API keys of LLM models you are using. For example if you used `litellm:openai/gpt-4o` make sure to include OpenAI API Key `OPENAI_API_KEY` or if you use `litellm:gemini/gemini-2.0-flash` then you include `GEMINI_API_KEY`.
+IMPORTANT: Since LLM calls are routed through LiteLLM make sure to include API keys of LLM models you are using. For example if you used `openai/gpt-4o` make sure to include OpenAI API Key `OPENAI_API_KEY` or if you use `gemini/gemini-2.0-flash` then you include `GEMINI_API_KEY`.
 
 You can also integrate any LLM just follow this https://docs.litellm.ai/docs/providers
 
@@ -150,6 +162,23 @@ For local frontend setup just fill out the `.env` file of frontend.
 
 You should see your Next.js frontend running at `localhost:3000`
 
+#### Some FrontEnd Screens
+
+**Search Spaces** 
+
+![search_spaces](https://github.com/user-attachments/assets/e254c38c-f937-44b6-9e9d-770db583d099)
+
+**Manage Documents** 
+![documents](https://github.com/user-attachments/assets/7001e306-eb06-4009-89c6-8fadfdc3fc4d)
+
+**Research Agent** 
+
+![researcher](https://github.com/user-attachments/assets/fda3e61f-f936-4b66-b565-d84edde44a67)
+
+
+**Agent Chat** 
+
+![chat](https://github.com/user-attachments/assets/bb352d52-1c6d-4020-926b-722d0b98b491)
 
 ---
 
@@ -193,19 +222,22 @@ After filling in your SurfSense API key you should be able to use extension now.
  ### **BackEnd** 
 
 -  **FastAPI**: Modern, fast web framework for building APIs with Python
-
+  
 -  **PostgreSQL with pgvector**: Database with vector search capabilities for similarity searches
 
 -  **SQLAlchemy**: SQL toolkit and ORM (Object-Relational Mapping) for database interactions
 
--  **FastAPI Users**: Authentication and user management with JWT and OAuth support
--  **LangChain**: Framework for developing AI-powered applications
+-  **Alembic**: A database migrations tool for SQLAlchemy.
 
--  **GPT Integration**: Integration with LLM models through LiteLLM
+-  **FastAPI Users**: Authentication and user management with JWT and OAuth support
+
+-  **LangGraph**: Framework for developing AI-agents.
+  
+-  **LangChain**: Framework for developing AI-powered applications.
+
+-  **LLM Integration**: Integration with LLM models through LiteLLM
 
 -  **Rerankers**: Advanced result ranking for improved search relevance
-
--  **GPT-Researcher**: Advanced research capabilities
 
 -  **Hybrid Search**: Combines vector similarity and full-text search for optimal results using Reciprocal Rank Fusion (RRF)
 
@@ -214,10 +246,8 @@ After filling in your SurfSense API key you should be able to use extension now.
 -  **pgvector**: PostgreSQL extension for efficient vector similarity operations
 
 -  **Chonkie**: Advanced document chunking and embedding library
-
-- Uses `AutoEmbeddings` for flexible embedding model selection
-
--  `LateChunker` for optimized document chunking based on embedding model's max sequence length
+ - Uses `AutoEmbeddings` for flexible embedding model selection
+ -  `LateChunker` for optimized document chunking based on embedding model's max sequence length
 
 
   

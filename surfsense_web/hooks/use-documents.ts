@@ -22,7 +22,7 @@ export function useDocuments(searchSpaceId: number) {
       try {
         setLoading(true);
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`, 
+          `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}`, 
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('surfsense_bearer_token')}`,
@@ -57,7 +57,7 @@ export function useDocuments(searchSpaceId: number) {
     setLoading(true);
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`, 
+        `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}`, 
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('surfsense_bearer_token')}`,

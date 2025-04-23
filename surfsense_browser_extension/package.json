@@ -1,7 +1,7 @@
 {
-  "name": "surfsense",
-  "displayName": "Surfsense",
-  "version": "0.0.1",
+  "name": "surfsense_browser_extension",
+  "displayName": "Surfsense Browser Extension",
+  "version": "0.0.6",
   "description": "Extension to collect Browsing History for SurfSense.",
   "author": "https://github.com/MODSetter",
   "scripts": {

@@ -44,6 +44,8 @@ const getConnectorTypeDisplay = (type: string): string => {
     "TAVILY_API": "Tavily API",
     "SLACK_CONNECTOR": "Slack",
     "NOTION_CONNECTOR": "Notion",
+    "GITHUB_CONNECTOR": "GitHub",
+    "LINEAR_CONNECTOR": "Linear",
     // Add other connector types here as needed
   };
   return typeMap[type] || type;
@@ -204,7 +206,7 @@ export default function ConnectorsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}`)}
+                            onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`)}
                           >
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Edit</span>
