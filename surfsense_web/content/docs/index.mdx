@@ -1,7 +1,87 @@
 ---
-title: Welcome Docs
+title: Prerequisites
+description: Required setup's before setting up SurfSense
+full: true
 ---
- 
-## Introduction
- 
-I love Docs.
+
+## PGVector installation Guide 
+
+SurfSense requires the pgvector extension for PostgreSQL:
+
+### Linux and Mac
+
+Compile and install the extension (supports Postgres 13+)
+
+```sh
+cd /tmp
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
+cd pgvector
+make
+make install # may need sudo
+```
+
+See the [installation notes](https://github.com/pgvector/pgvector/tree/master#installation-notes---linux-and-mac) if you run into issues
+
+### Windows
+
+Ensure [C++ support in Visual Studio](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-170#download-and-install-the-tools) is installed, and run:
+
+```cmd
+call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+```
+
+Note: The exact path will vary depending on your Visual Studio version and edition
+
+Then use `nmake` to build:
+
+```cmd
+set "PGROOT=C:\Program Files\PostgreSQL\16"
+cd %TEMP%
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
+cd pgvector
+nmake /F Makefile.win
+nmake /F Makefile.win install
+```
+
+See the [installation notes](https://github.com/pgvector/pgvector/tree/master#installation-notes---windows) if you run into issues
+
+
+
+## File Upload's
+
+Files are converted to LLM friendly formats using [Unstructured](https://github.com/Unstructured-IO/unstructured)
+
+1. Get an Unstructured.io API key from [Unstructured Platform](https://platform.unstructured.io/)
+2. You should be able to generate API keys once registered
+![Image](/docs/unstructured.png)
+
+## Google OAuth Setup
+
+SurfSense user management and authentication works on Google OAuth.
+
+1. Set up OAuth Client at [Google Developer Console](https://developers.google.com/identity/protocols/oauth2)
+2. Enable People API.
+3. Note your OAuth Client.
+
+## LLM Observability (Optional)
+
+For monitoring LLM interactions:
+
+1. Get a LangSmith API key from [smith.langchain.com](https://smith.langchain.com/)
+2. This helps in observing SurfSense Researcher Agent operations
+
+## Crawler Support
+
+SurfSense currently uses [Firecrawl.py](https://www.firecrawl.dev/) for web crawling.
+
+## API Keys
+
+Prepare the following API keys:
+
+1. LLM API keys (OpenAI, Gemini, etc.) based on your selected models
+2. Unstructured.io API key
+3. Firecrawl API key (if using the crawler)
+
+## Next Steps
+
+Once you have all prerequisites in place, proceed to the [installation guide](/docs/installation) to set up SurfSense.
