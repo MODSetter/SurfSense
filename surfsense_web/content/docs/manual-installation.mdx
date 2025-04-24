@@ -1,0 +1,258 @@
+---
+title: Manual Installation
+description: Setting up SurfSense manually for customized deployments
+full: true
+---
+
+# Manual Installation
+
+This guide provides step-by-step instructions for setting up SurfSense without Docker. This approach gives you more control over the installation process and allows for customization of the environment.
+
+## Prerequisites
+
+Before beginning the manual installation, ensure you have completed all the [prerequisite setup steps](/docs), including:
+
+- PGVector installation
+- Google OAuth setup
+- Unstructured.io API key
+- LLM observability (optional)
+- Crawler setup (if needed)
+
+## Backend Setup
+
+The backend is the core of SurfSense. Follow these steps to set it up:
+
+### 1. Environment Configuration
+
+First, create and configure your environment variables by copying the example file:
+
+**Linux/macOS:**
+```bash
+cd surfsense_backend
+cp .env.example .env
+```
+
+**Windows (Command Prompt):**
+```cmd
+cd surfsense_backend
+copy .env.example .env
+```
+
+**Windows (PowerShell):**
+```powershell
+cd surfsense_backend
+Copy-Item -Path .env.example -Destination .env
+```
+
+Edit the `.env` file and set the following variables:
+
+| ENV VARIABLE | DESCRIPTION |
+|--------------|-------------|
+| DATABASE_URL | PostgreSQL connection string (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`) |
+| SECRET_KEY | JWT Secret key for authentication (should be a secure random string) |
+| GOOGLE_OAUTH_CLIENT_ID | Google OAuth client ID |
+| GOOGLE_OAUTH_CLIENT_SECRET | Google OAuth client secret |
+| NEXT_FRONTEND_URL | Frontend application URL (e.g., `http://localhost:3000`) |
+| EMBEDDING_MODEL | Name of the embedding model (e.g., `mixedbread-ai/mxbai-embed-large-v1`) |
+| RERANKERS_MODEL_NAME | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`) |
+| RERANKERS_MODEL_TYPE | Type of reranker model (e.g., `flashrank`) |
+| FAST_LLM | LiteLLM routed faster LLM (e.g., `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`) |
+| STRATEGIC_LLM | LiteLLM routed advanced LLM (e.g., `openai/gpt-4o`, `ollama/gemma3:12b`) |
+| LONG_CONTEXT_LLM | LiteLLM routed long-context LLM (e.g., `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`) |
+| UNSTRUCTURED_API_KEY | API key for Unstructured.io service |
+| FIRECRAWL_API_KEY | API key for Firecrawl service (if using crawler) |
+
+**Important**: Since LLM calls are routed through LiteLLM, include API keys for the LLM providers you're using:
+- For OpenAI models: `OPENAI_API_KEY`
+- For Google Gemini models: `GEMINI_API_KEY`
+- For other providers, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
+
+### 2. Install Dependencies
+
+Install the backend dependencies using `uv`:
+
+**Linux/macOS:**
+```bash
+# Install uv if you don't have it
+curl -fsSL https://astral.sh/uv/install.sh | bash
+
+# Install dependencies
+uv sync
+```
+
+**Windows (PowerShell):**
+```powershell
+# Install uv if you don't have it
+iwr -useb https://astral.sh/uv/install.ps1 | iex
+
+# Install dependencies
+uv sync
+```
+
+**Windows (Command Prompt):**
+```cmd
+# Install dependencies with uv (after installing uv)
+uv sync
+```
+
+### 3. Run the Backend
+
+Start the backend server:
+
+**Linux/macOS/Windows:**
+```bash
+# Run without hot reloading
+uv run main.py
+
+# Or with hot reloading for development
+uv run main.py --reload
+```
+
+If everything is set up correctly, you should see output indicating the server is running on `http://localhost:8000`.
+
+## Frontend Setup
+
+### 1. Environment Configuration
+
+Set up the frontend environment:
+
+**Linux/macOS:**
+```bash
+cd surfsense_web
+cp .env.example .env
+```
+
+**Windows (Command Prompt):**
+```cmd
+cd surfsense_web
+copy .env.example .env
+```
+
+**Windows (PowerShell):**
+```powershell
+cd surfsense_web
+Copy-Item -Path .env.example -Destination .env
+```
+
+Edit the `.env` file and set:
+
+| ENV VARIABLE | DESCRIPTION |
+|--------------|-------------|
+| NEXT_PUBLIC_FASTAPI_BACKEND_URL | Backend URL (e.g., `http://localhost:8000`) |
+
+### 2. Install Dependencies
+
+Install the frontend dependencies:
+
+**Linux/macOS:**
+```bash
+# Install pnpm if you don't have it
+npm install -g pnpm
+
+# Install dependencies
+pnpm install
+```
+
+**Windows:**
+```powershell
+# Install pnpm if you don't have it
+npm install -g pnpm
+
+# Install dependencies
+pnpm install
+```
+
+### 3. Run the Frontend
+
+Start the Next.js development server:
+
+**Linux/macOS/Windows:**
+```bash
+pnpm run dev
+```
+
+The frontend should now be running at `http://localhost:3000`.
+
+## Browser Extension Setup (Optional)
+
+The SurfSense browser extension allows you to save any webpage, including those protected behind authentication.
+
+### 1. Environment Configuration
+
+**Linux/macOS:**
+```bash
+cd surfsense_browser_extension
+cp .env.example .env
+```
+
+**Windows (Command Prompt):**
+```cmd
+cd surfsense_browser_extension
+copy .env.example .env
+```
+
+**Windows (PowerShell):**
+```powershell
+cd surfsense_browser_extension
+Copy-Item -Path .env.example -Destination .env
+```
+
+Edit the `.env` file:
+
+| ENV VARIABLE | DESCRIPTION |
+|--------------|-------------|
+| PLASMO_PUBLIC_BACKEND_URL | SurfSense Backend URL (e.g., `http://127.0.0.1:8000`) |
+
+### 2. Build the Extension
+
+Build the extension for your browser using the [Plasmo framework](https://docs.plasmo.com/framework/workflows/build#with-a-specific-target).
+
+**Linux/macOS/Windows:**
+```bash
+# Install dependencies
+pnpm install
+
+# Build for Chrome (default)
+pnpm build
+
+# Or for other browsers
+pnpm build --target=firefox
+pnpm build --target=edge
+```
+
+### 3. Load the Extension
+
+Load the extension in your browser's developer mode and configure it with your SurfSense API key.
+
+## Verification
+
+To verify your installation:
+
+1. Open your browser and navigate to `http://localhost:3000`
+2. Sign in with your Google account
+3. Create a search space and try uploading a document
+4. Test the chat functionality with your uploaded content
+
+## Troubleshooting
+
+- **Database Connection Issues**: Verify your PostgreSQL server is running and pgvector is properly installed
+- **Authentication Problems**: Check your Google OAuth configuration and ensure redirect URIs are set correctly
+- **LLM Errors**: Confirm your LLM API keys are valid and the selected models are accessible
+- **File Upload Failures**: Validate your Unstructured.io API key
+- **Windows-specific**: If you encounter path issues, ensure you're using the correct path separator (`\` instead of `/`)
+- **macOS-specific**: If you encounter permission issues, you may need to use `sudo` for some installation commands
+
+## Next Steps
+
+Now that you have SurfSense running locally, you can explore its features:
+
+- Create search spaces for organizing your content
+- Upload documents or use the browser extension to save webpages
+- Ask questions about your saved content
+- Explore the advanced RAG capabilities
+
+For production deployments, consider setting up:
+- A reverse proxy like Nginx
+- SSL certificates for secure connections
+- Proper database backups
+- User access controls 

@@ -4,6 +4,9 @@
     "root": true,
     "pages": [
       "---Setup---",
-      "index"
+      "index",
+      "installation",
+      "docker-installation",
+      "manual-installation"
     ]
   }
