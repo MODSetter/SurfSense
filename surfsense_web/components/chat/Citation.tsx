@@ -20,7 +20,7 @@ type CitationProps = {
 /**
  * Citation component to handle individual citations
  */
-export const Citation = ({ citationId, citationText, position, source }: CitationProps) => {
+export const Citation = React.memo(({ citationId, citationText, position, source }: CitationProps) => {
   const [open, setOpen] = useState(false);
   const citationKey = `citation-${citationId}-${position}`;
   
@@ -38,37 +38,41 @@ export const Citation = ({ citationId, citationText, position, source }: Citatio
             </span>
           </sup>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-80 p-0">
-          <Card className="border-0 shadow-none">
-            <div className="p-3 flex items-start gap-3">
-              <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-muted rounded-full">
-                {getConnectorIcon(source.connectorType || '')}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-medium text-sm text-card-foreground">{source.title}</h3>
+        {open && (
+          <DropdownMenuContent align="start" className="w-80 p-0" forceMount>
+            <Card className="border-0 shadow-none">
+              <div className="p-3 flex items-start gap-3">
+                <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-muted rounded-full">
+                  {getConnectorIcon(source.connectorType || '')}
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5">{source.description}</p>
-                <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                  <span className="truncate max-w-[200px]">{source.url}</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-medium text-sm text-card-foreground">{source.title}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">{source.description}</p>
+                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                    <span className="truncate max-w-[200px]">{source.url}</span>
+                  </div>
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-7 w-7 rounded-full"
+                  onClick={() => window.open(source.url, '_blank')}
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-7 w-7 rounded-full"
-                onClick={() => window.open(source.url, '_blank')}
-                title="Open in new tab"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </Card>
-        </DropdownMenuContent>
+            </Card>
+          </DropdownMenuContent>
+        )}
       </DropdownMenu>
     </span>
   );
-};
+});
+
+Citation.displayName = 'Citation';
 
 /**
  * Function to render text with citations

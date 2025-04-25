@@ -240,7 +240,7 @@ const SourcesDialogContent = ({
 const ChatPage = () => {
   const [token, setToken] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpenId, setDialogOpenId] = useState<number | null>(null);
   const [sourcesPage, setSourcesPage] = useState(1);
   const [expandedSources, setExpandedSources] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -259,6 +259,13 @@ const ChatPage = () => {
   const INITIAL_SOURCES_DISPLAY = 3;
 
   const { search_space_id, chat_id } = useParams();
+
+  // Function to scroll terminal to bottom
+  const scrollTerminalToBottom = () => {
+    if (terminalMessagesRef.current) {
+      terminalMessagesRef.current.scrollTop = terminalMessagesRef.current.scrollHeight;
+    }
+  };
 
   // Get token from localStorage on client side only
   React.useEffect(() => {
@@ -469,54 +476,60 @@ const ChatPage = () => {
     updateChat();
   }, [messages, status, chat_id, researchMode, selectedConnectors, search_space_id]);
 
-  // Log messages whenever they update and extract annotations from the latest assistant message if available
-  useEffect(() => {
-    console.log('Messages updated:', messages);
-
-    // Extract annotations from the latest assistant message if available
+  // Memoize connector sources to prevent excessive re-renders
+  const processedConnectorSources = React.useMemo(() => {
+    if (messages.length === 0) return connectorSources;
+    
+    // Only process when we have a complete message (not streaming)
+    if (status !== 'ready') return connectorSources;
+    
+    // Find the latest assistant message
     const assistantMessages = messages.filter(msg => msg.role === 'assistant');
-    if (assistantMessages.length > 0) {
-      const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
-      if (latestAssistantMessage?.annotations) {
-        const annotations = latestAssistantMessage.annotations as any[];
-
-        // Debug log to track streaming annotations
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Streaming annotations:', annotations);
-
-          // Log counts of each annotation type
-          const terminalInfoCount = annotations.filter(a => a.type === 'TERMINAL_INFO').length;
-          const sourcesCount = annotations.filter(a => a.type === 'SOURCES').length;
-          const answerCount = annotations.filter(a => a.type === 'ANSWER').length;
-
-          console.log(`Annotation counts - Terminal: ${terminalInfoCount}, Sources: ${sourcesCount}, Answer: ${answerCount}`);
-        }
-
-        // Process SOURCES annotation - get the last one to ensure we have the latest
-        const sourcesAnnotations = annotations.filter(
-          (annotation) => annotation.type === 'SOURCES'
-        );
-
-        if (sourcesAnnotations.length > 0) {
-          // Get the last SOURCES annotation to ensure we have the most recent one
-          const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
-          if (latestSourcesAnnotation.content) {
-            setConnectorSources(latestSourcesAnnotation.content);
-          }
-        }
-
-        // Check for terminal info annotations and scroll terminal to bottom if they exist
-        const terminalInfoAnnotations = annotations.filter(
-          (annotation) => annotation.type === 'TERMINAL_INFO'
-        );
-
-        if (terminalInfoAnnotations.length > 0) {
-          // Schedule scrolling after the DOM has been updated
-          setTimeout(scrollTerminalToBottom, 100);
-        }
-      }
+    if (assistantMessages.length === 0) return connectorSources;
+    
+    const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
+    if (!latestAssistantMessage?.annotations) return connectorSources;
+    
+    // Find the latest SOURCES annotation
+    const annotations = latestAssistantMessage.annotations as any[];
+    const sourcesAnnotations = annotations.filter(a => a.type === 'SOURCES');
+    
+    if (sourcesAnnotations.length === 0) return connectorSources;
+    
+    const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
+    if (!latestSourcesAnnotation.content) return connectorSources;
+    
+    // Use this content if it differs from current
+    return latestSourcesAnnotation.content;
+  }, [messages, status, connectorSources]);
+  
+  // Update connector sources when processed value changes
+  useEffect(() => {
+    if (processedConnectorSources !== connectorSources) {
+      setConnectorSources(processedConnectorSources);
     }
-  }, [messages]);
+  }, [processedConnectorSources, connectorSources]);
+  
+  // Check and scroll terminal when terminal info is available
+  useEffect(() => {
+    if (messages.length === 0 || status !== 'ready') return;
+    
+    // Find the latest assistant message
+    const assistantMessages = messages.filter(msg => msg.role === 'assistant');
+    if (assistantMessages.length === 0) return;
+    
+    const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
+    if (!latestAssistantMessage?.annotations) return;
+    
+    // Check for terminal info annotations
+    const annotations = latestAssistantMessage.annotations as any[];
+    const terminalInfoAnnotations = annotations.filter(a => a.type === 'TERMINAL_INFO');
+    
+    if (terminalInfoAnnotations.length > 0) {
+      // Schedule scrolling after the DOM has been updated
+      setTimeout(scrollTerminalToBottom, 100);
+    }
+  }, [messages, status]);
 
   // Custom handleSubmit function to include selected connectors and answer type
   const handleSubmit = (e: React.FormEvent) => {
@@ -543,24 +556,22 @@ const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Function to scroll terminal to bottom
-  const scrollTerminalToBottom = () => {
-    if (terminalMessagesRef.current) {
-      terminalMessagesRef.current.scrollTop = terminalMessagesRef.current.scrollHeight;
-    }
-  };
-
   // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Set activeTab when connectorSources change
-  useEffect(() => {
-    if (connectorSources.length > 0) {
-      setActiveTab(connectorSources[0].type);
-    }
+  // Set activeTab when connectorSources change using a memoized value
+  const activeTabValue = React.useMemo(() => {
+    return connectorSources.length > 0 ? connectorSources[0].type : "";
   }, [connectorSources]);
+  
+  // Update activeTab when the memoized value changes
+  useEffect(() => {
+    if (activeTabValue && activeTabValue !== activeTab) {
+      setActiveTab(activeTabValue);
+    }
+  }, [activeTabValue, activeTab]);
 
   // Scroll terminal to bottom when expanded
   useEffect(() => {
@@ -617,7 +628,7 @@ const ChatPage = () => {
   };
 
   // Function to get a citation source by ID
-  const getCitationSource = (citationId: number, messageIndex?: number): Source | null => {
+  const getCitationSource = React.useCallback((citationId: number, messageIndex?: number): Source | null => {
     if (!messages || messages.length === 0) return null;
 
     // If no specific message index is provided, use the latest assistant message
@@ -699,7 +710,7 @@ const ChatPage = () => {
 
       return foundSource || null;
     }
-  };
+  }, [messages]);
 
   return (
     <>
@@ -900,7 +911,7 @@ const ChatPage = () => {
                               ))}
 
                               {connector.sources.length > INITIAL_SOURCES_DISPLAY && (
-                                <Dialog open={dialogOpen && activeTab === connector.type} onOpenChange={(open) => setDialogOpen(open)}>
+                                <Dialog open={dialogOpenId === connector.id} onOpenChange={(open) => setDialogOpenId(open ? connector.id : null)}>
                                   <DialogTrigger asChild>
                                     <Button variant="ghost" className="w-full text-sm text-gray-500 dark:text-gray-400">
                                       Show {connector.sources.length - INITIAL_SOURCES_DISPLAY} More Sources
