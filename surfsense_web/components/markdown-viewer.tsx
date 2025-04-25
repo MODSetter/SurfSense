@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
@@ -14,82 +14,87 @@ interface MarkdownViewerProps {
 }
 
 export function MarkdownViewer({ content, className, getCitationSource }: MarkdownViewerProps) {
+  // Memoize the markdown components to prevent unnecessary re-renders
+  const components = useMemo(() => {
+    return {
+      // Define custom components for markdown elements
+      p: ({node, children, ...props}: any) => {
+        // If there's no getCitationSource function, just render normally
+        if (!getCitationSource) {
+          return <p className="my-2" {...props}>{children}</p>;
+        }
+        
+        // Process citations within paragraph content
+        return <p className="my-2" {...props}>{processCitationsInReactChildren(children, getCitationSource)}</p>;
+      },
+      a: ({node, children, ...props}: any) => {
+        // Process citations within link content if needed
+        const processedChildren = getCitationSource 
+          ? processCitationsInReactChildren(children, getCitationSource) 
+          : children;
+        return <a className="text-primary hover:underline" {...props}>{processedChildren}</a>;
+      },
+      li: ({node, children, ...props}: any) => {
+        // Process citations within list item content
+        const processedChildren = getCitationSource 
+          ? processCitationsInReactChildren(children, getCitationSource) 
+          : children;
+        return <li {...props}>{processedChildren}</li>;
+      },
+      ul: ({node, ...props}: any) => <ul className="list-disc pl-5 my-2" {...props} />,
+      ol: ({node, ...props}: any) => <ol className="list-decimal pl-5 my-2" {...props} />,
+      h1: ({node, children, ...props}: any) => {
+        const processedChildren = getCitationSource 
+          ? processCitationsInReactChildren(children, getCitationSource) 
+          : children;
+        return <h1 className="text-2xl font-bold mt-6 mb-2" {...props}>{processedChildren}</h1>;
+      },
+      h2: ({node, children, ...props}: any) => {
+        const processedChildren = getCitationSource 
+          ? processCitationsInReactChildren(children, getCitationSource) 
+          : children;
+        return <h2 className="text-xl font-bold mt-5 mb-2" {...props}>{processedChildren}</h2>;
+      },
+      h3: ({node, children, ...props}: any) => {
+        const processedChildren = getCitationSource 
+          ? processCitationsInReactChildren(children, getCitationSource) 
+          : children;
+        return <h3 className="text-lg font-bold mt-4 mb-2" {...props}>{processedChildren}</h3>;
+      },
+      h4: ({node, children, ...props}: any) => {
+        const processedChildren = getCitationSource 
+          ? processCitationsInReactChildren(children, getCitationSource) 
+          : children;
+        return <h4 className="text-base font-bold mt-3 mb-1" {...props}>{processedChildren}</h4>;
+      },
+      blockquote: ({node, ...props}: any) => <blockquote className="border-l-4 border-muted pl-4 italic my-2" {...props} />,
+      hr: ({node, ...props}: any) => <hr className="my-4 border-muted" {...props} />,
+      img: ({node, ...props}: any) => <img className="max-w-full h-auto my-4 rounded" {...props} />,
+      table: ({node, ...props}: any) => <div className="overflow-x-auto my-4"><table className="min-w-full divide-y divide-border" {...props} /></div>,
+      th: ({node, ...props}: any) => <th className="px-3 py-2 text-left font-medium bg-muted" {...props} />,
+      td: ({node, ...props}: any) => <td className="px-3 py-2 border-t border-border" {...props} />,
+      code: ({node, className, children, ...props}: any) => {
+        const match = /language-(\w+)/.exec(className || '');
+        const isInline = !match;
+        return isInline 
+          ? <code className="bg-muted px-1 py-0.5 rounded text-xs" {...props}>{children}</code>
+          : (
+            <div className="relative my-4">
+              <pre className="bg-muted p-4 rounded-md overflow-x-auto">
+                <code className="text-xs" {...props}>{children}</code>
+              </pre>
+            </div>
+          );
+      }
+    };
+  }, [getCitationSource]);
+
   return (
     <div className={cn("prose prose-sm dark:prose-invert max-w-none", className)}>
       <ReactMarkdown
         rehypePlugins={[rehypeRaw, rehypeSanitize]}
         remarkPlugins={[remarkGfm]}
-        components={{
-          // Define custom components for markdown elements
-          p: ({node, children, ...props}) => {
-            // If there's no getCitationSource function, just render normally
-            if (!getCitationSource) {
-              return <p className="my-2" {...props}>{children}</p>;
-            }
-            
-            // Process citations within paragraph content
-            return <p className="my-2" {...props}>{processCitationsInReactChildren(children, getCitationSource)}</p>;
-          },
-          a: ({node, children, ...props}) => {
-            // Process citations within link content if needed
-            const processedChildren = getCitationSource 
-              ? processCitationsInReactChildren(children, getCitationSource) 
-              : children;
-            return <a className="text-primary hover:underline" {...props}>{processedChildren}</a>;
-          },
-          li: ({node, children, ...props}) => {
-            // Process citations within list item content
-            const processedChildren = getCitationSource 
-              ? processCitationsInReactChildren(children, getCitationSource) 
-              : children;
-            return <li {...props}>{processedChildren}</li>;
-          },
-          ul: ({node, ...props}) => <ul className="list-disc pl-5 my-2" {...props} />,
-          ol: ({node, ...props}) => <ol className="list-decimal pl-5 my-2" {...props} />,
-          h1: ({node, children, ...props}) => {
-            const processedChildren = getCitationSource 
-              ? processCitationsInReactChildren(children, getCitationSource) 
-              : children;
-            return <h1 className="text-2xl font-bold mt-6 mb-2" {...props}>{processedChildren}</h1>;
-          },
-          h2: ({node, children, ...props}) => {
-            const processedChildren = getCitationSource 
-              ? processCitationsInReactChildren(children, getCitationSource) 
-              : children;
-            return <h2 className="text-xl font-bold mt-5 mb-2" {...props}>{processedChildren}</h2>;
-          },
-          h3: ({node, children, ...props}) => {
-            const processedChildren = getCitationSource 
-              ? processCitationsInReactChildren(children, getCitationSource) 
-              : children;
-            return <h3 className="text-lg font-bold mt-4 mb-2" {...props}>{processedChildren}</h3>;
-          },
-          h4: ({node, children, ...props}) => {
-            const processedChildren = getCitationSource 
-              ? processCitationsInReactChildren(children, getCitationSource) 
-              : children;
-            return <h4 className="text-base font-bold mt-3 mb-1" {...props}>{processedChildren}</h4>;
-          },
-          blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-muted pl-4 italic my-2" {...props} />,
-          hr: ({node, ...props}) => <hr className="my-4 border-muted" {...props} />,
-          img: ({node, ...props}) => <img className="max-w-full h-auto my-4 rounded" {...props} />,
-          table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full divide-y divide-border" {...props} /></div>,
-          th: ({node, ...props}) => <th className="px-3 py-2 text-left font-medium bg-muted" {...props} />,
-          td: ({node, ...props}) => <td className="px-3 py-2 border-t border-border" {...props} />,
-          code: ({node, className, children, ...props}: any) => {
-            const match = /language-(\w+)/.exec(className || '');
-            const isInline = !match;
-            return isInline 
-              ? <code className="bg-muted px-1 py-0.5 rounded text-xs" {...props}>{children}</code>
-              : (
-                <div className="relative my-4">
-                  <pre className="bg-muted p-4 rounded-md overflow-x-auto">
-                    <code className="text-xs" {...props}>{children}</code>
-                  </pre>
-                </div>
-              );
-          }
-        }}
+        components={components}
       >
         {content}
       </ReactMarkdown>
@@ -98,7 +103,7 @@ export function MarkdownViewer({ content, className, getCitationSource }: Markdo
 }
 
 // Helper function to process citations within React children
-function processCitationsInReactChildren(children: React.ReactNode, getCitationSource: (id: number) => Source | null): React.ReactNode {
+const processCitationsInReactChildren = (children: React.ReactNode, getCitationSource: (id: number) => Source | null): React.ReactNode => {
   // If children is not an array or string, just return it
   if (!children || (typeof children !== 'string' && !Array.isArray(children))) {
     return children;
@@ -120,10 +125,10 @@ function processCitationsInReactChildren(children: React.ReactNode, getCitationS
   }
   
   return children;
-}
+};
 
 // Process citation references in text content
-function processCitationsInText(text: string, getCitationSource: (id: number) => Source | null): React.ReactNode[] {
+const processCitationsInText = (text: string, getCitationSource: (id: number) => Source | null): React.ReactNode[] => {
   // Use improved regex to catch citation numbers more reliably
   // This will match patterns like [1], [42], etc. including when they appear at the end of a line or sentence
   const citationRegex = /\[(\d+)\]/g;
@@ -131,14 +136,8 @@ function processCitationsInText(text: string, getCitationSource: (id: number) =>
   let lastIndex = 0;
   let match;
   let position = 0;
-
-  // Debug log for troubleshooting
-  console.log("Processing citations in text:", text);
   
   while ((match = citationRegex.exec(text)) !== null) {
-    // Log each match for debugging
-    console.log("Citation match found:", match[0], "at index", match.index);
-    
     // Add text before the citation
     if (match.index > lastIndex) {
       parts.push(text.substring(lastIndex, match.index));
@@ -147,9 +146,6 @@ function processCitationsInText(text: string, getCitationSource: (id: number) =>
     // Add the citation component
     const citationId = parseInt(match[1], 10);
     const source = getCitationSource(citationId);
-    
-    // Log the citation details
-    console.log("Citation ID:", citationId, "Source:", source ? "found" : "not found");
     
     parts.push(
       <Citation 
@@ -171,4 +167,4 @@ function processCitationsInText(text: string, getCitationSource: (id: number) =>
   }
   
   return parts;
-} 
+}; 
