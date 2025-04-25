@@ -1,10 +1,19 @@
 ---
 title: Docker Installation
-description: Setting up SurfSense using Docker (Recommended)
+description: Setting up SurfSense using Docker 
 full: true
 ---
+## Known Limitations
 
-# Docker Installation (Recommended)
+⚠️ **Important Note:** Currently, the following features have limited functionality when running in Docker:
+
+- **Ollama integration:** Local Ollama models do not work when running SurfSense in Docker. Please use other LLM providers like OpenAI or Gemini instead.
+- **Web crawler functionality:** The web crawler feature currently doesn't work properly within the Docker environment.
+
+We're actively working to resolve these limitations in future releases.
+
+
+# Docker Installation 
 
 This guide explains how to run SurfSense using Docker Compose, which is the preferred and recommended method for deployment.
 
@@ -152,6 +161,7 @@ Before you begin, ensure you have:
 - For backend dependency issues, check the `Dockerfile` in the backend directory.
 - For frontend dependency issues, check the `Dockerfile` in the frontend directory.
 - **Windows-specific:** If you encounter line ending issues (CRLF vs LF), configure Git to handle line endings properly with `git config --global core.autocrlf true` before cloning the repository.
+
 
 ## Next Steps
 
