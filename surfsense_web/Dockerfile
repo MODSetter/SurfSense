@@ -8,8 +8,15 @@ RUN npm install -g pnpm
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies
-RUN pnpm install
+# First copy the config file to avoid fumadocs-mdx postinstall error
+COPY source.config.ts ./
+COPY content ./content
+
+# Install dependencies with --ignore-scripts to skip postinstall
+RUN pnpm install --ignore-scripts
+
+# Now run the postinstall script manually
+RUN pnpm fumadocs-mdx
 
 # Copy source code
 COPY . .
