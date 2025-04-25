@@ -37,6 +37,13 @@ export function MarkdownViewer({ content, className, getCitationSource }: Markdo
               : children;
             return <a className="text-primary hover:underline" {...props}>{processedChildren}</a>;
           },
+          li: ({node, children, ...props}) => {
+            // Process citations within list item content
+            const processedChildren = getCitationSource 
+              ? processCitationsInReactChildren(children, getCitationSource) 
+              : children;
+            return <li {...props}>{processedChildren}</li>;
+          },
           ul: ({node, ...props}) => <ul className="list-disc pl-5 my-2" {...props} />,
           ol: ({node, ...props}) => <ol className="list-decimal pl-5 my-2" {...props} />,
           h1: ({node, children, ...props}) => {
