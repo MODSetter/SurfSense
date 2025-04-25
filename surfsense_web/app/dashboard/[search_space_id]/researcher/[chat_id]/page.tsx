@@ -617,48 +617,88 @@ const ChatPage = () => {
   };
 
   // Function to get a citation source by ID
-  const getCitationSource = (citationId: number): Source | null => {
+  const getCitationSource = (citationId: number, messageIndex?: number): Source | null => {
     if (!messages || messages.length === 0) return null;
 
-    // Find the latest assistant message
-    const assistantMessages = messages.filter(msg => msg.role === 'assistant');
-    if (assistantMessages.length === 0) return null;
+    // If no specific message index is provided, use the latest assistant message
+    if (messageIndex === undefined) {
+      // Find the latest assistant message
+      const assistantMessages = messages.filter(msg => msg.role === 'assistant');
+      if (assistantMessages.length === 0) return null;
 
-    const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
-    if (!latestAssistantMessage?.annotations) return null;
+      const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
+      if (!latestAssistantMessage?.annotations) return null;
 
-    // Find all SOURCES annotations
-    const annotations = latestAssistantMessage.annotations as any[];
-    const sourcesAnnotations = annotations.filter(
-      (annotation) => annotation.type === 'SOURCES'
-    );
+      // Find all SOURCES annotations
+      const annotations = latestAssistantMessage.annotations as any[];
+      const sourcesAnnotations = annotations.filter(
+        (annotation) => annotation.type === 'SOURCES'
+      );
 
-    // Get the latest SOURCES annotation
-    if (sourcesAnnotations.length === 0) return null;
-    const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
+      // Get the latest SOURCES annotation
+      if (sourcesAnnotations.length === 0) return null;
+      const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
 
-    if (!latestSourcesAnnotation.content) return null;
+      if (!latestSourcesAnnotation.content) return null;
 
-    // Flatten all sources from all connectors
-    const allSources: Source[] = [];
-    latestSourcesAnnotation.content.forEach((connector: ConnectorSource) => {
-      if (connector.sources && Array.isArray(connector.sources)) {
-        connector.sources.forEach((source: SourceItem) => {
-          allSources.push({
-            id: source.id,
-            title: source.title,
-            description: source.description,
-            url: source.url,
-            connectorType: connector.type
+      // Flatten all sources from all connectors
+      const allSources: Source[] = [];
+      latestSourcesAnnotation.content.forEach((connector: ConnectorSource) => {
+        if (connector.sources && Array.isArray(connector.sources)) {
+          connector.sources.forEach((source: SourceItem) => {
+            allSources.push({
+              id: source.id,
+              title: source.title,
+              description: source.description,
+              url: source.url,
+              connectorType: connector.type
+            });
           });
-        });
-      }
-    });
+        }
+      });
 
-    // Find the source with the matching ID
-    const foundSource = allSources.find(source => source.id === citationId);
+      // Find the source with the matching ID
+      const foundSource = allSources.find(source => source.id === citationId);
 
-    return foundSource || null;
+      return foundSource || null;
+    } else {
+      // Use the specific message by index
+      const message = messages[messageIndex];
+      if (!message || message.role !== 'assistant' || !message.annotations) return null;
+
+      // Find all SOURCES annotations
+      const annotations = message.annotations as any[];
+      const sourcesAnnotations = annotations.filter(
+        (annotation) => annotation.type === 'SOURCES'
+      );
+
+      // Get the latest SOURCES annotation
+      if (sourcesAnnotations.length === 0) return null;
+      const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
+
+      if (!latestSourcesAnnotation.content) return null;
+
+      // Flatten all sources from all connectors
+      const allSources: Source[] = [];
+      latestSourcesAnnotation.content.forEach((connector: ConnectorSource) => {
+        if (connector.sources && Array.isArray(connector.sources)) {
+          connector.sources.forEach((source: SourceItem) => {
+            allSources.push({
+              id: source.id,
+              title: source.title,
+              description: source.description,
+              url: source.url,
+              connectorType: connector.type
+            });
+          });
+        }
+      });
+
+      // Find the source with the matching ID
+      const foundSource = allSources.find(source => source.id === citationId);
+
+      return foundSource || null;
+    }
   };
 
   return (
@@ -685,7 +725,11 @@ const ChatPage = () => {
                 <div className="flex-1">
                   <Card className="border-gray-300 dark:border-gray-700">
                     <CardContent className="p-3">
-                      <MarkdownViewer content={message.content} getCitationSource={getCitationSource} className="text-sm" />
+                      <MarkdownViewer 
+                        content={message.content}
+                        getCitationSource={(id) => getCitationSource(id, index)}
+                        className="text-sm" 
+                      />
                     </CardContent>
                   </Card>
                 </div>
@@ -901,13 +945,16 @@ const ChatPage = () => {
                               return (
                                 <MarkdownViewer
                                   content={latestAnswer.content.join('\n')}
-                                  getCitationSource={getCitationSource}
+                                  getCitationSource={(id) => getCitationSource(id, index)}
                                 />
                               );
                             }
 
                             // Fallback to the message content if no ANSWER annotation is available
-                            return <MarkdownViewer content={message.content} getCitationSource={getCitationSource} />;
+                            return <MarkdownViewer 
+                              content={message.content} 
+                              getCitationSource={(id) => getCitationSource(id, index)} 
+                            />;
                           })()}
                         </div>
                       }
