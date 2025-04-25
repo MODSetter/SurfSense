@@ -76,9 +76,9 @@ Join the [SurfSense Discord](https://discord.gg/ejRNvftDp9) and help shape the f
 
 SurfSense provides two installation methods:
 
-1. **[Docker Installation (Recommended)](https://www.surfsense.net/docs/docker-installation)** - The easiest way to get SurfSense up and running with all dependencies containerized.
+1. **[Docker Installation](https://www.surfsense.net/docs/docker-installation)** - The easiest way to get SurfSense up and running with all dependencies containerized. Less Customization.
 
-2. **[Manual Installation](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
+2. **[Manual Installation (Recommended)](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
 
 Both installation guides include detailed OS-specific instructions for Windows, macOS, and Linux.
 
