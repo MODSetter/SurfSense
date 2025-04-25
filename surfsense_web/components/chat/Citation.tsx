@@ -58,7 +58,7 @@ export const Citation = React.memo(({ citationId, citationText, position, source
                   variant="ghost" 
                   size="icon" 
                   className="h-7 w-7 rounded-full"
-                  onClick={() => window.open(source.url, '_blank')}
+                  onClick={() => window.open(source.url, '_blank', 'noopener,noreferrer')}
                   title="Open in new tab"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
