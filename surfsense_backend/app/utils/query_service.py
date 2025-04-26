@@ -1,5 +1,7 @@
-from typing import Dict, Any
-from langchain.schema import LLMResult, HumanMessage, SystemMessage
+"""
+NOTE: This is not used anymore. Might be removed in the future.
+"""
+from langchain.schema import HumanMessage, SystemMessage
 from app.config import config
 
 class QueryService:

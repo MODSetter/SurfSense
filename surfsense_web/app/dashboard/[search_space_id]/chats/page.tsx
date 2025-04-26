@@ -7,12 +7,15 @@ interface PageProps {
   };
 }
 
-export default function ChatsPage({ params }: PageProps) {
+export default async function ChatsPage({ params }: PageProps) {
+  // Await params to properly access dynamic route parameters
+  const searchSpaceId = params.search_space_id;
+  
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-[60vh]">
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
     </div>}>
-      <ChatsPageClient searchSpaceId={params.search_space_id} />
+      <ChatsPageClient searchSpaceId={searchSpaceId} />
     </Suspense>
   );
 } 

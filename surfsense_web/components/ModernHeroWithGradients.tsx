@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { IconArrowRight, IconBrandGithub, IconBrandDiscord } from "@tabler/icons-react";
+import { IconFileTypeDoc, IconBrandGithub, IconBrandDiscord } from "@tabler/icons-react";
 import Link from "next/link";
 import React from "react";
 import { motion } from "framer-motion";
@@ -20,11 +20,11 @@ export function ModernHeroWithGradients() {
 
                     <div className="relative z-20 flex flex-col items-center justify-center overflow-hidden rounded-3xl p-4 md:p-12 lg:p-16">
                         <Link
-                            href="https://github.com/MODSetter/SurfSense"
+                            href="/docs"
                             className="flex items-center gap-1 rounded-full border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 px-4 py-1 text-center text-sm text-gray-800 shadow-sm dark:border-[#404040] dark:bg-gradient-to-b dark:from-[#5B5B5D] dark:to-[#262627] dark:text-white dark:shadow-inner dark:shadow-purple-500/10"
                         >
-                            <span>SurfSense v0.0.6 Released</span>
-                            <IconArrowRight className="h-4 w-4 text-gray-800 dark:text-white" />
+                            <IconFileTypeDoc className="h-4 w-4 text-gray-800 dark:text-white" />
+                            <span>Documentation</span>
                         </Link>
                         {/* Import the Logo component or define it in this file */}
                         <div className="flex items-center justify-center gap-4 mt-10 mb-2">
@@ -36,7 +36,7 @@ export function ModernHeroWithGradients() {
                             </h1>
                         </div>
                         <p className="mx-auto max-w-3xl py-6 text-center text-base text-gray-600 dark:text-neutral-300 md:text-lg lg:text-xl">
-                            A Customizable AI Research Agent just like NotebookLM or Perplexity, but connected to external sources such as search engines (Tavily), Slack, Notion, and more.
+                            A Customizable AI Research Agent just like NotebookLM or Perplexity, but connected to external sources such as search engines (Tavily), Slack, Linear, Notion, YouTube, GitHub and more.
                         </p>
                         <div className="flex flex-col items-center gap-6 py-6 sm:flex-row">
                             <Link

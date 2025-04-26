@@ -1,0 +1,99 @@
+---
+title: Prerequisites
+description: Required setup's before setting up SurfSense
+full: true
+---
+
+## PGVector installation Guide 
+
+SurfSense requires the pgvector extension for PostgreSQL:
+
+### Linux and Mac
+
+Compile and install the extension (supports Postgres 13+)
+
+```sh
+cd /tmp
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
+cd pgvector
+make
+make install # may need sudo
+```
+
+See the [installation notes](https://github.com/pgvector/pgvector/tree/master#installation-notes---linux-and-mac) if you run into issues
+
+### Windows
+
+Ensure [C++ support in Visual Studio](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-170#download-and-install-the-tools) is installed, and run:
+
+```cmd
+call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+```
+
+Note: The exact path will vary depending on your Visual Studio version and edition
+
+Then use `nmake` to build:
+
+```cmd
+set "PGROOT=C:\Program Files\PostgreSQL\16"
+cd %TEMP%
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
+cd pgvector
+nmake /F Makefile.win
+nmake /F Makefile.win install
+```
+
+See the [installation notes](https://github.com/pgvector/pgvector/tree/master#installation-notes---windows) if you run into issues
+
+---
+
+## Google OAuth Setup
+
+SurfSense user management and authentication works on Google OAuth. Lets set it up.
+
+1. Login to your [Google Developer Console](https://console.cloud.google.com/)
+2. Enable People API.
+![Google Developer Console People API](/docs/google_oauth_people_api.png)
+3. Set up OAuth consent screen.
+![Google Developer Console OAuth consent screen](/docs/google_oauth_screen.png)
+4. Create OAuth client ID and secret.
+![Google Developer Console OAuth client ID](/docs/google_oauth_client.png)
+5. It should look like this.
+![Google Developer Console Config](/docs/google_oauth_config.png)
+
+---
+
+## File Upload's
+
+Files are converted to LLM friendly formats using [Unstructured](https://github.com/Unstructured-IO/unstructured)
+
+1. Get an Unstructured.io API key from [Unstructured Platform](https://platform.unstructured.io/)
+2. You should be able to generate API keys once registered
+![Unstructured Dashboard](/docs/unstructured.png)
+
+---
+
+## LLM Observability (Optional)
+
+This is not required for SurfSense to work. But it is always a good idea to monitor LLM interactions. So we do not have those WTH moments.
+
+1. Get a LangSmith API key from [smith.langchain.com](https://smith.langchain.com/)
+2. This helps in observing SurfSense Researcher Agent.
+![LangSmith](/docs/langsmith.png)
+
+---
+
+## Crawler 
+
+SurfSense have 2 options for saving webpages:
+- [SurfSense Extension](https://github.com/MODSetter/SurfSense/tree/main/surfsense_browser_extension) (Overall better experience & ability to save private webpages, recommended)
+- Crawler (If you want to save public webpages)
+
+**NOTE:** SurfSense currently uses [Firecrawl.py](https://www.firecrawl.dev/) for web crawling. If you plan on using the crawler, you will need to create a Firecrawl account and get an API key.
+
+
+---
+
+## Next Steps
+
+Once you have all prerequisites in place, proceed to the [installation guide](/docs/installation) to set up SurfSense.

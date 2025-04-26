@@ -51,6 +51,7 @@ const getConnectorTypeDisplay = (type: string): string => {
     "TAVILY_API": "Tavily API",
     "SLACK_CONNECTOR": "Slack Connector",
     "NOTION_CONNECTOR": "Notion Connector",
+    "GITHUB_CONNECTOR": "GitHub Connector",
     // Add other connector types here as needed
   };
   return typeMap[type] || type;
@@ -69,7 +70,7 @@ export default function EditConnectorPage() {
   const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  console.log("connector", connector);
   // Initialize the form
   const form = useForm<ApiConnectorFormValues>({
     resolver: zodResolver(apiConnectorFormSchema),
@@ -85,7 +86,8 @@ export default function EditConnectorPage() {
       "SERPER_API": "SERPER_API_KEY",
       "TAVILY_API": "TAVILY_API_KEY",
       "SLACK_CONNECTOR": "SLACK_BOT_TOKEN",
-      "NOTION_CONNECTOR": "NOTION_INTEGRATION_TOKEN"
+      "NOTION_CONNECTOR": "NOTION_INTEGRATION_TOKEN",
+      "GITHUB_CONNECTOR": "GITHUB_PAT"
     };
     return fieldMap[connectorType] || "";
   };
@@ -136,6 +138,8 @@ export default function EditConnectorPage() {
         name: values.name,
         connector_type: connector.connector_type,
         config: updatedConfig,
+        is_indexable: connector.is_indexable,
+        last_indexed_at: connector.last_indexed_at,
       });
 
       toast.success("Connector updated successfully!");
@@ -223,17 +227,21 @@ export default function EditConnectorPage() {
                           ? "Slack Bot Token" 
                           : connector?.connector_type === "NOTION_CONNECTOR" 
                             ? "Notion Integration Token" 
-                            : "API Key"}
+                            : connector?.connector_type === "GITHUB_CONNECTOR"
+                              ? "GitHub Personal Access Token (PAT)"
+                              : "API Key"}
                       </FormLabel>
                       <FormControl>
                         <Input 
                           type="password" 
                           placeholder={
                             connector?.connector_type === "SLACK_CONNECTOR" 
-                              ? "Enter your Slack Bot Token" 
+                              ? "Enter new Slack Bot Token (optional)" 
                               : connector?.connector_type === "NOTION_CONNECTOR" 
-                                ? "Enter your Notion Integration Token" 
-                                : "Enter your API key"
+                                ? "Enter new Notion Token (optional)"
+                                : connector?.connector_type === "GITHUB_CONNECTOR"
+                                  ? "Enter new GitHub PAT (optional)"
+                                  : "Enter new API key (optional)"
                           } 
                           {...field} 
                         />
@@ -243,7 +251,9 @@ export default function EditConnectorPage() {
                           ? "Enter a new Slack Bot Token or leave blank to keep your existing token." 
                           : connector?.connector_type === "NOTION_CONNECTOR" 
                             ? "Enter a new Notion Integration Token or leave blank to keep your existing token." 
-                            : "Enter a new API key or leave blank to keep your existing key."}
+                            : connector?.connector_type === "GITHUB_CONNECTOR"
+                              ? "Enter a new GitHub PAT or leave blank to keep your existing token."
+                              : "Enter a new API key or leave blank to keep your existing key."}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

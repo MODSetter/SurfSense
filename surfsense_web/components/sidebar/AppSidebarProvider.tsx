@@ -118,8 +118,8 @@ export function AppSidebarProvider({
         if (typeof window === 'undefined') return;
 
         try {
-          // Use the API client instead of direct fetch
-          const chats: Chat[] = await apiClient.get<Chat[]>('api/v1/chats/?limit=5&skip=0');
+          // Use the API client instead of direct fetch - filter by current search space ID
+          const chats: Chat[] = await apiClient.get<Chat[]>(`api/v1/chats/?limit=5&skip=0&search_space_id=${searchSpaceId}`);
           
           // Transform API response to the format expected by AppSidebar
           const formattedChats = chats.map(chat => ({
@@ -170,7 +170,7 @@ export function AppSidebarProvider({
     
     // Clean up interval on component unmount
     return () => clearInterval(intervalId);
-  }, []);
+  }, [searchSpaceId]);
 
   // Handle delete chat
   const handleDeleteChat = async () => {

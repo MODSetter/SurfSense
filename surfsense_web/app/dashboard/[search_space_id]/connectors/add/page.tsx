@@ -1,57 +1,61 @@
 "use client";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  IconBrandGoogle,
-  IconBrandSlack,
-  IconBrandWindows,
   IconBrandDiscord,
-  IconSearch,
-  IconMessages,
-  IconDatabase,
-  IconCloud,
   IconBrandGithub,
   IconBrandNotion,
-  IconMail,
+  IconBrandSlack,
+  IconBrandWindows,
   IconBrandZoom,
+  IconChevronDown,
   IconChevronRight,
+  IconMail,
+  IconWorldWww,
+  IconTicket,
+  IconLayoutKanban,
 } from "@tabler/icons-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useParams } from "next/navigation";
+import { useState } from "react";
+
+// Define the Connector type
+interface Connector {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  status: "available" | "coming-soon" | "connected";
+}
+
+interface ConnectorCategory {
+  id: string;
+  title: string;
+  connectors: Connector[];
+}
 
 // Define connector categories and their connectors
-const connectorCategories = [
+const connectorCategories: ConnectorCategory[] = [
   {
     id: "search-engines",
     title: "Search Engines",
-    description: "Connect to search engines to enhance your research capabilities.",
-    icon: <IconSearch className="h-5 w-5" />,
     connectors: [
       {
         id: "tavily-api",
-        title: "Tavily Search API",
-        description: "Connect to Tavily Search API to search the web.",
-        icon: <IconSearch className="h-6 w-6" />,
+        title: "Tavily API",
+        description: "Search the web using the Tavily API",
+        icon: <IconWorldWww className="h-6 w-6" />,
         status: "available",
       },
-      {
-        id: "serper-api",
-        title: "Serper API",
-        description: "Connect to Serper API to search the web.",
-        icon: <IconBrandGoogle className="h-6 w-6" />,
-        status: "coming-soon",
-      },
+      // Add other search engine connectors like Tavily, Serper if they have UI config
     ],
   },
   {
     id: "team-chats",
     title: "Team Chats",
-    description: "Connect to your team communication platforms.",
-    icon: <IconMessages className="h-5 w-5" />,
     connectors: [
       {
         id: "slack-connector",
@@ -77,10 +81,28 @@ const connectorCategories = [
     ],
   },
   {
+    id: "project-management",
+    title: "Project Management",
+    connectors: [
+      {
+        id: "linear-connector",
+        title: "Linear",
+        description: "Connect to Linear to search issues, comments and project data.",
+        icon: <IconLayoutKanban className="h-6 w-6" />,
+        status: "available",
+      },
+      {
+        id: "jira-connector",
+        title: "Jira",
+        description: "Connect to Jira to search issues, tickets and project data.",
+        icon: <IconTicket className="h-6 w-6" />,
+        status: "coming-soon",
+      },
+    ],
+  },
+  {
     id: "knowledge-bases",
     title: "Knowledge Bases",
-    description: "Connect to your knowledge bases and documentation.",
-    icon: <IconDatabase className="h-5 w-5" />,
     connectors: [
       {
         id: "notion-connector",
@@ -90,19 +112,17 @@ const connectorCategories = [
         status: "available",
       },
       {
-        id: "github",
+        id: "github-connector",
         title: "GitHub",
-        description: "Connect to GitHub repositories to access code and documentation.",
+        description: "Connect a GitHub PAT to index code and docs from accessible repositories.",
         icon: <IconBrandGithub className="h-6 w-6" />,
-        status: "coming-soon",
+        status: "available",
       },
     ],
   },
   {
     id: "communication",
     title: "Communication",
-    description: "Connect to your email and meeting platforms.",
-    icon: <IconMail className="h-5 w-5" />,
     connectors: [
       {
         id: "gmail",
@@ -122,10 +142,48 @@ const connectorCategories = [
   },
 ];
 
+// Animation variants
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.4 } }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { 
+      type: "spring",
+      stiffness: 260,
+      damping: 20
+    }
+  },
+  hover: { 
+    scale: 1.02,
+    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+    transition: { 
+      type: "spring",
+      stiffness: 400,
+      damping: 10
+    }
+  }
+};
+
 export default function ConnectorsPage() {
   const params = useParams();
   const searchSpaceId = params.search_space_id as string;
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines"]);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines", "knowledge-bases", "project-management"]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => 
@@ -136,121 +194,142 @@ export default function ConnectorsPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-6xl">
+    <div className="container mx-auto py-12 max-w-6xl">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8 text-center"
+        transition={{ 
+          duration: 0.6,
+          ease: [0.22, 1, 0.36, 1]
+        }}
+        className="mb-12 text-center"
       >
-        <h1 className="text-3xl font-bold tracking-tight">Connect Your Tools</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
+          Connect Your Tools
+        </h1>
+        <p className="text-muted-foreground mt-3 text-lg max-w-2xl mx-auto">
           Integrate with your favorite services to enhance your research capabilities.
         </p>
       </motion.div>
 
-      <div className="space-y-6">
-        {connectorCategories.map((category, categoryIndex) => (
-          <Collapsible
+      <motion.div 
+        className="space-y-8"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
+        {connectorCategories.map((category) => (
+          <motion.div 
             key={category.id}
-            open={expandedCategories.includes(category.id)}
-            onOpenChange={() => toggleCategory(category.id)}
-            className="border rounded-lg overflow-hidden bg-card"
+            variants={fadeIn}
+            className="rounded-lg border bg-card text-card-foreground shadow-sm"
           >
-            <CollapsibleTrigger asChild>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: categoryIndex * 0.1 }}
-                className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-primary/10 text-primary">
-                    {category.icon}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold">{category.title}</h2>
-                    <p className="text-sm text-muted-foreground">{category.description}</p>
-                  </div>
-                </div>
-                <IconChevronRight 
-                  className={cn(
-                    "h-5 w-5 text-muted-foreground transition-transform duration-200",
-                    expandedCategories.includes(category.id) && "rotate-90"
-                  )} 
-                />
-              </motion.div>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <Separator />
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <AnimatePresence>
-                  {category.connectors.map((connector, index) => (
+            <Collapsible
+              open={expandedCategories.includes(category.id)}
+              onOpenChange={() => toggleCategory(category.id)}
+              className="w-full"
+            >
+              <div className="flex items-center justify-between space-x-4 p-4">
+                <h3 className="text-xl font-semibold">{category.title}</h3>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-9 p-0 hover:bg-muted">
                     <motion.div
-                      key={connector.id}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ 
-                        duration: 0.2, 
-                        delay: index * 0.05,
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 30
-                      }}
-                      className={cn(
-                        "relative group flex flex-col p-4 rounded-lg border",
-                        connector.status === "coming-soon" ? "opacity-70" : ""
-                      )}
+                      animate={{ rotate: expandedCategories.includes(category.id) ? 180 : 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
                     >
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-200 bg-gradient-to-t from-accent/50 to-transparent rounded-lg pointer-events-none" />
-                      
-                      <div className="mb-4 relative z-10 text-primary">
-                        {connector.icon}
-                      </div>
-                      
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-semibold group-hover:translate-x-1 transition duration-200">
-                          {connector.title}
-                        </h3>
-                        {connector.status === "coming-soon" && (
-                          <span className="text-xs bg-muted px-2 py-1 rounded-full">Coming soon</span>
-                        )}
-                      </div>
-                      
-                      <p className="text-sm text-muted-foreground mb-4 flex-grow">
-                        {connector.description}
-                      </p>
-                      
-                      {connector.status === "available" ? (
-                        <Link 
-                          href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}
-                          className="w-full mt-auto"
-                        >
-                          <Button 
-                            variant="default"
-                            className="w-full"
-                          >
-                            Connect
-                          </Button>
-                        </Link>
-                      ) : (
-                        <Button 
-                          variant="outline"
-                          className="w-full mt-auto"
-                          disabled
-                        >
-                          Notify Me
-                        </Button>
-                      )}
+                      <IconChevronDown className="h-5 w-5" />
                     </motion.div>
-                  ))}
-                </AnimatePresence>
+                    <span className="sr-only">Toggle</span>
+                  </Button>
+                </CollapsibleTrigger>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
+              
+              <CollapsibleContent>
+                <AnimatePresence>
+                  <motion.div 
+                    className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 p-4"
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                  >
+                    {category.connectors.map((connector) => (
+                      <motion.div
+                        key={connector.id}
+                        variants={cardVariants}
+                        whileHover="hover"
+                        className="col-span-1"
+                      >
+                        <Card className="h-full flex flex-col overflow-hidden border-transparent transition-all duration-200 hover:border-primary/50">
+                          <CardHeader className="flex-row items-center gap-4 pb-2">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 dark:bg-primary/20">
+                              <motion.div
+                                whileHover={{ rotate: 5, scale: 1.1 }}
+                                className="text-primary"
+                              >
+                                {connector.icon}
+                              </motion.div>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-medium">{connector.title}</h3>
+                                {connector.status === "coming-soon" && (
+                                  <Badge variant="outline" className="text-xs bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                                    Coming soon
+                                  </Badge>
+                                )}
+                                {connector.status === "connected" && (
+                                  <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800">
+                                    Connected
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </CardHeader>
+                          
+                          <CardContent className="pb-4">
+                            <p className="text-sm text-muted-foreground">
+                              {connector.description}
+                            </p>
+                          </CardContent>
+                          
+                          <CardFooter className="mt-auto pt-2">
+                            {connector.status === 'available' && (
+                              <Link href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`} className="w-full">
+                                <Button variant="default" className="w-full group">
+                                  <span>Connect</span>
+                                  <motion.div
+                                    className="ml-1"
+                                    initial={{ x: 0 }}
+                                    whileHover={{ x: 3 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                  >
+                                    <IconChevronRight className="h-4 w-4" />
+                                  </motion.div>
+                                </Button>
+                              </Link>
+                            )}
+                            {connector.status === 'coming-soon' && (
+                              <Button variant="outline" disabled className="w-full opacity-70">
+                                Coming Soon
+                              </Button>
+                            )}
+                            {connector.status === 'connected' && (
+                              <Button variant="outline" className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950">
+                                Manage
+                              </Button>
+                            )}
+                          </CardFooter>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                </AnimatePresence>
+              </CollapsibleContent>
+            </Collapsible>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }

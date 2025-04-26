@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.exc import IntegrityError, OperationalError
 from typing import List
-from app.db import get_async_session, User, SearchSpace, Chat
-from app.schemas import ChatCreate, ChatUpdate, ChatRead, AISDKChatRequest
+
+from app.db import Chat, SearchSpace, User, get_async_session
+from app.schemas import AISDKChatRequest, ChatCreate, ChatRead, ChatUpdate
 from app.tasks.stream_connector_search_results import stream_connector_search_results
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 router = APIRouter()
 
@@ -46,7 +47,7 @@ async def handle_chat_data(
     response = StreamingResponse(stream_connector_search_results(
         user_query,
         user.id,
-        search_space_id,
+        search_space_id,  # Already converted to int in lines 32-37
         session,
         research_mode,
         selected_connectors
@@ -88,16 +89,19 @@ async def create_chat(
 async def read_chats(
     skip: int = 0,
     limit: int = 100,
+    search_space_id: int = None,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     try:
+        query = select(Chat).join(SearchSpace).filter(SearchSpace.user_id == user.id)
+        
+        # Filter by search_space_id if provided
+        if search_space_id is not None:
+            query = query.filter(Chat.search_space_id == search_space_id)
+            
         result = await session.execute(
-            select(Chat)
-            .join(SearchSpace)
-            .filter(SearchSpace.user_id == user.id)
-            .offset(skip)
-            .limit(limit)
+            query.offset(skip).limit(limit)
         )
         return result.scalars().all()
     except OperationalError:

@@ -1,18 +1,20 @@
 [project]
 name = "surf-new-backend"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.0.6"
+description = "SurfSense Backend"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.13.0",
     "asyncpg>=0.30.0",
     "chonkie[all]>=0.4.1",
     "fastapi>=0.115.8",
     "fastapi-users[oauth,sqlalchemy]>=14.0.1",
     "firecrawl-py>=1.12.0",
-    "gpt-researcher>=0.12.12",
+    "github3.py==4.0.1",
     "langchain-community>=0.3.17",
     "langchain-unstructured>=0.1.6",
+    "langgraph>=0.3.29",
     "litellm>=1.61.4",
     "markdownify>=0.14.1",
     "notion-client>=2.3.0",
