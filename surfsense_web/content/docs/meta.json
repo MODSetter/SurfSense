@@ -1,0 +1,12 @@
+{
+    "title": "Setup",
+    "description": "The setup guide for Surfsense",
+    "root": true,
+    "pages": [
+      "---Setup---",
+      "index",
+      "installation",
+      "docker-installation",
+      "manual-installation"
+    ]
+  }

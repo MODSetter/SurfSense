@@ -24,8 +24,8 @@ interface NavbarProps {
 export const Navbar = () => {
   const navItems = [
     {
-      name: "",
-      link: "/",
+      name: "Docs",
+      link: "/docs",
     },
     // {
     //   name: "Product",
@@ -118,53 +118,52 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
         <Logo className="h-8 w-8 rounded-md" /> 
         <span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
       </div>
-      <motion.div
-        className="lg:flex flex-row flex-1 items-center justify-center space-x-1 text-sm"
-        animate={{
-          scale: visible ? 0.9 : 1,
-          justifyContent: visible ? "flex-end" : "center",
-        }}
-      >
-        {navItems.map((navItem, idx) => (
-          <motion.div
-            key={`nav-item-${idx}`}
-            onHoverStart={() => setHoveredIndex(idx)}
-            className="relative"
-          >
-            <Link
-              className="dark:text-white/90 text-gray-800 relative px-3 py-1.5 transition-colors"
-              href={navItem.link}
+      <div className="flex items-center gap-4">
+        <motion.div
+          className="lg:flex flex-row items-center justify-end space-x-1 text-sm"
+          animate={{
+            scale: visible ? 0.9 : 1,
+          }}
+        >
+          {navItems.map((navItem, idx) => (
+            <motion.div
+              key={`nav-item-${idx}`}
+              onHoverStart={() => setHoveredIndex(idx)}
+              className="relative"
             >
-              <span className="relative z-10">{navItem.name}</span>
-              {hoveredIndex === idx && (
-                <motion.div
-                  layoutId="menu-hover"
-                  className="absolute inset-0 rounded-full dark:bg-gradient-to-r dark:from-white/10 dark:to-white/20 bg-gradient-to-r from-gray-200 to-gray-300"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{
-                    opacity: 1,
-                    scale: 1.1,
-                    background: "var(--tw-dark) ? radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 50%, transparent 100%) : radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.03) 50%, transparent 100%)",
-                  }}
-                  exit={{
-                    opacity: 0,
-                    scale: 0.8,
-                    transition: {
-                      duration: 0.2,
-                    },
-                  }}
-                  transition={{
-                    type: "spring",
-                    bounce: 0.4,
-                    duration: 0.4,
-                  }}
-                />
-              )}
-            </Link>
-          </motion.div>
-        ))}
-      </motion.div>
-      <div className="flex items-center gap-2">
+              <Link
+                className="dark:text-white/90 text-gray-800 relative px-3 py-1.5 transition-colors"
+                href={navItem.link}
+              >
+                <span className="relative z-10">{navItem.name}</span>
+                {hoveredIndex === idx && (
+                  <motion.div
+                    layoutId="menu-hover"
+                    className="absolute inset-0 rounded-full dark:bg-gradient-to-r dark:from-white/10 dark:to-white/20 bg-gradient-to-r from-gray-200 to-gray-300"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1.1,
+                      background: "var(--tw-dark) ? radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 50%, transparent 100%) : radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.03) 50%, transparent 100%)",
+                    }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.8,
+                      transition: {
+                        duration: 0.2,
+                      },
+                    }}
+                    transition={{
+                      type: "spring",
+                      bounce: 0.4,
+                      duration: 0.4,
+                    }}
+                  />
+                )}
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
         <ThemeTogglerComponent />
         <AnimatePresence mode="popLayout" initial={false}>
           {!visible && (

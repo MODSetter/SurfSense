@@ -1,0 +1,168 @@
+---
+title: Docker Installation
+description: Setting up SurfSense using Docker 
+full: true
+---
+## Known Limitations
+
+⚠️ **Important Note:** Currently, the following features have limited functionality when running in Docker:
+
+- **Ollama integration:** Local Ollama models do not work when running SurfSense in Docker. Please use other LLM providers like OpenAI or Gemini instead.
+- **Web crawler functionality:** The web crawler feature currently doesn't work properly within the Docker environment.
+
+We're actively working to resolve these limitations in future releases.
+
+
+# Docker Installation 
+
+This guide explains how to run SurfSense using Docker Compose, which is the preferred and recommended method for deployment.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your machine
+- [Git](https://git-scm.com/downloads) (to clone the repository)
+- Completed all the [prerequisite setup steps](/docs) including:
+  - PGVector setup
+  - Google OAuth configuration
+  - Unstructured.io API key
+  - Other required API keys
+
+## Installation Steps
+
+1. **Configure Environment Variables**
+   
+   Set up the necessary environment variables:
+   
+   **Linux/macOS:**
+   ```bash
+   # Copy example environment files
+   cp surfsense_backend/.env.example surfsense_backend/.env
+   cp surfsense_web/.env.example surfsense_web/.env
+   ```
+   
+   **Windows (Command Prompt):**
+   ```cmd
+   copy surfsense_backend\.env.example surfsense_backend\.env
+   copy surfsense_web\.env.example surfsense_web\.env
+   ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   Copy-Item -Path surfsense_backend\.env.example -Destination surfsense_backend\.env
+   Copy-Item -Path surfsense_web\.env.example -Destination surfsense_web\.env
+   ```
+
+   Edit both `.env` files and fill in the required values:
+
+   **Backend Environment Variables:**
+
+   | ENV VARIABLE | DESCRIPTION |
+   |--------------|-------------|
+   | DATABASE_URL | PostgreSQL connection string (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`) |
+   | SECRET_KEY | JWT Secret key for authentication (should be a secure random string) |
+   | GOOGLE_OAUTH_CLIENT_ID | Google OAuth client ID obtained from Google Cloud Console |
+   | GOOGLE_OAUTH_CLIENT_SECRET | Google OAuth client secret obtained from Google Cloud Console |
+   | NEXT_FRONTEND_URL | URL where your frontend application is hosted (e.g., `http://localhost:3000`) |
+   | EMBEDDING_MODEL | Name of the embedding model (e.g., `mixedbread-ai/mxbai-embed-large-v1`) |
+   | RERANKERS_MODEL_NAME | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`) |
+   | RERANKERS_MODEL_TYPE | Type of reranker model (e.g., `flashrank`) |
+   | FAST_LLM | LiteLLM routed smaller, faster LLM (e.g., `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`) |
+   | STRATEGIC_LLM | LiteLLM routed advanced LLM for complex tasks (e.g., `openai/gpt-4o`, `ollama/gemma3:12b`) |
+   | LONG_CONTEXT_LLM | LiteLLM routed LLM for longer context windows (e.g., `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`) |
+   | UNSTRUCTURED_API_KEY | API key for Unstructured.io service for document parsing |
+   | FIRECRAWL_API_KEY | API key for Firecrawl service for web crawling |
+
+   Include API keys for the LLM providers you're using. For example:
+   - `OPENAI_API_KEY`: If using OpenAI models
+   - `GEMINI_API_KEY`: If using Google Gemini models
+   
+   For other LLM providers, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers).
+
+   **Frontend Environment Variables:**
+
+   | ENV VARIABLE | DESCRIPTION |
+   |--------------|-------------|
+   | NEXT_PUBLIC_FASTAPI_BACKEND_URL | URL of the backend service (e.g., `http://localhost:8000`) |
+
+2. **Build and Start Containers**
+   
+   Start the Docker containers:
+   
+   **Linux/macOS/Windows:**
+   ```bash
+   docker-compose up --build
+   ```
+
+   To run in detached mode (in the background):
+   
+   **Linux/macOS/Windows:**
+   ```bash
+   docker-compose up -d
+   ```
+
+   **Note for Windows users:** If you're using older Docker Desktop versions, you might need to use `docker compose` (with a space) instead of `docker-compose`.
+
+3. **Access the Applications**
+   
+   Once the containers are running, you can access:
+   - Frontend: [http://localhost:3000](http://localhost:3000)
+   - Backend API: [http://localhost:8000](http://localhost:8000)
+   - API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+## Useful Docker Commands
+
+### Container Management
+
+- **Stop containers:**
+  
+  **Linux/macOS/Windows:**
+  ```bash
+  docker-compose down
+  ```
+
+- **View logs:**
+  
+  **Linux/macOS/Windows:**
+  ```bash
+  # All services
+  docker-compose logs -f
+  
+  # Specific service
+  docker-compose logs -f backend
+  docker-compose logs -f frontend
+  docker-compose logs -f db
+  ```
+
+- **Restart a specific service:**
+  
+  **Linux/macOS/Windows:**
+  ```bash
+  docker-compose restart backend
+  ```
+
+- **Execute commands in a running container:**
+  
+  **Linux/macOS/Windows:**
+  ```bash
+  # Backend
+  docker-compose exec backend python -m pytest
+  
+  # Frontend
+  docker-compose exec frontend pnpm lint
+  ```
+
+## Troubleshooting
+
+- **Linux/macOS:** If you encounter permission errors, you may need to run the docker commands with `sudo`.
+- **Windows:** If you see access denied errors, make sure you're running Command Prompt or PowerShell as Administrator.
+- If ports are already in use, modify the port mappings in the `docker-compose.yml` file.
+- For backend dependency issues, check the `Dockerfile` in the backend directory.
+- For frontend dependency issues, check the `Dockerfile` in the frontend directory.
+- **Windows-specific:** If you encounter line ending issues (CRLF vs LF), configure Git to handle line endings properly with `git config --global core.autocrlf true` before cloning the repository.
+
+
+## Next Steps
+
+Once your installation is complete, you can start using SurfSense! Navigate to the frontend URL and log in using your Google account. 
