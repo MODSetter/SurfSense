@@ -149,17 +149,30 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/surfsense_backend
+          images: |
+            ghcr.io/${{ github.repository_owner }}/surfsense_backend
+            ghcr.io/${{ github.repository_owner }}/surfsense_ui
           tags: |
             # Use the tag generated in the previous job
             type=raw,value=${{ needs.tag_release.outputs.new_tag }}
             # Optionally add 'latest' tag if building from the default branch
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
 
-      - name: Build and push Docker image
+      - name: Build and push Backend Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./surfsense_backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Optional: Add build cache for faster builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push UI Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./surfsense_web
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
