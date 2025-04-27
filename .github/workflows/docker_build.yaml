@@ -124,7 +124,7 @@ jobs:
           git ls-remote --tags origin | grep "refs/tags/${{ steps.tag_version.outputs.next_version }}" || (echo "Tag push verification failed!" && exit 1)
           echo "Tag successfully pushed."
 
-  build_and_push_docker_image: 
+  build_and_push_backend_image: 
     runs-on: ubuntu-latest
     needs: tag_release # Depends on the tag being created successfully
     permissions:
@@ -149,9 +149,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/${{ github.repository_owner }}/surfsense_backend
-            ghcr.io/${{ github.repository_owner }}/surfsense_ui
+          images: ghcr.io/${{ github.repository_owner }}/surfsense_backend
           tags: |
             # Use the tag generated in the previous job
             type=raw,value=${{ needs.tag_release.outputs.new_tag }}
@@ -168,6 +166,38 @@ jobs:
           # Optional: Add build cache for faster builds
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  build_and_push_ui_image: 
+    runs-on: ubuntu-latest
+    needs: tag_release # Depends on the tag being created successfully
+    permissions:
+      packages: write # Need permission to write to GHCR
+      contents: read # Need permission to read repo contents (checkout)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker build
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/surfsense_ui
+          tags: |
+            # Use the tag generated in the previous job
+            type=raw,value=${{ needs.tag_release.outputs.new_tag }}
+            # Optionally add 'latest' tag if building from the default branch
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
 
       - name: Build and push UI Docker image
         uses: docker/build-push-action@v5
