@@ -36,7 +36,7 @@ export function ModernHeroWithGradients() {
                             </h1>
                         </div>
                         <p className="mx-auto max-w-3xl py-6 text-center text-base text-gray-600 dark:text-neutral-300 md:text-lg lg:text-xl">
-                            A Customizable AI Research Agent just like NotebookLM or Perplexity, but connected to external sources such as search engines (Tavily), Slack, Linear, Notion, YouTube, GitHub and more.
+                            A Customizable AI Research Agent just like NotebookLM or Perplexity, but connected to external sources such as search engines (Tavily, LinkUp), Slack, Linear, Notion, YouTube, GitHub and more.
                         </p>
                         <div className="flex flex-col items-center gap-6 py-6 sm:flex-row">
                             <Link

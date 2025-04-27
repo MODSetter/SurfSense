@@ -16,6 +16,7 @@ import {
   IconWorldWww,
   IconTicket,
   IconLayoutKanban,
+  IconLinkPlus,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
@@ -50,7 +51,13 @@ const connectorCategories: ConnectorCategory[] = [
         icon: <IconWorldWww className="h-6 w-6" />,
         status: "available",
       },
-      // Add other search engine connectors like Tavily, Serper if they have UI config
+      {
+        id: "linkup-api",
+        title: "Linkup API",
+        description: "Search the web using the Linkup API",
+        icon: <IconLinkPlus className="h-6 w-6" />,
+        status: "available",
+      },
     ],
   },
   {

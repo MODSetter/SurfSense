@@ -1414,6 +1414,19 @@ wheels = [
 ]
 
 [[package]]
+name = "linkup-sdk"
+version = "0.2.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c2/c7/d9a85331bf2611ecac67f1ad92a6ced641b2e2e93eea26b17a9af701b3d1/linkup_sdk-0.2.4.tar.gz", hash = "sha256:2b8fd1894b9b4715bc14aabcbf53df6def9024f2cc426f234cc59e1807ec4c12", size = 9392 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/d8/bb9e01328fe5ad979e3e459c0f76321d295663906deef56eeaa5ce0cf269/linkup_sdk-0.2.4-py3-none-any.whl", hash = "sha256:8bc4c4f34de93529136a14e42441d803868d681c2bf3fd59be51923e44f1f1d4", size = 8325 },
+]
+
+[[package]]
 name = "litellm"
 version = "1.61.4"
 source = { registry = "https://pypi.org/simple" }
@@ -3078,6 +3091,7 @@ dependencies = [
     { name = "langchain-community" },
     { name = "langchain-unstructured" },
     { name = "langgraph" },
+    { name = "linkup-sdk" },
     { name = "litellm" },
     { name = "markdownify" },
     { name = "notion-client" },
@@ -3106,6 +3120,7 @@ requires-dist = [
     { name = "langchain-community", specifier = ">=0.3.17" },
     { name = "langchain-unstructured", specifier = ">=0.1.6" },
     { name = "langgraph", specifier = ">=0.3.29" },
+    { name = "linkup-sdk", specifier = ">=0.2.4" },
     { name = "litellm", specifier = ">=1.61.4" },
     { name = "markdownify", specifier = ">=0.14.1" },
     { name = "notion-client", specifier = ">=2.3.0" },

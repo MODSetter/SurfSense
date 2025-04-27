@@ -160,6 +160,17 @@ export default function EditConnectorPage() {
                                     />
                                 )}
 
+                                {/* == Linkup == */}
+                                {connector.connector_type === 'LINKUP_API' && (
+                                    <EditSimpleTokenForm
+                                        control={editForm.control}
+                                        fieldName="LINKUP_API_KEY"
+                                        fieldLabel="Linkup API Key"
+                                        fieldDescription="Update your Linkup API Key if needed."
+                                        placeholder="Begins with linkup_..."
+                                    />
+                                )}
+
                             </CardContent>
                             <CardFooter className="border-t pt-6">
                                 <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">

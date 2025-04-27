@@ -46,6 +46,7 @@ const getConnectorTypeDisplay = (type: string): string => {
     "NOTION_CONNECTOR": "Notion",
     "GITHUB_CONNECTOR": "GitHub",
     "LINEAR_CONNECTOR": "Linear",
+    "LINKUP_API": "Linkup",
     // Add other connector types here as needed
   };
   return typeMap[type] || type;

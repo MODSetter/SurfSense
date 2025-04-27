@@ -143,7 +143,7 @@ async def fetch_relevant_documents(
     connectors_to_search: List[str],
     writer: StreamWriter = None,
     state: State = None,
-    top_k: int = 20
+    top_k: int = 10
 ) -> List[Dict[str, Any]]:
     """
     Fetch relevant documents for research questions using the provided connectors.
@@ -264,22 +264,6 @@ async def fetch_relevant_documents(
                         streaming_service.only_update_terminal(f"Found {len(files_chunks)} file chunks relevant to the query")
                         writer({"yeild_value": streaming_service._format_annotations()})
                     
-                elif connector == "TAVILY_API":
-                    source_object, tavily_chunks = await connector_service.search_tavily(
-                        user_query=reformulated_query,
-                        user_id=user_id,
-                        top_k=top_k
-                    )
-                    
-                    # Add to sources and raw documents
-                    if source_object:
-                        all_sources.append(source_object)
-                    all_raw_documents.extend(tavily_chunks)
-                    
-                    # Stream found document count
-                    if streaming_service and writer:
-                        streaming_service.only_update_terminal(f"Found {len(tavily_chunks)} web search results relevant to the query")
-                        writer({"yeild_value": streaming_service._format_annotations()})
                     
                 elif connector == "SLACK_CONNECTOR":
                     source_object, slack_chunks = await connector_service.search_slack(
@@ -352,6 +336,47 @@ async def fetch_relevant_documents(
                     if streaming_service and writer:
                         streaming_service.only_update_terminal(f"Found {len(linear_chunks)} Linear issues relevant to the query")
                         writer({"yeild_value": streaming_service._format_annotations()})
+                        
+                elif connector == "TAVILY_API":
+                    source_object, tavily_chunks = await connector_service.search_tavily(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        top_k=top_k
+                    )
+                    
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(tavily_chunks)
+                    
+                    # Stream found document count
+                    if streaming_service and writer:
+                        streaming_service.only_update_terminal(f"Found {len(tavily_chunks)} web search results relevant to the query")
+                        writer({"yeild_value": streaming_service._format_annotations()})
+                        
+                elif connector == "LINKUP_API":
+                    if top_k > 10:
+                        linkup_mode = "deep"
+                    else:
+                        linkup_mode = "standard"
+                        
+                    source_object, linkup_chunks = await connector_service.search_linkup(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        mode=linkup_mode
+                    )   
+                    
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(linkup_chunks) 
+                    
+                    # Stream found document count
+                    if streaming_service and writer:
+                        streaming_service.only_update_terminal(f"Found {len(linkup_chunks)} Linkup chunks relevant to the query")
+                        writer({"yeild_value": streaming_service._format_annotations()})
+                    
+
             except Exception as e:
                 error_message = f"Error searching connector {connector}: {str(e)}"
                 print(error_message)
@@ -462,6 +487,14 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
     streaming_service.only_update_terminal("Searching for relevant information across all connectors...")
     writer({"yeild_value": streaming_service._format_annotations()})
     
+    if configuration.num_sections == 1:
+        TOP_K = 10
+    elif configuration.num_sections == 3:
+        TOP_K = 20
+    elif configuration.num_sections == 6:
+        TOP_K = 30
+    
+
     relevant_documents = []
     async with async_session_maker() as db_session:
         try:
@@ -472,7 +505,8 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
                 db_session=db_session,
                 connectors_to_search=configuration.connectors_to_search,
                 writer=writer,
-                state=state
+                state=state,
+                top_k=TOP_K
             )
         except Exception as e:
             error_message = f"Error fetching relevant documents: {str(e)}"
