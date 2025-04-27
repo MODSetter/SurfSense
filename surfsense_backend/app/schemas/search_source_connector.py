@@ -36,6 +36,16 @@ class SearchSourceConnectorBase(BaseModel):
             # Ensure the API key is not empty
             if not config.get("TAVILY_API_KEY"):
                 raise ValueError("TAVILY_API_KEY cannot be empty")
+        
+        elif connector_type == SearchSourceConnectorType.LINKUP_API:
+            # For LINKUP_API, only allow LINKUP_API_KEY
+            allowed_keys = ["LINKUP_API_KEY"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(f"For LINKUP_API connector type, config must only contain these keys: {allowed_keys}")
+                
+            # Ensure the API key is not empty
+            if not config.get("LINKUP_API_KEY"):
+                raise ValueError("LINKUP_API_KEY cannot be empty")
                 
         elif connector_type == SearchSourceConnectorType.SLACK_CONNECTOR:
             # For SLACK_CONNECTOR, only allow SLACK_BOT_TOKEN
