@@ -684,13 +684,24 @@ class ConnectorService:
             # Extract results from Linkup response - access as attribute instead of using .get()
             linkup_results = response.results if hasattr(response, 'results') else []
             
+            # Only proceed if we have results
+            if not linkup_results:
+                return {
+                    "id": 10,
+                    "name": "Linkup Search",
+                    "type": "LINKUP_API",
+                    "sources": [],
+                }, []
+                
             # Process each result and create sources directly without deduplication
             sources_list = []
             documents = []
             
             for i, result in enumerate(linkup_results):
-                # Fix for UI
-                linkup_results[i]['document']['id'] = self.source_id_counter
+                # Only process results that have content
+                if not hasattr(result, 'content') or not result.content:
+                    continue
+                    
                 # Create a source entry
                 source = {
                     "id": self.source_id_counter,
