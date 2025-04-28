@@ -102,7 +102,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
         # Extract content and metadata
         content = doc.get("content", "")
         doc_info = doc.get("document", {})
-        document_id = doc_info.get("id", f"{i+1}")  # Use document ID or index+1 as source_id
+        document_id = doc_info.get("id")  # Use document ID
         
         # Format document according to the citation system prompt's expected format
         formatted_doc = f"""

@@ -143,7 +143,8 @@ async def fetch_relevant_documents(
     connectors_to_search: List[str],
     writer: StreamWriter = None,
     state: State = None,
-    top_k: int = 10
+    top_k: int = 10,
+    connector_service: ConnectorService = None
 ) -> List[Dict[str, Any]]:
     """
     Fetch relevant documents for research questions using the provided connectors.
@@ -162,7 +163,7 @@ async def fetch_relevant_documents(
         List of relevant documents
     """
     # Initialize services
-    connector_service = ConnectorService(db_session)
+    # connector_service = ConnectorService(db_session)
     
     # Only use streaming if both writer and state are provided
     streaming_service = state.streaming_service if state is not None else None
@@ -494,10 +495,12 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
     elif configuration.num_sections == 6:
         TOP_K = 30
     
-
     relevant_documents = []
     async with async_session_maker() as db_session:
         try:
+            # Create connector service inside the db_session scope
+            connector_service = ConnectorService(db_session)
+            
             relevant_documents = await fetch_relevant_documents(
                 research_questions=all_questions,
                 user_id=configuration.user_id,
@@ -506,7 +509,8 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
                 connectors_to_search=configuration.connectors_to_search,
                 writer=writer,
                 state=state,
-                top_k=TOP_K
+                top_k=TOP_K,
+                connector_service=connector_service
             )
         except Exception as e:
             error_message = f"Error fetching relevant documents: {str(e)}"
