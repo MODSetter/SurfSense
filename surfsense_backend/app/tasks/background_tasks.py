@@ -80,7 +80,7 @@ async def add_crawled_url_document(
 
         # Process chunks
         chunks = [
-            Chunk(content=chunk.text, embedding=chunk.embedding)
+            Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
             for chunk in config.chunker_instance.chunk(content_in_markdown)
         ]
 
@@ -166,7 +166,7 @@ async def add_extension_received_document(
 
         # Process chunks
         chunks = [
-            Chunk(content=chunk.text, embedding=chunk.embedding)
+            Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
             for chunk in config.chunker_instance.chunk(content.pageContent)
         ]
 
@@ -215,7 +215,7 @@ async def add_received_file_document(
 
        # Process chunks
         chunks = [
-            Chunk(content=chunk.text, embedding=chunk.embedding)
+            Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
             for chunk in config.chunker_instance.chunk(file_in_markdown)
         ]
 
@@ -256,14 +256,14 @@ async def add_youtube_video_document(
     """
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
-        
+
         # Extract video ID from URL
         def get_youtube_video_id(url: str):
             from urllib.parse import urlparse, parse_qs
-            
+
             parsed_url = urlparse(url)
             hostname = parsed_url.hostname
-            
+
             if hostname == "youtu.be":
                 return parsed_url.path[1:]
             if hostname in ("www.youtube.com", "youtube.com"):
@@ -275,26 +275,27 @@ async def add_youtube_video_document(
                 if parsed_url.path.startswith("/v/"):
                     return parsed_url.path.split("/")[2]
             return None
-        
+
         # Get video ID
         video_id = get_youtube_video_id(url)
         if not video_id:
             raise ValueError(f"Could not extract video ID from URL: {url}")
-            
+
         # Get video metadata
         import json
         from urllib.parse import urlencode
         from urllib.request import urlopen
-        
-        params = {"format": "json", "url": f"https://www.youtube.com/watch?v={video_id}"}
+
+        params = {"format": "json",
+                  "url": f"https://www.youtube.com/watch?v={video_id}"}
         oembed_url = "https://www.youtube.com/oembed"
         query_string = urlencode(params)
         full_url = oembed_url + "?" + query_string
-        
+
         with urlopen(full_url) as response:
             response_text = response.read()
             video_data = json.loads(response_text.decode())
-            
+
         # Get video transcript
         try:
             captions = YouTubeTranscriptApi.get_transcript(video_id)
@@ -309,7 +310,7 @@ async def add_youtube_video_document(
             transcript_text = "\n".join(transcript_segments)
         except Exception as e:
             transcript_text = f"No captions available for this video. Error: {str(e)}"
-            
+
         # Format document metadata in a more maintainable way
         metadata_sections = [
             ("METADATA", [
@@ -343,17 +344,18 @@ async def add_youtube_video_document(
         summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
         summary_result = await summary_chain.ainvoke({"document": combined_document_string})
         summary_content = summary_result.content
-        summary_embedding = config.embedding_model_instance.embed(summary_content)
+        summary_embedding = config.embedding_model_instance.embed(
+            summary_content)
 
         # Process chunks
         chunks = [
-            Chunk(content=chunk.text, embedding=chunk.embedding)
+            Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
             for chunk in config.chunker_instance.chunk(transcript_text)
         ]
-            
+
         # Create document
         from app.db import Document, DocumentType
-        
+
         document = Document(
             title=video_data.get("title", "YouTube Video"),
             document_type=DocumentType.YOUTUBE_VIDEO,
@@ -369,11 +371,11 @@ async def add_youtube_video_document(
             chunks=chunks,
             search_space_id=search_space_id
         )
-        
+
         session.add(document)
         await session.commit()
         await session.refresh(document)
-        
+
         return document
     except SQLAlchemyError as db_error:
         await session.rollback()
