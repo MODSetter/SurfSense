@@ -76,7 +76,7 @@ class Chat(BaseModel, TimestampMixin):
     __tablename__ = "chats"
 
     type = Column(SQLAlchemyEnum(ChatType), nullable=False)
-    title = Column(String(200), nullable=False, index=True)
+    title = Column(String, nullable=False, index=True)
     initial_connectors = Column(ARRAY(String), nullable=True)
     messages = Column(JSON, nullable=False)
     
@@ -86,7 +86,7 @@ class Chat(BaseModel, TimestampMixin):
 class Document(BaseModel, TimestampMixin):
     __tablename__ = "documents"
     
-    title = Column(String(200), nullable=False, index=True)
+    title = Column(String, nullable=False, index=True)
     document_type = Column(SQLAlchemyEnum(DocumentType), nullable=False)
     document_metadata = Column(JSON, nullable=True)
     
@@ -109,7 +109,7 @@ class Chunk(BaseModel, TimestampMixin):
 class Podcast(BaseModel, TimestampMixin):
     __tablename__ = "podcasts"
     
-    title = Column(String(200), nullable=False, index=True)
+    title = Column(String, nullable=False, index=True)
     is_generated = Column(Boolean, nullable=False, default=False)
     podcast_content = Column(Text, nullable=False, default="")
     file_location = Column(String(500), nullable=False, default="")
