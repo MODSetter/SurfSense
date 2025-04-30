@@ -38,10 +38,10 @@ class Config:
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
     embedding_model_instance = AutoEmbeddings.get_embeddings(EMBEDDING_MODEL)
     chunker_instance = RecursiveChunker(
-        chunk_size=embedding_model_instance.max_seq_length,
+        chunk_size=getattr(embedding_model_instance, 'max_seq_length', 512)
     )
     code_chunker_instance = CodeChunker(
-        chunk_size=embedding_model_instance.max_seq_length
+        chunk_size=getattr(embedding_model_instance, 'max_seq_length', 512)
     )
     
     # Reranker's Configuration | Pinecode, Cohere etc. Read more at https://github.com/AnswerDotAI/rerankers?tab=readme-ov-file#usage
