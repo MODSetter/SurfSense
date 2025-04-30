@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13.0",
     "asyncpg>=0.30.0",
-    "chonkie[all]>=0.4.1",
+    "chonkie[all]>=1.0.6",
     "fastapi>=0.115.8",
     "fastapi-users[oauth,sqlalchemy]>=14.0.1",
     "firecrawl-py>=1.12.0",

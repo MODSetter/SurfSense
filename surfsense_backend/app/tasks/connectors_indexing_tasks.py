@@ -222,7 +222,7 @@ async def index_slack_messages(
                 
                 # Process chunks
                 chunks = [
-                    Chunk(content=chunk.text, embedding=chunk.embedding)
+                    Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
                     for chunk in config.chunker_instance.chunk(channel_content)
                 ]
                 
@@ -515,7 +515,7 @@ async def index_notion_pages(
                 # Process chunks
                 logger.debug(f"Chunking content for page {page_title}")
                 chunks = [
-                    Chunk(content=chunk.text, embedding=chunk.embedding)
+                    Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
                     for chunk in config.chunker_instance.chunk(markdown_content)
                 ]
                 
@@ -720,8 +720,8 @@ async def index_github_repos(
                     # Chunk the content
                     try:
                         chunks_data = [
-                            Chunk(content=chunk.text, embedding=chunk.embedding)
-                            for chunk in config.chunker_instance.chunk(file_content)
+                            Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
+                            for chunk in config.code_chunker_instance.chunk(file_content)
                         ]
                     except Exception as chunk_err:
                         logger.error(f"Failed to chunk file {full_path_key}: {chunk_err}")
@@ -984,7 +984,7 @@ async def index_linear_issues(
                 
                 # Process chunks - using the full issue content with comments
                 chunks = [
-                    Chunk(content=chunk.text, embedding=chunk.embedding)
+                    Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
                     for chunk in config.chunker_instance.chunk(issue_content)
                 ]
                 

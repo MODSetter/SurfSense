@@ -1,12 +1,10 @@
 import os
 from pathlib import Path
 
-from chonkie import AutoEmbeddings, LateChunker
-from rerankers import Reranker
-from langchain_community.chat_models import ChatLiteLLM
-
-
+from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
 from dotenv import load_dotenv
+from langchain_community.chat_models import ChatLiteLLM
+from rerankers import Reranker
 
 # Get the base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -39,9 +37,11 @@ class Config:
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
     embedding_model_instance = AutoEmbeddings.get_embeddings(EMBEDDING_MODEL)
-    chunker_instance = LateChunker(
-        embedding_model=EMBEDDING_MODEL,
+    chunker_instance = RecursiveChunker(
         chunk_size=embedding_model_instance.max_seq_length,
+    )
+    code_chunker_instance = CodeChunker(
+        chunk_size=embedding_model_instance.max_seq_length
     )
     
     # Reranker's Configuration | Pinecode, Cohere etc. Read more at https://github.com/AnswerDotAI/rerankers?tab=readme-ov-file#usage
