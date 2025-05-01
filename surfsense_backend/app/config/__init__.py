@@ -18,7 +18,7 @@ class Config:
     # Database
     DATABASE_URL = os.getenv("DATABASE_URL")
 
-    # Google OAuth
+    # AUTH: Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
@@ -27,7 +27,7 @@ class Config:
     LONG_CONTEXT_LLM = os.getenv("LONG_CONTEXT_LLM")
     long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM)
     
-    # GPT Researcher
+    # FAST & STRATEGIC LLM's
     FAST_LLM = os.getenv("FAST_LLM")
     STRATEGIC_LLM = os.getenv("STRATEGIC_LLM")
     fast_llm_instance = ChatLiteLLM(model=FAST_LLM)
