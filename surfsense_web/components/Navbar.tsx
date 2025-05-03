@@ -64,24 +64,8 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   const handleGoogleLogin = () => {
-    // Redirect to Google OAuth authorization URL
-    fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Failed to get authorization URL');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (data.authorization_url) {
-          window.location.href = data.authorization_url;
-        } else {
-          console.error('No authorization URL received');
-        }
-      })
-      .catch((error) => {
-        console.error('Error during Google login:', error);
-      });
+    // Redirect to the login page
+    window.location.href = '/login';
   };
 
   return (
