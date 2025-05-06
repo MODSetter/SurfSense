@@ -16,6 +16,9 @@ While tools like NotebookLM and Perplexity are impressive and highly effective f
 
 https://github.com/user-attachments/assets/48142909-6391-4084-b7e8-81da388bb1fc
 
+# Podcast's
+
+https://github.com/user-attachments/assets/d516982f-de00-4c41-9e4c-632a7d942f41
 
 
 
@@ -37,7 +40,7 @@ Works Flawlessly with Ollama local LLMs.
 #### 🏠 **Self Hostable**
 Open source and easy to deploy locally.
 #### 🎙️ Podcasts 
-- Blazingly fast podcast generation agent.
+- Blazingly fast podcast generation agent. (Creates a 3-minute podcast in under 20 seconds.)
 - Convert your chat conversations into engaging audio content
 - Support for multiple TTS providers (OpenAI, Azure, Google Vertex AI)
 
@@ -103,6 +106,9 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 
 ![researcher](https://github.com/user-attachments/assets/fda3e61f-f936-4b66-b565-d84edde44a67)
 
+**Podcast Agent** 
+![podcasts](https://github.com/user-attachments/assets/6cb82ffd-9e14-4172-bc79-67faf34c4c1c)
+
 
 **Agent Chat** 
 
@@ -113,6 +119,7 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 ![ext1](https://github.com/user-attachments/assets/1f042b7a-6349-422b-94fb-d40d0df16c40)
 
 ![ext2](https://github.com/user-attachments/assets/a9b9f1aa-2677-404d-b0a0-c1b2dddf24a7)
+
 
 ## Tech Stack
 
