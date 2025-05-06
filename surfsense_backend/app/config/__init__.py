@@ -1,10 +1,12 @@
 import os
 from pathlib import Path
+import shutil
 
 from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
 from dotenv import load_dotenv
 from langchain_community.chat_models import ChatLiteLLM
 from rerankers import Reranker
+from litellm import speech
 
 # Get the base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -13,8 +15,27 @@ env_file = BASE_DIR / ".env"
 load_dotenv(env_file)
 
 
+def is_ffmpeg_installed():
+    """
+    Check if ffmpeg is installed on the current system.
+    
+    Returns:
+        bool: True if ffmpeg is installed, False otherwise.
+    """
+    return shutil.which("ffmpeg") is not None
+
+
 
 class Config:
+    # Check if ffmpeg is installed
+    if not is_ffmpeg_installed():
+        import static_ffmpeg
+        # ffmpeg installed on first call to add_paths(), threadsafe.
+        static_ffmpeg.add_paths()
+        # check if ffmpeg is installed again
+        if not is_ffmpeg_installed():
+            raise ValueError("FFmpeg is not installed on the system. Please install it to use the Surfsense Podcaster.")
+    
     # Database
     DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -60,6 +81,9 @@ class Config:
     
     # Firecrawl API Key
     FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", None) 
+    
+    # Litellm TTS Configuration
+    TTS_SERVICE = os.getenv("TTS_SERVICE")
     
     # Validation Checks
     # Check embedding dimension
