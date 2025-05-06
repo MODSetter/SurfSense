@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-interface Podcast {
+interface PodcastItem {
   id: number;
   title: string;
   created_at: string;
@@ -66,8 +66,8 @@ const podcastCardVariants = {
 const MotionCard = motion(Card);
 
 export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClientProps) {
-  const [podcasts, setPodcasts] = useState<Podcast[]>([]);
-  const [filteredPodcasts, setFilteredPodcasts] = useState<Podcast[]>([]);
+  const [podcasts, setPodcasts] = useState<PodcastItem[]>([]);
+  const [filteredPodcasts, setFilteredPodcasts] = useState<PodcastItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,7 +77,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
   const [isDeleting, setIsDeleting] = useState(false);
   
   // Audio player state
-  const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
+  const [currentPodcast, setCurrentPodcast] = useState<PodcastItem | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | undefined>(undefined);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -123,7 +123,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
           throw new Error(`Failed to fetch podcasts: ${response.status} ${errorData?.detail || ''}`);
         }
 
-        const data: Podcast[] = await response.json();
+        const data: PodcastItem[] = await response.json();
         setPodcasts(data);
         setFilteredPodcasts(data);
         setError(null);
@@ -257,7 +257,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
   };
 
   // Play podcast - Fetch blob and set object URL
-  const playPodcast = async (podcast: Podcast) => {
+  const playPodcast = async (podcast: PodcastItem) => {
     // If the same podcast is selected, just toggle play/pause
     if (currentPodcast && currentPodcast.id === podcast.id) {
       togglePlayPause();
@@ -302,12 +302,14 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
       currentObjectUrlRef.current = objectUrl;
+      
+      // Wait for React to commit the new `src`
       setAudioSrc(objectUrl);
       
-      // Let the audio element load the new src
-      setTimeout(() => {
+      // Use requestAnimationFrame instead of setTimeout for more reliable DOM updates
+      requestAnimationFrame(() => {
         if (audioRef.current) {
-          audioRef.current.load();
+          // The <audio> element has the new src now
           audioRef.current.play()
             .then(() => {
               setIsPlaying(true);
@@ -318,7 +320,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
               setIsPlaying(false);
             });
         }
-      }, 50);
+      });
 
     } catch (error) {
       console.error('Error fetching or playing podcast:', error);

@@ -472,11 +472,12 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
                   size="sm" 
                   onClick={selectAllVisibleChats}
                   className="gap-1"
+                  title="Select or deselect all chats on the current page"
                 >
                   <CheckCircle className="h-4 w-4" />
                   {currentChats.every(chat => selectedChats.includes(chat.id)) 
-                    ? "Deselect All" 
-                    : "Select All"}
+                    ? "Deselect Page" 
+                    : "Select Page"}
                 </Button>
                 <Button 
                   variant="default" 
@@ -567,7 +568,12 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
                   className={`overflow-hidden hover:shadow-md transition-shadow 
                     ${selectionMode && selectedChats.includes(chat.id) 
                     ? 'ring-2 ring-primary ring-offset-2' : ''}`}
-                  onClick={() => selectionMode ? toggleChatSelection(chat.id) : null}
+                  onClick={(e) => {
+                    if (!selectionMode) return;
+                    // Ignore clicks coming from interactive elements
+                    if ((e.target as HTMLElement).closest('button, a, [data-stop-selection]')) return;
+                    toggleChatSelection(chat.id);
+                  }}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
@@ -592,7 +598,12 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
                       {!selectionMode && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              data-stop-selection
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Open menu</span>
                             </Button>
