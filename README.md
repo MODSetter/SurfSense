@@ -36,6 +36,11 @@ Get Cited answers just like Perplexity.
 Works Flawlessly with Ollama local LLMs.
 #### 🏠 **Self Hostable**
 Open source and easy to deploy locally.
+#### 🎙️ Podcasts 
+- Blazingly fast podcast generation agent.
+- Convert your chat conversations into engaging audio content
+- Support for multiple TTS providers (OpenAI, Azure, Google Vertex AI)
+
 #### 📊 **Advanced RAG Techniques**
 - Supports 150+ LLM's
 - Supports 6000+ Embedding Models.
@@ -56,12 +61,6 @@ Open source and easy to deploy locally.
 #### 🔖 Cross Browser Extension
 - The SurfSense extension can be used to save any webpage you like.
 - Its main usecase is to save any webpages protected beyond authentication.
-
-
-### 2. Temporarily Deprecated
-
-#### Podcasts 
-- The SurfSense Podcast feature is currently being reworked for better UI and stability. Expect it soon.
 
 
 ## FEATURE REQUESTS AND FUTURE
