@@ -110,8 +110,7 @@ class Podcast(BaseModel, TimestampMixin):
     __tablename__ = "podcasts"
     
     title = Column(String, nullable=False, index=True)
-    is_generated = Column(Boolean, nullable=False, default=False)
-    podcast_content = Column(Text, nullable=False, default="")
+    podcast_transcript = Column(JSON, nullable=False, default={})
     file_location = Column(String(500), nullable=False, default="")
     
     search_space_id = Column(Integer, ForeignKey("searchspaces.id", ondelete='CASCADE'), nullable=False)

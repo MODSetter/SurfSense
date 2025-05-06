@@ -1,8 +1,10 @@
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
-from sqlalchemy import JSON
-from .base import IDModel, TimestampModel
+
 from app.db import ChatType
+from pydantic import BaseModel
+
+from .base import IDModel, TimestampModel
+
 
 class ChatBase(BaseModel):
     type: ChatType

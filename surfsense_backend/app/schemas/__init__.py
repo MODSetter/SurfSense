@@ -10,7 +10,7 @@ from .documents import (
     DocumentRead,
 )
 from .chunks import ChunkBase, ChunkCreate, ChunkUpdate, ChunkRead
-from .podcasts import PodcastBase, PodcastCreate, PodcastUpdate, PodcastRead
+from .podcasts import PodcastBase, PodcastCreate, PodcastUpdate, PodcastRead, PodcastGenerateRequest
 from .chats import ChatBase, ChatCreate, ChatUpdate, ChatRead, AISDKChatRequest
 from .search_source_connector import SearchSourceConnectorBase, SearchSourceConnectorCreate, SearchSourceConnectorUpdate, SearchSourceConnectorRead
 
@@ -39,6 +39,7 @@ __all__ = [
     "PodcastCreate",
     "PodcastUpdate",
     "PodcastRead",
+    "PodcastGenerateRequest",
     "ChatBase",
     "ChatCreate",
     "ChatUpdate",

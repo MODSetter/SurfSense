@@ -28,7 +28,7 @@ async def create_podcast_transcript(state: State, config: RunnableConfig) -> Dic
     # Create the messages
     messages = [
         SystemMessage(content=prompt),
-        HumanMessage(content=state.source_content)
+        HumanMessage(content=f"<source_content>{state.source_content}</source_content>")
     ]
     
     # Generate the podcast transcript

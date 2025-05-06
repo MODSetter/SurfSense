@@ -1,10 +1,10 @@
 from pydantic import BaseModel
+from typing import Any, List, Literal
 from .base import IDModel, TimestampModel
 
 class PodcastBase(BaseModel):
     title: str
-    is_generated: bool = False
-    podcast_content: str = ""
+    podcast_transcript: List[Any]
     file_location: str = ""
     search_space_id: int
 
@@ -16,4 +16,10 @@ class PodcastUpdate(PodcastBase):
 
 class PodcastRead(PodcastBase, IDModel, TimestampModel):
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+class PodcastGenerateRequest(BaseModel):
+    type: Literal["DOCUMENT", "CHAT"]
+    ids: List[int]
+    search_space_id: int
+    podcast_title: str = "SurfSense Podcast" 
