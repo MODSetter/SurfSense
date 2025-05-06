@@ -61,6 +61,7 @@ Edit the `.env` file and set the following variables:
 | LONG_CONTEXT_LLM | LiteLLM routed long-context LLM (e.g., `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`) |
 | UNSTRUCTURED_API_KEY | API key for Unstructured.io service |
 | FIRECRAWL_API_KEY | API key for Firecrawl service (if using crawler) |
+| TTS_SERVICE | Text-to-Speech API provider for Podcasts (e.g., `openai/tts-1`, `azure/neural`, `vertex_ai/`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers) |
 
 **Important**: Since LLM calls are routed through LiteLLM, include API keys for the LLM providers you're using:
 - For OpenAI models: `OPENAI_API_KEY`
