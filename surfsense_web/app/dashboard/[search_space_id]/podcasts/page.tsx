@@ -8,8 +8,6 @@ interface PageProps {
 }
 
 export default async function PodcastsPage({ params }: PageProps) {
-  // Access dynamic route parameters
-  // Need to await params before accessing its properties in an async component
   const { search_space_id: searchSpaceId } = await Promise.resolve(params);
   
   return (
