@@ -1,10 +1,9 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import PodcastGenerateRequest
-from typing import List
-from sqlalchemy import select
-from app.db import Chat, Podcast
+
 from app.agents.podcaster.graph import graph as podcaster_graph
-from surfsense_backend.app.agents.podcaster.state import State
+from app.agents.podcaster.state import State
+from app.db import Chat, Podcast
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def generate_document_podcast(
