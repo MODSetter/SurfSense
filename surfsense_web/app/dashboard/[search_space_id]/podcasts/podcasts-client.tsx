@@ -325,8 +325,6 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
           }
         );
 
-        clearTimeout(timeoutId);
-
         if (!response.ok) {
           throw new Error(`Failed to fetch audio stream: ${response.statusText}`);
         }
@@ -345,6 +343,8 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
           throw new Error('Request timed out. Please try again.');
         }
         throw error;
+      } finally {
+        clearTimeout(timeoutId);
       }
     } catch (error) {
       console.error('Error fetching or playing podcast:', error);
