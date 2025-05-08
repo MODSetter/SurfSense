@@ -1,7 +1,5 @@
 from typing import List, Any
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import JSON
-from .base import IDModel, TimestampModel
 from app.db import DocumentType
 from datetime import datetime
 
