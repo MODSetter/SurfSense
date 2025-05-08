@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from app.db import ChatType
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .base import IDModel, TimestampModel
 
@@ -44,5 +44,4 @@ class ChatUpdate(ChatBase):
     pass
 
 class ChatRead(ChatBase, IDModel, TimestampModel):
-    class Config:
-        from_attributes = True 
+    model_config = ConfigDict(from_attributes=True) 

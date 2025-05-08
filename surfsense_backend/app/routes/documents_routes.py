@@ -6,7 +6,7 @@ from app.db import get_async_session, User, SearchSpace, Document, DocumentType
 from app.schemas import DocumentsCreate, DocumentUpdate, DocumentRead
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
-from app.tasks.background_tasks import add_extension_received_document, add_received_file_document, add_crawled_url_document, add_youtube_video_document
+from app.tasks.background_tasks import add_received_markdown_file_document, add_extension_received_document, add_received_file_document, add_crawled_url_document, add_youtube_video_document
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
 try:
@@ -15,9 +15,8 @@ except RuntimeError:
     pass
 import os
 os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
-from langchain_unstructured import UnstructuredLoader
-from app.config import config
-import json
+
+
 
 router = APIRouter()
 
@@ -132,36 +131,57 @@ async def process_file_in_background(
     session: AsyncSession
 ):
     try:
-        # Use synchronous unstructured API to avoid event loop issues
-        from langchain_community.document_loaders import UnstructuredFileLoader
-        
-        # Process the file
-        loader = UnstructuredFileLoader(
-            file_path,
-            mode="elements",
-            post_processors=[],
-            languages=["eng"],
-            include_orig_elements=False,
-            include_metadata=False,
-            strategy="auto",
-        )
-        
-        docs = loader.load()
-        
-        # Clean up the temp file
-        import os
-        try:
-            os.unlink(file_path)
-        except:
-            pass
-        
-        # Pass the documents to the existing background task
-        await add_received_file_document(
-            session,
-            filename,
-            docs,
-            search_space_id
-        )
+        # Check if the file is a markdown file
+        if filename.lower().endswith(('.md', '.markdown')):
+            # For markdown files, read the content directly
+            with open(file_path, 'r', encoding='utf-8') as f:
+                markdown_content = f.read()
+            
+            # Clean up the temp file
+            import os
+            try:
+                os.unlink(file_path)
+            except:
+                pass
+            
+            # Process markdown directly through specialized function
+            await add_received_markdown_file_document(
+                session,
+                filename,
+                markdown_content,
+                search_space_id
+            )
+        else:
+            # Use synchronous unstructured API to avoid event loop issues
+            from langchain_unstructured import UnstructuredLoader
+            
+            # Process the file
+            loader = UnstructuredLoader(
+                file_path,
+                mode="elements",
+                post_processors=[],
+                languages=["eng"],
+                include_orig_elements=False,
+                include_metadata=False,
+                strategy="auto",
+            )
+            
+            docs = await loader.aload()
+            
+            # Clean up the temp file
+            import os
+            try:
+                os.unlink(file_path)
+            except:
+                pass
+            
+            # Pass the documents to the existing background task
+            await add_received_file_document(
+                session,
+                filename,
+                docs,
+                search_space_id
+            )
     except Exception as e:
         import logging
         logging.error(f"Error processing file in background: {str(e)}")

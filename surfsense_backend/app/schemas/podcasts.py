@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Any, List, Literal
 from .base import IDModel, TimestampModel
 
@@ -15,8 +15,7 @@ class PodcastUpdate(PodcastBase):
     pass
 
 class PodcastRead(PodcastBase, IDModel, TimestampModel):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PodcastGenerateRequest(BaseModel):
     type: Literal["DOCUMENT", "CHAT"]
