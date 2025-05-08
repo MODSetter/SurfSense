@@ -194,6 +194,52 @@ async def add_extension_received_document(
         await session.rollback()
         raise RuntimeError(f"Failed to process extension document: {str(e)}")
 
+async def add_received_markdown_file_document(
+    session: AsyncSession,
+    file_name: str,
+    file_in_markdown: str,
+    search_space_id: int
+) -> Optional[Document]:
+    try:
+
+        # Generate summary
+        summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
+        summary_result = await summary_chain.ainvoke({"document": file_in_markdown})
+        summary_content = summary_result.content
+        summary_embedding = config.embedding_model_instance.embed(
+            summary_content)
+
+       # Process chunks
+        chunks = [
+            Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
+            for chunk in config.chunker_instance.chunk(file_in_markdown)
+        ]
+
+        # Create and store document
+        document = Document(
+            search_space_id=search_space_id,
+            title=file_name,
+            document_type=DocumentType.FILE,
+            document_metadata={
+                "FILE_NAME": file_name,
+                "SAVED_AT": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            content=summary_content,
+            embedding=summary_embedding,
+            chunks=chunks
+        )
+
+        session.add(document)
+        await session.commit()
+        await session.refresh(document)
+
+        return document
+    except SQLAlchemyError as db_error:
+        await session.rollback()
+        raise db_error
+    except Exception as e:
+        await session.rollback()
+        raise RuntimeError(f"Failed to process file document: {str(e)}")
 
 async def add_received_file_document(
     session: AsyncSession,
