@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Any
+from typing import List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.streaming_service import StreamingService
 
@@ -21,7 +21,7 @@ class State:
     # Streaming service
     streaming_service: StreamingService
     
-    # Intermediate state - populated during workflow
+    # chat_history: Optional[List[Any]] = field(default=None)
     # Using field to explicitly mark as part of state
     answer_outline: Optional[Any] = field(default=None)
     

@@ -27,18 +27,21 @@ The backend is the core of SurfSense. Follow these steps to set it up:
 First, create and configure your environment variables by copying the example file:
 
 **Linux/macOS:**
+
 ```bash
 cd surfsense_backend
 cp .env.example .env
 ```
 
 **Windows (Command Prompt):**
+
 ```cmd
 cd surfsense_backend
 copy .env.example .env
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 cd surfsense_backend
 Copy-Item -Path .env.example -Destination .env
@@ -46,33 +49,50 @@ Copy-Item -Path .env.example -Destination .env
 
 Edit the `.env` file and set the following variables:
 
-| ENV VARIABLE | DESCRIPTION |
-|--------------|-------------|
-| DATABASE_URL | PostgreSQL connection string (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`) |
-| SECRET_KEY | JWT Secret key for authentication (should be a secure random string) |
-| GOOGLE_OAUTH_CLIENT_ID | Google OAuth client ID |
-| GOOGLE_OAUTH_CLIENT_SECRET | Google OAuth client secret |
-| NEXT_FRONTEND_URL | Frontend application URL (e.g., `http://localhost:3000`) |
-| EMBEDDING_MODEL | Name of the embedding model (e.g., `openai://text-embedding-ada-002`, `anthropic://claude-v1`, `mixedbread-ai/mxbai-embed-large-v1`) |
-| RERANKERS_MODEL_NAME | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`) |
-| RERANKERS_MODEL_TYPE | Type of reranker model (e.g., `flashrank`) |
-| FAST_LLM | LiteLLM routed faster LLM (e.g., `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`) |
-| STRATEGIC_LLM | LiteLLM routed advanced LLM (e.g., `openai/gpt-4o`, `ollama/gemma3:12b`) |
-| LONG_CONTEXT_LLM | LiteLLM routed long-context LLM (e.g., `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`) |
-| UNSTRUCTURED_API_KEY | API key for Unstructured.io service |
-| FIRECRAWL_API_KEY | API key for Firecrawl service (if using crawler) |
-| TTS_SERVICE | Text-to-Speech API provider for Podcasts (e.g., `openai/tts-1`, `azure/neural`, `vertex_ai/`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers) |
+| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DATABASE_URL               | PostgreSQL connection string (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`)                                                                                    |
+| SECRET_KEY                 | JWT Secret key for authentication (should be a secure random string)                                                                                                                      |
+| GOOGLE_OAUTH_CLIENT_ID     | Google OAuth client ID                                                                                                                                                                    |
+| GOOGLE_OAUTH_CLIENT_SECRET | Google OAuth client secret                                                                                                                                                                |
+| NEXT_FRONTEND_URL          | Frontend application URL (e.g., `http://localhost:3000`)                                                                                                                                  |
+| EMBEDDING_MODEL            | Name of the embedding model (e.g., `openai://text-embedding-ada-002`, `anthropic://claude-v1`, `mixedbread-ai/mxbai-embed-large-v1`)                                                      |
+| RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`)                                                                                                                              |
+| RERANKERS_MODEL_TYPE       | Type of reranker model (e.g., `flashrank`)                                                                                                                                                |
+| FAST_LLM                   | LiteLLM routed faster LLM (e.g., `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`)                                                                                                           |
+| STRATEGIC_LLM              | LiteLLM routed advanced LLM (e.g., `openai/gpt-4o`, `ollama/gemma3:12b`)                                                                                                                  |
+| LONG_CONTEXT_LLM           | LiteLLM routed long-context LLM (e.g., `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`)                                                                                                |
+| UNSTRUCTURED_API_KEY       | API key for Unstructured.io service                                                                                                                                                       |
+| FIRECRAWL_API_KEY          | API key for Firecrawl service (if using crawler)                                                                                                                                          |
+| TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `openai/tts-1`, `azure/neural`, `vertex_ai/`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers) |
 
 **Important**: Since LLM calls are routed through LiteLLM, include API keys for the LLM providers you're using:
+
 - For OpenAI models: `OPENAI_API_KEY`
 - For Google Gemini models: `GEMINI_API_KEY`
 - For other providers, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
+
+**Optional Backend LangSmith Observability:**
+| ENV VARIABLE | DESCRIPTION |
+|--------------|-------------|
+| LANGSMITH_TRACING | Enable LangSmith tracing (e.g., `true`) |
+| LANGSMITH_ENDPOINT | LangSmith API endpoint (e.g., `https://api.smith.langchain.com`) |
+| LANGSMITH_API_KEY | Your LangSmith API key |
+| LANGSMITH_PROJECT | LangSmith project name (e.g., `surfsense`) |
+
+**Optional Backend LiteLLM API Base URLs:**
+| ENV VARIABLE | DESCRIPTION |
+|--------------|-------------|
+| FAST_LLM_API_BASE | Custom API base URL for the fast LLM |
+| STRATEGIC_LLM_API_BASE | Custom API base URL for the strategic LLM |
+| LONG_CONTEXT_LLM_API_BASE | Custom API base URL for the long context LLM |
 
 ### 2. Install Dependencies
 
 Install the backend dependencies using `uv`:
 
 **Linux/macOS:**
+
 ```bash
 # Install uv if you don't have it
 curl -fsSL https://astral.sh/uv/install.sh | bash
@@ -82,6 +102,7 @@ uv sync
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 # Install uv if you don't have it
 iwr -useb https://astral.sh/uv/install.ps1 | iex
@@ -91,6 +112,7 @@ uv sync
 ```
 
 **Windows (Command Prompt):**
+
 ```cmd
 # Install dependencies with uv (after installing uv)
 uv sync
@@ -101,6 +123,7 @@ uv sync
 Start the backend server:
 
 **Linux/macOS/Windows:**
+
 ```bash
 # Run without hot reloading
 uv run main.py
@@ -118,18 +141,21 @@ If everything is set up correctly, you should see output indicating the server i
 Set up the frontend environment:
 
 **Linux/macOS:**
+
 ```bash
 cd surfsense_web
 cp .env.example .env
 ```
 
 **Windows (Command Prompt):**
+
 ```cmd
 cd surfsense_web
 copy .env.example .env
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 cd surfsense_web
 Copy-Item -Path .env.example -Destination .env
@@ -137,8 +163,8 @@ Copy-Item -Path .env.example -Destination .env
 
 Edit the `.env` file and set:
 
-| ENV VARIABLE | DESCRIPTION |
-|--------------|-------------|
+| ENV VARIABLE                    | DESCRIPTION                                 |
+| ------------------------------- | ------------------------------------------- |
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | Backend URL (e.g., `http://localhost:8000`) |
 
 ### 2. Install Dependencies
@@ -146,6 +172,7 @@ Edit the `.env` file and set:
 Install the frontend dependencies:
 
 **Linux/macOS:**
+
 ```bash
 # Install pnpm if you don't have it
 npm install -g pnpm
@@ -155,6 +182,7 @@ pnpm install
 ```
 
 **Windows:**
+
 ```powershell
 # Install pnpm if you don't have it
 npm install -g pnpm
@@ -168,6 +196,7 @@ pnpm install
 Start the Next.js development server:
 
 **Linux/macOS/Windows:**
+
 ```bash
 pnpm run dev
 ```
@@ -181,18 +210,21 @@ The SurfSense browser extension allows you to save any webpage, including those 
 ### 1. Environment Configuration
 
 **Linux/macOS:**
+
 ```bash
 cd surfsense_browser_extension
 cp .env.example .env
 ```
 
 **Windows (Command Prompt):**
+
 ```cmd
 cd surfsense_browser_extension
 copy .env.example .env
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 cd surfsense_browser_extension
 Copy-Item -Path .env.example -Destination .env
@@ -200,8 +232,8 @@ Copy-Item -Path .env.example -Destination .env
 
 Edit the `.env` file:
 
-| ENV VARIABLE | DESCRIPTION |
-|--------------|-------------|
+| ENV VARIABLE              | DESCRIPTION                                           |
+| ------------------------- | ----------------------------------------------------- |
 | PLASMO_PUBLIC_BACKEND_URL | SurfSense Backend URL (e.g., `http://127.0.0.1:8000`) |
 
 ### 2. Build the Extension
@@ -209,6 +241,7 @@ Edit the `.env` file:
 Build the extension for your browser using the [Plasmo framework](https://docs.plasmo.com/framework/workflows/build#with-a-specific-target).
 
 **Linux/macOS/Windows:**
+
 ```bash
 # Install dependencies
 pnpm install
@@ -253,7 +286,8 @@ Now that you have SurfSense running locally, you can explore its features:
 - Explore the advanced RAG capabilities
 
 For production deployments, consider setting up:
+
 - A reverse proxy like Nginx
 - SSL certificates for secure connections
 - Proper database backups
-- User access controls 
+- User access controls
