@@ -46,14 +46,27 @@ class Config:
     
     # LONG-CONTEXT LLMS
     LONG_CONTEXT_LLM = os.getenv("LONG_CONTEXT_LLM")
-    long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM)
+    FAST_LLM_API_BASE = os.getenv("FAST_LLM_API_BASE")
+    if FAST_LLM_API_BASE:
+        long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM, api_base=FAST_LLM_API_BASE)
+    else:
+        long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM)
     
-    # FAST & STRATEGIC LLM's
+    # FAST LLM
     FAST_LLM = os.getenv("FAST_LLM")
-    STRATEGIC_LLM = os.getenv("STRATEGIC_LLM")
-    fast_llm_instance = ChatLiteLLM(model=FAST_LLM)
-    strategic_llm_instance = ChatLiteLLM(model=STRATEGIC_LLM)
+    FAST_LLM_API_BASE = os.getenv("FAST_LLM_API_BASE")
+    if FAST_LLM_API_BASE:
+        fast_llm_instance = ChatLiteLLM(model=FAST_LLM, api_base=FAST_LLM_API_BASE)
+    else:
+        fast_llm_instance = ChatLiteLLM(model=FAST_LLM)
     
+    # STRATEGIC LLM
+    STRATEGIC_LLM = os.getenv("STRATEGIC_LLM")
+    STRATEGIC_LLM_API_BASE = os.getenv("STRATEGIC_LLM_API_BASE")
+    if STRATEGIC_LLM_API_BASE:
+        strategic_llm_instance = ChatLiteLLM(model=STRATEGIC_LLM, api_base=STRATEGIC_LLM_API_BASE)
+    else:
+        strategic_llm_instance = ChatLiteLLM(model=STRATEGIC_LLM)
 
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
