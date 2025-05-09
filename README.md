@@ -85,7 +85,10 @@ Join the [SurfSense Discord](https://discord.gg/ejRNvftDp9) and help shape the f
 
 SurfSense provides two installation methods:
 
-1. **[Docker Installation](https://www.surfsense.net/docs/docker-installation)** - The easiest way to get SurfSense up and running with all dependencies containerized. Less Customization.
+1. **[Docker Installation](https://www.surfsense.net/docs/docker-installation)** - The easiest way to get SurfSense up and running with all dependencies containerized.
+   - Includes pgAdmin for database management through a web UI
+   - Supports environment variable customization via `.env` file
+   - See [Docker Setup Guide](DOCKER_SETUP.md) for detailed instructions
 
 2. **[Manual Installation (Recommended)](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
 
@@ -190,6 +193,14 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 
 -  **@tanstack/react-table**: Headless UI for building powerful tables & datagrids.
 
+
+ ### **DevOps**
+
+-  **Docker**: Container platform for consistent deployment across environments
+  
+-  **Docker Compose**: Tool for defining and running multi-container Docker applications
+
+-  **pgAdmin**: Web-based PostgreSQL administration tool included in Docker setup
 
 
 ### **Extension** 
