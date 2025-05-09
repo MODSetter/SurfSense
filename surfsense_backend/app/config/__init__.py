@@ -46,9 +46,9 @@ class Config:
     
     # LONG-CONTEXT LLMS
     LONG_CONTEXT_LLM = os.getenv("LONG_CONTEXT_LLM")
-    FAST_LLM_API_BASE = os.getenv("FAST_LLM_API_BASE")
-    if FAST_LLM_API_BASE:
-        long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM, api_base=FAST_LLM_API_BASE)
+    LONG_CONTEXT_LLM_API_BASE = os.getenv("LONG_CONTEXT_LLM_API_BASE")
+    if LONG_CONTEXT_LLM_API_BASE:
+        long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM, api_base=LONG_CONTEXT_LLM_API_BASE)
     else:
         long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM)
     
