@@ -40,6 +40,7 @@ Before you begin, ensure you have:
     # Copy example environment files
     cp surfsense_backend/.env.example surfsense_backend/.env
     cp surfsense_web/.env.example surfsense_web/.env
+    cp .env.example .env  # For Docker-specific settings
     ```
 
     **Windows (Command Prompt):**
@@ -47,6 +48,7 @@ Before you begin, ensure you have:
     ```cmd
     copy surfsense_backend\.env.example surfsense_backend\.env
     copy surfsense_web\.env.example surfsense_web\.env
+    copy .env.example .env
     ```
 
     **Windows (PowerShell):**
@@ -54,9 +56,25 @@ Before you begin, ensure you have:
     ```powershell
     Copy-Item -Path surfsense_backend\.env.example -Destination surfsense_backend\.env
     Copy-Item -Path surfsense_web\.env.example -Destination surfsense_web\.env
+    Copy-Item -Path .env.example -Destination .env
     ```
 
-    Edit both `.env` files and fill in the required values:
+    Edit all `.env` files and fill in the required values:
+
+### Docker-Specific Environment Variables
+
+| ENV VARIABLE               | DESCRIPTION                                                                 | DEFAULT VALUE       |
+|----------------------------|-----------------------------------------------------------------------------|---------------------|
+| FRONTEND_PORT              | Port for the frontend service                                               | 3000                |
+| BACKEND_PORT               | Port for the backend API service                                            | 8000                |
+| POSTGRES_PORT              | Port for the PostgreSQL database                                            | 5432                |
+| PGADMIN_PORT               | Port for pgAdmin web interface                                              | 5050                |
+| POSTGRES_USER              | PostgreSQL username                                                         | postgres            |
+| POSTGRES_PASSWORD          | PostgreSQL password                                                         | postgres            |
+| POSTGRES_DB                | PostgreSQL database name                                                    | surfsense           |
+| PGADMIN_DEFAULT_EMAIL      | Email for pgAdmin login                                                     | admin@surfsense.com |
+| PGADMIN_DEFAULT_PASSWORD   | Password for pgAdmin login                                                  | surfsense           |
+| NEXT_PUBLIC_API_URL        | URL of the backend API (used by frontend)                                   | http://backend:8000 |
 
 **Backend Environment Variables:**
 
@@ -132,6 +150,23 @@ For other LLM providers, refer to the [LiteLLM documentation](https://docs.litel
    - Frontend: [http://localhost:3000](http://localhost:3000)
    - Backend API: [http://localhost:8000](http://localhost:8000)
    - API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - pgAdmin: [http://localhost:5050](http://localhost:5050)
+
+## Using pgAdmin
+
+pgAdmin is included in the Docker setup to help manage your PostgreSQL database. To connect:
+
+1. Open pgAdmin at [http://localhost:5050](http://localhost:5050)
+2. Login with the credentials from your `.env` file (default: admin@surfsense.com / surfsense)
+3. Right-click "Servers" > "Create" > "Server"
+4. In the "General" tab, name your connection (e.g., "SurfSense DB")
+5. In the "Connection" tab:
+   - Host: `db`
+   - Port: `5432`
+   - Maintenance database: `surfsense`
+   - Username: `postgres` (or your custom POSTGRES_USER)
+   - Password: `postgres` (or your custom POSTGRES_PASSWORD)
+6. Click "Save" to connect
 
 ## Useful Docker Commands
 
