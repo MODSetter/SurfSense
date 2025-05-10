@@ -5,6 +5,7 @@ from typing import Any, Dict
 from app.config import config as app_config
 from .prompts import get_citation_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
+from .configuration import SubSectionType
 
 async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, Any]:
     """
@@ -122,9 +123,19 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     sub_section_questions = configuration.sub_section_questions
     user_query = configuration.user_query  # Get the original user query
     documents_text = "\n".join(formatted_documents)
-    
+    sub_section_type = configuration.sub_section_type
+
     # Format the questions as bullet points for clarity
     questions_text = "\n".join([f"- {question}" for question in sub_section_questions])
+    
+    # Provide more context based on the subsection type
+    section_position_context = ""
+    if sub_section_type == SubSectionType.START:
+        section_position_context = "This is the INTRODUCTION section. Focus on providing an overview of the topic, setting the context, and introducing key concepts that will be discussed in later sections. Do not provide any conclusions in this section, as conclusions should only appear in the final section."
+    elif sub_section_type == SubSectionType.MIDDLE:
+        section_position_context = "This is a MIDDLE section. Ensure this content flows naturally from previous sections and into subsequent ones. This could be any middle section in the document, so maintain coherence with the overall structure while addressing the specific topic of this section. Do not provide any conclusions in this section, as conclusions should only appear in the final section."
+    elif sub_section_type == SubSectionType.END:
+        section_position_context = "This is the CONCLUSION section. Focus on summarizing key points, providing closure, and possibly suggesting implications or future directions related to the topic."
     
     # Construct a clear, structured query for the LLM
     human_message_content = f"""
@@ -137,6 +148,14 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     <sub_section_title>
         {section_title}
     </sub_section_title>
+
+    <section_position>
+        {section_position_context}
+    </section_position>
+    
+    <guiding_questions>
+        {questions_text}
+    </guiding_questions>
     
     Use the provided documents as your source material and cite them properly using the IEEE citation format [X] where X is the source_id.
     <documents>
