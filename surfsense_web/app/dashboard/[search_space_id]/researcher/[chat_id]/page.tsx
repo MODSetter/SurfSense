@@ -239,7 +239,6 @@ const SourcesDialogContent = ({
 
 const ChatPage = () => {
   const [token, setToken] = React.useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("");
   const [dialogOpenId, setDialogOpenId] = useState<number | null>(null);
   const [sourcesPage, setSourcesPage] = useState(1);
   const [expandedSources, setExpandedSources] = useState(false);
@@ -252,7 +251,6 @@ const ChatPage = () => {
   const [researchMode, setResearchMode] = useState<ResearchMode>("GENERAL");
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
-  const [connectorSources, setConnectorSources] = useState<any[]>([]);
   const terminalMessagesRef = useRef<HTMLDivElement>(null);
   const { connectorSourceItems, isLoading: isLoadingConnectors } = useSearchSourceConnectors();
 
@@ -476,43 +474,10 @@ const ChatPage = () => {
     updateChat();
   }, [messages, status, chat_id, researchMode, selectedConnectors, search_space_id]);
 
-  // Memoize connector sources to prevent excessive re-renders
-  const processedConnectorSources = React.useMemo(() => {
-    if (messages.length === 0) return connectorSources;
-    
-    // Only process when we have a complete message (not streaming)
-    if (status !== 'ready') return connectorSources;
-    
-    // Find the latest assistant message
-    const assistantMessages = messages.filter(msg => msg.role === 'assistant');
-    if (assistantMessages.length === 0) return connectorSources;
-    
-    const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
-    if (!latestAssistantMessage?.annotations) return connectorSources;
-    
-    // Find the latest SOURCES annotation
-    const annotations = latestAssistantMessage.annotations as any[];
-    const sourcesAnnotations = annotations.filter(a => a.type === 'SOURCES');
-    
-    if (sourcesAnnotations.length === 0) return connectorSources;
-    
-    const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
-    if (!latestSourcesAnnotation.content) return connectorSources;
-    
-    // Use this content if it differs from current
-    return latestSourcesAnnotation.content;
-  }, [messages, status, connectorSources]);
-  
-  // Update connector sources when processed value changes
-  useEffect(() => {
-    if (processedConnectorSources !== connectorSources) {
-      setConnectorSources(processedConnectorSources);
-    }
-  }, [processedConnectorSources, connectorSources]);
-  
   // Check and scroll terminal when terminal info is available
   useEffect(() => {
-    if (messages.length === 0 || status !== 'ready') return;
+    // Modified to trigger during streaming as well (removed status check)
+    if (messages.length === 0) return;
     
     // Find the latest assistant message
     const assistantMessages = messages.filter(msg => msg.role === 'assistant');
@@ -526,10 +491,27 @@ const ChatPage = () => {
     const terminalInfoAnnotations = annotations.filter(a => a.type === 'TERMINAL_INFO');
     
     if (terminalInfoAnnotations.length > 0) {
-      // Schedule scrolling after the DOM has been updated
-      setTimeout(scrollTerminalToBottom, 100);
+      // Always scroll to bottom when terminal info is updated, even during streaming
+      scrollTerminalToBottom();
     }
-  }, [messages, status]);
+  }, [messages]); // Removed status from dependencies to ensure it triggers during streaming
+
+  // Pure function to get connector sources for a specific message
+  const getMessageConnectorSources = (message: any): any[] => {
+    if (!message || message.role !== 'assistant' || !message.annotations) return [];
+
+    // Find all SOURCES annotations
+    const annotations = message.annotations as any[];
+    const sourcesAnnotations = annotations.filter(a => a.type === 'SOURCES');
+
+    // Get the latest SOURCES annotation
+    if (sourcesAnnotations.length === 0) return [];
+    const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
+    
+    if (!latestSourcesAnnotation.content) return [];
+    
+    return latestSourcesAnnotation.content;
+  };
 
   // Custom handleSubmit function to include selected connectors and answer type
   const handleSubmit = (e: React.FormEvent) => {
@@ -561,17 +543,12 @@ const ChatPage = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Set activeTab when connectorSources change using a memoized value
-  const activeTabValue = React.useMemo(() => {
-    return connectorSources.length > 0 ? connectorSources[0].type : "";
-  }, [connectorSources]);
-  
-  // Update activeTab when the memoized value changes
+  // Reset sources page when new messages arrive
   useEffect(() => {
-    if (activeTabValue && activeTabValue !== activeTab) {
-      setActiveTab(activeTabValue);
-    }
-  }, [activeTabValue, activeTab]);
+    // Reset pagination when we get new messages
+    setSourcesPage(1);
+    setExpandedSources(false);
+  }, [messages]);
 
   // Scroll terminal to bottom when expanded
   useEffect(() => {
@@ -582,7 +559,7 @@ const ChatPage = () => {
 
   // Get total sources count for a connector type
   const getSourcesCount = (connectorType: string) => {
-    return getSourcesCountUtil(connectorSources, connectorType);
+    return getSourcesCountUtil(getMessageConnectorSources(messages[messages.length - 1]), connectorType);
   };
 
   // Function to check scroll position and update indicators
@@ -638,23 +615,14 @@ const ChatPage = () => {
       if (assistantMessages.length === 0) return null;
 
       const latestAssistantMessage = assistantMessages[assistantMessages.length - 1];
-      if (!latestAssistantMessage?.annotations) return null;
-
-      // Find all SOURCES annotations
-      const annotations = latestAssistantMessage.annotations as any[];
-      const sourcesAnnotations = annotations.filter(
-        (annotation) => annotation.type === 'SOURCES'
-      );
-
-      // Get the latest SOURCES annotation
-      if (sourcesAnnotations.length === 0) return null;
-      const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
-
-      if (!latestSourcesAnnotation.content) return null;
+      
+      // Use our helper function to get sources
+      const sources = getMessageConnectorSources(latestAssistantMessage);
+      if (sources.length === 0) return null;
 
       // Flatten all sources from all connectors
       const allSources: Source[] = [];
-      latestSourcesAnnotation.content.forEach((connector: ConnectorSource) => {
+      sources.forEach((connector: ConnectorSource) => {
         if (connector.sources && Array.isArray(connector.sources)) {
           connector.sources.forEach((source: SourceItem) => {
             allSources.push({
@@ -675,23 +643,14 @@ const ChatPage = () => {
     } else {
       // Use the specific message by index
       const message = messages[messageIndex];
-      if (!message || message.role !== 'assistant' || !message.annotations) return null;
-
-      // Find all SOURCES annotations
-      const annotations = message.annotations as any[];
-      const sourcesAnnotations = annotations.filter(
-        (annotation) => annotation.type === 'SOURCES'
-      );
-
-      // Get the latest SOURCES annotation
-      if (sourcesAnnotations.length === 0) return null;
-      const latestSourcesAnnotation = sourcesAnnotations[sourcesAnnotations.length - 1];
-
-      if (!latestSourcesAnnotation.content) return null;
+      
+      // Use our helper function to get sources
+      const sources = getMessageConnectorSources(message);
+      if (sources.length === 0) return null;
 
       // Flatten all sources from all connectors
       const allSources: Source[] = [];
-      latestSourcesAnnotation.content.forEach((connector: ConnectorSource) => {
+      sources.forEach((connector: ConnectorSource) => {
         if (connector.sources && Array.isArray(connector.sources)) {
           connector.sources.forEach((source: SourceItem) => {
             allSources.push({
@@ -711,6 +670,34 @@ const ChatPage = () => {
       return foundSource || null;
     }
   }, [messages]);
+
+  // Pure function for rendering terminal content - no hooks allowed here
+  const renderTerminalContent = (message: any) => {
+    if (!message.annotations) return null;
+
+    // Get all TERMINAL_INFO annotations
+    const terminalInfoAnnotations = (message.annotations as any[])
+      .filter(a => a.type === 'TERMINAL_INFO');
+
+    // Get the latest TERMINAL_INFO annotation
+    const latestTerminalInfo = terminalInfoAnnotations.length > 0
+      ? terminalInfoAnnotations[terminalInfoAnnotations.length - 1]
+      : null;
+
+    // Render the content of the latest TERMINAL_INFO annotation
+    return latestTerminalInfo?.content.map((item: any, idx: number) => (
+      <div key={idx} className="py-0.5 flex items-start text-gray-300">
+        <span className="text-gray-500 text-xs mr-2 w-10 flex-shrink-0">[{String(idx).padStart(2, '0')}:{String(Math.floor(idx * 2)).padStart(2, '0')}]</span>
+        <span className="mr-2 opacity-70">{'>'}</span>
+        <span className={`
+          ${item.type === 'info' ? 'text-blue-300' : ''}
+          ${item.type === 'success' ? 'text-green-300' : ''}
+          ${item.type === 'error' ? 'text-red-300' : ''}
+          ${item.type === 'warning' ? 'text-yellow-300' : ''}
+        `}>{item.text}</span>
+      </div>
+    ));
+  };
 
   return (
     <>
@@ -781,30 +768,9 @@ const ChatPage = () => {
                           <span className="mr-1">$</span>
                           <span>surfsense-researcher</span>
                         </div>
-                        {message.annotations && (() => {
-                          // Get all TERMINAL_INFO annotations
-                          const terminalInfoAnnotations = (message.annotations as any[])
-                            .filter(a => a.type === 'TERMINAL_INFO');
-
-                          // Get the latest TERMINAL_INFO annotation
-                          const latestTerminalInfo = terminalInfoAnnotations.length > 0
-                            ? terminalInfoAnnotations[terminalInfoAnnotations.length - 1]
-                            : null;
-
-                          // Render the content of the latest TERMINAL_INFO annotation
-                          return latestTerminalInfo?.content.map((item: any, idx: number) => (
-                            <div key={idx} className="py-0.5 flex items-start text-gray-300">
-                              <span className="text-gray-500 text-xs mr-2 w-10 flex-shrink-0">[{String(idx).padStart(2, '0')}:{String(Math.floor(idx * 2)).padStart(2, '0')}]</span>
-                              <span className="mr-2 opacity-70">{'>'}</span>
-                              <span className={`
-                                ${item.type === 'info' ? 'text-blue-300' : ''}
-                                ${item.type === 'success' ? 'text-green-300' : ''}
-                                ${item.type === 'error' ? 'text-red-300' : ''}
-                                ${item.type === 'warning' ? 'text-yellow-300' : ''}
-                              `}>{item.text}</span>
-                            </div>
-                          ));
-                        })()}
+                        
+                        {renderTerminalContent(message)}
+                        
                         <div className="mt-2 flex items-center">
                           <span className="text-gray-500 text-xs mr-2 w-10 flex-shrink-0">[00:13]</span>
                           <span className="text-green-400 mr-1">researcher@surfsense</span>
@@ -836,105 +802,120 @@ const ChatPage = () => {
                         <span className="font-medium">Sources</span>
                       </div>
 
-                      <Tabs
-                        defaultValue={connectorSources.length > 0 ? connectorSources[0].type : "CRAWLED_URL"}
-                        className="w-full"
-                        onValueChange={setActiveTab}
-                      >
-                        <div className="mb-4">
-                          <div className="flex items-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={scrollTabsLeft}
-                              className="flex-shrink-0 mr-2 z-10"
-                              disabled={!canScrollLeft}
-                            >
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
+                      {(() => {
+                        // Get sources for this specific message
+                        const messageConnectorSources = getMessageConnectorSources(message);
+                        
+                        if (messageConnectorSources.length === 0) {
+                          return (
+                            <div className="text-center py-8 text-gray-500 dark:text-gray-400 border border-dashed rounded-md">
+                              <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            </div>
+                          );
+                        }
+                        
+                        // Use these message-specific sources for the Tabs component
+                        return (
+                          <Tabs
+                            defaultValue={messageConnectorSources.length > 0 ? messageConnectorSources[0].type : "CRAWLED_URL"}
+                            className="w-full"
+                          >
+                            <div className="mb-4">
+                              <div className="flex items-center">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={scrollTabsLeft}
+                                  className="flex-shrink-0 mr-2 z-10"
+                                  disabled={!canScrollLeft}
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                </Button>
 
-                            <div className="flex-1 overflow-hidden">
-                              <div className="flex overflow-x-auto hide-scrollbar" ref={tabsListRef} onScroll={updateScrollIndicators}>
-                                <TabsList className="flex-1 bg-transparent border-0 p-0 custom-tabs-list">
-                                  {connectorSources.map((connector) => (
-                                    <TabsTrigger
-                                      key={connector.id}
-                                      value={connector.type}
-                                      className="flex items-center gap-1 mx-1 data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-gray-800 rounded-md"
-                                    >
-                                      {getConnectorIcon(connector.type)}
-                                      <span className="hidden sm:inline ml-1">{connector.name.split(' ')[0]}</span>
-                                      <span className="bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs">
-                                        {getSourcesCount(connector.type)}
-                                      </span>
-                                    </TabsTrigger>
-                                  ))}
-                                </TabsList>
+                                <div className="flex-1 overflow-hidden">
+                                  <div className="flex overflow-x-auto hide-scrollbar" ref={tabsListRef} onScroll={updateScrollIndicators}>
+                                    <TabsList className="flex-1 bg-transparent border-0 p-0 custom-tabs-list">
+                                      {messageConnectorSources.map((connector) => (
+                                        <TabsTrigger
+                                          key={connector.id}
+                                          value={connector.type}
+                                          className="flex items-center gap-1 mx-1 data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-gray-800 rounded-md"
+                                        >
+                                          {getConnectorIcon(connector.type)}
+                                          <span className="hidden sm:inline ml-1">{connector.name.split(' ')[0]}</span>
+                                          <span className="bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-xs">
+                                            {connector.sources?.length || 0}
+                                          </span>
+                                        </TabsTrigger>
+                                      ))}
+                                    </TabsList>
+                                  </div>
+                                </div>
+
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={scrollTabsRight}
+                                  className="flex-shrink-0 ml-2 z-10"
+                                  disabled={!canScrollRight}
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
                               </div>
                             </div>
 
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={scrollTabsRight}
-                              className="flex-shrink-0 ml-2 z-10"
-                              disabled={!canScrollRight}
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
+                            {messageConnectorSources.map(connector => (
+                              <TabsContent key={connector.id} value={connector.type} className="mt-0">
+                                <div className="space-y-3">
+                                  {connector.sources?.slice(0, INITIAL_SOURCES_DISPLAY)?.map((source: any) => (
+                                    <Card key={source.id} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                                      <div className="flex items-start gap-3">
+                                        <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
+                                          {getConnectorIcon(connector.type)}
+                                        </div>
+                                        <div className="flex-1">
+                                          <h3 className="font-medium text-sm">{source.title}</h3>
+                                          <p className="text-sm text-gray-500 dark:text-gray-400">{source.description}</p>
+                                        </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6"
+                                          onClick={() => window.open(source.url, '_blank')}
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </Card>
+                                  ))}
 
-                        {connectorSources.map(connector => (
-                          <TabsContent key={connector.id} value={connector.type} className="mt-0">
-                            <div className="space-y-3">
-                              {getMainViewSources(connector)?.map((source: any) => (
-                                <Card key={source.id} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                                  <div className="flex items-start gap-3">
-                                    <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
-                                      {getConnectorIcon(connector.type)}
-                                    </div>
-                                    <div className="flex-1">
-                                      <h3 className="font-medium text-sm">{source.title}</h3>
-                                      <p className="text-sm text-gray-500 dark:text-gray-400">{source.description}</p>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={() => window.open(source.url, '_blank')}
-                                    >
-                                      <ExternalLink className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </Card>
-                              ))}
-
-                              {connector.sources.length > INITIAL_SOURCES_DISPLAY && (
-                                <Dialog open={dialogOpenId === connector.id} onOpenChange={(open) => setDialogOpenId(open ? connector.id : null)}>
-                                  <DialogTrigger asChild>
-                                    <Button variant="ghost" className="w-full text-sm text-gray-500 dark:text-gray-400">
-                                      Show {connector.sources.length - INITIAL_SOURCES_DISPLAY} More Sources
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto dark:border-gray-700">
-                                    <SourcesDialogContent
-                                      connector={connector}
-                                      sourceFilter={sourceFilter}
-                                      expandedSources={expandedSources}
-                                      sourcesPage={sourcesPage}
-                                      setSourcesPage={setSourcesPage}
-                                      setSourceFilter={setSourceFilter}
-                                      setExpandedSources={setExpandedSources}
-                                      isLoadingMore={false}
-                                    />
-                                  </DialogContent>
-                                </Dialog>
-                              )}
-                            </div>
-                          </TabsContent>
-                        ))}
-                      </Tabs>
+                                  {connector.sources?.length > INITIAL_SOURCES_DISPLAY && (
+                                    <Dialog open={dialogOpenId === connector.id} onOpenChange={(open) => setDialogOpenId(open ? connector.id : null)}>
+                                      <DialogTrigger asChild>
+                                        <Button variant="ghost" className="w-full text-sm text-gray-500 dark:text-gray-400">
+                                          Show {connector.sources.length - INITIAL_SOURCES_DISPLAY} More Sources
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto dark:border-gray-700">
+                                        <SourcesDialogContent
+                                          connector={connector}
+                                          sourceFilter={sourceFilter}
+                                          expandedSources={expandedSources}
+                                          sourcesPage={sourcesPage}
+                                          setSourcesPage={setSourcesPage}
+                                          setSourceFilter={setSourceFilter}
+                                          setExpandedSources={setExpandedSources}
+                                          isLoadingMore={false}
+                                        />
+                                      </DialogContent>
+                                    </Dialog>
+                                  )}
+                                </div>
+                              </TabsContent>
+                            ))}
+                          </Tabs>
+                        );
+                      })()}
                     </div>
 
                     {/* Answer Section */}
