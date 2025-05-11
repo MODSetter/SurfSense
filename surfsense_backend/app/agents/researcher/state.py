@@ -21,7 +21,9 @@ class State:
     # Streaming service
     streaming_service: StreamingService
     
-    # chat_history: Optional[List[Any]] = field(default=None)
+    chat_history: Optional[List[Any]] = field(default_factory=list)
+    
+    reformulated_query: Optional[str] = field(default=None)
     # Using field to explicitly mark as part of state
     answer_outline: Optional[Any] = field(default=None)
     

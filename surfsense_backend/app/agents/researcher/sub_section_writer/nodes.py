@@ -39,7 +39,9 @@ async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, An
         try:
             # Use the sub-section questions for reranking context
             # rerank_query = "\n".join(sub_section_questions)
-            rerank_query = configuration.user_query
+            # rerank_query = configuration.user_query
+            
+            rerank_query = configuration.user_query + "\n" + "\n".join(sub_section_questions)
 
             # Convert documents to format expected by reranker if needed
             reranker_input_docs = [
@@ -164,13 +166,13 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     """
     
     # Create messages for the LLM
-    messages = [
+    messages_with_chat_history = state.chat_history + [
         SystemMessage(content=get_citation_system_prompt()),
         HumanMessage(content=human_message_content)
     ]
     
     # Call the LLM and get the response
-    response = await llm.ainvoke(messages)
+    response = await llm.ainvoke(messages_with_chat_history)
     final_answer = response.content
     
     return {
