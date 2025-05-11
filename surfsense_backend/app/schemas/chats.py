@@ -27,14 +27,14 @@ class ToolInvocation(BaseModel):
     result: dict
     
     
-class ClientMessage(BaseModel):
-    role: str
-    content: str
-    experimental_attachments: Optional[List[ClientAttachment]] = None
-    toolInvocations: Optional[List[ToolInvocation]] = None
+# class ClientMessage(BaseModel):
+#     role: str
+#     content: str
+#     experimental_attachments: Optional[List[ClientAttachment]] = None
+#     toolInvocations: Optional[List[ToolInvocation]] = None
     
 class AISDKChatRequest(BaseModel):
-    messages: List[ClientMessage]
+    messages: List[Any]
     data: Optional[Dict[str, Any]] = None
 
 class ChatCreate(ChatBase):

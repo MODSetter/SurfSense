@@ -164,13 +164,13 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     """
     
     # Create messages for the LLM
-    messages = [
+    messages_with_chat_history = state.chat_history + [
         SystemMessage(content=get_citation_system_prompt()),
         HumanMessage(content=human_message_content)
     ]
     
     # Call the LLM and get the response
-    response = await llm.ainvoke(messages)
+    response = await llm.ainvoke(messages_with_chat_history)
     final_answer = response.content
     
     return {

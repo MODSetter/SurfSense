@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, List, Union
+from typing import Any, AsyncGenerator, List, Union
 from uuid import UUID
 
 from app.agents.researcher.graph import graph as researcher_graph
@@ -13,7 +13,8 @@ async def stream_connector_search_results(
     search_space_id: int, 
     session: AsyncSession, 
     research_mode: str, 
-    selected_connectors: List[str]
+    selected_connectors: List[str],
+    langchain_chat_history: List[Any]
 ) -> AsyncGenerator[str, None]:
     """
     Stream connector search results to the client
@@ -53,7 +54,8 @@ async def stream_connector_search_results(
     # Initialize state with database session and streaming service
     initial_state = State(
         db_session=session,
-        streaming_service=streaming_service
+        streaming_service=streaming_service,
+        chat_history=langchain_chat_history
     )
     
     # Run the graph directly
