@@ -356,8 +356,8 @@ async def add_youtube_video_document(
         }
         oembed_url = "https://www.youtube.com/oembed"
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(oembed_url, params=params) as response:
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.get(oembed_url, params=params) as response:
                 video_data = await response.json()
 
         # Get video transcript
