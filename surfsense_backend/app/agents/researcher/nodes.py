@@ -10,7 +10,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .configuration import Configuration
+from .configuration import Configuration, SearchMode
 from .prompts import get_answer_outline_system_prompt
 from .state import State
 from .sub_section_writer.graph import graph as sub_section_writer_graph
@@ -149,7 +149,8 @@ async def fetch_relevant_documents(
     writer: StreamWriter = None,
     state: State = None,
     top_k: int = 10,
-    connector_service: ConnectorService = None
+    connector_service: ConnectorService = None,
+    search_mode: SearchMode = SearchMode.CHUNKS
 ) -> List[Dict[str, Any]]:
     """
     Fetch relevant documents for research questions using the provided connectors.
@@ -213,7 +214,8 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
-                        top_k=top_k
+                        top_k=top_k,
+                        search_mode=search_mode
                     )
                     
                     # Add to sources and raw documents
@@ -231,7 +233,8 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
-                        top_k=top_k
+                        top_k=top_k,
+                        search_mode=search_mode
                     )
                     
                     # Add to sources and raw documents
@@ -249,7 +252,8 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
-                        top_k=top_k
+                        top_k=top_k,
+                        search_mode=search_mode
                     )
                     
                     # Add to sources and raw documents
@@ -267,7 +271,8 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
-                        top_k=top_k
+                        top_k=top_k,
+                        search_mode=search_mode
                     )
                     
                     # Add to sources and raw documents
@@ -286,7 +291,8 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
-                        top_k=top_k
+                        top_k=top_k,
+                        search_mode=search_mode
                     )
                     
                     # Add to sources and raw documents
@@ -304,7 +310,8 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
-                        top_k=top_k
+                        top_k=top_k,
+                        search_mode=search_mode
                     )
                     
                     # Add to sources and raw documents
@@ -322,7 +329,8 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
-                        top_k=top_k
+                        top_k=top_k,
+                        search_mode=search_mode
                     )
                     
                     # Add to sources and raw documents
@@ -340,7 +348,8 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
-                        top_k=top_k
+                        top_k=top_k,
+                        search_mode=search_mode
                     )
                     
                     # Add to sources and raw documents
@@ -558,7 +567,8 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
                 writer=writer,
                 state=state,
                 top_k=TOP_K,
-                connector_service=connector_service
+                connector_service=connector_service,
+                search_mode=configuration.search_mode
             )
         except Exception as e:
             error_message = f"Error fetching relevant documents: {str(e)}"

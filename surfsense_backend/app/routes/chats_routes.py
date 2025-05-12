@@ -11,6 +11,8 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from langchain.schema import HumanMessage, AIMessage
+
+
 router = APIRouter()
 
 @router.post("/chat")
@@ -28,6 +30,8 @@ async def handle_chat_data(
     search_space_id = request.data.get('search_space_id')
     research_mode: str = request.data.get('research_mode')
     selected_connectors: List[str] = request.data.get('selected_connectors')
+    
+    search_mode_str = request.data.get('search_mode', "CHUNKS")
 
     # Convert search_space_id to integer if it's a string
     if search_space_id and isinstance(search_space_id, str):
@@ -66,7 +70,8 @@ async def handle_chat_data(
         session,
         research_mode,
         selected_connectors,
-        langchain_chat_history
+        langchain_chat_history,
+        search_mode_str
     ))
     response.headers['x-vercel-ai-data-stream'] = 'v1'
     return response
