@@ -141,6 +141,11 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     
     # Construct a clear, structured query for the LLM
     human_message_content = f"""
+    Source material:
+    <documents>
+        {documents_text}
+    </documents>
+    
     Now user's query is: 
     <user_query>
         {user_query}
@@ -158,11 +163,6 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     <guiding_questions>
         {questions_text}
     </guiding_questions>
-    
-    Use the provided documents as your source material and cite them properly using the IEEE citation format [X] where X is the source_id.
-    <documents>
-        {documents_text}
-    </documents>
     """
     
     # Create messages for the LLM

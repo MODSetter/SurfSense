@@ -13,7 +13,9 @@ import {
   ArrowDown,
   CircleUser,
   Database,
-  SendHorizontal
+  SendHorizontal,
+  FileText,
+  Grid3x3
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -248,6 +250,7 @@ const ChatPage = () => {
   const tabsListRef = useRef<HTMLDivElement>(null);
   const [terminalExpanded, setTerminalExpanded] = useState(false);
   const [selectedConnectors, setSelectedConnectors] = useState<string[]>(["CRAWLED_URL"]);
+  const [searchMode, setSearchMode] = useState<'DOCUMENTS' | 'CHUNKS'>('DOCUMENTS');
   const [researchMode, setResearchMode] = useState<ResearchMode>("GENERAL");
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
@@ -362,7 +365,8 @@ const ChatPage = () => {
       data: {
         search_space_id: search_space_id,
         selected_connectors: selectedConnectors,
-        research_mode: researchMode
+        research_mode: researchMode,
+        search_mode: searchMode
       }
     },
     onError: (error) => {
@@ -557,11 +561,6 @@ const ChatPage = () => {
     }
   }, [terminalExpanded]);
 
-  // Get total sources count for a connector type
-  const getSourcesCount = (connectorType: string) => {
-    return getSourcesCountUtil(getMessageConnectorSources(messages[messages.length - 1]), connectorType);
-  };
-
   // Function to check scroll position and update indicators
   const updateScrollIndicators = () => {
     updateScrollIndicatorsUtil(tabsListRef as React.RefObject<HTMLDivElement>, setCanScrollLeft, setCanScrollRight);
@@ -586,23 +585,6 @@ const ChatPage = () => {
 
   // Use the scroll to bottom hook
   useScrollToBottom(messagesEndRef as React.RefObject<HTMLDivElement>, [messages]);
-
-  // Function to get sources for the main view
-  const getMainViewSources = (connector: any) => {
-    return getMainViewSourcesUtil(connector, INITIAL_SOURCES_DISPLAY);
-  };
-
-  // Function to get filtered sources for the dialog with null check
-  const getFilteredSourcesWithCheck = (connector: any, sourceFilter: string) => {
-    if (!connector?.sources) return [];
-    return getFilteredSourcesUtil(connector, sourceFilter);
-  };
-
-  // Function to get paginated dialog sources with null check
-  const getPaginatedDialogSourcesWithCheck = (connector: any, sourceFilter: string, expandedSources: boolean, sourcesPage: number, sourcesPerPage: number) => {
-    if (!connector?.sources) return [];
-    return getPaginatedDialogSourcesUtil(connector, sourceFilter, expandedSources, sourcesPage, sourcesPerPage);
-  };
 
   // Function to get a citation source by ID
   const getCitationSource = React.useCallback((citationId: number, messageIndex?: number): Source | null => {
@@ -995,15 +977,17 @@ const ChatPage = () => {
               <span className="sr-only">Send</span>
             </Button>
           </form>
-          <div className="flex items-center justify-between px-2 py-1 mt-8">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between px-2 py-2 mt-3">
+            <div className="flex items-center space-x-3">
               {/* Connector Selection Dialog */}
               <Dialog>
                 <DialogTrigger asChild>
-                  <ConnectorButton
-                    selectedConnectors={selectedConnectors}
-                    onClick={() => { }}
-                  />
+                  <div className="h-8">
+                    <ConnectorButton
+                      selectedConnectors={selectedConnectors}
+                      onClick={() => { }}
+                    />
+                  </div>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
@@ -1070,12 +1054,40 @@ const ChatPage = () => {
                 </DialogContent>
               </Dialog>
 
+              {/* Search Mode Control */}
+              <div className="flex items-center p-0.5 rounded-md border border-border bg-muted/20 h-8">
+                <button
+                  onClick={() => setSearchMode('DOCUMENTS')}
+                  className={`flex h-full items-center justify-center gap-1 px-2 rounded text-xs font-medium transition-colors flex-1 whitespace-nowrap overflow-hidden ${
+                    searchMode === 'DOCUMENTS'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <FileText className="h-3 w-3 flex-shrink-0 mr-1" />
+                  <span>Full Document</span>
+                </button>
+                <button
+                  onClick={() => setSearchMode('CHUNKS')}
+                  className={`flex h-full items-center justify-center gap-1 px-2 rounded text-xs font-medium transition-colors flex-1 whitespace-nowrap overflow-hidden ${
+                    searchMode === 'CHUNKS'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <Grid3x3 className="h-3 w-3 flex-shrink-0 mr-1" />
+                  <span>Document Chunks</span>
+                </button>
+              </div>
+
               {/* Research Mode Segmented Control */}
-              <SegmentedControl<ResearchMode>
-                value={researchMode}
-                onChange={setResearchMode}
-                options={researcherOptions}
-              />
+              <div className="h-8">
+                <SegmentedControl<ResearchMode>
+                  value={researchMode}
+                  onChange={setResearchMode}
+                  options={researcherOptions}
+                />
+              </div>
             </div>
           </div>
         </div>

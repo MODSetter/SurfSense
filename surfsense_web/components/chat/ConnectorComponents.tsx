@@ -147,7 +147,7 @@ export const ConnectorButton = ({ selectedConnectors, onClick, connectorSources 
   return (
     <Button
       variant="outline"
-      className="h-7 px-2 text-xs font-medium rounded-md border-border relative overflow-hidden group scale-90 origin-left"
+      className="h-8 px-2 text-xs font-medium rounded-md border-border relative overflow-hidden group"
       onClick={onClick}
       aria-label={selectedCount === 0 ? "Select Connectors" : `${selectedCount} connectors selected`}
     >
