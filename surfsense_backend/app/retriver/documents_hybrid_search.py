@@ -113,8 +113,6 @@ class DocumentHybridSearchRetriever:
             search_space_id: Optional search space ID to filter results
             document_type: Optional document type to filter results (e.g., "FILE", "CRAWLED_URL")
             
-        Returns:
-            List of dictionaries containing document data and relevance scores
         """
         from sqlalchemy import select, func, text
         from sqlalchemy.orm import joinedload
@@ -224,10 +222,22 @@ class DocumentHybridSearchRetriever:
         # Convert to serializable dictionaries
         serialized_results = []
         for document, score in documents_with_scores:
+            # Fetch associated chunks for this document
+            from sqlalchemy import select
+            from app.db import Chunk
+            
+            chunks_query = select(Chunk).where(Chunk.document_id == document.id).order_by(Chunk.id)
+            chunks_result = await self.db_session.execute(chunks_query)
+            chunks = chunks_result.scalars().all()
+            
+            # Concatenate chunks content
+            concatenated_chunks_content = " ".join([chunk.content for chunk in chunks]) if chunks else document.content
+            
             serialized_results.append({
                 "document_id": document.id,
                 "title": document.title,
                 "content": document.content,
+                "chunks_content": concatenated_chunks_content,
                 "document_type": document.document_type.value if hasattr(document, 'document_type') else None,
                 "metadata": document.document_metadata,
                 "score": float(score),  # Ensure score is a Python float
