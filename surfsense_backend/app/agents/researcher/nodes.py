@@ -16,6 +16,8 @@ from .state import State
 from .sub_section_writer.graph import graph as sub_section_writer_graph
 from .sub_section_writer.configuration import SubSectionType
 
+from app.utils.query_service import QueryService
+
 
 from langgraph.types import StreamWriter
 
@@ -47,6 +49,7 @@ async def write_answer_outline(state: State, config: RunnableConfig, writer: Str
     writer({"yeild_value": streaming_service._format_annotations()})
     # Get configuration from runnable config
     configuration = Configuration.from_runnable_config(config)
+    reformulated_query = state.reformulated_query
     user_query = configuration.user_query
     num_sections = configuration.num_sections
     
@@ -60,7 +63,7 @@ async def write_answer_outline(state: State, config: RunnableConfig, writer: Str
     human_message_content = f"""
     Now Please create an answer outline for the following query:
     
-    User Query: {user_query}
+    User Query: {reformulated_query}
     Number of Sections: {num_sections}
     
     Remember to format your response as valid JSON exactly matching this structure:
@@ -719,8 +722,11 @@ async def process_section_with_documents(
                 }
             }
             
-            # Create the initial state with db_session
-            sub_state = {"db_session": db_session}
+            # Create the initial state with db_session and chat_history
+            sub_state = {
+                "db_session": db_session,
+                "chat_history": state.chat_history
+            }
             
             # Invoke the sub-section writer graph
             print(f"Invoking sub_section_writer for: {section_title}")
@@ -748,4 +754,24 @@ async def process_section_with_documents(
             writer({"yeild_value": state.streaming_service._format_annotations()})
             
         return f"Error processing section: {section_title}. Details: {str(e)}"
+
+
+
+async def reformulate_user_query(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
+    """
+    Reforms the user query based on the chat history.
+    """
+    
+    configuration = Configuration.from_runnable_config(config)
+    user_query = configuration.user_query
+    chat_history_str = await QueryService.langchain_chat_history_to_str(state.chat_history)
+    if len(state.chat_history) == 0: 
+        reformulated_query = user_query
+    else:
+        reformulated_query = await QueryService.reformulate_query_with_chat_history(user_query, chat_history_str)
+    
+    return {
+        "reformulated_query": reformulated_query
+    }
+
 
