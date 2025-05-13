@@ -15,35 +15,83 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-	title: "SurfSense - A Personal NotebookLM and Perplexity-like AI Assistant for Everyone.",
-	description:
-		"Have your own private NotebookLM and Perplexity with better integrations.",
-	openGraph: {
-		images: [
-			{
-				url: "https://surfsense.net/og-image.png",
-				width: 1200,
-				height: 630,
-				alt: "SurfSense - A Personal NotebookLM and Perplexity-like AI Assistant for Everyone.",
-			},
-		],
-	},
-	twitter: {
-		card: "summary_large_image",
-		site: "https://surfsense.net",
-		creator: "https://surfsense.net",
-		title: "SurfSense - A Personal NotebookLM and Perplexity-like AI Assistant for Everyone.",
-		description:
-			"Have your own private NotebookLM and Perplexity with better integrations.",
-		images: [
-			{
-				url: "https://surfsense.net/og-image.png",
-				width: 1200,
-				height: 630,
-				alt: "SurfSense - A Personal NotebookLM and Perplexity-like AI Assistant for Everyone.",
-			},
-		],
-	},
+  title: "SurfSense – Customizable AI Research & Knowledge Management Assistant",
+  description:
+    "SurfSense is an AI-powered research assistant that integrates with tools like Notion, GitHub, Slack, and more to help you efficiently manage, search, and chat with your documents. Generate podcasts, perform hybrid search, and unlock insights from your knowledge base.",
+  keywords: [
+    "SurfSense",
+    "AI research assistant",
+    "AI knowledge management",
+    "AI document assistant",
+    "customizable AI assistant",
+    "notion integration",
+    "slack integration",
+    "github integration",
+    "hybrid search",
+    "vector search",
+    "RAG",
+    "LangChain",
+    "FastAPI",
+    "LLM apps",
+    "AI document chat",
+    "knowledge management AI",
+    "AI-powered document search",
+    "personal AI assistant",
+    "AI research tools",
+    "AI podcast generator",
+    "AI knowledge base",
+    "AI document assistant tools",
+    "AI-powered search assistant",
+  ],
+  openGraph: {
+    title: "SurfSense – AI Research & Knowledge Management Assistant",
+    description:
+      "Connect your documents and tools like Notion, Slack, GitHub, and more to your private AI assistant. SurfSense offers powerful search, document chat, podcast generation, and RAG APIs to enhance your workflow.",
+    url: "https://surfsense.net",
+    siteName: "SurfSense",
+    type: "website",
+    images: [
+      {
+        url: "https://surfsense.net/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "SurfSense AI Research Assistant",
+      },
+    ],
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SurfSense – AI Assistant for Research & Knowledge Management",
+    description:
+      "Have your own NotebookLM or Perplexity, but better. SurfSense connects external tools, allows chat with your documents, and generates fast, high-quality podcasts.",
+    creator: "@surfsenseapp", // Replace with actual handle
+    images: [
+      {
+        url: "https://surfsense.net/og-image-twitter.png", // Consider a different image for Twitter
+        width: 1200,
+        height: 630,
+        alt: "SurfSense AI Assistant Preview",
+      },
+    ],
+  },
+  // Adding structured data (JSON-LD) for rich search results
+  structuredData: {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "SurfSense",
+    description: "AI-powered research assistant that integrates with tools like Notion, GitHub, and Slack. Offers powerful search and knowledge management capabilities.",
+    url: "https://surfsense.net",
+    sameAs: [
+      "https://twitter.com/surfsenseapp", // Replace with actual social links
+      "https://www.linkedin.com/company/surfsense", // Replace with actual social links
+    ],
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://surfsense.net/search?q={search_term_string}",
+      query: "{search_term_string}",
+    },
+  },
 };
 
 export default async function RootLayout({
