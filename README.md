@@ -237,3 +237,11 @@ Fine-tuning the Backend is always desired.
  </picture>
 </a>
 
+---
+
+## 📘 Documentation (Coming Soon)
+
+We're working on docs via:
+
+- [Mintlify](https://mintlify.com/)
+- [Fumadocs](https://fumadocs.com/)
