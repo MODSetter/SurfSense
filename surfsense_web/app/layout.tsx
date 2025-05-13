@@ -65,33 +65,17 @@ export const metadata: Metadata = {
     title: "SurfSense – AI Assistant for Research & Knowledge Management",
     description:
       "Have your own NotebookLM or Perplexity, but better. SurfSense connects external tools, allows chat with your documents, and generates fast, high-quality podcasts.",
-    creator: "@surfsenseapp", // Replace with actual handle
+    creator: "https://surfsense.net",
+    site: "https://surfsense.net",
     images: [
       {
-        url: "https://surfsense.net/og-image-twitter.png", // Consider a different image for Twitter
+        url: "https://surfsense.net/og-image-twitter.png",
         width: 1200,
         height: 630,
         alt: "SurfSense AI Assistant Preview",
       },
     ],
-  },
-  // Adding structured data (JSON-LD) for rich search results
-  structuredData: {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "SurfSense",
-    description: "AI-powered research assistant that integrates with tools like Notion, GitHub, and Slack. Offers powerful search and knowledge management capabilities.",
-    url: "https://surfsense.net",
-    sameAs: [
-      "https://twitter.com/surfsenseapp", // Replace with actual social links
-      "https://www.linkedin.com/company/surfsense", // Replace with actual social links
-    ],
-    potentialAction: {
-      "@type": "SearchAction",
-      target: "https://surfsense.net/search?q={search_term_string}",
-      query: "{search_term_string}",
-    },
-  },
+  }
 };
 
 export default async function RootLayout({
