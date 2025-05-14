@@ -240,6 +240,76 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 ### **Extension** 
  Manifest v3 on Plasmo
 
+## Makefile Usage
+
+SurfSense includes a comprehensive Makefile to simplify common development tasks. The Makefile provides commands for building, running, testing, and deploying the various components of the SurfSense platform.
+
+### Getting Started
+
+Initialize the project with the following command:
+
+```bash
+make init
+```
+
+This will set up virtual environments, install dependencies, and prepare configuration files.
+
+### Common Commands
+
+- **Start Development Environment**: `make dev`
+- **Run Backend**: `make backend`
+- **Run Web App**: `make web`
+- **Run Browser Extension**: `make extension`
+
+### Component-Specific Commands
+
+#### Backend
+
+- `make backend-install` - Install backend dependencies
+- `make backend-run` - Run backend with auto-reload
+- `make backend-test` - Run backend tests
+- `make backend-migrate` - Run database migrations
+- `make backend-migration` - Create a new database migration
+
+#### Web
+
+- `make web-install` - Install web dependencies
+- `make web-build` - Build web app for production
+- `make web-lint` - Run web linters
+
+#### Browser Extension
+
+- `make extension-install` - Install extension dependencies
+- `make extension-build` - Build extension
+- `make extension-package` - Package extension for distribution
+
+### Database Management
+
+- `make db-shell` - Connect to database
+- `make db-backup` - Backup the database
+- `make db-restore BACKUP_FILE=path/to/backup.sql` - Restore database from backup
+- `make db-list-backups` - List available backups
+
+### Docker & Deployment
+
+- `make docker-build` - Build all Docker images
+- `make start-prod` - Start all components in production mode
+- `make deploy` - Full deployment workflow
+
+### Utility Commands
+
+- `make clean` - Clean build artifacts
+- `make format` - Format code in all components
+- `make status` - Show status of all services
+- `make logs` - Show logs for all services
+- `make health` - Check health of all services
+
+For a complete list of available commands, run:
+
+```bash
+make help
+```
+
 ## Future Work
 - Add More Connectors.
 - Patch minor bugs.
