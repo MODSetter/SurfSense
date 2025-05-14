@@ -1,47 +1,29 @@
 # SurfSense CI/CD Workflows
 
-This directory contains GitHub Actions workflows for automating the building, testing, and deployment of SurfSense components.
+This directory contains GitHub Actions workflows for automating the building and testing of SurfSense components.
 
 ## Workflows Overview
 
 ### Component-specific Workflows
 
-- **`backend-ci.yml`**: Handles backend testing, building, and deployment
-- **`web-ci.yml`**: Handles web frontend testing, building, and deployment
-- **`extension-ci.yml`**: Handles browser extension building and publishing to extension stores
+- **`backend-ci.yml`**: Handles backend testing and linting
+- **`web-ci.yml`**: Handles web frontend linting and building
+- **`extension-ci.yml`**: Handles browser extension building and packaging
+- **`dependency-updates.yml`**: Automated dependency updates for all components, running weekly
 
 ### Integration Workflows
 
-- **`integration-ci.yml`**: Comprehensive workflow that runs end-to-end tests, security scans, builds all Docker images and deploys to the target environment
-- **`dependency-updates.yml`**: Automated dependency updates for all components, running weekly and creating PRs with updates
+- **`integration-ci.yml`**: Runs end-to-end tests and security scans for the codebase
 
-## Secrets Required
+## Workflow Functionality
 
-To successfully run these workflows, you need to configure the following repository secrets:
+These workflows have been simplified to focus on core development tasks:
 
-### Docker Hub
-- `DOCKER_HUB_USERNAME`: Docker Hub username
-- `DOCKER_HUB_TOKEN`: Docker Hub access token
-
-### Deployment
-- `DEPLOY_HOST`: Hostname/IP of the deployment server
-- `DEPLOY_USER`: SSH username for deployment
-- `DEPLOY_SSH_KEY`: SSH private key for deployment
-
-### Browser Extension Publishing
-- `CHROME_EXTENSION_KEYS`: Keys for Chrome Web Store
-- `FIREFOX_EXTENSION_KEYS`: Keys for Firefox Add-ons
-- `EDGE_EXTENSION_KEYS`: Keys for Microsoft Edge Add-ons
-
-### Notifications
-- `SLACK_WEBHOOK_URL`: Webhook URL for Slack notifications
-
-## Workflow Environments
-
-The workflows use GitHub Environments to control deployment targets:
-
-- **Production**: Used for main/master branch deployments
-- **Staging**: Used for manual deployments via workflow dispatch
+- Code quality (linting)
+- Test execution
+- Extension and web app building
+- Security scanning
+- Dependency updates
 
 ## Triggering Workflows
 
@@ -54,7 +36,6 @@ The workflows use GitHub Environments to control deployment targets:
 All workflows can be manually triggered via the "workflow_dispatch" event in GitHub Actions UI.
 
 The Integration workflow includes additional options when triggered manually:
-- Select deployment environment (staging/production)
 - Choose whether to run full test suite
 
 ## Extending Workflows
