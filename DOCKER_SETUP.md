@@ -40,15 +40,15 @@ PGADMIN_DEFAULT_PASSWORD=surfsense
 
 SurfSense uses a flexible Docker Compose setup that allows you to choose between different deployment modes:
 
-### Option 1: Full Stack Deployment (Development Mode)
+### Option 1: Full-Stack Deployment (Development Mode)
 Includes frontend, backend, database, and pgAdmin. This is the default when running `docker compose up`.
 
 ### Option 2: Core Services Only (Production Mode)
 Includes only database and pgAdmin, suitable for production environments where you might deploy frontend/backend separately.
 
 Our setup uses two files:
-- `docker compose.yml`: Contains core services (database and pgAdmin)
-- `docker compose.override.yml`: Contains application services (frontend and backend)
+- `docker-compose.yml`: Contains core services (database and pgAdmin)
+- `docker-compose.override.yml`: Contains application services (frontend and backend)
 
 ## Setup
 
@@ -68,7 +68,7 @@ Our setup uses two files:
    **Core Services Only (Production Mode)**:
    ```bash
    # Explicitly use only the main file
-   docker compose -f docker compose.yml up --build
+   docker compose -f docker-compose.yml up --build
    ```
 
 3. To run in detached mode (in the background):
@@ -77,7 +77,7 @@ Our setup uses two files:
    docker compose up -d
    
    # Core services only
-   docker compose -f docker compose.yml up -d
+   docker compose -f docker-compose.yml up -d
    ```
 
 4. Access the applications:
@@ -92,12 +92,12 @@ If you need to make temporary changes to either full stack or core services depl
 
 1. **Temporarily disable override file**:
    ```bash
-   docker compose -f docker compose.yml up -d
+   docker compose -f docker-compose.yml up -d
    ```
 
 2. **Use a custom override file**:
    ```bash
-   docker compose -f docker compose.yml -f custom-override.yml up -d
+   docker compose -f docker-compose.yml -f custom-override.yml up -d
    ```
 
 3. **Temporarily modify which services start**:
@@ -173,9 +173,9 @@ pgAdmin is a web-based administration tool for PostgreSQL. It is included in the
 ## Troubleshooting
 
 - If you encounter permission errors, you may need to run the docker commands with `sudo`.
-- If ports are already in use, modify the port mappings in the `.env` file or directly in the `docker compose.yml` file.
+- If ports are already in use, modify the port mappings in the `.env` file or directly in the `docker-compose.yml` file.
 - For backend dependency issues, you may need to modify the `Dockerfile` in the backend directory.
-- For frontend dependency issues, you may need to modify the `Dockerfile` in the frontend directory.
+- If you encounter frontend dependency errors, adjust the frontend's `Dockerfile` accordingly.
 - If pgAdmin doesn't connect to the database, ensure you're using `db` as the hostname, not `localhost`, as that's the Docker network name. 
 - If you need only specific services, you can explicitly name them: `docker compose up db pgadmin`
 
@@ -183,10 +183,10 @@ pgAdmin is a web-based administration tool for PostgreSQL. It is included in the
 
 The project uses Docker's default override mechanism:
 
-1. **docker compose.yml**: Contains essential services (database and pgAdmin)
-2. **docker compose.override.yml**: Contains development services (frontend and backend)
+1. **docker-compose.yml**: Contains essential services (database and pgAdmin)
+2. **docker-compose.override.yml**: Contains development services (frontend and backend)
 
 When you run `docker compose up` without additional flags, Docker automatically merges both files.
-When you run `docker compose -f docker compose.yml up`, only the specified file is used.
+When you run `docker compose -f docker-compose.yml up`, only the specified file is used.
 
 This approach lets you maintain a cleaner codebase without manually commenting/uncommenting services in your configuration files. 

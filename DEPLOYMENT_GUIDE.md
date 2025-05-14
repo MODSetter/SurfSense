@@ -22,7 +22,7 @@ This mode runs everything: frontend, backend, database, and pgAdmin. It's ideal 
 
 ```bash
 # Both files are automatically used (docker-compose.yml + docker-compose.override.yml)
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Core Services Mode (Production)
@@ -31,7 +31,7 @@ This mode runs only the database and pgAdmin services. It's suitable for product
 
 ```bash
 # Explicitly use only the main file
-docker-compose -f docker-compose.yml up -d
+docker compose -f docker-compose.yml up -d
 ```
 
 ## Custom Deployment Options
@@ -42,13 +42,13 @@ You can specify which services to start by naming them:
 
 ```bash
 # Start only database
-docker-compose up -d db
+docker compose up -d db
 
 # Start database and pgAdmin
-docker-compose up -d db pgadmin
+docker compose up -d db pgadmin
 
 # Start only backend (requires db to be running)
-docker-compose up -d backend
+docker compose up -d backend
 ```
 
 ### Using Custom Override Files
@@ -57,7 +57,7 @@ You can create and use custom override files for different environments:
 
 ```bash
 # Create a staging configuration
-docker-compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
 ```
 
 ## Environment Variables
@@ -66,11 +66,11 @@ The deployment can be customized using environment variables:
 
 ```bash
 # Change default ports
-FRONTEND_PORT=4000 BACKEND_PORT=9000 docker-compose up -d
+FRONTEND_PORT=4000 BACKEND_PORT=9000 docker compose up -d
 
 # Or use a .env file
 # Create or modify .env file with your desired values
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Common Deployment Workflows
@@ -90,17 +90,17 @@ cp surfsense_web/.env.example surfsense_web/.env
 # Edit the .env files with your configuration
 
 # Start full stack for development
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Database-Only Mode (for migrations or maintenance)
 
 ```bash
 # Start just the database
-docker-compose -f docker-compose.yml up -d db
+docker compose -f docker-compose.yml up -d db
 
 # Run migrations or maintenance tasks
-docker-compose exec db psql -U postgres -d surfsense
+docker compose exec db psql -U postgres -d surfsense
 ```
 
 ### Scaling in Production
@@ -116,7 +116,7 @@ This separation allows for better scaling and resource utilization in production
 
 If you encounter issues with the deployment:
 
-- Check container logs: `docker-compose logs -f [service_name]`
+- Check container logs: `docker compose logs -f [service_name]`
 - Ensure all required environment variables are set
 - Verify network connectivity between containers
 - Check that required ports are available and not blocked by firewalls
