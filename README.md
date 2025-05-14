@@ -88,7 +88,10 @@ SurfSense provides two installation methods:
 1. **[Docker Installation](https://www.surfsense.net/docs/docker-installation)** - The easiest way to get SurfSense up and running with all dependencies containerized.
    - Includes pgAdmin for database management through a web UI
    - Supports environment variable customization via `.env` file
+   - Flexible deployment options (full stack or core services only)
+   - No need to manually edit configuration files between environments
    - See [Docker Setup Guide](DOCKER_SETUP.md) for detailed instructions
+   - For deployment scenarios and options, see [Deployment Guide](DEPLOYMENT_GUIDE.md)
 
 2. **[Manual Installation (Recommended)](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
 

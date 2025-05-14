@@ -130,7 +130,7 @@ For other LLM providers, refer to the [LiteLLM documentation](https://docs.litel
    **Linux/macOS/Windows:**
 
    ```bash
-   docker-compose up --build
+   docker compose up --build
    ```
 
    To run in detached mode (in the background):
@@ -138,10 +138,10 @@ For other LLM providers, refer to the [LiteLLM documentation](https://docs.litel
    **Linux/macOS/Windows:**
 
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
-   **Note for Windows users:** If you're using older Docker Desktop versions, you might need to use `docker compose` (with a space) instead of `docker-compose`.
+   **Note for Windows users:** If you're using older Docker Desktop versions, you might need to use `docker compose` (with a space) instead of `docker compose`.
 
 3. **Access the Applications**
 
@@ -177,7 +177,7 @@ pgAdmin is included in the Docker setup to help manage your PostgreSQL database.
   **Linux/macOS/Windows:**
 
   ```bash
-  docker-compose down
+  docker compose down
   ```
 
 - **View logs:**
@@ -186,12 +186,12 @@ pgAdmin is included in the Docker setup to help manage your PostgreSQL database.
 
   ```bash
   # All services
-  docker-compose logs -f
+  docker compose logs -f
 
   # Specific service
-  docker-compose logs -f backend
-  docker-compose logs -f frontend
-  docker-compose logs -f db
+  docker compose logs -f backend
+  docker compose logs -f frontend
+  docker compose logs -f db
   ```
 
 - **Restart a specific service:**
@@ -199,7 +199,7 @@ pgAdmin is included in the Docker setup to help manage your PostgreSQL database.
   **Linux/macOS/Windows:**
 
   ```bash
-  docker-compose restart backend
+  docker compose restart backend
   ```
 
 - **Execute commands in a running container:**
@@ -208,17 +208,17 @@ pgAdmin is included in the Docker setup to help manage your PostgreSQL database.
 
   ```bash
   # Backend
-  docker-compose exec backend python -m pytest
+  docker compose exec backend python -m pytest
 
   # Frontend
-  docker-compose exec frontend pnpm lint
+  docker compose exec frontend pnpm lint
   ```
 
 ## Troubleshooting
 
 - **Linux/macOS:** If you encounter permission errors, you may need to run the docker commands with `sudo`.
 - **Windows:** If you see access denied errors, make sure you're running Command Prompt or PowerShell as Administrator.
-- If ports are already in use, modify the port mappings in the `docker-compose.yml` file.
+- If ports are already in use, modify the port mappings in the `docker compose.yml` file.
 - For backend dependency issues, check the `Dockerfile` in the backend directory.
 - For frontend dependency issues, check the `Dockerfile` in the frontend directory.
 - **Windows-specific:** If you encounter line ending issues (CRLF vs LF), configure Git to handle line endings properly with `git config --global core.autocrlf true` before cloning the repository.
