@@ -195,7 +195,27 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
  - Uses `AutoEmbeddings` for flexible embedding model selection
  -  `LateChunker` for optimized document chunking based on embedding model's max sequence length
 
+### **CI/CD & DevOps**
 
+- **GitHub Actions**: Automated workflows for testing, building, and deploying
+   - Component-specific workflows for backend, web, and browser extension
+   - Integration workflow for end-to-end testing and deployment
+   - Automated dependency updates
+
+- **Docker & Docker Compose**: Containerization for consistent environments
+   - Multi-stage builds for optimized images
+   - Flexible deployment configuration
+
+- **Makefile**: Unified command interface for local development and CI
+   - Consistent commands between local and CI environments
+   - Simplified development workflows
+
+- **Automated Testing**: Comprehensive test coverage across all components
+   - Unit and integration tests for backend
+   - Linting and build verification for frontend
+   - End-to-end testing for the full application
+
+For more details on the CI/CD system, see [CICD.md](CICD.md)
   
 ---
  ### **FrontEnd**

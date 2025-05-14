@@ -1,0 +1,117 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'surfsense_backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - 'surfsense_backend/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: surfsense_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip uv
+          cd surfsense_backend
+          python -m venv .venv
+          source .venv/bin/activate
+          uv pip sync
+          
+      - name: Run linters
+        run: |
+          cd surfsense_backend
+          source .venv/bin/activate
+          ruff check .
+          
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test
+        run: |
+          cd surfsense_backend
+          source .venv/bin/activate
+          pytest
+          
+  build-and-push:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep VERSION surfsense_backend/pyproject.toml | head -n 1 | awk -F'"' '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: ./surfsense_backend
+          push: true
+          tags: |
+            surfsense/backend:${{ steps.version.outputs.version }}
+            surfsense/backend:${{ steps.version.outputs.sha_short }}
+            surfsense/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Deploy to production
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /path/to/deployment
+            docker compose pull backend
+            docker compose up -d backend
+            echo "Backend deployed successfully at $(date)" 

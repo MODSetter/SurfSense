@@ -1,0 +1,121 @@
+name: Browser Extension CI/CD
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'surfsense_browser_extension/**'
+      - '.github/workflows/extension-ci.yml'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - 'surfsense_browser_extension/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Cache pnpm modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-
+            
+      - uses: pnpm/action-setup@v2
+        with:
+          version: latest
+          run_install: false
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+          cache-dependency-path: 'surfsense_browser_extension/pnpm-lock.yaml'
+          
+      - name: Install dependencies
+        run: |
+          cd surfsense_browser_extension
+          pnpm install
+          
+      - name: Build the extension
+        run: |
+          cd surfsense_browser_extension
+          pnpm build
+          
+      - name: Package the extension
+        run: |
+          cd surfsense_browser_extension
+          pnpm package
+          
+      - name: Upload Chrome extension artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: chrome-extension
+          path: surfsense_browser_extension/build/chrome-mv3-prod.zip
+          retention-days: 7
+          
+      - name: Upload Firefox extension artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: firefox-extension
+          path: surfsense_browser_extension/build/firefox-prod.zip
+          retention-days: 7
+          
+      - name: Upload Edge extension artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: edge-extension
+          path: surfsense_browser_extension/build/edge-prod.zip
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download Chrome extension artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: chrome-extension
+          path: artifacts/chrome
+          
+      - name: Download Firefox extension artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: firefox-extension
+          path: artifacts/firefox
+          
+      - name: Download Edge extension artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: edge-extension
+          path: artifacts/edge
+          
+      - name: Browser Platform Publish - Chrome
+        uses: PlasmoHQ/bpp@v3
+        with:
+          keys: ${{ secrets.CHROME_EXTENSION_KEYS }}
+          artifact: artifacts/chrome/chrome-mv3-prod.zip
+          
+      - name: Browser Platform Publish - Firefox
+        uses: PlasmoHQ/bpp@v3
+        with:
+          keys: ${{ secrets.FIREFOX_EXTENSION_KEYS }}
+          artifact: artifacts/firefox/firefox-prod.zip
+          
+      - name: Browser Platform Publish - Edge
+        uses: PlasmoHQ/bpp@v3
+        with:
+          keys: ${{ secrets.EDGE_EXTENSION_KEYS }}
+          artifact: artifacts/edge/edge-prod.zip 
