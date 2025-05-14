@@ -94,6 +94,7 @@ Before you begin, ensure you have:
 | UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing                                                                                                                                  |
 | FIRECRAWL_API_KEY          | API key for Firecrawl service for web crawling                                                                                                                                            |
 | TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `openai/tts-1`, `azure/neural`, `vertex_ai/`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers) |
+| STT_SERVICE                | Speech-to-Text API provider for Podcasts (e.g., `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                      |
 
 Include API keys for the LLM providers you're using. For example:
 
@@ -114,6 +115,8 @@ Include API keys for the LLM providers you're using. For example:
 | FAST_LLM_API_BASE | Custom API base URL for the fast LLM |
 | STRATEGIC_LLM_API_BASE | Custom API base URL for the strategic LLM |
 | LONG_CONTEXT_LLM_API_BASE | Custom API base URL for the long context LLM |
+| TTS_SERVICE_API_BASE | Custom API base URL for the Text-to-Speech (TTS) service |
+| STT_SERVICE_API_BASE | Custom API base URL for the Speech-to-Text (STT) service |
 
 For other LLM providers, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers).
 

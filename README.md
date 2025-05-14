@@ -27,28 +27,27 @@ https://github.com/user-attachments/assets/bf64a6ca-934b-47ac-9e1b-edac5fe972ec
 
 
 ## Key Features
-### 1. Latest
 
-#### 💡 **Idea**: 
+### 💡 **Idea**: 
 Have your own highly customizable private NotebookLM and Perplexity integrated with external sources.
-#### 📁 **Multiple File Format Uploading Support**
-Save content from your own personal files *(Documents, images and supports **27 file extensions**)* to your own personal knowledge base .
-#### 🔍 **Powerful Search**
+### 📁 **Multiple File Format Uploading Support**
+Save content from your own personal files *(Documents, images, videos and supports **34 file extensions**)* to your own personal knowledge base .
+### 🔍 **Powerful Search**
 Quickly research or find anything in your saved content .
-#### 💬 **Chat with your Saved Content**
+### 💬 **Chat with your Saved Content**
  Interact in Natural Language and get cited answers.
-#### 📄 **Cited Answers**
+### 📄 **Cited Answers**
 Get Cited answers just like Perplexity.
-#### 🔔 **Privacy & Local LLM Support**
+### 🔔 **Privacy & Local LLM Support**
 Works Flawlessly with Ollama local LLMs.
-#### 🏠 **Self Hostable**
+### 🏠 **Self Hostable**
 Open source and easy to deploy locally.
-#### 🎙️ Podcasts 
+### 🎙️ Podcasts 
 - Blazingly fast podcast generation agent. (Creates a 3-minute podcast in under 20 seconds.)
 - Convert your chat conversations into engaging audio content
 - Support for multiple TTS providers (OpenAI, Azure, Google Vertex AI)
 
-#### 📊 **Advanced RAG Techniques**
+### 📊 **Advanced RAG Techniques**
 - Supports 150+ LLM's
 - Supports 6000+ Embedding Models.
 - Supports all major Rerankers (Pinecode, Cohere, Flashrank etc)
@@ -56,7 +55,7 @@ Open source and easy to deploy locally.
 - Utilizes Hybrid Search (Semantic + Full Text Search combined with Reciprocal Rank Fusion).
 - RAG as a Service API Backend.
 
-#### ℹ️ **External Sources**
+### ℹ️ **External Sources**
 - Search Engines (Tavily, LinkUp)
 - Slack
 - Linear
@@ -65,7 +64,39 @@ Open source and easy to deploy locally.
 - GitHub
 - and more to come.....
 
-#### 🔖 Cross Browser Extension
+### 📄 **Supported File Extensions**
+
+#### Document
+
+`.doc`, `.docx`, `.odt`, `.rtf`, `.pdf`, `.xml`
+
+#### Text & Markup
+
+`.txt`, `.md`, `.markdown`, `.rst`, `.html`, `.org`
+
+#### Spreadsheets & Tables
+
+`.xls`, `.xlsx`, `.csv`, `.tsv`
+
+#### Audio & Video
+
+`.mp3`, `.mpga`, `.m4a`, `.wav`, `.mp4`, `.mpeg`, `.webm`
+
+#### Images
+
+`.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.heic`
+
+#### Email & eBooks
+
+`.eml`, `.msg`, `.epub`
+
+#### PowerPoint Presentations & Other
+
+`.ppt`, `.pptx`, `.p7s`
+
+
+
+### 🔖 Cross Browser Extension
 - The SurfSense extension can be used to save any webpage you like.
 - Its main usecase is to save any webpages protected beyond authentication.
 
@@ -209,16 +240,8 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 ## Future Work
 - Add More Connectors.
 - Patch minor bugs.
-- Implement Canvas. 
-- Complete Hybrid Search. **[Done]**
-- Add support for file uploads QA. **[Done]**
-- Shift to WebSockets for Streaming responses. **[Deprecated in favor of AI SDK Stream Protocol]**
-- Based on feedback, I will work on making it compatible with local models. **[Done]**
-- Cross Browser Extension **[Done]**
-- Critical Notifications **[Done | PAUSED]**
-- Saving Chats **[Done]**
-- Basic keyword search page for saved sessions **[Done]**
-- Multi & Single Document Chat **[Done]**
+- Document Chat **[REIMPLEMENT]**
+- Document Podcasts
 
 
 

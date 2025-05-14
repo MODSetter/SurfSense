@@ -53,7 +53,7 @@ export default function FileUploader() {
         'text/html': ['.html'],
         'image/jpeg': ['.jpeg', '.jpg'],
         'image/png': ['.png'],
-        'text/markdown': ['.md'],
+        'text/markdown': ['.md', '.markdown'],
         'application/vnd.ms-outlook': ['.msg'],
         'application/vnd.oasis.opendocument.text': ['.odt'],
         'text/x-org': ['.org'],
@@ -69,6 +69,10 @@ export default function FileUploader() {
         'application/vnd.ms-excel': ['.xls'],
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
         'application/xml': ['.xml'],
+        'audio/mpeg': ['.mp3', '.mpeg', '.mpga'],
+        'audio/mp4': ['.mp4', '.m4a'],
+        'audio/wav': ['.wav'],
+        'audio/webm': ['.webm'],
     }
 
     const supportedExtensions = Array.from(new Set(Object.values(acceptedFileTypes).flat())).sort()
