@@ -6,7 +6,7 @@ from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
 from dotenv import load_dotenv
 from langchain_community.chat_models import ChatLiteLLM
 from rerankers import Reranker
-from litellm import speech
+
 
 # Get the base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -97,6 +97,12 @@ class Config:
     
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
+    TTS_SERVICE_API_BASE = os.getenv("TTS_SERVICE_API_BASE")
+    
+    # Litellm STT Configuration
+    STT_SERVICE = os.getenv("STT_SERVICE")
+    STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
+    
     
     # Validation Checks
     # Check embedding dimension

@@ -135,14 +135,23 @@ async def create_merged_podcast_audio(state: State, config: RunnableConfig) -> D
         filename = f"{temp_dir}/{session_id}_{index}.mp3"
         
         try:
-            # Generate speech using litellm
-            response = await aspeech(
-                model=app_config.TTS_SERVICE,
-                voice=voice,
-                input=dialog,
-                max_retries=2,
-                timeout=600,
-            )
+            if app_config.TTS_SERVICE_API_BASE:
+                response = await aspeech(
+                    model=app_config.TTS_SERVICE,
+                    api_base=app_config.TTS_SERVICE_API_BASE,
+                    voice=voice,
+                    input=dialog,
+                    max_retries=2,
+                    timeout=600,
+                )
+            else:
+                response = await aspeech(
+                    model=app_config.TTS_SERVICE,
+                    voice=voice,
+                    input=dialog,
+                    max_retries=2,
+                    timeout=600,
+                )
             
             # Save the audio to a file - use proper streaming method
             with open(filename, 'wb') as f:
