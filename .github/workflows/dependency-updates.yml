@@ -1,0 +1,76 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Run every Monday at midnight
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  update-backend-deps:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          
+      - name: Install tools
+        run: |
+          python -m pip install --upgrade pip uv
+          
+      - name: Update backend dependencies
+        run: |
+          cd surfsense_backend
+          python -m venv .venv
+          source .venv/bin/activate
+          uv pip compile -o requirements.txt pyproject.toml
+          
+  update-web-deps:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          
+      - name: Update web dependencies
+        run: |
+          cd surfsense_web
+          npm update
+          
+  update-extension-deps:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Cache pnpm modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-
+            
+      - uses: pnpm/action-setup@v2
+        with:
+          version: latest
+          run_install: false
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+          
+      - name: Update extension dependencies
+        run: |
+          cd surfsense_browser_extension
+          pnpm update 
