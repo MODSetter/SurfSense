@@ -1,3 +1,4 @@
+import datetime
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from app.config import config
 from typing import Any, List, Optional
@@ -31,6 +32,7 @@ class QueryService:
             # Create system message with instructions
             system_message = SystemMessage(
                 content=f"""
+                Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
                 You are a highly skilled AI assistant specializing in query optimization for advanced research.
                 Your primary objective is to transform a user's initial query into a highly effective search query.
                 This reformulated query will be used to retrieve information from diverse data sources.
