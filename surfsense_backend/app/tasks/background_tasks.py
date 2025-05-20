@@ -419,7 +419,7 @@ async def add_youtube_video_document(
                 content=chunk.text,
                 embedding=config.embedding_model_instance.embed(chunk.text),
             )
-            for chunk in config.chunker_instance.chunk(transcript_text)
+            for chunk in config.chunker_instance.chunk(combined_document_string)
         ]
 
         # Create document
