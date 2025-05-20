@@ -48,7 +48,6 @@ import {
   researcherOptions
 } from '@/components/chat';
 import { MarkdownViewer } from '@/components/markdown-viewer';
-import { connectorSourcesMenu as defaultConnectorSourcesMenu } from '@/components/chat/connector-sources';
 import { Logo } from '@/components/Logo';
 import { useSearchSourceConnectors } from '@/hooks';
 
