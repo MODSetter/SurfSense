@@ -59,6 +59,8 @@ class Config:
         fast_llm_instance = ChatLiteLLM(model=FAST_LLM, api_base=FAST_LLM_API_BASE)
     else:
         fast_llm_instance = ChatLiteLLM(model=FAST_LLM)
+        
+        
     
     # STRATEGIC LLM
     STRATEGIC_LLM = os.getenv("STRATEGIC_LLM")

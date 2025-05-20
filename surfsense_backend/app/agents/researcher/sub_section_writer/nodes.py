@@ -112,6 +112,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
         <document>
             <metadata>
                 <source_id>{document_id}</source_id>
+                <source_type>{doc_info.get("document_type", "CRAWLED_URL")}</source_type>
             </metadata>
             <content>
                 {content}
@@ -133,11 +134,11 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     # Provide more context based on the subsection type
     section_position_context = ""
     if sub_section_type == SubSectionType.START:
-        section_position_context = "This is the INTRODUCTION section. Focus on providing an overview of the topic, setting the context, and introducing key concepts that will be discussed in later sections. Do not provide any conclusions in this section, as conclusions should only appear in the final section."
+        section_position_context = "This is the INTRODUCTION section. "
     elif sub_section_type == SubSectionType.MIDDLE:
         section_position_context = "This is a MIDDLE section. Ensure this content flows naturally from previous sections and into subsequent ones. This could be any middle section in the document, so maintain coherence with the overall structure while addressing the specific topic of this section. Do not provide any conclusions in this section, as conclusions should only appear in the final section."
     elif sub_section_type == SubSectionType.END:
-        section_position_context = "This is the CONCLUSION section. Focus on summarizing key points, providing closure, and possibly suggesting implications or future directions related to the topic."
+        section_position_context = "This is the CONCLUSION section. Focus on summarizing key points, providing closure."
     
     # Construct a clear, structured query for the LLM
     human_message_content = f"""
