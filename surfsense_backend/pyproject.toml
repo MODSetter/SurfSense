@@ -1,6 +1,6 @@
 [project]
 name = "surf-new-backend"
-version = "0.0.6"
+version = "0.0.7"
 description = "SurfSense Backend"
 readme = "README.md"
 requires-python = ">=3.12"
