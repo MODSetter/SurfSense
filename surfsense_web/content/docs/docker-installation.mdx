@@ -82,8 +82,7 @@ Before you begin, ensure you have:
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | DATABASE_URL               | PostgreSQL connection string (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`)                                                                                    |
 | SECRET_KEY                 | JWT Secret key for authentication (should be a secure random string)                                                                                                                      |
-| GOOGLE_OAUTH_CLIENT_ID     | Google OAuth client ID obtained from Google Cloud Console                                                                                                                                 |
-| GOOGLE_OAUTH_CLIENT_SECRET | Google OAuth client secret obtained from Google Cloud Console                                                                                                                             |
+| AUTH_TYPE                  | Authentication method: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication                                                                                          |
 | NEXT_FRONTEND_URL          | URL where your frontend application is hosted (e.g., `http://localhost:3000`)                                                                                                             |
 | EMBEDDING_MODEL            | Name of the embedding model (e.g., `openai://text-embedding-ada-002`, `anthropic://claude-v1`, `mixedbread-ai/mxbai-embed-large-v1`)                                                      |
 | RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`)                                                                                                                              |
@@ -96,10 +95,21 @@ Before you begin, ensure you have:
 | TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `openai/tts-1`, `azure/neural`, `vertex_ai/`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers) |
 | STT_SERVICE                | Speech-to-Text API provider for Podcasts (e.g., `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                      |
 
-Include API keys for the LLM providers you're using. For example:
 
-- `OPENAI_API_KEY`: If using OpenAI models
-- `GEMINI_API_KEY`: If using Google Gemini models
+Include API keys for your chosen LLM providers:
+
+| ENV VARIABLE       | DESCRIPTION                                                                 |
+|--------------------|-----------------------------------------------------------------------------|
+| `OPENAI_API_KEY`   | Required if using OpenAI models                                             |
+| `GEMINI_API_KEY`   | Required if using Google Gemini models                                      |
+| `ANTHROPIC_API_KEY`| Required if using Anthropic models                                          |
+
+### Google OAuth Configuration (if AUTH_TYPE=GOOGLE)
+
+| ENV VARIABLE               | DESCRIPTION                                                                 |
+|----------------------------|-----------------------------------------------------------------------------|
+| `GOOGLE_OAUTH_CLIENT_ID`   | Client ID from Google Cloud Console                                         |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Client secret from Google Cloud Console                                   |
 
 **Optional Backend LangSmith Observability:**
 | ENV VARIABLE | DESCRIPTION |
@@ -125,6 +135,7 @@ For other LLM providers, refer to the [LiteLLM documentation](https://docs.litel
 | ENV VARIABLE                    | DESCRIPTION                                                |
 | ------------------------------- | ---------------------------------------------------------- |
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | URL of the backend service (e.g., `http://localhost:8000`) |
+| NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Same value as set in backend AUTH_TYPE i.e `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication  |
 
 2. **Build and Start Containers**
 

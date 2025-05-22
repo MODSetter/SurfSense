@@ -53,25 +53,37 @@ Edit the `.env` file and set the following variables:
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | DATABASE_URL               | PostgreSQL connection string (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`)                                                                                    |
 | SECRET_KEY                 | JWT Secret key for authentication (should be a secure random string)                                                                                                                      |
-| GOOGLE_OAUTH_CLIENT_ID     | Google OAuth client ID                                                                                                                                                                    |
-| GOOGLE_OAUTH_CLIENT_SECRET | Google OAuth client secret                                                                                                                                                                |
-| NEXT_FRONTEND_URL          | Frontend application URL (e.g., `http://localhost:3000`)                                                                                                                                  |
+| AUTH_TYPE                  | Authentication method: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication                                                                                          |
+| NEXT_FRONTEND_URL          | URL where your frontend application is hosted (e.g., `http://localhost:3000`)                                                                                                             |
 | EMBEDDING_MODEL            | Name of the embedding model (e.g., `openai://text-embedding-ada-002`, `anthropic://claude-v1`, `mixedbread-ai/mxbai-embed-large-v1`)                                                      |
 | RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`)                                                                                                                              |
 | RERANKERS_MODEL_TYPE       | Type of reranker model (e.g., `flashrank`)                                                                                                                                                |
-| FAST_LLM                   | LiteLLM routed faster LLM (e.g., `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`)                                                                                                           |
-| STRATEGIC_LLM              | LiteLLM routed advanced LLM (e.g., `openai/gpt-4o`, `ollama/gemma3:12b`)                                                                                                                  |
-| LONG_CONTEXT_LLM           | LiteLLM routed long-context LLM (e.g., `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`)                                                                                                |
-| UNSTRUCTURED_API_KEY       | API key for Unstructured.io service                                                                                                                                                       |
-| FIRECRAWL_API_KEY          | API key for Firecrawl service (if using crawler)                                                                                                                                          |
+| FAST_LLM                   | LiteLLM routed smaller, faster LLM (e.g., `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`)                                                                                                  |
+| STRATEGIC_LLM              | LiteLLM routed advanced LLM for complex tasks (e.g., `openai/gpt-4o`, `ollama/gemma3:12b`)                                                                                                |
+| LONG_CONTEXT_LLM           | LiteLLM routed LLM for longer context windows (e.g., `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`)                                                                                  |
+| UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing                                                                                                                                  |
+| FIRECRAWL_API_KEY          | API key for Firecrawl service for web crawling                                                                                                                                            |
 | TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `openai/tts-1`, `azure/neural`, `vertex_ai/`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers) |
 | STT_SERVICE                | Speech-to-Text API provider for Podcasts (e.g., `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                      |
 
-**Important**: Since LLM calls are routed through LiteLLM, include API keys for the LLM providers you're using:
 
-- For OpenAI models: `OPENAI_API_KEY`
-- For Google Gemini models: `GEMINI_API_KEY`
-- For other providers, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
+Include API keys for your chosen LLM providers:
+
+| ENV VARIABLE       | DESCRIPTION                                                                 |
+|--------------------|-----------------------------------------------------------------------------|
+| `OPENAI_API_KEY`   | Required if using OpenAI models                                             |
+| `GEMINI_API_KEY`   | Required if using Google Gemini models                                      |
+| `ANTHROPIC_API_KEY`| Required if using Anthropic models                                          |
+
+For other providers, refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
+
+### Google OAuth Configuration (if AUTH_TYPE=GOOGLE)
+
+| ENV VARIABLE               | DESCRIPTION                                                                 |
+|----------------------------|-----------------------------------------------------------------------------|
+| `GOOGLE_OAUTH_CLIENT_ID`   | Client ID from Google Cloud Console                                         |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Client secret from Google Cloud Console                                   |
+
 
 **Optional Backend LangSmith Observability:**
 | ENV VARIABLE | DESCRIPTION |
@@ -169,6 +181,7 @@ Edit the `.env` file and set:
 | ENV VARIABLE                    | DESCRIPTION                                 |
 | ------------------------------- | ------------------------------------------- |
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | Backend URL (e.g., `http://localhost:8000`) |
+| NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Same value as set in backend AUTH_TYPE i.e `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication  |
 
 ### 2. Install Dependencies
 
