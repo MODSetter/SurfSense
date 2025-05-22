@@ -38,11 +38,16 @@ class Config:
     
     # Database
     DATABASE_URL = os.getenv("DATABASE_URL")
-
-    # AUTH: Google OAuth
-    GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
-    GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+    
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
+    
+    
+    # AUTH: Google OAuth
+    AUTH_TYPE = os.getenv("AUTH_TYPE")
+    if AUTH_TYPE == "GOOGLE":
+        GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+        GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+        
     
     # LONG-CONTEXT LLMS
     LONG_CONTEXT_LLM = os.getenv("LONG_CONTEXT_LLM")

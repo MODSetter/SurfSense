@@ -130,7 +130,6 @@ Both installation guides include detailed OS-specific instructions for Windows, 
 
 Before installation, make sure to complete the [prerequisite setup steps](https://www.surfsense.net/docs/) including:
 - PGVector setup
-- Google OAuth configuration
 - Unstructured.io API key
 - Other required API keys
 

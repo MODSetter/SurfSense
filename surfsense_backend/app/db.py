@@ -3,11 +3,7 @@ from datetime import datetime, timezone
 from enum import Enum
 
 from fastapi import Depends
-from fastapi_users.db import (
-    SQLAlchemyBaseOAuthAccountTableUUID,
-    SQLAlchemyBaseUserTableUUID,
-    SQLAlchemyUserDatabase,
-)
+
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
@@ -29,6 +25,18 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, relationship
 from app.config import config
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
+
+if config.AUTH_TYPE == "GOOGLE":
+    from fastapi_users.db import (
+        SQLAlchemyBaseOAuthAccountTableUUID,
+        SQLAlchemyBaseUserTableUUID,
+        SQLAlchemyUserDatabase,
+    )
+else:
+    from fastapi_users.db import (
+        SQLAlchemyBaseUserTableUUID,
+        SQLAlchemyUserDatabase,
+    )
 
 DATABASE_URL = config.DATABASE_URL
 
@@ -141,17 +149,22 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete='CASCADE'), nullable=False)
     user = relationship("User", back_populates="search_source_connectors")
 
+if config.AUTH_TYPE == "GOOGLE":
+    class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
+        pass
 
-class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
-    pass
 
+    class User(SQLAlchemyBaseUserTableUUID, Base):
+        oauth_accounts: Mapped[list[OAuthAccount]] = relationship(
+            "OAuthAccount", lazy="joined"
+        )
+        search_spaces = relationship("SearchSpace", back_populates="user")
+        search_source_connectors = relationship("SearchSourceConnector", back_populates="user")
+else:
+    class User(SQLAlchemyBaseUserTableUUID, Base):
 
-class User(SQLAlchemyBaseUserTableUUID, Base):
-    oauth_accounts: Mapped[list[OAuthAccount]] = relationship(
-        "OAuthAccount", lazy="joined"
-    )
-    search_spaces = relationship("SearchSpace", back_populates="user")
-    search_source_connectors = relationship("SearchSourceConnector", back_populates="user")
+        search_spaces = relationship("SearchSpace", back_populates="user")
+        search_source_connectors = relationship("SearchSourceConnector", back_populates="user")
 
 
 engine = create_async_engine(DATABASE_URL)
@@ -180,8 +193,12 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def get_user_db(session: AsyncSession = Depends(get_async_session)):
-    yield SQLAlchemyUserDatabase(session, User, OAuthAccount)
+if config.AUTH_TYPE == "GOOGLE":
+    async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+        yield SQLAlchemyUserDatabase(session, User, OAuthAccount)
+else:
+    async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+        yield SQLAlchemyUserDatabase(session, User)
     
 async def get_chucks_hybrid_search_retriever(session: AsyncSession = Depends(get_async_session)):
     return ChucksHybridSearchRetriever(session)
