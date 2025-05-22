@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 import { LocalLoginForm } from "./LocalLoginForm";
 import { Logo } from "@/components/Logo";
@@ -8,7 +8,7 @@ import { AmbientBackground } from "./AmbientBackground";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-export default function LoginPage() {
+function LoginContent() {
   const [authType, setAuthType] = useState<string | null>(null);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,5 +63,27 @@ export default function LoginPage() {
         <LocalLoginForm />
       </div>
     </div>
+  );
+}
+
+// Loading fallback for Suspense
+const LoadingFallback = () => (
+  <div className="relative w-full overflow-hidden">
+    <AmbientBackground />
+    <div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
+      <Logo className="rounded-md" />
+      <div className="mt-8 flex items-center space-x-2">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <span className="text-muted-foreground">Loading...</span>
+      </div>
+    </div>
+  </div>
+);
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <LoginContent />
+    </Suspense>
   );
 } 
