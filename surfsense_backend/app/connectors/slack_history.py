@@ -6,6 +6,7 @@ Allows fetching channel lists and message history with date range filtering.
 """
 
 import os
+import time # Added import
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from datetime import datetime, timedelta
@@ -35,7 +36,7 @@ class SlackHistory:
     
     def get_all_channels(self, include_private: bool = True) -> Dict[str, str]:
         """
-        Fetch all channels that the bot has access to.
+        Fetch all channels that the bot has access to, with rate limit handling.
         
         Args:
             include_private: Whether to include private channels
@@ -45,7 +46,8 @@ class SlackHistory:
         
         Raises:
             ValueError: If no Slack client has been initialized
-            SlackApiError: If there's an error calling the Slack API
+            SlackApiError: If there's an unrecoverable error calling the Slack API
+            RuntimeError: For unexpected errors during channel fetching.
         """
         if not self.client:
             raise ValueError("Slack client not initialized. Call set_token() first.")
@@ -54,35 +56,58 @@ class SlackHistory:
         types = "public_channel"
         if include_private:
             types += ",private_channel"
-        
-        try:
-            # Call the conversations.list method
-            result = self.client.conversations_list(
-                types=types,
-                limit=1000  # Maximum allowed by API
-            )
-            channels = result["channels"]
-            
-            # Handle pagination for workspaces with many channels
-            while result.get("response_metadata", {}).get("next_cursor"):
-                next_cursor = result["response_metadata"]["next_cursor"]
-                
-                # Get the next batch of channels
-                result = self.client.conversations_list(
+
+        next_cursor = None
+        is_first_request = True
+
+        while is_first_request or next_cursor:
+            try:
+                if not is_first_request:  # Add delay only for paginated requests
+                    print(f"Paginating for channels, waiting 3 seconds before next call. Cursor: {next_cursor}")
+                    time.sleep(3)
+
+                current_limit = 1000  # Max limit
+                api_result = self.client.conversations_list(
                     types=types,
                     cursor=next_cursor,
-                    limit=1000
+                    limit=current_limit
                 )
-                channels.extend(result["channels"])
-            
-            # Create a dictionary mapping channel names to IDs
-            for channel in channels:
-                channels_dict[channel["name"]] = channel["id"]
-            
-            return channels_dict
+                
+                channels_on_page = api_result["channels"]
+                for channel in channels_on_page:
+                    # Ensure channel name and id exist, as per observed Slack API behavior
+                    if "name" in channel and "id" in channel:
+                         channels_dict[channel["name"]] = channel["id"]
+                    else:
+                        # Handle cases where a channel might be missing a name or ID
+                        # This could be logged or handled as per specific requirements
+                        print(f"Warning: Channel found with missing name or id. Data: {channel}")
+
+
+                next_cursor = api_result.get("response_metadata", {}).get("next_cursor")
+                is_first_request = False  # Subsequent requests are not the first
+
+                if not next_cursor:  # All pages processed
+                    break
+
+            except SlackApiError as e:
+                if e.response is not None and e.response.status_code == 429:
+                    retry_after_header = e.response.headers.get('Retry-After')
+                    wait_duration = 60  # Default wait time
+                    if retry_after_header and retry_after_header.isdigit():
+                        wait_duration = int(retry_after_header)
+                    
+                    print(f"Slack API rate limit hit. Waiting for {wait_duration} seconds. Cursor: {next_cursor}")
+                    time.sleep(wait_duration)
+                    # The loop will continue, retrying with the same cursor
+                else:
+                    # Not a 429 error, or no response object, re-raise
+                    raise SlackApiError(f"Error retrieving channels: {e}", e.response)
+            except Exception as general_error:
+                # Handle other potential errors like network issues if necessary, or re-raise
+                raise RuntimeError(f"An unexpected error occurred during channel fetching: {general_error}")
         
-        except SlackApiError as e:
-            raise SlackApiError(f"Error retrieving channels: {e}", e.response)
+        return channels_dict
     
     def get_conversation_history(
         self, 
