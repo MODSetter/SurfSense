@@ -268,7 +268,7 @@ class SlackHistory:
                 channel_id=channel_id,
                 limit=limit,
                 oldest=oldest,
-                latest=latest # Retyped to remove hidden characters
+                latest=latest
             )
             return messages, None
         except SlackApiError as e:
