@@ -124,9 +124,9 @@ async def index_slack_messages(
                 # If it's a private channel and the bot is not a member, skip.
                 # For public channels, if they are listed by conversations.list, the bot can typically read history.
                 # The `not_in_channel` error in get_conversation_history will be the ultimate gatekeeper if history is inaccessible.
-                if is_private and not is_member:
-                    logger.warning(f"Bot is not a member of private channel {channel_name} ({channel_id}). Skipping.")
-                    skipped_channels.append(f"{channel_name} (private, bot not a member)")
+                if not is_member:
+                    logger.warning(f"Bot is not a member of channel {channel_name} ({channel_id}) (public or private). Skipping.")
+                    skipped_channels.append(f"{channel_name} (bot not a member)")
                     documents_skipped += 1
                     continue
                 
