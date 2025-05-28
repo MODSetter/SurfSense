@@ -114,33 +114,25 @@ async def index_slack_messages(
         skipped_channels = []
         
         # Process each channel
-        for channel_name, channel_id in channels.items():
+        for channel_obj in channels: # Modified loop to iterate over list of channel objects
+            channel_id = channel_obj["id"]
+            channel_name = channel_obj["name"]
+            is_private = channel_obj["is_private"]
+            is_member = channel_obj["is_member"] # This might be False for public channels too
+
             try:
-                # Check if the bot is a member of the channel
-                try:
-                    # First try to get channel info to check if bot is a member
-                    channel_info = slack_client.client.conversations_info(channel=channel_id)
-                    
-                    # For private channels, the bot needs to be a member
-                    if channel_info.get("channel", {}).get("is_private", False):
-                        # Check if bot is a member
-                        is_member = channel_info.get("channel", {}).get("is_member", False)
-                        if not is_member:
-                            logger.warning(f"Bot is not a member of private channel {channel_name} ({channel_id}). Skipping.")
-                            skipped_channels.append(f"{channel_name} (private, bot not a member)")
-                            documents_skipped += 1
-                            continue
-                except SlackApiError as e:
-                    if "not_in_channel" in str(e) or "channel_not_found" in str(e):
-                        logger.warning(f"Bot cannot access channel {channel_name} ({channel_id}). Skipping.")
-                        skipped_channels.append(f"{channel_name} (access error)")
-                        documents_skipped += 1
-                        continue
-                    else:
-                        # Re-raise if it's a different error
-                        raise
+                # If it's a private channel and the bot is not a member, skip.
+                # For public channels, if they are listed by conversations.list, the bot can typically read history.
+                # The `not_in_channel` error in get_conversation_history will be the ultimate gatekeeper if history is inaccessible.
+                if is_private and not is_member:
+                    logger.warning(f"Bot is not a member of private channel {channel_name} ({channel_id}). Skipping.")
+                    skipped_channels.append(f"{channel_name} (private, bot not a member)")
+                    documents_skipped += 1
+                    continue
                 
                 # Get messages for this channel
+                # The get_history_by_date_range now uses get_conversation_history, 
+                # which handles 'not_in_channel' by returning [] and logging.
                 messages, error = slack_client.get_history_by_date_range(
                     channel_id=channel_id,
                     start_date=start_date_str,

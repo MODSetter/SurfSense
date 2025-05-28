@@ -6,10 +6,14 @@ Allows fetching channel lists and message history with date range filtering.
 """
 
 import os
+import time # Added import
+import logging # Added import
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any, Union
+
+logger = logging.getLogger(__name__) # Added logger
 
 
 class SlackHistory:
@@ -33,56 +37,88 @@ class SlackHistory:
         """
         self.client = WebClient(token=token)
     
-    def get_all_channels(self, include_private: bool = True) -> Dict[str, str]:
+    def get_all_channels(self, include_private: bool = True) -> List[Dict[str, Any]]:
         """
-        Fetch all channels that the bot has access to.
+        Fetch all channels that the bot has access to, with rate limit handling.
         
         Args:
             include_private: Whether to include private channels
         
         Returns:
-            Dictionary mapping channel names to channel IDs
+            List of dictionaries, each representing a channel with id, name, is_private, is_member.
         
         Raises:
             ValueError: If no Slack client has been initialized
-            SlackApiError: If there's an error calling the Slack API
+            SlackApiError: If there's an unrecoverable error calling the Slack API
+            RuntimeError: For unexpected errors during channel fetching.
         """
         if not self.client:
             raise ValueError("Slack client not initialized. Call set_token() first.")
         
-        channels_dict = {}
+        channels_list = [] # Changed from dict to list
         types = "public_channel"
         if include_private:
             types += ",private_channel"
-        
-        try:
-            # Call the conversations.list method
-            result = self.client.conversations_list(
-                types=types,
-                limit=1000  # Maximum allowed by API
-            )
-            channels = result["channels"]
-            
-            # Handle pagination for workspaces with many channels
-            while result.get("response_metadata", {}).get("next_cursor"):
-                next_cursor = result["response_metadata"]["next_cursor"]
-                
-                # Get the next batch of channels
-                result = self.client.conversations_list(
+
+        next_cursor = None
+        is_first_request = True
+
+        while is_first_request or next_cursor:
+            try:
+                if not is_first_request:  # Add delay only for paginated requests
+                    logger.info(f"Paginating for channels, waiting 3 seconds before next call. Cursor: {next_cursor}")
+                    time.sleep(3)
+
+                current_limit = 1000  # Max limit
+                api_result = self.client.conversations_list(
                     types=types,
                     cursor=next_cursor,
-                    limit=1000
+                    limit=current_limit
                 )
-                channels.extend(result["channels"])
-            
-            # Create a dictionary mapping channel names to IDs
-            for channel in channels:
-                channels_dict[channel["name"]] = channel["id"]
-            
-            return channels_dict
+                
+                channels_on_page = api_result["channels"]
+                for channel in channels_on_page:
+                    if "name" in channel and "id" in channel:
+                        channel_data = {
+                            "id": channel.get("id"),
+                            "name": channel.get("name"),
+                            "is_private": channel.get("is_private", False),
+                            # is_member is often part of the channel object from conversations.list
+                            # It indicates if the authenticated user (bot) is a member.
+                            # For public channels, this might be true or the API might not focus on it
+                            # if the bot can read it anyway. For private, it's crucial.
+                            "is_member": channel.get("is_member", False) 
+                        }
+                        channels_list.append(channel_data)
+                    else:
+                        logger.warning(f"Channel found with missing name or id. Data: {channel}")
+
+
+                next_cursor = api_result.get("response_metadata", {}).get("next_cursor")
+                is_first_request = False  # Subsequent requests are not the first
+
+                if not next_cursor:  # All pages processed
+                    break
+
+            except SlackApiError as e:
+                if e.response is not None and e.response.status_code == 429:
+                    retry_after_header = e.response.headers.get('Retry-After')
+                    wait_duration = 60  # Default wait time
+                    if retry_after_header and retry_after_header.isdigit():
+                        wait_duration = int(retry_after_header)
+                    
+                    logger.warning(f"Slack API rate limit hit while fetching channels. Waiting for {wait_duration} seconds. Cursor: {next_cursor}")
+                    time.sleep(wait_duration)
+                    # The loop will continue, retrying with the same cursor
+                else:
+                    # Not a 429 error, or no response object, re-raise
+                    raise SlackApiError(f"Error retrieving channels: {e}", e.response)
+            except Exception as general_error:
+                # Handle other potential errors like network issues if necessary, or re-raise
+                logger.error(f"An unexpected error occurred during channel fetching: {general_error}")
+                raise RuntimeError(f"An unexpected error occurred during channel fetching: {general_error}")
         
-        except SlackApiError as e:
-            raise SlackApiError(f"Error retrieving channels: {e}", e.response)
+        return channels_list
     
     def get_conversation_history(
         self, 
@@ -110,17 +146,18 @@ class SlackHistory:
         if not self.client:
             raise ValueError("Slack client not initialized. Call set_token() first.")
         
-        try:
-            # Call the conversations.history method
-            messages = []
-            next_cursor = None
-            
-            while True:
+        messages = []
+        next_cursor = None
+        
+        while True:
+            try:
+                # Proactive delay for conversations.history (Tier 3)
+                time.sleep(1.2) # Wait 1.2 seconds before each history call.
+
                 kwargs = {
                     "channel": channel_id,
                     "limit": min(limit, 1000),  # API max is 1000
                 }
-                
                 if oldest:
                     kwargs["oldest"] = oldest
                 if latest:
@@ -128,22 +165,57 @@ class SlackHistory:
                 if next_cursor:
                     kwargs["cursor"] = next_cursor
                 
-                result = self.client.conversations_history(**kwargs)
+                current_api_call_successful = False
+                result = None # Ensure result is defined
+                try:
+                    result = self.client.conversations_history(**kwargs)
+                    current_api_call_successful = True
+                except SlackApiError as e_history:
+                    if e_history.response is not None and e_history.response.status_code == 429:
+                        retry_after_str = e_history.response.headers.get('Retry-After')
+                        wait_time = 60 # Default
+                        if retry_after_str and retry_after_str.isdigit():
+                            wait_time = int(retry_after_str)
+                        logger.warning(
+                            f"Rate limited by Slack on conversations.history for channel {channel_id}. "
+                            f"Retrying after {wait_time} seconds. Cursor: {next_cursor}"
+                        )
+                        time.sleep(wait_time)
+                        # current_api_call_successful remains False, loop will retry this page
+                    else:
+                        raise # Re-raise to outer handler for not_in_channel or other SlackApiErrors
+                
+                if not current_api_call_successful:
+                    continue # Retry the current page fetch due to handled rate limit
+
+                # Process result if successful
                 batch = result["messages"]
                 messages.extend(batch)
                 
-                # Check if we need to paginate
                 if result.get("has_more", False) and len(messages) < limit:
                     next_cursor = result["response_metadata"]["next_cursor"]
                 else:
-                    break
+                    break # Exit pagination loop
             
-            # Respect the overall limit parameter
-            return messages[:limit]
+            except SlackApiError as e: # Outer catch for not_in_channel or unhandled SlackApiErrors from inner try
+                if (e.response is not None and 
+                    hasattr(e.response, 'data') and
+                    isinstance(e.response.data, dict) and
+                    e.response.data.get('error') == 'not_in_channel'):
+                    logger.warning(
+                        f"Bot is not in channel '{channel_id}'. Cannot fetch history. "
+                        "Please add the bot to this channel."
+                    )
+                    return [] 
+                # For other SlackApiErrors from inner block or this level
+                raise SlackApiError(f"Error retrieving history for channel {channel_id}: {e}", e.response)
+            except Exception as general_error: # Catch any other unexpected errors
+                logger.error(f"Unexpected error in get_conversation_history for channel {channel_id}: {general_error}")
+                # Re-raise the general error to allow higher-level handling or visibility
+                raise 
         
-        except SlackApiError as e:
-            raise SlackApiError(f"Error retrieving history for channel {channel_id}: {e}", e.response)
-    
+        return messages[:limit]
+
     @staticmethod
     def convert_date_to_timestamp(date_str: str) -> Optional[int]:
         """
@@ -220,12 +292,31 @@ class SlackHistory:
         """
         if not self.client:
             raise ValueError("Slack client not initialized. Call set_token() first.")
-            
-        try:
-            result = self.client.users_info(user=user_id)
-            return result["user"]
-        except SlackApiError as e:
-            raise SlackApiError(f"Error retrieving user info for {user_id}: {e}", e.response)
+        
+        while True:
+            try:
+                # Proactive delay for users.info (Tier 4) - generally not needed unless called extremely rapidly.
+                # For now, we are only adding Retry-After as per plan.
+                # time.sleep(0.6) # Optional: ~100 req/min if ever needed.
+
+                result = self.client.users_info(user=user_id)
+                return result["user"] # Success, return and exit loop implicitly
+
+            except SlackApiError as e_user_info:
+                if e_user_info.response is not None and e_user_info.response.status_code == 429:
+                    retry_after_str = e_user_info.response.headers.get('Retry-After')
+                    wait_time = 30  # Default for Tier 4, can be adjusted
+                    if retry_after_str and retry_after_str.isdigit():
+                        wait_time = int(retry_after_str)
+                    logger.warning(f"Rate limited by Slack on users.info for user {user_id}. Retrying after {wait_time} seconds.")
+                    time.sleep(wait_time)
+                    continue  # Retry the API call
+                else:
+                    # Not a 429 error, or no response object, re-raise
+                    raise SlackApiError(f"Error retrieving user info for {user_id}: {e_user_info}", e_user_info.response)
+            except Exception as general_error: # Catch any other unexpected errors
+                logger.error(f"Unexpected error in get_user_info for user {user_id}: {general_error}")
+                raise # Re-raise unexpected errors
     
     def format_message(self, msg: Dict[str, Any], include_user_info: bool = False) -> Dict[str, Any]:
         """
