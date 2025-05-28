@@ -48,14 +48,55 @@ class SearchSourceConnectorBase(BaseModel):
                 raise ValueError("LINKUP_API_KEY cannot be empty")
                 
         elif connector_type == SearchSourceConnectorType.SLACK_CONNECTOR:
-            # For SLACK_CONNECTOR, only allow SLACK_BOT_TOKEN
-            allowed_keys = ["SLACK_BOT_TOKEN"]
-            if set(config.keys()) != set(allowed_keys):
-                raise ValueError(f"For SLACK_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
+            # For SLACK_CONNECTOR, define allowed keys
+            allowed_keys = [
+                "SLACK_BOT_TOKEN",
+                "slack_membership_filter_type",
+                "slack_selected_channel_ids",
+                "slack_indexing_frequency",
+                "slack_initial_indexing_days",
+                "slack_initial_max_messages_per_channel"
+            ]
 
-            # Ensure the bot token is not empty
+            # Ensure SLACK_BOT_TOKEN is always present and not empty
             if not config.get("SLACK_BOT_TOKEN"):
-                raise ValueError("SLACK_BOT_TOKEN cannot be empty")
+                raise ValueError("SLACK_BOT_TOKEN is mandatory and cannot be empty for SLACK_CONNECTOR")
+
+            # Check that all provided config keys are allowed
+            for key in config:
+                if key not in allowed_keys:
+                    raise ValueError(f"Key '{key}' is not allowed for SLACK_CONNECTOR. Allowed keys are: {allowed_keys}")
+
+            # Validate slack_membership_filter_type
+            if "slack_membership_filter_type" in config:
+                filter_type = config.get("slack_membership_filter_type")
+                if not isinstance(filter_type, str):
+                    raise ValueError("slack_membership_filter_type must be a string")
+                if filter_type not in ["all_member_channels", "selected_member_channels"]:
+                    raise ValueError("slack_membership_filter_type must be 'all_member_channels' or 'selected_member_channels'")
+
+            # Validate slack_selected_channel_ids
+            if config.get("slack_membership_filter_type") == "selected_member_channels":
+                if "slack_selected_channel_ids" not in config:
+                    raise ValueError("slack_selected_channel_ids is required when slack_membership_filter_type is 'selected_member_channels'")
+                selected_channels = config.get("slack_selected_channel_ids")
+                if not isinstance(selected_channels, list) or not all(isinstance(item, str) for item in selected_channels):
+                    raise ValueError("slack_selected_channel_ids must be a list of strings")
+            elif "slack_selected_channel_ids" in config and config.get("slack_membership_filter_type") == "all_member_channels":
+                # Optional: could remove it or just ignore it if filter type is all_member_channels
+                pass # For now, just allow it to be present but not validated for content
+
+            # Validate slack_indexing_frequency
+            if "slack_indexing_frequency" in config and not isinstance(config.get("slack_indexing_frequency"), str):
+                raise ValueError("slack_indexing_frequency must be a string")
+
+            # Validate slack_initial_indexing_days
+            if "slack_initial_indexing_days" in config and not isinstance(config.get("slack_initial_indexing_days"), int):
+                raise ValueError("slack_initial_indexing_days must be an integer")
+
+            # Validate slack_initial_max_messages_per_channel
+            if "slack_initial_max_messages_per_channel" in config and not isinstance(config.get("slack_initial_max_messages_per_channel"), int):
+                raise ValueError("slack_initial_max_messages_per_channel must be an integer")
             
         elif connector_type == SearchSourceConnectorType.NOTION_CONNECTOR:
             # For NOTION_CONNECTOR, only allow NOTION_INTEGRATION_TOKEN

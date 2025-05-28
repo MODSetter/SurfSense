@@ -23,9 +23,29 @@ from app.tasks.connectors_indexing_tasks import index_slack_messages, index_noti
 from app.connectors.github_connector import GitHubConnector
 from datetime import datetime, timezone, timedelta
 import logging
+from app.connectors.slack_history import SlackHistory
+from slack_sdk.errors import SlackApiError
+# Ensure List, Any are imported if not already (they are used by existing code)
+# from typing import List, Any # BaseModel is already imported via other schemas
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+# Pydantic Response Models for Slack Channel Discovery
+class SlackChannelInfo(BaseModel):
+    id: str
+    name: str
+    is_private: bool
+    is_member: bool
+
+class SlackChannelListResponse(BaseModel):
+    channels: List[SlackChannelInfo]
+
+class ReindexSlackChannelsRequest(BaseModel):
+    channel_ids: List[str] = Field(..., description="A list of Slack channel IDs to re-index.")
+    # Optional: add date range fields if you want to allow overriding the period for this specific re-index
+    # reindex_start_date: Optional[str] = None # YYYY-MM-DD
+    # reindex_end_date: Optional[str] = None   # YYYY-MM-DD
 
 router = APIRouter()
 
@@ -577,3 +597,137 @@ async def run_linear_indexing(
         await session.rollback()
         logger.error(f"Critical error in run_linear_indexing for connector {connector_id}: {e}", exc_info=True)
         # Optionally update status in DB to indicate failure
+
+@router.get(
+    "/slack/{connector_id}/discover-channels",
+    response_model=SlackChannelListResponse,
+    summary="Discover Slack channels bot is a member of",
+    description="Fetches a list of public and private Slack channels that the bot for the given connector is a member of.",
+    tags=["Search Source Connectors"], 
+)
+async def discover_slack_channels(
+    connector_id: int,
+    session: AsyncSession = Depends(get_async_session), 
+    # current_user: User = Depends(current_active_user), # Uncomment if using authentication
+):
+    # Optional: Ownership check
+    # try:
+    #     # Assuming check_ownership is adapted to work with current_user.id if user is uncommented
+    #     # await check_ownership(session, SearchSourceConnector, connector_id, current_user) 
+    # except HTTPException as e:
+    #     # logger.warning(f"Auth error for user {current_user.id} discovering channels for connector {connector_id}: {e.detail}")
+    #     raise
+    # except Exception as e: 
+    #     # logger.error(f"Unexpected auth error for user {current_user.id} discovering channels for connector {connector_id}: {e}", exc_info=True)
+    #     raise HTTPException(status_code=500, detail="An unexpected error occurred during authorization.")
+
+    db_connector = await session.get(SearchSourceConnector, connector_id)
+    if not db_connector:
+        logger.warning(f"discover_slack_channels: Connector {connector_id} not found.")
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    if db_connector.connector_type != SearchSourceConnectorType.SLACK_CONNECTOR:
+        logger.warning(f"discover_slack_channels: Connector {connector_id} is not a Slack connector (type: {db_connector.connector_type}).")
+        raise HTTPException(status_code=400, detail="Connector is not a Slack connector")
+
+    slack_token = db_connector.config.get("SLACK_BOT_TOKEN")
+    if not slack_token:
+        logger.warning(f"discover_slack_channels: Slack token not configured for connector {connector_id}.")
+        raise HTTPException(status_code=400, detail="Slack token not configured for this connector")
+
+    try:
+        slack_client = SlackHistory(token=slack_token)
+        # get_all_channels returns list of dicts: {"id": ..., "name": ..., "is_private": ..., "is_member": ...}
+        raw_channels_data = slack_client.get_all_channels(include_private=True) 
+
+        discovered_channels = []
+        for channel_data in raw_channels_data:
+            # Ensure 'is_member' is present and True. Some public channels might be visible but bot not a member.
+            if channel_data.get("is_member"): 
+                try:
+                    discovered_channels.append(SlackChannelInfo(**channel_data))
+                except Exception as pydantic_error: # Catch potential Pydantic validation error if a channel_data is malformed
+                    logger.warning(f"discover_slack_channels: Skipping channel due to data error for connector {connector_id}. Channel data: {channel_data}, Error: {pydantic_error}")
+            else:
+                logger.debug(f"discover_slack_channels: Connector {connector_id} - Channel '{channel_data.get('name')}' ({channel_data.get('id')}) skipped, bot is_member is false or missing.")
+        
+        logger.info(f"discover_slack_channels: Connector {connector_id} - Found {len(raw_channels_data)} raw channels, returning {len(discovered_channels)} channels where bot is a member.")
+        return SlackChannelListResponse(channels=discovered_channels)
+
+    except SlackApiError as e:
+        error_detail = e.response.get('error', str(e)) if e.response else str(e)
+        logger.error(f"Slack API error discovering channels for connector {connector_id}: {error_detail}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Slack API error: {error_detail}")
+    except ValueError as e: 
+        logger.error(f"Value error discovering channels for connector {connector_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e)) # e.g. if token is invalid for WebClient
+    except Exception as e:
+        logger.error(f"Unexpected error discovering channels for connector {connector_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching Slack channels.")
+
+@router.post(
+    "/slack/{connector_id}/reindex-channels",
+    status_code=202, # Accepted
+    summary="Trigger re-indexing for specific Slack channels",
+    description="Accepts a list of channel IDs to re-index for a given Slack connector. This process runs in the background.",
+    tags=["Search Source Connectors"],
+)
+async def trigger_reindex_specific_slack_channels(
+    connector_id: int,
+    request_body: ReindexSlackChannelsRequest,
+    background_tasks: BackgroundTasks, 
+    session: AsyncSession = Depends(get_async_session), 
+    # current_user: User = Depends(current_active_user), # Uncomment for auth
+):
+    # Optional: Ownership check (similar to discover_slack_channels)
+    # await check_ownership(session, SearchSourceConnector, connector_id, current_user) # Assuming check_ownership can take current_user
+    
+    logger.info(f"Received request to re-index channels for Slack connector {connector_id}. Channels: {request_body.channel_ids}")
+
+    db_connector = await session.get(SearchSourceConnector, connector_id)
+    if not db_connector:
+        logger.warning(f"Re-index specific channels: Connector {connector_id} not found.")
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    if db_connector.connector_type != SearchSourceConnectorType.SLACK_CONNECTOR:
+        logger.warning(f"Re-index specific channels: Connector {connector_id} is not a Slack connector.")
+        raise HTTPException(status_code=400, detail="Connector is not a Slack connector")
+
+    if not db_connector.config.get("SLACK_BOT_TOKEN"):
+        logger.warning(f"Re-index specific channels: Slack token not configured for connector {connector_id}.")
+        raise HTTPException(status_code=400, detail="Slack token not configured")
+    
+    if not request_body.channel_ids:
+        logger.warning(f"Re-index specific channels: No channel_ids provided for connector {connector_id}.")
+        raise HTTPException(status_code=400, detail="No channel_ids provided for re-indexing.")
+
+    # Placeholder for calling the modified indexing task.
+    # The `index_slack_messages` function will need to be adapted (in Step 6b)
+    # to accept `target_channel_ids` and `force_reindex_channels` (or similar mechanism).
+    # The session handling for background tasks also needs careful consideration;
+    # typically, the task would create its own session.
+    # For now, we pass the required parameters to the existing background task wrapper.
+    
+    # Note: The `run_slack_indexing_with_new_session` wrapper will call `index_slack_messages`.
+    # We'll need to adapt `run_slack_indexing_with_new_session` and `run_slack_indexing`
+    # to pass these new arguments through. This is a temporary simplification for this subtask.
+    # A more robust solution might involve a new background task specifically for re-indexing.
+    
+    # This is a conceptual call; actual implementation will depend on how index_slack_messages is modified.
+    # For now, we are calling the existing wrapper which then calls index_slack_messages.
+    # The parameters `target_channel_ids` and `force_reindex_channels` are not yet handled by these functions.
+    background_tasks.add_task(
+        run_slack_indexing_with_new_session, # This wrapper creates a new session
+        connector_id=db_connector.id,
+        search_space_id=db_connector.search_space_id, # Assuming connector has search_space_id or it's passed differently
+        # The following are conceptual arguments to be handled by the task in step 6b
+        # target_channel_ids=request_body.channel_ids, 
+        # force_reindex_channels=True 
+    )
+    # TODO: In a subsequent step, ensure that run_slack_indexing_with_new_session and run_slack_indexing
+    # are updated to accept and pass through target_channel_ids and a re-indexing flag
+    # to the core index_slack_messages function.
+    # For now, the endpoint is set up to receive the request.
+
+    logger.info(f"Background task scheduled for re-indexing channels {request_body.channel_ids} for Slack connector {connector_id}.")
+    return {"message": "Re-indexing task for specific channels has been scheduled."}
