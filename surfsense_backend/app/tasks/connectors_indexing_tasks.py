@@ -17,11 +17,17 @@ import logging
 # Set up logging
 logger = logging.getLogger(__name__)
 
+from typing import Optional, Tuple, List # Added List
+
 async def index_slack_messages(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
-    update_last_indexed: bool = True
+    update_last_indexed: bool = True,
+    target_channel_ids: Optional[List[str]] = None,
+    force_reindex_all_messages: bool = False,
+    reindex_start_date_str: Optional[str] = None, # Format: YYYY-MM-DD
+    reindex_latest_date_str: Optional[str] = None  # Format: YYYY-MM-DD
 ) -> Tuple[int, Optional[str]]:
     """
     Index Slack messages from all accessible channels.
@@ -31,6 +37,10 @@ async def index_slack_messages(
         connector_id: ID of the Slack connector
         search_space_id: ID of the search space to store documents in
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        target_channel_ids: Optional list of channel IDs to specifically re-index.
+        force_reindex_all_messages: If True and target_channel_ids is set, re-fetches all history for target channels.
+        reindex_start_date_str: Start date for targeted re-indexing (YYYY-MM-DD).
+        reindex_latest_date_str: Latest date for targeted re-indexing (YYYY-MM-DD).
         
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -55,134 +65,101 @@ async def index_slack_messages(
         config_values = connector.config or {}
         slack_membership_filter_type = config_values.get("slack_membership_filter_type", "all_member_channels")
         slack_selected_channel_ids = config_values.get("slack_selected_channel_ids", [])
-        # Ensure selected_channel_ids is a set for efficient lookup later
         slack_selected_channel_ids_set = set(slack_selected_channel_ids) 
         
-        default_initial_days = 30
-        default_max_messages = 1000 # Default for updates and if not set for initial
-        
-        slack_initial_indexing_days = config_values.get("slack_initial_indexing_days", default_initial_days)
-        slack_initial_max_messages_per_channel = config_values.get("slack_initial_max_messages_per_channel", default_max_messages)
+        default_initial_days = config_values.get("slack_initial_indexing_days", 30)
+        default_max_messages_initial = config_values.get("slack_initial_max_messages_per_channel", 1000)
+        default_max_messages_periodic = config_values.get("slack_max_messages_per_channel_periodic", 100)
 
-        # Add a comprehensive log message at the beginning of the function execution, after fetching the connector.
-        # This can be placed after "slack_client = SlackHistory(token=slack_token)"
-        # For now, let's place it after extracting all config values.
+        # Initialize Slack client
+        slack_client = SlackHistory(token=slack_token)
+
+        # Determine run type for logging
+        run_type_log_message = f"Starting Slack indexing for connector_id={connector_id}, search_space_id={search_space_id}."
+        if target_channel_ids:
+            run_type_log_message += f" Targeted re-index for {len(target_channel_ids)} channels."
+            if force_reindex_all_messages:
+                run_type_log_message += " Full history re-index forced."
+            else:
+                run_type_log_message += " Standard update for targeted channels."
+            if reindex_start_date_str:
+                run_type_log_message += f" Custom start date: {reindex_start_date_str}."
+            if reindex_latest_date_str:
+                run_type_log_message += f" Custom latest date: {reindex_latest_date_str}."
+        elif force_reindex_all_messages: # Implies full re-index of all configured channels
+             run_type_log_message += " Full history re-index for all configured channels."
+        else:
+            run_type_log_message += " Periodic update for all configured channels."
+        
+        logger.info(run_type_log_message)
         logger.info(
-            f"Starting Slack indexing for connector_id={connector_id}, search_space_id={search_space_id}. "
-            f"Config: filter_type='{slack_membership_filter_type}', "
-            f"num_selected_channels={len(slack_selected_channel_ids_set) if slack_selected_channel_ids_set else 'N/A'}, "
-            f"initial_days={slack_initial_indexing_days}, "
-            f"initial_max_messages={slack_initial_max_messages_per_channel}, "
-            f"update_last_indexed={update_last_indexed}"
+            f"Base Config: filter_type='{slack_membership_filter_type}', "
+            f"num_selected_channels_in_config={len(slack_selected_channel_ids_set) if slack_selected_channel_ids_set else 'N/A'}, "
+            f"initial_days_config={default_initial_days}, "
+            f"initial_max_messages_config={default_max_messages_initial}, "
+            f"periodic_max_messages_config={default_max_messages_periodic}, "
+            f"update_last_indexed_param={update_last_indexed}"
         )
         
         if not slack_token:
             return 0, "Slack token not found in connector config"
 
-        # Extract New Configuration Values
-        config_values = connector.config or {}
-        slack_membership_filter_type = config_values.get("slack_membership_filter_type", "all_member_channels")
-        slack_selected_channel_ids = config_values.get("slack_selected_channel_ids", [])
-        slack_selected_channel_ids_set = set(slack_selected_channel_ids) 
-        
-        default_initial_days = 30
-        default_max_messages = 1000 # Default for updates and if not set for initial
-        
-        slack_initial_indexing_days = config_values.get("slack_initial_indexing_days", default_initial_days)
-        slack_initial_max_messages_per_channel = config_values.get("slack_initial_max_messages_per_channel", default_max_messages)
-
-        logger.info(f"Slack indexing started for connector {connector_id} with filter_type='{slack_membership_filter_type}', {len(slack_selected_channel_ids_set)} selected channels, initial_days={slack_initial_indexing_days}, initial_max_messages={slack_initial_max_messages_per_channel}")
-        
-        # Initialize Slack client
-        slack_client = SlackHistory(token=slack_token)
-        
-        # Date/Time Logic for API and Metadata
-        end_date = datetime.now() # Used for calculating 'latest' and 'oldest'
-        current_date_str_metadata = end_date.strftime("%Y-%m-%d") # For document metadata
-
-        # Calculate latest_for_api (timestamp for start of the next day, making query inclusive of current day)
-        temp_end_date_dt_for_api = datetime.strptime(current_date_str_metadata, "%Y-%m-%d")
-        latest_for_api = str(int(temp_end_date_dt_for_api.timestamp()) + 86400)
-
-        is_initial_run = not connector.last_indexed_at
-
-        oldest_for_api = None # Unix timestamp string or "0"
-        limit_for_api = default_max_messages # Default limit for subsequent runs
-        start_date_str_metadata = current_date_str_metadata # Default for metadata, will be updated if initial run
-
-        if is_initial_run:
-            logger.info(f"Connector {connector_id} is a first run. Applying initial indexing settings.")
-            limit_for_api = slack_initial_max_messages_per_channel
-            if slack_initial_indexing_days == -1:
-                oldest_for_api = "0" # Signifies "all time" to Slack API
-                start_date_str_metadata = "all_time" # For document metadata
-                logger.info(f"Initial indexing for all time (oldest='0'). Using limit: {limit_for_api}")
-            else:
-                # Calculate timestamp for slack_initial_indexing_days ago
-                start_dt_calc = end_date - timedelta(days=slack_initial_indexing_days)
-                oldest_for_api = str(int(start_dt_calc.timestamp()))
-                start_date_str_metadata = start_dt_calc.strftime("%Y-%m-%d") # For document metadata
-                logger.info(f"Initial indexing for {slack_initial_indexing_days} days; oldest_timestamp: {oldest_for_api}. Using limit: {limit_for_api}")
-        else:
-            # Subsequent runs: use last_indexed_at
-            last_indexed_dt = connector.last_indexed_at.replace(tzinfo=None) if connector.last_indexed_at.tzinfo else connector.last_indexed_at
-            if last_indexed_dt > end_date: # Should ideally not happen if jobs run sequentially
-                logger.warning(f"Last indexed date ({last_indexed_dt.strftime('%Y-%m-%d')}) for connector {connector_id} is in the future. Using {default_initial_days} days ago instead.")
-                start_dt_calc = end_date - timedelta(days=default_initial_days)
-            else:
-                start_dt_calc = last_indexed_dt
-            oldest_for_api = str(int(start_dt_calc.timestamp()))
-            start_date_str_metadata = start_dt_calc.strftime("%Y-%m-%d") # For document metadata
-            logger.info(f"Subsequent run for {connector_id}. Oldest_timestamp: {oldest_for_api}. Using limit: {limit_for_api}")
-        
-        # Get all channels from Slack API
+        # Get all channels from Slack API based on initial membership configuration
         try:
-            all_channels_from_api = slack_client.get_all_channels() # This method already filters for is_member by Slack API, but we double check later
+            all_channels_from_api = slack_client.get_all_channels()
         except Exception as e:
             return 0, f"Failed to get Slack channels: {str(e)}"
         
         if not all_channels_from_api:
-            logger.info(f"No channels returned by get_all_channels for connector {connector_id}.") # Corrected f-string
+            logger.info(f"No channels returned by get_all_channels for connector {connector_id}.")
             return 0, "No Slack channels found"
 
         original_channel_count = len(all_channels_from_api)
-        logger.info(f"Found {original_channel_count} total channels accessible by the bot for connector {connector_id}.")
+        logger.info(f"Found {original_channel_count} total channels accessible by the bot for connector {connector_id} via API.")
 
-        channels_to_process = [] # Initialize before assignment
-
+        pre_target_channels_to_process = [] # Channels after initial filtering, before target_channel_ids
         if slack_membership_filter_type == "selected_member_channels":
-            logger.info(f"Filtering channels based on 'selected_member_channels' list (configured with {len(slack_selected_channel_ids_set)} selected IDs) for connector {connector_id}.")
-            
-            # Ensure channel_obj has 'id', robustly get name for logging
+            logger.info(f"Filtering channels based on 'selected_member_channels' list (configured with {len(slack_selected_channel_ids_set)} selected IDs).")
             def get_channel_display_name(channel_obj):
                 name = channel_obj.get('name')
-                channel_id_local = channel_obj.get('id') # Renamed to avoid conflict
+                channel_id_local = channel_obj.get('id')
                 return name if name else f"ID:{channel_id_local}"
 
-            filtered_channels = []
-            for channel_obj_loop in all_channels_from_api: # Use different var name in loop
-                channel_id_loop = channel_obj_loop.get("id") # Use different var name in loop
+            for channel_obj_loop in all_channels_from_api:
+                channel_id_loop = channel_obj_loop.get("id")
                 if channel_id_loop in slack_selected_channel_ids_set:
-                    filtered_channels.append(channel_obj_loop)
+                    pre_target_channels_to_process.append(channel_obj_loop)
                 else:
-                    logger.info(f"Channel '{get_channel_display_name(channel_obj_loop)}' ({channel_id_loop}) skipped: not in 'slack_selected_channel_ids' config for connector {connector_id}.")
-            
-            channels_to_process = filtered_channels # Assign filtered list
-            logger.info(f"{len(channels_to_process)} channels remaining after 'selected_member_channels' filter for connector {connector_id} (originally {original_channel_count}).")
-        
+                    logger.debug(f"Channel '{get_channel_display_name(channel_obj_loop)}' ({channel_id_loop}) skipped: not in 'slack_selected_channel_ids' config.")
+            logger.info(f"{len(pre_target_channels_to_process)} channels remaining after 'selected_member_channels' filter (originally {original_channel_count}).")
         elif slack_membership_filter_type == "all_member_channels":
-            logger.info(f"Processing all {original_channel_count} channels where bot is a member (filter_type='all_member_channels') for connector {connector_id}.")
-            channels_to_process = all_channels_from_api # Assign all channels
+            logger.info(f"Processing all {original_channel_count} channels where bot is a member (filter_type='all_member_channels').")
+            pre_target_channels_to_process = all_channels_from_api
         
-        # Add a check here: if after filtering, channels list is empty, we might want to return early.
+        # Now, if target_channel_ids is provided, further filter channels_to_process
+        channels_to_process = []
+        if target_channel_ids:
+            logger.info(f"Further filtering based on provided `target_channel_ids` list ({len(target_channel_ids)} IDs).")
+            target_channel_ids_set = set(target_channel_ids)
+            for channel_obj in pre_target_channels_to_process:
+                if channel_obj.get("id") in target_channel_ids_set:
+                    channels_to_process.append(channel_obj)
+            logger.info(f"{len(channels_to_process)} channels remaining after `target_channel_ids` filter (originally {len(pre_target_channels_to_process)} after initial filters).")
+        else:
+            channels_to_process = pre_target_channels_to_process
+
         if not channels_to_process:
-            logger.info(f"No channels remaining after applying filters for connector {connector_id}. Nothing to index.")
-            # Update last_indexed_at because we successfully ran, even if there's nothing to process
-            if update_last_indexed:
-                connector.last_indexed_at = datetime.now()
-                # The commit happens at the end of the main function. This assignment will be part of that commit.
-                logger.info(f"Connector {connector_id} last_indexed_at will be updated as no channels were left after filtering.")
-            return 0, "No channels to index after filtering based on configuration."
+            logger.info(f"No channels remaining after applying all filters for connector {connector_id}. Nothing to index.")
+            if update_last_indexed: # Still update last_indexed if no channels, as the task ran.
+                connector.last_indexed_at = datetime.now(timezone.utc) # Use timezone aware datetime
+                try:
+                    await session.commit()
+                    logger.info(f"Connector {connector_id} last_indexed_at updated as no channels were left after filtering.")
+                except SQLAlchemyError as db_error_commit:
+                    await session.rollback()
+                    logger.error(f"Database error while updating last_indexed_at for connector {connector_id} with no channels: {str(db_error_commit)}")
+                    return 0, f"DB error updating last_indexed_at: {str(db_error_commit)}"
+            return 0, "No channels to index after filtering."
             
         # Get existing documents for this search space and connector type to prevent duplicates
         existing_docs_result = await session.execute(
@@ -197,224 +174,319 @@ async def index_slack_messages(
         # Create a lookup dictionary of existing documents by channel_id
         existing_docs_by_channel_id = {}
         for doc in existing_docs:
-            if "channel_id" in doc.document_metadata:
+            if "channel_id" in doc.document_metadata: # Ensure metadata exists and has channel_id
                 existing_docs_by_channel_id[doc.document_metadata["channel_id"]] = doc
         
-        logger.info(f"Found {len(existing_docs_by_channel_id)} existing Slack documents in database")
+        logger.info(f"Found {len(existing_docs_by_channel_id)} existing Slack documents in database for this search space.")
         
         # Track the number of documents indexed
         documents_indexed = 0
         documents_updated = 0
         documents_skipped = 0
-        skipped_channels = []
-        
+        skipped_channels_log_details = [] # Store details for logging
+
         # Process each channel
         for channel_obj in channels_to_process:
             channel_id = channel_obj["id"]
-            channel_name = channel_obj["name"]
-            is_private = channel_obj["is_private"]
-            is_member = channel_obj["is_member"] # This might be False for public channels too
+            channel_name = channel_obj.get("name", f"Unknown Channel ({channel_id})") # Use .get for safety
+            # is_private = channel_obj.get("is_private", False) # Not strictly needed for logic below
+            is_member = channel_obj.get("is_member", False) 
+
+            # Determine date range and limit PER CHANNEL based on new logic
+            current_channel_is_targeted = target_channel_ids and channel_id in target_channel_ids
+            
+            # Date/Time Logic for API and Metadata
+            # These will be determined per channel now
+            oldest_ts_for_api = None # Unix timestamp string or "0"
+            latest_ts_for_api = None # Unix timestamp string
+            limit_for_api_channel = default_max_messages_periodic # Default for periodic
+            start_date_str_metadata_channel = datetime.now(timezone.utc).strftime("%Y-%m-%d") # Default, updated below
+            latest_date_str_metadata_channel = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+            if current_channel_is_targeted and force_reindex_all_messages:
+                logger.info(f"Channel {channel_name} ({channel_id}): Targeted full re-index. Ignoring last_indexed_at.")
+                limit_for_api_channel = default_max_messages_initial
+                if reindex_start_date_str:
+                    try:
+                        oldest_ts_for_api = SlackHistory.convert_date_to_timestamp(reindex_start_date_str)
+                        start_date_str_metadata_channel = reindex_start_date_str
+                    except ValueError:
+                        logger.warning(f"Invalid reindex_start_date_str: {reindex_start_date_str}. Falling back to initial days logic for channel {channel_id}.")
+                        # Fallback logic
+                        if default_initial_days == -1:
+                            oldest_ts_for_api = "0"
+                            start_date_str_metadata_channel = "all_time"
+                        else:
+                            start_dt_calc = datetime.now(timezone.utc) - timedelta(days=default_initial_days)
+                            oldest_ts_for_api = str(int(start_dt_calc.timestamp()))
+                            start_date_str_metadata_channel = start_dt_calc.strftime("%Y-%m-%d")
+                elif default_initial_days == -1: # No reindex_start_date_str, use connector initial config
+                    oldest_ts_for_api = "0"
+                    start_date_str_metadata_channel = "all_time"
+                else: # No reindex_start_date_str, use connector initial config (days)
+                    start_dt_calc = datetime.now(timezone.utc) - timedelta(days=default_initial_days)
+                    oldest_ts_for_api = str(int(start_dt_calc.timestamp()))
+                    start_date_str_metadata_channel = start_dt_calc.strftime("%Y-%m-%d")
+
+                if reindex_latest_date_str:
+                    try:
+                        latest_ts_for_api = SlackHistory.convert_date_to_timestamp(reindex_latest_date_str, is_latest=True)
+                        latest_date_str_metadata_channel = reindex_latest_date_str
+                    except ValueError:
+                        logger.warning(f"Invalid reindex_latest_date_str: {reindex_latest_date_str}. Defaulting to now for channel {channel_id}.")
+                        latest_ts_for_api = str(int((datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()))
+                        latest_date_str_metadata_channel = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                else: # Default to now if reindex_latest_date_str not provided
+                    latest_ts_for_api = str(int((datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()))
+                    latest_date_str_metadata_channel = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+            elif current_channel_is_targeted: # Targeted but not forced full re-index
+                logger.info(f"Channel {channel_name} ({channel_id}): Targeted standard update.")
+                limit_for_api_channel = default_max_messages_periodic
+                if reindex_start_date_str:
+                    try:
+                        oldest_ts_for_api = SlackHistory.convert_date_to_timestamp(reindex_start_date_str)
+                        start_date_str_metadata_channel = reindex_start_date_str
+                    except ValueError:
+                        logger.warning(f"Invalid reindex_start_date_str: {reindex_start_date_str} for targeted update. Using connector's last_indexed_at for channel {channel_id}.")
+                        if connector.last_indexed_at:
+                            oldest_ts_for_api = str(int(connector.last_indexed_at.timestamp()))
+                            start_date_str_metadata_channel = connector.last_indexed_at.strftime("%Y-%m-%d")
+                        else: # Fallback to initial days if last_indexed_at is also missing
+                            start_dt_calc = datetime.now(timezone.utc) - timedelta(days=default_initial_days)
+                            oldest_ts_for_api = str(int(start_dt_calc.timestamp()))
+                            start_date_str_metadata_channel = start_dt_calc.strftime("%Y-%m-%d")
+                elif connector.last_indexed_at:
+                    oldest_ts_for_api = str(int(connector.last_indexed_at.timestamp()))
+                    start_date_str_metadata_channel = connector.last_indexed_at.strftime("%Y-%m-%d")
+                else: # Initial run logic for this targeted channel (no last_indexed_at, no reindex_start_date_str)
+                    logger.info(f"Channel {channel_name} ({channel_id}): Targeted, but no reindex_start_date and no connector.last_indexed_at. Applying initial indexing logic.")
+                    limit_for_api_channel = default_max_messages_initial # Use initial limit here
+                    if default_initial_days == -1:
+                        oldest_ts_for_api = "0"
+                        start_date_str_metadata_channel = "all_time"
+                    else:
+                        start_dt_calc = datetime.now(timezone.utc) - timedelta(days=default_initial_days)
+                        oldest_ts_for_api = str(int(start_dt_calc.timestamp()))
+                        start_date_str_metadata_channel = start_dt_calc.strftime("%Y-%m-%d")
+                
+                if reindex_latest_date_str: # User can cap the latest date for targeted standard update
+                    try:
+                        latest_ts_for_api = SlackHistory.convert_date_to_timestamp(reindex_latest_date_str, is_latest=True)
+                        latest_date_str_metadata_channel = reindex_latest_date_str
+                    except ValueError:
+                        logger.warning(f"Invalid reindex_latest_date_str: {reindex_latest_date_str}. Defaulting to now for channel {channel_id}.")
+                        latest_ts_for_api = str(int((datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()))
+                        latest_date_str_metadata_channel = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                else: # Default to now
+                    latest_ts_for_api = str(int((datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()))
+                    latest_date_str_metadata_channel = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+            else: # Standard run (not targeted specifically for this channel, could be part of a full run)
+                is_initial_run_connector = not connector.last_indexed_at
+                if force_reindex_all_messages: # Full re-index of all configured channels
+                    logger.info(f"Channel {channel_name} ({channel_id}): Part of full history re-index for all channels.")
+                    limit_for_api_channel = default_max_messages_initial
+                    if default_initial_days == -1: # All time
+                        oldest_ts_for_api = "0"
+                        start_date_str_metadata_channel = "all_time"
+                    else: # Specific number of days
+                        start_dt_calc = datetime.now(timezone.utc) - timedelta(days=default_initial_days)
+                        oldest_ts_for_api = str(int(start_dt_calc.timestamp()))
+                        start_date_str_metadata_channel = start_dt_calc.strftime("%Y-%m-%d")
+                    latest_ts_for_api = str(int((datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()))
+                    latest_date_str_metadata_channel = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                elif is_initial_run_connector:
+                    logger.info(f"Channel {channel_name} ({channel_id}): Connector initial run.")
+                    limit_for_api_channel = default_max_messages_initial
+                    if default_initial_days == -1:
+                        oldest_ts_for_api = "0"
+                        start_date_str_metadata_channel = "all_time"
+                    else:
+                        start_dt_calc = datetime.now(timezone.utc) - timedelta(days=default_initial_days)
+                        oldest_ts_for_api = str(int(start_dt_calc.timestamp()))
+                        start_date_str_metadata_channel = start_dt_calc.strftime("%Y-%m-%d")
+                    latest_ts_for_api = str(int((datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()))
+                    latest_date_str_metadata_channel = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                else: # Standard periodic update for this channel
+                    logger.info(f"Channel {channel_name} ({channel_id}): Standard periodic update.")
+                    limit_for_api_channel = default_max_messages_periodic
+                    # Use last_indexed_at, ensuring it's timezone-aware or converted correctly
+                    last_indexed_dt_utc = connector.last_indexed_at
+                    if last_indexed_dt_utc.tzinfo is None: # If naive, assume UTC
+                        last_indexed_dt_utc = last_indexed_dt_utc.replace(tzinfo=timezone.utc)
+                    
+                    # Check if last_indexed_at is in the future relative to now_utc
+                    now_utc = datetime.now(timezone.utc)
+                    if last_indexed_dt_utc > now_utc:
+                        logger.warning(f"Last indexed date ({last_indexed_dt_utc.strftime('%Y-%m-%d')}) for connector {connector_id} is in the future. Using {default_initial_days} days ago from now instead.")
+                        start_dt_calc = now_utc - timedelta(days=default_initial_days)
+                    else:
+                        start_dt_calc = last_indexed_dt_utc
+                    
+                    oldest_ts_for_api = str(int(start_dt_calc.timestamp()))
+                    start_date_str_metadata_channel = start_dt_calc.strftime("%Y-%m-%d")
+                    latest_ts_for_api = str(int((now_utc + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()))
+                    latest_date_str_metadata_channel = now_utc.strftime("%Y-%m-%d")
+
+            logger.info(f"For channel {channel_name} ({channel_id}): oldest_ts='{oldest_ts_for_api}', latest_ts='{latest_ts_for_api}', limit={limit_for_api_channel}, start_date_meta='{start_date_str_metadata_channel}', latest_date_meta='{latest_date_str_metadata_channel}'")
 
             try:
-                # Double-check bot membership, even if get_all_channels implies it.
-                # Slack's conversations.list (used by get_all_channels) can list public channels bot isn't in.
-                # conversations.history (used by get_conversation_history) will fail if not a member.
-                if not is_member: # is_member is from get_all_channels()
-                    # This check becomes more critical if get_all_channels doesn't perfectly filter by actual read access.
-                    # For private channels, is_member is definitive. For public, it might be true even if history is restricted.
-                    # The API call to get_conversation_history will be the ultimate decider.
-                    logger.info(f"Channel {channel_name} ({channel_id}) listed, but bot is_member={is_member}. Proceeding to fetch history, API will confirm access.")
-                    # No 'continue' here; let the API call attempt handle access errors.
+                if not is_member:
+                    logger.info(f"Channel {channel_name} ({channel_id}) listed, but bot is_member={is_member}. API call to history will confirm access.")
 
                 # Get messages for this channel
                 try:
                     messages = slack_client.get_conversation_history(
                         channel_id=channel_id,
-                        limit=limit_for_api, 
-                        oldest=oldest_for_api, 
-                        latest=latest_for_api 
+                        limit=limit_for_api_channel, 
+                        oldest=oldest_ts_for_api, 
+                        latest=latest_ts_for_api 
                     )
                 except SlackApiError as slack_api_err:
                     err_msg = slack_api_err.response['error'] if slack_api_err.response and 'error' in slack_api_err.response else str(slack_api_err)
                     if err_msg == 'not_in_channel':
                         logger.warning(f"Bot is not in channel {channel_name} ({channel_id}) or history is private. Skipping. Error: {err_msg}")
-                        skipped_channels.append(f"{channel_name} (not in channel/private history)")
+                        skipped_channels_log_details.append(f"{channel_name} (not in channel/private history)")
                     else:
                         logger.warning(f"Slack API error for channel {channel_name} ({channel_id}): {err_msg}. Skipping.")
-                        skipped_channels.append(f"{channel_name} (API error: {err_msg})")
+                        skipped_channels_log_details.append(f"{channel_name} (API error: {err_msg})")
                     documents_skipped += 1
                     continue
-                except Exception as general_err: # Catch other unexpected errors
+                except Exception as general_err: 
                     logger.error(f"Unexpected error getting messages from channel {channel_name} ({channel_id}): {str(general_err)}")
-                    skipped_channels.append(f"{channel_name} (Unexpected error: {str(general_err)})")
+                    skipped_channels_log_details.append(f"{channel_name} (Unexpected error: {str(general_err)})")
                     documents_skipped += 1
                     continue
                 
                 if not messages:
-                    logger.info(f"No messages found in channel {channel_name} ({channel_id}) for API params (oldest: {oldest_for_api}, latest: {latest_for_api}, limit: {limit_for_api}).")
-                    # This is a normal case (no new messages), not an error, so don't increment documents_skipped.
-                    continue # Skip if no messages
+                    logger.info(f"No messages found in channel {channel_name} ({channel_id}) for API params (oldest: {oldest_ts_for_api}, latest: {latest_ts_for_api}, limit: {limit_for_api_channel}).")
+                    continue 
                 
                 # Format messages with user info
                 formatted_messages = []
                 for msg in messages:
-                    # Skip bot messages and system messages
                     if msg.get("subtype") in ["bot_message", "channel_join", "channel_leave"]:
                         continue
-                    
                     formatted_msg = slack_client.format_message(msg, include_user_info=True)
                     formatted_messages.append(formatted_msg)
                 
                 if not formatted_messages:
-                    logger.info(f"No valid messages found in channel {channel_name} after filtering.")
-                    documents_skipped += 1
-                    continue  # Skip if no valid messages after filtering
+                    logger.info(f"No valid messages found in channel {channel_name} ({channel_id}) after filtering bot/system messages.")
+                    # Do not increment documents_skipped here, it's normal for a channel to have no user messages in a period
+                    continue
                 
-                # Convert messages to markdown format
                 channel_content = f"# Slack Channel: {channel_name}\n\n"
-                
                 for msg in formatted_messages:
                     user_name = msg.get("user_name", "Unknown User")
-                    timestamp = msg.get("datetime", "Unknown Time")
+                    timestamp_str = msg.get("datetime", "Unknown Time") # datetime is already string
                     text = msg.get("text", "")
-                    
-                    channel_content += f"## {user_name} ({timestamp})\n\n{text}\n\n---\n\n"
+                    channel_content += f"## {user_name} ({timestamp_str})\n\n{text}\n\n---\n\n"
                 
-                # Format document metadata
+                now_iso_for_metadata = datetime.now(timezone.utc).isoformat()
                 metadata_sections = [
                     ("METADATA", [
                         f"CHANNEL_NAME: {channel_name}",
                         f"CHANNEL_ID: {channel_id}",
-                        f"START_DATE: {start_date_str_metadata}", 
-                        f"END_DATE: {current_date_str_metadata}",   
+                        f"START_DATE: {start_date_str_metadata_channel}", 
+                        f"END_DATE: {latest_date_str_metadata_channel}",   
                         f"MESSAGE_COUNT: {len(formatted_messages)}",
-                        f"INDEXED_AT: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                        f"INDEXED_AT: {now_iso_for_metadata}"
                     ]),
-                    ("CONTENT", [
-                        "FORMAT: markdown",
-                        "TEXT_START",
-                        channel_content,
-                        "TEXT_END"
-                    ])
+                    ("CONTENT", ["FORMAT: markdown", "TEXT_START", channel_content, "TEXT_END"])
                 ]
                 
-                # Build the document string
-                document_parts = []
-                document_parts.append("<DOCUMENT>")
-                
-                for section_title, section_content in metadata_sections:
+                document_parts = ["<DOCUMENT>"]
+                for section_title, section_content_list in metadata_sections:
                     document_parts.append(f"<{section_title}>")
-                    document_parts.extend(section_content)
+                    document_parts.extend(section_content_list)
                     document_parts.append(f"</{section_title}>")
-                
                 document_parts.append("</DOCUMENT>")
                 combined_document_string = '\n'.join(document_parts)
                 
-                # Generate summary
                 summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
                 summary_result = await summary_chain.ainvoke({"document": combined_document_string})
                 summary_content = summary_result.content
                 summary_embedding = config.embedding_model_instance.embed(summary_content)
                 
-                # Process chunks
-                chunks = [
-                    Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
-                    for chunk in config.chunker_instance.chunk(channel_content)
+                doc_chunks = [
+                    Chunk(content=chunk_text.text, embedding=config.embedding_model_instance.embed(chunk_text.text))
+                    for chunk_text in config.chunker_instance.chunk(channel_content)
                 ]
                 
-                # Check if this channel already exists in our database
+                current_doc_metadata = {
+                    "channel_name": channel_name,
+                    "channel_id": channel_id,
+                    "start_date": start_date_str_metadata_channel, 
+                    "end_date": latest_date_str_metadata_channel,   
+                    "message_count": len(formatted_messages),
+                    "indexed_at": now_iso_for_metadata
+                }
+
                 existing_document = existing_docs_by_channel_id.get(channel_id)
-                
                 if existing_document:
-                    # Update existing document instead of creating a new one
-                    logger.info(f"Updating existing document for channel {channel_name}")
-                    
-                    # Update document fields
+                    logger.info(f"Updating existing document for channel {channel_name} ({channel_id})")
                     existing_document.title = f"Slack - {channel_name}"
-                    existing_document.document_metadata = {
-                        "channel_name": channel_name,
-                        "channel_id": channel_id,
-                        "start_date": start_date_str_metadata, 
-                        "end_date": current_date_str_metadata,   
-                        "message_count": len(formatted_messages),
-                        "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
-                        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }
+                    current_doc_metadata["last_updated"] = now_iso_for_metadata
+                    existing_document.document_metadata = current_doc_metadata
                     existing_document.content = summary_content
                     existing_document.embedding = summary_embedding
                     
-                    # Delete existing chunks and add new ones
-                    await session.execute(
-                        delete(Chunk)
-                        .where(Chunk.document_id == existing_document.id)
-                    )
-                    
-                    # Assign new chunks to existing document
-                    for chunk in chunks:
-                        chunk.document_id = existing_document.id
-                        session.add(chunk)
-                    
+                    await session.execute(delete(Chunk).where(Chunk.document_id == existing_document.id))
+                    for chunk_item in doc_chunks:
+                        chunk_item.document_id = existing_document.id
+                        session.add(chunk_item)
                     documents_updated += 1
                 else:
-                    # Create and store new document
+                    logger.info(f"Creating new document for channel {channel_name} ({channel_id})")
                     document = Document(
                         search_space_id=search_space_id,
                         title=f"Slack - {channel_name}",
                         document_type=DocumentType.SLACK_CONNECTOR,
-                        document_metadata={
-                            "channel_name": channel_name,
-                            "channel_id": channel_id,
-                        "start_date": start_date_str_metadata, 
-                        "end_date": current_date_str_metadata,   
-                            "message_count": len(formatted_messages),
-                        "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
-                        },
+                        document_metadata=current_doc_metadata,
                         content=summary_content,
                         embedding=summary_embedding,
-                        chunks=chunks
+                        chunks=doc_chunks
                     )
-                    
                     session.add(document)
                     documents_indexed += 1
-                    logger.info(f"Successfully indexed new channel {channel_name} with {len(formatted_messages)} messages")
                 
-            except SlackApiError as slack_error:
-                logger.error(f"Slack API error for channel {channel_name}: {str(slack_error)}")
-                skipped_channels.append(f"{channel_name} (Slack API error)")
+            except SlackApiError as slack_error_channel: # Catch API errors per channel
+                logger.error(f"Slack API error processing channel {channel_name} ({channel_id}): {str(slack_error_channel)}")
+                skipped_channels_log_details.append(f"{channel_name} (Slack API error: {str(slack_error_channel)})")
                 documents_skipped += 1
-                continue  # Skip this channel and continue with others
-            except Exception as e:
-                logger.error(f"Error processing channel {channel_name}: {str(e)}")
-                skipped_channels.append(f"{channel_name} (processing error)")
+                continue 
+            except Exception as e_channel: # Catch other errors per channel
+                logger.error(f"Error processing channel {channel_name} ({channel_id}): {str(e_channel)}", exc_info=True)
+                skipped_channels_log_details.append(f"{channel_name} (processing error: {str(e_channel)})")
                 documents_skipped += 1
-                continue  # Skip this channel and continue with others
+                continue 
         
-        # Update the last_indexed_at timestamp for the connector only if requested
-        # and if we successfully indexed at least one channel
-        total_processed = documents_indexed + documents_updated
-        if update_last_indexed and total_processed > 0:
-            connector.last_indexed_at = datetime.now()
+        total_docs_affected = documents_indexed + documents_updated
+        if update_last_indexed and (total_docs_affected > 0 or not channels_to_process): # Update if docs changed or if no channels to begin with
+            # For targeted re-indexing, last_indexed_at for the connector should still be updated if the overall operation is successful.
+            # The new "now" should be after all messages have been fetched.
+            connector.last_indexed_at = datetime.now(timezone.utc) 
+            logger.info(f"Connector {connector_id} last_indexed_at will be updated to {connector.last_indexed_at.isoformat()}")
         
-        # Commit all changes
         await session.commit()
         
-        # Prepare result message
-        result_message = None
-        if skipped_channels:
-            result_message = f"Processed {total_processed} channels ({documents_indexed} new, {documents_updated} updated). Skipped {len(skipped_channels)} channels: {', '.join(skipped_channels)}"
-        else:
-            result_message = f"Processed {total_processed} channels ({documents_indexed} new, {documents_updated} updated)."
+        result_summary_message = f"Slack indexing completed for connector {connector_id}: " \
+                                 f"{documents_indexed} new, {documents_updated} updated, {documents_skipped} skipped. "
+        if skipped_channels_log_details:
+            result_summary_message += f"Skipped channels details: {'; '.join(skipped_channels_log_details)}"
         
-        logger.info(f"Slack indexing completed: {documents_indexed} new channels, {documents_updated} updated, {documents_skipped} skipped")
-        return total_processed, result_message
+        logger.info(result_summary_message)
+        return total_docs_affected, result_summary_message if documents_skipped > 0 else None # Return None if no errors/skips
     
     except SQLAlchemyError as db_error:
         await session.rollback()
-        logger.error(f"Database error: {str(db_error)}")
+        logger.error(f"Database error during Slack indexing for connector {connector_id}: {str(db_error)}", exc_info=True)
         return 0, f"Database error: {str(db_error)}"
     except Exception as e:
-        await session.rollback()
-        logger.error(f"Failed to index Slack messages: {str(e)}")
+        await session.rollback() # Rollback on any other unexpected error
+        logger.error(f"Failed to index Slack messages for connector {connector_id}: {str(e)}", exc_info=True)
         return 0, f"Failed to index Slack messages: {str(e)}"
 
 async def index_notion_pages(

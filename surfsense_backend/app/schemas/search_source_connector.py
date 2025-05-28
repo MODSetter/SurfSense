@@ -53,9 +53,11 @@ class SearchSourceConnectorBase(BaseModel):
                 "SLACK_BOT_TOKEN",
                 "slack_membership_filter_type",
                 "slack_selected_channel_ids",
-                "slack_indexing_frequency",
+                "slack_periodic_indexing_frequency", # Renamed from slack_indexing_frequency
                 "slack_initial_indexing_days",
-                "slack_initial_max_messages_per_channel"
+                "slack_initial_max_messages_per_channel",
+                "slack_periodic_indexing_enabled", # New field
+                "slack_max_messages_per_channel_periodic" # New field
             ]
 
             # Ensure SLACK_BOT_TOKEN is always present and not empty
@@ -85,10 +87,37 @@ class SearchSourceConnectorBase(BaseModel):
             elif "slack_selected_channel_ids" in config and config.get("slack_membership_filter_type") == "all_member_channels":
                 # Optional: could remove it or just ignore it if filter type is all_member_channels
                 pass # For now, just allow it to be present but not validated for content
+            
+            # Validate slack_periodic_indexing_enabled
+            if "slack_periodic_indexing_enabled" in config and not isinstance(config.get("slack_periodic_indexing_enabled"), bool):
+                raise ValueError("slack_periodic_indexing_enabled must be a boolean")
 
-            # Validate slack_indexing_frequency
-            if "slack_indexing_frequency" in config and not isinstance(config.get("slack_indexing_frequency"), str):
-                raise ValueError("slack_indexing_frequency must be a string")
+            # Validate slack_periodic_indexing_frequency
+            # This field is only required if slack_periodic_indexing_enabled is True
+            periodic_indexing_enabled = config.get("slack_periodic_indexing_enabled", False) # Default to False if not provided
+            if periodic_indexing_enabled:
+                if "slack_periodic_indexing_frequency" not in config:
+                    raise ValueError("slack_periodic_indexing_frequency is required when slack_periodic_indexing_enabled is True")
+                
+                freq = config.get("slack_periodic_indexing_frequency")
+                if not isinstance(freq, str):
+                    raise ValueError("slack_periodic_indexing_frequency must be a string")
+                # Example valid values, adjust as needed
+                if freq not in ["daily", "weekly", "monthly"]:
+                    raise ValueError("slack_periodic_indexing_frequency must be one of 'daily', 'weekly', 'monthly'")
+            elif "slack_periodic_indexing_frequency" in config:
+                 # If periodic indexing is not enabled, but frequency is provided, it should still be a string
+                if not isinstance(config.get("slack_periodic_indexing_frequency"), str):
+                    raise ValueError("slack_periodic_indexing_frequency must be a string")
+
+
+            # Validate slack_max_messages_per_channel_periodic
+            if "slack_max_messages_per_channel_periodic" in config:
+                max_messages_periodic = config.get("slack_max_messages_per_channel_periodic")
+                if not isinstance(max_messages_periodic, int):
+                    raise ValueError("slack_max_messages_per_channel_periodic must be an integer")
+                if max_messages_periodic <= 0:
+                    raise ValueError("slack_max_messages_per_channel_periodic must be greater than 0")
 
             # Validate slack_initial_indexing_days
             if "slack_initial_indexing_days" in config and not isinstance(config.get("slack_initial_indexing_days"), int):
