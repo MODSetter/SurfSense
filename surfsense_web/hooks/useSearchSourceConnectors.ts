@@ -6,9 +6,25 @@ export interface SearchSourceConnector {
   connector_type: string;
   is_indexable: boolean;
   last_indexed_at: string | null;
-  config: Record<string, any>;
+  config: Record<string, any>; // This allows any keys, including new Slack fields
   user_id?: string;
   created_at?: string;
+}
+
+// Interface for Slack channel discovery
+export interface SlackChannelInfo {
+  id: string;
+  name: string;
+  is_private: boolean;
+  is_member: boolean;
+}
+
+// Interface for re-indexing request payload (though used internally)
+interface ReindexSlackChannelsPayload {
+  channel_ids: string[];
+  force_reindex_all_messages?: boolean;
+  reindex_start_date?: string | null; // Allow null to be passed if date is empty
+  reindex_latest_date?: string | null; // Allow null to be passed if date is empty
 }
 
 export interface ConnectorSourceItem {
@@ -300,6 +316,83 @@ export const useSearchSourceConnectors = () => {
     return connectorSourceItems;
   }, [connectorSourceItems]);
 
+  // Helper function for authenticated fetch requests
+  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('surfsense_bearer_token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    };
+
+    const response = await fetch(url, { ...options, headers });
+
+    if (!response.ok) {
+      const errorBody = await response.text(); // Try to get more error info
+      throw new Error(`API request failed: ${response.statusText} - ${errorBody}`);
+    }
+    // For 202 or 204, response.json() will fail. Handle it.
+    if (response.status === 202 || response.status === 204) {
+        return null; // Or some specific success indicator
+    }
+    return response.json();
+  };
+
+
+  /**
+   * Discover Slack channels for a given connector
+   */
+  const discoverSlackChannels = async (connectorId: number): Promise<SlackChannelInfo[]> => {
+    try {
+      const data = await fetchWithAuth(
+        `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/slack/${connectorId}/discover-channels`,
+        { method: 'GET' }
+      );
+      // The backend route for discover-channels returns { channels: SlackChannelInfo[] }
+      // So, we need to access data.channels
+      return data.channels as SlackChannelInfo[]; 
+    } catch (err) {
+      console.error(`Error discovering Slack channels for connector ${connectorId}:`, err);
+      throw err; // Re-throw to be handled by the caller
+    }
+  };
+
+  /**
+   * Trigger re-indexing for specific Slack channels
+   */
+  const reindexSlackChannels = async (
+    connectorId: number,
+    channelIds: string[],
+    forceReindexAllMessages?: boolean,
+    reindexStartDate?: string,
+    reindexLatestDate?: string
+  ): Promise<any> => {
+    try {
+      const payload: ReindexSlackChannelsPayload = {
+        channel_ids: channelIds,
+        force_reindex_all_messages: forceReindexAllMessages,
+        reindex_start_date: reindexStartDate || null, // Ensure null if empty string
+        reindex_latest_date: reindexLatestDate || null, // Ensure null if empty string
+      };
+      
+      const result = await fetchWithAuth(
+        `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/slack/${connectorId}/reindex-channels`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      );
+      return result; // Typically a success message or status
+    } catch (err) {
+      console.error(`Error re-indexing Slack channels for connector ${connectorId}:`, err);
+      throw err; // Re-throw to be handled by the caller
+    }
+  };
+
   return {
     connectors,
     isLoading,
@@ -309,6 +402,8 @@ export const useSearchSourceConnectors = () => {
     deleteConnector,
     indexConnector,
     getConnectorSourceItems,
-    connectorSourceItems
+    connectorSourceItems,
+    discoverSlackChannels, // Export new function
+    reindexSlackChannels,  // Export new function
   };
-}; 
+};

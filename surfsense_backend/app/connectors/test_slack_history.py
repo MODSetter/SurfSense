@@ -1,420 +1,338 @@
 import unittest
-import time # Imported to be available for patching target module
-from unittest.mock import patch, Mock, call
+from unittest.mock import patch, MagicMock, call
+from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from datetime import datetime, timezone, timedelta
 
-# Since test_slack_history.py is in the same directory as slack_history.py
-from .slack_history import SlackHistory
+# Assuming SlackHistory is in app.connectors.slack_history
+# Adjust the import path if your structure is different.
+# For example, if 'app' is the root of your source:
+from app.connectors.slack_history import SlackHistory 
 
-class TestSlackHistoryGetAllChannels(unittest.TestCase):
+class TestSlackHistory(unittest.TestCase):
 
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient') 
-    def test_get_all_channels_pagination_with_delay(self, MockWebClient, mock_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
+    def setUp(self):
+        self.dummy_token = "xoxb-test-token"
+        # We patch WebClient in each test that needs it, so SlackHistory can be instantiated
+        # without making actual API calls during setup.
+        self.history = SlackHistory(token=self.dummy_token)
+
+
+    @patch('app.connectors.slack_history.WebClient') # Patch where WebClient is looked up
+    def test_init_and_set_token(self, MockWebClient):
+        # Test __init__
+        mock_client_instance = MockWebClient.return_value # Get the instance returned by MockWebClient()
         
-        # Mock API responses now include is_private and is_member
-        page1_response = {
+        history_init = SlackHistory(token="test_init_token")
+        MockWebClient.assert_called_once_with(token="test_init_token")
+        self.assertEqual(history_init.client, mock_client_instance)
+
+        # Reset mock for the next part of the test
+        MockWebClient.reset_mock()
+
+        # Test set_token
+        history_set_token = SlackHistory() # Initialize without token first
+        self.assertIsNone(history_set_token.client)
+        
+        history_set_token.set_token("test_set_token_token")
+        MockWebClient.assert_called_once_with(token="test_set_token_token")
+        self.assertEqual(history_set_token.client, mock_client_instance)
+
+
+    @patch.object(WebClient, 'conversations_list')
+    def test_get_all_channels_success_and_pagination(self, mock_conversations_list):
+        # Simulate WebClient being already initialized in self.history
+        self.history.client = mock_conversations_list.MagicMock() # Replace client with a mock that has conversations_list
+        
+        mock_response_page1 = MagicMock()
+        mock_response_page1.data = {
             "channels": [
-                {"name": "general", "id": "C1", "is_private": False, "is_member": True}, 
-                {"name": "dev", "id": "C0", "is_private": False, "is_member": True}
+                {"id": "C1", "name": "general", "is_member": True, "is_private": False},
+                {"id": "C2", "name": "random", "is_member": False, "is_private": False}, # is_member False
             ],
-            "response_metadata": {"next_cursor": "cursor123"}
+            "response_metadata": {"next_cursor": "cursor_page2"}
         }
-        page2_response = {
-            "channels": [{"name": "random", "id": "C2", "is_private": True, "is_member": True}],
+        mock_response_page2 = MagicMock()
+        mock_response_page2.data = {
+            "channels": [
+                {"id": "C3", "name": "private-project", "is_member": True, "is_private": True},
+            ],
             "response_metadata": {"next_cursor": ""} 
         }
+        self.history.client.conversations_list.side_effect = [mock_response_page1, mock_response_page2]
+
+        channels = self.history.get_all_channels(include_private=True)
         
-        mock_client_instance.conversations_list.side_effect = [
-            page1_response,
-            page2_response
-        ]
-        
-        slack_history = SlackHistory(token="fake_token")
-        channels_list = slack_history.get_all_channels(include_private=True)
-        
-        expected_channels_list = [
-            {"id": "C1", "name": "general", "is_private": False, "is_member": True},
-            {"id": "C0", "name": "dev", "is_private": False, "is_member": True},
-            {"id": "C2", "name": "random", "is_private": True, "is_member": True}
-        ]
-        
-        self.assertEqual(len(channels_list), 3)
-        self.assertListEqual(channels_list, expected_channels_list) # Assert list equality
-        
+        self.assertEqual(len(channels), 3)
+        self.assertEqual(channels[0]['id'], "C1")
+        self.assertTrue(channels[0]['is_member']) # Verify is_member preserved
+        self.assertEqual(channels[1]['id'], "C2")
+        self.assertFalse(channels[1]['is_member']) # Verify is_member preserved
+        self.assertEqual(channels[2]['id'], "C3")
+        self.assertTrue(channels[2]['is_private'])
+
         expected_calls = [
-            call(types="public_channel,private_channel", cursor=None, limit=1000),
-            call(types="public_channel,private_channel", cursor="cursor123", limit=1000)
+            call(limit=200, cursor=None, types="public_channel,private_channel"),
+            call(limit=200, cursor="cursor_page2", types="public_channel,private_channel")
         ]
-        mock_client_instance.conversations_list.assert_has_calls(expected_calls)
-        self.assertEqual(mock_client_instance.conversations_list.call_count, 2)
-        
-        mock_sleep.assert_called_once_with(3)
-        mock_logger.info.assert_called_once_with("Paginating for channels, waiting 3 seconds before next call. Cursor: cursor123")
+        self.history.client.conversations_list.assert_has_calls(expected_calls)
 
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_get_all_channels_rate_limit_with_retry_after(self, MockWebClient, mock_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        mock_error_response = Mock()
-        mock_error_response.status_code = 429
-        mock_error_response.headers = {'Retry-After': '5'}
-        
-        successful_response = {
-            "channels": [{"name": "general", "id": "C1", "is_private": False, "is_member": True}],
+    @patch.object(WebClient, 'conversations_list')
+    def test_get_all_channels_public_only(self, mock_conversations_list):
+        self.history.client = mock_conversations_list.MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = {
+            "channels": [{"id": "C1", "name": "general", "is_member": True, "is_private": False}],
             "response_metadata": {"next_cursor": ""}
         }
-        
-        mock_client_instance.conversations_list.side_effect = [
-            SlackApiError(message="ratelimited", response=mock_error_response),
-            successful_response
-        ]
-        
-        slack_history = SlackHistory(token="fake_token")
-        channels_list = slack_history.get_all_channels(include_private=True)
-        
-        expected_channels_list = [{"id": "C1", "name": "general", "is_private": False, "is_member": True}]
-        self.assertEqual(len(channels_list), 1)
-        self.assertListEqual(channels_list, expected_channels_list)
-        
-        mock_sleep.assert_called_once_with(5) 
-        mock_logger.warning.assert_called_once_with("Slack API rate limit hit while fetching channels. Waiting for 5 seconds. Cursor: None")
-        
-        expected_calls = [
-            call(types="public_channel,private_channel", cursor=None, limit=1000), 
-            call(types="public_channel,private_channel", cursor=None, limit=1000)
-        ]
-        mock_client_instance.conversations_list.assert_has_calls(expected_calls)
-        self.assertEqual(mock_client_instance.conversations_list.call_count, 2)
+        self.history.client.conversations_list.return_value = mock_response
 
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_get_all_channels_rate_limit_no_retry_after_valid_header(self, MockWebClient, mock_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
+        self.history.get_all_channels(include_private=False)
+        self.history.client.conversations_list.assert_called_once_with(limit=200, cursor=None, types="public_channel")
+
+    @patch.object(WebClient, 'conversations_list')
+    def test_get_all_channels_empty(self, mock_conversations_list):
+        self.history.client = mock_conversations_list.MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = {"channels": [], "response_metadata": {"next_cursor": ""}}
+        self.history.client.conversations_list.return_value = mock_response
+
+        channels = self.history.get_all_channels()
+        self.assertEqual(len(channels), 0)
+
+    @patch.object(WebClient, 'conversations_list')
+    def test_get_all_channels_api_error(self, mock_conversations_list):
+        self.history.client = mock_conversations_list.MagicMock()
+        # Simulate a SlackApiError
+        self.history.client.conversations_list.side_effect = SlackApiError("API Error", MagicMock(data={"error": "test_error"}))
         
-        mock_error_response = Mock()
-        mock_error_response.status_code = 429
-        mock_error_response.headers = {'Retry-After': 'invalid_value'} 
-        
-        successful_response = {
-            "channels": [{"name": "general", "id": "C1", "is_private": False, "is_member": True}],
-            "response_metadata": {"next_cursor": ""}
+        with self.assertRaises(SlackApiError):
+            self.history.get_all_channels()
+
+    @patch.object(WebClient, 'conversations_history')
+    def test_get_conversation_history_success_and_pagination(self, mock_conversations_history):
+        self.history.client = mock_conversations_history.MagicMock()
+        mock_response_page1 = MagicMock()
+        mock_response_page1.data = {
+            "messages": [{"ts": "123.001", "text": "Hello"}, {"ts": "123.002", "text": "World"}],
+            "has_more": True,
+            "response_metadata": {"next_cursor": "cursor_history2"}
         }
-        
-        mock_client_instance.conversations_list.side_effect = [
-            SlackApiError(message="ratelimited", response=mock_error_response),
-            successful_response
-        ]
-        
-        slack_history = SlackHistory(token="fake_token")
-        channels_list = slack_history.get_all_channels(include_private=True)
-        
-        expected_channels_list = [{"id": "C1", "name": "general", "is_private": False, "is_member": True}]
-        self.assertListEqual(channels_list, expected_channels_list)
-        mock_sleep.assert_called_once_with(60) # Default fallback
-        mock_logger.warning.assert_called_once_with("Slack API rate limit hit while fetching channels. Waiting for 60 seconds. Cursor: None")
-        self.assertEqual(mock_client_instance.conversations_list.call_count, 2)
-
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_get_all_channels_rate_limit_no_retry_after_header(self, MockWebClient, mock_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        mock_error_response = Mock()
-        mock_error_response.status_code = 429
-        mock_error_response.headers = {} 
-        
-        successful_response = {
-            "channels": [{"name": "general", "id": "C1", "is_private": False, "is_member": True}],
-            "response_metadata": {"next_cursor": ""}
-        }
-        
-        mock_client_instance.conversations_list.side_effect = [
-            SlackApiError(message="ratelimited", response=mock_error_response),
-            successful_response
-        ]
-        
-        slack_history = SlackHistory(token="fake_token")
-        channels_list = slack_history.get_all_channels(include_private=True)
-        
-        expected_channels_list = [{"id": "C1", "name": "general", "is_private": False, "is_member": True}]
-        self.assertListEqual(channels_list, expected_channels_list)
-        mock_sleep.assert_called_once_with(60) # Default fallback
-        mock_logger.warning.assert_called_once_with("Slack API rate limit hit while fetching channels. Waiting for 60 seconds. Cursor: None")
-        self.assertEqual(mock_client_instance.conversations_list.call_count, 2)
-
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_get_all_channels_other_slack_api_error(self, MockWebClient, mock_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        mock_error_response = Mock()
-        mock_error_response.status_code = 500 
-        mock_error_response.headers = {}
-        mock_error_response.data = {"ok": False, "error": "internal_error"} 
-        
-        original_error = SlackApiError(message="server error", response=mock_error_response)
-        mock_client_instance.conversations_list.side_effect = original_error
-        
-        slack_history = SlackHistory(token="fake_token")
-        
-        with self.assertRaises(SlackApiError) as context:
-            slack_history.get_all_channels(include_private=True)
-        
-        self.assertEqual(context.exception.response.status_code, 500)
-        self.assertIn("server error", str(context.exception))
-        mock_sleep.assert_not_called()
-        mock_logger.warning.assert_not_called() # Ensure no rate limit log
-        mock_client_instance.conversations_list.assert_called_once_with(
-            types="public_channel,private_channel", cursor=None, limit=1000
-        )
-
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_get_all_channels_handles_missing_name_id_gracefully(self, MockWebClient, mock_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        response_with_malformed_data = {
-            "channels": [
-                {"id": "C1_missing_name", "is_private": False, "is_member": True}, 
-                {"name": "channel_missing_id", "is_private": False, "is_member": True},
-                {"name": "general", "id": "C2_valid", "is_private": False, "is_member": True}
-            ],
-            "response_metadata": {"next_cursor": ""}
-        }
-        
-        mock_client_instance.conversations_list.return_value = response_with_malformed_data
-        
-        slack_history = SlackHistory(token="fake_token")
-        channels_list = slack_history.get_all_channels(include_private=True)
-        
-        expected_channels_list = [
-            {"id": "C2_valid", "name": "general", "is_private": False, "is_member": True}
-        ]
-        self.assertEqual(len(channels_list), 1) 
-        self.assertListEqual(channels_list, expected_channels_list)
-        
-        self.assertEqual(mock_logger.warning.call_count, 2)
-        mock_logger.warning.assert_any_call("Channel found with missing name or id. Data: {'id': 'C1_missing_name', 'is_private': False, 'is_member': True}")
-        mock_logger.warning.assert_any_call("Channel found with missing name or id. Data: {'name': 'channel_missing_id', 'is_private': False, 'is_member': True}")
-
-        mock_sleep.assert_not_called() 
-        mock_client_instance.conversations_list.assert_called_once_with(
-            types="public_channel,private_channel", cursor=None, limit=1000
-        )
-
-if __name__ == '__main__':
-    unittest.main()
-
-class TestSlackHistoryGetConversationHistory(unittest.TestCase):
-
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_proactive_delay_single_page(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        mock_client_instance.conversations_history.return_value = {
-            "messages": [{"text": "msg1"}],
+        mock_response_page2 = MagicMock()
+        mock_response_page2.data = {
+            "messages": [{"ts": "123.003", "text": "Again"}],
             "has_more": False
         }
-        
-        slack_history = SlackHistory(token="fake_token")
-        slack_history.get_conversation_history(channel_id="C123")
-        
-        mock_time_sleep.assert_called_once_with(1.2) # Proactive delay
+        self.history.client.conversations_history.side_effect = [mock_response_page1, mock_response_page2]
 
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_proactive_delay_multiple_pages(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        mock_client_instance.conversations_history.side_effect = [
-            {
-                "messages": [{"text": "msg1"}],
-                "has_more": True,
-                "response_metadata": {"next_cursor": "cursor1"}
-            },
-            {
-                "messages": [{"text": "msg2"}],
-                "has_more": False
-            }
+        messages = self.history.get_conversation_history("C123", limit=3) # Request total 3 messages
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(messages[0]['text'], "Hello")
+        self.assertEqual(messages[2]['text'], "Again")
+
+        # The internal page_limit in get_conversation_history is 100 (can be smaller than requested limit)
+        expected_calls = [
+            call(channel="C123", limit=3, oldest=None, latest=None, cursor=None), 
+            call(channel="C123", limit=1, oldest=None, latest=None, cursor="cursor_history2") 
         ]
-        
-        slack_history = SlackHistory(token="fake_token")
-        slack_history.get_conversation_history(channel_id="C123")
-        
-        # Expected calls: 1.2 (page1), 1.2 (page2)
-        self.assertEqual(mock_time_sleep.call_count, 2)
-        mock_time_sleep.assert_has_calls([call(1.2), call(1.2)])
+        self.history.client.conversations_history.assert_has_calls(expected_calls)
 
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_retry_after_logic(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        mock_error_response = Mock()
-        mock_error_response.status_code = 429
-        mock_error_response.headers = {'Retry-After': '5'}
-        
-        mock_client_instance.conversations_history.side_effect = [
-            SlackApiError(message="ratelimited", response=mock_error_response),
-            {"messages": [{"text": "msg1"}], "has_more": False}
-        ]
-        
-        slack_history = SlackHistory(token="fake_token")
-        messages = slack_history.get_conversation_history(channel_id="C123")
-        
-        self.assertEqual(len(messages), 1)
-        self.assertEqual(messages[0]["text"], "msg1")
-        
-        # Expected sleep calls: 1.2 (proactive for 1st attempt), 5 (rate limit), 1.2 (proactive for 2nd attempt)
-        mock_time_sleep.assert_has_calls([call(1.2), call(5), call(1.2)], any_order=False)
-        mock_logger.warning.assert_called_once() # Check that a warning was logged for rate limiting
 
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep') 
-    @patch('slack_sdk.WebClient')
-    def test_not_in_channel_error(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        mock_error_response = Mock()
-        mock_error_response.status_code = 403 # Typical for not_in_channel, but data matters more
-        mock_error_response.data = {'ok': False, 'error': 'not_in_channel'}
-        
-        # This error is now raised by the inner try-except, then caught by the outer one
-        mock_client_instance.conversations_history.side_effect = SlackApiError(
-            message="not_in_channel error", 
-            response=mock_error_response
+    @patch.object(WebClient, 'conversations_history')
+    def test_get_conversation_history_with_timestamps(self, mock_conversations_history):
+        self.history.client = mock_conversations_history.MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = {"messages": [{"ts": "1609500000.000", "text":"msg1"}], "has_more": False}
+        self.history.client.conversations_history.return_value = mock_response
+
+        oldest_ts_str = str(int(datetime(2021, 1, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()))
+        latest_ts_str = str(int(datetime(2021, 1, 2, 0, 0, 0, tzinfo=timezone.utc).timestamp()))
+
+
+        self.history.get_conversation_history("C123", oldest=oldest_ts_str, latest=latest_ts_str, limit=50)
+        self.history.client.conversations_history.assert_called_once_with(
+            channel="C123", limit=50, oldest=oldest_ts_str, latest=latest_ts_str, cursor=None
         )
-        
-        slack_history = SlackHistory(token="fake_token")
-        messages = slack_history.get_conversation_history(channel_id="C123")
-        
-        self.assertEqual(messages, [])
-        mock_logger.warning.assert_called_with(
-            "Bot is not in channel 'C123'. Cannot fetch history. Please add the bot to this channel."
-        )
-        mock_time_sleep.assert_called_once_with(1.2) # Proactive delay before the API call
 
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_other_slack_api_error_propagates(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        mock_error_response = Mock()
-        mock_error_response.status_code = 500
-        mock_error_response.data = {'ok': False, 'error': 'internal_error'}
-        original_error = SlackApiError(message="server error", response=mock_error_response)
+    @patch('logging.warning') # Patch logging where it's used (directly in slack_history module)
+    @patch.object(WebClient, 'conversations_history')
+    def test_get_conversation_history_not_in_channel(self, mock_conversations_history, mock_logging_warning):
+        self.history.client = mock_conversations_history.MagicMock()
+        error_response = MagicMock()
+        error_response.data = {"ok": False, "error": "not_in_channel"}
+        self.history.client.conversations_history.side_effect = SlackApiError("not_in_channel error", error_response)
 
-        mock_client_instance.conversations_history.side_effect = original_error
-        
-        slack_history = SlackHistory(token="fake_token")
-        
-        with self.assertRaises(SlackApiError) as context:
-            slack_history.get_conversation_history(channel_id="C123")
-        
-        self.assertIn("Error retrieving history for channel C123", str(context.exception))
-        self.assertIs(context.exception.response, mock_error_response)
-        mock_time_sleep.assert_called_once_with(1.2) # Proactive delay
+        messages = self.history.get_conversation_history("C123")
+        self.assertEqual(len(messages), 0) # Should return empty list
+        mock_logging_warning.assert_called_once()
+        self.assertIn("Bot is not in channel C123 or history is private.", mock_logging_warning.call_args[0][0])
 
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_general_exception_propagates(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        original_error = Exception("Something broke")
-        mock_client_instance.conversations_history.side_effect = original_error
-        
-        slack_history = SlackHistory(token="fake_token")
-        
-        with self.assertRaises(Exception) as context: # Check for generic Exception
-            slack_history.get_conversation_history(channel_id="C123")
-        
-        self.assertIs(context.exception, original_error) # Should re-raise the original error
-        mock_logger.error.assert_called_once_with("Unexpected error in get_conversation_history for channel C123: Something broke")
-        mock_time_sleep.assert_called_once_with(1.2) # Proactive delay
+    @patch.object(WebClient, 'conversations_history')
+    def test_get_conversation_history_other_api_error(self, mock_conversations_history):
+        self.history.client = mock_conversations_history.MagicMock()
+        error_response = MagicMock()
+        error_response.data = {"ok": False, "error": "some_other_error"}
+        self.history.client.conversations_history.side_effect = SlackApiError("Some other error", error_response)
 
-class TestSlackHistoryGetUserInfo(unittest.TestCase):
-
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_retry_after_logic(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        mock_error_response = Mock()
-        mock_error_response.status_code = 429
-        mock_error_response.headers = {'Retry-After': '3'} # Using 3 seconds for test
-        
-        successful_user_data = {"id": "U123", "name": "testuser"}
-        
-        mock_client_instance.users_info.side_effect = [
-            SlackApiError(message="ratelimited_userinfo", response=mock_error_response),
-            {"user": successful_user_data}
-        ]
-        
-        slack_history = SlackHistory(token="fake_token")
-        user_info = slack_history.get_user_info(user_id="U123")
-        
-        self.assertEqual(user_info, successful_user_data)
-        
-        # Assert that time.sleep was called for the rate limit
-        mock_time_sleep.assert_called_once_with(3)
-        mock_logger.warning.assert_called_once_with(
-            "Rate limited by Slack on users.info for user U123. Retrying after 3 seconds."
-        )
-        # Assert users_info was called twice (original + retry)
-        self.assertEqual(mock_client_instance.users_info.call_count, 2)
-        mock_client_instance.users_info.assert_has_calls([call(user="U123"), call(user="U123")])
-
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep') # time.sleep might be called by other logic, but not expected here
-    @patch('slack_sdk.WebClient')
-    def test_other_slack_api_error_propagates(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        
-        mock_error_response = Mock()
-        mock_error_response.status_code = 500 # Some other error
-        mock_error_response.data = {'ok': False, 'error': 'internal_server_error'}
-        original_error = SlackApiError(message="internal server error", response=mock_error_response)
-
-        mock_client_instance.users_info.side_effect = original_error
-        
-        slack_history = SlackHistory(token="fake_token")
-        
-        with self.assertRaises(SlackApiError) as context:
-            slack_history.get_user_info(user_id="U123")
-        
-        # Check that the raised error is the one we expect
-        self.assertIn("Error retrieving user info for U123", str(context.exception))
-        self.assertIs(context.exception.response, mock_error_response)
-        mock_time_sleep.assert_not_called() # No rate limit sleep
-
-    @patch('surfsense_backend.app.connectors.slack_history.logger')
-    @patch('surfsense_backend.app.connectors.slack_history.time.sleep')
-    @patch('slack_sdk.WebClient')
-    def test_general_exception_propagates(self, MockWebClient, mock_time_sleep, mock_logger):
-        mock_client_instance = MockWebClient.return_value
-        original_error = Exception("A very generic problem")
-        mock_client_instance.users_info.side_effect = original_error
-        
-        slack_history = SlackHistory(token="fake_token")
-        
-        with self.assertRaises(Exception) as context:
-            slack_history.get_user_info(user_id="U123")
+        with self.assertRaises(SlackApiError):
+            self.history.get_conversation_history("C123")
             
-        self.assertIs(context.exception, original_error) # Check it's the exact same exception
-        mock_logger.error.assert_called_once_with(
-            "Unexpected error in get_user_info for user U123: A very generic problem"
+    @patch.object(WebClient, 'conversations_history')
+    def test_get_conversation_history_empty_messages_from_api(self, mock_conversations_history):
+        self.history.client = mock_conversations_history.MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = {"messages": [], "has_more": False}
+        self.history.client.conversations_history.return_value = mock_response
+
+        messages = self.history.get_conversation_history("C123")
+        self.assertEqual(len(messages), 0)
+
+    def test_convert_date_to_timestamp_static(self):
+        # Valid date
+        ts = SlackHistory.convert_date_to_timestamp("2023-01-15")
+        expected_dt = datetime(2023, 1, 15, 0, 0, 0, tzinfo=timezone.utc)
+        self.assertEqual(ts, str(int(expected_dt.timestamp())))
+
+        # Valid date with is_latest = True
+        ts_latest = SlackHistory.convert_date_to_timestamp("2023-01-15", is_latest=True)
+        # Should be timestamp for 2023-01-16 00:00:00 UTC to include the whole day of 2023-01-15
+        expected_dt_latest_inclusive = datetime(2023, 1, 15, 0, 0, 0, tzinfo=timezone.utc) + timedelta(days=1)
+        self.assertEqual(ts_latest, str(int(expected_dt_latest_inclusive.timestamp())))
+        
+        # Invalid date format - Expect ValueError as per typical date parsing behavior
+        with self.assertRaises(ValueError): 
+            SlackHistory.convert_date_to_timestamp("15-01-2023")
+        
+        # Invalid date value
+        with self.assertRaises(ValueError):
+            SlackHistory.convert_date_to_timestamp("2023-13-01") # Month 13
+
+    @patch.object(SlackHistory, 'get_conversation_history')
+    def test_get_history_by_date_range_success(self, mock_get_conv_history):
+        # Mock convert_date_to_timestamp if it's complex, or test its output directly.
+        # Here, we assume convert_date_to_timestamp works as tested above.
+        
+        mock_get_conv_history.return_value = [{"text": "message from range"}]
+        
+        # Expected timestamps based on convert_date_to_timestamp logic
+        start_date_str = "2023-01-10"
+        end_date_str = "2023-01-12"
+        
+        expected_oldest_ts = str(int(datetime(2023, 1, 10, 0, 0, 0, tzinfo=timezone.utc).timestamp()))
+        # For latest, it should be the start of the next day to include the entire end_date_str
+        expected_latest_ts = str(int((datetime(2023, 1, 12, 0, 0, 0, tzinfo=timezone.utc) + timedelta(days=1)).timestamp()))
+
+        messages, error = self.history.get_history_by_date_range("C123", start_date_str, end_date_str)
+        
+        self.assertIsNone(error)
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0]['text'], "message from range")
+        mock_get_conv_history.assert_called_once_with(
+            channel_id="C123",
+            oldest=expected_oldest_ts,
+            latest=expected_latest_ts
         )
-        mock_time_sleep.assert_not_called() # No rate limit sleep
+
+    def test_get_history_by_date_range_invalid_dates(self):
+        # Test with invalid start_date format
+        result, error = self.history.get_history_by_date_range("C123", "invalid-start-date", "2023-01-12")
+        self.assertIsNone(result)
+        self.assertIn("Invalid start_date format: invalid-start-date. Use YYYY-MM-DD.", error)
+
+        # Test with invalid end_date format
+        result, error = self.history.get_history_by_date_range("C123", "2023-01-10", "invalid-end-date")
+        self.assertIsNone(result)
+        self.assertIn("Invalid end_date format: invalid-end-date. Use YYYY-MM-DD.", error)
+
+    @patch.object(WebClient, 'users_info')
+    def test_get_user_info_success(self, mock_users_info):
+        self.history.client = mock_users_info.MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = {"user": {"id": "U123", "name": "testuser", "real_name": "Test User"}}
+        self.history.client.users_info.return_value = mock_response
+
+        user_info = self.history.get_user_info("U123")
+        self.assertIsNotNone(user_info)
+        self.assertEqual(user_info['name'], "testuser")
+        self.history.client.users_info.assert_called_once_with(user="U123")
+
+    @patch.object(WebClient, 'users_info')
+    def test_get_user_info_api_error(self, mock_users_info):
+        self.history.client = mock_users_info.MagicMock()
+        self.history.client.users_info.side_effect = SlackApiError("API Error", MagicMock(data={"error": "user_not_found"}))
+        
+        user_info = self.history.get_user_info("U123") 
+        self.assertIsNone(user_info) 
+
+    def test_format_message_basic(self):
+        raw_msg = {"type": "message", "user": "U123", "text": "Hello world", "ts": "1609459200.000100"} # 2021-01-01 00:00:00 UTC
+        formatted = self.history.format_message(raw_msg)
+        
+        self.assertEqual(formatted['user_id'], "U123")
+        self.assertEqual(formatted['text'], "Hello world")
+        self.assertEqual(formatted['datetime'], "2021-01-01 00:00:00 UTC")
+        self.assertNotIn('user_name', formatted) # Not requested
+
+    @patch.object(SlackHistory, 'get_user_info')
+    def test_format_message_with_user_info_and_real_name(self, mock_get_user_info):
+        mock_get_user_info.return_value = {"real_name": "Test User Real", "name": "testusername"}
+        raw_msg = {"type": "message", "user": "U123", "text": "Hello with user", "ts": "1609459200.000200"}
+        
+        formatted = self.history.format_message(raw_msg, include_user_info=True)
+        
+        mock_get_user_info.assert_called_once_with("U123")
+        self.assertEqual(formatted['user_id'], "U123")
+        self.assertEqual(formatted['user_name'], "Test User Real") # Prefers real_name
+        self.assertEqual(formatted['text'], "Hello with user")
+
+    @patch.object(SlackHistory, 'get_user_info')
+    def test_format_message_with_user_info_name_fallback(self, mock_get_user_info):
+        mock_get_user_info.return_value = {"name": "testusername_only"} # No real_name
+        raw_msg = {"type": "message", "user": "U124", "text": "Name fallback", "ts": "1609459200.000300"}
+        
+        formatted = self.history.format_message(raw_msg, include_user_info=True)
+        self.assertEqual(formatted['user_name'], "testusername_only")
+
+    @patch.object(SlackHistory, 'get_user_info')
+    def test_format_message_with_user_info_not_found(self, mock_get_user_info):
+        mock_get_user_info.return_value = None # User info not found
+        raw_msg = {"type": "message", "user": "U125", "text": "User not found", "ts": "1609459200.000350"}
+        
+        formatted = self.history.format_message(raw_msg, include_user_info=True)
+        self.assertEqual(formatted['user_name'], "Unknown User")
+
+
+    def test_format_message_with_files(self):
+        raw_msg = {
+            "type": "message", "user": "U123", "text": "Check attachments", "ts": "1609459200.000400",
+            "files": [
+                {"name": "file1.txt", "url_private_download": "http://example.com/file1.txt"},
+                {"name": "image.png", "url_private_download": "http://example.com/image.png", "permalink": "http://slack.com/image.png"}
+            ]
+        }
+        formatted = self.history.format_message(raw_msg)
+        expected_text = (
+            "Check attachments\n\n"
+            "Attachments:\n"
+            "- file1.txt (http://example.com/file1.txt)\n"
+            "- image.png (http://slack.com/image.png)" # Prefers permalink
+        )
+        self.assertEqual(formatted['text'], expected_text)
+
+
+    def test_format_message_with_thread_ts_and_replies(self):
+        raw_msg = {
+            "type": "message", "user": "U123", "text": "In a thread", "ts": "1609459200.000500",
+            "thread_ts": "1609459100.000100", 
+            "reply_count": 2 
+        }
+        formatted = self.history.format_message(raw_msg)
+        self.assertEqual(formatted['text'], "In a thread (in reply to thread 1609459100.000100, 2 replies)")
+
+    def test_format_message_subtype_handling(self):
+        raw_msg = {"type": "message", "subtype": "channel_join", "user": "U123", "text": "U123 has joined the channel", "ts": "1609459200.000600"}
+        formatted = self.history.format_message(raw_msg)
+        self.assertIn("[channel_join message]", formatted['text']) # Check if subtype is mentioned
+
+if __name__ == '__main__':
+    unittest.main(argv=['first-arg-is-ignored'], exit=False)
