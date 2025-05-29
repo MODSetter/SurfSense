@@ -113,11 +113,24 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
     }, []);
 
     const handleSaveChanges = useCallback(async (formData: EditConnectorFormValues) => {
-        if (!connector || !originalConfig) return;
+        if (!connector) {
+            toast.error("Connector data not loaded.");
+            setIsSaving(false);
+            return;
+        }
+        // Ensure originalConfig is loaded, if not, it's an issue.
+        if (!originalConfig && connector.connector_type !== 'GITHUB_CONNECTOR') { 
+            // For GitHub, originalConfig might be less critical if PAT is the only config and handled by originalPat
+            // but for others like Slack, it's needed for comparison.
+            toast.error("Original configuration not available. Cannot determine changes.");
+            setIsSaving(false);
+            return;
+        }
+
         setIsSaving(true);
         const updatePayload: Partial<SearchSourceConnector> = {};
         let configChanged = false;
-        let newConfig: Record<string, any> | null = null;
+        let newConfigForPayload: Record<string, any> | null = null;
 
         if (formData.name !== connector.name) {
             updatePayload.name = formData.name;
@@ -130,108 +143,174 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
                 const initialRepoSet = new Set(currentSelectedRepos);
                 const newRepoSet = new Set(newSelectedRepos);
                 const reposChanged = initialRepoSet.size !== newRepoSet.size || ![...initialRepoSet].every(repo => newRepoSet.has(repo));
+
                 if (patChanged || (editMode === 'editing_repos' && reposChanged && fetchedRepos !== null)) {
                     if (!currentPatInForm || !(currentPatInForm.startsWith('ghp_') || currentPatInForm.startsWith('github_pat_'))) {
-                        toast.error("Invalid GitHub PAT format. Cannot save."); setIsSaving(false); return;
+                        toast.error("Invalid GitHub PAT format. Cannot save.");
+                        setIsSaving(false);
+                        return;
                     }
-                    newConfig = { GITHUB_PAT: currentPatInForm, repo_full_names: newSelectedRepos };
-                    if (reposChanged && newSelectedRepos.length === 0) { toast.warning("Warning: No repositories selected."); }
+                    newConfigForPayload = { GITHUB_PAT: currentPatInForm, repo_full_names: newSelectedRepos };
+                    if (reposChanged && newSelectedRepos.length === 0) {
+                        toast.warning("Warning: No repositories selected.");
+                    }
                 }
                 break;
             case 'SLACK_CONNECTOR':
-                 if (formData.SLACK_BOT_TOKEN !== originalConfig.SLACK_BOT_TOKEN) {
-                     if (!formData.SLACK_BOT_TOKEN) { toast.error("Slack Token empty."); setIsSaving(false); return; }
-                     newConfig = { SLACK_BOT_TOKEN: formData.SLACK_BOT_TOKEN };
-                 }
-                 break;
-             case 'NOTION_CONNECTOR':
-                  if (formData.NOTION_INTEGRATION_TOKEN !== originalConfig.NOTION_INTEGRATION_TOKEN) {
-                      if (!formData.NOTION_INTEGRATION_TOKEN) { toast.error("Notion Token empty."); setIsSaving(false); return; }
-                      newConfig = { NOTION_INTEGRATION_TOKEN: formData.NOTION_INTEGRATION_TOKEN };
-                  }
-                  break;
-               case 'SERPER_API':
-                   if (formData.SERPER_API_KEY !== originalConfig.SERPER_API_KEY) {
-                       if (!formData.SERPER_API_KEY) { toast.error("Serper Key empty."); setIsSaving(false); return; }
-                       newConfig = { SERPER_API_KEY: formData.SERPER_API_KEY };
-                   }
-                   break;
-               case 'TAVILY_API':
-                   if (formData.TAVILY_API_KEY !== originalConfig.TAVILY_API_KEY) {
-                       if (!formData.TAVILY_API_KEY) { toast.error("Tavily Key empty."); setIsSaving(false); return; }
-                       newConfig = { TAVILY_API_KEY: formData.TAVILY_API_KEY };
-                   }
-                   break;
-            
-            case 'LINEAR_CONNECTOR':
-                if (formData.LINEAR_API_KEY !== originalConfig.LINEAR_API_KEY) {
-                    if (!formData.LINEAR_API_KEY) { 
-                        toast.error("Linear API Key cannot be empty."); 
-                        setIsSaving(false); 
-                        return; 
+                const formDefinedSlackConfig = formData.config; // This now comes from editConnectorSchema
+                // originalConfig should represent the whole config object for the connector
+                if (formDefinedSlackConfig && JSON.stringify(formDefinedSlackConfig) !== JSON.stringify(originalConfig)) {
+                    if (!formDefinedSlackConfig.SLACK_BOT_TOKEN || typeof formDefinedSlackConfig.SLACK_BOT_TOKEN !== 'string' || formDefinedSlackConfig.SLACK_BOT_TOKEN.trim() === '') {
+                        toast.error("Slack Bot Token cannot be empty in config.");
+                        setIsSaving(false);
+                        return;
                     }
-                    newConfig = { LINEAR_API_KEY: formData.LINEAR_API_KEY };
+                    newConfigForPayload = { ...formDefinedSlackConfig };
+                }
+                break;
+            case 'NOTION_CONNECTOR':
+                // Assuming NOTION_INTEGRATION_TOKEN is directly on formData, not in formData.config
+                // If it were moved to formData.config, this logic would need to mirror Slack's.
+                if (formData.NOTION_INTEGRATION_TOKEN !== (originalConfig?.NOTION_INTEGRATION_TOKEN || "")) {
+                    if (!formData.NOTION_INTEGRATION_TOKEN || formData.NOTION_INTEGRATION_TOKEN.trim() === '') {
+                        toast.error("Notion Integration Token cannot be empty.");
+                        setIsSaving(false);
+                        return;
+                    }
+                    newConfigForPayload = { NOTION_INTEGRATION_TOKEN: formData.NOTION_INTEGRATION_TOKEN };
+                }
+                break;
+            case 'SERPER_API':
+                if (formData.SERPER_API_KEY !== (originalConfig?.SERPER_API_KEY || "")) {
+                     if (!formData.SERPER_API_KEY || formData.SERPER_API_KEY.trim() === '') {
+                        toast.error("Serper API Key cannot be empty.");
+                        setIsSaving(false);
+                        return;
+                    }
+                    newConfigForPayload = { SERPER_API_KEY: formData.SERPER_API_KEY };
+                }
+                break;
+            case 'TAVILY_API':
+                if (formData.TAVILY_API_KEY !== (originalConfig?.TAVILY_API_KEY || "")) {
+                    if (!formData.TAVILY_API_KEY || formData.TAVILY_API_KEY.trim() === '') {
+                        toast.error("Tavily API Key cannot be empty.");
+                        setIsSaving(false);
+                        return;
+                    }
+                    newConfigForPayload = { TAVILY_API_KEY: formData.TAVILY_API_KEY };
+                }
+                break;
+            case 'LINEAR_CONNECTOR':
+                if (formData.LINEAR_API_KEY !== (originalConfig?.LINEAR_API_KEY || "")) {
+                    if (!formData.LINEAR_API_KEY || formData.LINEAR_API_KEY.trim() === '') {
+                        toast.error("Linear API Key cannot be empty.");
+                        setIsSaving(false);
+                        return;
+                    }
+                    newConfigForPayload = { LINEAR_API_KEY: formData.LINEAR_API_KEY };
                 }
                 break;
             case 'LINKUP_API':
-                if (formData.LINKUP_API_KEY !== originalConfig.LINKUP_API_KEY) {
-                    if (!formData.LINKUP_API_KEY) { toast.error("Linkup API Key cannot be empty."); setIsSaving(false); return; }
-                    newConfig = { LINKUP_API_KEY: formData.LINKUP_API_KEY };
+                 if (formData.LINKUP_API_KEY !== (originalConfig?.LINKUP_API_KEY || "")) {
+                    if (!formData.LINKUP_API_KEY || formData.LINKUP_API_KEY.trim() === '') {
+                        toast.error("Linkup API Key cannot be empty.");
+                        setIsSaving(false);
+                        return;
+                    }
+                    newConfigForPayload = { LINKUP_API_KEY: formData.LINKUP_API_KEY };
                 }
                 break;
+            // Add other connector types if their config isn't simply a single token on formData
+            // and needs to come from formData.config
         }
 
-        if (newConfig !== null) {
-            updatePayload.config = newConfig;
-            configChanged = true;
+        if (newConfigForPayload !== null) {
+            updatePayload.config = newConfigForPayload;
+            configChanged = true; // Mark that config was changed
         }
 
         if (Object.keys(updatePayload).length === 0) {
             toast.info("No changes detected.");
             setIsSaving(false);
-            if (connector.connector_type === 'GITHUB_CONNECTOR') { setEditMode('viewing'); patForm.reset({ github_pat: originalPat }); }
+            if (connector.connector_type === 'GITHUB_CONNECTOR') {
+                setEditMode('viewing');
+                patForm.reset({ github_pat: originalPat });
+            }
             return;
         }
 
         try {
             await updateConnector(connectorId, updatePayload);
-            toast.success("Connector updated!");
-            const newlySavedConfig = updatePayload.config || originalConfig;
-            setOriginalConfig(newlySavedConfig);
+            toast.success("Connector updated successfully!");
+
+            const newActualSavedConfig = updatePayload.config || originalConfig || {};
+            setOriginalConfig(newActualSavedConfig); // Update originalConfig to the new state
+
+            // Update the connector state to reflect changes immediately in UI
+            setConnector(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    name: updatePayload.name || prev.name,
+                    config: newActualSavedConfig,
+                };
+            });
+            
+            // Reset form values to reflect saved state
+            // For name
             if (updatePayload.name) {
-                 setConnector(prev => prev ? { ...prev, name: updatePayload.name!, config: newlySavedConfig } : null);
+                editForm.reset({ ...editForm.getValues(), name: updatePayload.name });
             }
+
+            // For config fields, depending on connector type
             if (configChanged) {
                 if (connector.connector_type === 'GITHUB_CONNECTOR') {
-                     const savedGitHubConfig = newlySavedConfig as { GITHUB_PAT?: string; repo_full_names?: string[] };
-                     setCurrentSelectedRepos(savedGitHubConfig.repo_full_names || []);
-                     setOriginalPat(savedGitHubConfig.GITHUB_PAT || "");
-                     setNewSelectedRepos(savedGitHubConfig.repo_full_names || []);
-                     patForm.reset({ github_pat: savedGitHubConfig.GITHUB_PAT || "" });
-                 } else if(connector.connector_type === 'SLACK_CONNECTOR') {
-                    editForm.setValue('SLACK_BOT_TOKEN', newlySavedConfig.SLACK_BOT_TOKEN || "");
-                 } else if(connector.connector_type === 'NOTION_CONNECTOR') {
-                    editForm.setValue('NOTION_INTEGRATION_TOKEN', newlySavedConfig.NOTION_INTEGRATION_TOKEN || "");
-                 } else if(connector.connector_type === 'SERPER_API') {
-                    editForm.setValue('SERPER_API_KEY', newlySavedConfig.SERPER_API_KEY || "");
-                 } else if(connector.connector_type === 'TAVILY_API') {
-                    editForm.setValue('TAVILY_API_KEY', newlySavedConfig.TAVILY_API_KEY || "");
-                 } else if(connector.connector_type === 'LINEAR_CONNECTOR') {
-                    editForm.setValue('LINEAR_API_KEY', newlySavedConfig.LINEAR_API_KEY || "");
-                 } else if(connector.connector_type === 'LINKUP_API') {
-                    editForm.setValue('LINKUP_API_KEY', newlySavedConfig.LINKUP_API_KEY || "");
-                 }
-             }
-            if (connector.connector_type === 'GITHUB_CONNECTOR') {
-                 setEditMode('viewing');
-                 setFetchedRepos(null);
-             }
-            // Resetting simple form values is handled by useEffect if connector state updates
+                    const savedGitHubConfig = newActualSavedConfig as { GITHUB_PAT?: string; repo_full_names?: string[] };
+                    setCurrentSelectedRepos(savedGitHubConfig.repo_full_names || []);
+                    setOriginalPat(savedGitHubConfig.GITHUB_PAT || "");
+                    setNewSelectedRepos(savedGitHubConfig.repo_full_names || []); // Reset selection buffer
+                    patForm.reset({ github_pat: savedGitHubConfig.GITHUB_PAT || "" });
+                    setEditMode('viewing');
+                    setFetchedRepos(null); // Clear fetched repos list
+                } else if (connector.connector_type === 'SLACK_CONNECTOR') {
+                    // EditSlackConnectorConfigForm relies on `connector.config` prop which is updated by setConnector
+                    // and also on `editForm.setValue('config', ...)` if direct form manipulation is preferred.
+                    // Let's ensure the form's 'config' field is also explicitly reset.
+                    editForm.setValue('config', newActualSavedConfig);
+                } else if (newActualSavedConfig.NOTION_INTEGRATION_TOKEN !== undefined) {
+                    editForm.setValue('NOTION_INTEGRATION_TOKEN', newActualSavedConfig.NOTION_INTEGRATION_TOKEN || "");
+                } else if (newActualSavedConfig.SERPER_API_KEY !== undefined) {
+                    editForm.setValue('SERPER_API_KEY', newActualSavedConfig.SERPER_API_KEY || "");
+                } else if (newActualSavedConfig.TAVILY_API_KEY !== undefined) {
+                    editForm.setValue('TAVILY_API_KEY', newActualSavedConfig.TAVILY_API_KEY || "");
+                } else if (newActualSavedConfig.LINEAR_API_KEY !== undefined) {
+                    editForm.setValue('LINEAR_API_KEY', newActualSavedConfig.LINEAR_API_KEY || "");
+                } else if (newActualSavedConfig.LINKUP_API_KEY !== undefined) {
+                    editForm.setValue('LINKUP_API_KEY', newActualSavedConfig.LINKUP_API_KEY || "");
+                }
+            }
+            
         } catch (error) {
             console.error("Error updating connector:", error);
             toast.error(error instanceof Error ? error.message : "Failed to update connector.");
-        } finally { setIsSaving(false); }
-    }, [connector, originalConfig, updateConnector, connectorId, patForm, originalPat, currentSelectedRepos, newSelectedRepos, editMode, fetchedRepos, editForm]); // Added editForm to dependencies
+        } finally {
+            setIsSaving(false);
+        }
+    }, [
+        connector, 
+        originalConfig, // Ensure originalConfig is correctly representing the full config object for comparison
+        updateConnector, 
+        connectorId, 
+        patForm, 
+        originalPat, 
+        currentSelectedRepos, 
+        newSelectedRepos, 
+        editMode, 
+        fetchedRepos, 
+        editForm, // Added editForm as it's used for setValue now
+        // router, // router is not used directly in this function
+        // searchSpaceId // not used directly
+    ]);
 
     // Return values needed by the component
     return {
