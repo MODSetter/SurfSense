@@ -74,9 +74,8 @@ export default function EditConnectorPage() {
         isFetchingRepos,
         handleFetchRepositories,
         handleRepoSelectionChange,
-        // Placeholder functions that would ideally come from the hook
-        // discoverSlackChannels: hookDiscoverSlackChannels, 
-        // triggerSlackReindex: hookTriggerSlackReindex,
+        discoverSlackChannelsAPI, // Added the actual API function from the hook
+        // triggerSlackReindex: hookTriggerSlackReindex, // Placeholder for reindex
     } = useConnectorEditPage(connectorId, searchSpaceId);
 
     // State for Slack Channel Management
@@ -110,22 +109,18 @@ export default function EditConnectorPage() {
     const handleDiscoverChannels = async () => {
         setIsDiscoveringChannels(true);
         toast.info("Discovering Slack channels...");
-        // Replace with actual API call:
-        // const channels = await hookDiscoverSlackChannels(connectorId);
-        // For now, using mock data:
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
-        const mockChannels: SlackChannelInfo[] = [
-            { id: "C123", name: "general", is_private: false, is_member: true },
-            { id: "C456", name: "random", is_private: false, is_member: true },
-            { id: "C789", name: "dev-team-private", is_private: true, is_member: true },
-            { id: "CABC", name: "marketing", is_private: false, is_member: false }, // Bot not member
-        ];
-        const memberChannels = mockChannels.filter(ch => ch.is_member);
-        setDiscoveredChannels(memberChannels);
-        if (memberChannels.length > 0) {
-            toast.success(`Discovered ${memberChannels.length} channels where bot is a member.`);
+        
+        // Call the actual API function from the hook
+        const actualChannels = await discoverSlackChannelsAPI(connectorId);
+        
+        setDiscoveredChannels(actualChannels);
+
+        if (actualChannels.length > 0) {
+            toast.success(`Discovered ${actualChannels.length} channels where the bot is a member.`);
         } else {
-            toast.warning("No channels found where the bot is a member, or discovery failed.");
+            // The API function itself should show an error toast on failure.
+            // This warning can be for cases where the API call succeeded but returned no channels.
+            toast.warning("No channels found where the bot is a member, or discovery returned no channels.");
         }
         setIsDiscoveringChannels(false);
     };

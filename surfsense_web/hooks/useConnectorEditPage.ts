@@ -13,6 +13,14 @@ import {
     EditConnectorFormValues 
 } from '@/components/editConnector/types';
 
+// Define SlackChannelInfo interface as it might not be globally available
+export interface SlackChannelInfo {
+    id: string;
+    name: string;
+    is_private: boolean;
+    is_member: boolean;
+}
+
 export function useConnectorEditPage(connectorId: number, searchSpaceId: string) {
     const router = useRouter();
     const { connectors, updateConnector, isLoading: connectorsLoading } = useSearchSourceConnectors();
@@ -245,5 +253,54 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
         isFetchingRepos,
         handleFetchRepositories,
         handleRepoSelectionChange,
+        discoverSlackChannelsAPI, // Add the new function here
     };
-} 
+}
+
+// Implementation of discoverSlackChannelsAPI
+async function discoverSlackChannelsAPI(connectorId: number): Promise<SlackChannelInfo[]> {
+    const token = localStorage.getItem('surfsense_bearer_token');
+    if (!token) {
+        toast.error('Authentication token not found. Please log in again.');
+        return [];
+    }
+
+    try {
+        const response = await fetch(
+            `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/search-source-connectors/slack/${connectorId}/discover-channels`,
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            }
+        );
+
+        if (!response.ok) {
+            let errorMsg = 'Failed to discover channels.';
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.detail || errorMsg;
+            } catch (e) {
+                // Ignore if error response is not JSON
+            }
+            toast.error(`Failed to discover channels: ${errorMsg}`);
+            return [];
+        }
+
+        const data = await response.json();
+        if (data && Array.isArray(data.channels)) {
+            // Optional: Add a success toast if needed, e.g.:
+            // toast.success(`Discovered ${data.channels.length} channels.`);
+            return data.channels as SlackChannelInfo[];
+        } else {
+            toast.error('Invalid response format from server when discovering channels.');
+            return [];
+        }
+    } catch (error) {
+        console.error("Error discovering Slack channels:", error);
+        toast.error(error instanceof Error ? `Error discovering channels: ${error.message}` : "An unknown error occurred while discovering channels.");
+        return [];
+    }
+}
