@@ -198,4 +198,3 @@ const EditSlackConnectorConfigForm: React.FC<EditSlackConnectorConfigFormProps> 
 };
 
 export default EditSlackConnectorConfigForm;
-</>
