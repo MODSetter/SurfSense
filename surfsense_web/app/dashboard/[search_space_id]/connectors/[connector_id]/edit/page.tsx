@@ -37,7 +37,7 @@ import { EditConnectorLoadingSkeleton } from "@/components/editConnector/EditCon
 import { EditConnectorNameForm } from "@/components/editConnector/EditConnectorNameForm";
 import { EditGitHubConnectorConfig } from "@/components/editConnector/EditGitHubConnectorConfig";
 import { EditSimpleTokenForm } from "@/components/editConnector/EditSimpleTokenForm";
-import { EditSlackConnectorConfigForm } from "@/components/editConnector/EditSlackConnectorConfigForm";
+import EditSlackConnectorConfigForm from '@/components/editConnector/EditSlackConnectorConfigForm'; // Corrected import
 import { getConnectorIcon } from "@/components/chat";
 import { SearchSourceConnector } from "@/hooks/useSearchSourceConnectors"; // For type
 
