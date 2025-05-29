@@ -267,7 +267,7 @@ async function discoverSlackChannelsAPI(connectorId: number): Promise<SlackChann
 
     try {
         const response = await fetch(
-            `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/search-source-connectors/slack/${connectorId}/discover-channels`,
+            `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/slack/${connectorId}/discover-channels`,
             {
                 method: 'GET',
                 headers: {
