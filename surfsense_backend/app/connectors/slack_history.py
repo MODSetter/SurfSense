@@ -8,7 +8,7 @@ Allows fetching channel lists and message history with date range filtering.
 import os
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any, Union
 
 

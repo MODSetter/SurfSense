@@ -2,7 +2,6 @@
 
 Revision ID: 6
 Revises: 5
-Create Date: 2023-08-15 00:00:00.000000
 
 """
 from typing import Sequence, Union

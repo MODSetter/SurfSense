@@ -1,12 +1,13 @@
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.future import select
 from app.db import Document, DocumentType, Chunk
 from app.schemas import ExtensionDocumentContent
 from app.config import config
 from app.prompts import SUMMARY_PROMPT_TEMPLATE
 from datetime import datetime
-from app.utils.document_converters import convert_document_to_markdown
+from app.utils.document_converters import convert_document_to_markdown, generate_content_hash
 from langchain_core.documents import Document as LangChainDocument
 from langchain_community.document_loaders import FireCrawlLoader, AsyncChromiumLoader
 from langchain_community.document_transformers import MarkdownifyTransformer
@@ -14,7 +15,6 @@ import validators
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
 import aiohttp
-from app.db import Document as DB_Document, DocumentType as DB_DocumentType
 import logging
 
 md = MarkdownifyTransformer()
@@ -73,6 +73,17 @@ async def add_crawled_url_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
+        content_hash = generate_content_hash(combined_document_string)
+
+        # Check if document with this content hash already exists
+        existing_doc_result = await session.execute(
+            select(Document).where(Document.content_hash == content_hash)
+        )
+        existing_document = existing_doc_result.scalars().first()
+        
+        if existing_document:
+            logging.info(f"Document with content hash {content_hash} already exists. Skipping processing.")
+            return existing_document
 
         # Generate summary
         summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
@@ -102,6 +113,7 @@ async def add_crawled_url_document(
             content=summary_content,
             embedding=summary_embedding,
             chunks=chunks,
+            content_hash=content_hash,
         )
 
         session.add(document)
@@ -163,6 +175,17 @@ async def add_extension_received_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
+        content_hash = generate_content_hash(combined_document_string)
+
+        # Check if document with this content hash already exists
+        existing_doc_result = await session.execute(
+            select(Document).where(Document.content_hash == content_hash)
+        )
+        existing_document = existing_doc_result.scalars().first()
+        
+        if existing_document:
+            logging.info(f"Document with content hash {content_hash} already exists. Skipping processing.")
+            return existing_document
 
         # Generate summary
         summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
@@ -190,6 +213,7 @@ async def add_extension_received_document(
             content=summary_content,
             embedding=summary_embedding,
             chunks=chunks,
+            content_hash=content_hash,
         )
 
         session.add(document)
@@ -210,6 +234,18 @@ async def add_received_markdown_file_document(
     session: AsyncSession, file_name: str, file_in_markdown: str, search_space_id: int
 ) -> Optional[Document]:
     try:
+        content_hash = generate_content_hash(file_in_markdown)
+
+        # Check if document with this content hash already exists
+        existing_doc_result = await session.execute(
+            select(Document).where(Document.content_hash == content_hash)
+        )
+        existing_document = existing_doc_result.scalars().first()
+        
+        if existing_document:
+            logging.info(f"Document with content hash {content_hash} already exists. Skipping processing.")
+            return existing_document
+
         # Generate summary
         summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
         summary_result = await summary_chain.ainvoke({"document": file_in_markdown})
@@ -237,6 +273,7 @@ async def add_received_markdown_file_document(
             content=summary_content,
             embedding=summary_embedding,
             chunks=chunks,
+            content_hash=content_hash,
         )
 
         session.add(document)
@@ -262,6 +299,18 @@ async def add_received_file_document(
         file_in_markdown = await convert_document_to_markdown(
             unstructured_processed_elements
         )
+
+        content_hash = generate_content_hash(file_in_markdown)
+
+        # Check if document with this content hash already exists
+        existing_doc_result = await session.execute(
+            select(Document).where(Document.content_hash == content_hash)
+        )
+        existing_document = existing_doc_result.scalars().first()
+        
+        if existing_document:
+            logging.info(f"Document with content hash {content_hash} already exists. Skipping processing.")
+            return existing_document
 
         # TODO: Check if file_markdown exceeds token limit of embedding model
 
@@ -292,6 +341,7 @@ async def add_received_file_document(
             content=summary_content,
             embedding=summary_embedding,
             chunks=chunks,
+            content_hash=content_hash,
         )
 
         session.add(document)
@@ -404,6 +454,17 @@ async def add_youtube_video_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
+        content_hash = generate_content_hash(combined_document_string)
+
+        # Check if document with this content hash already exists
+        existing_doc_result = await session.execute(
+            select(Document).where(Document.content_hash == content_hash)
+        )
+        existing_document = existing_doc_result.scalars().first()
+        
+        if existing_document:
+            logging.info(f"Document with content hash {content_hash} already exists. Skipping processing.")
+            return existing_document
 
         # Generate summary
         summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
@@ -424,9 +485,9 @@ async def add_youtube_video_document(
 
         # Create document
 
-        document = DB_Document(
+        document = Document(
             title=video_data.get("title", "YouTube Video"),
-            document_type=DB_DocumentType.YOUTUBE_VIDEO,
+            document_type=DocumentType.YOUTUBE_VIDEO,
             document_metadata={
                 "url": url,
                 "video_id": video_id,
@@ -438,6 +499,7 @@ async def add_youtube_video_document(
             embedding=summary_embedding,
             chunks=chunks,
             search_space_id=search_space_id,
+            content_hash=content_hash,
         )
 
         session.add(document)

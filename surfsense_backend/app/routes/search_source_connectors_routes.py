@@ -21,7 +21,7 @@ from app.utils.check_ownership import check_ownership
 from pydantic import BaseModel, Field, ValidationError
 from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues
 from app.connectors.github_connector import GitHubConnector
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 import logging
 
 # Set up logging
