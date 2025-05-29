@@ -10,7 +10,7 @@ import time # Added import
 import logging # Added import
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any, Union
 
 logger = logging.getLogger(__name__) # Added logger

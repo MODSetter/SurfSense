@@ -99,6 +99,7 @@ class Document(BaseModel, TimestampMixin):
     document_metadata = Column(JSON, nullable=True)
     
     content = Column(Text, nullable=False)
+    content_hash = Column(String, nullable=False, index=True, unique=True)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
     
     search_space_id = Column(Integer, ForeignKey("searchspaces.id", ondelete='CASCADE'), nullable=False)
