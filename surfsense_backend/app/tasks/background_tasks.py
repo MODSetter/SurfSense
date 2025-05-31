@@ -268,7 +268,6 @@ async def add_received_markdown_file_document(
             document_type=DocumentType.FILE,
             document_metadata={
                 "FILE_NAME": file_name,
-                "SAVED_AT": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
             content=summary_content,
             embedding=summary_embedding,
@@ -289,7 +288,7 @@ async def add_received_markdown_file_document(
         raise RuntimeError(f"Failed to process file document: {str(e)}")
 
 
-async def add_received_file_document(
+async def add_received_file_document_using_unstructured(
     session: AsyncSession,
     file_name: str,
     unstructured_processed_elements: List[LangChainDocument],
@@ -336,7 +335,7 @@ async def add_received_file_document(
             document_type=DocumentType.FILE,
             document_metadata={
                 "FILE_NAME": file_name,
-                "SAVED_AT": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "ETL_SERVICE": "UNSTRUCTURED",
             },
             content=summary_content,
             embedding=summary_embedding,
@@ -355,6 +354,83 @@ async def add_received_file_document(
     except Exception as e:
         await session.rollback()
         raise RuntimeError(f"Failed to process file document: {str(e)}")
+
+
+async def add_received_file_document_using_llamacloud(
+    session: AsyncSession,
+    file_name: str,
+    llamacloud_markdown_document: str,
+    search_space_id: int,
+) -> Optional[Document]:
+    """
+    Process and store document content parsed by LlamaCloud.
+
+    Args:
+        session: Database session
+        file_name: Name of the processed file
+        llamacloud_markdown_documents: List of markdown content from LlamaCloud parsing
+        search_space_id: ID of the search space
+
+    Returns:
+        Document object if successful, None if failed
+    """
+    try:
+        # Combine all markdown documents into one
+        file_in_markdown = llamacloud_markdown_document
+
+        content_hash = generate_content_hash(file_in_markdown)
+
+        # Check if document with this content hash already exists
+        existing_doc_result = await session.execute(
+            select(Document).where(Document.content_hash == content_hash)
+        )
+        existing_document = existing_doc_result.scalars().first()
+        
+        if existing_document:
+            logging.info(f"Document with content hash {content_hash} already exists. Skipping processing.")
+            return existing_document
+
+        # Generate summary
+        summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
+        summary_result = await summary_chain.ainvoke({"document": file_in_markdown})
+        summary_content = summary_result.content
+        summary_embedding = config.embedding_model_instance.embed(summary_content)
+
+        # Process chunks
+        chunks = [
+            Chunk(
+                content=chunk.text,
+                embedding=config.embedding_model_instance.embed(chunk.text),
+            )
+            for chunk in config.chunker_instance.chunk(file_in_markdown)
+        ]
+
+        # Create and store document
+        document = Document(
+            search_space_id=search_space_id,
+            title=file_name,
+            document_type=DocumentType.FILE,
+            document_metadata={
+                "FILE_NAME": file_name,
+                "ETL_SERVICE": "LLAMACLOUD",
+            },
+            content=summary_content,
+            embedding=summary_embedding,
+            chunks=chunks,
+            content_hash=content_hash,
+        )
+
+        session.add(document)
+        await session.commit()
+        await session.refresh(document)
+
+        return document
+    except SQLAlchemyError as db_error:
+        await session.rollback()
+        raise db_error
+    except Exception as e:
+        await session.rollback()
+        raise RuntimeError(f"Failed to process file document using LlamaCloud: {str(e)}")
 
 
 async def add_youtube_video_document(
