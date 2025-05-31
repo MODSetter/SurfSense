@@ -96,9 +96,18 @@ class Config:
     # OAuth JWT
     SECRET_KEY = os.getenv("SECRET_KEY")
     
-    # Unstructured API Key
-    UNSTRUCTURED_API_KEY = os.getenv("UNSTRUCTURED_API_KEY")
+    # ETL Service
+    ETL_SERVICE = os.getenv("ETL_SERVICE")
     
+    if ETL_SERVICE == "UNSTRUCTURED":
+        # Unstructured API Key
+        UNSTRUCTURED_API_KEY = os.getenv("UNSTRUCTURED_API_KEY")
+        
+    elif ETL_SERVICE == "LLAMACLOUD":
+        # LlamaCloud API Key
+        LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
+        
+        
     # Firecrawl API Key
     FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", None) 
     

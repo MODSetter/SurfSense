@@ -31,7 +31,7 @@ https://github.com/user-attachments/assets/bf64a6ca-934b-47ac-9e1b-edac5fe972ec
 ### 💡 **Idea**: 
 Have your own highly customizable private NotebookLM and Perplexity integrated with external sources.
 ### 📁 **Multiple File Format Uploading Support**
-Save content from your own personal files *(Documents, images, videos and supports **34 file extensions**)* to your own personal knowledge base .
+Save content from your own personal files *(Documents, images, videos and supports **50+ file extensions**)* to your own personal knowledge base .
 ### 🔍 **Powerful Search**
 Quickly research or find anything in your saved content .
 ### 💬 **Chat with your Saved Content**
@@ -66,35 +66,33 @@ Open source and easy to deploy locally.
 
 ### 📄 **Supported File Extensions**
 
-#### Document
+> **Note**: File format support depends on your ETL service configuration. LlamaCloud supports 100+ formats, while Unstructured supports 34+ core formats.
 
-`.doc`, `.docx`, `.odt`, `.rtf`, `.pdf`, `.xml`
+#### Documents & Text
+**LlamaCloud**: `.pdf`, `.doc`, `.docx`, `.docm`, `.dot`, `.dotm`, `.rtf`, `.txt`, `.xml`, `.epub`, `.odt`, `.wpd`, `.pages`, `.key`, `.numbers`, `.602`, `.abw`, `.cgm`, `.cwk`, `.hwp`, `.lwp`, `.mw`, `.mcw`, `.pbd`, `.sda`, `.sdd`, `.sdp`, `.sdw`, `.sgl`, `.sti`, `.sxi`, `.sxw`, `.stw`, `.sxg`, `.uof`, `.uop`, `.uot`, `.vor`, `.wps`, `.zabw`
 
-#### Text & Markup
+**Unstructured**: `.doc`, `.docx`, `.odt`, `.rtf`, `.pdf`, `.xml`, `.txt`, `.md`, `.markdown`, `.rst`, `.html`, `.org`, `.epub`
 
-`.txt`, `.md`, `.markdown`, `.rst`, `.html`, `.org`
+#### Presentations
+**LlamaCloud**: `.ppt`, `.pptx`, `.pptm`, `.pot`, `.potm`, `.potx`, `.odp`, `.key`
 
-#### Spreadsheets & Tables
+**Unstructured**: `.ppt`, `.pptx`
 
-`.xls`, `.xlsx`, `.csv`, `.tsv`
+#### Spreadsheets & Data
+**LlamaCloud**: `.xlsx`, `.xls`, `.xlsm`, `.xlsb`, `.xlw`, `.csv`, `.tsv`, `.ods`, `.fods`, `.numbers`, `.dbf`, `.123`, `.dif`, `.sylk`, `.slk`, `.prn`, `.et`, `.uos1`, `.uos2`, `.wk1`, `.wk2`, `.wk3`, `.wk4`, `.wks`, `.wq1`, `.wq2`, `.wb1`, `.wb2`, `.wb3`, `.qpw`, `.xlr`, `.eth`
 
-#### Audio & Video
-
-`.mp3`, `.mpga`, `.m4a`, `.wav`, `.mp4`, `.mpeg`, `.webm`
+**Unstructured**: `.xls`, `.xlsx`, `.csv`, `.tsv`
 
 #### Images
+**LlamaCloud**: `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.svg`, `.tiff`, `.webp`, `.html`, `.htm`, `.web`
 
-`.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.heic`
+**Unstructured**: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.heic`
 
-#### Email & eBooks
+#### Audio & Video *(Always Supported)*
+`.mp3`, `.mpga`, `.m4a`, `.wav`, `.mp4`, `.mpeg`, `.webm`
 
-`.eml`, `.msg`, `.epub`
-
-#### PowerPoint Presentations & Other
-
-`.ppt`, `.pptx`, `.p7s`
-
-
+#### Email & Communication
+**Unstructured**: `.eml`, `.msg`, `.p7s`
 
 ### 🔖 Cross Browser Extension
 - The SurfSense extension can be used to save any webpage you like.

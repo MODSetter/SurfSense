@@ -111,6 +111,18 @@ wheels = [
 ]
 
 [[package]]
+name = "aiosqlite"
+version = "0.21.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/13/7d/8bca2bf9a247c2c5dfeec1d7a5f40db6518f88d314b8bca9da29670d2671/aiosqlite-0.21.0.tar.gz", hash = "sha256:131bb8056daa3bc875608c631c678cda73922a2d4ba8aec373b19f18c17e7aa3", size = 13454 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/10/6c25ed6de94c49f88a91fa5018cb4c0f3625f31d5be9f771ebe5cc7cd506/aiosqlite-0.21.0-py3-none-any.whl", hash = "sha256:2549cf4057f95f53dcba16f2b64e8e2791d7e1adedb13197dd8ed77bb226d7d0", size = 15792 },
+]
+
+[[package]]
 name = "alembic"
 version = "1.15.2"
 source = { registry = "https://pypi.org/simple" }
@@ -226,6 +238,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/47/d7/5bbeb12c44d7c4f2fb5b56abce497eb5ed9f34d85701de869acedd602619/backoff-2.2.1.tar.gz", hash = "sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba", size = 17001 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/73/b6e24bd22e6720ca8ee9a85a0c4a2971af8497d8f3193fa05390cbd46e09/backoff-2.2.1-py3-none-any.whl", hash = "sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8", size = 15148 },
+]
+
+[[package]]
+name = "banks"
+version = "2.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "deprecated" },
+    { name = "griffe" },
+    { name = "jinja2" },
+    { name = "platformdirs" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/77/34/2b6697f02ffb68bee50e5fd37d6c64432244d3245603fd62950169dfed7e/banks-2.1.2.tar.gz", hash = "sha256:a0651db9d14b57fa2e115e78f68dbb1b36fe226ad6eef96192542908b1d20c1f", size = 173332 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/4a/7fdca29d1db62f5f5c3446bf8f668beacdb0b5a8aff4247574ddfddc6bcd/banks-2.1.2-py3-none-any.whl", hash = "sha256:7fba451069f6bea376483b8136a0f29cb1e6883133626d00e077e20a3d102c0e", size = 28064 },
 ]
 
 [[package]]
@@ -570,6 +598,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/98/97/06afe62762c9a8a86af0cfb7bfdab22a43ad17138b07af5b1a58442690a2/deprecated-1.2.18.tar.gz", hash = "sha256:422b6f6d859da6f2ef57857761bfb392480502a64c3028ca9bbe86085d72115d", size = 2928744 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6e/c6/ac0b6c1e2d138f1002bcf799d330bd6d85084fece321e662a14223794041/Deprecated-1.2.18-py2.py3-none-any.whl", hash = "sha256:bd5011788200372a32418f888e326a09ff80d0214bd961147cfed01b5c018eec", size = 9998 },
+]
+
+[[package]]
+name = "dirtyjson"
+version = "1.0.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/04/d24f6e645ad82ba0ef092fa17d9ef7a21953781663648a01c9371d9e8e98/dirtyjson-1.0.8.tar.gz", hash = "sha256:90ca4a18f3ff30ce849d100dcf4a003953c79d3a2348ef056f1d9c22231a25fd", size = 30782 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/69/1bcf70f81de1b4a9f21b3a62ec0c83bdff991c88d6cc2267d02408457e88/dirtyjson-1.0.8-py3-none-any.whl", hash = "sha256:125e27248435a58acace26d5c2c4c11a1c0de0a9c5124c5a94ba78e517d74f53", size = 25197 },
 ]
 
 [[package]]
@@ -986,6 +1023,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/18/87/470e01a940307796f1d25f8167b551a968540fbe0551c0ebb853cb527dd6/greenlet-3.1.1-cp313-cp313t-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:6510bf84a6b643dabba74d3049ead221257603a253d0a9873f55f6a59a65f822", size = 602753 },
     { url = "https://files.pythonhosted.org/packages/e2/72/576815ba674eddc3c25028238f74d7b8068902b3968cbe456771b166455e/greenlet-3.1.1-cp313-cp313t-musllinux_1_1_aarch64.whl", hash = "sha256:04b013dc07c96f83134b1e99888e7a79979f1a247e2a9f59697fa14b5862ed01", size = 1122731 },
     { url = "https://files.pythonhosted.org/packages/ac/38/08cc303ddddc4b3d7c628c3039a61a3aae36c241ed01393d00c2fd663473/greenlet-3.1.1-cp313-cp313t-musllinux_1_1_x86_64.whl", hash = "sha256:411f015496fec93c1c8cd4e5238da364e1da7a124bcb293f085bf2860c32c6f6", size = 1142112 },
+]
+
+[[package]]
+name = "griffe"
+version = "1.7.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/3e/5aa9a61f7c3c47b0b52a1d930302992229d191bf4bc76447b324b731510a/griffe-1.7.3.tar.gz", hash = "sha256:52ee893c6a3a968b639ace8015bec9d36594961e156e23315c8e8e51401fa50b", size = 395137 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/58/c6/5c20af38c2a57c15d87f7f38bee77d63c1d2a3689f74fefaf35915dd12b2/griffe-1.7.3-py3-none-any.whl", hash = "sha256:c6b3ee30c2f0f17f30bcdef5068d6ab7a2a4f1b8bf1a3e74b56fffd21e1c5f75", size = 129303 },
 ]
 
 [[package]]
@@ -1602,6 +1651,72 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1e/3c/126efce9c77bc7be93085064e1d4faf6106f1949dfccf550fe802f3a0205/litellm-1.61.4.tar.gz", hash = "sha256:eb9a7d2cbd068fb4bc7201e01a0ab56455b6ce92d45448d56db036c02f6c7ae3", size = 6505507 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/c2/1b6c502909b7af9054736af61e27558a3341e8c1ba28e7f82473e6dd936f/litellm-1.61.4-py3-none-any.whl", hash = "sha256:e87e0d397a191795b4217f9299fc9b21eaacaab91409695f0a4780cceccda6e1", size = 6814517 },
+]
+
+[[package]]
+name = "llama-cloud"
+version = "0.1.23"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5b/e4/d1a30167ed6690a408382be1cf7de220a506085f4371baaf067d65bad8fd/llama_cloud-0.1.23.tar.gz", hash = "sha256:3d84a24a860f046d39a106c06742ec0ea39a574ac42bbf91706fe025f44e233e", size = 101292 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/15/3b56acef877dbc5d01d7e1a782c2cc50ef8a08d5773121c3bc20546de582/llama_cloud-0.1.23-py3-none-any.whl", hash = "sha256:ce95b0705d85c99b3b27b0af0d16a17d9a81b14c96bf13c1063a1bd13d8d0446", size = 267343 },
+]
+
+[[package]]
+name = "llama-cloud-services"
+version = "0.6.25"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "llama-cloud" },
+    { name = "llama-index-core" },
+    { name = "platformdirs" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/79/c0/89f89dfc2c2b6c2d5c1c5fde9f445696eb12f9c2a4e17637ab0aaf7cc373/llama_cloud_services-0.6.25.tar.gz", hash = "sha256:3608004b0cf984640a3a36657b8b40394d7ce2c48e3eb9dd24fc654df7643595", size = 32303 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/f1/99b8ef4a636dafd5f1ae1e1b19eb9f793f51573d782919bf01d9b9f797f4/llama_cloud_services-0.6.25-py3-none-any.whl", hash = "sha256:aef0afbbf0d6dc485e6566af2daeeefa8caa7bc7f6511d860036bc0aac15361b", size = 37231 },
+]
+
+[[package]]
+name = "llama-index-core"
+version = "0.12.39"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "aiosqlite" },
+    { name = "banks" },
+    { name = "dataclasses-json" },
+    { name = "deprecated" },
+    { name = "dirtyjson" },
+    { name = "filetype" },
+    { name = "fsspec" },
+    { name = "httpx" },
+    { name = "nest-asyncio" },
+    { name = "networkx" },
+    { name = "nltk" },
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "tenacity" },
+    { name = "tiktoken" },
+    { name = "tqdm" },
+    { name = "typing-extensions" },
+    { name = "typing-inspect" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f7/45/163806502804ff75ace474f868cc33158774c4eb31d565133f32932e930e/llama_index_core-0.12.39.tar.gz", hash = "sha256:0cca9de59953542a3c2f1db61327c5204e0b1e997f31f1200e49392b2879593a", size = 7292040 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/a3/583d80764df75aefc9885f28dcc06a0e5aefc993fa5318186e70f2340d73/llama_index_core-0.12.39-py3-none-any.whl", hash = "sha256:c255ed87aa85e43893f2bb05870b61ce7701d7a6a931d174ba925def5856b4c2", size = 7664906 },
 ]
 
 [[package]]
@@ -2466,6 +2581,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e5/fb/a7960e838bc5df57a2ce23183bfd2290d97c33028b96bde332a9057834d3/pillow-11.1.0-cp313-cp313t-win32.whl", hash = "sha256:dda60aa465b861324e65a78c9f5cf0f4bc713e4309f83bc387be158b077963d9", size = 2295494 },
     { url = "https://files.pythonhosted.org/packages/d7/6c/6ec83ee2f6f0fda8d4cf89045c6be4b0373ebfc363ba8538f8c999f63fcd/pillow-11.1.0-cp313-cp313t-win_amd64.whl", hash = "sha256:ad5db5781c774ab9a9b2c4302bbf0c1014960a0a7be63278d13ae6fdf88126fe", size = 2631595 },
     { url = "https://files.pythonhosted.org/packages/cf/6c/41c21c6c8af92b9fea313aa47c75de49e2f9a467964ee33eb0135d47eb64/pillow-11.1.0-cp313-cp313t-win_arm64.whl", hash = "sha256:67cd427c68926108778a9005f2a04adbd5e67c442ed21d95389fe1d595458756", size = 2377651 },
+]
+
+[[package]]
+name = "platformdirs"
+version = "4.3.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/8b/3c73abc9c759ecd3f1f7ceff6685840859e8070c4d947c93fae71f6a0bf2/platformdirs-4.3.8.tar.gz", hash = "sha256:3d512d96e16bcb959a814c9f348431070822a6496326a4be0911c40b5a74c2bc", size = 21362 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fe/39/979e8e21520d4e47a0bbe349e2713c0aac6f3d853d0e5b34d76206c439aa/platformdirs-4.3.8-py3-none-any.whl", hash = "sha256:ff7059bb7eb1179e2685604f4aaf157cfd9535242bd23742eadc3c13542139b4", size = 18567 },
 ]
 
 [[package]]
@@ -3392,7 +3516,7 @@ wheels = [
 
 [[package]]
 name = "surf-new-backend"
-version = "0.0.6"
+version = "0.0.7"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
@@ -3407,6 +3531,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "linkup-sdk" },
     { name = "litellm" },
+    { name = "llama-cloud-services" },
     { name = "markdownify" },
     { name = "notion-client" },
     { name = "pgvector" },
@@ -3438,6 +3563,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=0.3.29" },
     { name = "linkup-sdk", specifier = ">=0.2.4" },
     { name = "litellm", specifier = ">=1.61.4" },
+    { name = "llama-cloud-services", specifier = ">=0.6.25" },
     { name = "markdownify", specifier = ">=0.14.1" },
     { name = "notion-client", specifier = ">=2.3.0" },
     { name = "pgvector", specifier = ">=0.3.6" },

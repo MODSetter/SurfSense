@@ -90,7 +90,9 @@ Before you begin, ensure you have:
 | FAST_LLM                   | LiteLLM routed smaller, faster LLM (e.g., `openai/gpt-4o-mini`, `ollama/deepseek-r1:8b`)                                                                                                  |
 | STRATEGIC_LLM              | LiteLLM routed advanced LLM for complex tasks (e.g., `openai/gpt-4o`, `ollama/gemma3:12b`)                                                                                                |
 | LONG_CONTEXT_LLM           | LiteLLM routed LLM for longer context windows (e.g., `gemini/gemini-2.0-flash`, `ollama/deepseek-r1:8b`)                                                                                  |
-| UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing                                                                                                                                  |
+| ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats) or `LLAMACLOUD` (supports 50+ formats including legacy document types)                                                  |
+| UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
+| LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
 | FIRECRAWL_API_KEY          | API key for Firecrawl service for web crawling                                                                                                                                            |
 | TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `openai/tts-1`, `azure/neural`, `vertex_ai/`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers) |
 | STT_SERVICE                | Speech-to-Text API provider for Podcasts (e.g., `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                      |
@@ -136,6 +138,7 @@ For other LLM providers, refer to the [LiteLLM documentation](https://docs.litel
 | ------------------------------- | ---------------------------------------------------------- |
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | URL of the backend service (e.g., `http://localhost:8000`) |
 | NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Same value as set in backend AUTH_TYPE i.e `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication  |
+| NEXT_PUBLIC_ETL_SERVICE         | Document parsing service (should match backend ETL_SERVICE): `UNSTRUCTURED` or `LLAMACLOUD` - affects supported file formats in upload interface |
 
 2. **Build and Start Containers**
 

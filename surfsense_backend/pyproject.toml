@@ -17,6 +17,7 @@ dependencies = [
     "langgraph>=0.3.29",
     "linkup-sdk>=0.2.4",
     "litellm>=1.61.4",
+    "llama-cloud-services>=0.6.25",
     "markdownify>=0.14.1",
     "notion-client>=2.3.0",
     "pgvector>=0.3.6",
