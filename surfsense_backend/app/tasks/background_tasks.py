@@ -268,7 +268,6 @@ async def add_received_markdown_file_document(
             document_type=DocumentType.FILE,
             document_metadata={
                 "FILE_NAME": file_name,
-                "SAVED_AT": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             },
             content=summary_content,
             embedding=summary_embedding,
@@ -336,7 +335,7 @@ async def add_received_file_document_using_unstructured(
             document_type=DocumentType.FILE,
             document_metadata={
                 "FILE_NAME": file_name,
-                "SAVED_AT": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "ETL_SERVICE": "UNSTRUCTURED",
             },
             content=summary_content,
             embedding=summary_embedding,
