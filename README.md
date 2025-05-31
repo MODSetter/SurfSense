@@ -66,7 +66,7 @@ Open source and easy to deploy locally.
 
 ## 📄 **Supported File Extensions**
 
-> **Note**: File format support depends on your ETL service configuration. LlamaCloud supports 100+ formats, while Unstructured supports 34+ core formats.
+> **Note**: File format support depends on your ETL service configuration. LlamaCloud supports 50+ formats, while Unstructured supports 34+ core formats.
 
 ### Documents & Text
 **LlamaCloud**: `.pdf`, `.doc`, `.docx`, `.docm`, `.dot`, `.dotm`, `.rtf`, `.txt`, `.xml`, `.epub`, `.odt`, `.wpd`, `.pages`, `.key`, `.numbers`, `.602`, `.abw`, `.cgm`, `.cwk`, `.hwp`, `.lwp`, `.mw`, `.mcw`, `.pbd`, `.sda`, `.sdd`, `.sdp`, `.sdw`, `.sgl`, `.sti`, `.sxi`, `.sxw`, `.stw`, `.sxg`, `.uof`, `.uop`, `.uot`, `.vor`, `.wps`, `.zabw`
