@@ -1,8 +1,7 @@
 name: Docker Publish
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build_and_push_backend:
