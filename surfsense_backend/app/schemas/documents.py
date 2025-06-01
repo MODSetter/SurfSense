@@ -1,7 +1,5 @@
 from typing import List, Any
-from pydantic import BaseModel
-from sqlalchemy import JSON
-from .base import IDModel, TimestampModel
+from pydantic import BaseModel, ConfigDict
 from app.db import DocumentType
 from datetime import datetime
 
@@ -37,6 +35,5 @@ class DocumentRead(BaseModel):
     created_at: datetime
     search_space_id: int
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 

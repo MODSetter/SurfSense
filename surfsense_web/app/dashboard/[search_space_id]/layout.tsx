@@ -73,6 +73,13 @@ export default function DashboardLayout({
         },
       ],
     },
+    {
+      title: "Podcasts",
+      url: `/dashboard/${search_space_id}/podcasts`,
+      icon: "Podcast",
+      items: [
+      ],
+    }
     // TODO: Add research synthesizer's
     // {
     //   title: "Research Synthesizer's",

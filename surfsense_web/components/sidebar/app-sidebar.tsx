@@ -14,6 +14,7 @@ import {
   Info,
   ExternalLink,
   Trash2,
+  Podcast,
   type LucideIcon,
 } from "lucide-react"
 
@@ -45,7 +46,8 @@ export const iconMap: Record<string, LucideIcon> = {
   AlertCircle,
   Info,
   ExternalLink,
-  Trash2
+  Trash2,
+  Podcast
 }
 
 const defaultData = {

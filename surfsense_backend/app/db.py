@@ -3,11 +3,7 @@ from datetime import datetime, timezone
 from enum import Enum
 
 from fastapi import Depends
-from fastapi_users.db import (
-    SQLAlchemyBaseOAuthAccountTableUUID,
-    SQLAlchemyBaseUserTableUUID,
-    SQLAlchemyUserDatabase,
-)
+
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
@@ -30,6 +26,18 @@ from app.config import config
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
 
+if config.AUTH_TYPE == "GOOGLE":
+    from fastapi_users.db import (
+        SQLAlchemyBaseOAuthAccountTableUUID,
+        SQLAlchemyBaseUserTableUUID,
+        SQLAlchemyUserDatabase,
+    )
+else:
+    from fastapi_users.db import (
+        SQLAlchemyBaseUserTableUUID,
+        SQLAlchemyUserDatabase,
+    )
+
 DATABASE_URL = config.DATABASE_URL
 
 
@@ -44,8 +52,9 @@ class DocumentType(str, Enum):
     LINEAR_CONNECTOR = "LINEAR_CONNECTOR"
 
 class SearchSourceConnectorType(str, Enum):
-    SERPER_API = "SERPER_API"
+    SERPER_API = "SERPER_API" # NOT IMPLEMENTED YET : DON'T REMEMBER WHY : MOST PROBABLY BECAUSE WE NEED TO CRAWL THE RESULTS RETURNED BY IT
     TAVILY_API = "TAVILY_API"
+    LINKUP_API = "LINKUP_API"
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
@@ -75,7 +84,7 @@ class Chat(BaseModel, TimestampMixin):
     __tablename__ = "chats"
 
     type = Column(SQLAlchemyEnum(ChatType), nullable=False)
-    title = Column(String(200), nullable=False, index=True)
+    title = Column(String, nullable=False, index=True)
     initial_connectors = Column(ARRAY(String), nullable=True)
     messages = Column(JSON, nullable=False)
     
@@ -85,11 +94,12 @@ class Chat(BaseModel, TimestampMixin):
 class Document(BaseModel, TimestampMixin):
     __tablename__ = "documents"
     
-    title = Column(String(200), nullable=False, index=True)
+    title = Column(String, nullable=False, index=True)
     document_type = Column(SQLAlchemyEnum(DocumentType), nullable=False)
     document_metadata = Column(JSON, nullable=True)
     
     content = Column(Text, nullable=False)
+    content_hash = Column(String, nullable=False, index=True, unique=True)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
     
     search_space_id = Column(Integer, ForeignKey("searchspaces.id", ondelete='CASCADE'), nullable=False)
@@ -108,9 +118,8 @@ class Chunk(BaseModel, TimestampMixin):
 class Podcast(BaseModel, TimestampMixin):
     __tablename__ = "podcasts"
     
-    title = Column(String(200), nullable=False, index=True)
-    is_generated = Column(Boolean, nullable=False, default=False)
-    podcast_content = Column(Text, nullable=False, default="")
+    title = Column(String, nullable=False, index=True)
+    podcast_transcript = Column(JSON, nullable=False, default={})
     file_location = Column(String(500), nullable=False, default="")
     
     search_space_id = Column(Integer, ForeignKey("searchspaces.id", ondelete='CASCADE'), nullable=False)
@@ -141,17 +150,22 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete='CASCADE'), nullable=False)
     user = relationship("User", back_populates="search_source_connectors")
 
+if config.AUTH_TYPE == "GOOGLE":
+    class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
+        pass
 
-class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
-    pass
 
+    class User(SQLAlchemyBaseUserTableUUID, Base):
+        oauth_accounts: Mapped[list[OAuthAccount]] = relationship(
+            "OAuthAccount", lazy="joined"
+        )
+        search_spaces = relationship("SearchSpace", back_populates="user")
+        search_source_connectors = relationship("SearchSourceConnector", back_populates="user")
+else:
+    class User(SQLAlchemyBaseUserTableUUID, Base):
 
-class User(SQLAlchemyBaseUserTableUUID, Base):
-    oauth_accounts: Mapped[list[OAuthAccount]] = relationship(
-        "OAuthAccount", lazy="joined"
-    )
-    search_spaces = relationship("SearchSpace", back_populates="user")
-    search_source_connectors = relationship("SearchSourceConnector", back_populates="user")
+        search_spaces = relationship("SearchSpace", back_populates="user")
+        search_source_connectors = relationship("SearchSourceConnector", back_populates="user")
 
 
 engine = create_async_engine(DATABASE_URL)
@@ -180,8 +194,12 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def get_user_db(session: AsyncSession = Depends(get_async_session)):
-    yield SQLAlchemyUserDatabase(session, User, OAuthAccount)
+if config.AUTH_TYPE == "GOOGLE":
+    async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+        yield SQLAlchemyUserDatabase(session, User, OAuthAccount)
+else:
+    async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+        yield SQLAlchemyUserDatabase(session, User)
     
 async def get_chucks_hybrid_search_retriever(session: AsyncSession = Depends(get_async_session)):
     return ChucksHybridSearchRetriever(session)

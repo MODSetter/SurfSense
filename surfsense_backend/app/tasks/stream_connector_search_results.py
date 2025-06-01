@@ -1,10 +1,12 @@
-from typing import AsyncGenerator, List, Union
+from typing import Any, AsyncGenerator, List, Union
 from uuid import UUID
 
 from app.agents.researcher.graph import graph as researcher_graph
 from app.agents.researcher.state import State
 from app.utils.streaming_service import StreamingService
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.agents.researcher.configuration import SearchMode
 
 
 async def stream_connector_search_results(
@@ -13,7 +15,9 @@ async def stream_connector_search_results(
     search_space_id: int, 
     session: AsyncSession, 
     research_mode: str, 
-    selected_connectors: List[str]
+    selected_connectors: List[str],
+    langchain_chat_history: List[Any],
+    search_mode_str: str
 ) -> AsyncGenerator[str, None]:
     """
     Stream connector search results to the client
@@ -40,6 +44,11 @@ async def stream_connector_search_results(
     # Convert UUID to string if needed
     user_id_str = str(user_id) if isinstance(user_id, UUID) else user_id
     
+    if search_mode_str == "CHUNKS":
+        search_mode = SearchMode.CHUNKS
+    elif search_mode_str == "DOCUMENTS":
+        search_mode = SearchMode.DOCUMENTS
+    
     # Sample configuration
     config = {
         "configurable": {
@@ -47,13 +56,15 @@ async def stream_connector_search_results(
             "num_sections": NUM_SECTIONS,
             "connectors_to_search": selected_connectors,
             "user_id": user_id_str,
-            "search_space_id": search_space_id
+            "search_space_id": search_space_id,
+            "search_mode": search_mode
         }
     }
     # Initialize state with database session and streaming service
     initial_state = State(
         db_session=session,
-        streaming_service=streaming_service
+        streaming_service=streaming_service,
+        chat_history=langchain_chat_history
     )
     
     # Run the graph directly

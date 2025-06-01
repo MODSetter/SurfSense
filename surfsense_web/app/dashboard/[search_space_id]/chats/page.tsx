@@ -8,8 +8,8 @@ interface PageProps {
 }
 
 export default async function ChatsPage({ params }: PageProps) {
-  // Await params to properly access dynamic route parameters
-  const searchSpaceId = params.search_space_id;
+  // Get search space ID from the route parameter
+  const { search_space_id: searchSpaceId } = await Promise.resolve(params);
   
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-[60vh]">

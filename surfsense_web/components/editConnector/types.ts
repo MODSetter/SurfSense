@@ -30,5 +30,6 @@ export const editConnectorSchema = z.object({
     SERPER_API_KEY: z.string().optional(),
     TAVILY_API_KEY: z.string().optional(),
     LINEAR_API_KEY: z.string().optional(),
+    LINKUP_API_KEY: z.string().optional(),
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>; 

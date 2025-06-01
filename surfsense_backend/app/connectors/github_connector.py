@@ -80,7 +80,7 @@ class GitHubConnector:
             # type='owner' fetches repos owned by the user
             # type='member' fetches repos the user is a collaborator on (including orgs)
             # type='all' fetches both
-            for repo in self.gh.repositories(type='owner', sort='updated'):
+            for repo in self.gh.repositories(type='all', sort='updated'):
                 repos_data.append({
                     "id": repo.id,
                     "name": repo.name,

@@ -5,6 +5,7 @@ from typing import Any, Dict
 from app.config import config as app_config
 from .prompts import get_citation_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
+from .configuration import SubSectionType
 
 async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, Any]:
     """
@@ -38,7 +39,9 @@ async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, An
         try:
             # Use the sub-section questions for reranking context
             # rerank_query = "\n".join(sub_section_questions)
-            rerank_query = configuration.user_query
+            # rerank_query = configuration.user_query
+            
+            rerank_query = configuration.user_query + "\n" + "\n".join(sub_section_questions)
 
             # Convert documents to format expected by reranker if needed
             reranker_input_docs = [
@@ -102,13 +105,14 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
         # Extract content and metadata
         content = doc.get("content", "")
         doc_info = doc.get("document", {})
-        document_id = doc_info.get("id", f"{i+1}")  # Use document ID or index+1 as source_id
+        document_id = doc_info.get("id")  # Use document ID
         
         # Format document according to the citation system prompt's expected format
         formatted_doc = f"""
         <document>
             <metadata>
                 <source_id>{document_id}</source_id>
+                <source_type>{doc_info.get("document_type", "CRAWLED_URL")}</source_type>
             </metadata>
             <content>
                 {content}
@@ -122,12 +126,27 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     sub_section_questions = configuration.sub_section_questions
     user_query = configuration.user_query  # Get the original user query
     documents_text = "\n".join(formatted_documents)
-    
+    sub_section_type = configuration.sub_section_type
+
     # Format the questions as bullet points for clarity
     questions_text = "\n".join([f"- {question}" for question in sub_section_questions])
     
+    # Provide more context based on the subsection type
+    section_position_context = ""
+    if sub_section_type == SubSectionType.START:
+        section_position_context = "This is the INTRODUCTION section. "
+    elif sub_section_type == SubSectionType.MIDDLE:
+        section_position_context = "This is a MIDDLE section. Ensure this content flows naturally from previous sections and into subsequent ones. This could be any middle section in the document, so maintain coherence with the overall structure while addressing the specific topic of this section. Do not provide any conclusions in this section, as conclusions should only appear in the final section."
+    elif sub_section_type == SubSectionType.END:
+        section_position_context = "This is the CONCLUSION section. Focus on summarizing key points, providing closure."
+    
     # Construct a clear, structured query for the LLM
     human_message_content = f"""
+    Source material:
+    <documents>
+        {documents_text}
+    </documents>
+    
     Now user's query is: 
     <user_query>
         {user_query}
@@ -137,21 +156,24 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     <sub_section_title>
         {section_title}
     </sub_section_title>
+
+    <section_position>
+        {section_position_context}
+    </section_position>
     
-    Use the provided documents as your source material and cite them properly using the IEEE citation format [X] where X is the source_id.
-    <documents>
-        {documents_text}
-    </documents>
+    <guiding_questions>
+        {questions_text}
+    </guiding_questions>
     """
     
     # Create messages for the LLM
-    messages = [
+    messages_with_chat_history = state.chat_history + [
         SystemMessage(content=get_citation_system_prompt()),
         HumanMessage(content=human_message_content)
     ]
     
     # Call the LLM and get the response
-    response = await llm.ainvoke(messages)
+    response = await llm.ainvoke(messages_with_chat_history)
     final_answer = response.content
     
     return {

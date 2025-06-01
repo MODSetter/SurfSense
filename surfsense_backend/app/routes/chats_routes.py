@@ -10,6 +10,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from langchain.schema import HumanMessage, AIMessage
+
 
 router = APIRouter()
 
@@ -20,14 +22,16 @@ async def handle_chat_data(
     user: User = Depends(current_active_user)
 ):
     messages = request.messages
-    if messages[-1].role != "user":
+    if messages[-1]['role'] != "user":
         raise HTTPException(
             status_code=400, detail="Last message must be a user message")
 
-    user_query = messages[-1].content
+    user_query = messages[-1]['content']
     search_space_id = request.data.get('search_space_id')
     research_mode: str = request.data.get('research_mode')
     selected_connectors: List[str] = request.data.get('selected_connectors')
+    
+    search_mode_str = request.data.get('search_mode', "CHUNKS")
 
     # Convert search_space_id to integer if it's a string
     if search_space_id and isinstance(search_space_id, str):
@@ -43,6 +47,21 @@ async def handle_chat_data(
     except HTTPException:
         raise HTTPException(
             status_code=403, detail="You don't have access to this search space")
+        
+    langchain_chat_history = []
+    for message in messages[:-1]:
+        if message['role'] == "user":
+            langchain_chat_history.append(HumanMessage(content=message['content']))
+        elif message['role'] == "assistant":
+            # Last annotation type will always be "ANSWER" here
+            answer_annotation = message['annotations'][-1]
+            answer_text = ""
+            if answer_annotation['type'] == "ANSWER":
+                answer_text = answer_annotation['content']
+                # If content is a list, join it into a single string
+                if isinstance(answer_text, list):
+                    answer_text = "\n".join(answer_text)
+                langchain_chat_history.append(AIMessage(content=answer_text))
 
     response = StreamingResponse(stream_connector_search_results(
         user_query,
@@ -50,7 +69,9 @@ async def handle_chat_data(
         search_space_id,  # Already converted to int in lines 32-37
         session,
         research_mode,
-        selected_connectors
+        selected_connectors,
+        langchain_chat_history,
+        search_mode_str
     ))
     response.headers['x-vercel-ai-data-stream'] = 'v1'
     return response

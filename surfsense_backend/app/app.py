@@ -6,16 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import User, create_db_and_tables, get_async_session
-from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.schemas import UserCreate, UserRead, UserUpdate
+
+
+from app.routes import router as crud_router
+from app.config import config
+
 from app.users import (
     SECRET,
     auth_backend,
     fastapi_users,
-    google_oauth_client,
-    current_active_user,
+    current_active_user
 )
-from app.routes import router as crud_router
 
 
 @asynccontextmanager
@@ -59,11 +61,20 @@ app.include_router(
     prefix="/users",
     tags=["users"],
 )
-app.include_router(
-    fastapi_users.get_oauth_router(google_oauth_client, auth_backend, SECRET, is_verified_by_default=True),
-    prefix="/auth/google",
-    tags=["auth"],
-)
+
+if config.AUTH_TYPE == "GOOGLE":
+    from app.users import google_oauth_client
+    app.include_router(
+        fastapi_users.get_oauth_router(
+            google_oauth_client,
+            auth_backend,
+            SECRET,
+            is_verified_by_default=True
+        ),
+        prefix="/auth/google",
+        tags=["auth"],
+    )
+
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 
 
