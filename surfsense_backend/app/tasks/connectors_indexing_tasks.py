@@ -15,6 +15,7 @@ from app.connectors.discord_connector import DiscordConnector
 from slack_sdk.errors import SlackApiError
 import logging
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from app.utils.document_converters import generate_content_hash
 
@@ -1091,12 +1092,25 @@ async def index_discord_messages(
                     summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
                     summary_result = await summary_chain.ainvoke({"document": combined_document_string})
                     summary_content = summary_result.content
-                    summary_embedding = config.embedding_model_instance.embed(summary_content)
+                    summary_embedding = await asyncio.to_thread(
+                        config.embedding_model_instance.embed, summary_content
+                    )
 
                     # Process chunks
+                    raw_chunks = await asyncio.to_thread(
+                        config.chunker_instance.chunk,
+                        channel_content
+                    )
+
+                    chunk_texts = [chunk.text for chunk in raw_chunks if chunk.text.strip()]
+                    chunk_embeddings = await asyncio.to_thread(
+                        lambda texts: [config.embedding_model_instance.embed(t) for t in texts],
+                        chunk_texts
+                    )
+
                     chunks = [
-                        Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
-                        for chunk in config.chunker_instance.chunk(channel_content)
+                        Chunk(content=raw_chunk.text, embedding=embedding)
+                        for raw_chunk, embedding in zip(raw_chunks, chunk_embeddings)
                     ]
 
                     # Create and store new document

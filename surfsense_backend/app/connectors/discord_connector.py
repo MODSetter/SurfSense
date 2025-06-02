@@ -39,6 +39,7 @@ class DiscordConnector(commands.Bot):
         @self.event
         async def on_ready():
             logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
+            self._is_running = True
 
         @self.event
         async def on_connect():
@@ -61,15 +62,14 @@ class DiscordConnector(commands.Bot):
             raise ValueError("Discord bot token not set. Call set_token(token) first.")
 
         try:
-            await asyncio.wait_for(self.start(self.token), timeout=60.0) 
+            if self._is_running:
+                logger.warning("Bot is already running. Use close_bot() to stop it before starting again.")
+                return
+
+            await self.start(self.token)
             logger.info("Discord bot started successfully.")
         except discord.LoginFailure:
             logger.error("Failed to log in: Invalid token was provided. Please check your bot token.")
-            self._is_running = False
-            raise
-        except asyncio.TimeoutError:
-            logger.error("Timed out while trying to connect to Discord. "
-                         "This might indicate network issues or an invalid token.")
             self._is_running = False
             raise
         except discord.PrivilegedIntentsRequired as e:
