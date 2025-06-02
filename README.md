@@ -5,7 +5,7 @@
 
 
 # SurfSense
-While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily, LinkUp), Slack, Linear, Notion, YouTube, GitHub and more to come.
+While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as search engines (Tavily, LinkUp), Slack, Linear, Notion, YouTube, GitHub, Discord and more to come.
 
 <div align="center">
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -62,6 +62,7 @@ Open source and easy to deploy locally.
 - Notion
 - Youtube Videos
 - GitHub
+- Discord
 - and more to come.....
 
 ## 📄 **Supported File Extensions**
@@ -150,7 +151,7 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 
 **Agent Chat** 
 
-![chat](https://github.com/user-attachments/assets/bb352d52-1c6d-4020-926b-722d0b98b491)
+![git_chat](https://github.com/user-attachments/assets/bb352d52-1c6d-4020-926b-722d0b98b491)
 
 **Browser Extension**
 
