@@ -1026,9 +1026,12 @@ class ConnectorService:
                 if len(description) == 100:
                     description += "..."
                     
-                # For URL, we can use a placeholder or construct a URL to the Discord channel if available
                 url = ""
-                if channel_id:
+                guild_id = metadata.get('guild_id', '')
+                if guild_id and channel_id:
+                    url = f"https://discord.com/channels/{guild_id}/{channel_id}"
+                elif channel_id:
+                    # Fallback for DM channels or when guild_id is not available
                     url = f"https://discord.com/channels/@me/{channel_id}"
 
                 source = {

@@ -954,7 +954,6 @@ async def index_discord_messages(
             return 0, "Discord token not found in connector config"
         
         logger.info(f"Starting Discord indexing for connector {connector_id}")
-        logger.info(f"discord token is: {discord_token[:4]}... (truncated for security)")
 
         # Initialize Discord client
         discord_client = DiscordConnector(token=discord_token)

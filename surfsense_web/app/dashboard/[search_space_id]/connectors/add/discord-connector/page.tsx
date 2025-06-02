@@ -47,9 +47,9 @@ const discordConnectorFormSchema = z.object({
   name: z.string().min(3, {
     message: "Connector name must be at least 3 characters.",
   }),
-  bot_token: z.string().min(10, {
-    message: "Discord Bot Token is required and must be valid.",
-  }),
+  bot_token: z.string()
+    .min(50, { message: "Discord Bot Token appears to be too short." })
+    .regex(/^[A-Za-z0-9._-]+$/, { message: "Discord Bot Token contains invalid characters." }),
 });
 
 // Define the type for the form values
