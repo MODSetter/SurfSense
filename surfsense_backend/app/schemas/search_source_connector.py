@@ -81,6 +81,7 @@ class SearchSourceConnectorBase(BaseModel):
             repo_full_names = config.get("repo_full_names")
             if not isinstance(repo_full_names, list) or not repo_full_names:
                 raise ValueError("repo_full_names must be a non-empty list of strings")
+            
         elif connector_type == SearchSourceConnectorType.LINEAR_CONNECTOR:
             # For LINEAR_CONNECTOR, only allow LINEAR_API_KEY
             allowed_keys = ["LINEAR_API_KEY"]
@@ -90,6 +91,16 @@ class SearchSourceConnectorBase(BaseModel):
             # Ensure the token is not empty
             if not config.get("LINEAR_API_KEY"):
                 raise ValueError("LINEAR_API_KEY cannot be empty")
+        
+        elif connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
+            # For DISCORD_CONNECTOR, only allow DISCORD_BOT_TOKEN
+            allowed_keys = ["DISCORD_BOT_TOKEN"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(f"For DISCORD_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
+
+            # Ensure the bot token is not empty
+            if not config.get("DISCORD_BOT_TOKEN"):
+                raise ValueError("DISCORD_BOT_TOKEN cannot be empty")
 
         return config
 

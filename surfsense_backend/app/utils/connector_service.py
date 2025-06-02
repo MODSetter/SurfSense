@@ -959,3 +959,99 @@ class ConnectorService:
                 "type": "LINKUP_API",
                 "sources": [],
             }, []
+    
+    async def search_discord(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20, search_mode: SearchMode = SearchMode.CHUNKS) -> tuple:
+        """
+        Search for Discord messages and return both the source information and langchain documents
+        
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            discord_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="DISCORD_CONNECTOR"
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            discord_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="DISCORD_CONNECTOR"
+            )
+            # Transform document retriever results to match expected format
+            discord_chunks = self._transform_document_results(discord_chunks)
+        
+        # Early return if no results
+        if not discord_chunks:
+            return {
+                "id": 11,
+                "name": "Discord",
+                "type": "DISCORD_CONNECTOR",
+                "sources": [],
+            }, []
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        async with self.counter_lock:
+            for i, chunk in enumerate(discord_chunks):
+                # Fix for UI
+                discord_chunks[i]['document']['id'] = self.source_id_counter
+                # Extract document metadata
+                document = chunk.get('document', {})
+                metadata = document.get('metadata', {})
+
+                # Create a mapped source entry with Discord-specific metadata
+                channel_name = metadata.get('channel_name', 'Unknown Channel')
+                channel_id = metadata.get('channel_id', '')
+                message_date = metadata.get('start_date', '')
+                
+                # Create a more descriptive title for Discord messages
+                title = f"Discord: {channel_name}"
+                if message_date:
+                    title += f" ({message_date})"
+                    
+                # Create a more descriptive description for Discord messages
+                description = chunk.get('content', '')[:100]
+                if len(description) == 100:
+                    description += "..."
+                    
+                url = ""
+                guild_id = metadata.get('guild_id', '')
+                if guild_id and channel_id:
+                    url = f"https://discord.com/channels/{guild_id}/{channel_id}"
+                elif channel_id:
+                    # Fallback for DM channels or when guild_id is not available
+                    url = f"https://discord.com/channels/@me/{channel_id}"
+
+                source = {
+                    "id": self.source_id_counter,
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+        
+        # Create result object
+        result_object = {
+            "id": 11,
+            "name": "Discord",
+            "type": "DISCORD_CONNECTOR",
+            "sources": sources_list,
+        }
+        
+        return result_object, discord_chunks
+
+

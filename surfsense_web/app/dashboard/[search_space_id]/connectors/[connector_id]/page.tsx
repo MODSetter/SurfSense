@@ -52,6 +52,7 @@ const getConnectorTypeDisplay = (type: string): string => {
     "SLACK_CONNECTOR": "Slack Connector",
     "NOTION_CONNECTOR": "Notion Connector",
     "GITHUB_CONNECTOR": "GitHub Connector",
+    "DISCORD_CONNECTOR": "Discord Connector",
     "LINKUP_API": "Linkup",
     // Add other connector types here as needed
   };
@@ -89,6 +90,7 @@ export default function EditConnectorPage() {
       "SLACK_CONNECTOR": "SLACK_BOT_TOKEN",
       "NOTION_CONNECTOR": "NOTION_INTEGRATION_TOKEN",
       "GITHUB_CONNECTOR": "GITHUB_PAT",
+      "DISCORD_CONNECTOR": "DISCORD_BOT_TOKEN",
       "LINKUP_API": "LINKUP_API_KEY"
     };
     return fieldMap[connectorType] || "";
