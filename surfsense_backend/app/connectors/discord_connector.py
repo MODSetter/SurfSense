@@ -33,11 +33,25 @@ class DiscordConnector(commands.Bot):
         super().__init__(command_prefix="!", intents=intents) # command_prefix is required but not strictly used here
         self.token = token
         self._bot_task = None  # Holds the async bot task
+        self._is_running = False  # Flag to track if the bot is running
 
         # Event to confirm bot is ready
         @self.event
         async def on_ready():
             logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
+
+        @self.event
+        async def on_connect():
+            logger.debug("Bot connected to Discord gateway.")
+
+        @self.event
+        async def on_disconnect():
+            logger.debug("Bot disconnected from Discord gateway.")
+            self._is_running = False # Reset flag on disconnect
+
+        @self.event
+        async def on_resumed():
+            logger.debug("Bot resumed connection to Discord gateway.")
 
     async def start_bot(self):
         """Starts the bot to connect to Discord."""
@@ -45,15 +59,42 @@ class DiscordConnector(commands.Bot):
 
         if not self.token:
             raise ValueError("Discord bot token not set. Call set_token(token) first.")
-        await self.start(self.token)
-        logger.info("Discord bot started successfully.")
+
+        try:
+            await asyncio.wait_for(self.start(self.token), timeout=60.0) 
+            logger.info("Discord bot started successfully.")
+        except discord.LoginFailure:
+            logger.error("Failed to log in: Invalid token was provided. Please check your bot token.")
+            self._is_running = False
+            raise
+        except asyncio.TimeoutError:
+            logger.error("Timed out while trying to connect to Discord. "
+                         "This might indicate network issues or an invalid token.")
+            self._is_running = False
+            raise
+        except discord.PrivilegedIntentsRequired as e:
+            logger.error(f"Privileged Intents Required: {e}. Make sure all required intents are enabled in your bot's application page.")
+            self._is_running = False
+            raise
+        except discord.ConnectionClosed as e:
+            logger.error(f"Discord connection closed unexpectedly: {e}")
+            self._is_running = False
+            raise
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while starting the bot: {e}")
+            self._is_running = False
+            raise
 
     async def close_bot(self):
         """Closes the bot's connection to Discord."""
-        logger.info("Closing Discord bot connection...")
-        
-        await self.close()
-        logger.info("Discord bot connection closed.")
+
+        if self._is_running:
+            logger.info("Closing Discord bot connection...")
+            await self.close()
+            logger.info("Discord bot connection closed.")
+            self._is_running = False
+        else:
+            logger.info("Bot is not running or already disconnected.")
 
 
     def set_token(self, token: str) -> None:
@@ -76,8 +117,15 @@ class DiscordConnector(commands.Bot):
         # Terrible solution, but necessary to avoid blocking the event loop.
         await asyncio.sleep(1) # Yield control to the event loop
         
-        await self.wait_until_ready()
-        logger.info("Bot is ready.")
+        try:
+            await asyncio.wait_for(self.wait_until_ready(), timeout=60.0)
+            logger.info("Bot is ready.")
+        except asyncio.TimeoutError:
+            logger.error(f"Bot did not become ready within 60 seconds. Connection may have failed.")
+            raise
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while waiting for the bot to be ready: {e}")
+            raise
 
     async def get_guilds(self) -> list[dict]:
         """
