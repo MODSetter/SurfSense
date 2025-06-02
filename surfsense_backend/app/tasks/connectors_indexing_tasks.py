@@ -993,7 +993,7 @@ async def index_discord_messages(
             return 0, f"Failed to get Discord guilds: {str(e)}"
         if not guilds:
             logger.info("No Discord guilds found to index")
-            
+
             await discord_client.close_bot()
             return 0, "No Discord guilds found"
         
@@ -1020,7 +1020,6 @@ async def index_discord_messages(
                             channel_id=channel_id,
                             start_date=start_date_str,
                             end_date=end_date_str,
-                            limit=1000
                         )
                     except Exception as e:
                         logger.error(f"Failed to get messages for channel {channel_name}: {str(e)}")

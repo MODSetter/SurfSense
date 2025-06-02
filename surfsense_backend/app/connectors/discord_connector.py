@@ -142,7 +142,6 @@ class DiscordConnector(commands.Bot):
     async def get_channel_history(
         self,
         channel_id: str,
-        limit: int = 100,
         start_date: str = None,
         end_date: str = None,
     ) -> list[dict]:
@@ -151,7 +150,6 @@ class DiscordConnector(commands.Bot):
 
         Args:
             channel_id (str): The ID of the channel to fetch messages from.
-            limit (int): Maximum number of messages to fetch.
             start_date (str): Optional start date in ISO format (YYYY-MM-DD).
             end_date (str): Optional end date in ISO format (YYYY-MM-DD).
 
@@ -188,13 +186,13 @@ class DiscordConnector(commands.Bot):
 
         if end_date:
             try:
-                end_datetime = datetime.datetime.fromisoformat(f"{end_date}T23:59:59.999999").replace(tzinfo=datetime.timezone.utc)
+                end_datetime = datetime.datetime.fromisoformat(f"{end_date}").replace(tzinfo=datetime.timezone.utc)
                 before = end_datetime
             except ValueError:
                 logger.warning(f"Invalid end_date format: {end_date}. Ignoring.")
 
         try:
-            async for message in channel.history(limit=limit, before=before, after=after):
+            async for message in channel.history(limit=None, before=before, after=after):
                 messages_data.append(
                     {
                         "id": str(message.id),
