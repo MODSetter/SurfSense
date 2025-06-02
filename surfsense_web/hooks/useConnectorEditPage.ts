@@ -41,7 +41,8 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
             NOTION_INTEGRATION_TOKEN: "", 
             SERPER_API_KEY: "", 
             TAVILY_API_KEY: "",
-            LINEAR_API_KEY: ""
+            LINEAR_API_KEY: "",
+            DISCORD_BOT_TOKEN: "",
         }, 
     });
 
@@ -60,7 +61,8 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
                     SERPER_API_KEY: config.SERPER_API_KEY || "",
                     TAVILY_API_KEY: config.TAVILY_API_KEY || "",
                     LINEAR_API_KEY: config.LINEAR_API_KEY || "",
-                    LINKUP_API_KEY: config.LINKUP_API_KEY || ""
+                    LINKUP_API_KEY: config.LINKUP_API_KEY || "",
+                    DISCORD_BOT_TOKEN: config.DISCORD_BOT_TOKEN || "",
                 });
                 if (currentConnector.connector_type === 'GITHUB_CONNECTOR') {
                     const savedRepos = config.repo_full_names || [];
@@ -171,6 +173,12 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
                     newConfig = { LINKUP_API_KEY: formData.LINKUP_API_KEY };
                 }
                 break;
+            case 'DISCORD_CONNECTOR':
+                if (formData.DISCORD_BOT_TOKEN !== originalConfig.DISCORD_BOT_TOKEN) {
+                    if (!formData.DISCORD_BOT_TOKEN) { toast.error("Discord Bot Token cannot be empty."); setIsSaving(false); return; }
+                    newConfig = { DISCORD_BOT_TOKEN: formData.DISCORD_BOT_TOKEN };
+                }
+                break;
         }
 
         if (newConfig !== null) {
@@ -212,6 +220,8 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
                     editForm.setValue('LINEAR_API_KEY', newlySavedConfig.LINEAR_API_KEY || "");
                  } else if(connector.connector_type === 'LINKUP_API') {
                     editForm.setValue('LINKUP_API_KEY', newlySavedConfig.LINKUP_API_KEY || "");
+                 } else if(connector.connector_type === 'DISCORD_CONNECTOR') {
+                    editForm.setValue('DISCORD_BOT_TOKEN', newlySavedConfig.DISCORD_BOT_TOKEN || "");
                  }
              }
             if (connector.connector_type === 'GITHUB_CONNECTOR') {

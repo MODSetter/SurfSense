@@ -31,5 +31,6 @@ export const editConnectorSchema = z.object({
     TAVILY_API_KEY: z.string().optional(),
     LINEAR_API_KEY: z.string().optional(),
     LINKUP_API_KEY: z.string().optional(),
+    DISCORD_BOT_TOKEN: z.string().optional(),
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>; 
