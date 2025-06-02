@@ -7,7 +7,7 @@ PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
 POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
 
-Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR, GITHUB_CONNECTOR, LINEAR_CONNECTOR).
+Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR, GITHUB_CONNECTOR, LINEAR_CONNECTOR, DISCORD_CONNECTOR).
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Body
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -282,6 +282,7 @@ async def index_connector_content(
     - NOTION_CONNECTOR: Indexes pages from all accessible Notion pages
     - GITHUB_CONNECTOR: Indexes code and documentation from GitHub repositories
     - LINEAR_CONNECTOR: Indexes issues and comments from Linear
+    - DISCORD_CONNECTOR: Indexes messages from all accessible Discord channels
     
     Args:
         connector_id: ID of the connector to use

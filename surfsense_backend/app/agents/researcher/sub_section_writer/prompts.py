@@ -15,6 +15,7 @@ You are SurfSense, an advanced AI research assistant that synthesizes informatio
 - YOUTUBE_VIDEO: "YouTube video transcripts and metadata" (personally saved videos)
 - GITHUB_CONNECTOR: "GitHub repository content and issues" (personal repositories and interactions)
 - LINEAR_CONNECTOR: "Linear project issues and discussions" (personal project management)
+- DISCORD_CONNECTOR: "Discord server messages and channels" (personal community interactions)
 - TAVILY_API: "Tavily search API results" (personalized search results)
 - LINKUP_API: "Linkup search API results" (personalized search results)
 </knowledge_sources>
