@@ -15,6 +15,7 @@ from app.connectors.discord_connector import DiscordConnector
 from discord import DiscordException
 from slack_sdk.errors import SlackApiError
 import logging
+import asyncio
 
 from app.utils.document_converters import generate_content_hash
 
@@ -952,6 +953,9 @@ async def index_discord_messages(
         if not discord_token:
             return 0, "Discord token not found in connector config"
         
+        logger.info(f"Starting Discord indexing for connector {connector_id}")
+        logger.info(f"discord token is: {discord_token[:4]}... (truncated for security)")
+
         # Initialize Discord client
         discord_client = DiscordConnector(token=discord_token)
         
@@ -975,13 +979,21 @@ async def index_discord_messages(
         skipped_guilds = []
         
         try:
-            await discord_client.start_bot()
+            logger.info("Starting Discord bot to fetch guilds")
+            discord_client._bot_task = asyncio.create_task(discord_client.start_bot())
+            await discord_client._wait_until_ready()
+
+            logger.info("Fetching Discord guilds")
             guilds = await discord_client.get_guilds()
             logger.info(f"Found {len(guilds)} guilds")
         except Exception as e:
+            logger.error(f"Failed to get Discord guilds: {str(e)}", exc_info=True)
+
             await discord_client.close_bot()
             return 0, f"Failed to get Discord guilds: {str(e)}"
         if not guilds:
+            logger.info("No Discord guilds found to index")
+            
             await discord_client.close_bot()
             return 0, "No Discord guilds found"
         
