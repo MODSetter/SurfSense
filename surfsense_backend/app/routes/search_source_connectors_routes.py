@@ -19,7 +19,7 @@ from app.schemas import SearchSourceConnectorCreate, SearchSourceConnectorUpdate
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 from pydantic import BaseModel, Field, ValidationError
-from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues
+from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues, index_discord_messages
 from app.connectors.github_connector import GitHubConnector
 from datetime import datetime, timedelta
 import logging
@@ -378,6 +378,30 @@ async def index_connector_content(
             background_tasks.add_task(run_linear_indexing_with_new_session, connector_id, search_space_id)
             response_message = "Linear indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
+            # Determine the time range that will be indexed
+            if not connector.last_indexed_at:
+                start_date = "365 days ago"
+            else:
+                today = datetime.now().date()
+                if connector.last_indexed_at.date() == today:
+                    # If last indexed today, go back 1 day to ensure we don't miss anything
+                    start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+                else:
+                    start_date = connector.last_indexed_at.strftime("%Y-%m-%d")
+            
+            indexing_from = start_date
+            indexing_to = today_str
+
+            # Run indexing in background
+            logger.info(
+                f"Triggering Discord indexing for connector {connector_id} into search space {search_space_id}"
+            )
+            background_tasks.add_task(
+                run_discord_indexing_with_new_session, connector_id, search_space_id
+            )
+            response_message = "Discord indexing started in the background."
+
         else:
             raise HTTPException(
                 status_code=400,
@@ -577,3 +601,45 @@ async def run_linear_indexing(
         await session.rollback()
         logger.error(f"Critical error in run_linear_indexing for connector {connector_id}: {e}", exc_info=True)
         # Optionally update status in DB to indicate failure
+
+# Add new helper functions for discord indexing
+async def run_discord_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int
+):
+    """
+    Create a new session and run the Discord indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    async with async_session_maker() as session:
+        await run_discord_indexing(session, connector_id, search_space_id)
+
+async def run_discord_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int
+):
+    """
+    Background task to run Discord indexing.
+    Args:
+        session: Database session
+        connector_id: ID of the Discord connector
+        search_space_id: ID of the search space
+    """
+    try:
+        # Index Discord messages without updating last_indexed_at (we'll do it separately)
+        documents_processed, error_or_warning = await index_discord_messages(
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            update_last_indexed=False  # Don't update timestamp in the indexing function
+        )
+
+        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
+        if documents_processed > 0:
+            await update_connector_last_indexed(session, connector_id)
+            logger.info(f"Discord indexing completed successfully: {documents_processed} documents processed")
+        else:
+            logger.error(f"Discord indexing failed or no documents processed: {error_or_warning}")
+    except Exception as e:
+        logger.error(f"Error in background Discord indexing task: {str(e)}")

@@ -11,6 +11,8 @@ from app.connectors.slack_history import SlackHistory
 from app.connectors.notion_history import NotionHistoryConnector
 from app.connectors.github_connector import GitHubConnector
 from app.connectors.linear_connector import LinearConnector
+from app.connectors.discord_connector import DiscordConnector
+from discord import DiscordException
 from slack_sdk.errors import SlackApiError
 import logging
 
@@ -912,3 +914,181 @@ async def index_linear_issues(
         await session.rollback()
         logger.error(f"Failed to index Linear issues: {str(e)}", exc_info=True)
         return 0, f"Failed to index Linear issues: {str(e)}"
+
+async def index_discord_messages(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    update_last_indexed: bool = True
+) -> Tuple[int, Optional[str]]:
+    """
+    Index Discord messages from all accessible channels.
+    
+    Args:
+        session: Database session
+        connector_id: ID of the Discord connector
+        search_space_id: ID of the search space to store documents in
+        update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        
+    Returns:
+        Tuple containing (number of documents indexed, error message or None)
+    """
+    try:
+        # Get the connector
+        result = await session.execute(
+            select(SearchSourceConnector)
+            .filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR
+            )
+        )
+        connector = result.scalars().first()
+        
+        if not connector:
+            return 0, f"Connector with ID {connector_id} not found or is not a Discord connector"
+        
+        # Get the Discord token from the connector config
+        discord_token = connector.config.get("DISCORD_BOT_TOKEN")
+        if not discord_token:
+            return 0, "Discord token not found in connector config"
+        
+        # Initialize Discord client
+        discord_client = DiscordConnector(token=discord_token)
+        
+        # Calculate date range
+        end_date = datetime.now(timezone.utc)
+        
+        # Use last_indexed_at as start date if available, otherwise use 365 days ago
+        if connector.last_indexed_at:
+            start_date = connector.last_indexed_at.replace(tzinfo=timezone.utc)
+            logger.info(f"Using last_indexed_at ({start_date.strftime('%Y-%m-%d')}) as start date")
+        else:
+            start_date = end_date - timedelta(days=365)  # Use 365 days as default
+            logger.info(f"No last_indexed_at found, using {start_date.strftime('%Y-%m-%d')} (365 days ago) as start date")
+        
+        # Format dates for Discord API
+        start_date_str = start_date.isoformat()
+        end_date_str = end_date.isoformat()
+        
+        documents_indexed = 0
+        documents_skipped = 0
+        skipped_guilds = []
+        
+        try:
+            await discord_client.start_bot()
+            guilds = await discord_client.get_guilds()
+            logger.info(f"Found {len(guilds)} guilds")
+        except Exception as e:
+            await discord_client.close_bot()
+            return 0, f"Failed to get Discord guilds: {str(e)}"
+        if not guilds:
+            await discord_client.close_bot()
+            return 0, "No Discord guilds found"
+        
+        # Process each guild
+        for guild in guilds:
+            guild_id = guild["id"]
+            guild_name = guild["name"]
+            logger.info(f"Processing guild: {guild_name} ({guild_id})")
+            try:
+                channels = await discord_client.get_text_channels(guild_id)
+                
+                if not channels:
+                    logger.info(f"No channels found in guild {guild_name}. Skipping.")
+                    skipped_guilds.append(f"{guild_name} (no channels)")
+                    documents_skipped += 1
+                    continue
+
+                for channel in channels:
+                    channel_id = channel["id"]
+                    channel_name = channel["name"]
+                    
+                    try:
+                        messages = await discord_client.get_channel_history(
+                            channel_id=channel_id,
+                            start_date=start_date_str,
+                            end_date=end_date_str,
+                            limit=1000
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to get messages for channel {channel_name}: {str(e)}")
+                        documents_skipped += 1
+                        continue
+
+                    if not messages:
+                        continue
+                    
+                    for message in messages:
+                        try:
+                            content = message.get("content", "")
+                            if not content:
+                                continue
+
+                            content_hash = generate_content_hash(content)
+                            existing_doc_by_hash_result = await session.execute(
+                                select(Document).where(Document.content_hash == content_hash)
+                            )
+                            existing_document_by_hash = existing_doc_by_hash_result.scalars().first()
+                            
+                            if existing_document_by_hash:
+                                documents_skipped += 1
+                                continue
+                            
+                            summary_content = f"Discord message by {message.get('author_name', 'Unknown')} in {channel_name} ({guild_name})\n\n{content}"
+                            summary_embedding = config.embedding_model_instance.embed(summary_content)
+                            chunks = [
+                                Chunk(content=chunk.text, embedding=config.embedding_model_instance.embed(chunk.text))
+                                for chunk in config.chunker_instance.chunk(content)
+                            ]
+                            document = Document(
+                                search_space_id=search_space_id,
+                                title=f"Discord - {guild_name}#{channel_name}",
+                                document_type=DocumentType.DISCORD_CONNECTOR,
+                                document_metadata={
+                                    "guild_id": guild_id,
+                                    "guild_name": guild_name,
+                                    "channel_id": channel_id,
+                                    "channel_name": channel_name,
+                                    "message_id": message.get("id"),
+                                    "author_id": message.get("author_id"),
+                                    "author_name": message.get("author_name"),
+                                    "created_at": message.get("created_at"),
+                                    "indexed_at": datetime.now(timezone.utc).isoformat()
+                                },
+                                content=summary_content,
+                                content_hash=content_hash,
+                                embedding=summary_embedding,
+                                chunks=chunks
+                            )
+                            
+                            session.add(document)
+                            documents_indexed += 1
+
+                        except Exception as e:
+                            logger.error(f"Error processing Discord message: {str(e)}", exc_info=True)
+                            documents_skipped += 1
+                            continue
+
+            except Exception as e:
+                logger.error(f"Error processing guild {guild_name}: {str(e)}", exc_info=True)
+                skipped_guilds.append(f"{guild_name} (processing error)")
+                documents_skipped += 1
+                continue
+
+        if update_last_indexed and documents_indexed > 0:
+            connector.last_indexed_at = datetime.now(timezone.utc)
+            logger.info(f"Updated last_indexed_at to {connector.last_indexed_at}")
+
+        await session.commit()
+        await discord_client.close_bot()
+        logger.info(f"Discord indexing completed: {documents_indexed} new messages, {documents_skipped} skipped")
+        return documents_indexed, None
+    
+    except SQLAlchemyError as db_error:
+        await session.rollback()
+        logger.error(f"Database error during Discord indexing: {str(db_error)}", exc_info=True)
+        return 0, f"Database error: {str(db_error)}"
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to index Discord messages: {str(e)}", exc_info=True)
+        return 0, f"Failed to index Discord messages: {str(e)}"
