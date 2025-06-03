@@ -400,6 +400,23 @@ async def fetch_relevant_documents(
                     if streaming_service and writer:
                         streaming_service.only_update_terminal(f"🔗 Found {len(linkup_chunks)} Linkup results related to your query")
                         writer({"yeild_value": streaming_service._format_annotations()})
+                        
+                elif connector == "DISCORD_CONNECTOR":
+                    source_object, discord_chunks = await connector_service.search_discord(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode
+                    )
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(discord_chunks)
+                    # Stream found document count
+                    if streaming_service and writer:
+                        streaming_service.only_update_terminal(f"🗨️ Found {len(discord_chunks)} Discord messages related to your query")
+                        writer({"yeild_value": streaming_service._format_annotations()})
                     
 
             except Exception as e:

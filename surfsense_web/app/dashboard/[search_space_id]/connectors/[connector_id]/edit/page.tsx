@@ -191,6 +191,18 @@ export default function EditConnectorPage() {
 										placeholder="Begins with linkup_..."
 									/>
 								)}
+
+								{/* == Discord == */}
+								{connector.connector_type === "DISCORD_CONNECTOR" && (
+									<EditSimpleTokenForm
+										control={editForm.control}
+										fieldName="DISCORD_BOT_TOKEN"
+										fieldLabel="Discord Bot Token"
+										fieldDescription="Update the Discord Bot Token if needed."
+										placeholder="Bot token..."
+									/>
+								)}
+
 							</CardContent>
 							<CardFooter className="border-t pt-6">
 								<Button

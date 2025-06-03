@@ -11,7 +11,7 @@ import {
   Link,
   Webhook,
 } from 'lucide-react';
-import { IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconBrandGithub, IconLayoutKanban, IconLinkPlus } from "@tabler/icons-react";
+import { IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconBrandGithub, IconLayoutKanban, IconLinkPlus, IconBrandDiscord } from "@tabler/icons-react";
 import { Button } from '@/components/ui/button';
 import { Connector, ResearchMode } from './types';
 
@@ -41,6 +41,8 @@ export const getConnectorIcon = (connectorType: string) => {
       return <IconBrandSlack {...iconProps} />;
     case 'NOTION_CONNECTOR':
       return <IconBrandNotion {...iconProps} />;
+    case 'DISCORD_CONNECTOR':
+      return <IconBrandDiscord {...iconProps} />;
     case 'DEEP':
       return <Sparkles {...iconProps} />;
     case 'DEEPER':

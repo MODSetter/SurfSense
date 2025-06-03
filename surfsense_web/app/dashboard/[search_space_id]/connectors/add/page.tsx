@@ -79,11 +79,11 @@ const connectorCategories: ConnectorCategory[] = [
         status: "coming-soon",
       },
       {
-        id: "discord",
+        id: "discord-connector",
         title: "Discord",
         description: "Connect to Discord servers to access messages and channels.",
         icon: <IconBrandDiscord className="h-6 w-6" />,
-        status: "coming-soon",
+        status: "available"
       },
     ],
   },
@@ -190,7 +190,7 @@ const cardVariants = {
 export default function ConnectorsPage() {
   const params = useParams();
   const searchSpaceId = params.search_space_id as string;
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines", "knowledge-bases", "project-management"]);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines", "knowledge-bases", "project-management", "team-chats"]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => 
