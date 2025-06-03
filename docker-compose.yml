@@ -1,44 +1,29 @@
 version: '3.8'
 
 services:
-  frontend:
-    images: ghcr.io/anshul7665/surfsense_ui:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./surfsense_web:/app
-      - /app/node_modules
-    depends_on:
-      - backend
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-
-  backend:
-    images: ghcr.io/anshul7665/surfsense_backend:latest
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./surfsense_backend:/app
-    depends_on:
-      - db
-    env_file:
-      - ./surfsense_backend/.env
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/surfsense
-      - PYTHONPATH=/app
-      - UVICORN_LOOP=asyncio
-      - UNSTRUCTURED_HAS_PATCHED_LOOP=1
-
   db:
     image: ankane/pgvector:latest
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=surfsense
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-surfsense}
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@surfsense.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-surfsense}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
 
 volumes:
-  postgres_data: 
+  postgres_data:
+  pgadmin_data: 

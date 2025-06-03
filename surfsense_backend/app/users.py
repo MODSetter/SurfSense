@@ -10,8 +10,8 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
-from httpx_oauth.clients.google import GoogleOAuth2
-
+from fastapi.responses import JSONResponse
+from fastapi_users.schemas import model_dump
 from app.config import config
 from app.db import User, get_user_db
 from pydantic import BaseModel
@@ -22,10 +22,13 @@ class BearerResponse(BaseModel):
 
 SECRET = config.SECRET_KEY
 
-google_oauth_client = GoogleOAuth2(
-    config.GOOGLE_OAUTH_CLIENT_ID,
-    config.GOOGLE_OAUTH_CLIENT_SECRET,
-)
+if config.AUTH_TYPE == "GOOGLE":
+    from httpx_oauth.clients.google import GoogleOAuth2
+    
+    google_oauth_client = GoogleOAuth2(
+        config.GOOGLE_OAUTH_CLIENT_ID,
+        config.GOOGLE_OAUTH_CLIENT_SECRET,
+    )
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
@@ -79,7 +82,10 @@ class CustomBearerTransport(BearerTransport):
     async def get_login_response(self, token: str) -> Response:
         bearer_response = BearerResponse(access_token=token, token_type="bearer")
         redirect_url = f"{config.NEXT_FRONTEND_URL}/auth/callback?token={bearer_response.access_token}"
-        return RedirectResponse(redirect_url, status_code=302)
+        if config.AUTH_TYPE == "GOOGLE":
+            return RedirectResponse(redirect_url, status_code=302)
+        else:
+            return JSONResponse(model_dump(bearer_response))
 
 bearer_transport = CustomBearerTransport(tokenUrl="auth/jwt/login")
 

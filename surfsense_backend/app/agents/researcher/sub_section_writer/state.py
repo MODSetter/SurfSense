@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,7 @@ class State:
     # Runtime context
     db_session: AsyncSession
     
+    chat_history: Optional[List[Any]] = field(default_factory=list)
     # OUTPUT: Populated by agent nodes
     reranked_documents: Optional[List[Any]] = None
     final_answer: Optional[str] = None

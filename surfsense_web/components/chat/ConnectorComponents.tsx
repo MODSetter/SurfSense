@@ -11,7 +11,7 @@ import {
   Link,
   Webhook,
 } from 'lucide-react';
-import { IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconBrandGithub, IconLayoutKanban } from "@tabler/icons-react";
+import { IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconBrandGithub, IconLayoutKanban, IconLinkPlus } from "@tabler/icons-react";
 import { Button } from '@/components/ui/button';
 import { Connector, ResearchMode } from './types';
 
@@ -20,6 +20,8 @@ export const getConnectorIcon = (connectorType: string) => {
   const iconProps = { className: "h-4 w-4" };
   
   switch(connectorType) {
+    case 'LINKUP_API':
+      return <IconLinkPlus {...iconProps} />;
     case 'LINEAR_CONNECTOR':
       return <IconLayoutKanban {...iconProps} />;
     case 'GITHUB_CONNECTOR':
@@ -145,7 +147,7 @@ export const ConnectorButton = ({ selectedConnectors, onClick, connectorSources 
   return (
     <Button
       variant="outline"
-      className="h-7 px-2 text-xs font-medium rounded-md border-border relative overflow-hidden group scale-90 origin-left"
+      className="h-8 px-2 text-xs font-medium rounded-md border-border relative overflow-hidden group"
       onClick={onClick}
       aria-label={selectedCount === 0 ? "Select Connectors" : `${selectedCount} connectors selected`}
     >

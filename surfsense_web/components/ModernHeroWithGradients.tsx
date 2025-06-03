@@ -19,6 +19,17 @@ export function ModernHeroWithGradients() {
                     <DarkModeGradient />
 
                     <div className="relative z-20 flex flex-col items-center justify-center overflow-hidden rounded-3xl p-4 md:p-12 lg:p-16">
+                        <div className="flex justify-center w-full mb-4">
+                            <Link href="https://github.com/MODSetter/SurfSense" target="_blank" rel="noopener noreferrer">
+                                <img 
+                                    src="https://trendshift.io/api/badge/repositories/13606" 
+                                    alt="MODSetter%2FSurfSense | Trendshift" 
+                                    style={{ width: "250px", height: "55px" }} 
+                                    width={250} 
+                                    height={55} 
+                                />
+                            </Link>
+                        </div>
                         <Link
                             href="/docs"
                             className="flex items-center gap-1 rounded-full border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 px-4 py-1 text-center text-sm text-gray-800 shadow-sm dark:border-[#404040] dark:bg-gradient-to-b dark:from-[#5B5B5D] dark:to-[#262627] dark:text-white dark:shadow-inner dark:shadow-purple-500/10"
@@ -36,7 +47,7 @@ export function ModernHeroWithGradients() {
                             </h1>
                         </div>
                         <p className="mx-auto max-w-3xl py-6 text-center text-base text-gray-600 dark:text-neutral-300 md:text-lg lg:text-xl">
-                            A Customizable AI Research Agent just like NotebookLM or Perplexity, but connected to external sources such as search engines (Tavily), Slack, Linear, Notion, YouTube, GitHub and more.
+                            A Customizable AI Research Agent just like NotebookLM or Perplexity, but connected to external sources such as search engines (Tavily, LinkUp), Slack, Linear, Notion, YouTube, GitHub and more.
                         </p>
                         <div className="flex flex-col items-center gap-6 py-6 sm:flex-row">
                             <Link

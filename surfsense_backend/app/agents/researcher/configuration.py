@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
+from enum import Enum
 from typing import Optional, List, Any
 
 from langchain_core.runnables import RunnableConfig
+
+class SearchMode(Enum): 
+    """Enum defining the type of search mode."""
+    CHUNKS = "CHUNKS"
+    DOCUMENTS = "DOCUMENTS"
 
 
 @dataclass(kw_only=True)
@@ -18,6 +24,7 @@ class Configuration:
     connectors_to_search: List[str]
     user_id: str
     search_space_id: int
+    search_mode: SearchMode
 
 
     @classmethod

@@ -1,8 +1,10 @@
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
-from sqlalchemy import JSON
-from .base import IDModel, TimestampModel
+
 from app.db import ChatType
+from pydantic import BaseModel, ConfigDict
+
+from .base import IDModel, TimestampModel
+
 
 class ChatBase(BaseModel):
     type: ChatType
@@ -25,14 +27,14 @@ class ToolInvocation(BaseModel):
     result: dict
     
     
-class ClientMessage(BaseModel):
-    role: str
-    content: str
-    experimental_attachments: Optional[List[ClientAttachment]] = None
-    toolInvocations: Optional[List[ToolInvocation]] = None
+# class ClientMessage(BaseModel):
+#     role: str
+#     content: str
+#     experimental_attachments: Optional[List[ClientAttachment]] = None
+#     toolInvocations: Optional[List[ToolInvocation]] = None
     
 class AISDKChatRequest(BaseModel):
-    messages: List[ClientMessage]
+    messages: List[Any]
     data: Optional[Dict[str, Any]] = None
 
 class ChatCreate(ChatBase):
@@ -42,5 +44,4 @@ class ChatUpdate(ChatBase):
     pass
 
 class ChatRead(ChatBase, IDModel, TimestampModel):
-    class Config:
-        from_attributes = True 
+    model_config = ConfigDict(from_attributes=True) 

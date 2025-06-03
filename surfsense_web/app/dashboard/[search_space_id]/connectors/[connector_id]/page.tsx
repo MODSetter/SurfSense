@@ -52,6 +52,7 @@ const getConnectorTypeDisplay = (type: string): string => {
     "SLACK_CONNECTOR": "Slack Connector",
     "NOTION_CONNECTOR": "Notion Connector",
     "GITHUB_CONNECTOR": "GitHub Connector",
+    "LINKUP_API": "Linkup",
     // Add other connector types here as needed
   };
   return typeMap[type] || type;
@@ -87,7 +88,8 @@ export default function EditConnectorPage() {
       "TAVILY_API": "TAVILY_API_KEY",
       "SLACK_CONNECTOR": "SLACK_BOT_TOKEN",
       "NOTION_CONNECTOR": "NOTION_INTEGRATION_TOKEN",
-      "GITHUB_CONNECTOR": "GITHUB_PAT"
+      "GITHUB_CONNECTOR": "GITHUB_PAT",
+      "LINKUP_API": "LINKUP_API_KEY"
     };
     return fieldMap[connectorType] || "";
   };
@@ -229,7 +231,9 @@ export default function EditConnectorPage() {
                             ? "Notion Integration Token" 
                             : connector?.connector_type === "GITHUB_CONNECTOR"
                               ? "GitHub Personal Access Token (PAT)"
-                              : "API Key"}
+                              : connector?.connector_type === "LINKUP_API"
+                                ? "Linkup API Key"
+                                : "API Key"}
                       </FormLabel>
                       <FormControl>
                         <Input 
@@ -241,7 +245,9 @@ export default function EditConnectorPage() {
                                 ? "Enter new Notion Token (optional)"
                                 : connector?.connector_type === "GITHUB_CONNECTOR"
                                   ? "Enter new GitHub PAT (optional)"
-                                  : "Enter new API key (optional)"
+                                  : connector?.connector_type === "LINKUP_API"
+                                    ? "Enter new Linkup API Key (optional)"
+                                    : "Enter new API key (optional)"
                           } 
                           {...field} 
                         />
@@ -253,7 +259,9 @@ export default function EditConnectorPage() {
                             ? "Enter a new Notion Integration Token or leave blank to keep your existing token." 
                             : connector?.connector_type === "GITHUB_CONNECTOR"
                               ? "Enter a new GitHub PAT or leave blank to keep your existing token."
-                              : "Enter a new API key or leave blank to keep your existing key."}
+                              : connector?.connector_type === "LINKUP_API"
+                                ? "Enter a new Linkup API Key or leave blank to keep your existing key."
+                                : "Enter a new API key or leave blank to keep your existing key."}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

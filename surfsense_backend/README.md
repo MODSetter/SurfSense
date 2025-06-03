@@ -110,7 +110,6 @@ See pyproject.toml for detailed dependency information. Key dependencies include
 - fastapi and related packages
 - fastapi-users: Authentication and user management
 - firecrawl-py: Web crawling capabilities
-- gpt-researcher: Advanced research capabilities
 - langchain components for AI workflows
 - litellm: LLM model integration
 - pgvector: Vector similarity search in PostgreSQL

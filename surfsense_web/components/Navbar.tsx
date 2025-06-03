@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { IconMenu2, IconX, IconBrandGoogleFilled } from "@tabler/icons-react";
+import { IconMenu2, IconX, IconBrandGoogleFilled, IconUser } from "@tabler/icons-react";
 import {
   motion,
   AnimatePresence,
@@ -62,26 +62,10 @@ export const Navbar = () => {
 
 const DesktopNav = ({ navItems, visible }: NavbarProps) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  
+
   const handleGoogleLogin = () => {
-    // Redirect to Google OAuth authorization URL
-    fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Failed to get authorization URL');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (data.authorization_url) {
-          window.location.href = data.authorization_url;
-        } else {
-          console.error('No authorization URL received');
-        }
-      })
-      .catch((error) => {
-        console.error('Error during Google login:', error);
-      });
+    // Redirect to the login page
+    window.location.href = '/login';
   };
 
   return (
@@ -89,8 +73,8 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
       onMouseLeave={() => setHoveredIndex(null)}
       animate={{
         backdropFilter: "blur(16px)",
-        background: visible 
-          ? "rgba(var(--background-rgb), 0.8)" 
+        background: visible
+          ? "rgba(var(--background-rgb), 0.8)"
           : "rgba(var(--background-rgb), 0.6)",
         width: visible ? "38%" : "80%",
         height: visible ? "48px" : "64px",
@@ -115,7 +99,7 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
       } as React.CSSProperties}
     >
       <div className="flex flex-row items-center gap-2">
-        <Logo className="h-8 w-8 rounded-md" /> 
+        <Logo className="h-8 w-8 rounded-md" />
         <span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
       </div>
       <div className="flex items-center gap-4">
@@ -191,8 +175,8 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
                 variant="outline"
                 className="hidden cursor-pointer md:flex items-center gap-2 rounded-full dark:bg-white/20 dark:hover:bg-white/30 dark:text-white bg-gray-100 hover:bg-gray-200 text-gray-800 border-0"
               >
-                <IconBrandGoogleFilled className="h-4 w-4" />
-                <span>Sign in with Google</span>
+                <IconUser className="h-4 w-4" />
+                <span>Sign in</span>
               </Button>
             </motion.div>
           )}
@@ -204,19 +188,19 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
 
 const MobileNav = ({ navItems, visible }: NavbarProps) => {
   const [open, setOpen] = useState(false);
-  
+
   const handleGoogleLogin = () => {
     // Redirect to the login page
     window.location.href = "./login";
   };
-  
+
   return (
     <>
       <motion.div
         animate={{
           backdropFilter: "blur(16px)",
-          background: visible 
-            ? "rgba(var(--background-rgb), 0.8)" 
+          background: visible
+            ? "rgba(var(--background-rgb), 0.8)"
             : "rgba(var(--background-rgb), 0.6)",
           width: visible ? "80%" : "90%",
           y: visible ? 0 : 8,
@@ -241,7 +225,7 @@ const MobileNav = ({ navItems, visible }: NavbarProps) => {
         } as React.CSSProperties}
       >
         <div className="flex flex-row justify-between items-center w-full">
-        <Logo className="h-8 w-8 rounded-md" /> 
+          <Logo className="h-8 w-8 rounded-md" />
           <div className="flex items-center gap-2">
             <ThemeTogglerComponent />
             {open ? (
@@ -294,8 +278,8 @@ const MobileNav = ({ navItems, visible }: NavbarProps) => {
                 variant="outline"
                 className="flex cursor-pointer items-center gap-2 mt-4 w-full justify-center rounded-full dark:bg-white/20 dark:hover:bg-white/30 dark:text-white bg-gray-100 hover:bg-gray-200 text-gray-800 border-0"
               >
-                <IconBrandGoogleFilled className="h-4 w-4" />
-                <span>Sign in with Google</span>
+                <IconUser className="h-4 w-4" />
+                <span>Sign in</span>
               </Button>
             </motion.div>
           )}

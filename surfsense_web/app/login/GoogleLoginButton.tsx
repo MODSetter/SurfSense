@@ -3,6 +3,7 @@ import React from "react";
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { Logo } from "@/components/Logo";
+import { AmbientBackground } from "./AmbientBackground";
 
 export function GoogleLoginButton() {
   const handleGoogleLogin = () => {
@@ -34,6 +35,42 @@ export function GoogleLoginButton() {
           Welcome Back
         </h1>
         
+        <motion.div 
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-4 w-full overflow-hidden rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-900 shadow-sm dark:border-yellow-900/30 dark:bg-yellow-900/20 dark:text-yellow-200"
+        >
+          <motion.div
+            className="flex items-center gap-2 p-4"
+            initial={{ x: -5 }}
+            animate={{ x: 0 }}
+            transition={{ delay: 0.1, duration: 0.2 }}
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2"
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="flex-shrink-0"
+            >
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div className="ml-1">
+              <p className="text-sm font-medium">
+                SurfSense Cloud is currently in development. Check <a href="/docs" className="text-blue-600 underline dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">Docs</a> for more information on Self-Hosted version.
+              </p>
+            </div>
+          </motion.div>
+        </motion.div>
+        
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -52,47 +89,4 @@ export function GoogleLoginButton() {
       </div>
     </div>
   );
-}
-
-
-
-const AmbientBackground = () => {
-  return (
-    <div className="pointer-events-none absolute left-0 top-0 z-0 h-screen w-screen">
-      <div
-        style={{
-          transform: "translateY(-350px) rotate(-45deg)",
-          width: "560px",
-          height: "1380px",
-          background:
-            "radial-gradient(68.54% 68.72% at 55.02% 31.46%, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.02) 50%, rgba(59, 130, 246, 0) 100%)",
-        }}
-        className="absolute left-0 top-0"
-      />
-      <div
-        style={{
-          transform: "rotate(-45deg) translate(5%, -50%)",
-          transformOrigin: "top left",
-          width: "240px",
-          height: "1380px",
-          background:
-            "radial-gradient(50% 50% at 50% 50%, rgba(59, 130, 246, 0.06) 0%, rgba(59, 130, 246, 0.02) 80%, transparent 100%)",
-        }}
-        className="absolute left-0 top-0"
-      />
-      <div
-        style={{
-          position: "absolute",
-          borderRadius: "20px",
-          transform: "rotate(-45deg) translate(-180%, -70%)",
-          transformOrigin: "top left",
-          width: "240px",
-          height: "1380px",
-          background:
-            "radial-gradient(50% 50% at 50% 50%, rgba(59, 130, 246, 0.04) 0%, rgba(59, 130, 246, 0.02) 80%, transparent 100%)",
-        }}
-        className="absolute left-0 top-0"
-      />
-    </div>
-  );
-}; 
+} 

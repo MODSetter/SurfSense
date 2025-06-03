@@ -6,7 +6,7 @@ Allows fetching issue lists and their comments with date range filtering.
 """
 
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any, Union
 
 
