@@ -45,7 +45,7 @@ import {
   scrollTabsRight as scrollTabsRightUtil,
   Source,
   ResearchMode,
-  researcherOptions
+  ResearchModeControl
 } from '@/components/chat';
 import { MarkdownViewer } from '@/components/markdown-viewer';
 import { Logo } from '@/components/Logo';
@@ -250,7 +250,7 @@ const ChatPage = () => {
   const [terminalExpanded, setTerminalExpanded] = useState(false);
   const [selectedConnectors, setSelectedConnectors] = useState<string[]>(["CRAWLED_URL"]);
   const [searchMode, setSearchMode] = useState<'DOCUMENTS' | 'CHUNKS'>('DOCUMENTS');
-  const [researchMode, setResearchMode] = useState<ResearchMode>("GENERAL");
+  const [researchMode, setResearchMode] = useState<ResearchMode>("QNA");
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
   const terminalMessagesRef = useRef<HTMLDivElement>(null);
@@ -1079,12 +1079,11 @@ const ChatPage = () => {
                 </button>
               </div>
 
-              {/* Research Mode Segmented Control */}
+              {/* Research Mode Control */}
               <div className="h-8">
-                <SegmentedControl<ResearchMode>
+                <ResearchModeControl
                   value={researchMode}
                   onChange={setResearchMode}
-                  options={researcherOptions}
                 />
               </div>
             </div>

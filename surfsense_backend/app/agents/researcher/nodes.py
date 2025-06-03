@@ -15,9 +15,9 @@ from .prompts import get_answer_outline_system_prompt
 from .state import State
 from .sub_section_writer.graph import graph as sub_section_writer_graph
 from .sub_section_writer.configuration import SubSectionType
+from .qna_agent.graph import graph as qna_agent_graph
 
 from app.utils.query_service import QueryService
-
 
 from langgraph.types import StreamWriter
 
@@ -841,5 +841,132 @@ async def reformulate_user_query(state: State, config: RunnableConfig, writer: S
     return {
         "reformulated_query": reformulated_query
     }
+
+async def handle_qna_workflow(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
+    """
+    Handle the QNA research workflow.
+    
+    This node fetches relevant documents for the user query and then uses the QNA agent
+    to generate a comprehensive answer with proper citations.
+    
+    Returns:
+        Dict containing the final answer in the "final_written_report" key for consistency.
+    """
+    streaming_service = state.streaming_service
+    configuration = Configuration.from_runnable_config(config)
+    
+    reformulated_query = state.reformulated_query
+    user_query = configuration.user_query
+    
+    streaming_service.only_update_terminal("🤔 Starting Q&A research workflow...")
+    writer({"yeild_value": streaming_service._format_annotations()})
+    
+    streaming_service.only_update_terminal(f"🔍 Researching: \"{user_query[:100]}...\"")
+    writer({"yeild_value": streaming_service._format_annotations()})
+    
+    # Fetch relevant documents for the QNA query
+    streaming_service.only_update_terminal("🔍 Searching for relevant information across all connectors...")
+    writer({"yeild_value": streaming_service._format_annotations()})
+    
+    # Use a reasonable top_k for QNA - not too many documents to avoid overwhelming the LLM
+    TOP_K = 15
+    
+    relevant_documents = []
+    async with async_session_maker() as db_session:
+        try:
+            # Create connector service inside the db_session scope
+            connector_service = ConnectorService(db_session)
+            
+            # Use the reformulated query as a single research question
+            research_questions = [reformulated_query]
+            
+            relevant_documents = await fetch_relevant_documents(
+                research_questions=research_questions,
+                user_id=configuration.user_id,
+                search_space_id=configuration.search_space_id,
+                db_session=db_session,
+                connectors_to_search=configuration.connectors_to_search,
+                writer=writer,
+                state=state,
+                top_k=TOP_K,
+                connector_service=connector_service,
+                search_mode=configuration.search_mode
+            )
+        except Exception as e:
+            error_message = f"Error fetching relevant documents for QNA: {str(e)}"
+            print(error_message)
+            streaming_service.only_update_terminal(f"❌ {error_message}", "error")
+            writer({"yeild_value": streaming_service._format_annotations()})
+            # Continue with empty documents - the QNA agent will handle this gracefully
+            relevant_documents = []
+    
+    print(f"Fetched {len(relevant_documents)} relevant documents for QNA")
+    streaming_service.only_update_terminal(f"🧠 Generating comprehensive answer using {len(relevant_documents)} relevant sources...")
+    writer({"yeild_value": streaming_service._format_annotations()})
+    
+    # Prepare configuration for the QNA agent
+    qna_config = {
+        "configurable": {
+            "user_query": reformulated_query,  # Use the reformulated query
+            "relevant_documents": relevant_documents,
+            "user_id": configuration.user_id,
+            "search_space_id": configuration.search_space_id
+        }
+    }
+    
+    # Create the state for the QNA agent (it has a different state structure)
+    qna_state = {
+        "db_session": state.db_session,
+        "chat_history": state.chat_history
+    }
+    
+    try:
+        streaming_service.only_update_terminal("✍️ Writing comprehensive answer with citations...")
+        writer({"yeild_value": streaming_service._format_annotations()})
+        
+        # Track streaming content for real-time updates
+        complete_content = ""
+        
+        # Call the QNA agent with streaming
+        async for chunk_type, chunk in qna_agent_graph.astream(qna_state, qna_config, stream_mode=["values"]):
+            if "final_answer" in chunk:
+                new_content = chunk["final_answer"]
+                if new_content and new_content != complete_content:
+                    # Extract only the new content (delta)
+                    delta = new_content[len(complete_content):]
+                    complete_content = new_content
+                    
+                    # Stream the real-time answer if there's new content
+                    if delta:
+                        # Update terminal with progress
+                        word_count = len(complete_content.split())
+                        streaming_service.only_update_terminal(f"✍️ Writing answer... ({word_count} words)")
+                        
+                        # Update the answer in real-time
+                        answer_lines = complete_content.split("\n")
+                        streaming_service.only_update_answer(answer_lines)
+                        writer({"yeild_value": streaming_service._format_annotations()})
+        
+        # Set default if no content was received
+        if not complete_content:
+            complete_content = "I couldn't find relevant information in your knowledge base to answer this question."
+        
+        streaming_service.only_update_terminal("🎉 Q&A answer generated successfully!")
+        writer({"yeild_value": streaming_service._format_annotations()})
+        
+        # Return the final answer in the expected state field
+        return {
+            "final_written_report": complete_content
+        }
+        
+    except Exception as e:
+        error_message = f"Error generating QNA answer: {str(e)}"
+        print(error_message)
+        streaming_service.only_update_terminal(f"❌ {error_message}", "error")
+        writer({"yeild_value": streaming_service._format_annotations()})
+        
+        return {
+            "final_written_report": f"Error generating answer: {str(e)}"
+        }
 
 
