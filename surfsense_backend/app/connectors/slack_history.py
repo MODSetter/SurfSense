@@ -5,13 +5,12 @@ A module for retrieving conversation history from Slack channels.
 Allows fetching channel lists and message history with date range filtering.
 """
 
-import os
 import time # Added import
 import logging # Added import
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Any
 
 logger = logging.getLogger(__name__) # Added logger
 

@@ -1,6 +1,6 @@
 import base64
 import logging
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any
 from github3 import login as github_login, exceptions as github_exceptions
 from github3.repos.contents import Contents
 from github3.exceptions import ForbiddenError, NotFoundError

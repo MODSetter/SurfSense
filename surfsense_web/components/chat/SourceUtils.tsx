@@ -1,4 +1,3 @@
-import React from 'react';
 import { Source, Connector } from './types';
 
 /**

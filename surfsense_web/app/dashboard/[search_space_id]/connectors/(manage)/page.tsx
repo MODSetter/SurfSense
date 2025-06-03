@@ -7,9 +7,7 @@ import { toast } from "sonner";
 import {
 	Edit,
 	Plus,
-	Search,
 	Trash2,
-	ExternalLink,
 	RefreshCw,
 } from "lucide-react";
 
@@ -19,7 +17,6 @@ import {
 	Card,
 	CardContent,
 	CardDescription,
-	CardFooter,
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, Mock, call
+from unittest.mock import patch, Mock
 from datetime import datetime
 
 # Adjust the import path based on the actual location if test_github_connector.py

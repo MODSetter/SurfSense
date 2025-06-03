@@ -31,13 +31,10 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import {
-  SegmentedControl,
   ConnectorButton as ConnectorButtonComponent,
   getConnectorIcon,
-  getMainViewSources as getMainViewSourcesUtil,
   getFilteredSources as getFilteredSourcesUtil,
   getPaginatedDialogSources as getPaginatedDialogSourcesUtil,
-  getSourcesCount as getSourcesCountUtil,
   useScrollToBottom,
   updateScrollIndicators as updateScrollIndicatorsUtil,
   useScrollIndicators,

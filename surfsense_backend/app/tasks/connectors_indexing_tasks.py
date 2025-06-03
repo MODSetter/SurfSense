@@ -2,7 +2,6 @@ from typing import Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
-from sqlalchemy import delete
 from datetime import datetime, timedelta, timezone
 from app.db import Document, DocumentType, Chunk, SearchSourceConnector, SearchSourceConnectorType
 from app.config import config
@@ -15,7 +14,6 @@ from app.connectors.discord_connector import DiscordConnector
 from slack_sdk.errors import SlackApiError
 import logging
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 
 from app.utils.document_converters import generate_content_hash
 

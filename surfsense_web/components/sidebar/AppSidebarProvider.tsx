@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
-import { iconMap } from '@/components/sidebar/app-sidebar';
 import {
   Dialog,
   DialogContent,
