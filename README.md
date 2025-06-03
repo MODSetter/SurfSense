@@ -107,7 +107,12 @@ Open source and easy to deploy locally.
 
 Join the [SurfSense Discord](https://discord.gg/ejRNvftDp9) and help shape the future of SurfSense!
 
+## 🚀 Roadmap
 
+Stay up to date with our development progress and upcoming features!  
+Check out our public roadmap and contribute your ideas or feedback:
+
+**View the Roadmap:** [SurfSense Roadmap on GitHub Projects](https://github.com/users/MODSetter/projects/2)
 
 ## How to get started?
 
