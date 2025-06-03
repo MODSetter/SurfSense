@@ -134,7 +134,9 @@ Both installation guides include detailed OS-specific instructions for Windows, 
 
 Before installation, make sure to complete the [prerequisite setup steps](https://www.surfsense.net/docs/) including:
 - PGVector setup
-- Unstructured.io API key
+- **File Processing ETL Service** (choose one):
+  - Unstructured.io API key (free tier available, supports 34+ formats)
+  - LlamaIndex API key (enhanced parsing, supports 50+ formats)
 - Other required API keys
 
 ## Screenshots

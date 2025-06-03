@@ -67,11 +67,25 @@ To set up Google OAuth:
 
 ## File Upload's
 
-Files are converted to LLM friendly formats using [Unstructured](https://github.com/Unstructured-IO/unstructured)
+SurfSense supports two ETL (Extract, Transform, Load) services for converting files to LLM-friendly formats:
+
+### Option 1: Unstructured 
+
+Files are converted using [Unstructured](https://github.com/Unstructured-IO/unstructured)
 
 1. Get an Unstructured.io API key from [Unstructured Platform](https://platform.unstructured.io/)
 2. You should be able to generate API keys once registered
 ![Unstructured Dashboard](/docs/unstructured.png)
+
+### Option 2: LlamaIndex (LlamaCloud)
+
+Files are converted using [LlamaIndex](https://www.llamaindex.ai/) which offers superior file format support (50+ formats vs 34+ with Unstructured)
+
+1. Get a LlamaIndex API key from [LlamaCloud](https://cloud.llamaindex.ai/)
+2. Sign up for a LlamaCloud account to access their parsing services
+3. LlamaCloud provides enhanced parsing capabilities for complex documents
+
+**Note**: You only need to set up one of these services. LlamaIndex offers broader file format support, while Unstructured provides a generous free tier.
 
 ---
 
