@@ -6,7 +6,6 @@ from app.db import Document, DocumentType, Chunk
 from app.schemas import ExtensionDocumentContent
 from app.config import config
 from app.prompts import SUMMARY_PROMPT_TEMPLATE
-from datetime import datetime
 from app.utils.document_converters import convert_document_to_markdown, generate_content_hash
 from langchain_core.documents import Document as LangChainDocument
 from langchain_community.document_loaders import FireCrawlLoader, AsyncChromiumLoader

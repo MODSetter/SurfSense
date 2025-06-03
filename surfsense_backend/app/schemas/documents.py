@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List
 from pydantic import BaseModel, ConfigDict
 from app.db import DocumentType
 from datetime import datetime

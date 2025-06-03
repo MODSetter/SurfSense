@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from "react"
 import { useDropzone } from "react-dropzone"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { X, Upload, FileIcon, Tag, AlertCircle, CheckCircle2, Calendar, FileType } from "lucide-react"
+import { X, Upload, Tag, CheckCircle2, Calendar, FileType } from "lucide-react"
 import { useRouter, useParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 

@@ -1,4 +1,4 @@
-import React, { RefObject, useEffect } from 'react';
+import { RefObject, useEffect } from 'react';
 
 /**
  * Function to scroll to the bottom of a container
