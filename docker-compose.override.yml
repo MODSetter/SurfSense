@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   frontend:
-    build:
-      context: ./surfsense_web
-      dockerfile: Dockerfile
+    image: docker pull ghcr.io/modsetter/surfsense_backend:latest
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     volumes:
@@ -16,9 +14,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:8000}
 
   backend:
-    build:
-      context: ./surfsense_backend
-      dockerfile: Dockerfile
+    image: docker pull ghcr.io/modsetter/surfsense_ui:latest
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
