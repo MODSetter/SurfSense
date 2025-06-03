@@ -22,7 +22,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "${workspaceFolder}/surfsense_backend/.venv/Scripts/python.exe"
+            "python": "${command:python.interpreterPath}"
         },
         {
             "name": "Python Debugger: main.py (direct)",
