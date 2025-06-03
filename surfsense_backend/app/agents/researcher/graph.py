@@ -11,20 +11,6 @@ class GraphState(TypedDict):
     # Final output
     final_written_report: Optional[str]
 
-def route_based_on_research_mode(state: State) -> str:
-    """
-    Route to different workflows based on research_mode.
-    
-    Args:
-        state: The current state containing the configuration
-    
-    Returns:
-        "qna_workflow" for QNA mode, "report_workflow" for report modes
-    """
-    # The configuration should be available in the graph context
-    # We'll handle this by checking the research_mode during execution
-    return "route_research_mode"
-
 def build_graph():
     """
     Build and return the LangGraph workflow.

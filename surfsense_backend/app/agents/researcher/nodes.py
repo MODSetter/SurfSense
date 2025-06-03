@@ -928,7 +928,7 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
         complete_content = ""
         
         # Call the QNA agent with streaming
-        async for chunk_type, chunk in qna_agent_graph.astream(qna_state, qna_config, stream_mode=["values"]):
+        async for _chunk_type, chunk in qna_agent_graph.astream(qna_state, qna_config, stream_mode=["values"]):
             if "final_answer" in chunk:
                 new_content = chunk["final_answer"]
                 if new_content and new_content != complete_content:

@@ -95,7 +95,7 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
     
     # Prepare documents for citation formatting
     formatted_documents = []
-    for i, doc in enumerate(documents):
+    for _i, doc in enumerate(documents):
         # Extract content and metadata
         content = doc.get("content", "")
         doc_info = doc.get("document", {})
