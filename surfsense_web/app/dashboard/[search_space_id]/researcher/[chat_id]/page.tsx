@@ -954,23 +954,37 @@ const ChatPage = () => {
           <form onSubmit={handleSubmit} className="flex items-center gap-3">
             <Input
               type="text"
-              placeholder={"Search about..."}
+              placeholder={status === 'streaming' ? "Thinking..." : "Search about..."}
               value={input}
               onChange={handleInputChange}
-              className="no-shadow-input border-0 focus-visible:ring-offset-0 focus-visible:ring-0 resize-none overflow-auto w-full flex-1 bg-transparent p-3 pb-1.5 text-sm outline-none placeholder:text-muted-foreground"
+              className={`no-shadow-input border-0 focus-visible:ring-offset-0 focus-visible:ring-0 resize-none overflow-auto w-full flex-1 bg-transparent p-3 pb-1.5 text-sm outline-none placeholder:text-muted-foreground transition-all duration-200 ${
+                status === 'streaming' 
+                  ? 'opacity-75 cursor-not-allowed animate-pulse' 
+                  : ''
+              }`}
               disabled={status !== 'ready'}
             />
             {/* Send button */}
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+              className={`h-9 w-9 rounded-full hover:bg-primary/10 hover:text-primary transition-all duration-200 ${
+                status === 'streaming' 
+                  ? 'cursor-not-allowed opacity-75' 
+                  : 'hover:scale-105'
+              }`}
               type="submit"
               disabled={status !== 'ready' || !input.trim()}
-              aria-label="Send message"
+              aria-label={status === 'streaming' ? 'Sending message' : 'Send message'}
             >
-              <SendHorizontal className="h-4 w-4 text-primary" />
-              <span className="sr-only">Send</span>
+              {status === 'streaming' ? (
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              ) : (
+                <SendHorizontal className="h-4 w-4 text-primary" />
+              )}
+              <span className="sr-only">
+                {status === 'streaming' ? 'Sending...' : 'Send'}
+              </span>
             </Button>
           </form>
           <div className="flex items-center justify-between px-2 py-2 mt-3">
