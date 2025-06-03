@@ -29,7 +29,7 @@ const ResearcherPage = () => {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            type: "GENERAL",
+            type: "QNA",
             title: "Untitled Chat", // Empty title initially
             initial_connectors: ["CRAWLED_URL"], // Default connector
             messages: [],

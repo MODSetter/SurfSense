@@ -10,6 +10,8 @@ import {
   File,
   Link,
   Webhook,
+  MessageCircle,
+  FileText,
 } from 'lucide-react';
 import { IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconBrandGithub, IconLayoutKanban, IconLinkPlus, IconBrandDiscord } from "@tabler/icons-react";
 import { Button } from '@/components/ui/button';
@@ -56,17 +58,22 @@ export const getConnectorIcon = (connectorType: string) => {
 
 export const researcherOptions: { value: ResearchMode; label: string; icon: React.ReactNode }[] = [
   {
-    value: 'GENERAL',
+    value: 'QNA',
+    label: 'Q/A',
+    icon: getConnectorIcon('GENERAL')
+  },
+  {
+    value: 'REPORT_GENERAL',
     label: 'General',
     icon: getConnectorIcon('GENERAL')
   },
   {
-    value: 'DEEP',
+    value: 'REPORT_DEEP',
     label: 'Deep',
     icon: getConnectorIcon('DEEP')
   },
   {
-    value: 'DEEPER',
+    value: 'REPORT_DEEPER',
     label: 'Deeper',
     icon: getConnectorIcon('DEEPER')
   },
@@ -167,5 +174,95 @@ export const ConnectorButton = ({ selectedConnectors, onClick, connectorSources 
         <ChevronDown className="h-3 w-3 ml-0.5 text-muted-foreground opacity-70" />
       </div>
     </Button>
+  );
+};
+
+// New component for Research Mode Control with Q/A and Report toggle
+type ResearchModeControlProps = {
+  value: ResearchMode;
+  onChange: (value: ResearchMode) => void;
+};
+
+export const ResearchModeControl = ({ value, onChange }: ResearchModeControlProps) => {
+  // Determine if we're in Q/A mode or Report mode
+  const isQnaMode = value === 'QNA';
+  const isReportMode = value.startsWith('REPORT_');
+  
+  // Get the current report sub-mode
+  const getCurrentReportMode = () => {
+    if (!isReportMode) return 'GENERAL';
+    return value.replace('REPORT_', '') as 'GENERAL' | 'DEEP' | 'DEEPER';
+  };
+
+  const reportSubOptions = [
+    { value: 'GENERAL', label: 'General', icon: getConnectorIcon('GENERAL') },
+    { value: 'DEEP', label: 'Deep', icon: getConnectorIcon('DEEP') },
+    { value: 'DEEPER', label: 'Deeper', icon: getConnectorIcon('DEEPER') },
+  ];
+
+  const handleModeToggle = (mode: 'QNA' | 'REPORT') => {
+    if (mode === 'QNA') {
+      onChange('QNA');
+    } else {
+      // Default to GENERAL for Report mode
+      onChange('REPORT_GENERAL');
+    }
+  };
+
+  const handleReportSubModeChange = (subMode: string) => {
+    onChange(`REPORT_${subMode}` as ResearchMode);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Main Q/A vs Report Toggle */}
+      <div className="flex h-8 rounded-md border border-border overflow-hidden">
+        <button
+          className={`flex h-full items-center gap-1 px-3 text-xs font-medium transition-colors whitespace-nowrap ${
+            isQnaMode 
+              ? 'bg-primary text-primary-foreground' 
+              : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={() => handleModeToggle('QNA')}
+          aria-pressed={isQnaMode}
+        >
+          <MessageCircle className="h-3 w-3" />
+          <span>Q/A</span>
+        </button>
+        <button
+          className={`flex h-full items-center gap-1 px-3 text-xs font-medium transition-colors whitespace-nowrap ${
+            isReportMode 
+              ? 'bg-primary text-primary-foreground' 
+              : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={() => handleModeToggle('REPORT')}
+          aria-pressed={isReportMode}
+        >
+          <FileText className="h-3 w-3" />
+          <span>Report</span>
+        </button>
+      </div>
+
+      {/* Report Sub-options (only show when in Report mode) */}
+      {isReportMode && (
+        <div className="flex h-8 rounded-md border border-border overflow-hidden">
+          {reportSubOptions.map((option) => (
+            <button
+              key={option.value}
+              className={`flex h-full items-center gap-1 px-2 text-xs font-medium transition-colors whitespace-nowrap ${
+                getCurrentReportMode() === option.value 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => handleReportSubModeChange(option.value)}
+              aria-pressed={getCurrentReportMode() === option.value}
+            >
+              {option.icon}
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }; 

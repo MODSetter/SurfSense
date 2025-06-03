@@ -63,10 +63,10 @@ class SearchSourceConnectorType(str, Enum):
     DISCORD_CONNECTOR = "DISCORD_CONNECTOR"
     
 class ChatType(str, Enum):
-    GENERAL = "GENERAL"
-    DEEP = "DEEP"
-    DEEPER = "DEEPER"
-    DEEPEST = "DEEPEST"
+    QNA = "QNA"
+    REPORT_GENERAL = "REPORT_GENERAL"
+    REPORT_DEEP = "REPORT_DEEP"
+    REPORT_DEEPER = "REPORT_DEEPER"
     
 class Base(DeclarativeBase):
     pass
