@@ -7,6 +7,7 @@ from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
 from app.db import SearchSourceConnector, SearchSourceConnectorType, Chunk, Document
 from tavily import TavilyClient
 from linkup import LinkupClient
+from sqlalchemy import func
 
 from app.agents.researcher.configuration import SearchMode
 
@@ -28,7 +29,7 @@ class ConnectorService:
         if self.user_id:
             try:
                 # Count total chunks for documents belonging to this user
-                from sqlalchemy import func
+
                 result = await self.session.execute(
                     select(func.count(Chunk.id))
                     .join(Document)
@@ -80,7 +81,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(crawled_urls_chunks):
+            for _i, chunk in enumerate(crawled_urls_chunks):
                 # Extract document metadata
                 document = chunk.get('document', {})
                 metadata = document.get('metadata', {})
@@ -144,7 +145,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(files_chunks):
+            for _i, chunk in enumerate(files_chunks):
                 # Extract document metadata
                 document = chunk.get('document', {})
                 metadata = document.get('metadata', {})
@@ -356,7 +357,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(slack_chunks):
+            for _i, chunk in enumerate(slack_chunks):
                 # Extract document metadata
                 document = chunk.get('document', {})
                 metadata = document.get('metadata', {})
@@ -445,7 +446,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(notion_chunks):
+            for _i, chunk in enumerate(notion_chunks):
                 # Extract document metadata
                 document = chunk.get('document', {})
                 metadata = document.get('metadata', {})
@@ -643,7 +644,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(youtube_chunks):
+            for _i, chunk in enumerate(youtube_chunks):
                 # Extract document metadata
                 document = chunk.get('document', {})
                 metadata = document.get('metadata', {})
@@ -652,7 +653,7 @@ class ConnectorService:
                 video_title = metadata.get('video_title', 'Untitled Video')
                 video_id = metadata.get('video_id', '')
                 channel_name = metadata.get('channel_name', '')
-                published_date = metadata.get('published_date', '')
+                # published_date = metadata.get('published_date', '')
                 
                 # Create a more descriptive title for YouTube videos
                 title = video_title
@@ -727,7 +728,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(github_chunks):
+            for _i, chunk in enumerate(github_chunks):
                 # Extract document metadata
                 document = chunk.get('document', {})
                 metadata = document.get('metadata', {})
@@ -797,7 +798,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(linear_chunks):
+            for _i, chunk in enumerate(linear_chunks):
                 # Extract document metadata
                 document = chunk.get('document', {})
                 metadata = document.get('metadata', {})
