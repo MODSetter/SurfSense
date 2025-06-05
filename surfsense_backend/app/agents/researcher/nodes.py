@@ -572,12 +572,15 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
         TOP_K = 20
     elif configuration.num_sections == 6:
         TOP_K = 30
+    else:
+        TOP_K = 10
     
     relevant_documents = []
     async with async_session_maker() as db_session:
         try:
             # Create connector service inside the db_session scope
-            connector_service = ConnectorService(db_session)
+            connector_service = ConnectorService(db_session, user_id=configuration.user_id)
+            await connector_service.initialize_counter()
             
             relevant_documents = await fetch_relevant_documents(
                 research_questions=all_questions,
@@ -875,7 +878,8 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
     async with async_session_maker() as db_session:
         try:
             # Create connector service inside the db_session scope
-            connector_service = ConnectorService(db_session)
+            connector_service = ConnectorService(db_session, user_id=configuration.user_id)
+            await connector_service.initialize_counter()
             
             # Use the reformulated query as a single research question
             research_questions = [reformulated_query]

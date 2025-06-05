@@ -183,8 +183,8 @@ const SourcesDialogContent = ({
       </div>
 
       <div className="space-y-3 mt-4">
-        {paginatedSources.map((source: any) => (
-          <Card key={source.id} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+        {paginatedSources.map((source: any, index: number) => (
+          <Card key={`${connector.type}-${source.id}-${index}`} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
                 {getConnectorIcon(connector.type)}
@@ -845,8 +845,8 @@ const ChatPage = () => {
                             {messageConnectorSources.map(connector => (
                               <TabsContent key={connector.id} value={connector.type} className="mt-0">
                                 <div className="space-y-3">
-                                  {connector.sources?.slice(0, INITIAL_SOURCES_DISPLAY)?.map((source: any) => (
-                                    <Card key={source.id} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                                  {connector.sources?.slice(0, INITIAL_SOURCES_DISPLAY)?.map((source: any, index: number) => (
+                                    <Card key={`${connector.type}-${source.id}-${index}`} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
                                       <div className="flex items-start gap-3">
                                         <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
                                           {getConnectorIcon(connector.type)}
