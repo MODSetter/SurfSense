@@ -17,7 +17,7 @@ class ConnectorService:
         self.chunk_retriever = ChucksHybridSearchRetriever(session)
         self.document_retriever = DocumentHybridSearchRetriever(session)
         self.user_id = user_id
-        self.source_id_counter = 1
+        self.source_id_counter = 100000  # High starting value to avoid collisions with existing IDs
         self.counter_lock = asyncio.Lock()  # Lock to protect counter in multithreaded environments
     
     async def initialize_counter(self):
