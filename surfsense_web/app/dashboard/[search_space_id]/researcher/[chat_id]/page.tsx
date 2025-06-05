@@ -600,10 +600,10 @@ const ChatPage = () => {
     if (!input.trim() || status !== 'ready') return;
 
     // Validation: require at least one connector OR at least one document
-    if (selectedConnectors.length === 0 && selectedDocuments.length === 0) {
-      alert("Please select at least one connector or document");
-      return;
-    }
+    // if (selectedConnectors.length === 0 && selectedDocuments.length === 0) {
+    //   alert("Please select at least one connector or document");
+    //   return;
+    // }
 
     // Call the original handleSubmit from useChat
     handleChatSubmit(e);

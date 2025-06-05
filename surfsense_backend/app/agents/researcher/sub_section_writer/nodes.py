@@ -3,7 +3,7 @@ from langchain_core.runnables import RunnableConfig
 from .state import State
 from typing import Any, Dict
 from app.config import config as app_config
-from .prompts import get_citation_system_prompt
+from .prompts import get_citation_system_prompt, get_no_documents_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
 from .configuration import SubSectionType
 
@@ -80,7 +80,8 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     This node takes the relevant documents provided in the configuration and uses
     an LLM to generate a comprehensive answer to the sub-section title with
     proper citations. The citations follow IEEE format using source IDs from the
-    documents.
+    documents. If no documents are provided, it will use chat history to generate
+    content.
     
     Returns:
         Dict containing the final answer in the "final_answer" key.
@@ -93,39 +94,44 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     # Initialize LLM
     llm = app_config.fast_llm_instance
     
-    # If no documents were provided, return a message indicating this
-    if not documents or len(documents) == 0:
-        return {
-            "final_answer": "No relevant documents were provided to answer this question. Please provide documents or try a different approach."
-        }
+    # Check if we have documents to determine which prompt to use
+    has_documents = documents and len(documents) > 0
     
-    # Prepare documents for citation formatting
-    formatted_documents = []
-    for i, doc in enumerate(documents):
-        # Extract content and metadata
-        content = doc.get("content", "")
-        doc_info = doc.get("document", {})
-        document_id = doc_info.get("id")  # Use document ID
+    # Prepare documents for citation formatting (if any)
+    documents_text = ""
+    if has_documents:
+        formatted_documents = []
+        for i, doc in enumerate(documents):
+            # Extract content and metadata
+            content = doc.get("content", "")
+            doc_info = doc.get("document", {})
+            document_id = doc_info.get("id")  # Use document ID
+            
+            # Format document according to the citation system prompt's expected format
+            formatted_doc = f"""
+            <document>
+                <metadata>
+                    <source_id>{document_id}</source_id>
+                    <source_type>{doc_info.get("document_type", "CRAWLED_URL")}</source_type>
+                </metadata>
+                <content>
+                    {content}
+                </content>
+            </document>
+            """
+            formatted_documents.append(formatted_doc)
         
-        # Format document according to the citation system prompt's expected format
-        formatted_doc = f"""
-        <document>
-            <metadata>
-                <source_id>{document_id}</source_id>
-                <source_type>{doc_info.get("document_type", "CRAWLED_URL")}</source_type>
-            </metadata>
-            <content>
-                {content}
-            </content>
-        </document>
+        documents_text = f"""
+        Source material:
+        <documents>
+            {"\n".join(formatted_documents)}
+        </documents>
         """
-        formatted_documents.append(formatted_doc)
     
     # Create the query that uses the section title and questions
     section_title = configuration.sub_section_title
     sub_section_questions = configuration.sub_section_questions
     user_query = configuration.user_query  # Get the original user query
-    documents_text = "\n".join(formatted_documents)
     sub_section_type = configuration.sub_section_type
 
     # Format the questions as bullet points for clarity
@@ -142,10 +148,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     
     # Construct a clear, structured query for the LLM
     human_message_content = f"""
-    Source material:
-    <documents>
-        {documents_text}
-    </documents>
+    {documents_text}
     
     Now user's query is: 
     <user_query>
@@ -164,11 +167,16 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     <guiding_questions>
         {questions_text}
     </guiding_questions>
+    
+    {"Please write content for this sub-section using the provided source material and cite all information appropriately." if has_documents else "Please write content for this sub-section based on our conversation history and your general knowledge."}
     """
+    
+    # Choose the appropriate system prompt based on document availability
+    system_prompt = get_citation_system_prompt() if has_documents else get_no_documents_system_prompt()
     
     # Create messages for the LLM
     messages_with_chat_history = state.chat_history + [
-        SystemMessage(content=get_citation_system_prompt()),
+        SystemMessage(content=system_prompt),
         HumanMessage(content=human_message_content)
     ]
     

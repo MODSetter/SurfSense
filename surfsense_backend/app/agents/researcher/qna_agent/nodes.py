@@ -3,7 +3,7 @@ from langchain_core.runnables import RunnableConfig
 from .state import State
 from typing import Any, Dict
 from app.config import config as app_config
-from .prompts import get_qna_citation_system_prompt
+from .prompts import get_qna_citation_system_prompt, get_qna_no_documents_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
 
 async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, Any]:
@@ -73,7 +73,8 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
     This node takes the relevant documents provided in the configuration and uses
     an LLM to generate a comprehensive answer to the user's question with
     proper citations. The citations follow IEEE format using source IDs from the
-    documents.
+    documents. If no documents are provided, it will use chat history to generate
+    an answer.
     
     Returns:
         Dict containing the final answer in the "final_answer" key.
@@ -87,55 +88,59 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
     # Initialize LLM
     llm = app_config.fast_llm_instance
     
-    # If no documents were provided, return a message indicating this
-    if not documents or len(documents) == 0:
-        return {
-            "final_answer": "I don't have any relevant documents in your personal knowledge base to answer this question. Please try asking about topics covered in your saved content, or add more documents to your knowledge base."
-        }
+    # Check if we have documents to determine which prompt to use
+    has_documents = documents and len(documents) > 0
     
-    # Prepare documents for citation formatting
-    formatted_documents = []
-    for _i, doc in enumerate(documents):
-        # Extract content and metadata
-        content = doc.get("content", "")
-        doc_info = doc.get("document", {})
-        document_id = doc_info.get("id")  # Use document ID
+    # Prepare documents for citation formatting (if any)
+    documents_text = ""
+    if has_documents:
+        formatted_documents = []
+        for _i, doc in enumerate(documents):
+            # Extract content and metadata
+            content = doc.get("content", "")
+            doc_info = doc.get("document", {})
+            document_id = doc_info.get("id")  # Use document ID
+            
+            # Format document according to the citation system prompt's expected format
+            formatted_doc = f"""
+            <document>
+                <metadata>
+                    <source_id>{document_id}</source_id>
+                    <source_type>{doc_info.get("document_type", "CRAWLED_URL")}</source_type>
+                </metadata>
+                <content>
+                    {content}
+                </content>
+            </document>
+            """
+            formatted_documents.append(formatted_doc)
         
-        # Format document according to the citation system prompt's expected format
-        formatted_doc = f"""
-        <document>
-            <metadata>
-                <source_id>{document_id}</source_id>
-                <source_type>{doc_info.get("document_type", "CRAWLED_URL")}</source_type>
-            </metadata>
-            <content>
-                {content}
-            </content>
-        </document>
+        # Create the formatted documents text
+        documents_text = f"""
+        Source material from your personal knowledge base:
+        <documents>
+            {"\n".join(formatted_documents)}
+        </documents>
         """
-        formatted_documents.append(formatted_doc)
-    
-    # Create the formatted documents text
-    documents_text = "\n".join(formatted_documents)
     
     # Construct a clear, structured query for the LLM
     human_message_content = f"""
-    Source material from your personal knowledge base:
-    <documents>
-        {documents_text}
-    </documents>
+    {documents_text}
     
     User's question:
     <user_query>
         {user_query}
     </user_query>
     
-    Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner.
+    {"Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner." if has_documents else "Please provide a helpful answer to the user's question based on our conversation history and your general knowledge. Engage in a conversational manner."}
     """
+    
+    # Choose the appropriate system prompt based on document availability
+    system_prompt = get_qna_citation_system_prompt() if has_documents else get_qna_no_documents_system_prompt()
     
     # Create messages for the LLM, including chat history for context
     messages_with_chat_history = state.chat_history + [
-        SystemMessage(content=get_qna_citation_system_prompt()),
+        SystemMessage(content=system_prompt),
         HumanMessage(content=human_message_content)
     ]
     
