@@ -2,6 +2,11 @@
 ![new_header](https://github.com/user-attachments/assets/e236b764-0ddc-42ff-a1f1-8fbb3d2e0e65)
 
 
+<div align="center">
+<a href="https://discord.gg/ejRNvftDp9">
+<img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
+</a>
+</div>
 
 
 # SurfSense
