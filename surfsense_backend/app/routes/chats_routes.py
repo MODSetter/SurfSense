@@ -30,6 +30,7 @@ async def handle_chat_data(
     search_space_id = request.data.get('search_space_id')
     research_mode: str = request.data.get('research_mode')
     selected_connectors: List[str] = request.data.get('selected_connectors')
+    document_ids_to_add_in_context: List[int] = request.data.get('document_ids_to_add_in_context')
     
     search_mode_str = request.data.get('search_mode', "CHUNKS")
 
@@ -71,7 +72,8 @@ async def handle_chat_data(
         research_mode,
         selected_connectors,
         langchain_chat_history,
-        search_mode_str
+        search_mode_str,
+        document_ids_to_add_in_context
     ))
     response.headers['x-vercel-ai-data-stream'] = 'v1'
     return response

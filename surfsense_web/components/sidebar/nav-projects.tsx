@@ -43,9 +43,9 @@ interface ChatAction {
 }
 
 export function NavProjects({
-  projects,
+  chats,
 }: {
-  projects: {
+  chats: {
     name: string
     url: string
     icon: LucideIcon
@@ -57,13 +57,13 @@ export function NavProjects({
   const { isMobile } = useSidebar()
   const router = useRouter()
   
-  const searchSpaceId = projects[0]?.search_space_id || ""
+  const searchSpaceId = chats[0]?.search_space_id || ""
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
       <SidebarMenu>
-        {projects.map((item, index) => (
+        {chats.map((item, index) => (
           <SidebarMenuItem key={item.id ? `chat-${item.id}` : `chat-${item.name}-${index}`}>
             <SidebarMenuButton>
               <item.icon />

@@ -227,7 +227,7 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={processedNavMain} />
-        {processedRecentChats.length > 0 && <NavProjects projects={processedRecentChats} />}
+        {processedRecentChats.length > 0 && <NavProjects chats={processedRecentChats} />}
         <NavSecondary items={processedNavSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

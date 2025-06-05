@@ -120,8 +120,13 @@ export function AppSidebarProvider({
           // Use the API client instead of direct fetch - filter by current search space ID
           const chats: Chat[] = await apiClient.get<Chat[]>(`api/v1/chats/?limit=5&skip=0&search_space_id=${searchSpaceId}`);
           
+          // Sort chats by created_at in descending order (newest first)
+          const sortedChats = chats.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          // console.log("sortedChats", sortedChats);
           // Transform API response to the format expected by AppSidebar
-          const formattedChats = chats.map(chat => ({
+          const formattedChats = sortedChats.map(chat => ({
             name: chat.title || `Chat ${chat.id}`, // Fallback if title is empty
             url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
             icon: 'MessageCircleMore',

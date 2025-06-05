@@ -33,6 +33,7 @@ class Configuration:
     search_space_id: int
     search_mode: SearchMode
     research_mode: ResearchMode
+    document_ids_to_add_in_context: List[int]
 
     @classmethod
     def from_runnable_config(

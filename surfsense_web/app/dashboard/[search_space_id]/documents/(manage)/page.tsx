@@ -283,8 +283,8 @@ export default function DocumentsTable() {
     const searchSpaceId = Number(params.search_space_id);
     const { documents, loading, error, refreshDocuments, deleteDocument } = useDocuments(searchSpaceId);
     
-    console.log("Search Space ID:", searchSpaceId);
-    console.log("Documents loaded:", documents?.length);
+    // console.log("Search Space ID:", searchSpaceId);
+    // console.log("Documents loaded:", documents?.length);
     
     useEffect(() => {
         console.log("Delete document function available:", !!deleteDocument);
@@ -315,7 +315,7 @@ export default function DocumentsTable() {
 
     const handleDeleteRows = async () => {
         const selectedRows = table.getSelectedRowModel().rows;
-        console.log("Deleting selected rows:", selectedRows.length);
+        // console.log("Deleting selected rows:", selectedRows.length);
         
         if (selectedRows.length === 0) {
             toast.error("No rows selected");
@@ -324,14 +324,14 @@ export default function DocumentsTable() {
         
         // Create an array of promises for each delete operation
         const deletePromises = selectedRows.map(row => {
-            console.log("Deleting row with ID:", row.original.id);
+            // console.log("Deleting row with ID:", row.original.id);
             return deleteDocument(row.original.id);
         });
         
         try {
             // Execute all delete operations
             const results = await Promise.all(deletePromises);
-            console.log("Delete results:", results);
+            // console.log("Delete results:", results);
             
             // Check if all deletions were successful
             const allSuccessful = results.every(result => result === true);

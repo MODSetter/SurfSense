@@ -35,7 +35,7 @@ const TokenHandler = ({
       try {
         // Store token in localStorage
         localStorage.setItem(storageKey, token);
-        console.log(`Token stored in localStorage with key: ${storageKey}`);
+        // console.log(`Token stored in localStorage with key: ${storageKey}`);
         
         // Redirect to specified path
         router.push(redirectPath);

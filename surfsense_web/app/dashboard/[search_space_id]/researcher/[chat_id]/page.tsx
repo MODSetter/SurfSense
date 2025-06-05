@@ -15,8 +15,14 @@ import {
   Database,
   SendHorizontal,
   FileText,
-  Grid3x3
+  Grid3x3,
+  File,
+  Globe,
+  Webhook,
+  FolderOpen,
+  Upload
 } from 'lucide-react';
+import { IconBrandDiscord, IconBrandGithub, IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconLayoutKanban } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +53,7 @@ import {
 import { MarkdownViewer } from '@/components/markdown-viewer';
 import { Logo } from '@/components/Logo';
 import { useSearchSourceConnectors } from '@/hooks';
+import { useDocuments } from '@/hooks/use-documents';
 
 interface SourceItem {
   id: number;
@@ -63,6 +70,31 @@ interface ConnectorSource {
   sources: SourceItem[];
 }
 
+type DocumentType = "EXTENSION" | "CRAWLED_URL" | "SLACK_CONNECTOR" | "NOTION_CONNECTOR" | "FILE" | "YOUTUBE_VIDEO" | "GITHUB_CONNECTOR" | "LINEAR_CONNECTOR" | "DISCORD_CONNECTOR";
+
+interface Document {
+  id: number;
+  title: string;
+  document_type: DocumentType;
+  document_metadata: any;
+  content: string;
+  created_at: string;
+  search_space_id: number;
+}
+
+// Document type icons mapping
+const documentTypeIcons = {
+  EXTENSION: Webhook,
+  CRAWLED_URL: Globe,
+  SLACK_CONNECTOR: IconBrandSlack,
+  NOTION_CONNECTOR: IconBrandNotion,
+  FILE: File,
+  YOUTUBE_VIDEO: IconBrandYoutube,
+  GITHUB_CONNECTOR: IconBrandGithub,
+  LINEAR_CONNECTOR: IconLayoutKanban,
+  DISCORD_CONNECTOR: IconBrandDiscord,
+} as const;
+
 /**
  * Button that displays selected connectors and opens connector selection dialog
  */
@@ -75,6 +107,41 @@ const ConnectorButton = ({ selectedConnectors, onClick }: { selectedConnectors: 
       onClick={onClick}
       connectorSources={connectorSourceItems}
     />
+  );
+};
+
+/**
+ * Button that displays selected documents count and opens document selection dialog
+ */
+const DocumentSelectorButton = ({ 
+  selectedDocuments, 
+  onClick, 
+  documentsCount 
+}: { 
+  selectedDocuments: number[], 
+  onClick: () => void,
+  documentsCount: number 
+}) => {
+  return (
+    <div className="relative">
+      <Button
+        variant="outline"
+        onClick={onClick}
+        className="h-8 px-2 text-xs font-medium transition-colors border-border bg-background hover:bg-muted/50"
+      >
+        <FolderOpen className="h-3 w-3" />
+      </Button>
+      {selectedDocuments.length > 0 && (
+        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-xs font-medium flex items-center justify-center leading-none">
+          {selectedDocuments.length > 99 ? '99+' : selectedDocuments.length}
+        </span>
+      )}
+      {selectedDocuments.length === 0 && (
+        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-muted text-muted-foreground text-xs font-medium flex items-center justify-center leading-none">
+          0
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -245,7 +312,7 @@ const ChatPage = () => {
   const [sourceFilter, setSourceFilter] = useState("");
   const tabsListRef = useRef<HTMLDivElement>(null);
   const [terminalExpanded, setTerminalExpanded] = useState(false);
-  const [selectedConnectors, setSelectedConnectors] = useState<string[]>(["CRAWLED_URL"]);
+  const [selectedConnectors, setSelectedConnectors] = useState<string[]>([]);
   const [searchMode, setSearchMode] = useState<'DOCUMENTS' | 'CHUNKS'>('DOCUMENTS');
   const [researchMode, setResearchMode] = useState<ResearchMode>("QNA");
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -256,6 +323,11 @@ const ChatPage = () => {
   const INITIAL_SOURCES_DISPLAY = 3;
 
   const { search_space_id, chat_id } = useParams();
+  
+  // Document selection state
+  const [selectedDocuments, setSelectedDocuments] = useState<number[]>([]);
+  const [documentFilter, setDocumentFilter] = useState("");
+  const { documents, loading: isLoadingDocuments, error: documentsError } = useDocuments(Number(search_space_id));
 
   // Function to scroll terminal to bottom
   const scrollTerminalToBottom = () => {
@@ -342,6 +414,13 @@ const ChatPage = () => {
           background-color: rgba(155, 155, 155, 0.5);
           border-radius: 20px;
         }
+        /* Line clamp utility */
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
       `;
       document.head.appendChild(style);
 
@@ -362,7 +441,8 @@ const ChatPage = () => {
         search_space_id: search_space_id,
         selected_connectors: selectedConnectors,
         research_mode: researchMode,
-        search_mode: searchMode
+        search_mode: searchMode,
+        document_ids_to_add_in_context: selectedDocuments
       }
     },
     onError: (error) => {
@@ -377,7 +457,7 @@ const ChatPage = () => {
       try {
         if (!token) return; // Wait for token to be set
 
-        console.log('Fetching chat details for chat ID:', chat_id);
+        // console.log('Fetching chat details for chat ID:', chat_id);
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${Number(chat_id)}`, {
           method: 'GET',
@@ -392,7 +472,7 @@ const ChatPage = () => {
         }
 
         const chatData = await response.json();
-        console.log('Chat details fetched:', chatData);
+        // console.log('Chat details fetched:', chatData);
 
         // Set research mode from chat data
         if (chatData.type) {
@@ -442,7 +522,7 @@ const ChatPage = () => {
           const title = userMessages[0].content;
 
 
-          console.log('Updating chat with title:', title);
+          // console.log('Updating chat with title:', title);
 
           // Update the chat
           const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${Number(chat_id)}`, {
@@ -464,7 +544,7 @@ const ChatPage = () => {
             throw new Error(`Failed to update chat: ${response.statusText}`);
           }
 
-          console.log('Chat updated successfully');
+          // console.log('Chat updated successfully');
         }
       } catch (err) {
         console.error('Error updating chat:', err);
@@ -519,10 +599,9 @@ const ChatPage = () => {
 
     if (!input.trim() || status !== 'ready') return;
 
-    // You can add additional logic here if needed
-    // For example, validation for selected connectors
-    if (selectedConnectors.length === 0) {
-      alert("Please select at least one connector");
+    // Validation: require at least one connector OR at least one document
+    if (selectedConnectors.length === 0 && selectedDocuments.length === 0) {
+      alert("Please select at least one connector or document");
       return;
     }
 
@@ -988,17 +1067,162 @@ const ChatPage = () => {
             </Button>
           </form>
           <div className="flex items-center justify-between px-2 py-2 mt-3">
-            <div className="flex items-center space-x-3">
-              {/* Connector Selection Dialog */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <div className="h-8">
-                    <ConnectorButton
-                      selectedConnectors={selectedConnectors}
-                      onClick={() => { }}
-                    />
+            <div className="flex items-center gap-2 flex-wrap">
+            {/* Document Selection Dialog */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <DocumentSelectorButton
+                  selectedDocuments={selectedDocuments}
+                  onClick={() => { }}
+                  documentsCount={documents?.length || 0}
+                />
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center justify-between">
+                    <span>Select Documents</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`/dashboard/${search_space_id}/documents/upload`, '_blank')}
+                      className="h-8"
+                    >
+                      <Upload className="h-3 w-3 mr-1.5" />
+                      Upload
+                    </Button>
+                  </DialogTitle>
+                  <DialogDescription>
+                    Choose documents to include in your research context
+                  </DialogDescription>
+                </DialogHeader>
+
+                {/* Document Search */}
+                <div className="relative my-4">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                  <Input
+                    placeholder="Search documents..."
+                    className="pl-8 pr-4"
+                    value={documentFilter}
+                    onChange={(e) => setDocumentFilter(e.target.value)}
+                  />
+                  {documentFilter && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4"
+                      onClick={() => setDocumentFilter("")}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+
+                {/* Document List */}
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {isLoadingDocuments ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : documentsError ? (
+                    <div className="text-center py-8 text-destructive">
+                      <p>Error loading documents</p>
+                    </div>
+                  ) : (
+                    (() => {
+                      const filteredDocuments = documents?.filter(doc => 
+                        doc.title.toLowerCase().includes(documentFilter.toLowerCase())
+                      ) || [];
+
+                      if (filteredDocuments.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p>{documentFilter ? `No documents found matching "${documentFilter}"` : 'No documents available'}</p>
+                          </div>
+                        );
+                      }
+
+                      return filteredDocuments.map((document) => {
+                        const Icon = documentTypeIcons[document.document_type];
+                        const isSelected = selectedDocuments.includes(document.id);
+
+                        return (
+                          <div
+                            key={document.id}
+                            className={`flex items-start gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
+                              isSelected
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border hover:border-primary/50 hover:bg-muted'
+                            }`}
+                            onClick={() => {
+                              setSelectedDocuments(prev =>
+                                isSelected
+                                  ? prev.filter(id => id !== document.id)
+                                  : [...prev, document.id]
+                              );
+                            }}
+                          >
+                            <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center mt-0.5">
+                              <Icon size={16} className="text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-sm truncate">{document.title}</h3>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {document.document_type.replace(/_/g, ' ').toLowerCase()}
+                                {' • '}
+                                {new Date(document.created_at).toLocaleDateString()}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {document.content.substring(0, 150)}...
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <div className="flex-shrink-0">
+                                <Check className="h-4 w-4 text-primary" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()
+                  )}
+                </div>
+
+                <DialogFooter className="flex justify-between items-center">
+                  <div className="text-sm text-muted-foreground">
+                    {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
                   </div>
-                </DialogTrigger>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelectedDocuments([])}
+                    >
+                      Clear All
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const filteredDocuments = documents?.filter(doc => 
+                          doc.title.toLowerCase().includes(documentFilter.toLowerCase())
+                        ) || [];
+                        const allFilteredIds = filteredDocuments.map(doc => doc.id);
+                        setSelectedDocuments(allFilteredIds);
+                      }}
+                    >
+                      Select All Filtered
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Connector Selection Dialog */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <ConnectorButton
+                  selectedConnectors={selectedConnectors}
+                  onClick={() => { }}
+                />
+              </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Select Connectors</DialogTitle>
@@ -1065,33 +1289,31 @@ const ChatPage = () => {
               </Dialog>
 
               {/* Search Mode Control */}
-              <div className="flex items-center p-0.5 rounded-md border border-border bg-muted/20 h-8">
-                <button
+              <div className="flex gap-1">
+                <Button
+                  variant={searchMode === 'DOCUMENTS' ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => setSearchMode('DOCUMENTS')}
-                  className={`flex h-full items-center justify-center gap-1 px-2 rounded text-xs font-medium transition-colors flex-1 whitespace-nowrap overflow-hidden ${
-                    searchMode === 'DOCUMENTS'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
+                  className="h-8 px-3 text-xs"
+                  title="Search full documents"
                 >
-                  <FileText className="h-3 w-3 flex-shrink-0 mr-1" />
-                  <span>Full Document</span>
-                </button>
-                <button
+                  <FileText className="h-3 w-3 mr-1.5" />
+                  <span className="hidden sm:inline">Full</span>
+                </Button>
+                <Button
+                  variant={searchMode === 'CHUNKS' ? 'default' : 'outline'}
+                  size="sm"
                   onClick={() => setSearchMode('CHUNKS')}
-                  className={`flex h-full items-center justify-center gap-1 px-2 rounded text-xs font-medium transition-colors flex-1 whitespace-nowrap overflow-hidden ${
-                    searchMode === 'CHUNKS'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
+                  className="h-8 px-3 text-xs"
+                  title="Search document chunks"
                 >
-                  <Grid3x3 className="h-3 w-3 flex-shrink-0 mr-1" />
-                  <span>Document Chunks</span>
-                </button>
+                  <Grid3x3 className="h-3 w-3 mr-1.5" />
+                  <span className="hidden sm:inline">Chunks</span>
+                </Button>
               </div>
 
               {/* Research Mode Control */}
-              <div className="h-8">
+              <div className="h-8 min-w-0 overflow-hidden">
                 <ResearchModeControl
                   value={researchMode}
                   onChange={setResearchMode}

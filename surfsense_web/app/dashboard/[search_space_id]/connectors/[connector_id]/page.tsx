@@ -72,7 +72,7 @@ export default function EditConnectorPage() {
   const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  console.log("connector", connector);
+  // console.log("connector", connector);
   // Initialize the form
   const form = useForm<ApiConnectorFormValues>({
     resolver: zodResolver(apiConnectorFormSchema),
