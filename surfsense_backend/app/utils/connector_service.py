@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
-from app.db import SearchSourceConnector, SearchSourceConnectorType, Chunk, Document
+from app.db import SearchSourceConnector, SearchSourceConnectorType, Chunk, Document, SearchSpace
 from tavily import TavilyClient
 from linkup import LinkupClient
 from sqlalchemy import func
@@ -33,7 +33,8 @@ class ConnectorService:
                 result = await self.session.execute(
                     select(func.count(Chunk.id))
                     .join(Document)
-                    .filter(Document.user_id == self.user_id)
+                    .join(SearchSpace)
+                    .filter(SearchSpace.user_id == self.user_id)
                 )
                 chunk_count = result.scalar() or 0
                 self.source_id_counter = chunk_count + 1
