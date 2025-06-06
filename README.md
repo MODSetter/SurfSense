@@ -17,8 +17,8 @@ While tools like NotebookLM and Perplexity are impressive and highly effective f
 </div>
 
 
-# Video
-
+# Video 
+## Old video. New one coming soon.
 https://github.com/user-attachments/assets/48142909-6391-4084-b7e8-81da388bb1fc
 
 # Podcast's
@@ -27,7 +27,8 @@ https://github.com/user-attachments/assets/d516982f-de00-4c41-9e4c-632a7d942f41
 
 ## Podcast Sample
 
-https://github.com/user-attachments/assets/bf64a6ca-934b-47ac-9e1b-edac5fe972ec
+https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
+
 
 
 
