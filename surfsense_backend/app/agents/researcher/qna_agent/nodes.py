@@ -26,6 +26,7 @@ async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, An
     configuration = Configuration.from_runnable_config(config)
     documents = configuration.relevant_documents
     user_query = configuration.user_query
+    reformulated_query = configuration.reformulated_query
 
     # If no documents were provided, return empty list
     if not documents or len(documents) == 0:
@@ -57,7 +58,7 @@ async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, An
             ]
             
             # Rerank documents using the user's query
-            reranked_docs = reranker_service.rerank_documents(user_query, reranker_input_docs)
+            reranked_docs = reranker_service.rerank_documents(user_query + "\n" + reformulated_query, reranker_input_docs)  
             
             # Sort by score in descending order
             reranked_docs.sort(key=lambda x: x.get("score", 0), reverse=True)

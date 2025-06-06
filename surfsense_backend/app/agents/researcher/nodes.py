@@ -1174,7 +1174,7 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
             await connector_service.initialize_counter()
             
             # Use the reformulated query as a single research question
-            research_questions = [reformulated_query]
+            research_questions = [reformulated_query, user_query]
             
             relevant_documents = await fetch_relevant_documents(
                 research_questions=research_questions,
@@ -1210,7 +1210,8 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
     # Prepare configuration for the QNA agent
     qna_config = {
         "configurable": {
-            "user_query": reformulated_query,  # Use the reformulated query
+            "user_query": user_query,  # Use the reformulated query
+            "reformulated_query": reformulated_query,
             "relevant_documents": all_documents,  # Use combined documents
             "user_id": configuration.user_id,
             "search_space_id": configuration.search_space_id
