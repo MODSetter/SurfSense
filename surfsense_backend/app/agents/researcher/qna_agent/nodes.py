@@ -5,6 +5,11 @@ from typing import Any, Dict
 from app.config import config as app_config
 from .prompts import get_qna_citation_system_prompt, get_qna_no_documents_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
+from ..utils import (
+    optimize_documents_for_token_limit, 
+    calculate_token_count,
+    format_documents_section
+) 
 
 async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, Any]:
     """
@@ -82,48 +87,61 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
     
     # Get configuration and relevant documents from configuration
     configuration = Configuration.from_runnable_config(config)
-    documents = configuration.relevant_documents
+    documents = state.reranked_documents
     user_query = configuration.user_query
     
     # Initialize LLM
     llm = app_config.fast_llm_instance
     
-    # Check if we have documents to determine which prompt to use
-    has_documents = documents and len(documents) > 0
+    # Determine if we have documents and optimize for token limits
+    has_documents_initially = documents and len(documents) > 0
     
-    # Prepare documents for citation formatting (if any)
-    documents_text = ""
-    if has_documents:
-        formatted_documents = []
-        for _i, doc in enumerate(documents):
-            # Extract content and metadata
-            content = doc.get("content", "")
-            doc_info = doc.get("document", {})
-            document_id = doc_info.get("id")  # Use document ID
-            
-            # Format document according to the citation system prompt's expected format
-            formatted_doc = f"""
-            <document>
-                <metadata>
-                    <source_id>{document_id}</source_id>
-                    <source_type>{doc_info.get("document_type", "CRAWLED_URL")}</source_type>
-                </metadata>
-                <content>
-                    {content}
-                </content>
-            </document>
-            """
-            formatted_documents.append(formatted_doc)
+    if has_documents_initially:
+        # Create base message template for token calculation (without documents)
+        base_human_message_template = f"""
         
-        # Create the formatted documents text
-        documents_text = f"""
-        Source material from your personal knowledge base:
-        <documents>
-            {"\n".join(formatted_documents)}
-        </documents>
+        User's question:
+        <user_query>
+            {user_query}
+        </user_query>
+        
+        Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner.
         """
+        
+        # Use initial system prompt for token calculation
+        initial_system_prompt = get_qna_citation_system_prompt()
+        base_messages = state.chat_history + [
+            SystemMessage(content=initial_system_prompt),
+            HumanMessage(content=base_human_message_template)
+        ]
+        
+        # Optimize documents to fit within token limits
+        optimized_documents, has_optimized_documents = optimize_documents_for_token_limit(
+            documents, base_messages, app_config.FAST_LLM
+        )
+        
+        # Update state based on optimization result
+        documents = optimized_documents
+        has_documents = has_optimized_documents
+    else:
+        has_documents = False
     
-    # Construct a clear, structured query for the LLM
+    # Choose system prompt based on final document availability
+    system_prompt = get_qna_citation_system_prompt() if has_documents else get_qna_no_documents_system_prompt()
+    
+    # Generate documents section
+    documents_text = format_documents_section(
+        documents, 
+        "Source material from your personal knowledge base"
+    ) if has_documents else ""
+    
+    # Create final human message content
+    instruction_text = (
+        "Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner."
+        if has_documents else
+        "Please provide a helpful answer to the user's question based on our conversation history and your general knowledge. Engage in a conversational manner."
+    )
+    
     human_message_content = f"""
     {documents_text}
     
@@ -132,17 +150,19 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
         {user_query}
     </user_query>
     
-    {"Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner." if has_documents else "Please provide a helpful answer to the user's question based on our conversation history and your general knowledge. Engage in a conversational manner."}
+    {instruction_text}
     """
     
-    # Choose the appropriate system prompt based on document availability
-    system_prompt = get_qna_citation_system_prompt() if has_documents else get_qna_no_documents_system_prompt()
-    
-    # Create messages for the LLM, including chat history for context
+    # Create final messages for the LLM
     messages_with_chat_history = state.chat_history + [
         SystemMessage(content=system_prompt),
         HumanMessage(content=human_message_content)
     ]
+    
+    # Log final token count
+    total_tokens = calculate_token_count(messages_with_chat_history, app_config.FAST_LLM)
+    print(f"Final token count: {total_tokens}")
+    
     
     # Call the LLM and get the response
     response = await llm.ainvoke(messages_with_chat_history)
