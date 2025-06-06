@@ -16,15 +16,11 @@ import {
   SendHorizontal,
   FileText,
   Grid3x3,
-  File,
-  Globe,
-  Webhook,
   FolderOpen,
   Upload,
   ChevronDown,
   Filter
 } from 'lucide-react';
-import { IconBrandDiscord, IconBrandGithub, IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconLayoutKanban } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,30 +114,8 @@ const DocumentTypeFilter = ({
   };
 
   const getTypeIcon = (type: DocumentType | "ALL") => {
-    switch (type) {
-      case "ALL":
-        return <Filter className="h-4 w-4" />;
-      case "EXTENSION":
-        return <Webhook className="h-4 w-4" />;
-      case "CRAWLED_URL":
-        return <Globe className="h-4 w-4" />;
-      case "FILE":
-        return <File className="h-4 w-4" />;
-      case "SLACK_CONNECTOR":
-        return <IconBrandSlack size={16} />;
-      case "NOTION_CONNECTOR":
-        return <IconBrandNotion size={16} />;
-      case "YOUTUBE_VIDEO":
-        return <IconBrandYoutube size={16} />;
-      case "GITHUB_CONNECTOR":
-        return <IconBrandGithub size={16} />;
-      case "LINEAR_CONNECTOR":
-        return <IconLayoutKanban size={16} />;
-      case "DISCORD_CONNECTOR":
-        return <IconBrandDiscord size={16} />;
-      default:
-        return <File className="h-4 w-4" />;
-    }
+    if (type === "ALL") return <Filter className="h-4 w-4" />;
+    return getConnectorIcon(type);
   };
 
   return (
@@ -1345,21 +1319,9 @@ const ChatPage = () => {
                              onClick={() => handleDocumentToggle(document.id)}
                            >
                              <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center mt-1">
-                               {(() => {
-                                 const iconClassName = `${isSelected ? 'text-primary' : 'text-muted-foreground'} transition-colors`;
-                                 const iconSize = { className: iconClassName };
-                                 
-                                 if (document.document_type === "EXTENSION") return <Webhook {...iconSize} />;
-                                 if (document.document_type === "CRAWLED_URL") return <Globe {...iconSize} />;
-                                 if (document.document_type === "FILE") return <File {...iconSize} />;
-                                 if (document.document_type === "SLACK_CONNECTOR") return <IconBrandSlack size={16} className={iconClassName} />;
-                                 if (document.document_type === "NOTION_CONNECTOR") return <IconBrandNotion size={16} className={iconClassName} />;
-                                 if (document.document_type === "YOUTUBE_VIDEO") return <IconBrandYoutube size={16} className={iconClassName} />;
-                                 if (document.document_type === "GITHUB_CONNECTOR") return <IconBrandGithub size={16} className={iconClassName} />;
-                                 if (document.document_type === "LINEAR_CONNECTOR") return <IconLayoutKanban size={16} className={iconClassName} />;
-                                 if (document.document_type === "DISCORD_CONNECTOR") return <IconBrandDiscord size={16} className={iconClassName} />;
-                                 return <File {...iconSize} />;
-                               })()}
+                               <div className={`${isSelected ? 'text-primary' : 'text-muted-foreground'} transition-colors`}>
+                                 {getConnectorIcon(document.document_type)}
+                               </div>
                              </div>
                              <div className="flex-1 min-w-0">
                                <div className="flex items-start justify-between gap-2 mb-2">
