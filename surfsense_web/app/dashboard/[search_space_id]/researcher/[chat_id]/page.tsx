@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { useParams } from 'next/navigation';
 import {
@@ -20,7 +20,9 @@ import {
   Globe,
   Webhook,
   FolderOpen,
-  Upload
+  Upload,
+  ChevronDown,
+  Filter
 } from 'lucide-react';
 import { IconBrandDiscord, IconBrandGithub, IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconLayoutKanban } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +38,16 @@ import {
   DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ConnectorButton as ConnectorButtonComponent,
   getConnectorIcon,
@@ -94,6 +106,97 @@ const documentTypeIcons = {
   LINEAR_CONNECTOR: IconLayoutKanban,
   DISCORD_CONNECTOR: IconBrandDiscord,
 } as const;
+
+/**
+ * Skeleton loader for document items
+ */
+const DocumentSkeleton = () => (
+  <div className="flex items-start gap-3 p-3 rounded-md border">
+    <Skeleton className="flex-shrink-0 w-6 h-6 mt-0.5" />
+    <div className="flex-1 space-y-2">
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-3 w-1/2" />
+      <Skeleton className="h-3 w-full" />
+    </div>
+    <Skeleton className="flex-shrink-0 w-4 h-4" />
+  </div>
+);
+
+/**
+ * Enhanced document type filter dropdown
+ */
+const DocumentTypeFilter = ({ 
+  value, 
+  onChange, 
+  counts 
+}: { 
+  value: DocumentType | "ALL"; 
+  onChange: (value: DocumentType | "ALL") => void;
+  counts: Record<string, number>;
+}) => {
+  const getTypeLabel = (type: DocumentType | "ALL") => {
+    if (type === "ALL") return "All Types";
+    return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getTypeIcon = (type: DocumentType | "ALL") => {
+    switch (type) {
+      case "ALL":
+        return <Filter className="h-4 w-4" />;
+      case "EXTENSION":
+        return <Webhook className="h-4 w-4" />;
+      case "CRAWLED_URL":
+        return <Globe className="h-4 w-4" />;
+      case "FILE":
+        return <File className="h-4 w-4" />;
+      case "SLACK_CONNECTOR":
+        return <IconBrandSlack size={16} />;
+      case "NOTION_CONNECTOR":
+        return <IconBrandNotion size={16} />;
+      case "YOUTUBE_VIDEO":
+        return <IconBrandYoutube size={16} />;
+      case "GITHUB_CONNECTOR":
+        return <IconBrandGithub size={16} />;
+      case "LINEAR_CONNECTOR":
+        return <IconLayoutKanban size={16} />;
+      case "DISCORD_CONNECTOR":
+        return <IconBrandDiscord size={16} />;
+      default:
+        return <File className="h-4 w-4" />;
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-1">
+          {getTypeIcon(value)}
+          <span className="hidden sm:inline">{getTypeLabel(value)}</span>
+          <ChevronDown className="h-3 w-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel>Document Types</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {Object.entries(counts).map(([type, count]) => (
+          <DropdownMenuItem
+            key={type}
+            onClick={() => onChange(type as DocumentType | "ALL")}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              {getTypeIcon(type as DocumentType | "ALL")}
+              <span>{getTypeLabel(type as DocumentType | "ALL")}</span>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {count}
+            </Badge>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 /**
  * Button that displays selected connectors and opens connector selection dialog
@@ -327,7 +430,69 @@ const ChatPage = () => {
   // Document selection state
   const [selectedDocuments, setSelectedDocuments] = useState<number[]>([]);
   const [documentFilter, setDocumentFilter] = useState("");
+  const [debouncedDocumentFilter, setDebouncedDocumentFilter] = useState("");
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentType | "ALL">("ALL");
+  const [documentsPage, setDocumentsPage] = useState(1);
+  const [documentsPerPage] = useState(10);
   const { documents, loading: isLoadingDocuments, error: documentsError } = useDocuments(Number(search_space_id));
+
+  // Custom hook for debounced search
+  const useDebounce = (value: string, delay: number) => {
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedDocumentFilter(value);
+        setDocumentsPage(1); // Reset page when search changes
+      }, delay);
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+
+    return debouncedDocumentFilter;
+  };
+
+  // Use debounced search
+  useDebounce(documentFilter, 300);
+
+  // Memoized filtered and paginated documents
+  const filteredDocuments = useMemo(() => {
+    if (!documents) return [];
+    
+    return documents.filter(doc => {
+      const matchesSearch = doc.title.toLowerCase().includes(debouncedDocumentFilter.toLowerCase()) ||
+                           doc.content.toLowerCase().includes(debouncedDocumentFilter.toLowerCase());
+      const matchesType = documentTypeFilter === "ALL" || doc.document_type === documentTypeFilter;
+      return matchesSearch && matchesType;
+    });
+  }, [documents, debouncedDocumentFilter, documentTypeFilter]);
+
+  const paginatedDocuments = useMemo(() => {
+    const startIndex = (documentsPage - 1) * documentsPerPage;
+    return filteredDocuments.slice(startIndex, startIndex + documentsPerPage);
+  }, [filteredDocuments, documentsPage, documentsPerPage]);
+
+  const totalPages = Math.ceil(filteredDocuments.length / documentsPerPage);
+
+  // Document type counts for filter dropdown
+  const documentTypeCounts = useMemo(() => {
+    if (!documents) return {};
+    
+    const counts: Record<string, number> = { ALL: documents.length };
+    documents.forEach(doc => {
+      counts[doc.document_type] = (counts[doc.document_type] || 0) + 1;
+    });
+    return counts;
+  }, [documents]);
+
+  // Callback to handle document selection
+  const handleDocumentToggle = useCallback((documentId: number) => {
+    setSelectedDocuments(prev => 
+      prev.includes(documentId)
+        ? prev.filter(id => id !== documentId)
+        : [...prev, documentId]
+    );
+  }, []);
 
   // Function to scroll terminal to bottom
   const scrollTerminalToBottom = () => {
@@ -874,7 +1039,7 @@ const ChatPage = () => {
                         // Use these message-specific sources for the Tabs component
                         return (
                           <Tabs
-                            defaultValue={messageConnectorSources.length > 0 ? messageConnectorSources[0].type : "CRAWLED_URL"}
+                            defaultValue={messageConnectorSources.length > 0 ? messageConnectorSources[0].type : undefined}
                             className="w-full"
                           >
                             <div className="mb-4">
@@ -1068,7 +1233,7 @@ const ChatPage = () => {
           </form>
           <div className="flex items-center justify-between px-2 py-2 mt-3">
             <div className="flex items-center gap-2 flex-wrap">
-            {/* Document Selection Dialog */}
+            {/* Enhanced Document Selection Dialog */}
             <Dialog>
               <DialogTrigger asChild>
                 <DocumentSelectorButton
@@ -1077,10 +1242,16 @@ const ChatPage = () => {
                   documentsCount={documents?.length || 0}
                 />
               </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
+              <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                   <DialogTitle className="flex items-center justify-between">
-                    <span>Select Documents</span>
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="h-5 w-5" />
+                      <span>Select Documents</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {selectedDocuments.length} selected
+                      </Badge>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1092,123 +1263,266 @@ const ChatPage = () => {
                     </Button>
                   </DialogTitle>
                   <DialogDescription>
-                    Choose documents to include in your research context
+                    Choose documents to include in your research context. Use filters and search to find specific documents.
                   </DialogDescription>
                 </DialogHeader>
 
-                {/* Document Search */}
-                <div className="relative my-4">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
-                  <Input
-                    placeholder="Search documents..."
-                    className="pl-8 pr-4"
-                    value={documentFilter}
-                    onChange={(e) => setDocumentFilter(e.target.value)}
-                  />
-                  {documentFilter && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4"
-                      onClick={() => setDocumentFilter("")}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-
-                {/* Document List */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {isLoadingDocuments ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                {/* Enhanced Search and Filter Controls */}
+                <div className="flex-shrink-0 space-y-3 py-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Search Input */}
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search documents by title or content..."
+                        className="pl-10 pr-4"
+                        value={documentFilter}
+                        onChange={(e) => setDocumentFilter(e.target.value)}
+                      />
+                      {documentFilter && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6"
+                          onClick={() => setDocumentFilter("")}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
-                  ) : documentsError ? (
-                    <div className="text-center py-8 text-destructive">
-                      <p>Error loading documents</p>
-                    </div>
-                  ) : (
-                    (() => {
-                      const filteredDocuments = documents?.filter(doc => 
-                        doc.title.toLowerCase().includes(documentFilter.toLowerCase())
-                      ) || [];
 
-                      if (filteredDocuments.length === 0) {
-                        return (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p>{documentFilter ? `No documents found matching "${documentFilter}"` : 'No documents available'}</p>
-                          </div>
-                        );
-                      }
-
-                      return filteredDocuments.map((document) => {
-                        const Icon = documentTypeIcons[document.document_type];
-                        const isSelected = selectedDocuments.includes(document.id);
-
-                        return (
-                          <div
-                            key={document.id}
-                            className={`flex items-start gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
-                              isSelected
-                                ? 'border-primary bg-primary/10'
-                                : 'border-border hover:border-primary/50 hover:bg-muted'
-                            }`}
-                            onClick={() => {
-                              setSelectedDocuments(prev =>
-                                isSelected
-                                  ? prev.filter(id => id !== document.id)
-                                  : [...prev, document.id]
-                              );
-                            }}
-                          >
-                            <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center mt-0.5">
-                              <Icon size={16} className="text-muted-foreground" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-sm truncate">{document.title}</h3>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {document.document_type.replace(/_/g, ' ').toLowerCase()}
-                                {' • '}
-                                {new Date(document.created_at).toLocaleDateString()}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                {document.content.substring(0, 150)}...
-                              </p>
-                            </div>
-                            {isSelected && (
-                              <div className="flex-shrink-0">
-                                <Check className="h-4 w-4 text-primary" />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      });
-                    })()
-                  )}
-                </div>
-
-                <DialogFooter className="flex justify-between items-center">
-                  <div className="text-sm text-muted-foreground">
-                    {selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
+                    {/* Document Type Filter */}
+                    <DocumentTypeFilter
+                      value={documentTypeFilter}
+                      onChange={setDocumentTypeFilter}
+                      counts={documentTypeCounts}
+                    />
                   </div>
-                  <div className="flex gap-2">
+
+                  {/* Results Summary */}
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>
+                      {isLoadingDocuments ? (
+                        "Loading documents..."
+                      ) : (
+                        `Showing ${paginatedDocuments.length} of ${filteredDocuments.length} documents`
+                      )}
+                    </span>
+                    {filteredDocuments.length > 0 && (
+                      <span>
+                        Page {documentsPage} of {totalPages}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                                 {/* Document List with Proper Scrolling */}
+                 <div className="flex-1 min-h-0">
+                   <div className="h-full max-h-[400px] overflow-y-auto space-y-2 pr-2">
+                     {isLoadingDocuments ? (
+                       // Enhanced skeleton loading
+                       Array.from({ length: 6 }, (_, i) => (
+                         <DocumentSkeleton key={i} />
+                       ))
+                     ) : documentsError ? (
+                       <div className="flex flex-col items-center justify-center py-12 text-center">
+                         <div className="rounded-full bg-destructive/10 p-3 mb-4">
+                           <X className="h-6 w-6 text-destructive" />
+                         </div>
+                         <h3 className="font-medium text-destructive mb-1">Error loading documents</h3>
+                         <p className="text-sm text-muted-foreground">Please try refreshing the page</p>
+                       </div>
+                     ) : filteredDocuments.length === 0 ? (
+                       <div className="flex flex-col items-center justify-center py-12 text-center">
+                         <div className="rounded-full bg-muted p-3 mb-4">
+                           <FolderOpen className="h-6 w-6 text-muted-foreground" />
+                         </div>
+                         <h3 className="font-medium mb-1">No documents found</h3>
+                         <p className="text-sm text-muted-foreground mb-4">
+                           {documentFilter || documentTypeFilter !== "ALL"
+                             ? "Try adjusting your search or filters"
+                             : "Upload documents to get started"}
+                         </p>
+                         {(!documentFilter && documentTypeFilter === "ALL") && (
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => window.open(`/dashboard/${search_space_id}/documents/upload`, '_blank')}
+                           >
+                             <Upload className="h-4 w-4 mr-2" />
+                             Upload Documents
+                           </Button>
+                         )}
+                       </div>
+                     ) : (
+                       // Enhanced document list
+                       paginatedDocuments.map((document) => {
+                         const isSelected = selectedDocuments.includes(document.id);
+                         const typeLabel = document.document_type.replace(/_/g, ' ').toLowerCase();
+
+                         return (
+                           <div
+                             key={document.id}
+                             className={`group flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all duration-200 ${
+                               isSelected
+                                 ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                                 : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                             }`}
+                             onClick={() => handleDocumentToggle(document.id)}
+                           >
+                             <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center mt-1">
+                               {(() => {
+                                 const iconClassName = `${isSelected ? 'text-primary' : 'text-muted-foreground'} transition-colors`;
+                                 const iconSize = { className: iconClassName };
+                                 
+                                 if (document.document_type === "EXTENSION") return <Webhook {...iconSize} />;
+                                 if (document.document_type === "CRAWLED_URL") return <Globe {...iconSize} />;
+                                 if (document.document_type === "FILE") return <File {...iconSize} />;
+                                 if (document.document_type === "SLACK_CONNECTOR") return <IconBrandSlack size={16} className={iconClassName} />;
+                                 if (document.document_type === "NOTION_CONNECTOR") return <IconBrandNotion size={16} className={iconClassName} />;
+                                 if (document.document_type === "YOUTUBE_VIDEO") return <IconBrandYoutube size={16} className={iconClassName} />;
+                                 if (document.document_type === "GITHUB_CONNECTOR") return <IconBrandGithub size={16} className={iconClassName} />;
+                                 if (document.document_type === "LINEAR_CONNECTOR") return <IconLayoutKanban size={16} className={iconClassName} />;
+                                 if (document.document_type === "DISCORD_CONNECTOR") return <IconBrandDiscord size={16} className={iconClassName} />;
+                                 return <File {...iconSize} />;
+                               })()}
+                             </div>
+                             <div className="flex-1 min-w-0">
+                               <div className="flex items-start justify-between gap-2 mb-2">
+                                 <h3 className={`font-medium text-sm leading-5 ${isSelected ? 'text-foreground' : 'text-foreground'}`}>
+                                   {document.title}
+                                 </h3>
+                                 {isSelected && (
+                                   <div className="flex-shrink-0">
+                                     <div className="rounded-full bg-primary p-1">
+                                       <Check className="h-3 w-3 text-primary-foreground" />
+                                     </div>
+                                   </div>
+                                 )}
+                               </div>
+                               <div className="flex items-center gap-2 mb-2">
+                                 <Badge variant="outline" className="text-xs">
+                                   {typeLabel}
+                                 </Badge>
+                                 <span className="text-xs text-muted-foreground">
+                                   {new Date(document.created_at).toLocaleDateString()}
+                                 </span>
+                               </div>
+                               <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                                 {document.content.substring(0, 200)}...
+                               </p>
+                             </div>
+                           </div>
+                         );
+                       })
+                     )}
+                   </div>
+                 </div>
+
+                {/* Enhanced Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex-shrink-0 flex items-center justify-between pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDocumentsPage(p => Math.max(1, p - 1))}
+                        disabled={documentsPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const page = documentsPage <= 3 ? i + 1 : documentsPage - 2 + i;
+                          if (page > totalPages) return null;
+                          return (
+                            <Button
+                              key={page}
+                              variant={page === documentsPage ? "default" : "outline"}
+                              size="sm"
+                              className="w-8 h-8 p-0"
+                              onClick={() => setDocumentsPage(page)}
+                            >
+                              {page}
+                            </Button>
+                          );
+                        })}
+                        {totalPages > 5 && documentsPage < totalPages - 2 && (
+                          <>
+                            <span className="px-2 text-muted-foreground">...</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-8 h-8 p-0"
+                              onClick={() => setDocumentsPage(totalPages)}
+                            >
+                              {totalPages}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDocumentsPage(p => Math.min(totalPages, p + 1))}
+                        disabled={documentsPage === totalPages}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Enhanced Footer */}
+                <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-3 pt-4">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <span>
+                      {selectedDocuments.length} of {filteredDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                  <div className="flex gap-2 ml-auto">
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => setSelectedDocuments([])}
+                      disabled={selectedDocuments.length === 0}
                     >
                       Clear All
                     </Button>
                     <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
-                        const filteredDocuments = documents?.filter(doc => 
-                          doc.title.toLowerCase().includes(documentFilter.toLowerCase())
-                        ) || [];
-                        const allFilteredIds = filteredDocuments.map(doc => doc.id);
-                        setSelectedDocuments(allFilteredIds);
+                        const visibleIds = paginatedDocuments.map(doc => doc.id);
+                        const allVisibleSelected = visibleIds.every(id => selectedDocuments.includes(id));
+                        
+                        if (allVisibleSelected) {
+                          setSelectedDocuments(prev => prev.filter(id => !visibleIds.includes(id)));
+                        } else {
+                          setSelectedDocuments(prev => [...new Set([...prev, ...visibleIds])]);
+                        }
                       }}
+                      disabled={paginatedDocuments.length === 0}
                     >
-                      Select All Filtered
+                      {paginatedDocuments.every(doc => selectedDocuments.includes(doc.id)) ? 'Deselect' : 'Select'} Page
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const allFilteredIds = filteredDocuments.map(doc => doc.id);
+                        const allSelected = allFilteredIds.every(id => selectedDocuments.includes(id));
+                        
+                        if (allSelected) {
+                          setSelectedDocuments(prev => prev.filter(id => !allFilteredIds.includes(id)));
+                        } else {
+                          setSelectedDocuments(prev => [...new Set([...prev, ...allFilteredIds])]);
+                        }
+                      }}
+                      disabled={filteredDocuments.length === 0}
+                    >
+                      {filteredDocuments.every(doc => selectedDocuments.includes(doc.id)) ? 'Deselect' : 'Select'} All Filtered
                     </Button>
                   </div>
                 </DialogFooter>
