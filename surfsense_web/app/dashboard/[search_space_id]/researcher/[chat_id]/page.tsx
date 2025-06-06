@@ -84,28 +84,6 @@ interface ConnectorSource {
 
 type DocumentType = "EXTENSION" | "CRAWLED_URL" | "SLACK_CONNECTOR" | "NOTION_CONNECTOR" | "FILE" | "YOUTUBE_VIDEO" | "GITHUB_CONNECTOR" | "LINEAR_CONNECTOR" | "DISCORD_CONNECTOR";
 
-interface Document {
-  id: number;
-  title: string;
-  document_type: DocumentType;
-  document_metadata: any;
-  content: string;
-  created_at: string;
-  search_space_id: number;
-}
-
-// Document type icons mapping
-const documentTypeIcons = {
-  EXTENSION: Webhook,
-  CRAWLED_URL: Globe,
-  SLACK_CONNECTOR: IconBrandSlack,
-  NOTION_CONNECTOR: IconBrandNotion,
-  FILE: File,
-  YOUTUBE_VIDEO: IconBrandYoutube,
-  GITHUB_CONNECTOR: IconBrandGithub,
-  LINEAR_CONNECTOR: IconLayoutKanban,
-  DISCORD_CONNECTOR: IconBrandDiscord,
-} as const;
 
 /**
  * Skeleton loader for document items
