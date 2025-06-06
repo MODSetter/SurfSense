@@ -436,24 +436,17 @@ const ChatPage = () => {
   const [documentsPerPage] = useState(10);
   const { documents, loading: isLoadingDocuments, error: documentsError } = useDocuments(Number(search_space_id));
 
-  // Custom hook for debounced search
-  const useDebounce = (value: string, delay: number) => {
-    useEffect(() => {
-      const handler = setTimeout(() => {
-        setDebouncedDocumentFilter(value);
-        setDocumentsPage(1); // Reset page when search changes
-      }, delay);
+  // Debounced search effect (proper implementation)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedDocumentFilter(documentFilter);
+      setDocumentsPage(1); // Reset page when search changes
+    }, 300);
 
-      return () => {
-        clearTimeout(handler);
-      };
-    }, [value, delay]);
-
-    return debouncedDocumentFilter;
-  };
-
-  // Use debounced search
-  useDebounce(documentFilter, 300);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [documentFilter]);
 
   // Memoized filtered and paginated documents
   const filteredDocuments = useMemo(() => {
@@ -1291,12 +1284,15 @@ const ChatPage = () => {
                       )}
                     </div>
 
-                    {/* Document Type Filter */}
-                    <DocumentTypeFilter
-                      value={documentTypeFilter}
-                      onChange={setDocumentTypeFilter}
-                      counts={documentTypeCounts}
-                    />
+                                         {/* Document Type Filter */}
+                     <DocumentTypeFilter
+                       value={documentTypeFilter}
+                       onChange={(newType) => {
+                         setDocumentTypeFilter(newType);
+                         setDocumentsPage(1); // Reset to page 1 when filter changes
+                       }}
+                       counts={documentTypeCounts}
+                     />
                   </div>
 
                   {/* Results Summary */}
