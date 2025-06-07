@@ -1,0 +1,101 @@
+name: Integration CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: 'Run full test suite'
+        type: boolean
+        default: true
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_tests }}
+    
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: surfsense_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          # Backend
+          cd surfsense_backend
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -U pip uv
+          uv pip sync
+          
+          # Web
+          cd ../surfsense_web
+          npm install
+          
+          # Start services
+          cd ../surfsense_backend
+          source .venv/bin/activate
+          uvicorn main:app --host 0.0.0.0 --port 8000 --reload &
+          cd ../surfsense_web
+          npm run dev &
+          sleep 10
+          
+      - name: Install Playwright
+        run: |
+          cd surfsense_web
+          npx playwright install --with-deps
+          
+      - name: Run E2E tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test
+        run: |
+          cd surfsense_web
+          npx playwright test
+          
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Run CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript, python
+          
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2 
