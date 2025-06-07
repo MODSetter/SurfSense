@@ -53,8 +53,8 @@ Our setup uses two files:
 ## Setup
 
 1. Make sure you have all the necessary environment variables set up:
-   - Copy `surfsense_backend/.env.example` to `surfsense_backend/.env` and fill in the required values
-   - Copy `surfsense_web/.env.example` to `surfsense_web/.env` and fill in the required values
+   - Run `cp surfsense_backend/.env.example surfsense_backend/.env` to create .env file, and fill in the required values
+   - Run `cp surfsense_web/.env.example surfsense_web/.env` to create .env file, fill in the required values
    - Optionally: Copy `.env.example` to `.env` in the project root to customize Docker settings
 
 2. Deploy based on your needs:
