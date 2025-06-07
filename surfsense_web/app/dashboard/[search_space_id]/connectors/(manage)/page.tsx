@@ -9,6 +9,7 @@ import {
 	Plus,
 	Trash2,
 	RefreshCw,
+	Calendar as CalendarIcon,
 } from "lucide-react";
 
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
@@ -45,7 +46,21 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import { getConnectorIcon } from "@/components/chat";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 // Helper function to get connector type display name
 const getConnectorTypeDisplay = (type: string): string => {
@@ -89,6 +104,10 @@ export default function ConnectorsPage() {
 	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(
 		null,
 	);
+	const [datePickerOpen, setDatePickerOpen] = useState(false);
+	const [selectedConnectorForIndexing, setSelectedConnectorForIndexing] = useState<number | null>(null);
+	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
 	useEffect(() => {
 		if (error) {
@@ -112,8 +131,42 @@ export default function ConnectorsPage() {
 		}
 	};
 
-	// Handle connector indexing
-	const handleIndexConnector = async (connectorId: number) => {
+	// Handle opening date picker for indexing
+	const handleOpenDatePicker = (connectorId: number) => {
+		setSelectedConnectorForIndexing(connectorId);
+		setDatePickerOpen(true);
+	};
+
+	// Handle connector indexing with dates
+	const handleIndexConnector = async () => {
+		if (selectedConnectorForIndexing === null) return;
+
+		setIndexingConnectorId(selectedConnectorForIndexing);
+		setDatePickerOpen(false);
+		
+		try {
+			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
+			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
+			
+			await indexConnector(selectedConnectorForIndexing, searchSpaceId, startDateStr, endDateStr);
+			toast.success("Connector content indexed successfully");
+		} catch (error) {
+			console.error("Error indexing connector content:", error);
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to index connector content",
+			);
+		} finally {
+			setIndexingConnectorId(null);
+			setSelectedConnectorForIndexing(null);
+			setStartDate(undefined);
+			setEndDate(undefined);
+		}
+	};
+
+	// Handle indexing without date picker (for quick indexing)
+	const handleQuickIndexConnector = async (connectorId: number) => {
 		setIndexingConnectorId(connectorId);
 		try {
 			await indexConnector(connectorId, searchSpaceId);
@@ -213,34 +266,64 @@ export default function ConnectorsPage() {
 											<TableCell className="text-right">
 												<div className="flex justify-end gap-2">
 													{connector.is_indexable && (
-														<TooltipProvider>
-															<Tooltip>
-																<TooltipTrigger asChild>
-																	<Button
-																		variant="outline"
-																		size="sm"
-																		onClick={() =>
-																			handleIndexConnector(connector.id)
-																		}
-																		disabled={
-																			indexingConnectorId === connector.id
-																		}
-																	>
-																		{indexingConnectorId === connector.id ? (
-																			<RefreshCw className="h-4 w-4 animate-spin" />
-																		) : (
-																			<RefreshCw className="h-4 w-4" />
-																		)}
-																		<span className="sr-only">
-																			Index Content
-																		</span>
-																	</Button>
-																</TooltipTrigger>
-																<TooltipContent>
-																	<p>Index Content</p>
-																</TooltipContent>
-															</Tooltip>
-														</TooltipProvider>
+														<div className="flex gap-1">
+															<TooltipProvider>
+																<Tooltip>
+																	<TooltipTrigger asChild>
+																		<Button
+																			variant="outline"
+																			size="sm"
+																			onClick={() =>
+																				handleOpenDatePicker(connector.id)
+																			}
+																			disabled={
+																				indexingConnectorId === connector.id
+																			}
+																		>
+																			{indexingConnectorId === connector.id ? (
+																				<RefreshCw className="h-4 w-4 animate-spin" />
+																			) : (
+																				<CalendarIcon className="h-4 w-4" />
+																			)}
+																			<span className="sr-only">
+																				Index with Date Range
+																			</span>
+																		</Button>
+																	</TooltipTrigger>
+																	<TooltipContent>
+																		<p>Index with Date Range</p>
+																	</TooltipContent>
+																</Tooltip>
+															</TooltipProvider>
+															<TooltipProvider>
+																<Tooltip>
+																	<TooltipTrigger asChild>
+																		<Button
+																			variant="outline"
+																			size="sm"
+																			onClick={() =>
+																				handleQuickIndexConnector(connector.id)
+																			}
+																			disabled={
+																				indexingConnectorId === connector.id
+																			}
+																		>
+																			{indexingConnectorId === connector.id ? (
+																				<RefreshCw className="h-4 w-4 animate-spin" />
+																			) : (
+																				<RefreshCw className="h-4 w-4" />
+																			)}
+																			<span className="sr-only">
+																				Quick Index
+																			</span>
+																		</Button>
+																	</TooltipTrigger>
+																	<TooltipContent>
+																		<p>Quick Index (Auto Date Range)</p>
+																	</TooltipContent>
+																</Tooltip>
+															</TooltipProvider>
+														</div>
 													)}
 													<Button
 														variant="outline"
@@ -303,6 +386,134 @@ export default function ConnectorsPage() {
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Date Picker Dialog */}
+			<Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+				<DialogContent className="sm:max-w-[500px]">
+					<DialogHeader>
+						<DialogTitle>Select Date Range for Indexing</DialogTitle>
+						<DialogDescription>
+							Choose the start and end dates for indexing content. Leave empty to use default range.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="grid gap-4 py-4">
+						<div className="grid grid-cols-2 gap-4">
+							<div className="space-y-2">
+								<Label htmlFor="start-date">Start Date</Label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											id="start-date"
+											variant="outline"
+											className={cn(
+												"w-full justify-start text-left font-normal",
+												!startDate && "text-muted-foreground"
+											)}
+										>
+											<CalendarIcon className="mr-2 h-4 w-4" />
+											{startDate ? format(startDate, "PPP") : "Pick a date"}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-auto p-0" align="start">
+										<Calendar
+											mode="single"
+											selected={startDate}
+											onSelect={setStartDate}
+											disabled={(date) =>
+												date > new Date() || (endDate ? date > endDate : false)
+											}
+											initialFocus
+										/>
+									</PopoverContent>
+								</Popover>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="end-date">End Date</Label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											id="end-date"
+											variant="outline"
+											className={cn(
+												"w-full justify-start text-left font-normal",
+												!endDate && "text-muted-foreground"
+											)}
+										>
+											<CalendarIcon className="mr-2 h-4 w-4" />
+											{endDate ? format(endDate, "PPP") : "Pick a date"}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-auto p-0" align="start">
+										<Calendar
+											mode="single"
+											selected={endDate}
+											onSelect={setEndDate}
+											disabled={(date) =>
+												date > new Date() || (startDate ? date < startDate : false)
+											}
+											initialFocus
+										/>
+									</PopoverContent>
+								</Popover>
+							</div>
+						</div>
+						<div className="flex gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									setStartDate(undefined);
+									setEndDate(undefined);
+								}}
+							>
+								Clear Dates
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									const today = new Date();
+									const thirtyDaysAgo = new Date(today);
+									thirtyDaysAgo.setDate(today.getDate() - 30);
+									setStartDate(thirtyDaysAgo);
+									setEndDate(today);
+								}}
+							>
+								Last 30 Days
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									const today = new Date();
+									const yearAgo = new Date(today);
+									yearAgo.setFullYear(today.getFullYear() - 1);
+									setStartDate(yearAgo);
+									setEndDate(today);
+								}}
+							>
+								Last Year
+							</Button>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setDatePickerOpen(false);
+								setSelectedConnectorForIndexing(null);
+								setStartDate(undefined);
+								setEndDate(undefined);
+							}}
+						>
+							Cancel
+						</Button>
+						<Button onClick={handleIndexConnector}>
+							Start Indexing
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
