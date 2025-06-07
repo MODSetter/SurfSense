@@ -62,21 +62,6 @@ import { getConnectorIcon } from "@/components/chat";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-// Helper function to get connector type display name
-const getConnectorTypeDisplay = (type: string): string => {
-	const typeMap: Record<string, string> = {
-		SERPER_API: "Serper API",
-		TAVILY_API: "Tavily API",
-		SLACK_CONNECTOR: "Slack",
-		NOTION_CONNECTOR: "Notion",
-		GITHUB_CONNECTOR: "GitHub",
-		LINEAR_CONNECTOR: "Linear",
-		LINKUP_API: "Linkup",
-		// Add other connector types here as needed
-	};
-	return typeMap[type] || type;
-};
-
 // Helper function to format date with time
 const formatDateTime = (dateString: string | null): string => {
 	if (!dateString) return "Never";
@@ -141,10 +126,10 @@ export default function ConnectorsPage() {
 	const handleIndexConnector = async () => {
 		if (selectedConnectorForIndexing === null) return;
 
-		setIndexingConnectorId(selectedConnectorForIndexing);
 		setDatePickerOpen(false);
 		
 		try {
+			setIndexingConnectorId(selectedConnectorForIndexing);
 			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 			
