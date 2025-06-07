@@ -253,7 +253,12 @@ export const useSearchSourceConnectors = () => {
   /**
    * Index content from a connector to a search space
    */
-  const indexConnector = async (connectorId: number, searchSpaceId: string | number) => {
+  const indexConnector = async (
+    connectorId: number, 
+    searchSpaceId: string | number, 
+    startDate?: string, 
+    endDate?: string
+  ) => {
     try {
       const token = localStorage.getItem('surfsense_bearer_token');
       
@@ -261,8 +266,17 @@ export const useSearchSourceConnectors = () => {
         throw new Error('No authentication token found');
       }
 
+      // Build query parameters
+      const params = new URLSearchParams({ search_space_id: searchSpaceId.toString() });
+      if (startDate) {
+        params.append('start_date', startDate);
+      }
+      if (endDate) {
+        params.append('end_date', endDate);
+      }
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?search_space_id=${searchSpaceId}`,
+        `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}/index?${params.toString()}`,
         {
           method: 'POST',
           headers: {

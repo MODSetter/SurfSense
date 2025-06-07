@@ -24,6 +24,8 @@ async def index_slack_messages(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    start_date: str = None,
+    end_date: str = None,
     update_last_indexed: bool = True
 ) -> Tuple[int, Optional[str]]:
     """
@@ -61,27 +63,35 @@ async def index_slack_messages(
         slack_client = SlackHistory(token=slack_token)
         
         # Calculate date range
-        end_date = datetime.now()
-        
-        # Use last_indexed_at as start date if available, otherwise use 365 days ago
-        if connector.last_indexed_at:
-            # Convert dates to be comparable (both timezone-naive)
-            last_indexed_naive = connector.last_indexed_at.replace(tzinfo=None) if connector.last_indexed_at.tzinfo else connector.last_indexed_at
+        if start_date is None or end_date is None:
+            # Fall back to calculating dates based on last_indexed_at
+            calculated_end_date = datetime.now()
             
-            # Check if last_indexed_at is in the future or after end_date
-            if last_indexed_naive > end_date:
-                logger.warning(f"Last indexed date ({last_indexed_naive.strftime('%Y-%m-%d')}) is in the future. Using 365 days ago instead.")
-                start_date = end_date - timedelta(days=365)
+            # Use last_indexed_at as start date if available, otherwise use 365 days ago
+            if connector.last_indexed_at:
+                # Convert dates to be comparable (both timezone-naive)
+                last_indexed_naive = connector.last_indexed_at.replace(tzinfo=None) if connector.last_indexed_at.tzinfo else connector.last_indexed_at
+                
+                # Check if last_indexed_at is in the future or after end_date
+                if last_indexed_naive > calculated_end_date:
+                    logger.warning(f"Last indexed date ({last_indexed_naive.strftime('%Y-%m-%d')}) is in the future. Using 365 days ago instead.")
+                    calculated_start_date = calculated_end_date - timedelta(days=365)
+                else:
+                    calculated_start_date = last_indexed_naive
+                    logger.info(f"Using last_indexed_at ({calculated_start_date.strftime('%Y-%m-%d')}) as start date")
             else:
-                start_date = last_indexed_naive
-                logger.info(f"Using last_indexed_at ({start_date.strftime('%Y-%m-%d')}) as start date")
+                calculated_start_date = calculated_end_date - timedelta(days=365)  # Use 365 days as default
+                logger.info(f"No last_indexed_at found, using {calculated_start_date.strftime('%Y-%m-%d')} (365 days ago) as start date")
+            
+            # Use calculated dates if not provided
+            start_date_str = start_date if start_date else calculated_start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date if end_date else calculated_end_date.strftime("%Y-%m-%d")
         else:
-            start_date = end_date - timedelta(days=365)  # Use 365 days as default
-            logger.info(f"No last_indexed_at found, using {start_date.strftime('%Y-%m-%d')} (30 days ago) as start date")
-        
-        # Format dates for Slack API
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
+            # Use provided dates
+            start_date_str = start_date
+            end_date_str = end_date
+            
+        logger.info(f"Indexing Slack messages from {start_date_str} to {end_date_str}")
         
         # Get all channels
         try:
@@ -279,6 +289,8 @@ async def index_notion_pages(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    start_date: str = None,
+    end_date: str = None,
     update_last_indexed: bool = True
 ) -> Tuple[int, Optional[str]]:
     """
@@ -317,20 +329,33 @@ async def index_notion_pages(
         notion_client = NotionHistoryConnector(token=notion_token)
         
         # Calculate date range
-        end_date = datetime.now()
+        if start_date is None or end_date is None:
+            # Fall back to calculating dates
+            calculated_end_date = datetime.now()
+            calculated_start_date = calculated_end_date - timedelta(days=365)  # Check for last 1 year of pages
+            
+            # Use calculated dates if not provided
+            if start_date is None:
+                start_date_iso = calculated_start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+            else:
+                # Convert YYYY-MM-DD to ISO format
+                start_date_iso = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")
+                
+            if end_date is None:
+                end_date_iso = calculated_end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+            else:
+                # Convert YYYY-MM-DD to ISO format
+                end_date_iso = datetime.strptime(end_date, "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            # Convert provided dates to ISO format for Notion API
+            start_date_iso = datetime.strptime(start_date, "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")
+            end_date_iso = datetime.strptime(end_date, "%Y-%m-%d").strftime("%Y-%m-%dT%H:%M:%SZ")
         
-        # Check for last 1 year of pages
-        start_date = end_date - timedelta(days=365)
-        
-        # Format dates for Notion API (ISO format)
-        start_date_str = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        end_date_str = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-        
-        logger.info(f"Fetching Notion pages from {start_date_str} to {end_date_str}")
+        logger.info(f"Fetching Notion pages from {start_date_iso} to {end_date_iso}")
         
         # Get all pages
         try:
-            pages = notion_client.get_all_pages(start_date=start_date_str, end_date=end_date_str)
+            pages = notion_client.get_all_pages(start_date=start_date_iso, end_date=end_date_iso)
             logger.info(f"Found {len(pages)} Notion pages")
         except Exception as e:
             logger.error(f"Error fetching Notion pages: {str(e)}", exc_info=True)
@@ -524,6 +549,8 @@ async def index_github_repos(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    start_date: str = None,
+    end_date: str = None,
     update_last_indexed: bool = True
 ) -> Tuple[int, Optional[str]]:
     """
@@ -575,6 +602,8 @@ async def index_github_repos(
         #    For simplicity, we'll proceed with the list provided.
         #    If a repo is inaccessible, get_repository_files will likely fail gracefully later.
         logger.info(f"Starting indexing for {len(repo_full_names_to_index)} selected repositories.")
+        if start_date and end_date:
+            logger.info(f"Date range requested: {start_date} to {end_date} (Note: GitHub indexing processes all files regardless of dates)")
 
         # 6. Iterate through selected repositories and index files
         for repo_full_name in repo_full_names_to_index:
@@ -688,6 +717,8 @@ async def index_linear_issues(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    start_date: str = None,
+    end_date: str = None,
     update_last_indexed: bool = True
 ) -> Tuple[int, Optional[str]]:
     """
@@ -725,27 +756,33 @@ async def index_linear_issues(
         linear_client = LinearConnector(token=linear_token)
         
         # Calculate date range
-        end_date = datetime.now()
-        
-        # Use last_indexed_at as start date if available, otherwise use 365 days ago
-        if connector.last_indexed_at:
-            # Convert dates to be comparable (both timezone-naive)
-            last_indexed_naive = connector.last_indexed_at.replace(tzinfo=None) if connector.last_indexed_at.tzinfo else connector.last_indexed_at
+        if start_date is None or end_date is None:
+            # Fall back to calculating dates based on last_indexed_at
+            calculated_end_date = datetime.now()
             
-            # Check if last_indexed_at is in the future or after end_date
-            if last_indexed_naive > end_date:
-                logger.warning(f"Last indexed date ({last_indexed_naive.strftime('%Y-%m-%d')}) is in the future. Using 365 days ago instead.")
-                start_date = end_date - timedelta(days=365)
+            # Use last_indexed_at as start date if available, otherwise use 365 days ago
+            if connector.last_indexed_at:
+                # Convert dates to be comparable (both timezone-naive)
+                last_indexed_naive = connector.last_indexed_at.replace(tzinfo=None) if connector.last_indexed_at.tzinfo else connector.last_indexed_at
+                
+                # Check if last_indexed_at is in the future or after end_date
+                if last_indexed_naive > calculated_end_date:
+                    logger.warning(f"Last indexed date ({last_indexed_naive.strftime('%Y-%m-%d')}) is in the future. Using 365 days ago instead.")
+                    calculated_start_date = calculated_end_date - timedelta(days=365)
+                else:
+                    calculated_start_date = last_indexed_naive
+                    logger.info(f"Using last_indexed_at ({calculated_start_date.strftime('%Y-%m-%d')}) as start date")
             else:
-                start_date = last_indexed_naive
-                logger.info(f"Using last_indexed_at ({start_date.strftime('%Y-%m-%d')}) as start date")
+                calculated_start_date = calculated_end_date - timedelta(days=365)  # Use 365 days as default
+                logger.info(f"No last_indexed_at found, using {calculated_start_date.strftime('%Y-%m-%d')} (365 days ago) as start date")
+            
+            # Use calculated dates if not provided
+            start_date_str = start_date if start_date else calculated_start_date.strftime("%Y-%m-%d")
+            end_date_str = end_date if end_date else calculated_end_date.strftime("%Y-%m-%d")
         else:
-            start_date = end_date - timedelta(days=365)  # Use 365 days as default
-            logger.info(f"No last_indexed_at found, using {start_date.strftime('%Y-%m-%d')} (365 days ago) as start date")
-        
-        # Format dates for Linear API
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
+            # Use provided dates
+            start_date_str = start_date
+            end_date_str = end_date
         
         logger.info(f"Fetching Linear issues from {start_date_str} to {end_date_str}")
         
@@ -918,6 +955,8 @@ async def index_discord_messages(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    start_date: str = None,
+    end_date: str = None,
     update_last_indexed: bool = True
 ) -> Tuple[int, Optional[str]]:
     """
@@ -957,19 +996,36 @@ async def index_discord_messages(
         discord_client = DiscordConnector(token=discord_token)
 
         # Calculate date range
-        end_date = datetime.now(timezone.utc)
+        if start_date is None or end_date is None:
+            # Fall back to calculating dates based on last_indexed_at
+            calculated_end_date = datetime.now(timezone.utc)
 
-        # Use last_indexed_at as start date if available, otherwise use 365 days ago
-        if connector.last_indexed_at:
-            start_date = connector.last_indexed_at.replace(tzinfo=timezone.utc)
-            logger.info(f"Using last_indexed_at ({start_date.strftime('%Y-%m-%d')}) as start date")
+            # Use last_indexed_at as start date if available, otherwise use 365 days ago
+            if connector.last_indexed_at:
+                calculated_start_date = connector.last_indexed_at.replace(tzinfo=timezone.utc)
+                logger.info(f"Using last_indexed_at ({calculated_start_date.strftime('%Y-%m-%d')}) as start date")
+            else:
+                calculated_start_date = calculated_end_date - timedelta(days=365)
+                logger.info(f"No last_indexed_at found, using {calculated_start_date.strftime('%Y-%m-%d')} (365 days ago) as start date")
+
+            # Use calculated dates if not provided, convert to ISO format for Discord API
+            if start_date is None:
+                start_date_iso = calculated_start_date.isoformat()
+            else:
+                # Convert YYYY-MM-DD to ISO format
+                start_date_iso = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).isoformat()
+                
+            if end_date is None:
+                end_date_iso = calculated_end_date.isoformat()
+            else:
+                # Convert YYYY-MM-DD to ISO format  
+                end_date_iso = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).isoformat()
         else:
-            start_date = end_date - timedelta(days=365)
-            logger.info(f"No last_indexed_at found, using {start_date.strftime('%Y-%m-%d')} (365 days ago) as start date")
-
-        # Format dates for Discord API
-        start_date_str = start_date.isoformat()
-        end_date_str = end_date.isoformat()
+            # Convert provided dates to ISO format for Discord API
+            start_date_iso = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).isoformat()
+            end_date_iso = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc).isoformat()
+            
+        logger.info(f"Indexing Discord messages from {start_date_iso} to {end_date_iso}")
 
         documents_indexed = 0
         documents_skipped = 0
@@ -1012,8 +1068,8 @@ async def index_discord_messages(
                     try:
                         messages = await discord_client.get_channel_history(
                             channel_id=channel_id,
-                            start_date=start_date_str,
-                            end_date=end_date_str,
+                            start_date=start_date_iso,
+                            end_date=end_date_iso,
                         )
                     except Exception as e:
                         logger.error(f"Failed to get messages for channel {channel_name}: {str(e)}")
@@ -1122,8 +1178,8 @@ async def index_discord_messages(
                             "channel_name": channel_name,
                             "channel_id": channel_id,
                             "message_count": len(formatted_messages),
-                            "start_date": start_date_str,
-                            "end_date": end_date_str,
+                            "start_date": start_date_iso,
+                            "end_date": end_date_iso,
                             "indexed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                         },
                         content=summary_content,
