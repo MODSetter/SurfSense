@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.5
 ARG TARGETPLATFORM
-FROM --platform=${TARGETPLATFORM} python:3.12-slim AS builder
+FROM --platform=$TARGETPLATFORM python:3.12-slim AS builder
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ RUN if [ "$INSTALL_PLAYWRIGHT" = "true" ]; then \
     fi
 
 # --- Runtime Stage ---
-FROM --platform=${TARGETPLATFORM} python:3.12-slim AS runtime
+FROM --platform=$TARGETPLATFORM python:3.12-slim AS runtime
 
 WORKDIR /app
 

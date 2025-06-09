@@ -2,7 +2,7 @@
 ARG TARGETPLATFORM
 
 # --- Base image with pnpm ---
-FROM --platform=${TARGETPLATFORM} node:20-alpine AS base
+FROM --platform=$TARGETPLATFORM node:20-alpine AS base
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -26,7 +26,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm run build
 
 # --- Runtime stage ---
-FROM --platform=${TARGETPLATFORM} node:20-alpine AS runtime
+FROM --platform=$TARGETPLATFORM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
