@@ -38,21 +38,24 @@ async def create_documents(
                 fastapi_background_tasks.add_task(
                     process_extension_document_with_new_session,
                     individual_document,
-                    request.search_space_id
+                    request.search_space_id,
+                    str(user.id)
                 )
         elif request.document_type == DocumentType.CRAWLED_URL:
             for url in request.content:
                 fastapi_background_tasks.add_task(
                     process_crawled_url_with_new_session,
                     url,
-                    request.search_space_id
+                    request.search_space_id,
+                    str(user.id)
                 )
         elif request.document_type == DocumentType.YOUTUBE_VIDEO:
             for url in request.content:
                 fastapi_background_tasks.add_task(
                     process_youtube_video_with_new_session,
                     url,
-                    request.search_space_id
+                    request.search_space_id,
+                    str(user.id)
                 )
         else:
             raise HTTPException(
@@ -106,7 +109,8 @@ async def create_documents(
                     process_file_in_background_with_new_session,
                     temp_path,
                     file.filename,
-                    search_space_id
+                    search_space_id,
+                    str(user.id)
                 )
             except Exception as e:
                 raise HTTPException(
@@ -130,6 +134,7 @@ async def process_file_in_background(
     file_path: str,
     filename: str,
     search_space_id: int,
+    user_id: str,
     session: AsyncSession
 ):
     try:
@@ -151,7 +156,8 @@ async def process_file_in_background(
                 session,
                 filename,
                 markdown_content,
-                search_space_id
+                search_space_id,
+                user_id
             )
         # Check if the file is an audio file
         elif filename.lower().endswith(('.mp3', '.mp4', '.mpeg', '.mpga', '.m4a', '.wav', '.webm')):
@@ -162,11 +168,13 @@ async def process_file_in_background(
                     transcription_response = await atranscription(
                         model=app_config.STT_SERVICE,
                         file=audio_file,
-                        api_base=app_config.STT_SERVICE_API_BASE
+                        api_base=app_config.STT_SERVICE_API_BASE,
+                        api_key=app_config.STT_SERVICE_API_KEY
                     )
                 else:
                     transcription_response = await atranscription(
                         model=app_config.STT_SERVICE,
+                        api_key=app_config.STT_SERVICE_API_KEY,
                         file=audio_file
                     )
 
@@ -187,7 +195,8 @@ async def process_file_in_background(
                 session,
                 filename,
                 transcribed_text,
-                search_space_id
+                search_space_id,
+                user_id
             )
         else:
             if app_config.ETL_SERVICE == "UNSTRUCTURED":
@@ -218,7 +227,8 @@ async def process_file_in_background(
                     session,
                     filename,
                     docs,
-                    search_space_id
+                    search_space_id,
+                    user_id
                 )
             elif app_config.ETL_SERVICE == "LLAMACLOUD":
                 from llama_cloud_services import LlamaParse
@@ -256,7 +266,8 @@ async def process_file_in_background(
                         session,
                         filename,
                         llamacloud_markdown_document=markdown_content,
-                        search_space_id=search_space_id
+                        search_space_id=search_space_id,
+                        user_id=user_id
                     )
     except Exception as e:
         import logging
@@ -426,14 +437,15 @@ async def delete_document(
 
 async def process_extension_document_with_new_session(
     individual_document,
-    search_space_id: int
+    search_space_id: int,
+    user_id: str
 ):
     """Create a new session and process extension document."""
     from app.db import async_session_maker
 
     async with async_session_maker() as session:
         try:
-            await add_extension_received_document(session, individual_document, search_space_id)
+            await add_extension_received_document(session, individual_document, search_space_id, user_id)
         except Exception as e:
             import logging
             logging.error(f"Error processing extension document: {str(e)}")
@@ -441,14 +453,15 @@ async def process_extension_document_with_new_session(
 
 async def process_crawled_url_with_new_session(
     url: str,
-    search_space_id: int
+    search_space_id: int,
+    user_id: str
 ):
     """Create a new session and process crawled URL."""
     from app.db import async_session_maker
 
     async with async_session_maker() as session:
         try:
-            await add_crawled_url_document(session, url, search_space_id)
+            await add_crawled_url_document(session, url, search_space_id, user_id)
         except Exception as e:
             import logging
             logging.error(f"Error processing crawled URL: {str(e)}")
@@ -457,25 +470,27 @@ async def process_crawled_url_with_new_session(
 async def process_file_in_background_with_new_session(
     file_path: str,
     filename: str,
-    search_space_id: int
+    search_space_id: int,
+    user_id: str
 ):
     """Create a new session and process file."""
     from app.db import async_session_maker
 
     async with async_session_maker() as session:
-        await process_file_in_background(file_path, filename, search_space_id, session)
+        await process_file_in_background(file_path, filename, search_space_id, user_id, session)
 
 
 async def process_youtube_video_with_new_session(
     url: str,
-    search_space_id: int
+    search_space_id: int,
+    user_id: str
 ):
     """Create a new session and process YouTube video."""
     from app.db import async_session_maker
 
     async with async_session_maker() as session:
         try:
-            await add_youtube_video_document(session, url, search_space_id)
+            await add_youtube_video_document(session, url, search_space_id, user_id)
         except Exception as e:
             import logging
             logging.error(f"Error processing YouTube video: {str(e)}")

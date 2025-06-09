@@ -54,7 +54,7 @@ Open source and easy to deploy locally.
 - Support for multiple TTS providers (OpenAI, Azure, Google Vertex AI)
 
 ### 📊 **Advanced RAG Techniques**
-- Supports 150+ LLM's
+- Supports 100+ LLM's
 - Supports 6000+ Embedding Models.
 - Supports all major Rerankers (Pinecode, Cohere, Flashrank etc)
 - Uses Hierarchical Indices (2 tiered RAG setup).

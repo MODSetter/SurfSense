@@ -1,7 +1,6 @@
 from typing import List, Dict, Any, Tuple, NamedTuple
 from langchain_core.messages import BaseMessage
 from litellm import token_counter, get_model_info
-from app.config import config as app_config
 
 
 class DocumentTokenInfo(NamedTuple):
@@ -127,7 +126,7 @@ def get_model_context_window(model_name: str) -> int:
 def optimize_documents_for_token_limit(
     documents: List[Dict[str, Any]],
     base_messages: List[BaseMessage],
-    model_name: str = None
+    model_name: str
 ) -> Tuple[List[Dict[str, Any]], bool]:
     """
     Optimize documents to fit within token limits using binary search.
@@ -135,7 +134,7 @@ def optimize_documents_for_token_limit(
     Args:
         documents: List of documents with content and metadata
         base_messages: Base messages without documents (chat history + system + human message template)
-        model_name: Model name for token counting (defaults to app_config.FAST_LLM)
+        model_name: Model name for token counting (required)
         output_token_buffer: Number of tokens to reserve for model output
 
     Returns:
@@ -144,7 +143,7 @@ def optimize_documents_for_token_limit(
     if not documents:
         return [], False
 
-    model = model_name or app_config.FAST_LLM
+    model = model_name
     context_window = get_model_context_window(model)
 
     # Calculate base token cost
@@ -178,8 +177,8 @@ def optimize_documents_for_token_limit(
     return optimized_documents, has_documents_remaining
 
 
-def calculate_token_count(messages: List[BaseMessage], model_name: str = None) -> int:
+def calculate_token_count(messages: List[BaseMessage], model_name: str) -> int:
     """Calculate token count for a list of LangChain messages."""
-    model = model_name or app_config.FAST_LLM
+    model = model_name
     messages_dict = convert_langchain_messages_to_dict(messages)
     return token_counter(messages=messages_dict, model=model)

@@ -1,6 +1,8 @@
 import datetime
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from app.config import config
+from app.utils.llm_service import get_user_strategic_llm
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Any, List, Optional
 
 
@@ -10,14 +12,21 @@ class QueryService:
     """
 
     @staticmethod
-    async def reformulate_query_with_chat_history(user_query: str, chat_history_str: Optional[str] = None) -> str:
+    async def reformulate_query_with_chat_history(
+        user_query: str, 
+        session: AsyncSession, 
+        user_id: str, 
+        chat_history_str: Optional[str] = None
+    ) -> str:
         """
-        Reformulate the user query using the STRATEGIC_LLM to make it more 
+        Reformulate the user query using the user's strategic LLM to make it more 
         effective for information retrieval and research purposes.
 
         Args:
             user_query: The original user query
-            chat_history: Optional list of previous chat messages
+            session: Database session for accessing user LLM configs
+            user_id: User ID to get their specific LLM configuration
+            chat_history_str: Optional chat history string
 
         Returns:
             str: The reformulated query
@@ -26,8 +35,11 @@ class QueryService:
             return user_query
 
         try:
-            # Get the strategic LLM instance from config
-            llm = config.strategic_llm_instance
+            # Get the user's strategic LLM instance
+            llm = await get_user_strategic_llm(session, user_id)
+            if not llm:
+                print(f"Warning: No strategic LLM configured for user {user_id}. Using original query.")
+                return user_query
 
             # Create system message with instructions
             system_message = SystemMessage(

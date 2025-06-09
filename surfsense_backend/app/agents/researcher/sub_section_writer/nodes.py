@@ -91,13 +91,19 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     Returns:
         Dict containing the final answer in the "final_answer" key.
     """
+    from app.utils.llm_service import get_user_fast_llm
     
     # Get configuration and relevant documents from configuration
     configuration = Configuration.from_runnable_config(config)
     documents = state.reranked_documents
+    user_id = configuration.user_id
     
-    # Initialize LLM
-    llm = app_config.fast_llm_instance
+    # Get user's fast LLM
+    llm = await get_user_fast_llm(state.db_session, user_id)
+    if not llm:
+        error_message = f"No fast LLM configured for user {user_id}"
+        print(error_message)
+        raise RuntimeError(error_message)
     
     # Extract configuration data
     section_title = configuration.sub_section_title
@@ -153,7 +159,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
         
         # Optimize documents to fit within token limits
         optimized_documents, has_optimized_documents = optimize_documents_for_token_limit(
-            documents, base_messages, app_config.FAST_LLM
+            documents, base_messages, llm.model
         )
         
         # Update state based on optimization result
@@ -206,7 +212,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     ]
     
     # Log final token count
-    total_tokens = calculate_token_count(messages_with_chat_history, app_config.FAST_LLM)
+    total_tokens = calculate_token_count(messages_with_chat_history, llm.model)
     print(f"Final token count: {total_tokens}")
     
     # Call the LLM and get the response

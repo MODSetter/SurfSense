@@ -21,7 +21,8 @@ async def generate_chat_podcast(
     session: AsyncSession,
     chat_id: int,
     search_space_id: int,
-    podcast_title: str
+    podcast_title: str,
+    user_id: int
 ):
     # Fetch the chat with the specified ID
     query = select(Chat).filter(
@@ -57,12 +58,14 @@ async def generate_chat_podcast(
     # Pass it to the SurfSense Podcaster
     config = {
         "configurable": {
-            "podcast_title" : "Surfsense",
+            "podcast_title": "SurfSense",
+            "user_id": str(user_id),
         }
     }
     # Initialize state with database session and streaming service
     initial_state = State(
         source_content=chat_history_str,
+        db_session=session
     )
     
     # Run the graph directly

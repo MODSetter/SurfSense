@@ -16,7 +16,8 @@ class Configuration:
     # these values can be pre-set when you
     # create assistants (https://langchain-ai.github.io/langgraph/cloud/how-tos/configuration_cloud/)
     # and when you invoke the graph
-    podcast_title: str 
+    podcast_title: str
+    user_id: str 
 
     @classmethod
     def from_runnable_config(
