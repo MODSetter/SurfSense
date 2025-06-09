@@ -14,13 +14,22 @@ from .configuration import Configuration
 from .state import PodcastTranscriptEntry, State, PodcastTranscripts
 from .prompts import get_podcast_generation_prompt
 from app.config import config as app_config
+from app.utils.llm_service import get_user_long_context_llm
 
 
 async def create_podcast_transcript(state: State, config: RunnableConfig) -> Dict[str, Any]:
     """Each node does work."""
     
-    # Initialize LLM
-    llm = app_config.long_context_llm_instance
+    # Get configuration from runnable config
+    configuration = Configuration.from_runnable_config(config)
+    user_id = configuration.user_id
+    
+    # Get user's long context LLM
+    llm = await get_user_long_context_llm(state.db_session, user_id)
+    if not llm:
+        error_message = f"No long context LLM configured for user {user_id}"
+        print(error_message)
+        raise RuntimeError(error_message)
     
     # Get the prompt
     prompt = get_podcast_generation_prompt()
@@ -139,6 +148,7 @@ async def create_merged_podcast_audio(state: State, config: RunnableConfig) -> D
                 response = await aspeech(
                     model=app_config.TTS_SERVICE,
                     api_base=app_config.TTS_SERVICE_API_BASE,
+                    api_key=app_config.TTS_SERVICE_API_KEY,
                     voice=voice,
                     input=dialog,
                     max_retries=2,
@@ -147,6 +157,7 @@ async def create_merged_podcast_audio(state: State, config: RunnableConfig) -> D
             else:
                 response = await aspeech(
                     model=app_config.TTS_SERVICE,
+                    api_key=app_config.TTS_SERVICE_API_KEY,
                     voice=voice,
                     input=dialog,
                     max_retries=2,

@@ -2,7 +2,6 @@ import asyncio
 import json
 from typing import Any, Dict, List
 
-from app.config import config as app_config
 from app.db import async_session_maker
 from app.utils.connector_service import ConnectorService
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -274,6 +273,9 @@ async def write_answer_outline(state: State, config: RunnableConfig, writer: Str
     Returns:
         Dict containing the answer outline in the "answer_outline" key for state update.
     """
+    from app.utils.llm_service import get_user_strategic_llm
+    from app.db import get_async_session
+    
     streaming_service = state.streaming_service
     
     streaming_service.only_update_terminal("🔍 Generating answer outline...")
@@ -283,12 +285,18 @@ async def write_answer_outline(state: State, config: RunnableConfig, writer: Str
     reformulated_query = state.reformulated_query
     user_query = configuration.user_query
     num_sections = configuration.num_sections
+    user_id = configuration.user_id
     
     streaming_service.only_update_terminal(f"🤔 Planning research approach for: \"{user_query[:100]}...\"")
     writer({"yeild_value": streaming_service._format_annotations()})
     
-    # Initialize LLM
-    llm = app_config.strategic_llm_instance
+    # Get user's strategic LLM
+    llm = await get_user_strategic_llm(state.db_session, user_id)
+    if not llm:
+        error_message = f"No strategic LLM configured for user {user_id}"
+        streaming_service.only_update_terminal(f"❌ {error_message}", "error")
+        writer({"yeild_value": streaming_service._format_annotations()})
+        raise RuntimeError(error_message)
     
     # Create the human message content
     human_message_content = f"""
@@ -828,48 +836,47 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
     user_selected_documents = []
     user_selected_sources = []
     
-    async with async_session_maker() as db_session:
-        try:
-            # First, fetch user-selected documents if any
-            if configuration.document_ids_to_add_in_context:
-                streaming_service.only_update_terminal(f"📋 Including {len(configuration.document_ids_to_add_in_context)} user-selected documents...")
-                writer({"yeild_value": streaming_service._format_annotations()})
-                
-                user_selected_sources, user_selected_documents = await fetch_documents_by_ids(
-                    document_ids=configuration.document_ids_to_add_in_context,
-                    user_id=configuration.user_id,
-                    db_session=db_session
-                )
-                
-                if user_selected_documents:
-                    streaming_service.only_update_terminal(f"✅ Successfully added {len(user_selected_documents)} user-selected documents to context")
-                    writer({"yeild_value": streaming_service._format_annotations()})
-            
-            # Create connector service inside the db_session scope
-            connector_service = ConnectorService(db_session, user_id=configuration.user_id)
-            await connector_service.initialize_counter()
-            
-            relevant_documents = await fetch_relevant_documents(
-                research_questions=all_questions,
-                user_id=configuration.user_id,
-                search_space_id=configuration.search_space_id,
-                db_session=db_session,
-                connectors_to_search=configuration.connectors_to_search,
-                writer=writer,
-                state=state,
-                top_k=TOP_K,
-                connector_service=connector_service,
-                search_mode=configuration.search_mode,
-                user_selected_sources=user_selected_sources
-            )
-        except Exception as e:
-            error_message = f"Error fetching relevant documents: {str(e)}"
-            print(error_message)
-            streaming_service.only_update_terminal(f"❌ {error_message}", "error")
+    try:
+        # First, fetch user-selected documents if any
+        if configuration.document_ids_to_add_in_context:
+            streaming_service.only_update_terminal(f"📋 Including {len(configuration.document_ids_to_add_in_context)} user-selected documents...")
             writer({"yeild_value": streaming_service._format_annotations()})
-            # Log the error and continue with an empty list of documents
-            # This allows the process to continue, but the report might lack information
-            relevant_documents = []
+            
+            user_selected_sources, user_selected_documents = await fetch_documents_by_ids(
+                document_ids=configuration.document_ids_to_add_in_context,
+                user_id=configuration.user_id,
+                db_session=state.db_session
+            )
+            
+            if user_selected_documents:
+                streaming_service.only_update_terminal(f"✅ Successfully added {len(user_selected_documents)} user-selected documents to context")
+                writer({"yeild_value": streaming_service._format_annotations()})
+        
+        # Create connector service using state db_session
+        connector_service = ConnectorService(state.db_session, user_id=configuration.user_id)
+        await connector_service.initialize_counter()
+        
+        relevant_documents = await fetch_relevant_documents(
+            research_questions=all_questions,
+            user_id=configuration.user_id,
+            search_space_id=configuration.search_space_id,
+            db_session=state.db_session,
+            connectors_to_search=configuration.connectors_to_search,
+            writer=writer,
+            state=state,
+            top_k=TOP_K,
+            connector_service=connector_service,
+            search_mode=configuration.search_mode,
+            user_selected_sources=user_selected_sources
+        )
+    except Exception as e:
+        error_message = f"Error fetching relevant documents: {str(e)}"
+        print(error_message)
+        streaming_service.only_update_terminal(f"❌ {error_message}", "error")
+        writer({"yeild_value": streaming_service._format_annotations()})
+        # Log the error and continue with an empty list of documents
+        # This allows the process to continue, but the report might lack information
+        relevant_documents = []
     
     # Combine user-selected documents with connector-fetched documents
     all_documents = user_selected_documents + relevant_documents
@@ -1014,82 +1021,80 @@ async def process_section_with_documents(
                 for question in section_questions
             ]
         
-        # Create a new database session for this section
-        async with async_session_maker() as db_session:
-            # Call the sub_section_writer graph with the appropriate config
-            config = {
-                "configurable": {
-                    "sub_section_title": section_title,
-                    "sub_section_questions": section_questions,
-                    "sub_section_type": sub_section_type,
-                    "user_query": user_query,
-                    "relevant_documents": documents_to_use,
-                    "user_id": user_id,
-                    "search_space_id": search_space_id
-                }
+        # Call the sub_section_writer graph with the appropriate config
+        config = {
+            "configurable": {
+                "sub_section_title": section_title,
+                "sub_section_questions": section_questions,
+                "sub_section_type": sub_section_type,
+                "user_query": user_query,
+                "relevant_documents": documents_to_use,
+                "user_id": user_id,
+                "search_space_id": search_space_id
             }
-            
-            # Create the initial state with db_session and chat_history
-            sub_state = {
-                "db_session": db_session,
-                "chat_history": state.chat_history
-            }
-            
-            # Invoke the sub-section writer graph with streaming
-            print(f"Invoking sub_section_writer for: {section_title}")
-            if state and state.streaming_service and writer:
-                state.streaming_service.only_update_terminal(f"🧠 Analyzing information and drafting content for section: \"{section_title}\"")
-                writer({"yeild_value": state.streaming_service._format_annotations()})
-            
-            # Variables to track streaming state
-            complete_content = ""  # Tracks the complete content received so far
-            
-            async for chunk_type, chunk in sub_section_writer_graph.astream(sub_state, config, stream_mode=["values"]):
-                if "final_answer" in chunk:
-                    new_content = chunk["final_answer"]
-                    if new_content and new_content != complete_content:
-                        # Extract only the new content (delta)
-                        delta = new_content[len(complete_content):]
+        }
+        
+        # Create the initial state with db_session and chat_history
+        sub_state = {
+            "db_session": state.db_session,
+            "chat_history": state.chat_history
+        }
+        
+        # Invoke the sub-section writer graph with streaming
+        print(f"Invoking sub_section_writer for: {section_title}")
+        if state and state.streaming_service and writer:
+            state.streaming_service.only_update_terminal(f"🧠 Analyzing information and drafting content for section: \"{section_title}\"")
+            writer({"yeild_value": state.streaming_service._format_annotations()})
+        
+        # Variables to track streaming state
+        complete_content = ""  # Tracks the complete content received so far
+        
+        async for chunk_type, chunk in sub_section_writer_graph.astream(sub_state, config, stream_mode=["values"]):
+            if "final_answer" in chunk:
+                new_content = chunk["final_answer"]
+                if new_content and new_content != complete_content:
+                    # Extract only the new content (delta)
+                    delta = new_content[len(complete_content):]
+                    
+                    # Update what we've processed so far
+                    complete_content = new_content
+                    
+                    # Only stream if there's actual new content
+                    if delta and state and state.streaming_service and writer:
+                        # Update terminal with real-time progress indicator
+                        state.streaming_service.only_update_terminal(f"✍️ Writing section {section_id+1}... ({len(complete_content.split())} words)")
                         
-                        # Update what we've processed so far
-                        complete_content = new_content
+                        # Update section_contents with just the new delta
+                        section_contents[section_id]["content"] += delta
                         
-                        # Only stream if there's actual new content
-                        if delta and state and state.streaming_service and writer:
-                            # Update terminal with real-time progress indicator
-                            state.streaming_service.only_update_terminal(f"✍️ Writing section {section_id+1}... ({len(complete_content.split())} words)")
-                            
-                            # Update section_contents with just the new delta
-                            section_contents[section_id]["content"] += delta
-                            
-                            # Build UI-friendly content for all sections
-                            complete_answer = []
-                            for i in range(len(section_contents)):
-                                if i in section_contents and section_contents[i]["content"]:
-                                    # Add section header
-                                    complete_answer.append(f"# {section_contents[i]['title']}")
-                                    complete_answer.append("")  # Empty line after title
-                                    
-                                    # Add section content
-                                    content_lines = section_contents[i]["content"].split("\n")
-                                    complete_answer.extend(content_lines)
-                                    complete_answer.append("")  # Empty line after content
-                            
-                            # Update answer in UI in real-time
-                            state.streaming_service.only_update_answer(complete_answer)
-                            writer({"yeild_value": state.streaming_service._format_annotations()})
-            
-            # Set default if no content was received
-            if not complete_content:
-                complete_content = "No content was generated for this section."
-                section_contents[section_id]["content"] = complete_content
-            
-            # Final terminal update
-            if state and state.streaming_service and writer:
-                state.streaming_service.only_update_terminal(f"✅ Completed section: \"{section_title}\"")
-                writer({"yeild_value": state.streaming_service._format_annotations()})
-            
-            return complete_content
+                        # Build UI-friendly content for all sections
+                        complete_answer = []
+                        for i in range(len(section_contents)):
+                            if i in section_contents and section_contents[i]["content"]:
+                                # Add section header
+                                complete_answer.append(f"# {section_contents[i]['title']}")
+                                complete_answer.append("")  # Empty line after title
+                                
+                                # Add section content
+                                content_lines = section_contents[i]["content"].split("\n")
+                                complete_answer.extend(content_lines)
+                                complete_answer.append("")  # Empty line after content
+                        
+                        # Update answer in UI in real-time
+                        state.streaming_service.only_update_answer(complete_answer)
+                        writer({"yeild_value": state.streaming_service._format_annotations()})
+        
+        # Set default if no content was received
+        if not complete_content:
+            complete_content = "No content was generated for this section."
+            section_contents[section_id]["content"] = complete_content
+        
+        # Final terminal update
+        if state and state.streaming_service and writer:
+            state.streaming_service.only_update_terminal(f"✅ Completed section: \"{section_title}\"")
+            writer({"yeild_value": state.streaming_service._format_annotations()})
+        
+        return complete_content
     except Exception as e:
         print(f"Error processing section '{section_title}': {str(e)}")
         
@@ -1113,7 +1118,7 @@ async def reformulate_user_query(state: State, config: RunnableConfig, writer: S
     if len(state.chat_history) == 0: 
         reformulated_query = user_query
     else:
-        reformulated_query = await QueryService.reformulate_query_with_chat_history(user_query, chat_history_str)
+        reformulated_query = await QueryService.reformulate_query_with_chat_history(user_query=user_query, session=state.db_session, user_id=configuration.user_id, chat_history_str=chat_history_str)
     
     return {
         "reformulated_query": reformulated_query
@@ -1152,50 +1157,49 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
     user_selected_documents = []
     user_selected_sources = []
     
-    async with async_session_maker() as db_session:
-        try:
-            # First, fetch user-selected documents if any
-            if configuration.document_ids_to_add_in_context:
-                streaming_service.only_update_terminal(f"📋 Including {len(configuration.document_ids_to_add_in_context)} user-selected documents...")
-                writer({"yeild_value": streaming_service._format_annotations()})
-                
-                user_selected_sources, user_selected_documents = await fetch_documents_by_ids(
-                    document_ids=configuration.document_ids_to_add_in_context,
-                    user_id=configuration.user_id,
-                    db_session=db_session
-                )
-                
-                if user_selected_documents:
-                    streaming_service.only_update_terminal(f"✅ Successfully added {len(user_selected_documents)} user-selected documents to context")
-                    writer({"yeild_value": streaming_service._format_annotations()})
-            
-            # Create connector service inside the db_session scope
-            connector_service = ConnectorService(db_session, user_id=configuration.user_id)
-            await connector_service.initialize_counter()
-            
-            # Use the reformulated query as a single research question
-            research_questions = [reformulated_query, user_query]
-            
-            relevant_documents = await fetch_relevant_documents(
-                research_questions=research_questions,
-                user_id=configuration.user_id,
-                search_space_id=configuration.search_space_id,
-                db_session=db_session,
-                connectors_to_search=configuration.connectors_to_search,
-                writer=writer,
-                state=state,
-                top_k=TOP_K,
-                connector_service=connector_service,
-                search_mode=configuration.search_mode,
-                user_selected_sources=user_selected_sources
-            )
-        except Exception as e:
-            error_message = f"Error fetching relevant documents for QNA: {str(e)}"
-            print(error_message)
-            streaming_service.only_update_terminal(f"❌ {error_message}", "error")
+    try:
+        # First, fetch user-selected documents if any
+        if configuration.document_ids_to_add_in_context:
+            streaming_service.only_update_terminal(f"📋 Including {len(configuration.document_ids_to_add_in_context)} user-selected documents...")
             writer({"yeild_value": streaming_service._format_annotations()})
-            # Continue with empty documents - the QNA agent will handle this gracefully
-            relevant_documents = []
+            
+            user_selected_sources, user_selected_documents = await fetch_documents_by_ids(
+                document_ids=configuration.document_ids_to_add_in_context,
+                user_id=configuration.user_id,
+                db_session=state.db_session
+            )
+            
+            if user_selected_documents:
+                streaming_service.only_update_terminal(f"✅ Successfully added {len(user_selected_documents)} user-selected documents to context")
+                writer({"yeild_value": streaming_service._format_annotations()})
+        
+        # Create connector service using state db_session
+        connector_service = ConnectorService(state.db_session, user_id=configuration.user_id)
+        await connector_service.initialize_counter()
+        
+        # Use the reformulated query as a single research question
+        research_questions = [reformulated_query, user_query]
+        
+        relevant_documents = await fetch_relevant_documents(
+            research_questions=research_questions,
+            user_id=configuration.user_id,
+            search_space_id=configuration.search_space_id,
+            db_session=state.db_session,
+            connectors_to_search=configuration.connectors_to_search,
+            writer=writer,
+            state=state,
+            top_k=TOP_K,
+            connector_service=connector_service,
+            search_mode=configuration.search_mode,
+            user_selected_sources=user_selected_sources
+        )
+    except Exception as e:
+        error_message = f"Error fetching relevant documents for QNA: {str(e)}"
+        print(error_message)
+        streaming_service.only_update_terminal(f"❌ {error_message}", "error")
+        writer({"yeild_value": streaming_service._format_annotations()})
+        # Continue with empty documents - the QNA agent will handle this gracefully
+        relevant_documents = []
     
     # Combine user-selected documents with connector-fetched documents
     all_documents = user_selected_documents + relevant_documents

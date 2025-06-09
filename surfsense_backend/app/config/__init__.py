@@ -4,7 +4,7 @@ import shutil
 
 from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
 from dotenv import load_dotenv
-from langchain_community.chat_models import ChatLiteLLM
+
 from rerankers import Reranker
 
 
@@ -49,31 +49,8 @@ class Config:
         GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
         
     
-    # LONG-CONTEXT LLMS
-    LONG_CONTEXT_LLM = os.getenv("LONG_CONTEXT_LLM")
-    LONG_CONTEXT_LLM_API_BASE = os.getenv("LONG_CONTEXT_LLM_API_BASE")
-    if LONG_CONTEXT_LLM_API_BASE:
-        long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM, api_base=LONG_CONTEXT_LLM_API_BASE)
-    else:
-        long_context_llm_instance = ChatLiteLLM(model=LONG_CONTEXT_LLM)
-    
-    # FAST LLM
-    FAST_LLM = os.getenv("FAST_LLM")
-    FAST_LLM_API_BASE = os.getenv("FAST_LLM_API_BASE")
-    if FAST_LLM_API_BASE:
-        fast_llm_instance = ChatLiteLLM(model=FAST_LLM, api_base=FAST_LLM_API_BASE)
-    else:
-        fast_llm_instance = ChatLiteLLM(model=FAST_LLM)
-        
-        
-    
-    # STRATEGIC LLM
-    STRATEGIC_LLM = os.getenv("STRATEGIC_LLM")
-    STRATEGIC_LLM_API_BASE = os.getenv("STRATEGIC_LLM_API_BASE")
-    if STRATEGIC_LLM_API_BASE:
-        strategic_llm_instance = ChatLiteLLM(model=STRATEGIC_LLM, api_base=STRATEGIC_LLM_API_BASE)
-    else:
-        strategic_llm_instance = ChatLiteLLM(model=STRATEGIC_LLM)
+    # LLM instances are now managed per-user through the LLMConfig system
+    # Legacy environment variables removed in favor of user-specific configurations
 
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
@@ -114,10 +91,12 @@ class Config:
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
     TTS_SERVICE_API_BASE = os.getenv("TTS_SERVICE_API_BASE")
+    TTS_SERVICE_API_KEY = os.getenv("TTS_SERVICE_API_KEY")
     
     # Litellm STT Configuration
     STT_SERVICE = os.getenv("STT_SERVICE")
     STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
+    STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")
     
     
     # Validation Checks

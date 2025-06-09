@@ -19,7 +19,9 @@ import {
   FolderOpen,
   Upload,
   ChevronDown,
-  Filter
+  Filter,
+  Brain,
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +44,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -62,6 +71,7 @@ import { MarkdownViewer } from '@/components/markdown-viewer';
 import { Logo } from '@/components/Logo';
 import { useSearchSourceConnectors } from '@/hooks';
 import { useDocuments } from '@/hooks/use-documents';
+import { useLLMConfigs, useLLMPreferences } from '@/hooks/use-llm-configs';
 
 interface SourceItem {
   id: number;
@@ -374,6 +384,8 @@ const ChatPage = () => {
   const [currentDate, setCurrentDate] = useState<string>('');
   const terminalMessagesRef = useRef<HTMLDivElement>(null);
   const { connectorSourceItems, isLoading: isLoadingConnectors } = useSearchSourceConnectors();
+  const { llmConfigs } = useLLMConfigs();
+  const { preferences, updatePreferences } = useLLMPreferences();
 
   const INITIAL_SOURCES_DISPLAY = 3;
 
@@ -456,6 +468,8 @@ const ChatPage = () => {
     setCurrentDate(new Date().toISOString().split('T')[0]);
     setCurrentTime(new Date().toTimeString().split(' ')[0]);
   }, []);
+
+
 
   // Add this CSS to remove input shadow and improve the UI
   useEffect(() => {
@@ -710,6 +724,7 @@ const ChatPage = () => {
     if (!input.trim() || status !== 'ready') return;
 
     // Validation: require at least one connector OR at least one document
+    // Note: Fast LLM selection updates user preferences automatically
     // if (selectedConnectors.length === 0 && selectedDocuments.length === 0) {
     //   alert("Please select at least one connector or document");
     //   return;
@@ -1568,6 +1583,75 @@ const ChatPage = () => {
                   value={researchMode}
                   onChange={setResearchMode}
                 />
+              </div>
+
+              {/* Fast LLM Selector */}
+              <div className="h-8 min-w-0">
+                <Select
+                  value={preferences.fast_llm_id?.toString() || ""}
+                  onValueChange={(value) => {
+                    const llmId = value ? parseInt(value) : undefined;
+                    updatePreferences({ fast_llm_id: llmId });
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-auto min-w-[120px] px-3 text-xs border-border bg-background hover:bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-3 w-3 text-primary" />
+                      <SelectValue placeholder="Fast LLM">
+                        {preferences.fast_llm_id && (() => {
+                          const selectedConfig = llmConfigs.find(config => config.id === preferences.fast_llm_id);
+                          return selectedConfig ? (
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">{selectedConfig.provider}</span>
+                              <span className="text-muted-foreground">•</span>
+                              <span className="hidden sm:inline text-muted-foreground">{selectedConfig.name}</span>
+                            </div>
+                          ) : "Select LLM";
+                        })()}
+                      </SelectValue>
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent align="end" className="w-[280px]">
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
+                      Answer LLM Selection
+                    </div>
+                    {llmConfigs.length === 0 ? (
+                      <div className="px-2 py-3 text-center text-sm text-muted-foreground">
+                        <Brain className="h-4 w-4 mx-auto mb-1 opacity-50" />
+                        <p>No LLM configurations found</p>
+                        <p className="text-xs">Configure models in Settings</p>
+                      </div>
+                    ) : (
+                      llmConfigs.map((config) => (
+                        <SelectItem key={config.id} value={config.id.toString()}>
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+                                <Brain className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{config.name}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {config.provider}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground font-mono">
+                                  {config.model_name}
+                                </p>
+                              </div>
+                            </div>
+                            {preferences.fast_llm_id === config.id && (
+                              <div className="flex h-4 w-4 items-center justify-center rounded-full bg-primary">
+                                <div className="h-2 w-2 rounded-full bg-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

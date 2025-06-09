@@ -3,9 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
 from datetime import datetime, timedelta, timezone
-from app.db import Document, DocumentType, Chunk, SearchSourceConnector, SearchSourceConnectorType
+from app.db import Document, DocumentType, Chunk, SearchSourceConnector, SearchSourceConnectorType, SearchSpace
 from app.config import config
 from app.prompts import SUMMARY_PROMPT_TEMPLATE
+from app.utils.llm_service import get_user_long_context_llm
 from app.connectors.slack_history import SlackHistory
 from app.connectors.notion_history import NotionHistoryConnector
 from app.connectors.github_connector import GitHubConnector
@@ -24,6 +25,7 @@ async def index_slack_messages(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    user_id: str,
     start_date: str = None,
     end_date: str = None,
     update_last_indexed: bool = True
@@ -211,8 +213,16 @@ async def index_slack_messages(
                     documents_skipped += 1
                     continue
                 
+                # Get user's long context LLM
+                user_llm = await get_user_long_context_llm(session, user_id)
+                if not user_llm:
+                    logger.error(f"No long context LLM configured for user {user_id}")
+                    skipped_channels.append(f"{channel_name} (no LLM configured)")
+                    documents_skipped += 1
+                    continue
+                
                 # Generate summary
-                summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
+                summary_chain = SUMMARY_PROMPT_TEMPLATE | user_llm
                 summary_result = await summary_chain.ainvoke({"document": combined_document_string})
                 summary_content = summary_result.content
                 summary_embedding = config.embedding_model_instance.embed(summary_content)
@@ -289,6 +299,7 @@ async def index_notion_pages(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    user_id: str,
     start_date: str = None,
     end_date: str = None,
     update_last_indexed: bool = True
@@ -476,9 +487,17 @@ async def index_notion_pages(
                     documents_skipped += 1
                     continue
                 
+                # Get user's long context LLM
+                user_llm = await get_user_long_context_llm(session, user_id)
+                if not user_llm:
+                    logger.error(f"No long context LLM configured for user {user_id}")
+                    skipped_pages.append(f"{page_title} (no LLM configured)")
+                    documents_skipped += 1
+                    continue
+                
                 # Generate summary
                 logger.debug(f"Generating summary for page {page_title}")
-                summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
+                summary_chain = SUMMARY_PROMPT_TEMPLATE | user_llm
                 summary_result = await summary_chain.ainvoke({"document": combined_document_string})
                 summary_content = summary_result.content
                 summary_embedding = config.embedding_model_instance.embed(summary_content)
@@ -549,6 +568,7 @@ async def index_github_repos(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    user_id: str,
     start_date: str = None,
     end_date: str = None,
     update_last_indexed: bool = True
@@ -717,6 +737,7 @@ async def index_linear_issues(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    user_id: str,
     start_date: str = None,
     end_date: str = None,
     update_last_indexed: bool = True
@@ -955,6 +976,7 @@ async def index_discord_messages(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
+    user_id: str,
     start_date: str = None,
     end_date: str = None,
     update_last_indexed: bool = True
@@ -1142,8 +1164,16 @@ async def index_discord_messages(
                         documents_skipped += 1
                         continue
 
+                    # Get user's long context LLM
+                    user_llm = await get_user_long_context_llm(session, user_id)
+                    if not user_llm:
+                        logger.error(f"No long context LLM configured for user {user_id}")
+                        skipped_channels.append(f"{guild_name}#{channel_name} (no LLM configured)")
+                        documents_skipped += 1
+                        continue
+
                     # Generate summary using summary_chain
-                    summary_chain = SUMMARY_PROMPT_TEMPLATE | config.long_context_llm_instance
+                    summary_chain = SUMMARY_PROMPT_TEMPLATE | user_llm
                     summary_result = await summary_chain.ainvoke({"document": combined_document_string})
                     summary_content = summary_result.content
                     summary_embedding = await asyncio.to_thread(

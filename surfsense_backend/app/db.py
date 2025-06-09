@@ -67,6 +67,30 @@ class ChatType(str, Enum):
     REPORT_GENERAL = "REPORT_GENERAL"
     REPORT_DEEP = "REPORT_DEEP"
     REPORT_DEEPER = "REPORT_DEEPER"
+
+class LiteLLMProvider(str, Enum):
+    OPENAI = "OPENAI"
+    ANTHROPIC = "ANTHROPIC"
+    GROQ = "GROQ"
+    COHERE = "COHERE"
+    HUGGINGFACE = "HUGGINGFACE"
+    AZURE_OPENAI = "AZURE_OPENAI"
+    GOOGLE = "GOOGLE"
+    AWS_BEDROCK = "AWS_BEDROCK"
+    OLLAMA = "OLLAMA"
+    MISTRAL = "MISTRAL"
+    TOGETHER_AI = "TOGETHER_AI"
+    REPLICATE = "REPLICATE"
+    PALM = "PALM"
+    VERTEX_AI = "VERTEX_AI"
+    ANYSCALE = "ANYSCALE"
+    PERPLEXITY = "PERPLEXITY"
+    DEEPINFRA = "DEEPINFRA"
+    AI21 = "AI21"
+    NLPCLOUD = "NLPCLOUD"
+    ALEPH_ALPHA = "ALEPH_ALPHA"
+    PETALS = "PETALS"
+    CUSTOM = "CUSTOM"
     
 class Base(DeclarativeBase):
     pass
@@ -152,6 +176,26 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete='CASCADE'), nullable=False)
     user = relationship("User", back_populates="search_source_connectors")
 
+class LLMConfig(BaseModel, TimestampMixin):
+    __tablename__ = "llm_configs"
+    
+    name = Column(String(100), nullable=False, index=True)
+    # Provider from the enum
+    provider = Column(SQLAlchemyEnum(LiteLLMProvider), nullable=False)
+    # Custom provider name when provider is CUSTOM
+    custom_provider = Column(String(100), nullable=True)
+    # Just the model name without provider prefix
+    model_name = Column(String(100), nullable=False)
+    # API Key should be encrypted before storing
+    api_key = Column(String, nullable=False)
+    api_base = Column(String(500), nullable=True)
+    
+    # For any other parameters that litellm supports
+    litellm_params = Column(JSON, nullable=True, default={})
+    
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete='CASCADE'), nullable=False)
+    user = relationship("User", back_populates="llm_configs", foreign_keys=[user_id])
+
 if config.AUTH_TYPE == "GOOGLE":
     class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
         pass
@@ -163,11 +207,29 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         search_spaces = relationship("SearchSpace", back_populates="user")
         search_source_connectors = relationship("SearchSourceConnector", back_populates="user")
+        llm_configs = relationship("LLMConfig", back_populates="user", foreign_keys="LLMConfig.user_id", cascade="all, delete-orphan")
+
+        long_context_llm_id = Column(Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True)
+        fast_llm_id = Column(Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True)
+        strategic_llm_id = Column(Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True)
+
+        long_context_llm = relationship("LLMConfig", foreign_keys=[long_context_llm_id], post_update=True)
+        fast_llm = relationship("LLMConfig", foreign_keys=[fast_llm_id], post_update=True)
+        strategic_llm = relationship("LLMConfig", foreign_keys=[strategic_llm_id], post_update=True)
 else:
     class User(SQLAlchemyBaseUserTableUUID, Base):
 
         search_spaces = relationship("SearchSpace", back_populates="user")
         search_source_connectors = relationship("SearchSourceConnector", back_populates="user")
+        llm_configs = relationship("LLMConfig", back_populates="user", foreign_keys="LLMConfig.user_id", cascade="all, delete-orphan")
+
+        long_context_llm_id = Column(Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True)
+        fast_llm_id = Column(Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True)
+        strategic_llm_id = Column(Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True)
+
+        long_context_llm = relationship("LLMConfig", foreign_keys=[long_context_llm_id], post_update=True)
+        fast_llm = relationship("LLMConfig", foreign_keys=[fast_llm_id], post_update=True)
+        strategic_llm = relationship("LLMConfig", foreign_keys=[strategic_llm_id], post_update=True)
 
 
 engine = create_async_engine(DATABASE_URL)

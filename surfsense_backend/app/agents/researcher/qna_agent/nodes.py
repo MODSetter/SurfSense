@@ -85,14 +85,20 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
     Returns:
         Dict containing the final answer in the "final_answer" key.
     """
+    from app.utils.llm_service import get_user_fast_llm
     
     # Get configuration and relevant documents from configuration
     configuration = Configuration.from_runnable_config(config)
     documents = state.reranked_documents
     user_query = configuration.user_query
+    user_id = configuration.user_id
     
-    # Initialize LLM
-    llm = app_config.fast_llm_instance
+    # Get user's fast LLM
+    llm = await get_user_fast_llm(state.db_session, user_id)
+    if not llm:
+        error_message = f"No fast LLM configured for user {user_id}"
+        print(error_message)
+        raise RuntimeError(error_message)
     
     # Determine if we have documents and optimize for token limits
     has_documents_initially = documents and len(documents) > 0
@@ -118,7 +124,7 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
         
         # Optimize documents to fit within token limits
         optimized_documents, has_optimized_documents = optimize_documents_for_token_limit(
-            documents, base_messages, app_config.FAST_LLM
+            documents, base_messages, llm.model
         )
         
         # Update state based on optimization result
@@ -161,7 +167,7 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
     ]
     
     # Log final token count
-    total_tokens = calculate_token_count(messages_with_chat_history, app_config.FAST_LLM)
+    total_tokens = calculate_token_count(messages_with_chat_history, llm.model)
     print(f"Final token count: {total_tokens}")
     
     

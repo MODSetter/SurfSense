@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
 from pydantic import BaseModel, Field
-
+from sqlalchemy.ext.asyncio import AsyncSession
 
 class PodcastTranscriptEntry(BaseModel):
     """
@@ -32,7 +32,8 @@ class State:
     See: https://langchain-ai.github.io/langgraph/concepts/low_level/#state
     for more information.
     """
-
+    # Runtime context
+    db_session: AsyncSession
     source_content: str
     podcast_transcript: Optional[List[PodcastTranscriptEntry]] = None
     final_podcast_file_path: Optional[str] = None

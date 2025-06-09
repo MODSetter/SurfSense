@@ -128,14 +128,15 @@ async def delete_podcast(
 async def generate_chat_podcast_with_new_session(
     chat_id: int,
     search_space_id: int,
-    podcast_title: str = "SurfSense Podcast"
+    podcast_title: str,
+    user_id: int
 ):
     """Create a new session and process chat podcast generation."""
     from app.db import async_session_maker
     
     async with async_session_maker() as session:
         try:
-            await generate_chat_podcast(session, chat_id, search_space_id, podcast_title)
+            await generate_chat_podcast(session, chat_id, search_space_id, podcast_title, user_id)
         except Exception as e:
             import logging
             logging.error(f"Error generating podcast from chat: {str(e)}")
@@ -175,7 +176,8 @@ async def generate_podcast(
                     generate_chat_podcast_with_new_session, 
                     chat_id, 
                     request.search_space_id,
-                    request.podcast_title
+                    request.podcast_title,
+                    user.id
                 )
         
         return {
