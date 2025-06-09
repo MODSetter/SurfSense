@@ -1,32 +1,42 @@
-FROM node:20-alpine
+# syntax=docker/dockerfile:1.5
+ARG TARGETPLATFORM
 
+# --- Base image with pnpm ---
+FROM --platform=${TARGETPLATFORM} node:20-alpine AS base
 WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Install pnpm
-RUN npm install -g pnpm
-
-# Copy package files
+# --- Prod deps stage ---
+FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml ./
+RUN --mount=type=cache,target=/root/.pnpm-store \
+    pnpm install --frozen-lockfile --prod
 
+# --- Dev deps / builder stage ---
+FROM base AS builder
+COPY package.json pnpm-lock.yaml ./
 # First copy the config file to avoid fumadocs-mdx postinstall error
 COPY source.config.ts ./
 COPY content ./content
-
-# Install dependencies with --ignore-scripts to skip postinstall
-RUN pnpm install --ignore-scripts
-
-# Now run the postinstall script manually
-RUN pnpm fumadocs-mdx
-
-# Copy source code
+RUN --mount=type=cache,target=/root/.pnpm-store \
+    pnpm install --frozen-lockfile
 COPY . .
+ARG NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm run build
 
-# Build app for production
-# For development, we'll mount the source code as a volume
-# so the build step will be skipped in development mode
+# --- Runtime stage ---
+FROM --platform=${TARGETPLATFORM} node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs nextjs
 
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=prod-deps /app/package.json ./package.json
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
+USER nextjs
 EXPOSE 3000
-
-# Start Next.js in development mode by default
-# This will be faster for development since we're mounting the code as a volume
-CMD ["pnpm", "dev"] 
+CMD ["pnpm", "start"]
