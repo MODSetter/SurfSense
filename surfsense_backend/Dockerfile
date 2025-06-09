@@ -8,7 +8,7 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1
 
 # Install system dependencies
-RUN --mount=type=cache,target=/var/cache/apt \
+RUN --mount=type=cache,id=apt-cache-${TARGETOS}-${TARGETARCH},target=/var/cache/apt \
     apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \

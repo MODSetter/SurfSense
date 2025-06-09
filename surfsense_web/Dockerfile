@@ -9,7 +9,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile --prod
+    pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # --- Dev deps / builder stage ---
 FROM base AS builder
