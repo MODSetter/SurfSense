@@ -9,7 +9,9 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 # Install system dependencies
 RUN --mount=type=cache,id=apt-cache-${TARGETOS}-${TARGETARCH},target=/var/cache/apt \
-    apt-get update && apt-get install -y --no-install-recommends \
+    rm -f /var/cache/apt/archives/lock /var/lib/apt/lists/lock && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
