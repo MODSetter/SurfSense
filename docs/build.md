@@ -36,21 +36,37 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 ```
 
 
+---
+
+
+# 0) authenticate once per shell
+
+```
+echo "$CR_PAT" | docker login ghcr.io -u erauner12 --password-stdin
+docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
+
+SHA=$(git rev-parse --short HEAD)
+```
+
+# ─── UI ─────────────────────────────────────────────
+
 ```
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -f surfsense_web/Dockerfile \
   -t ghcr.io/erauner12/surfsense_ui:latest \
-  -t ghcr.io/erauner12/surfsense_ui:$(git rev-parse --short HEAD) \
+  -t ghcr.io/erauner12/surfsense_ui:$SHA \
   --push \
   surfsense_web
 ```
 
+# ─── Backend ────────────────────────────────────────
 ```
-docker buildx build --platform linux/amd64,linux/arm64 \
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
   -f surfsense_backend/Dockerfile \
   -t ghcr.io/erauner12/surfsense_backend:latest \
-  -t ghcr.io/erauner12/surfsense_backend:$(git rev-parse --short HEAD) \
-  --push surfsense_backend
+  -t ghcr.io/erauner12/surfsense_backend:$SHA \
+  --push \
+  surfsense_backend
 ```
-
