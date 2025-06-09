@@ -147,16 +147,16 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 
 ## Screenshots
 
+**Research Agent** 
+
+![updated_researcher](https://github.com/user-attachments/assets/e22c5d86-f511-4c72-8c50-feba0c1561b4)
+
 **Search Spaces** 
 
 ![search_spaces](https://github.com/user-attachments/assets/e254c38c-f937-44b6-9e9d-770db583d099)
 
 **Manage Documents** 
 ![documents](https://github.com/user-attachments/assets/7001e306-eb06-4009-89c6-8fadfdc3fc4d)
-
-**Research Agent** 
-
-![researcher](https://github.com/user-attachments/assets/fda3e61f-f936-4b66-b565-d84edde44a67)
 
 **Podcast Agent** 
 ![podcasts](https://github.com/user-attachments/assets/6cb82ffd-9e14-4172-bc79-67faf34c4c1c)
