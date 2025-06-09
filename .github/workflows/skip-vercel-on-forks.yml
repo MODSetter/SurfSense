@@ -1,0 +1,12 @@
+name: Skip Vercel on forks
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  skip-vercel:
+    # Only run when the PR originates in *your* repo (fork)
+    if: github.repository_owner != 'MODSetter'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Fork detected – skipping Vercel preview build."
