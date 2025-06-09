@@ -39,6 +39,12 @@ jobs:
             org.opencontainers.image.created=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Verify image contains both platforms
+        run: |
+          echo "Verifying image platforms for tag: ghcr.io/${{ github.repository_owner }}/surfsense_backend:${{ github.sha }}"
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/surfsense_backend:${{ github.sha }} | grep 'linux/amd64'
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/surfsense_backend:${{ github.sha }} | grep 'linux/arm64'
+
   build_and_push_frontend:
     runs-on: ubuntu-latest
     permissions:
@@ -73,3 +79,9 @@ jobs:
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.created=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Verify image contains both platforms
+        run: |
+          echo "Verifying image platforms for tag: ghcr.io/${{ github.repository_owner }}/surfsense_web:${{ github.sha }}"
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/surfsense_web:${{ github.sha }} | grep 'linux/amd64'
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/surfsense_web:${{ github.sha }} | grep 'linux/arm64'

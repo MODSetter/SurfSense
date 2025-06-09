@@ -9,9 +9,9 @@ UI_IMAGE       := ghcr.io/$(OWNER)/surfsense_ui
 define buildx =
 	docker buildx build \
 		--builder multi \      # configurable: see docs/build.md
+		--pull \
 		--platform linux/amd64,linux/arm64 \
 		-f $1/Dockerfile \
-		-t $2:latest \
 		-t $2:$(SHORT_SHA) \
 		--push \
 		$1
