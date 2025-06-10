@@ -200,7 +200,7 @@ async def index_slack_messages(
                 
                 document_parts.append("</DOCUMENT>")
                 combined_document_string = '\n'.join(document_parts)
-                content_hash = generate_content_hash(combined_document_string)
+                content_hash = generate_content_hash(combined_document_string, search_space_id)
 
                 # Check if document with this content hash already exists
                 existing_doc_by_hash_result = await session.execute(
@@ -474,7 +474,7 @@ async def index_notion_pages(
                 
                 document_parts.append("</DOCUMENT>")
                 combined_document_string = '\n'.join(document_parts)
-                content_hash = generate_content_hash(combined_document_string)
+                content_hash = generate_content_hash(combined_document_string, search_space_id)
 
                 # Check if document with this content hash already exists
                 existing_doc_by_hash_result = await session.execute(
@@ -658,7 +658,7 @@ async def index_github_repos(
                         logger.warning(f"Could not retrieve content for {full_path_key}. Skipping.")
                         continue # Skip if content fetch failed
                         
-                    content_hash = generate_content_hash(file_content)
+                    content_hash = generate_content_hash(file_content, search_space_id)
 
                     # Check if document with this content hash already exists
                     existing_doc_by_hash_result = await session.execute(
@@ -897,7 +897,7 @@ async def index_linear_issues(
                 comment_count = len(formatted_issue.get("comments", []))
                 summary_content += f"Comments: {comment_count}"
                 
-                content_hash = generate_content_hash(issue_content)
+                content_hash = generate_content_hash(issue_content, search_space_id)
 
                 # Check if document with this content hash already exists
                 existing_doc_by_hash_result = await session.execute(
@@ -1151,7 +1151,7 @@ async def index_discord_messages(
                         document_parts.append(f"</{section_title}>")
                     document_parts.append("</DOCUMENT>")
                     combined_document_string = '\n'.join(document_parts)
-                    content_hash = generate_content_hash(combined_document_string)
+                    content_hash = generate_content_hash(combined_document_string, search_space_id)
 
                     # Check if document with this content hash already exists
                     existing_doc_by_hash_result = await session.execute(

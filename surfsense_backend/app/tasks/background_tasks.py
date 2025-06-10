@@ -72,7 +72,7 @@ async def add_crawled_url_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
-        content_hash = generate_content_hash(combined_document_string)
+        content_hash = generate_content_hash(combined_document_string, search_space_id)
 
         # Check if document with this content hash already exists
         existing_doc_result = await session.execute(
@@ -179,7 +179,7 @@ async def add_extension_received_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
-        content_hash = generate_content_hash(combined_document_string)
+        content_hash = generate_content_hash(combined_document_string, search_space_id)
 
         # Check if document with this content hash already exists
         existing_doc_result = await session.execute(
@@ -243,7 +243,7 @@ async def add_received_markdown_file_document(
     session: AsyncSession, file_name: str, file_in_markdown: str, search_space_id: int, user_id: str
 ) -> Optional[Document]:
     try:
-        content_hash = generate_content_hash(file_in_markdown)
+        content_hash = generate_content_hash(file_in_markdown, search_space_id)
 
         # Check if document with this content hash already exists
         existing_doc_result = await session.execute(
@@ -314,7 +314,7 @@ async def add_received_file_document_using_unstructured(
             unstructured_processed_elements
         )
 
-        content_hash = generate_content_hash(file_in_markdown)
+        content_hash = generate_content_hash(file_in_markdown, search_space_id)
 
         # Check if document with this content hash already exists
         existing_doc_result = await session.execute(
@@ -399,7 +399,7 @@ async def add_received_file_document_using_llamacloud(
         # Combine all markdown documents into one
         file_in_markdown = llamacloud_markdown_document
 
-        content_hash = generate_content_hash(file_in_markdown)
+        content_hash = generate_content_hash(file_in_markdown, search_space_id)
 
         # Check if document with this content hash already exists
         existing_doc_result = await session.execute(
@@ -556,7 +556,7 @@ async def add_youtube_video_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
-        content_hash = generate_content_hash(combined_document_string)
+        content_hash = generate_content_hash(combined_document_string, search_space_id)
 
         # Check if document with this content hash already exists
         existing_doc_result = await session.execute(
