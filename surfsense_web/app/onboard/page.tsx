@@ -17,7 +17,7 @@ const TOTAL_STEPS = 3;
 
 const OnboardPage = () => {
   const router = useRouter();
-  const { llmConfigs, loading: configsLoading } = useLLMConfigs();
+  const { llmConfigs, loading: configsLoading, refreshConfigs } = useLLMConfigs();
   const { preferences, loading: preferencesLoading, isOnboardingComplete, refreshPreferences } = useLLMPreferences();
   const [currentStep, setCurrentStep] = useState(1);
   const [hasUserProgressed, setHasUserProgressed] = useState(false);
@@ -173,7 +173,7 @@ const OnboardPage = () => {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                {currentStep === 1 && <AddProviderStep />}
+                {currentStep === 1 && <AddProviderStep onConfigCreated={refreshConfigs} onConfigDeleted={refreshConfigs} />}
                 {currentStep === 2 && <AssignRolesStep onPreferencesUpdated={refreshPreferences} />}
                 {currentStep === 3 && <CompletionStep />}
               </motion.div>
