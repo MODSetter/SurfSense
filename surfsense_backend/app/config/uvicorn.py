@@ -1,5 +1,27 @@
 import os
 
+def _parse_bool(value):
+    """Parse boolean value from string."""
+    return value.lower() == "true" if value else False
+
+def _parse_int(value, var_name):
+    """Parse integer value with error handling."""
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(f"Invalid integer value for {var_name}: {value}")
+
+def _parse_headers(value):
+    """Parse headers from comma-separated string."""
+    try:
+        return [
+            tuple(h.split(":", 1))
+            for h in value.split(",")
+            if ":" in h
+        ]
+    except Exception:
+        raise ValueError(f"Invalid headers format: {value}")
+
 
 def load_uvicorn_config(args=None):
     """
@@ -14,79 +36,47 @@ def load_uvicorn_config(args=None):
         reload=args.reload if args else False,
         reload_dirs=["app"] if (args and args.reload) else None,
     )
+    
+   # Configuration mapping for advanced options
+    config_mapping = {
+        "UVICORN_PROXY_HEADERS": ("proxy_headers", _parse_bool),
+        "UVICORN_FORWARDED_ALLOW_IPS": ("forwarded_allow_ips", str),
+        "UVICORN_WORKERS": ("workers", lambda x: _parse_int(x, "UVICORN_WORKERS")),
+        "UVICORN_ACCESS_LOG": ("access_log", _parse_bool),
+        "UVICORN_LOOP": ("loop", str),
+        "UVICORN_HTTP": ("http", str),
+        "UVICORN_WS": ("ws", str),
+        "UVICORN_LIFESPAN": ("lifespan", str),
+        "UVICORN_ENV_FILE": ("env_file", str),
+        "UVICORN_LOG_CONFIG": ("log_config", str),
+        "UVICORN_SERVER_HEADER": ("server_header", _parse_bool),
+        "UVICORN_DATE_HEADER": ("date_header", _parse_bool),
+        "UVICORN_LIMIT_CONCURRENCY": ("limit_concurrency", lambda x: _parse_int(x, "UVICORN_LIMIT_CONCURRENCY")),
+        "UVICORN_LIMIT_MAX_REQUESTS": ("limit_max_requests", lambda x: _parse_int(x, "UVICORN_LIMIT_MAX_REQUESTS")),
+        "UVICORN_TIMEOUT_KEEP_ALIVE": ("timeout_keep_alive", lambda x: _parse_int(x, "UVICORN_TIMEOUT_KEEP_ALIVE")),
+        "UVICORN_TIMEOUT_NOTIFY": ("timeout_notify", lambda x: _parse_int(x, "UVICORN_TIMEOUT_NOTIFY")),
+        "UVICORN_SSL_KEYFILE": ("ssl_keyfile", str),
+        "UVICORN_SSL_CERTFILE": ("ssl_certfile", str),
+        "UVICORN_SSL_KEYFILE_PASSWORD": ("ssl_keyfile_password", str),
+        "UVICORN_SSL_VERSION": ("ssl_version", lambda x: _parse_int(x, "UVICORN_SSL_VERSION")),
+        "UVICORN_SSL_CERT_REQS": ("ssl_cert_reqs", lambda x: _parse_int(x, "UVICORN_SSL_CERT_REQS")),
+        "UVICORN_SSL_CA_CERTS": ("ssl_ca_certs", str),
+        "UVICORN_SSL_CIPHERS": ("ssl_ciphers", str),
+        "UVICORN_HEADERS": ("headers", _parse_headers),
+        "UVICORN_USE_COLORS": ("use_colors", _parse_bool),
+        "UVICORN_UDS": ("uds", str),
+        "UVICORN_FD": ("fd", lambda x: _parse_int(x, "UVICORN_FD")),
+        "UVICORN_ROOT_PATH": ("root_path", str),
+    }
 
-    # Only add advanced args if set in env
-    if os.getenv("UVICORN_PROXY_HEADERS"):
-        config_kwargs["proxy_headers"] = (
-            os.getenv("UVICORN_PROXY_HEADERS").lower() == "true"
-        )
-    if os.getenv("UVICORN_FORWARDED_ALLOW_IPS"):
-        config_kwargs["forwarded_allow_ips"] = os.getenv("UVICORN_FORWARDED_ALLOW_IPS")
-    if os.getenv("UVICORN_WORKERS"):
-        config_kwargs["workers"] = int(os.getenv("UVICORN_WORKERS"))
-    if os.getenv("UVICORN_ACCESS_LOG"):
-        config_kwargs["access_log"] = os.getenv("UVICORN_ACCESS_LOG").lower() == "true"
-    if os.getenv("UVICORN_LOOP"):
-        config_kwargs["loop"] = os.getenv("UVICORN_LOOP")
-    if os.getenv("UVICORN_HTTP"):
-        config_kwargs["http"] = os.getenv("UVICORN_HTTP")
-    if os.getenv("UVICORN_WS"):
-        config_kwargs["ws"] = os.getenv("UVICORN_WS")
-    if os.getenv("UVICORN_LIFESPAN"):
-        config_kwargs["lifespan"] = os.getenv("UVICORN_LIFESPAN")
-    if os.getenv("UVICORN_ENV_FILE"):
-        config_kwargs["env_file"] = os.getenv("UVICORN_ENV_FILE")
-    if os.getenv("UVICORN_LOG_CONFIG"):
-        config_kwargs["log_config"] = os.getenv("UVICORN_LOG_CONFIG")
-    if os.getenv("UVICORN_SERVER_HEADER"):
-        config_kwargs["server_header"] = (
-            os.getenv("UVICORN_SERVER_HEADER").lower() == "true"
-        )
-    if os.getenv("UVICORN_DATE_HEADER"):
-        config_kwargs["date_header"] = (
-            os.getenv("UVICORN_DATE_HEADER").lower() == "true"
-        )
-    if os.getenv("UVICORN_LIMIT_CONCURRENCY"):
-        config_kwargs["limit_concurrency"] = int(os.getenv("UVICORN_LIMIT_CONCURRENCY"))
-    if os.getenv("UVICORN_LIMIT_MAX_REQUESTS"):
-        config_kwargs["limit_max_requests"] = int(
-            os.getenv("UVICORN_LIMIT_MAX_REQUESTS")
-        )
-    if os.getenv("UVICORN_TIMEOUT_KEEP_ALIVE"):
-        config_kwargs["timeout_keep_alive"] = int(
-            os.getenv("UVICORN_TIMEOUT_KEEP_ALIVE")
-        )
-    if os.getenv("UVICORN_TIMEOUT_NOTIFY"):
-        config_kwargs["timeout_notify"] = int(os.getenv("UVICORN_TIMEOUT_NOTIFY"))
-    if os.getenv("UVICORN_SSL_KEYFILE"):
-        config_kwargs["ssl_keyfile"] = os.getenv("UVICORN_SSL_KEYFILE")
-    if os.getenv("UVICORN_SSL_CERTFILE"):
-        config_kwargs["ssl_certfile"] = os.getenv("UVICORN_SSL_CERTFILE")
-    if os.getenv("UVICORN_SSL_KEYFILE_PASSWORD"):
-        config_kwargs["ssl_keyfile_password"] = os.getenv(
-            "UVICORN_SSL_KEYFILE_PASSWORD"
-        )
-    if os.getenv("UVICORN_SSL_VERSION"):
-        config_kwargs["ssl_version"] = int(os.getenv("UVICORN_SSL_VERSION"))
-    if os.getenv("UVICORN_SSL_CERT_REQS"):
-        config_kwargs["ssl_cert_reqs"] = int(os.getenv("UVICORN_SSL_CERT_REQS"))
-    if os.getenv("UVICORN_SSL_CA_CERTS"):
-        config_kwargs["ssl_ca_certs"] = os.getenv("UVICORN_SSL_CA_CERTS")
-    if os.getenv("UVICORN_SSL_CIPHERS"):
-        config_kwargs["ssl_ciphers"] = os.getenv("UVICORN_SSL_CIPHERS")
-    if os.getenv("UVICORN_HEADERS"):
-        config_kwargs["headers"] = [
-            tuple(h.split(":", 1))
-            for h in os.getenv("UVICORN_HEADERS").split(",")
-            if ":" in h
-        ]
-    if os.getenv("UVICORN_USE_COLORS"):
-        config_kwargs["use_colors"] = os.getenv("UVICORN_USE_COLORS").lower() == "true"
-    if os.getenv("UVICORN_UDS"):
-        config_kwargs["uds"] = os.getenv("UVICORN_UDS")
-    if os.getenv("UVICORN_FD"):
-        config_kwargs["fd"] = int(os.getenv("UVICORN_FD"))
-    if os.getenv("UVICORN_ROOT_PATH"):
-        config_kwargs["root_path"] = os.getenv("UVICORN_ROOT_PATH")
+    # Process advanced configuration options
+    for env_var, (config_key, parser) in config_mapping.items():
+        value = os.getenv(env_var)
+        if value:
+            try:
+                config_kwargs[config_key] = parser(value)
+            except ValueError as e:
+                raise ValueError(f"Configuration error for {env_var}: {e}")
+
 
     return config_kwargs
