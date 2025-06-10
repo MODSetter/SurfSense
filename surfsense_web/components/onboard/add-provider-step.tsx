@@ -30,7 +30,12 @@ const LLM_PROVIDERS = [
   { value: 'CUSTOM', label: 'Custom Provider', example: 'your-custom-model' },
 ];
 
-export function AddProviderStep() {
+interface AddProviderStepProps {
+  onConfigCreated?: () => void;
+  onConfigDeleted?: () => void;
+}
+
+export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProviderStepProps) {
   const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs();
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [formData, setFormData] = useState<CreateLLMConfig>({
@@ -70,6 +75,8 @@ export function AddProviderStep() {
         litellm_params: {}
       });
       setIsAddingNew(false);
+      // Notify parent component that a config was created
+      onConfigCreated?.();
     }
   };
 
@@ -114,7 +121,12 @@ export function AddProviderStep() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => deleteLLMConfig(config.id)}
+                        onClick={async () => {
+                          const success = await deleteLLMConfig(config.id);
+                          if (success) {
+                            onConfigDeleted?.();
+                          }
+                        }}
                         className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="w-4 h-4" />
