@@ -141,6 +141,7 @@ def convert_chunks_to_langchain_documents(chunks):
     return langchain_docs
 
 
-def generate_content_hash(content: str) -> str:
-    """Generate SHA-256 hash for the given content."""
-    return hashlib.sha256(content.encode('utf-8')).hexdigest()
+def generate_content_hash(content: str, search_space_id: int) -> str:
+    """Generate SHA-256 hash for the given content combined with search space ID."""
+    combined_data = f"{search_space_id}:{content}"
+    return hashlib.sha256(combined_data.encode('utf-8')).hexdigest()
