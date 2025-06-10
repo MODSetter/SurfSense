@@ -18,4 +18,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config_kwargs = load_uvicorn_config(args)
-    uvicorn.run(**config_kwargs)
+    config = uvicorn.Config(**config_kwargs)
+    server = uvicorn.Server(config)
+
+    server.run()
