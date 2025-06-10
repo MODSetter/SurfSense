@@ -17,6 +17,5 @@ if __name__ == "__main__":
     parser.add_argument("--reload", action="store_true", help="Enable hot reloading")
     args = parser.parse_args()
 
-    config = uvicorn.Config(**load_uvicorn_config(args))
-
-    uvicorn.run(config)
+    config_kwargs = load_uvicorn_config(args)
+    uvicorn.run(**config_kwargs)
