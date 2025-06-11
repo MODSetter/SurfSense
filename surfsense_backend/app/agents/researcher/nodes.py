@@ -41,7 +41,7 @@ async def fetch_documents_by_ids(
     Args:
         document_ids: List of document IDs to fetch
         user_id: The user ID to check ownership
-        db_session: The database session
+        db_session: The database session eg L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
         
     Returns:
         Tuple of (source_objects, document_chunks) - similar to ConnectorService pattern
@@ -168,7 +168,7 @@ async def fetch_documents_by_ids(
                     url = f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
                     
                 elif doc_type == "DISCORD_CONNECTOR":
-                    # Extract Discord-specific metadata
+                    # Extract Discord-specific metadata L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
                     channel_name = metadata.get('channel_name', 'Unknown Channel')
                     channel_id = metadata.get('channel_id', '')
                     guild_id = metadata.get('guild_id', '')
@@ -535,7 +535,7 @@ async def fetch_relevant_documents(
                         search_mode=search_mode
                     )
                     
-                    # Add to sources and raw documents
+                    # Add to sources and raw documents L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
                     if source_object:
                         all_sources.append(source_object)
                     all_raw_documents.extend(slack_chunks)
@@ -787,7 +787,7 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
     using the sub_section_writer graph with the shared document pool.
     
     Returns:
-        Dict containing the final written report in the "final_written_report" key.
+        Dict containing the final written report in the "final_written_report" key L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==s.
     """
     # Get configuration and answer outline from state
     configuration = Configuration.from_runnable_config(config)
@@ -986,7 +986,7 @@ async def process_section_with_documents(
     Process a single section using pre-fetched documents.
     
     Args:
-        section_id: The ID of the section
+        section_id: The ID of the section 
         section_title: The title of the section
         section_questions: List of research questions for this section
         user_id: The user ID
@@ -1080,7 +1080,7 @@ async def process_section_with_documents(
                                 complete_answer.extend(content_lines)
                                 complete_answer.append("")  # Empty line after content
                         
-                        # Update answer in UI in real-time
+                        # Update answer in UI in real-time L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
                         state.streaming_service.only_update_answer(complete_answer)
                         writer({"yeild_value": state.streaming_service._format_annotations()})
         
@@ -1201,7 +1201,7 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
         # Continue with empty documents - the QNA agent will handle this gracefully
         relevant_documents = []
     
-    # Combine user-selected documents with connector-fetched documents
+    # Combine user-selected documents with connector-fetched documents L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
     all_documents = user_selected_documents + relevant_documents
     
     print(f"Fetched {len(relevant_documents)} relevant documents for QNA")
