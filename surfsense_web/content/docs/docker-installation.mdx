@@ -110,6 +110,42 @@ Before you begin, ensure you have:
 | LANGSMITH_API_KEY | Your LangSmith API key |
 | LANGSMITH_PROJECT | LangSmith project name (e.g., `surfsense`) |
 
+**Backend Uvicorn Server Configuration:**
+| ENV VARIABLE | DESCRIPTION | DEFAULT VALUE |
+|------------------------------|---------------------------------------------|---------------|
+| UVICORN_HOST                 | Host address to bind the server             | 0.0.0.0       |
+| UVICORN_PORT                 | Port to run the backend API                 | 8000          |
+| UVICORN_LOG_LEVEL            | Logging level (e.g., info, debug, warning)  | info          |
+| UVICORN_PROXY_HEADERS        | Enable/disable proxy headers                | false         |
+| UVICORN_FORWARDED_ALLOW_IPS  | Comma-separated list of allowed IPs         | 127.0.0.1     |
+| UVICORN_WORKERS              | Number of worker processes                  | 1             |
+| UVICORN_ACCESS_LOG           | Enable/disable access log (true/false)      | true          |
+| UVICORN_LOOP                 | Event loop implementation                   | auto          |
+| UVICORN_HTTP                 | HTTP protocol implementation                | auto          |
+| UVICORN_WS                   | WebSocket protocol implementation           | auto          |
+| UVICORN_LIFESPAN             | Lifespan implementation                     | auto          |
+| UVICORN_LOG_CONFIG           | Path to logging config file or empty string |               |
+| UVICORN_SERVER_HEADER        | Enable/disable Server header                | true          |
+| UVICORN_DATE_HEADER          | Enable/disable Date header                  | true          |
+| UVICORN_LIMIT_CONCURRENCY    | Max concurrent connections                  |               |
+| UVICORN_LIMIT_MAX_REQUESTS   | Max requests before worker restart          |               |
+| UVICORN_TIMEOUT_KEEP_ALIVE   | Keep-alive timeout (seconds)                | 5             |
+| UVICORN_TIMEOUT_NOTIFY       | Worker shutdown notification timeout (sec)  | 30            |
+| UVICORN_SSL_KEYFILE          | Path to SSL key file                        |               |
+| UVICORN_SSL_CERTFILE         | Path to SSL certificate file                |               |
+| UVICORN_SSL_KEYFILE_PASSWORD | Password for SSL key file                   |               |
+| UVICORN_SSL_VERSION          | SSL version                                 |               |
+| UVICORN_SSL_CERT_REQS        | SSL certificate requirements                |               |
+| UVICORN_SSL_CA_CERTS         | Path to CA certificates file                |               |
+| UVICORN_SSL_CIPHERS          | SSL ciphers                                 |               |
+| UVICORN_HEADERS              | Comma-separated list of headers             |               |
+| UVICORN_USE_COLORS           | Enable/disable colored logs                 | true          |
+| UVICORN_UDS                  | Unix domain socket path                     |               |
+| UVICORN_FD                   | File descriptor to bind to                  |               |
+| UVICORN_ROOT_PATH            | Root path for the application               |               |
+
+For more details, see the [Uvicorn documentation](https://www.uvicorn.org/#command-line-options).
+
 ### Frontend Environment Variables
 
 | ENV VARIABLE                    | DESCRIPTION                                                |
