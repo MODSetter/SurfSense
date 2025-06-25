@@ -82,9 +82,6 @@ def calculate_document_token_costs(documents: List[Dict[str, Any]], model: str) 
         ))
 
     return document_token_info
-"""
-File Hash: L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
-"""
 
 
 def find_optimal_documents_with_binary_search(
@@ -185,51 +182,3 @@ def calculate_token_count(messages: List[BaseMessage], model_name: str) -> int:
     model = model_name
     messages_dict = convert_langchain_messages_to_dict(messages)
     return token_counter(messages=messages_dict, model=model)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"""
-File Hash: L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
-"""
