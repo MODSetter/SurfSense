@@ -2,11 +2,10 @@ import asyncio
 import json
 from typing import Any, Dict, List
 
-from app.db import async_session_maker
 from app.utils.connector_service import ConnectorService
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, Field
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .configuration import Configuration, SearchMode
@@ -15,6 +14,7 @@ from .state import State
 from .sub_section_writer.graph import graph as sub_section_writer_graph
 from .sub_section_writer.configuration import SubSectionType
 from .qna_agent.graph import graph as qna_agent_graph
+from .utils import AnswerOutline, get_connector_emoji, get_connector_friendly_name
 
 from app.utils.query_service import QueryService
 
@@ -23,7 +23,6 @@ from langgraph.types import StreamWriter
 # Additional imports for document fetching
 from sqlalchemy.future import select
 from app.db import Document, SearchSpace
-
 
 async def fetch_documents_by_ids(
     document_ids: List[int],
@@ -252,16 +251,6 @@ async def fetch_documents_by_ids(
         return [], []
 
 
-class Section(BaseModel):
-    """A section in the answer outline."""
-    section_id: int = Field(..., description="The zero-based index of the section")
-    section_title: str = Field(..., description="The title of the section")
-    questions: List[str] = Field(..., description="Questions to research for this section")
-
-class AnswerOutline(BaseModel):
-    """The complete answer outline with all sections."""
-    answer_outline: List[Section] = Field(..., description="List of sections in the answer outline")
-
 async def write_answer_outline(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
     """
     Create a structured answer outline based on the user query.
@@ -378,6 +367,7 @@ async def write_answer_outline(state: State, config: RunnableConfig, writer: Str
         print(f"Error parsing LLM response: {str(e)}")
         print(f"Raw response: {response.content}")
         raise
+
 
 async def fetch_relevant_documents(
     research_questions: List[str],
@@ -746,37 +736,6 @@ async def fetch_relevant_documents(
     # Return deduplicated documents
     return deduplicated_docs
 
-def get_connector_emoji(connector_name: str) -> str:
-    """Get an appropriate emoji for a connector type."""
-    connector_emojis = {
-        "YOUTUBE_VIDEO": "📹",
-        "EXTENSION": "🧩",
-        "CRAWLED_URL": "🌐",
-        "FILE": "📄",
-        "SLACK_CONNECTOR": "💬",
-        "NOTION_CONNECTOR": "📘",
-        "GITHUB_CONNECTOR": "🐙",
-        "LINEAR_CONNECTOR": "📊",
-        "TAVILY_API": "🔍",
-        "LINKUP_API": "🔗"
-    }
-    return connector_emojis.get(connector_name, "🔎")
-
-def get_connector_friendly_name(connector_name: str) -> str:
-    """Convert technical connector IDs to user-friendly names."""
-    connector_friendly_names = {
-        "YOUTUBE_VIDEO": "YouTube",
-        "EXTENSION": "Browser Extension",
-        "CRAWLED_URL": "Web Pages",
-        "FILE": "Files",
-        "SLACK_CONNECTOR": "Slack",
-        "NOTION_CONNECTOR": "Notion",
-        "GITHUB_CONNECTOR": "GitHub",
-        "LINEAR_CONNECTOR": "Linear",
-        "TAVILY_API": "Tavily Search",
-        "LINKUP_API": "Linkup Search"
-    }
-    return connector_friendly_names.get(connector_name, connector_name)
 
 async def process_sections(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
     """
@@ -969,6 +928,7 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
         "final_written_report": final_written_report
     }
 
+
 async def process_section_with_documents(
     section_id: int,
     section_title: str, 
@@ -1106,7 +1066,6 @@ async def process_section_with_documents(
         return f"Error processing section: {section_title}. Details: {str(e)}"
 
 
-
 async def reformulate_user_query(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
     """
     Reforms the user query based on the chat history.
@@ -1123,6 +1082,7 @@ async def reformulate_user_query(state: State, config: RunnableConfig, writer: S
     return {
         "reformulated_query": reformulated_query
     }
+
 
 async def handle_qna_workflow(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
     """
