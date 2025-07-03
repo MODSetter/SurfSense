@@ -1,6 +1,17 @@
 from typing import List, Dict, Any, Tuple, NamedTuple
 from langchain_core.messages import BaseMessage
+from pydantic import BaseModel, Field
 from litellm import token_counter, get_model_info
+
+class Section(BaseModel):
+    """A section in the answer outline."""
+    section_id: int = Field(..., description="The zero-based index of the section")
+    section_title: str = Field(..., description="The title of the section")
+    questions: List[str] = Field(..., description="Questions to research for this section")
+
+class AnswerOutline(BaseModel):
+    """The complete answer outline with all sections."""
+    answer_outline: List[Section] = Field(..., description="List of sections in the answer outline")
 
 
 class DocumentTokenInfo(NamedTuple):
@@ -9,6 +20,40 @@ class DocumentTokenInfo(NamedTuple):
     document: Dict[str, Any]
     formatted_content: str
     token_count: int
+    
+    
+def get_connector_emoji(connector_name: str) -> str:
+    """Get an appropriate emoji for a connector type."""
+    connector_emojis = {
+        "YOUTUBE_VIDEO": "📹",
+        "EXTENSION": "🧩",
+        "CRAWLED_URL": "🌐",
+        "FILE": "📄",
+        "SLACK_CONNECTOR": "💬",
+        "NOTION_CONNECTOR": "📘",
+        "GITHUB_CONNECTOR": "🐙",
+        "LINEAR_CONNECTOR": "📊",
+        "TAVILY_API": "🔍",
+        "LINKUP_API": "🔗"
+    }
+    return connector_emojis.get(connector_name, "🔎")
+
+
+def get_connector_friendly_name(connector_name: str) -> str:
+    """Convert technical connector IDs to user-friendly names."""
+    connector_friendly_names = {
+        "YOUTUBE_VIDEO": "YouTube",
+        "EXTENSION": "Browser Extension",
+        "CRAWLED_URL": "Web Pages",
+        "FILE": "Files",
+        "SLACK_CONNECTOR": "Slack",
+        "NOTION_CONNECTOR": "Notion",
+        "GITHUB_CONNECTOR": "GitHub",
+        "LINEAR_CONNECTOR": "Linear",
+        "TAVILY_API": "Tavily Search",
+        "LINKUP_API": "Linkup Search"
+    }
+    return connector_friendly_names.get(connector_name, connector_name)
 
 
 def convert_langchain_messages_to_dict(messages: List[BaseMessage]) -> List[Dict[str, str]]:
@@ -82,9 +127,6 @@ def calculate_document_token_costs(documents: List[Dict[str, Any]], model: str) 
         ))
 
     return document_token_info
-"""
-File Hash: L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
-"""
 
 
 def find_optimal_documents_with_binary_search(
@@ -185,51 +227,3 @@ def calculate_token_count(messages: List[BaseMessage], model_name: str) -> int:
     model = model_name
     messages_dict = convert_langchain_messages_to_dict(messages)
     return token_counter(messages=messages_dict, model=model)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"""
-File Hash: L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
-"""

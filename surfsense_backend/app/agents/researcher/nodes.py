@@ -2,11 +2,10 @@ import asyncio
 import json
 from typing import Any, Dict, List
 
-from app.db import async_session_maker
 from app.utils.connector_service import ConnectorService
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, Field
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .configuration import Configuration, SearchMode
@@ -15,6 +14,7 @@ from .state import State
 from .sub_section_writer.graph import graph as sub_section_writer_graph
 from .sub_section_writer.configuration import SubSectionType
 from .qna_agent.graph import graph as qna_agent_graph
+from .utils import AnswerOutline, get_connector_emoji, get_connector_friendly_name
 
 from app.utils.query_service import QueryService
 
@@ -23,7 +23,6 @@ from langgraph.types import StreamWriter
 # Additional imports for document fetching
 from sqlalchemy.future import select
 from app.db import Document, SearchSpace
-
 
 async def fetch_documents_by_ids(
     document_ids: List[int],
@@ -41,7 +40,7 @@ async def fetch_documents_by_ids(
     Args:
         document_ids: List of document IDs to fetch
         user_id: The user ID to check ownership
-        db_session: The database session eg L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
+        db_session: The database session
         
     Returns:
         Tuple of (source_objects, document_chunks) - similar to ConnectorService pattern
@@ -168,7 +167,7 @@ async def fetch_documents_by_ids(
                     url = f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
                     
                 elif doc_type == "DISCORD_CONNECTOR":
-                    # Extract Discord-specific metadata L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
+                    # Extract Discord-specific metadata
                     channel_name = metadata.get('channel_name', 'Unknown Channel')
                     channel_id = metadata.get('channel_id', '')
                     guild_id = metadata.get('guild_id', '')
@@ -251,16 +250,6 @@ async def fetch_documents_by_ids(
         print(f"Error fetching documents by IDs: {str(e)}")
         return [], []
 
-
-class Section(BaseModel):
-    """A section in the answer outline."""
-    section_id: int = Field(..., description="The zero-based index of the section")
-    section_title: str = Field(..., description="The title of the section")
-    questions: List[str] = Field(..., description="Questions to research for this section")
-
-class AnswerOutline(BaseModel):
-    """The complete answer outline with all sections."""
-    answer_outline: List[Section] = Field(..., description="List of sections in the answer outline")
 
 async def write_answer_outline(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
     """
@@ -378,6 +367,7 @@ async def write_answer_outline(state: State, config: RunnableConfig, writer: Str
         print(f"Error parsing LLM response: {str(e)}")
         print(f"Raw response: {response.content}")
         raise
+
 
 async def fetch_relevant_documents(
     research_questions: List[str],
@@ -535,7 +525,7 @@ async def fetch_relevant_documents(
                         search_mode=search_mode
                     )
                     
-                    # Add to sources and raw documents L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
+                    # Add to sources and raw documents
                     if source_object:
                         all_sources.append(source_object)
                     all_raw_documents.extend(slack_chunks)
@@ -746,37 +736,6 @@ async def fetch_relevant_documents(
     # Return deduplicated documents
     return deduplicated_docs
 
-def get_connector_emoji(connector_name: str) -> str:
-    """Get an appropriate emoji for a connector type."""
-    connector_emojis = {
-        "YOUTUBE_VIDEO": "📹",
-        "EXTENSION": "🧩",
-        "CRAWLED_URL": "🌐",
-        "FILE": "📄",
-        "SLACK_CONNECTOR": "💬",
-        "NOTION_CONNECTOR": "📘",
-        "GITHUB_CONNECTOR": "🐙",
-        "LINEAR_CONNECTOR": "📊",
-        "TAVILY_API": "🔍",
-        "LINKUP_API": "🔗"
-    }
-    return connector_emojis.get(connector_name, "🔎")
-
-def get_connector_friendly_name(connector_name: str) -> str:
-    """Convert technical connector IDs to user-friendly names."""
-    connector_friendly_names = {
-        "YOUTUBE_VIDEO": "YouTube",
-        "EXTENSION": "Browser Extension",
-        "CRAWLED_URL": "Web Pages",
-        "FILE": "Files",
-        "SLACK_CONNECTOR": "Slack",
-        "NOTION_CONNECTOR": "Notion",
-        "GITHUB_CONNECTOR": "GitHub",
-        "LINEAR_CONNECTOR": "Linear",
-        "TAVILY_API": "Tavily Search",
-        "LINKUP_API": "Linkup Search"
-    }
-    return connector_friendly_names.get(connector_name, connector_name)
 
 async def process_sections(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
     """
@@ -787,7 +746,7 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
     using the sub_section_writer graph with the shared document pool.
     
     Returns:
-        Dict containing the final written report in the "final_written_report" key L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==s.
+        Dict containing the final written report in the "final_written_report" key.
     """
     # Get configuration and answer outline from state
     configuration = Configuration.from_runnable_config(config)
@@ -969,6 +928,7 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
         "final_written_report": final_written_report
     }
 
+
 async def process_section_with_documents(
     section_id: int,
     section_title: str, 
@@ -986,7 +946,7 @@ async def process_section_with_documents(
     Process a single section using pre-fetched documents.
     
     Args:
-        section_id: The ID of the section 
+        section_id: The ID of the section
         section_title: The title of the section
         section_questions: List of research questions for this section
         user_id: The user ID
@@ -1080,7 +1040,7 @@ async def process_section_with_documents(
                                 complete_answer.extend(content_lines)
                                 complete_answer.append("")  # Empty line after content
                         
-                        # Update answer in UI in real-time L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
+                        # Update answer in UI in real-time
                         state.streaming_service.only_update_answer(complete_answer)
                         writer({"yeild_value": state.streaming_service._format_annotations()})
         
@@ -1106,7 +1066,6 @@ async def process_section_with_documents(
         return f"Error processing section: {section_title}. Details: {str(e)}"
 
 
-
 async def reformulate_user_query(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
     """
     Reforms the user query based on the chat history.
@@ -1123,6 +1082,7 @@ async def reformulate_user_query(state: State, config: RunnableConfig, writer: S
     return {
         "reformulated_query": reformulated_query
     }
+
 
 async def handle_qna_workflow(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
     """
@@ -1201,7 +1161,7 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
         # Continue with empty documents - the QNA agent will handle this gracefully
         relevant_documents = []
     
-    # Combine user-selected documents with connector-fetched documents L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
+    # Combine user-selected documents with connector-fetched documents
     all_documents = user_selected_documents + relevant_documents
     
     print(f"Fetched {len(relevant_documents)} relevant documents for QNA")

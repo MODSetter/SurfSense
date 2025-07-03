@@ -80,16 +80,16 @@ class RerankerService:
             return documents
     
     @staticmethod
-    def get_reranker_instance(config=None) -> Optional['RerankerService']:
+    def get_reranker_instance() -> Optional['RerankerService']:
         """
-        Get a reranker service instance based on configuration
+        Get a reranker service instance from the global configuration.
         
-        Args:
-            config: Configuration object that may contain a reranker_instance
-            
         Returns:
-            Optional[RerankerService]: A reranker service instance or None
+            Optional[RerankerService]: A reranker service instance if configured, None otherwise
         """
-        if config and hasattr(config, 'reranker_instance') and config.reranker_instance:
+        from app.config import config
+        
+        if hasattr(config, 'reranker_instance') and config.reranker_instance:
             return RerankerService(config.reranker_instance)
-        return None 
+        return None
+        

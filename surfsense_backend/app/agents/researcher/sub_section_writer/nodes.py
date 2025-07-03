@@ -2,7 +2,7 @@ from .configuration import Configuration
 from langchain_core.runnables import RunnableConfig
 from .state import State
 from typing import Any, Dict
-from app.config import config as app_config
+from app.utils.reranker_service import RerankerService
 from .prompts import get_citation_system_prompt, get_no_documents_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
 from .configuration import SubSectionType
@@ -35,7 +35,7 @@ async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, An
         }
     
     # Get reranker service from app config
-    reranker_service = getattr(app_config, "reranker_service", None)
+    reranker_service = RerankerService.get_reranker_instance()
     
     # Use documents as is if no reranker service is available
     reranked_docs = documents
@@ -211,7 +211,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
         HumanMessage(content=human_message_content)
     ]
     
-    # Log final token count L0o55JzTBlCYJNCRYbbxt8mxqRs5kPm6QO8NzVqEZtzqWtG0EklbHuQ3I5ZBdSy8n+EqrdQxcp+R3Yc57NIm79iNS2sxt4tVMSTLeAT6qpMS2SbBER4hRiLaH5BKpXBJoCRPoFMYpDf6pdIokZyJz/EQWQZj531TfLcBfFkxJuWEqvinKhvWJPjApBd1RldixOj57mNXybHN8WFe+FnayhYQhptesoFAVXAk1WuV2URSqXxs5/00Eo8osC55gsye6LXTYzieyUKxurLKw+uy3g==
+    # Log final token count
     total_tokens = calculate_token_count(messages_with_chat_history, llm.model)
     print(f"Final token count: {total_tokens}")
     
