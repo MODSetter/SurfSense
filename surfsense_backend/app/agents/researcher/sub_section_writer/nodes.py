@@ -2,7 +2,7 @@ from .configuration import Configuration
 from langchain_core.runnables import RunnableConfig
 from .state import State
 from typing import Any, Dict
-from app.config import config as app_config
+from app.utils.reranker_service import RerankerService
 from .prompts import get_citation_system_prompt, get_no_documents_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
 from .configuration import SubSectionType
@@ -35,7 +35,7 @@ async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, An
         }
     
     # Get reranker service from app config
-    reranker_service = getattr(app_config, "reranker_service", None)
+    reranker_service = RerankerService.get_reranker_instance()
     
     # Use documents as is if no reranker service is available
     reranked_docs = documents
