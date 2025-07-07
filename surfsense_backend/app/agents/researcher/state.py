@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.utils.streaming_service import StreamingService
+from app.services.streaming_service import StreamingService
 
 @dataclass
 class State:

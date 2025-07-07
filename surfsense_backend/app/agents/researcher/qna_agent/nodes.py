@@ -1,4 +1,4 @@
-from app.utils.reranker_service import RerankerService
+from app.services.reranker_service import RerankerService
 from .configuration import Configuration
 from langchain_core.runnables import RunnableConfig
 from .state import State
@@ -85,7 +85,7 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
     Returns:
         Dict containing the final answer in the "final_answer" key.
     """
-    from app.utils.llm_service import get_user_fast_llm
+    from app.services.llm_service import get_user_fast_llm
     
     # Get configuration and relevant documents from configuration
     configuration = Configuration.from_runnable_config(config)

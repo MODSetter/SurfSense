@@ -7,7 +7,7 @@ from app.schemas import ExtensionDocumentContent
 from app.config import config
 from app.prompts import SUMMARY_PROMPT_TEMPLATE
 from app.utils.document_converters import convert_document_to_markdown, generate_content_hash
-from app.utils.llm_service import get_user_long_context_llm
+from app.services.llm_service import get_user_long_context_llm
 from langchain_core.documents import Document as LangChainDocument
 from langchain_community.document_loaders import FireCrawlLoader, AsyncChromiumLoader
 from langchain_community.document_transformers import MarkdownifyTransformer

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from app.db import Document, DocumentType, Chunk, SearchSourceConnector, SearchSourceConnectorType, SearchSpace
 from app.config import config
 from app.prompts import SUMMARY_PROMPT_TEMPLATE
-from app.utils.llm_service import get_user_long_context_llm
+from app.services.llm_service import get_user_long_context_llm
 from app.connectors.slack_history import SlackHistory
 from app.connectors.notion_history import NotionHistoryConnector
 from app.connectors.github_connector import GitHubConnector

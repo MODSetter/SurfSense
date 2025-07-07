@@ -2,7 +2,7 @@ import asyncio
 import json
 from typing import Any, Dict, List
 
-from app.utils.connector_service import ConnectorService
+from app.services.connector_service import ConnectorService
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
@@ -16,7 +16,7 @@ from .sub_section_writer.configuration import SubSectionType
 from .qna_agent.graph import graph as qna_agent_graph
 from .utils import AnswerOutline, get_connector_emoji, get_connector_friendly_name
 
-from app.utils.query_service import QueryService
+from app.services.query_service import QueryService
 
 from langgraph.types import StreamWriter
 
@@ -262,7 +262,7 @@ async def write_answer_outline(state: State, config: RunnableConfig, writer: Str
     Returns:
         Dict containing the answer outline in the "answer_outline" key for state update.
     """
-    from app.utils.llm_service import get_user_strategic_llm
+    from app.services.llm_service import get_user_strategic_llm
     from app.db import get_async_session
     
     streaming_service = state.streaming_service
