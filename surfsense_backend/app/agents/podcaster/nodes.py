@@ -14,7 +14,7 @@ from .configuration import Configuration
 from .state import PodcastTranscriptEntry, State, PodcastTranscripts
 from .prompts import get_podcast_generation_prompt
 from app.config import config as app_config
-from app.utils.llm_service import get_user_long_context_llm
+from app.services.llm_service import get_user_long_context_llm
 
 
 async def create_podcast_transcript(state: State, config: RunnableConfig) -> Dict[str, Any]:

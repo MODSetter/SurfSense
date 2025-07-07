@@ -2,7 +2,7 @@ from .configuration import Configuration
 from langchain_core.runnables import RunnableConfig
 from .state import State
 from typing import Any, Dict
-from app.utils.reranker_service import RerankerService
+from app.services.reranker_service import RerankerService
 from .prompts import get_citation_system_prompt, get_no_documents_system_prompt
 from langchain_core.messages import HumanMessage, SystemMessage
 from .configuration import SubSectionType
@@ -91,7 +91,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> Dict[str, A
     Returns:
         Dict containing the final answer in the "final_answer" key.
     """
-    from app.utils.llm_service import get_user_fast_llm
+    from app.services.llm_service import get_user_fast_llm
     
     # Get configuration and relevant documents from configuration
     configuration = Configuration.from_runnable_config(config)
