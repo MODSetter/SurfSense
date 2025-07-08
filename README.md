@@ -268,6 +268,8 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 Contributions are very welcome! A contribution can be as small as a ⭐ or even finding and creating issues.
 Fine-tuning the Backend is always desired.
 
+For detailed contribution guidelines, please see our [CONTRIBUTING.md](CONTRIBUTING.md) file.
+
 ## Star History
 
 <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
