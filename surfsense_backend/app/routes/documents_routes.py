@@ -138,8 +138,8 @@ async def process_file_in_background(
     session: AsyncSession
 ):
     try:
-        # Check if the file is a markdown file
-        if filename.lower().endswith(('.md', '.markdown')):
+        # Check if the file is a markdown or text file
+        if filename.lower().endswith(('.md', '.markdown', '.txt')):
             # For markdown files, read the content directly
             with open(file_path, 'r', encoding='utf-8') as f:
                 markdown_content = f.read()

@@ -48,6 +48,8 @@ export default function FileUploader() {
         'audio/mp4': ['.mp4', '.m4a'],
         'audio/wav': ['.wav'],
         'audio/webm': ['.webm'],
+        'text/markdown': ['.md', '.markdown'],
+        'text/plain': ['.txt'],
     };
 
     // Conditionally set accepted file types based on ETL service
@@ -82,7 +84,6 @@ export default function FileUploader() {
             'application/vnd.oasis.opendocument.graphics': ['.odg'],
             'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
             'application/vnd.oasis.opendocument.formula': ['.fods'],
-            'text/plain': ['.txt'],
             'text/csv': ['.csv'],
             'text/tab-separated-values': ['.tsv'],
             'text/html': ['.html', '.htm', '.web'],
@@ -112,7 +113,6 @@ export default function FileUploader() {
             'text/html': ['.html'],
             'image/jpeg': ['.jpeg', '.jpg'],
             'image/png': ['.png'],
-            'text/markdown': ['.md', '.markdown'],
             'application/vnd.ms-outlook': ['.msg'],
             'application/vnd.oasis.opendocument.text': ['.odt'],
             'text/x-org': ['.org'],
@@ -123,7 +123,6 @@ export default function FileUploader() {
             'text/x-rst': ['.rst'],
             'application/rtf': ['.rtf'],
             'image/tiff': ['.tiff'],
-            'text/plain': ['.txt'],
             'text/tab-separated-values': ['.tsv'],
             'application/vnd.ms-excel': ['.xls'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
