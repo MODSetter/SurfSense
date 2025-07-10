@@ -17,6 +17,10 @@ class StreamingService:
             {
                 "type": "ANSWER",
                 "content": []
+            },
+            {
+                "type": "FURTHER_QUESTIONS",
+                "content": []
             }
         ]
     # It is used to send annotations to the frontend
@@ -67,6 +71,19 @@ class StreamingService:
     
     def only_update_answer(self, answer: List[str]) -> str:
         self.message_annotations[2]["content"] = answer
+        return self.message_annotations
+    
+    def only_update_further_questions(self, further_questions: List[Dict[str, Any]]) -> str:
+        """
+        Update the further questions annotation
+        
+        Args:
+            further_questions: List of further question objects with id and question fields
+            
+        Returns:
+            str: The updated annotations
+        """
+        self.message_annotations[3]["content"] = further_questions
         return self.message_annotations
     
     

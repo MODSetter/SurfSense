@@ -26,6 +26,10 @@ class State:
     reformulated_query: Optional[str] = field(default=None)
     # Using field to explicitly mark as part of state
     answer_outline: Optional[Any] = field(default=None)
+    further_questions: Optional[Any] = field(default=None)
+    
+    # Temporary field to hold reranked documents from sub-agents for further question generation
+    reranked_documents: Optional[List[Any]] = field(default=None)
     
     # OUTPUT: Populated by agent nodes
     # Using field to explicitly mark as part of state

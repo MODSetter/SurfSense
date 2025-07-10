@@ -9,7 +9,7 @@ from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .configuration import Configuration, SearchMode
-from .prompts import get_answer_outline_system_prompt
+from .prompts import get_answer_outline_system_prompt, get_further_questions_system_prompt
 from .state import State
 from .sub_section_writer.graph import graph as sub_section_writer_graph
 from .sub_section_writer.configuration import SubSectionType
@@ -924,8 +924,11 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
     # Skip the final update since we've been streaming incremental updates
     # The final answer from each section is already shown in the UI
     
+    # Use the shared documents for further question generation
+    # Since all sections used the same document pool, we can use it directly
     return {
-        "final_written_report": final_written_report
+        "final_written_report": final_written_report,
+        "reranked_documents": all_documents
     }
 
 
@@ -1194,6 +1197,7 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
         
         # Track streaming content for real-time updates
         complete_content = ""
+        captured_reranked_documents = []
         
         # Call the QNA agent with streaming
         async for _chunk_type, chunk in qna_agent_graph.astream(qna_state, qna_config, stream_mode=["values"]):
@@ -1214,6 +1218,10 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
                         answer_lines = complete_content.split("\n")
                         streaming_service.only_update_answer(answer_lines)
                         writer({"yeild_value": streaming_service._format_annotations()})
+            
+            # Capture reranked documents from QNA agent for further question generation
+            if "reranked_documents" in chunk:
+                captured_reranked_documents = chunk["reranked_documents"]
         
         # Set default if no content was received
         if not complete_content:
@@ -1222,9 +1230,10 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
         streaming_service.only_update_terminal("🎉 Q&A answer generated successfully!")
         writer({"yeild_value": streaming_service._format_annotations()})
         
-        # Return the final answer in the expected state field
+        # Return the final answer and captured reranked documents for further question generation
         return {
-            "final_written_report": complete_content
+            "final_written_report": complete_content,
+            "reranked_documents": captured_reranked_documents
         }
         
     except Exception as e:
@@ -1236,5 +1245,168 @@ async def handle_qna_workflow(state: State, config: RunnableConfig, writer: Stre
         return {
             "final_written_report": f"Error generating answer: {str(e)}"
         }
+
+
+async def generate_further_questions(state: State, config: RunnableConfig, writer: StreamWriter) -> Dict[str, Any]:
+    """
+    Generate contextually relevant follow-up questions based on chat history and available documents.
+    
+    This node takes the chat history and reranked documents from sub-agents (qna_agent or sub_section_writer)
+    and uses an LLM to generate follow-up questions that would naturally extend the conversation
+    and provide additional value to the user.
+    
+    Returns:
+        Dict containing the further questions in the "further_questions" key for state update.
+    """
+    from app.services.llm_service import get_user_fast_llm
+    
+    # Get configuration and state data
+    configuration = Configuration.from_runnable_config(config)
+    chat_history = state.chat_history
+    user_id = configuration.user_id
+    streaming_service = state.streaming_service
+    
+    # Get reranked documents from the state (will be populated by sub-agents)
+    reranked_documents = getattr(state, 'reranked_documents', None) or []
+    
+    streaming_service.only_update_terminal("🤔 Generating follow-up questions...")
+    writer({"yeild_value": streaming_service._format_annotations()})
+    
+    # Get user's fast LLM
+    llm = await get_user_fast_llm(state.db_session, user_id)
+    if not llm:
+        error_message = f"No fast LLM configured for user {user_id}"
+        print(error_message)
+        streaming_service.only_update_terminal(f"❌ {error_message}", "error")
+        
+        # Stream empty further questions to UI
+        streaming_service.only_update_further_questions([])
+        writer({"yeild_value": streaming_service._format_annotations()})
+        return {"further_questions": []}
+    
+    # Format chat history for the prompt
+    chat_history_xml = "<chat_history>\n"
+    for message in chat_history:
+        if hasattr(message, 'type'):
+            if message.type == "human":
+                chat_history_xml += f"<user>{message.content}</user>\n"
+            elif message.type == "ai":
+                chat_history_xml += f"<assistant>{message.content}</assistant>\n"
+        else:
+            # Handle other message types if needed
+            chat_history_xml += f"<message>{str(message)}</message>\n"
+    chat_history_xml += "</chat_history>"
+    
+    # Format available documents for the prompt
+    documents_xml = "<documents>\n"
+    for i, doc in enumerate(reranked_documents):
+        document_info = doc.get("document", {})
+        source_id = document_info.get("id", f"doc_{i}")
+        source_type = document_info.get("document_type", "UNKNOWN")
+        content = doc.get("content", "")
+        
+        documents_xml += f"<document>\n"
+        documents_xml += f"<metadata>\n"
+        documents_xml += f"<source_id>{source_id}</source_id>\n"
+        documents_xml += f"<source_type>{source_type}</source_type>\n"
+        documents_xml += f"</metadata>\n"
+        documents_xml += f"<content>\n{content}</content>\n"
+        documents_xml += f"</document>\n"
+    documents_xml += "</documents>"
+    
+    # Create the human message content
+    human_message_content = f"""
+    {chat_history_xml}
+    
+    {documents_xml}
+    
+    Based on the chat history and available documents above, generate 3-5 contextually relevant follow-up questions that would naturally extend the conversation and provide additional value to the user. Make sure the questions can be reasonably answered using the available documents or knowledge base.
+    
+    Your response MUST be valid JSON in exactly this format:
+    {{
+      "further_questions": [
+        {{
+          "id": 0,
+          "question": "further qn 1"
+        }},
+        {{
+          "id": 1,
+          "question": "further qn 2"
+        }}
+      ]
+    }}
+    
+    Do not include any other text or explanation. Only return the JSON.
+    """
+    
+    streaming_service.only_update_terminal("🧠 Analyzing conversation context to suggest relevant questions...")
+    writer({"yeild_value": streaming_service._format_annotations()})
+    
+    # Create messages for the LLM
+    messages = [
+        SystemMessage(content=get_further_questions_system_prompt()),
+        HumanMessage(content=human_message_content)
+    ]
+    
+    try:
+        # Call the LLM
+        response = await llm.ainvoke(messages)
+        
+        # Parse the JSON response
+        content = response.content
+        
+        # Find the JSON in the content
+        json_start = content.find('{')
+        json_end = content.rfind('}') + 1
+        if json_start >= 0 and json_end > json_start:
+            json_str = content[json_start:json_end]
+            
+            # Parse the JSON string
+            parsed_data = json.loads(json_str)
+            
+            # Extract the further_questions array
+            further_questions = parsed_data.get("further_questions", [])
+            
+            streaming_service.only_update_terminal(f"✅ Generated {len(further_questions)} contextual follow-up questions!")
+            
+            # Stream the further questions to the UI
+            streaming_service.only_update_further_questions(further_questions)
+            writer({"yeild_value": streaming_service._format_annotations()})
+            
+            print(f"Successfully generated {len(further_questions)} further questions")
+            
+            return {"further_questions": further_questions}
+        else:
+            # If JSON structure not found, return empty list
+            error_message = "Could not find valid JSON in LLM response for further questions"
+            print(error_message)
+            streaming_service.only_update_terminal(f"⚠️ {error_message}", "warning")
+            
+            # Stream empty further questions to UI
+            streaming_service.only_update_further_questions([])
+            writer({"yeild_value": streaming_service._format_annotations()})
+            return {"further_questions": []}
+            
+    except (json.JSONDecodeError, ValueError) as e:
+        # Log the error and return empty list
+        error_message = f"Error parsing further questions response: {str(e)}"
+        print(error_message)
+        streaming_service.only_update_terminal(f"⚠️ {error_message}", "warning")
+        
+        # Stream empty further questions to UI
+        streaming_service.only_update_further_questions([])
+        writer({"yeild_value": streaming_service._format_annotations()})
+        return {"further_questions": []}
+    
+    except Exception as e:
+        # Handle any other errors
+        error_message = f"Error generating further questions: {str(e)}"
+        print(error_message)
+        streaming_service.only_update_terminal(f"⚠️ {error_message}", "warning")
+        
+        # Stream empty further questions to UI
+        streaming_service.only_update_further_questions([])
+        writer({"yeild_value": streaming_service._format_annotations()})
+        return {"further_questions": []}
 
 

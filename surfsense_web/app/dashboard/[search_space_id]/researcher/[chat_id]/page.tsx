@@ -545,6 +545,33 @@ const ChatPage = () => {
           -webkit-box-orient: vertical;
           overflow: hidden;
         }
+        /* Hide scrollbar by default, show on hover */
+        .scrollbar-hover {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
+        .scrollbar-hover::-webkit-scrollbar {
+          display: none;  /* Chrome, Safari and Opera */
+        }
+        .scrollbar-hover:hover {
+          -ms-overflow-style: auto;  /* IE and Edge */
+          scrollbar-width: thin;  /* Firefox */
+        }
+        .scrollbar-hover:hover::-webkit-scrollbar {
+          display: block;  /* Chrome, Safari and Opera */
+          height: 6px;
+        }
+        .scrollbar-hover:hover::-webkit-scrollbar-track {
+          background: hsl(var(--muted));
+          border-radius: 3px;
+        }
+        .scrollbar-hover:hover::-webkit-scrollbar-thumb {
+          background: hsl(var(--muted-foreground) / 0.3);
+          border-radius: 3px;
+        }
+        .scrollbar-hover:hover::-webkit-scrollbar-thumb:hover {
+          background: hsl(var(--muted-foreground) / 0.5);
+        }
       `;
       document.head.appendChild(style);
 
@@ -1133,6 +1160,105 @@ const ChatPage = () => {
                         </div>
                       }
                     </div>
+
+                    {/* Further Questions Section */}
+                    {message.annotations && (() => {
+                      // Get all FURTHER_QUESTIONS annotations
+                      const furtherQuestionsAnnotations = (message.annotations as any[])
+                        .filter(a => a.type === 'FURTHER_QUESTIONS');
+
+                      // Get the latest FURTHER_QUESTIONS annotation
+                      const latestFurtherQuestions = furtherQuestionsAnnotations.length > 0
+                        ? furtherQuestionsAnnotations[furtherQuestionsAnnotations.length - 1]
+                        : null;
+
+                      // Only render if we have questions
+                      if (!latestFurtherQuestions?.content || latestFurtherQuestions.content.length === 0) {
+                        return null;
+                      }
+
+                      const furtherQuestions = latestFurtherQuestions.content;
+
+                      return (
+                        <div className="relative mb-6">
+                          {/* Main container with improved styling */}
+                          <div className="bg-muted/30 border border-border/60 rounded-lg overflow-hidden shadow-sm">
+                            {/* Header with better visual separation */}
+                            <div className="bg-muted/50 border-b border-border/40 px-4 py-2.5">
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Follow-up Questions
+                                </h3>
+                                <span className="text-xs text-muted-foreground bg-background/60 px-2 py-1 rounded-full border border-border/40">
+                                  {furtherQuestions.length} suggestion{furtherQuestions.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Questions container with enhanced scrolling */}
+                            <div className="p-3">
+                              <div className="relative">
+                                {/* Left fade gradient */}
+                                <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-muted/30 to-transparent z-10 pointer-events-none" />
+                                
+                                {/* Right fade gradient */}
+                                <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-muted/30 to-transparent z-10 pointer-events-none" />
+                                
+                                {/* Scrollable container */}
+                                <div className="overflow-x-auto scrollbar-hover">
+                                  <div className="flex gap-2 py-1 px-6">
+                                    {furtherQuestions.map((question: any, qIndex: number) => (
+                                      <Button
+                                        key={question.id || qIndex}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 px-4 text-sm font-normal whitespace-nowrap rounded-full border-border/60 bg-background hover:bg-background/80 hover:border-primary/50 hover:shadow-md transition-all duration-200 flex items-center gap-2 select-none shrink-0 group"
+                                        onClick={() => {
+                                          // Set the input value and submit
+                                          handleInputChange({
+                                            target: { value: question.question }
+                                          } as React.ChangeEvent<HTMLInputElement>);
+                                          
+                                          // Small delay to ensure input is updated, then submit
+                                          setTimeout(() => {
+                                            const form = document.querySelector('form') as HTMLFormElement;
+                                            if (form && status === 'ready') {
+                                              form.requestSubmit();
+                                            }
+                                          }, 50);
+                                        }}
+                                        disabled={status !== 'ready'}
+                                      >
+                                        <span className="text-foreground group-hover:text-primary transition-colors">
+                                          {question.question}
+                                        </span>
+                                        <svg 
+                                          className="text-muted-foreground group-hover:text-primary transition-colors" 
+                                          width="14" 
+                                          height="14" 
+                                          viewBox="0 0 16 16" 
+                                          fill="none"
+                                        >
+                                          <path 
+                                            fillRule="evenodd" 
+                                            clipRule="evenodd" 
+                                            d="M6.75011 4H6.00011V5.5H6.75011H9.43945L5.46978 9.46967L4.93945 10L6.00011 11.0607L6.53044 10.5303L10.499 6.56182V9.25V10H11.999V9.25V5C11.999 4.44772 11.5512 4 10.999 4H6.75011Z" 
+                                            fill="currentColor"
+                                          />
+                                        </svg>
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {/* Scroll to bottom button */}
                     <div className="fixed bottom-8 right-8">
                       <Button
