@@ -966,14 +966,14 @@ export default function PodcastsPageClient({
 											</Button>
 										</motion.div>
 
-										<div className="relative w-24">
+										<div className="relative w-full">
 											<Slider
 												value={[isMuted ? 0 : volume]}
 												min={0}
 												max={1}
 												step={0.01}
 												onValueChange={handleVolumeChange}
-												className="w-24"
+												className="w-full"
 												disabled={isMuted}
 											/>
 											<motion.div
