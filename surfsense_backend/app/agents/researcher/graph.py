@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph
 from .state import State
-from .nodes import reformulate_user_query, write_answer_outline, process_sections, handle_qna_workflow
+from .nodes import reformulate_user_query, write_answer_outline, process_sections, handle_qna_workflow, generate_further_questions
 from .configuration import Configuration, ResearchMode
 from typing import TypedDict, List, Dict, Any, Optional
 
@@ -17,7 +17,8 @@ def build_graph():
     
     This function constructs the researcher agent graph with conditional routing
     based on research_mode - QNA mode uses a direct Q&A workflow while other modes
-    use the full report generation pipeline.
+    use the full report generation pipeline. Both paths generate follow-up questions
+    at the end using the reranked documents from the sub-agents.
     
     Returns:
         A compiled LangGraph workflow
@@ -30,6 +31,7 @@ def build_graph():
     workflow.add_node("handle_qna_workflow", handle_qna_workflow)
     workflow.add_node("write_answer_outline", write_answer_outline)
     workflow.add_node("process_sections", process_sections)
+    workflow.add_node("generate_further_questions", generate_further_questions)
 
     # Define the edges
     workflow.add_edge("__start__", "reformulate_user_query")
@@ -53,12 +55,15 @@ def build_graph():
         }
     )
     
-    # QNA workflow path
-    workflow.add_edge("handle_qna_workflow", "__end__")
+    # QNA workflow path: handle_qna_workflow -> generate_further_questions -> __end__
+    workflow.add_edge("handle_qna_workflow", "generate_further_questions")
     
-    # Report generation workflow path
+    # Report generation workflow path: write_answer_outline -> process_sections -> generate_further_questions -> __end__
     workflow.add_edge("write_answer_outline", "process_sections")
-    workflow.add_edge("process_sections", "__end__")
+    workflow.add_edge("process_sections", "generate_further_questions")
+    
+    # Both paths end after generating further questions
+    workflow.add_edge("generate_further_questions", "__end__")
 
     # Compile the workflow into an executable graph
     graph = workflow.compile()
