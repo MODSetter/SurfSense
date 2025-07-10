@@ -54,10 +54,14 @@ async def handle_chat_data(
         if message['role'] == "user":
             langchain_chat_history.append(HumanMessage(content=message['content']))
         elif message['role'] == "assistant":
-            # Last annotation type will always be "ANSWER" here
-            answer_annotation = message['annotations'][-1]
-            answer_text = ""
-            if answer_annotation['type'] == "ANSWER":
+            # Find the last "ANSWER" annotation specifically
+            answer_annotation = None
+            for annotation in reversed(message['annotations']):
+                if annotation['type'] == "ANSWER":
+                    answer_annotation = annotation
+                    break
+            
+            if answer_annotation:
                 answer_text = answer_annotation['content']
                 # If content is a list, join it into a single string
                 if isinstance(answer_text, list):
