@@ -43,10 +43,10 @@ export default function DashboardLayout({
           title: "Upload Documents",
           url: `/dashboard/${search_space_id}/documents/upload`,
         },
-        {
-          title: "Add Webpages",
-          url: `/dashboard/${search_space_id}/documents/webpage`,
-        },
+        // { TODO: FIX THIS AND ADD IT BACK
+        //   title: "Add Webpages",
+        //   url: `/dashboard/${search_space_id}/documents/webpage`,
+        // },
         {
           title: "Add Youtube Videos",
           url: `/dashboard/${search_space_id}/documents/youtube`,
@@ -76,6 +76,13 @@ export default function DashboardLayout({
       title: "Podcasts",
       url: `/dashboard/${search_space_id}/podcasts`,
       icon: "Podcast",
+      items: [
+      ],
+    },
+    {
+      title: "Logs",
+      url: `/dashboard/${search_space_id}/logs`,
+      icon: "FileText",
       items: [
       ],
     }
