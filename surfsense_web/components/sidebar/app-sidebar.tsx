@@ -16,6 +16,7 @@ import {
   Trash2,
   Podcast,
   type LucideIcon,
+  FileText,
 } from "lucide-react"
 
 import { Logo } from "@/components/Logo";
@@ -47,7 +48,8 @@ export const iconMap: Record<string, LucideIcon> = {
   Info,
   ExternalLink,
   Trash2,
-  Podcast
+  Podcast,
+  FileText
 }
 
 const defaultData = {
