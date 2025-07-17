@@ -1,14 +1,15 @@
 "use client";
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Plus, Search, Trash2, AlertCircle, Loader2, LogOut } from 'lucide-react'
+import { Plus, Search, Trash2, AlertCircle, Loader2 } from 'lucide-react'
 import { Tilt } from '@/components/ui/tilt'
 import { Spotlight } from '@/components/ui/spotlight'
 import { Logo } from '@/components/Logo';
 import { ThemeTogglerComponent } from '@/components/theme/theme-toggle';
+import { UserDropdown } from '@/components/UserDropdown';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -28,7 +29,16 @@ import {
 } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSearchSpaces } from '@/hooks/use-search-spaces';
+import { apiClient } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+
+interface User {
+  id: string;
+  email: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  is_verified: boolean;
+}
 
 /**
  * Formats a date string into a readable format
@@ -147,16 +157,46 @@ const DashboardPage = () => {
 
   const router = useRouter();
   const { searchSpaces, loading, error, refreshSearchSpaces } = useSearchSpaces();
+  
+  // User state management
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [userError, setUserError] = useState<string | null>(null);
+
+  // Fetch user details
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+
+        try {
+          const userData = await apiClient.get<User>('users/me');
+          setUser(userData);
+          setUserError(null);
+        } catch (error) {
+          console.error('Error fetching user:', error);
+          setUserError(error instanceof Error ? error.message : 'Unknown error occurred');
+        } finally {
+          setIsLoadingUser(false);
+        }
+      } catch (error) {
+        console.error('Error in fetchUser:', error);
+        setIsLoadingUser(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  // Create user object for UserDropdown
+  const customUser = {
+    name: user?.email ? user.email.split('@')[0] : 'User',
+    email: user?.email || (isLoadingUser ? 'Loading...' : userError ? 'Error loading user' : 'Unknown User'),
+    avatar: '/icon-128.png', // Default avatar
+  };
 
   if (loading) return <LoadingScreen />;
   if (error) return <ErrorScreen message={error} />;
-
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('surfsense_bearer_token');
-      router.push('/');
-    }
-  };
 
   const handleDeleteSearchSpace = async (id: number) => {
     // Send DELETE request to the API
@@ -201,18 +241,10 @@ const DashboardPage = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleLogout}
-              className="h-9 w-9 rounded-full"
-              aria-label="Logout"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
-            <ThemeTogglerComponent />
-          </div>
+                      <div className="flex items-center space-x-3">
+              <UserDropdown user={customUser} />
+              <ThemeTogglerComponent />
+            </div>
         </div>
 
         <div className="flex flex-col space-y-6 mt-6">

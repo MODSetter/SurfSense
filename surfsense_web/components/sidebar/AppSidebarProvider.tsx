@@ -31,14 +31,6 @@ interface SearchSpace {
   user_id: string;
 }
 
-interface User {
-  id: string;
-  email: string;
-  is_active: boolean;
-  is_superuser: boolean;
-  is_verified: boolean;
-}
-
 interface AppSidebarProviderProps {
   searchSpaceId: string;
   navSecondary: {
@@ -58,20 +50,17 @@ interface AppSidebarProviderProps {
   }[];
 }
 
-export function AppSidebarProvider({ 
-  searchSpaceId, 
-  navSecondary, 
-  navMain 
+export function AppSidebarProvider({
+  searchSpaceId,
+  navSecondary,
+  navMain
 }: AppSidebarProviderProps) {
   const [recentChats, setRecentChats] = useState<{ name: string; url: string; icon: string; id: number; search_space_id: number; actions: { name: string; icon: string; onClick: () => void }[] }[]>([]);
   const [searchSpace, setSearchSpace] = useState<SearchSpace | null>(null);
-  const [user, setUser] = useState<User | null>(null);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [isLoadingSearchSpace, setIsLoadingSearchSpace] = useState(true);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [chatError, setChatError] = useState<string | null>(null);
   const [searchSpaceError, setSearchSpaceError] = useState<string | null>(null);
-  const [userError, setUserError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<{ id: number, name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -80,33 +69,6 @@ export function AppSidebarProvider({
   // Set isClient to true when component mounts on the client
   useEffect(() => {
     setIsClient(true);
-  }, []);
-
-  // Fetch user details
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        // Only run on client-side
-        if (typeof window === 'undefined') return;
-
-        try {
-          // Use the API client instead of direct fetch
-          const userData = await apiClient.get<User>('users/me');
-          setUser(userData);
-          setUserError(null);
-        } catch (error) {
-          console.error('Error fetching user:', error);
-          setUserError(error instanceof Error ? error.message : 'Unknown error occurred');
-        } finally {
-          setIsLoadingUser(false);
-        }
-      } catch (error) {
-        console.error('Error in fetchUser:', error);
-        setIsLoadingUser(false);
-      }
-    };
-
-    fetchUser();
   }, []);
 
   // Fetch recent chats
@@ -119,9 +81,9 @@ export function AppSidebarProvider({
         try {
           // Use the API client instead of direct fetch - filter by current search space ID
           const chats: Chat[] = await apiClient.get<Chat[]>(`api/v1/chats/?limit=5&skip=0&search_space_id=${searchSpaceId}`);
-          
+
           // Sort chats by created_at in descending order (newest first)
-          const sortedChats = chats.sort((a, b) => 
+          const sortedChats = chats.sort((a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
           // console.log("sortedChats", sortedChats);
@@ -171,7 +133,7 @@ export function AppSidebarProvider({
 
     // Set up a refresh interval (every 5 minutes)
     const intervalId = setInterval(fetchRecentChats, 5 * 60 * 1000);
-    
+
     // Clean up interval on component unmount
     return () => clearInterval(intervalId);
   }, [searchSpaceId]);
@@ -179,16 +141,16 @@ export function AppSidebarProvider({
   // Handle delete chat
   const handleDeleteChat = async () => {
     if (!chatToDelete) return;
-    
+
     try {
       setIsDeleting(true);
-      
+
       // Use the API client instead of direct fetch
       await apiClient.delete(`api/v1/chats/${chatToDelete.id}`);
-      
+
       // Close dialog and refresh chats
       setRecentChats(recentChats.filter(chat => chat.id !== chatToDelete.id));
-      
+
     } catch (error) {
       console.error('Error deleting chat:', error);
     } finally {
@@ -226,15 +188,15 @@ export function AppSidebarProvider({
   }, [searchSpaceId]);
 
   // Create a fallback chat if there's an error or no chats
-  const fallbackChats = chatError || (!isLoadingChats && recentChats.length === 0) 
-    ? [{ 
-        name: chatError ? "Error loading chats" : "No recent chats", 
-        url: "#", 
-        icon: chatError ? "AlertCircle" : "MessageCircleMore",
-        id: 0,
-        search_space_id: Number(searchSpaceId),
-        actions: []
-      }] 
+  const fallbackChats = chatError || (!isLoadingChats && recentChats.length === 0)
+    ? [{
+      name: chatError ? "Error loading chats" : "No recent chats",
+      url: "#",
+      icon: chatError ? "AlertCircle" : "MessageCircleMore",
+      id: 0,
+      search_space_id: Number(searchSpaceId),
+      actions: []
+    }]
     : [];
 
   // Use fallback chats if there's an error or no chats
@@ -249,22 +211,14 @@ export function AppSidebarProvider({
     };
   }
 
-  // Create user object for AppSidebar
-  const customUser = {
-    name: isClient && user?.email ? user.email.split('@')[0] : 'User',
-    email: isClient ? (user?.email || (isLoadingUser ? 'Loading...' : userError ? 'Error loading user' : 'Unknown User')) : 'Loading...',
-    avatar: '/icon-128.png', // Default avatar
-  };
-
   return (
     <>
       <AppSidebar
-        user={customUser}
         navSecondary={updatedNavSecondary}
         navMain={navMain}
         RecentChats={isClient ? displayChats : []}
       />
-      
+
       {/* Delete Confirmation Dialog - Only render on client */}
       {isClient && (
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
