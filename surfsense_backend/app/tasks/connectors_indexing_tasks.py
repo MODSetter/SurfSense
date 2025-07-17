@@ -50,7 +50,7 @@ async def index_slack_messages(
         task_name="slack_messages_indexing",
         source="connector_indexing_task",
         message=f"Starting Slack messages indexing for connector {connector_id}",
-        metadata={"connector_id": connector_id, "user_id": user_id, "start_date": start_date, "end_date": end_date}
+        metadata={"connector_id": connector_id, "user_id": str(user_id), "start_date": start_date, "end_date": end_date}
     )
     
     try:
@@ -412,7 +412,7 @@ async def index_notion_pages(
         task_name="notion_pages_indexing",
         source="connector_indexing_task",
         message=f"Starting Notion pages indexing for connector {connector_id}",
-        metadata={"connector_id": connector_id, "user_id": user_id, "start_date": start_date, "end_date": end_date}
+        metadata={"connector_id": connector_id, "user_id": str(user_id), "start_date": start_date, "end_date": end_date}
     )
     
     try:
@@ -763,7 +763,7 @@ async def index_github_repos(
         task_name="github_repos_indexing",
         source="connector_indexing_task",
         message=f"Starting GitHub repositories indexing for connector {connector_id}",
-        metadata={"connector_id": connector_id, "user_id": user_id, "start_date": start_date, "end_date": end_date}
+        metadata={"connector_id": connector_id, "user_id": str(user_id), "start_date": start_date, "end_date": end_date}
     )
     
     documents_processed = 0
@@ -1007,7 +1007,7 @@ async def index_linear_issues(
         task_name="linear_issues_indexing",
         source="connector_indexing_task",
         message=f"Starting Linear issues indexing for connector {connector_id}",
-        metadata={"connector_id": connector_id, "user_id": user_id, "start_date": start_date, "end_date": end_date}
+        metadata={"connector_id": connector_id, "user_id": str(user_id), "start_date": start_date, "end_date": end_date}
     )
     
     try:
@@ -1315,7 +1315,7 @@ async def index_discord_messages(
         task_name="discord_messages_indexing",
         source="connector_indexing_task",
         message=f"Starting Discord messages indexing for connector {connector_id}",
-        metadata={"connector_id": connector_id, "user_id": user_id, "start_date": start_date, "end_date": end_date}
+        metadata={"connector_id": connector_id, "user_id": str(user_id), "start_date": start_date, "end_date": end_date}
     )
     
     try:
