@@ -30,7 +30,7 @@ async def add_crawled_url_document(
         task_name="crawl_url_document",
         source="background_task",
         message=f"Starting URL crawling process for: {url}",
-        metadata={"url": url, "user_id": user_id}
+        metadata={"url": url, "user_id": str(user_id)}
     )
     
     try:
@@ -259,7 +259,7 @@ async def add_extension_received_document(
         metadata={
             "url": content.metadata.VisitedWebPageURL,
             "title": content.metadata.VisitedWebPageTitle,
-            "user_id": user_id
+            "user_id": str(user_id)
         }
     )
     
@@ -392,7 +392,7 @@ async def add_received_markdown_file_document(
         task_name="markdown_file_document",
         source="background_task",
         message=f"Processing markdown file: {file_name}",
-        metadata={"filename": file_name, "user_id": user_id, "content_length": len(file_in_markdown)}
+        metadata={"filename": file_name, "user_id": str(user_id), "content_length": len(file_in_markdown)}
     )
     
     try:
@@ -667,7 +667,7 @@ async def add_youtube_video_document(
         task_name="youtube_video_document",
         source="background_task",
         message=f"Starting YouTube video processing for: {url}",
-        metadata={"url": url, "user_id": user_id}
+        metadata={"url": url, "user_id": str(user_id)}
     )
     
     try:
