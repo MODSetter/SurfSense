@@ -134,7 +134,7 @@ export default function ConnectorsPage() {
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 			
 			await indexConnector(selectedConnectorForIndexing, searchSpaceId, startDateStr, endDateStr);
-			toast.success("Connector content indexed successfully");
+			toast.success("Connector content indexing started");
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
 			toast.error(
@@ -155,7 +155,7 @@ export default function ConnectorsPage() {
 		setIndexingConnectorId(connectorId);
 		try {
 			await indexConnector(connectorId, searchSpaceId);
-			toast.success("Connector content indexed successfully");
+			toast.success("Connector content indexing started");
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
 			toast.error(
