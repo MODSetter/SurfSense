@@ -36,9 +36,18 @@ export function UserDropdown({
     const router = useRouter()
 
     const handleLogout = () => {
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem('surfsense_bearer_token');
-            router.push('/');
+        try {
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('surfsense_bearer_token');
+                router.push('/');
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+            // Optionally, provide user feedback
+            if (typeof window !== 'undefined') {
+                alert('Logout failed. Please try again.');
+                router.push('/');
+            }
         }
     };
 
