@@ -54,32 +54,23 @@ async def handle_chat_data(
         if message['role'] == "user":
             langchain_chat_history.append(HumanMessage(content=message['content']))
         elif message['role'] == "assistant":
-            # Find the last "ANSWER" annotation specifically
-            answer_annotation = None
-            for annotation in reversed(message['annotations']):
-                if annotation['type'] == "ANSWER":
-                    answer_annotation = annotation
-                    break
-            
-            if answer_annotation:
-                answer_text = answer_annotation['content']
-                # If content is a list, join it into a single string
-                if isinstance(answer_text, list):
-                    answer_text = "\n".join(answer_text)
-                langchain_chat_history.append(AIMessage(content=answer_text))
+                langchain_chat_history.append(AIMessage(content=message['content']))
 
-    response = StreamingResponse(stream_connector_search_results(
-        user_query,
-        user.id,
-        search_space_id,  # Already converted to int in lines 32-37
-        session,
-        research_mode,
-        selected_connectors,
-        langchain_chat_history,
-        search_mode_str,
-        document_ids_to_add_in_context
-    ))
-    response.headers['x-vercel-ai-data-stream'] = 'v1'
+    response = StreamingResponse(
+        stream_connector_search_results(
+            user_query,
+            user.id,
+            search_space_id,
+            session,
+            research_mode,
+            selected_connectors,
+            langchain_chat_history,
+            search_mode_str,
+            document_ids_to_add_in_context,
+        )
+    )
+    
+    response.headers["x-vercel-ai-data-stream"] = "v1"
     return response
 
 

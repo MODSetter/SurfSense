@@ -83,9 +83,8 @@ async def stream_connector_search_results(
         config=config,
         stream_mode="custom",
     ):
-        # If the chunk contains a 'yeild_value' key, print its value
-        # Note: there's a typo in 'yeild_value' in the code, but we need to match it
-        if isinstance(chunk, dict) and 'yeild_value' in chunk:
-            yield chunk['yeild_value']
-    
+        if isinstance(chunk, dict):
+            if "yield_value" in chunk:
+                yield chunk["yield_value"]
+
     yield streaming_service.format_completion()
