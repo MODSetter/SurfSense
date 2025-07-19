@@ -186,17 +186,17 @@ const ApiKeyClient = () => {
             </CardContent>
           </Card>
         </motion.div>
-        <div className="mt-4" >
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 hover:bg-primary/30 transition-colors"
-            aria-label="Back to Dashboard"
-            type="button"
-          >
-            <ArrowLeft className="h-5 w-5 text-primary" />
-          </button>
-        </div>
       </motion.div>
+      <div>
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 hover:bg-primary/30 transition-colors"
+          aria-label="Back to Dashboard"
+          type="button"
+        >
+          <ArrowLeft className="h-5 w-5 text-primary" />
+        </button>
+      </div>
     </div>
   );
 };
