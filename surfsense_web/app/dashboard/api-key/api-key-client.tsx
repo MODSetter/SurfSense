@@ -1,40 +1,48 @@
-'use client'
+"use client";
 
-import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { motion, AnimatePresence } from "framer-motion"
-import { IconCheck, IconCopy, IconKey } from "@tabler/icons-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useApiKey } from "@/hooks/use-api-key"
+import React from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { motion, AnimatePresence } from "framer-motion";
+import { IconCheck, IconCopy, IconKey } from "@tabler/icons-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useApiKey } from "@/hooks/use-api-key";
 
 const fadeIn = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.4 } }
-}
+  visible: { opacity: 1, transition: { duration: 0.4 } },
+};
 
 const staggerContainer = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
-}
+      staggerChildren: 0.1,
+    },
+  },
+};
 
 const ApiKeyClient = () => {
-  const { 
-    apiKey, 
-    isLoading, 
-    copied, 
-    copyToClipboard
-  } = useApiKey()
-
+  const { apiKey, isLoading, copied, copyToClipboard } = useApiKey();
+  const router = useRouter();
   return (
     <div className="flex justify-center w-full min-h-screen py-10 px-4">
-      <motion.div 
+      <motion.div
         className="w-full max-w-3xl"
         initial="hidden"
         animate="visible"
@@ -52,7 +60,8 @@ const ApiKeyClient = () => {
             <IconKey className="h-4 w-4" />
             <AlertTitle>Important</AlertTitle>
             <AlertDescription>
-              Your API key grants full access to your account. Never share it publicly or with unauthorized users.
+              Your API key grants full access to your account. Never share it
+              publicly or with unauthorized users.
             </AlertDescription>
           </Alert>
         </motion.div>
@@ -68,15 +77,15 @@ const ApiKeyClient = () => {
             <CardContent>
               <AnimatePresence mode="wait">
                 {isLoading ? (
-                  <motion.div 
+                  <motion.div
                     key="loading"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="h-10 w-full bg-muted animate-pulse rounded-md" 
+                    className="h-10 w-full bg-muted animate-pulse rounded-md"
                   />
                 ) : apiKey ? (
-                  <motion.div 
+                  <motion.div
                     key="api-key"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -96,9 +105,9 @@ const ApiKeyClient = () => {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
+                          <Button
+                            variant="outline"
+                            size="icon"
                             onClick={copyToClipboard}
                             className="flex-shrink-0"
                           >
@@ -107,7 +116,11 @@ const ApiKeyClient = () => {
                               animate={copied ? { scale: [1, 1.2, 1] } : {}}
                               transition={{ duration: 0.2 }}
                             >
-                              {copied ? <IconCheck className="h-4 w-4" /> : <IconCopy className="h-4 w-4" />}
+                              {copied ? (
+                                <IconCheck className="h-4 w-4" />
+                              ) : (
+                                <IconCopy className="h-4 w-4" />
+                              )}
                             </motion.div>
                           </Button>
                         </TooltipTrigger>
@@ -118,7 +131,7 @@ const ApiKeyClient = () => {
                     </TooltipProvider>
                   </motion.div>
                 ) : (
-                  <motion.div 
+                  <motion.div
                     key="no-key"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -133,34 +146,39 @@ const ApiKeyClient = () => {
           </Card>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           className="mt-8"
           variants={fadeIn}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <h2 className="text-xl font-semibold mb-4 text-center">How to use your API key</h2>
+          <h2 className="text-xl font-semibold mb-4 text-center">
+            How to use your API key
+          </h2>
           <Card>
             <CardContent className="pt-6">
-              <motion.div 
+              <motion.div
                 className="space-y-4"
                 initial="hidden"
                 animate="visible"
                 variants={staggerContainer}
               >
                 <motion.div variants={fadeIn}>
-                  <h3 className="font-medium mb-2 text-center">Authentication</h3>
+                  <h3 className="font-medium mb-2 text-center">
+                    Authentication
+                  </h3>
                   <p className="text-sm text-muted-foreground text-center">
-                    Include your API key in the Authorization header of your requests:
+                    Include your API key in the Authorization header of your
+                    requests:
                   </p>
-                  <motion.pre 
+                  <motion.pre
                     className="bg-muted p-3 rounded-md mt-2 overflow-x-auto"
                     whileHover={{ scale: 1.01 }}
                     transition={{ type: "spring", stiffness: 400, damping: 10 }}
                   >
                     <code className="text-xs">
-                      Authorization: Bearer {apiKey || 'YOUR_API_KEY'}
+                      Authorization: Bearer {apiKey || "YOUR_API_KEY"}
                     </code>
                   </motion.pre>
                 </motion.div>
@@ -168,9 +186,19 @@ const ApiKeyClient = () => {
             </CardContent>
           </Card>
         </motion.div>
+        <div className="mt-4" >
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 hover:bg-primary/30 transition-colors"
+            aria-label="Back to Dashboard"
+            type="button"
+          >
+            <ArrowLeft className="h-5 w-5 text-primary" />
+          </button>
+        </div>
       </motion.div>
     </div>
-  )
-}
+  );
+};
 
-export default ApiKeyClient 
+export default ApiKeyClient;
