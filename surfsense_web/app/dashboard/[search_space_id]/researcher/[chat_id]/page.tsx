@@ -981,19 +981,16 @@ const ChatPage = () => {
 	const renderTerminalContent = (message: any) => {
 		if (!message.annotations) return null;
 
-		// Get all TERMINAL_INFO annotations
-		const terminalInfoAnnotations = (message.annotations as any[]).filter(
-			(a) => a.type === "TERMINAL_INFO",
-		);
-
-		// Get the latest TERMINAL_INFO annotation
-		const latestTerminalInfo =
-			terminalInfoAnnotations.length > 0
-				? terminalInfoAnnotations[terminalInfoAnnotations.length - 1]
-				: null;
+		// Get all TERMINAL_INFO annotations content
+		const terminalInfoAnnotations = (message.annotations as any[]).map(item => {
+            if(item.type === "TERMINAL_INFO") {
+                return item.content.map((a: any) => a.text)
+                
+            }
+        }).flat().filter(Boolean)
 
 		// Render the content of the latest TERMINAL_INFO annotation
-		return latestTerminalInfo?.content.map((item: any, idx: number) => (
+		return terminalInfoAnnotations.map((item: any, idx: number) => (
 			<div key={idx} className="py-0.5 flex items-start text-gray-300">
 				<span className="text-gray-500 text-xs mr-2 w-10 flex-shrink-0">
 					[{String(idx).padStart(2, "0")}:
@@ -1008,7 +1005,7 @@ const ChatPage = () => {
           ${item.type === "warning" ? "text-yellow-300" : ""}
         `}
 				>
-					{item.text}
+					{item}
 				</span>
 			</div>
 		));
