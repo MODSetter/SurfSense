@@ -1065,6 +1065,13 @@ async def process_sections(state: State, config: RunnableConfig, writer: StreamW
         # Skip adding the section header since the content already contains the title
         final_report.append(content)
         final_report.append("\n")  
+        
+        # Stream each section with its title
+        writer(
+            {
+                "yield_value": state.streaming_service.format_text_chunk(f"# {section.section_title}\n\n{content}")
+            }
+        )
 
     
     # Join all sections with newlines
@@ -1219,13 +1226,6 @@ async def process_section_with_documents(
                                 complete_answer.extend(content_lines)
                                 complete_answer.append("")  # Empty line after content
                         
-                        # Update answer in UI in real-time
-                        state.streaming_service.only_update_answer(complete_answer)
-                        writer(
-                            {
-                                "yield_value": state.streaming_service._format_annotations()
-                            }
-                        )
 
         # Set default if no content was received
         if not complete_content:
