@@ -459,6 +459,94 @@ async def add_received_file_document_using_llamacloud(
         raise RuntimeError(f"Failed to process file document using LlamaCloud: {str(e)}")
 
 
+async def add_received_file_document_using_docling(
+    session: AsyncSession,
+    file_name: str,
+    docling_markdown_document: str,
+    search_space_id: int,
+    user_id: str,
+) -> Optional[Document]:
+    """
+    Process and store document content parsed by Docling.
+
+    Args:
+        session: Database session
+        file_name: Name of the processed file
+        docling_markdown_document: Markdown content from Docling parsing
+        search_space_id: ID of the search space
+        user_id: ID of the user
+
+    Returns:
+        Document object if successful, None if failed
+    """
+    try:
+        file_in_markdown = docling_markdown_document
+
+        content_hash = generate_content_hash(file_in_markdown, search_space_id)
+
+        # Check if document with this content hash already exists
+        existing_doc_result = await session.execute(
+            select(Document).where(Document.content_hash == content_hash)
+        )
+        existing_document = existing_doc_result.scalars().first()
+        
+        if existing_document:
+            logging.info(f"Document with content hash {content_hash} already exists. Skipping processing.")
+            return existing_document
+
+        # Get user's long context LLM
+        user_llm = await get_user_long_context_llm(session, user_id)
+        if not user_llm:
+            raise RuntimeError(f"No long context LLM configured for user {user_id}")
+
+        # Generate summary using chunked processing for large documents
+        from app.services.document_processing.docling_service import create_docling_service
+        docling_service = create_docling_service()
+        
+        summary_content = await docling_service.process_large_document_summary(
+            content=file_in_markdown,
+            llm=user_llm,
+            document_title=file_name
+        )
+        summary_embedding = config.embedding_model_instance.embed(summary_content)
+
+        # Process chunks
+        chunks = [
+            Chunk(
+                content=chunk.text,
+                embedding=config.embedding_model_instance.embed(chunk.text),
+            )
+            for chunk in config.chunker_instance.chunk(file_in_markdown)
+        ]
+
+        # Create and store document
+        document = Document(
+            search_space_id=search_space_id,
+            title=file_name,
+            document_type=DocumentType.FILE,
+            document_metadata={
+                "FILE_NAME": file_name,
+                "ETL_SERVICE": "DOCLING",
+            },
+            content=summary_content,
+            embedding=summary_embedding,
+            chunks=chunks,
+            content_hash=content_hash,
+        )
+
+        session.add(document)
+        await session.commit()
+        await session.refresh(document)
+
+        return document
+    except SQLAlchemyError as db_error:
+        await session.rollback()
+        raise db_error
+    except Exception as e:
+        await session.rollback()
+        raise RuntimeError(f"Failed to process file document using Docling: {str(e)}")
+
+
 async def add_youtube_video_document(
     session: AsyncSession, url: str, search_space_id: int, user_id: str
 ):

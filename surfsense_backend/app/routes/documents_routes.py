@@ -7,7 +7,7 @@ from app.db import get_async_session, User, SearchSpace, Document, DocumentType
 from app.schemas import DocumentsCreate, DocumentUpdate, DocumentRead
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
-from app.tasks.background_tasks import add_received_markdown_file_document, add_extension_received_document, add_received_file_document_using_unstructured, add_crawled_url_document, add_youtube_video_document, add_received_file_document_using_llamacloud
+from app.tasks.background_tasks import add_received_markdown_file_document, add_extension_received_document, add_received_file_document_using_unstructured, add_crawled_url_document, add_youtube_video_document, add_received_file_document_using_llamacloud, add_received_file_document_using_docling
 from app.config import config as app_config
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
@@ -269,6 +269,31 @@ async def process_file_in_background(
                         search_space_id=search_space_id,
                         user_id=user_id
                     )
+            elif app_config.ETL_SERVICE == "DOCLING":
+                # Use Docling service for document processing
+                from app.services.document_processing.docling_service import create_docling_service
+                
+                # Create Docling service
+                docling_service = create_docling_service()
+                
+                # Process the document
+                result = await docling_service.process_document(file_path, filename)
+                
+                # Clean up the temp file
+                import os
+                try:
+                    os.unlink(file_path)
+                except:
+                    pass
+                
+                # Process the document using our Docling background task
+                await add_received_file_document_using_docling(
+                    session,
+                    filename,
+                    docling_markdown_document=result['content'],
+                    search_space_id=search_space_id,
+                    user_id=user_id
+                )
     except Exception as e:
         import logging
         logging.error(f"Error processing file in background: {str(e)}")

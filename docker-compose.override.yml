@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   frontend:
-    image: ghcr.io/modsetter/surfsense_ui:latest
+    build: ./surfsense_web
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     volumes:
@@ -14,7 +14,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:8000}
 
   backend:
-    image: ghcr.io/modsetter/surfsense_backend:latest
+    build: ./surfsense_backend
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -28,3 +28,15 @@ services:
       - PYTHONPATH=/app
       - UVICORN_LOOP=asyncio
       - UNSTRUCTURED_HAS_PATCHED_LOOP=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - LANGCHAIN_TRACING_V2=false
+      - LANGSMITH_TRACING=false
+      - TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata/
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
