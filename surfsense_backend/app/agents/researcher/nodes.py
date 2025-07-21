@@ -810,8 +810,7 @@ async def fetch_relevant_documents(
 
     # After all sources are collected and deduplicated, stream them
     if streaming_service and writer:
-        streaming_service.only_update_sources(deduplicated_sources)
-        writer({"yield_value": streaming_service._format_annotations()})
+        writer({"yield_value": streaming_service.format_sources_delta(deduplicated_sources)})
 
     # Deduplicate raw documents based on chunk_id or content
     seen_chunk_ids = set()
