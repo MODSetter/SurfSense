@@ -12,7 +12,7 @@ from app.config import config as app_config
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
 
-from surfsense_backend.app.services.task_logging_service import TaskLoggingService
+from app.services.task_logging_service import TaskLoggingService
 try:
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 except RuntimeError:
