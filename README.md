@@ -19,7 +19,6 @@ While tools like NotebookLM and Perplexity are impressive and highly effective f
 
 # Video 
 
-https://github.com/user-attachments/assets/705ae738-cc49-4b03-b03c-dc27c7b98f45
 
 https://github.com/user-attachments/assets/d9221908-e0de-4b2f-ac3a-691cf4b202da
 
