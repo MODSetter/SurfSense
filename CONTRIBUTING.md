@@ -76,6 +76,13 @@ SurfSense consists of three main components:
 
 ## 🧪 Development Guidelines
 
+### Code Quality & Pre-commit Hooks
+We use pre-commit hooks to maintain code quality, security, and consistency across the codebase. Before you start developing:
+
+1. **Install and set up pre-commit hooks** - See our detailed [Pre-commit Guide](./PRE_COMMIT.md)
+2. **Understand the automated checks** that will run on your code
+3. **Learn about bypassing hooks** when necessary (use sparingly!)
+
 ### Code Style
 - **Backend**: Follow Python PEP 8 style guidelines
 - **Frontend**: Use TypeScript and follow the existing code patterns
