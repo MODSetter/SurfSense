@@ -4,14 +4,7 @@ description: Setting up SurfSense using Docker
 full: true
 ---
 
-## Known Limitations
 
-⚠️ **Important Note:** Currently, the following features have limited functionality when running in Docker:
-
-- **Ollama integration:** Local Ollama models do not work when running SurfSense in Docker. Please use other LLM providers like OpenAI or Gemini instead.
-- **Web crawler functionality:** The web crawler feature currently doesn't work properly within the Docker environment.
-
-We're actively working to resolve these limitations in future releases.
 
 # Docker Installation
 
@@ -28,6 +21,7 @@ Before you begin, ensure you have:
   - **File Processing ETL Service** (choose one):
     - Unstructured.io API key (Supports 34+ formats)
     - LlamaIndex API key (enhanced parsing, supports 50+ formats)
+    - Docling (local processing, no API key required, supports PDF, Office docs, images, HTML, CSV)
   - Other required API keys
 
 ## Installation Steps
@@ -97,7 +91,7 @@ Before you begin, ensure you have:
 | STT_SERVICE_API_KEY        | API key for the Speech-to-Text service                                                                                                                                                    |
 | STT_SERVICE_API_BASE       | (Optional) Custom API base URL for the Speech-to-Text service                                                                                                                      |
 | FIRECRAWL_API_KEY          | API key for Firecrawl service for web crawling                                                                                                                                            |
-| ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats) or `LLAMACLOUD` (supports 50+ formats including legacy document types)                                                  |
+| ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats), `LLAMACLOUD` (supports 50+ formats including legacy document types), or `DOCLING` (local processing, supports PDF, Office docs, images, HTML, CSV)                                                  |
 | UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
 | LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
 
@@ -152,7 +146,7 @@ For more details, see the [Uvicorn documentation](https://www.uvicorn.org/#comma
 | ------------------------------- | ---------------------------------------------------------- |
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | URL of the backend service (e.g., `http://localhost:8000`) |
 | NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Same value as set in backend AUTH_TYPE i.e `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication  |
-| NEXT_PUBLIC_ETL_SERVICE         | Document parsing service (should match backend ETL_SERVICE): `UNSTRUCTURED` or `LLAMACLOUD` - affects supported file formats in upload interface |
+| NEXT_PUBLIC_ETL_SERVICE         | Document parsing service (should match backend ETL_SERVICE): `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING` - affects supported file formats in upload interface |
 
 2. **Build and Start Containers**
 
