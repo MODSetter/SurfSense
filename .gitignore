@@ -1,2 +1,5 @@
 .flashrank_cache*
 podcasts/
+reports/
+SURFSENSE_CRITICAL_FIXES_REPORT.md
+.env
