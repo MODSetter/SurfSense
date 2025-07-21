@@ -106,8 +106,19 @@ export default function FileUploader() {
             };
         } else if (etlService === 'DOCLING') {
             return {
-                // Docling supported file types (currently only PDF)
+                // Docling supported file types
                 'application/pdf': ['.pdf'],
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+                'text/asciidoc': ['.adoc', '.asciidoc'],
+                'text/html': ['.html', '.htm', '.xhtml'],
+                'text/csv': ['.csv'],
+                'image/png': ['.png'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+                'image/tiff': ['.tiff', '.tif'],
+                'image/bmp': ['.bmp'],
+                'image/webp': ['.webp'],
                 // Audio files (always supported)
                 ...audioFileTypes,
             };

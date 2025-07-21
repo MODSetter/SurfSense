@@ -67,7 +67,7 @@ To set up Google OAuth:
 
 ## File Upload's
 
-SurfSense supports two ETL (Extract, Transform, Load) services for converting files to LLM-friendly formats:
+SurfSense supports three ETL (Extract, Transform, Load) services for converting files to LLM-friendly formats:
 
 ### Option 1: Unstructured 
 
@@ -84,6 +84,16 @@ Files are converted using [LlamaIndex](https://www.llamaindex.ai/) which offers 
 1. Get a LlamaIndex API key from [LlamaCloud](https://cloud.llamaindex.ai/)
 2. Sign up for a LlamaCloud account to access their parsing services
 3. LlamaCloud provides enhanced parsing capabilities for complex documents
+
+### Option 3: Docling (Recommended for Privacy)
+
+Files are processed locally using [Docling](https://github.com/DS4SD/docling) - IBM's open-source document parsing library.
+
+1. **No API key required** - all processing happens locally
+2. **Privacy-focused** - documents never leave your system
+3. **Supported formats**: PDF, Office documents (Word, Excel, PowerPoint), images (PNG, JPEG, TIFF, BMP, WebP), HTML, CSV, AsciiDoc
+4. **Enhanced features**: Advanced table detection, image extraction, and structured document parsing
+5. **GPU acceleration** support for faster processing (when available)
 
 **Note**: You only need to set up one of these services.
 
