@@ -32,7 +32,6 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - LANGCHAIN_TRACING_V2=false
       - LANGSMITH_TRACING=false
-      - TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata/
     deploy:
       resources:
         reservations:
