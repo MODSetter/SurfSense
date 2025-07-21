@@ -65,10 +65,10 @@ repos:
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.17.0
     hooks:
-    - id: mypy
-      files: ^surfsense_backend/
-      additional_dependencies: []
-      args: [--ignore-missing-imports, --disallow-untyped-defs]
+      - id: mypy
+        files: ^surfsense_backend/
+        additional_dependencies: []
+        args: [--ignore-missing-imports, --disallow-untyped-defs]
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.6
