@@ -135,11 +135,19 @@ async def process_file_in_background(
     filename: str,
     search_space_id: int,
     user_id: str,
-    session: AsyncSession
+    session: AsyncSession,
+    task_logger: 'TaskLoggingService',
+    log_entry: 'Log'
 ):
     try:
         # Check if the file is a markdown or text file
         if filename.lower().endswith(('.md', '.markdown', '.txt')):
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Processing markdown/text file: {filename}",
+                {"file_type": "markdown", "processing_stage": "reading_file"}
+            )
+            
             # For markdown files, read the content directly
             with open(file_path, 'r', encoding='utf-8') as f:
                 markdown_content = f.read()
@@ -151,16 +159,42 @@ async def process_file_in_background(
             except:
                 pass
 
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Creating document from markdown content: {filename}",
+                {"processing_stage": "creating_document", "content_length": len(markdown_content)}
+            )
+
             # Process markdown directly through specialized function
-            await add_received_markdown_file_document(
+            result = await add_received_markdown_file_document(
                 session,
                 filename,
                 markdown_content,
                 search_space_id,
                 user_id
             )
+            
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully processed markdown file: {filename}",
+                    {"document_id": result.id, "content_hash": result.content_hash, "file_type": "markdown"}
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Markdown file already exists (duplicate): {filename}",
+                    {"duplicate_detected": True, "file_type": "markdown"}
+                )
+                
         # Check if the file is an audio file
         elif filename.lower().endswith(('.mp3', '.mp4', '.mpeg', '.mpga', '.m4a', '.wav', '.webm')):
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Processing audio file for transcription: {filename}",
+                {"file_type": "audio", "processing_stage": "starting_transcription"}
+            )
+            
             # Open the audio file for transcription
             with open(file_path, "rb") as audio_file:
                 # Use LiteLLM for audio transcription
@@ -184,6 +218,12 @@ async def process_file_in_background(
                 # Add metadata about the transcription
                 transcribed_text = f"# Transcription of {filename}\n\n{transcribed_text}"
 
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Transcription completed, creating document: {filename}",
+                {"processing_stage": "transcription_complete", "transcript_length": len(transcribed_text)}
+            )
+
             # Clean up the temp file
             try:
                 os.unlink(file_path)
@@ -191,15 +231,35 @@ async def process_file_in_background(
                 pass
 
             # Process transcription as markdown document
-            await add_received_markdown_file_document(
+            result = await add_received_markdown_file_document(
                 session,
                 filename,
                 transcribed_text,
                 search_space_id,
                 user_id
             )
+            
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully transcribed and processed audio file: {filename}",
+                    {"document_id": result.id, "content_hash": result.content_hash, "file_type": "audio", "transcript_length": len(transcribed_text)}
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Audio file transcript already exists (duplicate): {filename}",
+                    {"duplicate_detected": True, "file_type": "audio"}
+                )
+                
         else:
             if app_config.ETL_SERVICE == "UNSTRUCTURED":
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Processing file with Unstructured ETL: {filename}",
+                    {"file_type": "document", "etl_service": "UNSTRUCTURED", "processing_stage": "loading"}
+                )
+                
                 from langchain_unstructured import UnstructuredLoader
                 
                 # Process the file
@@ -215,6 +275,12 @@ async def process_file_in_background(
 
                 docs = await loader.aload()
 
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Unstructured ETL completed, creating document: {filename}",
+                    {"processing_stage": "etl_complete", "elements_count": len(docs)}
+                )
+
                 # Clean up the temp file
                 import os
                 try:
@@ -223,14 +289,34 @@ async def process_file_in_background(
                     pass
 
                 # Pass the documents to the existing background task
-                await add_received_file_document_using_unstructured(
+                result = await add_received_file_document_using_unstructured(
                     session,
                     filename,
                     docs,
                     search_space_id,
                     user_id
                 )
+                
+                if result:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Successfully processed file with Unstructured: {filename}",
+                        {"document_id": result.id, "content_hash": result.content_hash, "file_type": "document", "etl_service": "UNSTRUCTURED"}
+                    )
+                else:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Document already exists (duplicate): {filename}",
+                        {"duplicate_detected": True, "file_type": "document", "etl_service": "UNSTRUCTURED"}
+                    )
+                    
             elif app_config.ETL_SERVICE == "LLAMACLOUD":
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Processing file with LlamaCloud ETL: {filename}",
+                    {"file_type": "document", "etl_service": "LLAMACLOUD", "processing_stage": "parsing"}
+                )
+                
                 from llama_cloud_services import LlamaParse
                 from llama_cloud_services.parse.utils import ResultType
 
@@ -257,19 +343,45 @@ async def process_file_in_background(
                 # Get markdown documents from the result
                 markdown_documents = await result.aget_markdown_documents(split_by_page=False)
                 
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"LlamaCloud parsing completed, creating documents: {filename}",
+                    {"processing_stage": "parsing_complete", "documents_count": len(markdown_documents)}
+                )
+                
                 for doc in markdown_documents:
                     # Extract text content from the markdown documents
                     markdown_content = doc.text
                     
                     # Process the documents using our LlamaCloud background task
-                    await add_received_file_document_using_llamacloud(
+                    doc_result = await add_received_file_document_using_llamacloud(
                         session,
                         filename,
                         llamacloud_markdown_document=markdown_content,
                         search_space_id=search_space_id,
                         user_id=user_id
                     )
+                    
+                if doc_result:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Successfully processed file with LlamaCloud: {filename}",
+                        {"document_id": doc_result.id, "content_hash": doc_result.content_hash, "file_type": "document", "etl_service": "LLAMACLOUD"}
+                    )
+                else:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Document already exists (duplicate): {filename}",
+                        {"duplicate_detected": True, "file_type": "document", "etl_service": "LLAMACLOUD"}
+                    )
+                    
             elif app_config.ETL_SERVICE == "DOCLING":
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Processing file with Docling ETL: {filename}",
+                    {"file_type": "document", "etl_service": "DOCLING", "processing_stage": "parsing"}
+                )
+                
                 # Use Docling service for document processing
                 from app.services.document_processing.docling_service import create_docling_service
                 
@@ -286,17 +398,43 @@ async def process_file_in_background(
                 except:
                     pass
                 
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Docling parsing completed, creating document: {filename}",
+                    {"processing_stage": "parsing_complete", "content_length": len(result['content'])}
+                )
+                
                 # Process the document using our Docling background task
-                await add_received_file_document_using_docling(
+                doc_result = await add_received_file_document_using_docling(
                     session,
                     filename,
                     docling_markdown_document=result['content'],
                     search_space_id=search_space_id,
                     user_id=user_id
                 )
+                
+                if doc_result:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Successfully processed file with Docling: {filename}",
+                        {"document_id": doc_result.id, "content_hash": doc_result.content_hash, "file_type": "document", "etl_service": "DOCLING"}
+                    )
+                else:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Document already exists (duplicate): {filename}",
+                        {"duplicate_detected": True, "file_type": "document", "etl_service": "DOCLING"}
+                    )
     except Exception as e:
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Failed to process file: {filename}",
+            str(e),
+            {"error_type": type(e).__name__, "filename": filename}
+        )
         import logging
         logging.error(f"Error processing file in background: {str(e)}")
+        raise  # Re-raise so the wrapper can also handle it
 
 
 @router.get("/documents/", response_model=List[DocumentRead])
@@ -467,11 +605,47 @@ async def process_extension_document_with_new_session(
 ):
     """Create a new session and process extension document."""
     from app.db import async_session_maker
+    from app.services.task_logging_service import TaskLoggingService
 
     async with async_session_maker() as session:
+        # Initialize task logging service
+        task_logger = TaskLoggingService(session, search_space_id)
+        
+        # Log task start
+        log_entry = await task_logger.log_task_start(
+            task_name="process_extension_document",
+            source="document_processor",
+            message=f"Starting processing of extension document from {individual_document.metadata.VisitedWebPageTitle}",
+            metadata={
+                "document_type": "EXTENSION",
+                "url": individual_document.metadata.VisitedWebPageURL,
+                "title": individual_document.metadata.VisitedWebPageTitle,
+                "user_id": user_id
+            }
+        )
+        
         try:
-            await add_extension_received_document(session, individual_document, search_space_id, user_id)
+            result = await add_extension_received_document(session, individual_document, search_space_id, user_id)
+            
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully processed extension document: {individual_document.metadata.VisitedWebPageTitle}",
+                    {"document_id": result.id, "content_hash": result.content_hash}
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Extension document already exists (duplicate): {individual_document.metadata.VisitedWebPageTitle}",
+                    {"duplicate_detected": True}
+                )
         except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to process extension document: {individual_document.metadata.VisitedWebPageTitle}",
+                str(e),
+                {"error_type": type(e).__name__}
+            )
             import logging
             logging.error(f"Error processing extension document: {str(e)}")
 
@@ -483,11 +657,46 @@ async def process_crawled_url_with_new_session(
 ):
     """Create a new session and process crawled URL."""
     from app.db import async_session_maker
+    from app.services.task_logging_service import TaskLoggingService
 
     async with async_session_maker() as session:
+        # Initialize task logging service
+        task_logger = TaskLoggingService(session, search_space_id)
+        
+        # Log task start
+        log_entry = await task_logger.log_task_start(
+            task_name="process_crawled_url",
+            source="document_processor",
+            message=f"Starting URL crawling and processing for: {url}",
+            metadata={
+                "document_type": "CRAWLED_URL",
+                "url": url,
+                "user_id": user_id
+            }
+        )
+        
         try:
-            await add_crawled_url_document(session, url, search_space_id, user_id)
+            result = await add_crawled_url_document(session, url, search_space_id, user_id)
+            
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully crawled and processed URL: {url}",
+                    {"document_id": result.id, "title": result.title, "content_hash": result.content_hash}
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"URL document already exists (duplicate): {url}",
+                    {"duplicate_detected": True}
+                )
         except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to crawl URL: {url}",
+                str(e),
+                {"error_type": type(e).__name__}
+            )
             import logging
             logging.error(f"Error processing crawled URL: {str(e)}")
 
@@ -500,9 +709,38 @@ async def process_file_in_background_with_new_session(
 ):
     """Create a new session and process file."""
     from app.db import async_session_maker
+    from app.services.task_logging_service import TaskLoggingService
 
     async with async_session_maker() as session:
-        await process_file_in_background(file_path, filename, search_space_id, user_id, session)
+        # Initialize task logging service
+        task_logger = TaskLoggingService(session, search_space_id)
+        
+        # Log task start
+        log_entry = await task_logger.log_task_start(
+            task_name="process_file_upload",
+            source="document_processor",
+            message=f"Starting file processing for: {filename}",
+            metadata={
+                "document_type": "FILE",
+                "filename": filename,
+                "file_path": file_path,
+                "user_id": user_id
+            }
+        )
+        
+        try:
+            await process_file_in_background(file_path, filename, search_space_id, user_id, session, task_logger, log_entry)
+            
+            # Note: success/failure logging is handled within process_file_in_background
+        except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to process file: {filename}",
+                str(e),
+                {"error_type": type(e).__name__}
+            )
+            import logging
+            logging.error(f"Error processing file: {str(e)}")
 
 
 async def process_youtube_video_with_new_session(
@@ -512,11 +750,46 @@ async def process_youtube_video_with_new_session(
 ):
     """Create a new session and process YouTube video."""
     from app.db import async_session_maker
+    from app.services.task_logging_service import TaskLoggingService
 
     async with async_session_maker() as session:
+        # Initialize task logging service
+        task_logger = TaskLoggingService(session, search_space_id)
+        
+        # Log task start
+        log_entry = await task_logger.log_task_start(
+            task_name="process_youtube_video",
+            source="document_processor",
+            message=f"Starting YouTube video processing for: {url}",
+            metadata={
+                "document_type": "YOUTUBE_VIDEO",
+                "url": url,
+                "user_id": user_id
+            }
+        )
+        
         try:
-            await add_youtube_video_document(session, url, search_space_id, user_id)
+            result = await add_youtube_video_document(session, url, search_space_id, user_id)
+            
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully processed YouTube video: {result.title}",
+                    {"document_id": result.id, "video_id": result.document_metadata.get("video_id"), "content_hash": result.content_hash}
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"YouTube video document already exists (duplicate): {url}",
+                    {"duplicate_detected": True}
+                )
         except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to process YouTube video: {url}",
+                str(e),
+                {"error_type": type(e).__name__}
+            )
             import logging
             logging.error(f"Error processing YouTube video: {str(e)}")
 

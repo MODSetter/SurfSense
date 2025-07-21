@@ -1,13 +1,16 @@
 "use client";
 
 import React from 'react';
+import { useRouter } from 'next/navigation'; // Add this import
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Bot, Settings, Brain } from 'lucide-react';
+import { Bot, Settings, Brain, ArrowLeft } from 'lucide-react'; // Import ArrowLeft icon
 import { ModelConfigManager } from '@/components/settings/model-config-manager';
 import { LLMRoleManager } from '@/components/settings/llm-role-manager';
 
 export default function SettingsPage() {
+  const router = useRouter(); // Initialize router
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-7xl mx-auto p-6 lg:p-8">
@@ -15,6 +18,15 @@ export default function SettingsPage() {
           {/* Header Section */}
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
+              {/* Back Button */}
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+                aria-label="Back to Dashboard"
+                type="button"
+              >
+                <ArrowLeft className="h-5 w-5 text-primary" />
+              </button>
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Settings className="h-6 w-6 text-primary" />
               </div>
@@ -57,4 +69,4 @@ export default function SettingsPage() {
       </div>
     </div>
   );
-} 
+}

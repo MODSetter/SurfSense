@@ -170,9 +170,9 @@ export default function FileUploader() {
         formData.append('search_space_id', search_space_id)
 
         try {
-            toast("File Upload", {
-                description: "Files Uploading Initiated",
-            })
+            // toast("File Upload", {
+            //     description: "Files Uploading Initiated",
+            // })
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL!}/api/v1/documents/fileupload`, {
                 method: "POST",
@@ -188,8 +188,8 @@ export default function FileUploader() {
 
             await response.json()
 
-            toast("Upload Successful", {
-                description: "Files Uploaded Successfully",
+            toast("Upload Task Initiated", {
+                description: "Files Uploading Initiated",
             })
 
             router.push(`/dashboard/${search_space_id}/documents`);

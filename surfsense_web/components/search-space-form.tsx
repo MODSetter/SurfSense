@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { MoveLeftIcon, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useRouter } from "next/navigation";
 
 // Define the form schema with Zod
 const searchSpaceFormSchema = z.object({
@@ -59,7 +60,8 @@ export function SearchSpaceForm({
   initialData = { name: "", description: "" }
 }: SearchSpaceFormProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  
+  const router = useRouter();
+
   // Initialize the form with React Hook Form and Zod validation
   const form = useForm<SearchSpaceFormValues>({
     resolver: zodResolver(searchSpaceFormSchema),
@@ -115,17 +117,32 @@ export function SearchSpaceForm({
       animate="visible"
       variants={containerVariants}
     >
-      <motion.div className="flex flex-col space-y-2" variants={itemVariants}>
-        <h2 className="text-3xl font-bold tracking-tight">
-          {isEditing ? "Edit Search Space" : "Create Search Space"}
-        </h2>
-        <p className="text-muted-foreground">
-          {isEditing 
-            ? "Update your search space details" 
-            : "Create a new search space to organize your documents, chats, and podcasts."}
-        </p>
+      <motion.div className="flex items-center justify-between" variants={itemVariants}>
+        <div className="flex flex-col space-y-2">
+          <h2 className="text-3xl font-bold tracking-tight">
+            {isEditing ? "Edit Search Space" : "Create Search Space"}
+          </h2>
+          <p className="text-muted-foreground">
+            {isEditing 
+              ? "Update your search space details"
+              : "Create a new search space to organize your documents, chats, and podcasts."}
+          </p>
+        </div>
+        <button
+          className="group relative rounded-full p-3 bg-background/80 hover:bg-muted border border-border hover:border-primary/20 shadow-sm hover:shadow-md transition-all duration-200 backdrop-blur-sm"
+          onClick={() => {
+            router.push('/dashboard')
+          }}
+        >
+          <MoveLeftIcon
+            size={18}
+            className="text-muted-foreground group-hover:text-foreground transition-colors duration-200"
+          />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </button>
+
       </motion.div>
-      
+
       <motion.div 
         className="w-full"
         variants={itemVariants}
@@ -190,9 +207,9 @@ export function SearchSpaceForm({
           </div>
         </Tilt>
       </motion.div>
-      
+
       <Separator className="my-4" />
-      
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
           <FormField
@@ -211,7 +228,7 @@ export function SearchSpaceForm({
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="description"
@@ -228,7 +245,7 @@ export function SearchSpaceForm({
               </FormItem>
             )}
           />
-          
+
           <div className="flex justify-end pt-2">
             <Button 
               type="submit" 

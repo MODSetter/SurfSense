@@ -16,13 +16,13 @@ import {
   Trash2,
   Podcast,
   type LucideIcon,
+  FileText,
 } from "lucide-react"
 
 import { Logo } from "@/components/Logo";
 import { NavMain } from "@/components/sidebar/nav-main"
 import { NavProjects } from "@/components/sidebar/nav-projects"
 import { NavSecondary } from "@/components/sidebar/nav-secondary"
-import { NavUser } from "@/components/sidebar/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -47,7 +47,8 @@ export const iconMap: Record<string, LucideIcon> = {
   Info,
   ExternalLink,
   Trash2,
-  Podcast
+  Podcast,
+  FileText
 }
 
 const defaultData = {
@@ -141,11 +142,6 @@ const defaultData = {
 }
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  user?: {
-    name: string
-    email: string
-    avatar: string
-  }
   navMain?: {
     title: string
     url: string
@@ -176,7 +172,6 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ 
-  user = defaultData.user,
   navMain = defaultData.navMain,
   navSecondary = defaultData.navSecondary,
   RecentChats = defaultData.RecentChats,
@@ -230,9 +225,9 @@ export function AppSidebar({
         {processedRecentChats.length > 0 && <NavProjects chats={processedRecentChats} />}
         <NavSecondary items={processedNavSecondary} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user} />
-      </SidebarFooter>
+      {/* <SidebarFooter>
+        footer
+      </SidebarFooter> */}
     </Sidebar>
   )
 }

@@ -329,7 +329,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
   
   // Helper to finish the podcast generation process
   const finishPodcastGeneration = () => {
-    toast.success("All podcasts are being generated! Check the podcasts tab to see them when ready.");
+    toast.success("All podcasts are being generated! Check the logs tab to see their status.");
     setPodcastDialogOpen(false);
     setSelectedChats([]);
     setSelectionMode(false);

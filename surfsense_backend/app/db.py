@@ -91,6 +91,18 @@ class LiteLLMProvider(str, Enum):
     ALEPH_ALPHA = "ALEPH_ALPHA"
     PETALS = "PETALS"
     CUSTOM = "CUSTOM"
+
+class LogLevel(str, Enum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
+
+class LogStatus(str, Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
     
 class Base(DeclarativeBase):
     pass
@@ -163,6 +175,7 @@ class SearchSpace(BaseModel, TimestampMixin):
     documents = relationship("Document", back_populates="search_space", order_by="Document.id", cascade="all, delete-orphan")
     podcasts = relationship("Podcast", back_populates="search_space", order_by="Podcast.id", cascade="all, delete-orphan")
     chats = relationship('Chat', back_populates='search_space', order_by='Chat.id', cascade="all, delete-orphan")
+    logs = relationship("Log", back_populates="search_space", order_by="Log.id", cascade="all, delete-orphan")
     
 class SearchSourceConnector(BaseModel, TimestampMixin):
     __tablename__ = "search_source_connectors"
@@ -195,6 +208,18 @@ class LLMConfig(BaseModel, TimestampMixin):
     
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete='CASCADE'), nullable=False)
     user = relationship("User", back_populates="llm_configs", foreign_keys=[user_id])
+
+class Log(BaseModel, TimestampMixin):
+    __tablename__ = "logs"
+    
+    level = Column(SQLAlchemyEnum(LogLevel), nullable=False, index=True)
+    status = Column(SQLAlchemyEnum(LogStatus), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+    source = Column(String(200), nullable=True, index=True)  # Service/component that generated the log
+    log_metadata = Column(JSON, nullable=True, default={})  # Additional context data
+    
+    search_space_id = Column(Integer, ForeignKey("searchspaces.id", ondelete='CASCADE'), nullable=False)
+    search_space = relationship("SearchSpace", back_populates="logs")
 
 if config.AUTH_TYPE == "GOOGLE":
     class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
