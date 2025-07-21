@@ -53,83 +53,98 @@ export default function FileUploader() {
     };
 
     // Conditionally set accepted file types based on ETL service
-    const acceptedFileTypes = process.env.NEXT_PUBLIC_ETL_SERVICE === 'LLAMACLOUD' 
-        ? {
-            // LlamaCloud supported file types
-            'application/pdf': ['.pdf'],
-            'application/msword': ['.doc'],
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-            'application/vnd.ms-word.document.macroEnabled.12': ['.docm'],
-            'application/msword-template': ['.dot'],
-            'application/vnd.ms-word.template.macroEnabled.12': ['.dotm'],
-            'application/vnd.ms-powerpoint': ['.ppt'],
-            'application/vnd.ms-powerpoint.template.macroEnabled.12': ['.pptm'],
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-            'application/vnd.ms-powerpoint.template': ['.pot'],
-            'application/vnd.openxmlformats-officedocument.presentationml.template': ['.potx'],
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-            'application/vnd.ms-excel': ['.xls'],
-            'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
-            'application/vnd.ms-excel.sheet.binary.macroEnabled.12': ['.xlsb'],
-            'application/vnd.ms-excel.workspace': ['.xlw'],
-            'application/rtf': ['.rtf'],
-            'application/xml': ['.xml'],
-            'application/epub+zip': ['.epub'],
-            'application/vnd.apple.keynote': ['.key'],
-            'application/vnd.apple.pages': ['.pages'],
-            'application/vnd.apple.numbers': ['.numbers'],
-            'application/vnd.wordperfect': ['.wpd'],
-            'application/vnd.oasis.opendocument.text': ['.odt'],
-            'application/vnd.oasis.opendocument.presentation': ['.odp'],
-            'application/vnd.oasis.opendocument.graphics': ['.odg'],
-            'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
-            'application/vnd.oasis.opendocument.formula': ['.fods'],
-            'text/csv': ['.csv'],
-            'text/tab-separated-values': ['.tsv'],
-            'text/html': ['.html', '.htm', '.web'],
-            'image/jpeg': ['.jpg', '.jpeg'],
-            'image/png': ['.png'],
-            'image/gif': ['.gif'],
-            'image/bmp': ['.bmp'],
-            'image/svg+xml': ['.svg'],
-            'image/tiff': ['.tiff'],
-            'image/webp': ['.webp'],
-            'application/dbase': ['.dbf'],
-            'application/vnd.lotus-1-2-3': ['.123'],
-            'text/x-web-markdown': ['.602', '.abw', '.cgm', '.cwk', '.hwp', '.lwp', '.mw', '.mcw', '.pbd', '.sda', '.sdd', '.sdp', '.sdw', '.sgl', '.sti', '.sxi', '.sxw', '.stw', '.sxg', '.uof', '.uop', '.uot', '.vor', '.wps', '.zabw'],
-            'text/x-spreadsheet': ['.dif', '.sylk', '.slk', '.prn', '.et', '.uos1', '.uos2', '.wk1', '.wk2', '.wk3', '.wk4', '.wks', '.wq1', '.wq2', '.wb1', '.wb2', '.wb3', '.qpw', '.xlr', '.eth'],
-            // Audio files (always supported)
-            ...audioFileTypes,
+    const getAcceptedFileTypes = () => {
+        const etlService = process.env.NEXT_PUBLIC_ETL_SERVICE;
+        
+        if (etlService === 'LLAMACLOUD') {
+            return {
+                // LlamaCloud supported file types
+                'application/pdf': ['.pdf'],
+                'application/msword': ['.doc'],
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+                'application/vnd.ms-word.document.macroEnabled.12': ['.docm'],
+                'application/msword-template': ['.dot'],
+                'application/vnd.ms-word.template.macroEnabled.12': ['.dotm'],
+                'application/vnd.ms-powerpoint': ['.ppt'],
+                'application/vnd.ms-powerpoint.template.macroEnabled.12': ['.pptm'],
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+                'application/vnd.ms-powerpoint.template': ['.pot'],
+                'application/vnd.openxmlformats-officedocument.presentationml.template': ['.potx'],
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                'application/vnd.ms-excel': ['.xls'],
+                'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'],
+                'application/vnd.ms-excel.sheet.binary.macroEnabled.12': ['.xlsb'],
+                'application/vnd.ms-excel.workspace': ['.xlw'],
+                'application/rtf': ['.rtf'],
+                'application/xml': ['.xml'],
+                'application/epub+zip': ['.epub'],
+                'application/vnd.apple.keynote': ['.key'],
+                'application/vnd.apple.pages': ['.pages'],
+                'application/vnd.apple.numbers': ['.numbers'],
+                'application/vnd.wordperfect': ['.wpd'],
+                'application/vnd.oasis.opendocument.text': ['.odt'],
+                'application/vnd.oasis.opendocument.presentation': ['.odp'],
+                'application/vnd.oasis.opendocument.graphics': ['.odg'],
+                'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
+                'application/vnd.oasis.opendocument.formula': ['.fods'],
+                'text/csv': ['.csv'],
+                'text/tab-separated-values': ['.tsv'],
+                'text/html': ['.html', '.htm', '.web'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+                'image/png': ['.png'],
+                'image/gif': ['.gif'],
+                'image/bmp': ['.bmp'],
+                'image/svg+xml': ['.svg'],
+                'image/tiff': ['.tiff'],
+                'image/webp': ['.webp'],
+                'application/dbase': ['.dbf'],
+                'application/vnd.lotus-1-2-3': ['.123'],
+                'text/x-web-markdown': ['.602', '.abw', '.cgm', '.cwk', '.hwp', '.lwp', '.mw', '.mcw', '.pbd', '.sda', '.sdd', '.sdp', '.sdw', '.sgl', '.sti', '.sxi', '.sxw', '.stw', '.sxg', '.uof', '.uop', '.uot', '.vor', '.wps', '.zabw'],
+                'text/x-spreadsheet': ['.dif', '.sylk', '.slk', '.prn', '.et', '.uos1', '.uos2', '.wk1', '.wk2', '.wk3', '.wk4', '.wks', '.wq1', '.wq2', '.wb1', '.wb2', '.wb3', '.qpw', '.xlr', '.eth'],
+                // Audio files (always supported)
+                ...audioFileTypes,
+            };
+        } else if (etlService === 'DOCLING') {
+            return {
+                // Docling supported file types (currently only PDF)
+                'application/pdf': ['.pdf'],
+                // Audio files (always supported)
+                ...audioFileTypes,
+            };
+        } else {
+            return {
+                // Unstructured supported file types
+                'image/bmp': ['.bmp'],
+                'text/csv': ['.csv'],
+                'application/msword': ['.doc'],
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+                'message/rfc822': ['.eml'],
+                'application/epub+zip': ['.epub'],
+                'image/heic': ['.heic'],
+                'text/html': ['.html'],
+                'image/jpeg': ['.jpeg', '.jpg'],
+                'image/png': ['.png'],
+                'application/vnd.ms-outlook': ['.msg'],
+                'application/vnd.oasis.opendocument.text': ['.odt'],
+                'text/x-org': ['.org'],
+                'application/pkcs7-signature': ['.p7s'],
+                'application/pdf': ['.pdf'],
+                'application/vnd.ms-powerpoint': ['.ppt'],
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+                'text/x-rst': ['.rst'],
+                'application/rtf': ['.rtf'],
+                'image/tiff': ['.tiff'],
+                'text/tab-separated-values': ['.tsv'],
+                'application/vnd.ms-excel': ['.xls'],
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                'application/xml': ['.xml'],
+                // Audio files (always supported)
+                ...audioFileTypes,
+            };
         }
-        : {
-            // Unstructured supported file types
-            'image/bmp': ['.bmp'],
-            'text/csv': ['.csv'],
-            'application/msword': ['.doc'],
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-            'message/rfc822': ['.eml'],
-            'application/epub+zip': ['.epub'],
-            'image/heic': ['.heic'],
-            'text/html': ['.html'],
-            'image/jpeg': ['.jpeg', '.jpg'],
-            'image/png': ['.png'],
-            'application/vnd.ms-outlook': ['.msg'],
-            'application/vnd.oasis.opendocument.text': ['.odt'],
-            'text/x-org': ['.org'],
-            'application/pkcs7-signature': ['.p7s'],
-            'application/pdf': ['.pdf'],
-            'application/vnd.ms-powerpoint': ['.ppt'],
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-            'text/x-rst': ['.rst'],
-            'application/rtf': ['.rtf'],
-            'image/tiff': ['.tiff'],
-            'text/tab-separated-values': ['.tsv'],
-            'application/vnd.ms-excel': ['.xls'],
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-            'application/xml': ['.xml'],
-            // Audio files (always supported)
-            ...audioFileTypes,
-        };
+    };
+
+    const acceptedFileTypes = getAcceptedFileTypes();
 
     const supportedExtensions = Array.from(new Set(Object.values(acceptedFileTypes).flat())).sort()
 

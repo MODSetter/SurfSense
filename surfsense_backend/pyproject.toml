@@ -30,7 +30,6 @@ dependencies = [
     "slack-sdk>=3.34.0",
     "static-ffmpeg>=2.13",
     "tavily-python>=0.3.2",
-    "tesserocr>=2.8.0",
     "unstructured-client>=0.30.0",
     "unstructured[all-docs]>=0.16.25",
     "uvicorn[standard]>=0.34.0",

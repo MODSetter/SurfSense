@@ -682,7 +682,7 @@ async def add_received_file_document_using_docling(
             raise RuntimeError(f"No long context LLM configured for user {user_id}")
 
         # Generate summary using chunked processing for large documents
-        from app.services.document_processing.docling_service import create_docling_service
+        from app.services.docling_service import create_docling_service
         docling_service = create_docling_service()
         
         summary_content = await docling_service.process_large_document_summary(

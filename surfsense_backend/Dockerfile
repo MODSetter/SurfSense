@@ -11,10 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     unzip \
     gnupg2 \
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    libtesseract-dev \
-    libleptonica-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Update certificates and install SSL tools
@@ -59,9 +55,6 @@ COPY . .
 # Prevent uvloop compatibility issues
 ENV PYTHONPATH=/app
 ENV UVICORN_LOOP=asyncio
-
-# Set Tesseract data path
-ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata/
 
 # Run
 EXPOSE 8000
