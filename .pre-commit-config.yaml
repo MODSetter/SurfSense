@@ -1,0 +1,130 @@
+# Pre-commit configuration for SurfSense
+# See https://pre-commit.com for more information
+
+repos:
+  # General file quality hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'
+      - id: check-yaml
+        args: [--multi, --unsafe]
+      - id: check-json
+        exclude: '(tsconfig\.json|\.vscode/.*\.json)$'
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=10240]  # 10MB limit
+      - id: debug-statements
+      - id: check-case-conflict
+
+  # Security - detect secrets across all file types
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+            .*\.env\.example|
+            .*\.env\.template|
+            .*/tests/.*|
+            .*test.*\.py|
+            .github/workflows/.*\.yml|
+            .github/workflows/.*\.yaml|
+            .*pnpm-lock\.yaml|
+            .*alembic\.ini|
+            .*\.mdx$
+          )$
+
+  # Python Backend Hooks (surfsense_backend)
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        files: ^surfsense_backend/
+        language_version: python3
+
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+        files: ^surfsense_backend/
+        args: ["--profile", "black", "--line-length", "88"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.4
+    hooks:
+      - id: ruff
+        files: ^surfsense_backend/
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        files: ^surfsense_backend/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.17.0
+    hooks:
+    - id: mypy
+      files: ^surfsense_backend/
+      additional_dependencies: []
+      args: [--ignore-missing-imports, --disallow-untyped-defs]
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.6
+    hooks:
+      - id: bandit
+        files: ^surfsense_backend/
+        args: ['-r', '.', '-f', 'json']
+        exclude: ^surfsense_backend/(tests/|alembic/)
+
+  # Frontend/Extension Hooks (TypeScript/JavaScript)
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: ^(surfsense_web|surfsense_browser_extension)/
+        types_or: [javascript, jsx, ts, tsx, json, yaml, markdown]
+        exclude: '(package-lock\.json|\.next/|build/|dist/)'
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.31.0
+    hooks:
+      - id: eslint
+        files: ^surfsense_web/
+        types: [file]
+        types_or: [javascript, jsx, ts, tsx]
+        additional_dependencies:
+          - 'eslint@^9'
+          - 'eslint-config-next@15.2.0'
+          - '@eslint/eslintrc@^3'
+        args: [--fix]
+        exclude: '(\.next/|build/|dist/)'
+
+  # TypeScript compilation check
+  - repo: local
+    hooks:
+      - id: typescript-check-web
+        name: TypeScript Check (Web)
+        entry: bash -c 'cd surfsense_web && (command -v pnpm >/dev/null 2>&1 && pnpm build --dry-run || npx next build --dry-run)'
+        language: system
+        files: ^surfsense_web/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: typescript-check-extension
+        name: TypeScript Check (Browser Extension)
+        entry: bash -c 'cd surfsense_browser_extension && npx tsc --noEmit'
+        language: system
+        files: ^surfsense_browser_extension/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # Commit message linting
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.8.3
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+# Global configuration
+default_stages: [pre-commit]
+fail_fast: false

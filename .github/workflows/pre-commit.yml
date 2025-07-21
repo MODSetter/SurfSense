@@ -1,0 +1,33 @@
+name: pre-commit
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for detecting diffs
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pre-commit
+        run: |
+          pip install pre-commit
+
+      - name: Run pre-commit on changed files
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD | tr '\n' ' ')
+          if [ -n "$CHANGED_FILES" ]; then
+            pre-commit run --files $CHANGED_FILES
+          else
+            echo "No changed files to check."
+          fi
