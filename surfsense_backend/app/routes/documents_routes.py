@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, BackgroundTasks, UploadFile, Form, HTTPE
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
-from app.db import get_async_session, User, SearchSpace, Document, DocumentType
+from app.db import Log, get_async_session, User, SearchSpace, Document, DocumentType
 from app.schemas import DocumentsCreate, DocumentUpdate, DocumentRead
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
@@ -11,6 +11,8 @@ from app.tasks.background_tasks import add_received_markdown_file_document, add_
 from app.config import config as app_config
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
+
+from surfsense_backend.app.services.task_logging_service import TaskLoggingService
 try:
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 except RuntimeError:
@@ -136,8 +138,8 @@ async def process_file_in_background(
     search_space_id: int,
     user_id: str,
     session: AsyncSession,
-    task_logger: 'TaskLoggingService',
-    log_entry: 'Log'
+    task_logger: TaskLoggingService,
+    log_entry: Log
 ):
     try:
         # Check if the file is a markdown or text file
@@ -383,7 +385,7 @@ async def process_file_in_background(
                 )
                 
                 # Use Docling service for document processing
-                from app.services.document_processing.docling_service import create_docling_service
+                from app.services.docling_service import create_docling_service
                 
                 # Create Docling service
                 docling_service = create_docling_service()
