@@ -84,10 +84,6 @@ class Config:
         # LlamaCloud API Key
         LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
         
-    elif ETL_SERVICE == "DOCLING":
-        # Docling doesn't require API keys - uses local processing
-        pass
-        
     # Firecrawl API Key
     FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", None) 
     

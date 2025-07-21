@@ -157,29 +157,6 @@ def find_optimal_documents_with_binary_search(
 
 def get_model_context_window(model_name: str) -> int:
     """Get the total context window size for a model (input + output tokens)."""
-    
-    # Known context windows for common models
-    model_contexts = {
-        'llama3.1:8b': 128000,      # Llama 3.1 8B has 128K context
-        'llama3.1:70b': 128000,     # Llama 3.1 70B has 128K context
-        'llama3.1:405b': 128000,    # Llama 3.1 405B has 128K context
-        'llama3:8b': 8192,          # Llama 3 8B has 8K context
-        'llama3:70b': 8192,         # Llama 3 70B has 8K context
-        'ollama/llama3.1:8b': 128000,
-        'ollama/llama3.1:70b': 128000,
-        'ollama/llama3:8b': 8192,
-        'ollama/llama3:70b': 8192,
-    }
-    
-    # Check for exact match first
-    if model_name in model_contexts:
-        return model_contexts[model_name]
-    
-    # Check for partial matches (e.g., model_name contains 'llama3.1')
-    for model_key, context_size in model_contexts.items():
-        if model_key in model_name.lower():
-            return context_size
-    
     try:
         model_info = get_model_info(model_name)
         context_window = model_info.get(
