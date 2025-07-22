@@ -2,10 +2,11 @@
 
 import { useChat, Message, CreateMessage } from "@ai-sdk/react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
-import ChatMain from "@/components/chat_v2/ChatMain";
+import { useEffect, useMemo } from "react";
+import ChatInterface from "@/components/chat_v2/ChatInterface";
 import { ResearchMode } from "@/components/chat";
 import { useChatState, useChatAPI } from "@/hooks/useChat";
+import { Document } from "@/hooks/use-documents";
 
 export default function ResearchChatPageV2() {
     const { search_space_id, chat_id } = useParams();
@@ -23,6 +24,8 @@ export default function ResearchChatPageV2() {
         setResearchMode,
         selectedConnectors,
         setSelectedConnectors,
+        selectedDocuments,
+        setSelectedDocuments,
     } = useChatState({
         search_space_id: search_space_id as string,
         chat_id: chatIdParam,
@@ -35,7 +38,42 @@ export default function ResearchChatPageV2() {
         selectedConnectors,
     });
 
-    // Single useChat handler for both cases
+    // Memoize document IDs to prevent infinite re-renders
+    const documentIds = useMemo(() => {
+        return selectedDocuments.map((doc) => doc.id);
+    }, [selectedDocuments]);
+
+    // Helper functions for localStorage management
+    const getStorageKey = (searchSpaceId: string, chatId: string) =>
+        `surfsense_selected_docs_${searchSpaceId}_${chatId}`;
+
+    const storeSelectedDocuments = (
+        searchSpaceId: string,
+        chatId: string,
+        documents: Document[]
+    ) => {
+        const key = getStorageKey(searchSpaceId, chatId);
+        localStorage.setItem(key, JSON.stringify(documents));
+    };
+
+    const restoreSelectedDocuments = (
+        searchSpaceId: string,
+        chatId: string
+    ): Document[] | null => {
+        const key = getStorageKey(searchSpaceId, chatId);
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            localStorage.removeItem(key); // Clean up after restoration
+            try {
+                return JSON.parse(stored);
+            } catch (error) {
+                console.error("Error parsing stored documents:", error);
+                return null;
+            }
+        }
+        return null;
+    };
+
     const handler = useChat({
         api: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chat`,
         streamProtocol: "data",
@@ -49,7 +87,7 @@ export default function ResearchChatPageV2() {
                 selected_connectors: selectedConnectors,
                 research_mode: researchMode,
                 search_mode: searchMode,
-                document_ids_to_add_in_context: [],
+                document_ids_to_add_in_context: documentIds,
             },
         },
         onError: (error) => {
@@ -62,7 +100,15 @@ export default function ResearchChatPageV2() {
         chatRequestOptions?: { data?: any }
     ) => {
         const newChatId = await createChat(message.content);
-        router.replace(`/dashboard/${search_space_id}/v2/${newChatId}`);
+        if (newChatId) {
+            // Store selected documents before navigation
+            storeSelectedDocuments(
+                search_space_id as string,
+                newChatId,
+                selectedDocuments
+            );
+            router.replace(`/dashboard/${search_space_id}/v2/${newChatId}`);
+        }
         return newChatId;
     };
 
@@ -72,6 +118,19 @@ export default function ResearchChatPageV2() {
             loadChatData(chatIdParam);
         }
     }, [token, isNewChat, chatIdParam]);
+
+    // Restore selected documents from localStorage on page load
+    useEffect(() => {
+        if (chatIdParam && search_space_id) {
+            const restoredDocuments = restoreSelectedDocuments(
+                search_space_id as string,
+                chatIdParam
+            );
+            if (restoredDocuments && restoredDocuments.length > 0) {
+                setSelectedDocuments(restoredDocuments);
+            }
+        }
+    }, [chatIdParam, search_space_id, setSelectedDocuments]);
 
     const loadChatData = async (chatId: string) => {
         try {
@@ -133,11 +192,13 @@ export default function ResearchChatPageV2() {
     }
 
     return (
-        <ChatMain
+        <ChatInterface
             handler={{
                 ...handler,
                 append: isNewChat ? customHandlerAppend : handler.append,
             }}
+            onDocumentSelectionChange={setSelectedDocuments}
+            selectedDocuments={selectedDocuments}
         />
     );
 }
