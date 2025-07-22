@@ -20,6 +20,7 @@ export default function ResearchChatPageV2() {
         isLoading,
         setIsLoading,
         searchMode,
+        setSearchMode,
         researchMode,
         setResearchMode,
         selectedConnectors,
@@ -34,8 +35,6 @@ export default function ResearchChatPageV2() {
     const { fetchChatDetails, updateChat, createChat } = useChatAPI({
         token,
         search_space_id: search_space_id as string,
-        researchMode,
-        selectedConnectors,
     });
 
     // Memoize document IDs to prevent infinite re-renders
@@ -43,31 +42,37 @@ export default function ResearchChatPageV2() {
         return selectedDocuments.map((doc) => doc.id);
     }, [selectedDocuments]);
 
-    // Helper functions for localStorage management
-    const getStorageKey = (searchSpaceId: string, chatId: string) =>
-        `surfsense_selected_docs_${searchSpaceId}_${chatId}`;
+    // Unified localStorage management for chat state
+    interface ChatState {
+        selectedDocuments: Document[];
+        searchMode: "DOCUMENTS" | "CHUNKS";
+        researchMode: ResearchMode;
+    }
 
-    const storeSelectedDocuments = (
+    const getChatStateStorageKey = (searchSpaceId: string, chatId: string) =>
+        `surfsense_chat_state_${searchSpaceId}_${chatId}`;
+
+    const storeChatState = (
         searchSpaceId: string,
         chatId: string,
-        documents: Document[]
+        state: ChatState
     ) => {
-        const key = getStorageKey(searchSpaceId, chatId);
-        localStorage.setItem(key, JSON.stringify(documents));
+        const key = getChatStateStorageKey(searchSpaceId, chatId);
+        localStorage.setItem(key, JSON.stringify(state));
     };
 
-    const restoreSelectedDocuments = (
+    const restoreChatState = (
         searchSpaceId: string,
         chatId: string
-    ): Document[] | null => {
-        const key = getStorageKey(searchSpaceId, chatId);
+    ): ChatState | null => {
+        const key = getChatStateStorageKey(searchSpaceId, chatId);
         const stored = localStorage.getItem(key);
         if (stored) {
             localStorage.removeItem(key); // Clean up after restoration
             try {
                 return JSON.parse(stored);
             } catch (error) {
-                console.error("Error parsing stored documents:", error);
+                console.error("Error parsing stored chat state:", error);
                 return null;
             }
         }
@@ -99,14 +104,14 @@ export default function ResearchChatPageV2() {
         message: Message | CreateMessage,
         chatRequestOptions?: { data?: any }
     ) => {
-        const newChatId = await createChat(message.content);
+        const newChatId = await createChat(message.content, researchMode);
         if (newChatId) {
-            // Store selected documents before navigation
-            storeSelectedDocuments(
-                search_space_id as string,
-                newChatId,
-                selectedDocuments
-            );
+            // Store chat state before navigation
+            storeChatState(search_space_id as string, newChatId, {
+                selectedDocuments,
+                searchMode,
+                researchMode,
+            });
             router.replace(`/dashboard/${search_space_id}/v2/${newChatId}`);
         }
         return newChatId;
@@ -119,18 +124,26 @@ export default function ResearchChatPageV2() {
         }
     }, [token, isNewChat, chatIdParam]);
 
-    // Restore selected documents from localStorage on page load
+    // Restore chat state from localStorage on page load
     useEffect(() => {
         if (chatIdParam && search_space_id) {
-            const restoredDocuments = restoreSelectedDocuments(
+            const restoredState = restoreChatState(
                 search_space_id as string,
                 chatIdParam
             );
-            if (restoredDocuments && restoredDocuments.length > 0) {
-                setSelectedDocuments(restoredDocuments);
+            if (restoredState) {
+                setSelectedDocuments(restoredState.selectedDocuments);
+                setSearchMode(restoredState.searchMode);
+                setResearchMode(restoredState.researchMode);
             }
         }
-    }, [chatIdParam, search_space_id, setSelectedDocuments]);
+    }, [
+        chatIdParam,
+        search_space_id,
+        setSelectedDocuments,
+        setSearchMode,
+        setResearchMode,
+    ]);
 
     const loadChatData = async (chatId: string) => {
         try {
@@ -179,9 +192,9 @@ export default function ResearchChatPageV2() {
             handler.messages.length > 0 &&
             handler.messages[handler.messages.length - 1]?.role === "assistant"
         ) {
-            updateChat(chatIdParam, handler.messages);
+            updateChat(chatIdParam, handler.messages, researchMode);
         }
-    }, [handler.messages, handler.status, chatIdParam, isNewChat, updateChat]);
+    }, [handler.messages, handler.status, chatIdParam, isNewChat]);
 
     if (isLoading) {
         return (
@@ -199,6 +212,10 @@ export default function ResearchChatPageV2() {
             }}
             onDocumentSelectionChange={setSelectedDocuments}
             selectedDocuments={selectedDocuments}
+            searchMode={searchMode}
+            onSearchModeChange={setSearchMode}
+            researchMode={researchMode}
+            onResearchModeChange={setResearchMode}
         />
     );
 }

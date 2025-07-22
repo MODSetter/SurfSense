@@ -17,16 +17,29 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "../ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "../ui/select";
+import { Badge } from "../ui/badge";
 import { Suspense, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useDocuments, DocumentType, Document } from "@/hooks/use-documents";
 import { DocumentsDataTable } from "./DocumentsDataTable";
+import { ResearchMode } from "@/components/chat";
 import React from "react";
 
 interface ChatInterfaceProps {
     handler: ChatHandler;
     onDocumentSelectionChange?: (documents: Document[]) => void;
     selectedDocuments?: Document[];
+    searchMode?: "DOCUMENTS" | "CHUNKS";
+    onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+    researchMode?: ResearchMode;
+    onResearchModeChange?: (mode: ResearchMode) => void;
 }
 
 const DocumentSelector = React.memo(
@@ -118,21 +131,127 @@ const DocumentSelector = React.memo(
     }
 );
 
+const SearchModeSelector = ({
+    searchMode,
+    onSearchModeChange,
+}: {
+    searchMode?: "DOCUMENTS" | "CHUNKS";
+    onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+}) => {
+    return (
+        <div className="flex items-center gap-1 sm:gap-2">
+            <span className="text-xs text-muted-foreground hidden sm:block">
+                Scope:
+            </span>
+            <div className="flex rounded-md border">
+                <Button
+                    variant={searchMode === "DOCUMENTS" ? "default" : "ghost"}
+                    size="sm"
+                    className="rounded-r-none border-r h-8 px-2 sm:px-3 text-xs"
+                    onClick={() => onSearchModeChange?.("DOCUMENTS")}
+                >
+                    <span className="hidden sm:inline">Documents</span>
+                    <span className="sm:hidden">Docs</span>
+                </Button>
+                <Button
+                    variant={searchMode === "CHUNKS" ? "default" : "ghost"}
+                    size="sm"
+                    className="rounded-l-none h-8 px-2 sm:px-3 text-xs"
+                    onClick={() => onSearchModeChange?.("CHUNKS")}
+                >
+                    Chunks
+                </Button>
+            </div>
+        </div>
+    );
+};
+
+const ResearchModeSelector = ({
+    researchMode,
+    onResearchModeChange,
+}: {
+    researchMode?: ResearchMode;
+    onResearchModeChange?: (mode: ResearchMode) => void;
+}) => {
+    const researchModeLabels: Record<ResearchMode, string> = {
+        QNA: "Q&A",
+        REPORT_GENERAL: "General Report",
+        REPORT_DEEP: "Deep Report",
+        REPORT_DEEPER: "Deeper Report",
+    };
+
+    const researchModeShortLabels: Record<ResearchMode, string> = {
+        QNA: "Q&A",
+        REPORT_GENERAL: "General",
+        REPORT_DEEP: "Deep",
+        REPORT_DEEPER: "Deeper",
+    };
+
+    return (
+        <div className="flex items-center gap-1 sm:gap-2">
+            <span className="text-xs text-muted-foreground hidden sm:block">
+                Mode:
+            </span>
+            <Select
+                value={researchMode}
+                onValueChange={(value) =>
+                    onResearchModeChange?.(value as ResearchMode)
+                }
+            >
+                <SelectTrigger className="w-auto min-w-[80px] sm:min-w-[120px] h-8 text-xs">
+                    <SelectValue placeholder="Mode" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="QNA">Q&A</SelectItem>
+                    <SelectItem value="REPORT_GENERAL">
+                        <span className="hidden sm:inline">General Report</span>
+                        <span className="sm:hidden">General</span>
+                    </SelectItem>
+                    <SelectItem value="REPORT_DEEP">
+                        <span className="hidden sm:inline">Deep Report</span>
+                        <span className="sm:hidden">Deep</span>
+                    </SelectItem>
+                    <SelectItem value="REPORT_DEEPER">
+                        <span className="hidden sm:inline">Deeper Report</span>
+                        <span className="sm:hidden">Deeper</span>
+                    </SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+    );
+};
+
 const CustomChatInputOptions = ({
     onDocumentSelectionChange,
     selectedDocuments,
+    searchMode,
+    onSearchModeChange,
+    researchMode,
+    onResearchModeChange,
 }: {
     onDocumentSelectionChange?: (documents: Document[]) => void;
     selectedDocuments?: Document[];
+    searchMode?: "DOCUMENTS" | "CHUNKS";
+    onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+    researchMode?: ResearchMode;
+    onResearchModeChange?: (mode: ResearchMode) => void;
 }) => {
     return (
-        <div className="flex flex-row gap-2">
+        <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-start">
             <Suspense fallback={<div>Loading...</div>}>
                 <DocumentSelector
                     onSelectionChange={onDocumentSelectionChange}
                     selectedDocuments={selectedDocuments}
                 />
             </Suspense>
+            <SearchModeSelector
+                searchMode={searchMode}
+                onSearchModeChange={onSearchModeChange}
+            />
+            <ResearchModeSelector
+                researchMode={researchMode}
+                onResearchModeChange={onResearchModeChange}
+            />
         </div>
     );
 };
@@ -140,9 +259,17 @@ const CustomChatInputOptions = ({
 const CustomChatInput = ({
     onDocumentSelectionChange,
     selectedDocuments,
+    searchMode,
+    onSearchModeChange,
+    researchMode,
+    onResearchModeChange,
 }: {
     onDocumentSelectionChange?: (documents: Document[]) => void;
     selectedDocuments?: Document[];
+    searchMode?: "DOCUMENTS" | "CHUNKS";
+    onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+    researchMode?: ResearchMode;
+    onResearchModeChange?: (mode: ResearchMode) => void;
 }) => {
     return (
         <ChatInput>
@@ -153,6 +280,10 @@ const CustomChatInput = ({
             <CustomChatInputOptions
                 onDocumentSelectionChange={onDocumentSelectionChange}
                 selectedDocuments={selectedDocuments}
+                searchMode={searchMode}
+                onSearchModeChange={onSearchModeChange}
+                researchMode={researchMode}
+                onResearchModeChange={onResearchModeChange}
             />
         </ChatInput>
     );
@@ -162,6 +293,10 @@ export default function ChatInterface({
     handler,
     onDocumentSelectionChange,
     selectedDocuments = [],
+    searchMode,
+    onSearchModeChange,
+    researchMode,
+    onResearchModeChange,
 }: ChatInterfaceProps) {
     return (
         <ChatSection handler={handler} className="flex h-full">
@@ -177,6 +312,10 @@ export default function ChatInterface({
                     <CustomChatInput
                         onDocumentSelectionChange={onDocumentSelectionChange}
                         selectedDocuments={selectedDocuments}
+                        searchMode={searchMode}
+                        onSearchModeChange={onSearchModeChange}
+                        researchMode={researchMode}
+                        onResearchModeChange={onResearchModeChange}
                     />
                 </div>
             </div>

@@ -49,16 +49,9 @@ export function useChatState({ search_space_id, chat_id }: UseChatStateProps) {
 interface UseChatAPIProps {
     token: string | null;
     search_space_id: string;
-    researchMode: ResearchMode;
-    selectedConnectors: string[];
 }
 
-export function useChatAPI({
-    token,
-    search_space_id,
-    researchMode,
-    selectedConnectors,
-}: UseChatAPIProps) {
+export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
     const fetchChatDetails = useCallback(
         async (chatId: string) => {
             if (!token) return null;
@@ -93,7 +86,10 @@ export function useChatAPI({
     );
 
     const createChat = useCallback(
-        async (initialMessage: string): Promise<string | null> => {
+        async (
+            initialMessage: string,
+            researchMode: ResearchMode
+        ): Promise<string | null> => {
             if (!token) {
                 console.error("Authentication token not found");
                 return null;
@@ -111,7 +107,7 @@ export function useChatAPI({
                         body: JSON.stringify({
                             type: researchMode,
                             title: "Untitled Chat",
-                            initial_connectors: selectedConnectors,
+                            initial_connectors: [],
                             messages: [
                                 {
                                     role: "user",
@@ -136,11 +132,15 @@ export function useChatAPI({
                 return null;
             }
         },
-        [token, researchMode, selectedConnectors, search_space_id]
+        [token, search_space_id]
     );
 
     const updateChat = useCallback(
-        async (chatId: string, messages: Message[]) => {
+        async (
+            chatId: string,
+            messages: Message[],
+            researchMode: ResearchMode
+        ) => {
             if (!token) return;
 
             try {
@@ -164,7 +164,7 @@ export function useChatAPI({
                         body: JSON.stringify({
                             type: researchMode,
                             title: title,
-                            initial_connectors: selectedConnectors,
+                            initial_connectors: [],
                             messages: messages,
                             search_space_id: Number(search_space_id),
                         }),
@@ -180,7 +180,7 @@ export function useChatAPI({
                 console.error("Error updating chat:", err);
             }
         },
-        [token, researchMode, selectedConnectors, search_space_id]
+        [token, search_space_id]
     );
 
     return {
