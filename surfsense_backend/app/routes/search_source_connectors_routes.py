@@ -359,6 +359,10 @@ async def index_connector_content(
             )
             response_message = "Discord indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR:
+            # Add logic for Google Calendar connector management
+            # ...
+
         else:
             raise HTTPException(
                 status_code=400,

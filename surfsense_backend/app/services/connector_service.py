@@ -1055,4 +1055,54 @@ class ConnectorService:
         
         return result_object, discord_chunks
 
+    async def search_google_calendar(self, user_query: str, user_id: str, top_k: int = 20) -> tuple:
+        """
+        Search for Google Calendar events and return both the source information and documents
+        
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            top_k: Maximum number of results to return
+            
+        Returns:
+            tuple: (sources_info, documents)
+        """
+        google_calendar_connector = await self.get_connector_by_type(user_id, SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR)
+        if not google_calendar_connector:
+            return {"id": 12, "name": "Google Calendar", "type": "GOOGLE_CALENDAR_CONNECTOR", "sources": []}, []
+        # Simple search: query DB for events matching user_query in title or description
+        results = self.db.query(Document).filter(
+            Document.document_type == DocumentType.GOOGLE_CALENDAR_CONNECTOR,
+            (Document.title.ilike(f"%{user_query}%") | Document.content.ilike(f"%{user_query}%"))
+        ).limit(top_k).all()
+        sources_list = []
+        documents = []
+        for doc in results:
+            source = {
+                "id": doc.id,
+                "title": doc.title,
+                "description": doc.content,
+                "url": "",
+            }
+            sources_list.append(source)
+            document = {
+                "chunk_id": f"google_calendar_chunk_{doc.id}",
+                "content": doc.content,
+                "score": 1.0,
+                "document": {
+                    "id": doc.id,
+                    "title": doc.title,
+                    "document_type": "GOOGLE_CALENDAR_CONNECTOR",
+                    "metadata": doc.metadata
+                }
+            }
+            documents.append(document)
+        result_object = {
+            "id": 12,
+            "name": "Google Calendar",
+            "type": "GOOGLE_CALENDAR_CONNECTOR",
+            "sources": sources_list,
+        }
+        return result_object, documents
+
 

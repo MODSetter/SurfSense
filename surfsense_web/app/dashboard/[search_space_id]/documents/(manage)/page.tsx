@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/table";
 import { useDocuments } from "@/hooks/use-documents";
 import { cn } from "@/lib/utils";
-import { IconBrandDiscord, IconBrandGithub, IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconLayoutKanban } from "@tabler/icons-react";
+import { IconBrandDiscord, IconBrandGithub, IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconLayoutKanban, IconCalendar } from "@tabler/icons-react";
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -109,7 +109,7 @@ const fadeInScale = {
 type Document = {
     id: number;
     title: string;
-    document_type: "EXTENSION" | "CRAWLED_URL" | "SLACK_CONNECTOR" | "NOTION_CONNECTOR" | "FILE" | "YOUTUBE_VIDEO" | "LINEAR_CONNECTOR" | "DISCORD_CONNECTOR";
+    document_type: "EXTENSION" | "CRAWLED_URL" | "SLACK_CONNECTOR" | "NOTION_CONNECTOR" | "FILE" | "YOUTUBE_VIDEO" | "LINEAR_CONNECTOR" | "DISCORD_CONNECTOR" | "GOOGLE_CALENDAR_CONNECTOR";
     document_metadata: any;
     content: string;
     created_at: string;
@@ -140,6 +140,7 @@ const documentTypeIcons = {
     GITHUB_CONNECTOR: IconBrandGithub,
     LINEAR_CONNECTOR: IconLayoutKanban,
     DISCORD_CONNECTOR: IconBrandDiscord,
+    GOOGLE_CALENDAR_CONNECTOR: IconCalendar,
 } as const;
 
 const columns: ColumnDef<Document>[] = [

@@ -16,6 +16,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 // Import Utils, Types, Hook, and Components
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
@@ -71,6 +72,26 @@ export default function EditConnectorPage() {
 		return <EditConnectorLoadingSkeleton />;
 	}
 
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		try {
+			const res = await fetch(`/api/connectors/${connector.id}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					config: {
+						OAUTH_CREDENTIALS: editForm.oauthCredentials,
+						CALENDAR_ID: editForm.calendarId,
+					},
+				}),
+			});
+			if (!res.ok) throw new Error('Failed to update connector');
+			// Optionally refresh or redirect
+		} catch (err) {
+			alert('Error updating connector: ' + err.message);
+		}
+	};
+
 	// Main Render using data/handlers from the hook
 	return (
 		<div className="container mx-auto py-8 max-w-3xl">
@@ -101,7 +122,7 @@ export default function EditConnectorPage() {
 					<Form {...editForm}>
 						{/* Pass hook's handleSaveChanges */}
 						<form
-							onSubmit={editForm.handleSubmit(handleSaveChanges)}
+							onSubmit={handleSubmit}
 							className="space-y-6"
 						>
 							<CardContent className="space-y-6">
@@ -201,6 +222,26 @@ export default function EditConnectorPage() {
 										fieldDescription="Update the Discord Bot Token if needed."
 										placeholder="Bot token..."
 									/>
+								)}
+
+								{/* == Google Calendar == */}
+								{connector.connector_type === "GOOGLE_CALENDAR_CONNECTOR" && (
+									<>
+										<label>OAuth Credentials (JSON)</label>
+										<Input
+											value={editForm.oauthCredentials}
+											onChange={e => editForm.setValue('oauthCredentials', e.target.value)}
+											placeholder="Paste your OAuth credentials JSON here"
+											required
+										/>
+										<label>Calendar ID</label>
+										<Input
+											value={editForm.calendarId}
+											onChange={e => editForm.setValue('calendarId', e.target.value)}
+											placeholder="Enter your Google Calendar ID"
+											required
+										/>
+									</>
 								)}
 
 							</CardContent>

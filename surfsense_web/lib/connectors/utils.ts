@@ -9,6 +9,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
         "LINEAR_CONNECTOR": "Linear",
         "DISCORD_CONNECTOR": "Discord",
         "LINKUP_API": "Linkup",
+        "GOOGLE_CALENDAR_CONNECTOR": "Google Calendar",
     };
     return typeMap[type] || type;
 }; 

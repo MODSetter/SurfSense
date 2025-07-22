@@ -102,6 +102,16 @@ class SearchSourceConnectorBase(BaseModel):
             if not config.get("DISCORD_BOT_TOKEN"):
                 raise ValueError("DISCORD_BOT_TOKEN cannot be empty")
 
+        elif connector_type == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR:
+            # For GOOGLE_CALENDAR_CONNECTOR, require OAUTH_CREDENTIALS and CALENDAR_ID
+            allowed_keys = ["OAUTH_CREDENTIALS", "CALENDAR_ID"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(f"For GOOGLE_CALENDAR_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
+            if not config.get("OAUTH_CREDENTIALS"):
+                raise ValueError("OAUTH_CREDENTIALS cannot be empty")
+            if not config.get("CALENDAR_ID"):
+                raise ValueError("CALENDAR_ID cannot be empty")
+
         return config
 
 class SearchSourceConnectorCreate(SearchSourceConnectorBase):

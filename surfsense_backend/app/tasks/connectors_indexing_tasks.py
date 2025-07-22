@@ -13,6 +13,7 @@ from app.connectors.notion_history import NotionHistoryConnector
 from app.connectors.github_connector import GitHubConnector
 from app.connectors.linear_connector import LinearConnector
 from app.connectors.discord_connector import DiscordConnector
+from app.connectors.google_calendar_connector import GoogleCalendarConnector
 from slack_sdk.errors import SlackApiError
 import logging
 import asyncio
@@ -1651,3 +1652,41 @@ async def index_discord_messages(
         )
         logger.error(f"Failed to index Discord messages: {str(e)}", exc_info=True)
         return 0, f"Failed to index Discord messages: {str(e)}"
+
+# Add a function to index Google Calendar events
+async def index_google_calendar_events(connector, db_session):
+    creds = connector.config.get("OAUTH_CREDENTIALS")
+    calendar_id = connector.config.get("CALENDAR_ID")
+    google_connector = GoogleCalendarConnector(credentials_dict=creds)
+    events = google_connector.get_events(calendar_id)
+    indexed_count = 0
+    for event in events:
+        # Deduplication: check if event already exists
+        existing = db_session.query(Document).filter_by(
+            external_id=event['id'],
+            document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR
+        ).first()
+        if existing:
+            continue
+        # Chunking: for simplicity, treat description as one chunk
+        content = event.get('description', '')
+        # Embedding: (stub) - replace with your embedding logic
+        embedding = embed_text(content)
+        # Store in DB
+        doc = Document(
+            external_id=event['id'],
+            title=event.get('summary', 'Untitled Event'),
+            content=content,
+            embedding=embedding,
+            document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,
+            metadata={
+                'start': event.get('start', {}).get('dateTime'),
+                'end': event.get('end', {}).get('dateTime'),
+                'location': event.get('location', ''),
+                'calendar_id': calendar_id
+            }
+        )
+        db_session.add(doc)
+        indexed_count += 1
+    db_session.commit()
+    return indexed_count, f"Indexed {indexed_count} Google Calendar events."

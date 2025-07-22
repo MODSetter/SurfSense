@@ -179,6 +179,10 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
                     newConfig = { DISCORD_BOT_TOKEN: formData.DISCORD_BOT_TOKEN };
                 }
                 break;
+            case 'GOOGLE_CALENDAR_CONNECTOR':
+                // Add logic to handle Google Calendar connector form state and update
+                // ...
+                break;
         }
 
         if (newConfig !== null) {

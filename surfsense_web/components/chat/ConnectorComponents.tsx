@@ -13,7 +13,7 @@ import {
   MessageCircle,
   FileText,
 } from 'lucide-react';
-import { IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconBrandGithub, IconLayoutKanban, IconLinkPlus, IconBrandDiscord } from "@tabler/icons-react";
+import { IconBrandNotion, IconBrandSlack, IconBrandYoutube, IconBrandGithub, IconLayoutKanban, IconLinkPlus, IconBrandDiscord, IconCalendar } from "@tabler/icons-react";
 import { Button } from '@/components/ui/button';
 import { Connector, ResearchMode } from './types';
 
@@ -51,6 +51,8 @@ export const getConnectorIcon = (connectorType: string) => {
       return <Microscope {...iconProps} />;
     case 'DEEPEST':
       return <Telescope {...iconProps} />;
+    case 'GOOGLE_CALENDAR_CONNECTOR':
+      return <IconCalendar />;
     default:
       return <Search {...iconProps} />;
   }

@@ -147,6 +147,14 @@ const connectorCategories: ConnectorCategory[] = [
       },
     ],
   },
+  {
+    id: "google-calendar-connector",
+    name: "Google Calendar",
+    status: "available",
+    category: "Calendars",
+    icon: "calendar",
+    description: "Connect and index your Google Calendar events.",
+  },
 ];
 
 // Animation variants
