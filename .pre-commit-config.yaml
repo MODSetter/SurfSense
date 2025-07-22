@@ -67,7 +67,7 @@ repos:
     hooks:
       - id: mypy
         files: ^surfsense_backend/
-        additional_dependencies: []
+        additional_dependencies: ['types-requests']
         args: [--ignore-missing-imports, --disallow-untyped-defs]
 
   - repo: https://github.com/PyCQA/bandit
@@ -75,7 +75,7 @@ repos:
     hooks:
       - id: bandit
         files: ^surfsense_backend/
-        args: ['-r', '.', '-f', 'json']
+        args: ['-r', '-f', 'json']
         exclude: ^surfsense_backend/(tests/|alembic/)
 
   # Frontend/Extension Hooks (TypeScript/JavaScript)
