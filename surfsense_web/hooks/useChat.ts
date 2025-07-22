@@ -88,7 +88,8 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
     const createChat = useCallback(
         async (
             initialMessage: string,
-            researchMode: ResearchMode
+            researchMode: ResearchMode,
+            selectedConnectors: string[]
         ): Promise<string | null> => {
             if (!token) {
                 console.error("Authentication token not found");
@@ -107,7 +108,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
                         body: JSON.stringify({
                             type: researchMode,
                             title: "Untitled Chat",
-                            initial_connectors: [],
+                            initial_connectors: selectedConnectors,
                             messages: [
                                 {
                                     role: "user",
@@ -139,7 +140,8 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
         async (
             chatId: string,
             messages: Message[],
-            researchMode: ResearchMode
+            researchMode: ResearchMode,
+            selectedConnectors: string[]
         ) => {
             if (!token) return;
 
@@ -164,7 +166,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
                         body: JSON.stringify({
                             type: researchMode,
                             title: title,
-                            initial_connectors: [],
+                            initial_connectors: selectedConnectors,
                             messages: messages,
                             search_space_id: Number(search_space_id),
                         }),

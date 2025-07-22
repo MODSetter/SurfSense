@@ -1,7 +1,7 @@
 "use client";
 
 import { ChatInput } from "@llamaindex/chat-ui";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -9,6 +9,7 @@ import {
     DialogDescription,
     DialogTitle,
     DialogTrigger,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import {
     Select,
@@ -21,6 +22,11 @@ import { Suspense, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useDocuments, Document } from "@/hooks/use-documents";
 import { DocumentsDataTable } from "@/components/chat_v2/DocumentsDataTable";
+import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import {
+    getConnectorIcon,
+    ConnectorButton as ConnectorButtonComponent,
+} from "@/components/chat/ConnectorComponents";
 import { ResearchMode } from "@/components/chat";
 import React from "react";
 
@@ -113,6 +119,126 @@ const DocumentSelector = React.memo(
     }
 );
 
+const ConnectorSelector = React.memo(
+    ({
+        onSelectionChange,
+        selectedConnectors = [],
+    }: {
+        onSelectionChange?: (connectorTypes: string[]) => void;
+        selectedConnectors?: string[];
+    }) => {
+        const [isOpen, setIsOpen] = useState(false);
+
+        const { connectorSourceItems, isLoading, isLoaded, fetchConnectors } =
+            useSearchSourceConnectors();
+
+        const handleOpenChange = useCallback(
+            (open: boolean) => {
+                setIsOpen(open);
+                if (open && !isLoaded) {
+                    fetchConnectors();
+                }
+            },
+            [fetchConnectors, isLoaded]
+        );
+
+        const handleConnectorToggle = useCallback(
+            (connectorType: string) => {
+                const isSelected = selectedConnectors.includes(connectorType);
+                const newSelection = isSelected
+                    ? selectedConnectors.filter(
+                          (type) => type !== connectorType
+                      )
+                    : [...selectedConnectors, connectorType];
+                onSelectionChange?.(newSelection);
+            },
+            [selectedConnectors, onSelectionChange]
+        );
+
+        const handleSelectAll = useCallback(() => {
+            onSelectionChange?.(connectorSourceItems.map((c) => c.type));
+        }, [connectorSourceItems, onSelectionChange]);
+
+        const handleClearAll = useCallback(() => {
+            onSelectionChange?.([]);
+        }, [onSelectionChange]);
+
+        return (
+            <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+                <DialogTrigger asChild>
+                    <ConnectorButtonComponent
+                        selectedConnectors={selectedConnectors}
+                        onClick={() => setIsOpen(true)}
+                        connectorSources={connectorSourceItems}
+                    />
+                </DialogTrigger>
+
+                <DialogContent className="sm:max-w-md">
+                    <DialogTitle>Select Connectors</DialogTitle>
+                    <DialogDescription>
+                        Choose which data sources to include in your research
+                    </DialogDescription>
+
+                    {/* Connector selection grid */}
+                    <div className="grid grid-cols-2 gap-4 py-4">
+                        {isLoading ? (
+                            <div className="col-span-2 flex justify-center py-4">
+                                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+                            </div>
+                        ) : (
+                            connectorSourceItems.map((connector) => {
+                                const isSelected = selectedConnectors.includes(
+                                    connector.type
+                                );
+
+                                return (
+                                    <div
+                                        key={connector.id}
+                                        className={`flex items-center gap-2 p-2 rounded-md border cursor-pointer transition-colors ${
+                                            isSelected
+                                                ? "border-primary bg-primary/10"
+                                                : "border-border hover:border-primary/50 hover:bg-muted"
+                                        }`}
+                                        onClick={() =>
+                                            handleConnectorToggle(
+                                                connector.type
+                                            )
+                                        }
+                                        role="checkbox"
+                                        aria-checked={isSelected}
+                                        tabIndex={0}
+                                    >
+                                        <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-muted">
+                                            {getConnectorIcon(connector.type)}
+                                        </div>
+                                        <span className="flex-1 text-sm font-medium">
+                                            {connector.name}
+                                        </span>
+                                        {isSelected && (
+                                            <Check className="h-4 w-4 text-primary" />
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    <DialogFooter className="flex justify-between items-center">
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={handleClearAll}>
+                                Clear All
+                            </Button>
+                            <Button onClick={handleSelectAll}>
+                                Select All
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+);
+
 const SearchModeSelector = ({
     searchMode,
     onSearchModeChange,
@@ -155,20 +281,6 @@ const ResearchModeSelector = ({
     researchMode?: ResearchMode;
     onResearchModeChange?: (mode: ResearchMode) => void;
 }) => {
-    const researchModeLabels: Record<ResearchMode, string> = {
-        QNA: "Q&A",
-        REPORT_GENERAL: "General Report",
-        REPORT_DEEP: "Deep Report",
-        REPORT_DEEPER: "Deeper Report",
-    };
-
-    const researchModeShortLabels: Record<ResearchMode, string> = {
-        QNA: "Q&A",
-        REPORT_GENERAL: "General",
-        REPORT_DEEP: "Deep",
-        REPORT_DEEPER: "Deeper",
-    };
-
     return (
         <div className="flex items-center gap-1 sm:gap-2">
             <span className="text-xs text-muted-foreground hidden sm:block">
@@ -206,6 +318,8 @@ const ResearchModeSelector = ({
 const CustomChatInputOptions = ({
     onDocumentSelectionChange,
     selectedDocuments,
+    onConnectorSelectionChange,
+    selectedConnectors,
     searchMode,
     onSearchModeChange,
     researchMode,
@@ -213,6 +327,8 @@ const CustomChatInputOptions = ({
 }: {
     onDocumentSelectionChange?: (documents: Document[]) => void;
     selectedDocuments?: Document[];
+    onConnectorSelectionChange?: (connectorTypes: string[]) => void;
+    selectedConnectors?: string[];
     searchMode?: "DOCUMENTS" | "CHUNKS";
     onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
     researchMode?: ResearchMode;
@@ -224,6 +340,12 @@ const CustomChatInputOptions = ({
                 <DocumentSelector
                     onSelectionChange={onDocumentSelectionChange}
                     selectedDocuments={selectedDocuments}
+                />
+            </Suspense>
+            <Suspense fallback={<div>Loading...</div>}>
+                <ConnectorSelector
+                    onSelectionChange={onConnectorSelectionChange}
+                    selectedConnectors={selectedConnectors}
                 />
             </Suspense>
             <SearchModeSelector
@@ -241,6 +363,8 @@ const CustomChatInputOptions = ({
 export const CustomChatInput = ({
     onDocumentSelectionChange,
     selectedDocuments,
+    onConnectorSelectionChange,
+    selectedConnectors,
     searchMode,
     onSearchModeChange,
     researchMode,
@@ -248,6 +372,8 @@ export const CustomChatInput = ({
 }: {
     onDocumentSelectionChange?: (documents: Document[]) => void;
     selectedDocuments?: Document[];
+    onConnectorSelectionChange?: (connectorTypes: string[]) => void;
+    selectedConnectors?: string[];
     searchMode?: "DOCUMENTS" | "CHUNKS";
     onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
     researchMode?: ResearchMode;
@@ -262,6 +388,8 @@ export const CustomChatInput = ({
             <CustomChatInputOptions
                 onDocumentSelectionChange={onDocumentSelectionChange}
                 selectedDocuments={selectedDocuments}
+                onConnectorSelectionChange={onConnectorSelectionChange}
+                selectedConnectors={selectedConnectors}
                 searchMode={searchMode}
                 onSearchModeChange={onSearchModeChange}
                 researchMode={researchMode}

@@ -15,6 +15,8 @@ interface ChatInterfaceProps {
     handler: ChatHandler;
     onDocumentSelectionChange?: (documents: Document[]) => void;
     selectedDocuments?: Document[];
+    onConnectorSelectionChange?: (connectorTypes: string[]) => void;
+    selectedConnectors?: string[];
     searchMode?: "DOCUMENTS" | "CHUNKS";
     onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
     researchMode?: ResearchMode;
@@ -25,6 +27,8 @@ export default function ChatInterface({
     handler,
     onDocumentSelectionChange,
     selectedDocuments = [],
+    onConnectorSelectionChange,
+    selectedConnectors = [],
     searchMode,
     onSearchModeChange,
     researchMode,
@@ -44,6 +48,8 @@ export default function ChatInterface({
                     <CustomChatInput
                         onDocumentSelectionChange={onDocumentSelectionChange}
                         selectedDocuments={selectedDocuments}
+                        onConnectorSelectionChange={onConnectorSelectionChange}
+                        selectedConnectors={selectedConnectors}
                         searchMode={searchMode}
                         onSearchModeChange={onSearchModeChange}
                         researchMode={researchMode}

@@ -42,9 +42,15 @@ export default function ResearchChatPageV2() {
         return selectedDocuments.map((doc) => doc.id);
     }, [selectedDocuments]);
 
+    // Memoize connector types to prevent infinite re-renders
+    const connectorTypes = useMemo(() => {
+        return selectedConnectors;
+    }, [selectedConnectors]);
+
     // Unified localStorage management for chat state
     interface ChatState {
         selectedDocuments: Document[];
+        selectedConnectors: string[];
         searchMode: "DOCUMENTS" | "CHUNKS";
         researchMode: ResearchMode;
     }
@@ -89,7 +95,7 @@ export default function ResearchChatPageV2() {
         body: {
             data: {
                 search_space_id: search_space_id,
-                selected_connectors: selectedConnectors,
+                selected_connectors: connectorTypes,
                 research_mode: researchMode,
                 search_mode: searchMode,
                 document_ids_to_add_in_context: documentIds,
@@ -104,11 +110,16 @@ export default function ResearchChatPageV2() {
         message: Message | CreateMessage,
         chatRequestOptions?: { data?: any }
     ) => {
-        const newChatId = await createChat(message.content, researchMode);
+        const newChatId = await createChat(
+            message.content,
+            researchMode,
+            selectedConnectors
+        );
         if (newChatId) {
             // Store chat state before navigation
             storeChatState(search_space_id as string, newChatId, {
                 selectedDocuments,
+                selectedConnectors,
                 searchMode,
                 researchMode,
             });
@@ -133,6 +144,7 @@ export default function ResearchChatPageV2() {
             );
             if (restoredState) {
                 setSelectedDocuments(restoredState.selectedDocuments);
+                setSelectedConnectors(restoredState.selectedConnectors);
                 setSearchMode(restoredState.searchMode);
                 setResearchMode(restoredState.researchMode);
             }
@@ -141,6 +153,7 @@ export default function ResearchChatPageV2() {
         chatIdParam,
         search_space_id,
         setSelectedDocuments,
+        setSelectedConnectors,
         setSearchMode,
         setResearchMode,
     ]);
@@ -192,7 +205,12 @@ export default function ResearchChatPageV2() {
             handler.messages.length > 0 &&
             handler.messages[handler.messages.length - 1]?.role === "assistant"
         ) {
-            updateChat(chatIdParam, handler.messages, researchMode);
+            updateChat(
+                chatIdParam,
+                handler.messages,
+                researchMode,
+                selectedConnectors
+            );
         }
     }, [handler.messages, handler.status, chatIdParam, isNewChat]);
 
@@ -212,6 +230,8 @@ export default function ResearchChatPageV2() {
             }}
             onDocumentSelectionChange={setSelectedDocuments}
             selectedDocuments={selectedDocuments}
+            onConnectorSelectionChange={setSelectedConnectors}
+            selectedConnectors={selectedConnectors}
             searchMode={searchMode}
             onSearchModeChange={setSearchMode}
             researchMode={researchMode}
