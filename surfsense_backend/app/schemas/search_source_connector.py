@@ -101,6 +101,23 @@ class SearchSourceConnectorBase(BaseModel):
             # Ensure the bot token is not empty
             if not config.get("DISCORD_BOT_TOKEN"):
                 raise ValueError("DISCORD_BOT_TOKEN cannot be empty")
+                
+        elif connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR:
+            # For GOOGLE_DRIVE_CONNECTOR, allow GOOGLE_OAUTH_TOKEN, GOOGLE_REFRESH_TOKEN, and selected_files
+            allowed_keys = ["GOOGLE_OAUTH_TOKEN", "GOOGLE_REFRESH_TOKEN", "selected_files"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(f"For GOOGLE_DRIVE_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
+
+            # Ensure the tokens are not empty
+            if not config.get("GOOGLE_OAUTH_TOKEN"):
+                raise ValueError("GOOGLE_OAUTH_TOKEN cannot be empty")
+            if not config.get("GOOGLE_REFRESH_TOKEN"):
+                raise ValueError("GOOGLE_REFRESH_TOKEN cannot be empty")
+            
+            # Ensure the selected_files is present and is a non-empty list
+            selected_files = config.get("selected_files")
+            if not isinstance(selected_files, list) or not selected_files:
+                raise ValueError("selected_files must be a non-empty list of file objects")
 
         return config
 

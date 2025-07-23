@@ -13,6 +13,7 @@ from app.connectors.notion_history import NotionHistoryConnector
 from app.connectors.github_connector import GitHubConnector
 from app.connectors.linear_connector import LinearConnector
 from app.connectors.discord_connector import DiscordConnector
+from app.connectors.google_drive_connector import GoogleDriveConnector
 from slack_sdk.errors import SlackApiError
 import logging
 import asyncio
@@ -1651,3 +1652,241 @@ async def index_discord_messages(
         )
         logger.error(f"Failed to index Discord messages: {str(e)}", exc_info=True)
         return 0, f"Failed to index Discord messages: {str(e)}"
+
+async def index_google_drive_files(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    update_last_indexed: bool = True
+) -> Tuple[int, Optional[str]]:
+    """
+    Index Google Drive files from the selected files list.
+    
+    Args:
+        session: Database session
+        connector_id: ID of the Google Drive connector
+        search_space_id: ID of the search space to store documents in
+        user_id: User ID for the connector
+        update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        
+    Returns:
+        Tuple containing (number of documents indexed, error message or None)
+    """
+    task_logger = TaskLoggingService(session, search_space_id)
+    
+    # Log task start
+    log_entry = await task_logger.log_task_start(
+        task_name="google_drive_files_indexing",
+        task_description="Indexing Google Drive files"
+    )
+    
+    documents_indexed = 0
+    documents_skipped = 0
+    skipped_files = []
+    
+    try:
+        # Get the connector
+        result = await session.execute(select(SearchSourceConnector).filter(SearchSourceConnector.id == connector_id))
+        connector = result.scalars().first()
+        
+        if not connector:
+            error_msg = f"Connector with ID {connector_id} not found"
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to find Google Drive connector {connector_id}",
+                error_msg,
+                {"error_type": "ConnectorNotFound"}
+            )
+            logger.error(error_msg)
+            return 0, error_msg
+        
+        if connector.connector_type != SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR:
+            error_msg = f"Connector {connector_id} is not a Google Drive connector"
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Invalid connector type for Google Drive indexing",
+                error_msg,
+                {"error_type": "InvalidConnectorType"}
+            )
+            logger.error(error_msg)
+            return 0, error_msg
+
+        # Extract configuration
+        config = connector.config
+        access_token = config.get("GOOGLE_OAUTH_TOKEN")
+        refresh_token = config.get("GOOGLE_REFRESH_TOKEN")
+        selected_files = config.get("selected_files", [])
+        
+        if not access_token or not refresh_token:
+            error_msg = "Missing Google OAuth tokens in connector config"
+            await task_logger.log_task_failure(
+                log_entry,
+                "Missing OAuth tokens",
+                error_msg,
+                {"error_type": "MissingTokens"}
+            )
+            logger.error(error_msg)
+            return 0, error_msg
+        
+        if not selected_files:
+            error_msg = "No files selected for indexing"
+            await task_logger.log_task_failure(
+                log_entry,
+                "No files selected",
+                error_msg,
+                {"error_type": "NoFilesSelected"}
+            )
+            logger.error(error_msg)
+            return 0, error_msg
+
+        # Initialize Google Drive connector
+        try:
+            drive_client = GoogleDriveConnector(access_token=access_token, refresh_token=refresh_token)
+        except Exception as e:
+            error_msg = f"Failed to initialize Google Drive client: {str(e)}"
+            await task_logger.log_task_failure(
+                log_entry,
+                "Failed to initialize Google Drive client",
+                error_msg,
+                {"error_type": "ClientInitializationError"}
+            )
+            logger.error(error_msg)
+            return 0, error_msg
+
+        # Process each selected file
+        for file_info in selected_files:
+            try:
+                file_id = file_info.get("id")
+                file_name = file_info.get("name", "Unknown")
+                mime_type = file_info.get("mimeType", "")
+                
+                if not file_id:
+                    logger.warning(f"Skipping file without ID: {file_name}")
+                    skipped_files.append(f"{file_name} (no ID)")
+                    documents_skipped += 1
+                    continue
+
+                logger.info(f"Processing Google Drive file: {file_name} (ID: {file_id})")
+
+                # Get file content
+                content = drive_client.get_file_content(file_id, mime_type)
+                if not content:
+                    logger.warning(f"No content retrieved for file: {file_name}")
+                    skipped_files.append(f"{file_name} (no content)")
+                    documents_skipped += 1
+                    continue
+
+                # Generate content hash to avoid duplicates
+                content_hash = generate_content_hash(content)
+                
+                # Check if document already exists
+                existing_doc_result = await session.execute(
+                    select(Document).filter(Document.content_hash == content_hash)
+                )
+                existing_doc = existing_doc_result.scalars().first()
+                
+                if existing_doc:
+                    logger.info(f"Document already exists for file: {file_name}, skipping")
+                    skipped_files.append(f"{file_name} (already exists)")
+                    documents_skipped += 1
+                    continue
+
+                # Get embedding
+                try:
+                    embedding = config.embedding_model_instance.embed(content)
+                except Exception as e:
+                    logger.error(f"Failed to generate embedding for file {file_name}: {str(e)}")
+                    skipped_files.append(f"{file_name} (embedding failed)")
+                    documents_skipped += 1
+                    continue
+
+                # Create chunks using chunker
+                chunks = [
+                    Chunk(
+                        content=chunk.text, 
+                        content_hash=generate_content_hash(chunk.text),
+                        embedding=config.embedding_model_instance.embed(chunk.text)
+                    )
+                    for chunk in config.chunker_instance.chunk(content)
+                ]
+
+                # Create document
+                document = Document(
+                    title=file_name,
+                    document_type=DocumentType.GOOGLE_DRIVE_CONNECTOR,
+                    document_metadata={
+                        "file_id": file_id,
+                        "mime_type": mime_type,
+                        "web_view_link": file_info.get("webViewLink", ""),
+                        "modified_time": file_info.get("modifiedTime", ""),
+                        "indexed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                    },
+                    content=content,
+                    content_hash=content_hash,
+                    embedding=embedding,
+                    search_space_id=search_space_id,
+                    chunks=chunks
+                )
+
+                session.add(document)
+                documents_indexed += 1
+                logger.info(f"Successfully indexed Google Drive file: {file_name}")
+
+            except Exception as e:
+                logger.error(f"Error processing file {file_name}: {str(e)}", exc_info=True)
+                skipped_files.append(f"{file_name} (processing error)")
+                documents_skipped += 1
+                continue
+
+        # Update last indexed timestamp
+        if update_last_indexed and documents_indexed > 0:
+            connector.last_indexed_at = datetime.now(timezone.utc)
+            logger.info(f"Updated last_indexed_at to {connector.last_indexed_at}")
+
+        await session.commit()
+
+        # Prepare result message
+        result_message = None
+        if skipped_files:
+            result_message = f"Processed {documents_indexed} files. Skipped {len(skipped_files)} files: {', '.join(skipped_files)}"
+        else:
+            result_message = f"Processed {documents_indexed} files."
+
+        # Log success
+        await task_logger.log_task_success(
+            log_entry,
+            f"Successfully completed Google Drive indexing for connector {connector_id}",
+            {
+                "files_processed": documents_indexed,
+                "documents_indexed": documents_indexed,
+                "documents_skipped": documents_skipped,
+                "skipped_files_count": len(skipped_files),
+                "total_files": len(selected_files),
+                "result_message": result_message
+            }
+        )
+
+        logger.info(f"Google Drive indexing completed: {result_message}")
+        return documents_indexed, None
+
+    except SQLAlchemyError as db_error:
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Database error during Google Drive indexing for connector {connector_id}",
+            str(db_error),
+            {"error_type": "SQLAlchemyError"}
+        )
+        logger.error(f"Database error during Google Drive indexing: {str(db_error)}", exc_info=True)
+        return 0, f"Database error: {str(db_error)}"
+    except Exception as e:
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Failed to index Google Drive files for connector {connector_id}",
+            str(e),
+            {"error_type": type(e).__name__}
+        )
+        logger.error(f"Failed to index Google Drive files: {str(e)}", exc_info=True)
+        return 0, f"Failed to index Google Drive files: {str(e)}"

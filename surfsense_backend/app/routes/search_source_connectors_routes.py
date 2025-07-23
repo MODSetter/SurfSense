@@ -19,8 +19,9 @@ from app.schemas import SearchSourceConnectorCreate, SearchSourceConnectorUpdate
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 from pydantic import BaseModel, Field, ValidationError
-from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues, index_discord_messages
+from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues, index_discord_messages, index_google_drive_files
 from app.connectors.github_connector import GitHubConnector
+from app.connectors.google_drive_connector import GoogleDriveConnector
 from datetime import datetime, timedelta
 import logging
 
@@ -32,6 +33,10 @@ router = APIRouter()
 # Use Pydantic's BaseModel here
 class GitHubPATRequest(BaseModel):
     github_pat: str = Field(..., description="GitHub Personal Access Token")
+
+class GoogleDriveTokensRequest(BaseModel):
+    access_token: str = Field(..., description="Google OAuth2 access token")
+    refresh_token: str = Field(..., description="Google OAuth2 refresh token")
 
 # --- New Endpoint to list GitHub Repositories ---
 @router.post("/github/repositories/", response_model=List[Dict[str, Any]])
@@ -56,6 +61,33 @@ async def list_github_repositories(
     except Exception as e:
         logger.error(f"Failed to fetch GitHub repositories for user {user.id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch GitHub repositories.")
+
+# --- New Endpoint to list Google Drive Files ---
+@router.post("/google-drive/files/", response_model=List[Dict[str, Any]])
+async def list_google_drive_files(
+    tokens_request: GoogleDriveTokensRequest,
+    user: User = Depends(current_active_user)
+):
+    """
+    Fetches a list of files from Google Drive using OAuth2 tokens.
+    The tokens are used for this request only and are not stored here.
+    """
+    try:
+        # Initialize GoogleDriveConnector with the provided tokens
+        drive_client = GoogleDriveConnector(
+            access_token=tokens_request.access_token,
+            refresh_token=tokens_request.refresh_token
+        )
+        # Fetch files from Google Drive
+        files = drive_client.list_files()
+        return files
+    except ValueError as e:
+        # Handle invalid token error specifically
+        logger.error(f"Google Drive token validation failed for user {user.id}: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid Google Drive tokens: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to fetch Google Drive files for user {user.id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch Google Drive files.")
 
 @router.post("/search-source-connectors/", response_model=SearchSourceConnectorRead)
 async def create_search_source_connector(
@@ -359,6 +391,12 @@ async def index_connector_content(
             )
             response_message = "Discord indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR:
+            # Run indexing in background
+            logger.info(f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}")
+            background_tasks.add_task(run_google_drive_indexing_with_new_session, connector_id, search_space_id, str(user.id))
+            response_message = "Google Drive indexing started in the background."
+
         else:
             raise HTTPException(
                 status_code=400,
@@ -648,3 +686,48 @@ async def run_discord_indexing(
             logger.error(f"Discord indexing failed or no documents processed: {error_or_warning}")
     except Exception as e:
         logger.error(f"Error in background Discord indexing task: {str(e)}")
+
+async def run_google_drive_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str
+):
+    """
+    Create a new session and run the Google Drive indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    async with async_session_maker() as session:
+        await run_google_drive_indexing(session, connector_id, search_space_id, user_id)
+
+async def run_google_drive_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str
+):
+    """
+    Background task to run Google Drive indexing.
+    Args:
+        session: Database session
+        connector_id: ID of the Google Drive connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+    """
+    try:
+        # Index Google Drive files without updating last_indexed_at (we'll do it separately)
+        documents_processed, error_or_warning = await index_google_drive_files(
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            update_last_indexed=False  # Don't update timestamp in the indexing function
+        )
+
+        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
+        if documents_processed > 0:
+            await update_connector_last_indexed(session, connector_id)
+            logger.info(f"Google Drive indexing completed successfully: {documents_processed} documents processed")
+        else:
+            logger.error(f"Google Drive indexing failed or no documents processed: {error_or_warning}")
+    except Exception as e:
+        logger.error(f"Error in background Google Drive indexing task: {str(e)}")

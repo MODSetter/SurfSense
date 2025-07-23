@@ -17,6 +17,7 @@ import {
   IconTicket,
   IconLayoutKanban,
   IconLinkPlus,
+  IconCloud,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
@@ -123,6 +124,13 @@ const connectorCategories: ConnectorCategory[] = [
         title: "GitHub",
         description: "Connect a GitHub PAT to index code and docs from accessible repositories.",
         icon: <IconBrandGithub className="h-6 w-6" />,
+        status: "available",
+      },
+      {
+        id: "google-drive-connector",
+        title: "Google Drive",
+        description: "Connect to your Google Drive to index documents, spreadsheets, and presentations.",
+        icon: <IconCloud className="h-6 w-6" />,
         status: "available",
       },
     ],

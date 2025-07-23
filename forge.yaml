@@ -1,0 +1,2 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/antinomyhq/forge/refs/heads/main/forge.schema.json
+model: anthropic/claude-sonnet-4

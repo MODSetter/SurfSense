@@ -11,7 +11,18 @@ export interface GithubRepo {
     last_updated: string | null;
 }
 
+export interface GoogleDriveFile {
+    id: string;
+    name: string;
+    mimeType: string;
+    size?: string;
+    modifiedTime: string;
+    webViewLink: string;
+    parents?: string[];
+}
+
 export type EditMode = 'viewing' | 'editing_repos';
+export type GoogleDriveEditMode = 'viewing' | 'editing_files';
 
 // Schemas
 export const githubPatSchema = z.object({
@@ -22,6 +33,12 @@ export const githubPatSchema = z.object({
         }),
 });
 export type GithubPatFormValues = z.infer<typeof githubPatSchema>;
+
+export const googleDriveTokensSchema = z.object({
+    access_token: z.string().min(1, { message: "Access token is required." }),
+    refresh_token: z.string().min(1, { message: "Refresh token is required." }),
+});
+export type GoogleDriveTokensFormValues = z.infer<typeof googleDriveTokensSchema>;
 
 export const editConnectorSchema = z.object({
     name: z.string().min(3, { message: "Connector name must be at least 3 characters." }),
