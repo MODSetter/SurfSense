@@ -6,22 +6,10 @@ class StreamingService:
     def __init__(self):
         self.terminal_idx = 1
         self.message_annotations = [
-            {
-                "type": "TERMINAL_INFO",
-                "content": []
-            },
-            {
-                "type": "SOURCES",
-                "content": []
-            },
-            {
-                "type": "ANSWER",
-                "content": []
-            },
-            {
-                "type": "FURTHER_QUESTIONS",
-                "content": []
-            }
+            {"type": "TERMINAL_INFO", "content": []},
+            {"type": "SOURCES", "content": []},
+            {"type": "ANSWER", "content": []},
+            {"type": "FURTHER_QUESTIONS", "content": []},
         ]
 
     # DEPRECATED: This sends the full annotation array every time (inefficient)
@@ -35,7 +23,7 @@ class StreamingService:
         Returns:
             str: The formatted annotations string
         """
-        return f'8:{json.dumps(self.message_annotations)}\n'
+        return f"8:{json.dumps(self.message_annotations)}\n"
 
     def format_terminal_info_delta(self, text: str, message_type: str = "info") -> str:
         """
@@ -55,7 +43,17 @@ class StreamingService:
         self.message_annotations[0]["content"].append(message)
 
         # Return only the delta annotation
-        annotation = {"type": "TERMINAL_INFO", "content": [message]}
+        # annotation = {"type": "TERMINAL_INFO", "content": [message]}
+        agent_data = {
+            "agent_name": "Terminal agent",
+            "events": [
+                {
+                    "status": message_type,
+                    "result": message.get("text", ""),
+                }
+            ],
+        }
+        annotation = {"type": "agent_events", "data": agent_data}
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_sources_delta(self, sources: List[Dict[str, Any]]) -> str:
@@ -155,14 +153,16 @@ class StreamingService:
         """
         return f"3:{json.dumps(error_message)}\n"
 
-    def format_completion(self, prompt_tokens: int = 156, completion_tokens: int = 204) -> str:
+    def format_completion(
+        self, prompt_tokens: int = 156, completion_tokens: int = 204
+    ) -> str:
         """
         Format a completion message
-        
+
         Args:
             prompt_tokens: Number of prompt tokens
             completion_tokens: Number of completion tokens
-            
+
         Returns:
             str: The formatted completion string
         """
@@ -172,7 +172,7 @@ class StreamingService:
             "usage": {
                 "promptTokens": prompt_tokens,
                 "completionTokens": completion_tokens,
-                "totalTokens": total_tokens
-            }
+                "totalTokens": total_tokens,
+            },
         }
-        return f'd:{json.dumps(completion_data)}\n' 
+        return f"d:{json.dumps(completion_data)}\n"
