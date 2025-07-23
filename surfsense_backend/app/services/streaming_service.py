@@ -43,17 +43,7 @@ class StreamingService:
         self.message_annotations[0]["content"].append(message)
 
         # Return only the delta annotation
-        # annotation = {"type": "TERMINAL_INFO", "content": [message]}
-        agent_data = {
-            "agent_name": "Terminal agent",
-            "events": [
-                {
-                    "status": message_type,
-                    "result": message.get("text", ""),
-                }
-            ],
-        }
-        annotation = {"type": "agent_events", "data": agent_data}
+        annotation = {"type": "TERMINAL_INFO", "data": message}
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_sources_delta(self, sources: List[Dict[str, Any]]) -> str:

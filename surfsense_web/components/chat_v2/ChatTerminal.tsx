@@ -3,31 +3,24 @@
 import React from "react";
 import { getAnnotationData, Message } from "@llamaindex/chat-ui";
 
-export default function TerminalDisplay({ messages }: { messages: Message[] }) {
+export default function TerminalDisplay({ message }: { message: Message }) {
     const [isCollapsed, setIsCollapsed] = React.useState(true);
 
     // Get the last assistant message that's not being typed
-    const lastAssistantMessage = messages
-        .filter((msg) => msg.role === "assistant")
-        .pop();
-
-    if (!lastAssistantMessage) {
+    if (!message) {
         return <></>;
     }
 
-    const annotations = getAnnotationData(lastAssistantMessage, "agent_events");
-
-    if (annotations.length === 0) {
-        return <></>;
+    interface TerminalInfo {
+        id: number;
+        text: string;
+        type: string;
     }
 
-    // Get all agent events and combine them
-    const events: any[] = [];
-    annotations.forEach((annotation: any) => {
-        if (annotation?.events && Array.isArray(annotation.events)) {
-            events.push(...annotation.events);
-        }
-    });
+    const events = getAnnotationData(
+        message,
+        "TERMINAL_INFO"
+    ) as TerminalInfo[];
 
     if (events.length === 0) {
         return <></>;
@@ -85,16 +78,17 @@ export default function TerminalDisplay({ messages }: { messages: Message[] }) {
             {!isCollapsed && (
                 <div className="h-64 overflow-y-auto p-4 space-y-1 bg-gray-900">
                     {events.map((event, index) => (
-                        <div key={index} className="text-green-400">
+                        <div
+                            key={`${event.id}-${index}`}
+                            className="text-green-400"
+                        >
                             <span className="text-blue-400">$</span>
                             <span className="text-yellow-400 ml-2">
-                                [{event.status || "completed"}]
+                                [{event.type || ""}]
                             </span>
-                            {event.result && (
-                                <span className="text-gray-300 ml-4 mt-1 pl-2 border-l-2 border-gray-600">
-                                    {event.result.slice(0, 100)}...
-                                </span>
-                            )}
+                            <span className="text-gray-300 ml-4 mt-1 pl-2 border-l-2 border-gray-600">
+                                {event.text || ""}...
+                            </span>
                         </div>
                     ))}
                     {events.length === 0 && (
