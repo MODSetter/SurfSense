@@ -1,7 +1,7 @@
 "use client";
 
 import { ChatInput } from "@llamaindex/chat-ui";
-import { FolderOpen, Check } from "lucide-react";
+import { FolderOpen, Check, Zap, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Suspense, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useDocuments, Document } from "@/hooks/use-documents";
@@ -28,6 +29,7 @@ import {
     ConnectorButton as ConnectorButtonComponent,
 } from "@/components/chat/ConnectorComponents";
 import { ResearchMode } from "@/components/chat";
+import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import React from "react";
 
 const DocumentSelector = React.memo(
@@ -65,9 +67,12 @@ const DocumentSelector = React.memo(
 
         const handleDone = useCallback(() => {
             setIsOpen(false);
-        }, [selectedDocuments]);
+        }, []);
 
-        const selectedCount = selectedDocuments.length;
+        const selectedCount = React.useMemo(
+            () => selectedDocuments.length,
+            [selectedDocuments.length]
+        );
 
         return (
             <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -119,6 +124,8 @@ const DocumentSelector = React.memo(
         );
     }
 );
+
+DocumentSelector.displayName = "DocumentSelector";
 
 const ConnectorSelector = React.memo(
     ({
@@ -240,162 +247,399 @@ const ConnectorSelector = React.memo(
     }
 );
 
-const SearchModeSelector = ({
-    searchMode,
-    onSearchModeChange,
-}: {
-    searchMode?: "DOCUMENTS" | "CHUNKS";
-    onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
-}) => {
-    return (
-        <div className="flex items-center gap-1 sm:gap-2">
-            <span className="text-xs text-muted-foreground hidden sm:block">
-                Scope:
-            </span>
-            <div className="flex rounded-md border">
+ConnectorSelector.displayName = "ConnectorSelector";
+
+const SearchModeSelector = React.memo(
+    ({
+        searchMode,
+        onSearchModeChange,
+    }: {
+        searchMode?: "DOCUMENTS" | "CHUNKS";
+        onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+    }) => {
+        const handleDocumentsClick = React.useCallback(() => {
+            onSearchModeChange?.("DOCUMENTS");
+        }, [onSearchModeChange]);
+
+        const handleChunksClick = React.useCallback(() => {
+            onSearchModeChange?.("CHUNKS");
+        }, [onSearchModeChange]);
+
+        return (
+            <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-xs text-muted-foreground hidden sm:block">
+                    Scope:
+                </span>
+                <div className="flex rounded-md border border-border overflow-hidden">
+                    <Button
+                        variant={
+                            searchMode === "DOCUMENTS" ? "default" : "ghost"
+                        }
+                        size="sm"
+                        className="rounded-none border-r h-8 px-2 sm:px-3 text-xs transition-all duration-200 hover:bg-muted/80"
+                        onClick={handleDocumentsClick}
+                    >
+                        <span className="hidden sm:inline">Documents</span>
+                        <span className="sm:hidden">Docs</span>
+                    </Button>
+                    <Button
+                        variant={searchMode === "CHUNKS" ? "default" : "ghost"}
+                        size="sm"
+                        className="rounded-none h-8 px-2 sm:px-3 text-xs transition-all duration-200 hover:bg-muted/80"
+                        onClick={handleChunksClick}
+                    >
+                        Chunks
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+);
+
+SearchModeSelector.displayName = "SearchModeSelector";
+
+const ResearchModeSelector = React.memo(
+    ({
+        researchMode,
+        onResearchModeChange,
+    }: {
+        researchMode?: ResearchMode;
+        onResearchModeChange?: (mode: ResearchMode) => void;
+    }) => {
+        const handleValueChange = React.useCallback(
+            (value: string) => {
+                onResearchModeChange?.(value as ResearchMode);
+            },
+            [onResearchModeChange]
+        );
+
+        // Memoize mode options to prevent recreation
+        const modeOptions = React.useMemo(
+            () => [
+                { value: "QNA", label: "Q&A", shortLabel: "Q&A" },
+                {
+                    value: "REPORT_GENERAL",
+                    label: "General Report",
+                    shortLabel: "General",
+                },
+                {
+                    value: "REPORT_DEEP",
+                    label: "Deep Report",
+                    shortLabel: "Deep",
+                },
+                {
+                    value: "REPORT_DEEPER",
+                    label: "Deeper Report",
+                    shortLabel: "Deeper",
+                },
+            ],
+            []
+        );
+
+        return (
+            <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-xs text-muted-foreground hidden sm:block">
+                    Mode:
+                </span>
+                <Select value={researchMode} onValueChange={handleValueChange}>
+                    <SelectTrigger className="w-auto min-w-[80px] sm:min-w-[120px] h-8 text-xs border-border bg-background hover:bg-muted/50 transition-colors duration-200 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Mode" className="text-xs" />
+                    </SelectTrigger>
+                    <SelectContent align="end" className="min-w-[140px]">
+                        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b bg-muted/30">
+                            Research Mode
+                        </div>
+                        {modeOptions.map((option) => (
+                            <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                className="px-3 py-2 cursor-pointer hover:bg-accent/50 focus:bg-accent"
+                            >
+                                <span className="hidden sm:inline">
+                                    {option.label}
+                                </span>
+                                <span className="sm:hidden">
+                                    {option.shortLabel}
+                                </span>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+        );
+    }
+);
+
+ResearchModeSelector.displayName = "ResearchModeSelector";
+
+const LLMSelector = React.memo(() => {
+    const { llmConfigs, loading: llmLoading, error } = useLLMConfigs();
+    const {
+        preferences,
+        updatePreferences,
+        loading: preferencesLoading,
+    } = useLLMPreferences();
+
+    const isLoading = llmLoading || preferencesLoading;
+
+    // Memoize the selected config to avoid repeated lookups
+    const selectedConfig = React.useMemo(() => {
+        if (!preferences.fast_llm_id || !llmConfigs.length) return null;
+        return (
+            llmConfigs.find(
+                (config) => config.id === preferences.fast_llm_id
+            ) || null
+        );
+    }, [preferences.fast_llm_id, llmConfigs]);
+
+    // Memoize the display value for the trigger
+    const displayValue = React.useMemo(() => {
+        if (!selectedConfig) return null;
+        return (
+            <div className="flex items-center gap-1">
+                <span className="font-medium text-xs">
+                    {selectedConfig.provider}
+                </span>
+                <span className="text-muted-foreground">•</span>
+                <span className="hidden sm:inline text-muted-foreground text-xs truncate max-w-[60px]">
+                    {selectedConfig.name}
+                </span>
+            </div>
+        );
+    }, [selectedConfig]);
+
+    const handleValueChange = React.useCallback(
+        (value: string) => {
+            const llmId = value ? parseInt(value, 10) : undefined;
+            updatePreferences({ fast_llm_id: llmId });
+        },
+        [updatePreferences]
+    );
+
+    // Loading skeleton
+    if (isLoading) {
+        return (
+            <div className="h-8 min-w-[100px] sm:min-w-[120px]">
+                <div className="h-8 rounded-md bg-muted animate-pulse flex items-center px-3">
+                    <div className="w-3 h-3 rounded bg-muted-foreground/20 mr-2" />
+                    <div className="h-3 w-16 rounded bg-muted-foreground/20" />
+                </div>
+            </div>
+        );
+    }
+
+    // Error state
+    if (error) {
+        return (
+            <div className="h-8 min-w-[100px] sm:min-w-[120px]">
                 <Button
-                    variant={searchMode === "DOCUMENTS" ? "default" : "ghost"}
+                    variant="outline"
                     size="sm"
-                    className="rounded-r-none border-r h-8 px-2 sm:px-3 text-xs"
-                    onClick={() => onSearchModeChange?.("DOCUMENTS")}
+                    className="h-8 px-3 text-xs text-destructive border-destructive/50 hover:bg-destructive/10"
+                    disabled
                 >
-                    <span className="hidden sm:inline">Documents</span>
-                    <span className="sm:hidden">Docs</span>
-                </Button>
-                <Button
-                    variant={searchMode === "CHUNKS" ? "default" : "ghost"}
-                    size="sm"
-                    className="rounded-l-none h-8 px-2 sm:px-3 text-xs"
-                    onClick={() => onSearchModeChange?.("CHUNKS")}
-                >
-                    Chunks
+                    <span className="text-xs">Error</span>
                 </Button>
             </div>
-        </div>
-    );
-};
+        );
+    }
 
-const ResearchModeSelector = ({
-    researchMode,
-    onResearchModeChange,
-}: {
-    researchMode?: ResearchMode;
-    onResearchModeChange?: (mode: ResearchMode) => void;
-}) => {
     return (
-        <div className="flex items-center gap-1 sm:gap-2">
-            <span className="text-xs text-muted-foreground hidden sm:block">
-                Mode:
-            </span>
+        <div className="h-8 min-w-0">
             <Select
-                value={researchMode}
-                onValueChange={(value) =>
-                    onResearchModeChange?.(value as ResearchMode)
-                }
+                value={preferences.fast_llm_id?.toString() || ""}
+                onValueChange={handleValueChange}
+                disabled={isLoading}
             >
-                <SelectTrigger className="w-auto min-w-[80px] sm:min-w-[120px] h-8 text-xs">
-                    <SelectValue placeholder="Mode" />
+                <SelectTrigger className="h-8 w-auto min-w-[100px] sm:min-w-[120px] px-3 text-xs border-border bg-background hover:bg-muted/50 transition-colors duration-200 focus:ring-2 focus:ring-primary/20">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Zap className="h-3 w-3 text-primary flex-shrink-0" />
+                        <SelectValue placeholder="Fast LLM" className="text-xs">
+                            {displayValue || (
+                                <span className="text-muted-foreground">
+                                    Select LLM
+                                </span>
+                            )}
+                        </SelectValue>
+                    </div>
                 </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="QNA">Q&A</SelectItem>
-                    <SelectItem value="REPORT_GENERAL">
-                        <span className="hidden sm:inline">General Report</span>
-                        <span className="sm:hidden">General</span>
-                    </SelectItem>
-                    <SelectItem value="REPORT_DEEP">
-                        <span className="hidden sm:inline">Deep Report</span>
-                        <span className="sm:hidden">Deep</span>
-                    </SelectItem>
-                    <SelectItem value="REPORT_DEEPER">
-                        <span className="hidden sm:inline">Deeper Report</span>
-                        <span className="sm:hidden">Deeper</span>
-                    </SelectItem>
+
+                <SelectContent align="end" className="w-[300px] max-h-[400px]">
+                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b bg-muted/30">
+                        <div className="flex items-center gap-2">
+                            <Zap className="h-3 w-3" />
+                            Fast LLM Selection
+                        </div>
+                    </div>
+
+                    {llmConfigs.length === 0 ? (
+                        <div className="px-4 py-6 text-center">
+                            <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                                <Brain className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <h4 className="text-sm font-medium mb-1">
+                                No LLM configurations
+                            </h4>
+                            <p className="text-xs text-muted-foreground mb-3">
+                                Configure AI models to get started
+                            </p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() =>
+                                    window.open("/settings", "_blank")
+                                }
+                            >
+                                Open Settings
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="py-1">
+                            {llmConfigs.map((config) => (
+                                <SelectItem
+                                    key={config.id}
+                                    value={config.id.toString()}
+                                    className="px-3 py-2 cursor-pointer hover:bg-accent/50 focus:bg-accent"
+                                >
+                                    <div className="flex items-center justify-between w-full min-w-0">
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
+                                                <Brain className="h-4 w-4 text-primary" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-sm truncate">
+                                                        {config.name}
+                                                    </span>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-xs px-1.5 py-0.5 flex-shrink-0"
+                                                    >
+                                                        {config.provider}
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground font-mono truncate">
+                                                    {config.model_name}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {preferences.fast_llm_id ===
+                                            config.id && (
+                                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary ml-2 flex-shrink-0">
+                                                <Check className="h-3 w-3 text-primary-foreground" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </div>
+                    )}
                 </SelectContent>
             </Select>
         </div>
     );
-};
+});
 
-const CustomChatInputOptions = ({
-    onDocumentSelectionChange,
-    selectedDocuments,
-    onConnectorSelectionChange,
-    selectedConnectors,
-    searchMode,
-    onSearchModeChange,
-    researchMode,
-    onResearchModeChange,
-}: {
-    onDocumentSelectionChange?: (documents: Document[]) => void;
-    selectedDocuments?: Document[];
-    onConnectorSelectionChange?: (connectorTypes: string[]) => void;
-    selectedConnectors?: string[];
-    searchMode?: "DOCUMENTS" | "CHUNKS";
-    onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
-    researchMode?: ResearchMode;
-    onResearchModeChange?: (mode: ResearchMode) => void;
-}) => {
-    return (
-        <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-start">
-            <Suspense fallback={<div>Loading...</div>}>
-                <DocumentSelector
-                    onSelectionChange={onDocumentSelectionChange}
+LLMSelector.displayName = "LLMSelector";
+
+const CustomChatInputOptions = React.memo(
+    ({
+        onDocumentSelectionChange,
+        selectedDocuments,
+        onConnectorSelectionChange,
+        selectedConnectors,
+        searchMode,
+        onSearchModeChange,
+        researchMode,
+        onResearchModeChange,
+    }: {
+        onDocumentSelectionChange?: (documents: Document[]) => void;
+        selectedDocuments?: Document[];
+        onConnectorSelectionChange?: (connectorTypes: string[]) => void;
+        selectedConnectors?: string[];
+        searchMode?: "DOCUMENTS" | "CHUNKS";
+        onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+        researchMode?: ResearchMode;
+        onResearchModeChange?: (mode: ResearchMode) => void;
+    }) => {
+        // Memoize the loading fallback to prevent recreation
+        const loadingFallback = React.useMemo(
+            () => (
+                <div className="h-8 min-w-[100px] animate-pulse bg-muted rounded-md" />
+            ),
+            []
+        );
+
+        return (
+            <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-start">
+                <Suspense fallback={loadingFallback}>
+                    <DocumentSelector
+                        onSelectionChange={onDocumentSelectionChange}
+                        selectedDocuments={selectedDocuments}
+                    />
+                </Suspense>
+                <Suspense fallback={loadingFallback}>
+                    <ConnectorSelector
+                        onSelectionChange={onConnectorSelectionChange}
+                        selectedConnectors={selectedConnectors}
+                    />
+                </Suspense>
+                <SearchModeSelector
+                    searchMode={searchMode}
+                    onSearchModeChange={onSearchModeChange}
+                />
+                <ResearchModeSelector
+                    researchMode={researchMode}
+                    onResearchModeChange={onResearchModeChange}
+                />
+                <LLMSelector />
+            </div>
+        );
+    }
+);
+
+CustomChatInputOptions.displayName = "CustomChatInputOptions";
+
+export const CustomChatInput = React.memo(
+    ({
+        onDocumentSelectionChange,
+        selectedDocuments,
+        onConnectorSelectionChange,
+        selectedConnectors,
+        searchMode,
+        onSearchModeChange,
+        researchMode,
+        onResearchModeChange,
+    }: {
+        onDocumentSelectionChange?: (documents: Document[]) => void;
+        selectedDocuments?: Document[];
+        onConnectorSelectionChange?: (connectorTypes: string[]) => void;
+        selectedConnectors?: string[];
+        searchMode?: "DOCUMENTS" | "CHUNKS";
+        onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+        researchMode?: ResearchMode;
+        onResearchModeChange?: (mode: ResearchMode) => void;
+    }) => {
+        return (
+            <ChatInput>
+                <ChatInput.Form className="flex gap-2">
+                    <ChatInput.Field className="flex-1" />
+                    <ChatInput.Submit />
+                </ChatInput.Form>
+                <CustomChatInputOptions
+                    onDocumentSelectionChange={onDocumentSelectionChange}
                     selectedDocuments={selectedDocuments}
-                />
-            </Suspense>
-            <Suspense fallback={<div>Loading...</div>}>
-                <ConnectorSelector
-                    onSelectionChange={onConnectorSelectionChange}
+                    onConnectorSelectionChange={onConnectorSelectionChange}
                     selectedConnectors={selectedConnectors}
+                    searchMode={searchMode}
+                    onSearchModeChange={onSearchModeChange}
+                    researchMode={researchMode}
+                    onResearchModeChange={onResearchModeChange}
                 />
-            </Suspense>
-            <SearchModeSelector
-                searchMode={searchMode}
-                onSearchModeChange={onSearchModeChange}
-            />
-            <ResearchModeSelector
-                researchMode={researchMode}
-                onResearchModeChange={onResearchModeChange}
-            />
-        </div>
-    );
-};
+            </ChatInput>
+        );
+    }
+);
 
-export const CustomChatInput = ({
-    onDocumentSelectionChange,
-    selectedDocuments,
-    onConnectorSelectionChange,
-    selectedConnectors,
-    searchMode,
-    onSearchModeChange,
-    researchMode,
-    onResearchModeChange,
-}: {
-    onDocumentSelectionChange?: (documents: Document[]) => void;
-    selectedDocuments?: Document[];
-    onConnectorSelectionChange?: (connectorTypes: string[]) => void;
-    selectedConnectors?: string[];
-    searchMode?: "DOCUMENTS" | "CHUNKS";
-    onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
-    researchMode?: ResearchMode;
-    onResearchModeChange?: (mode: ResearchMode) => void;
-}) => {
-    return (
-        <ChatInput>
-            <ChatInput.Form className="flex gap-2">
-                <ChatInput.Field className="flex-1" />
-                <ChatInput.Submit />
-            </ChatInput.Form>
-            <CustomChatInputOptions
-                onDocumentSelectionChange={onDocumentSelectionChange}
-                selectedDocuments={selectedDocuments}
-                onConnectorSelectionChange={onConnectorSelectionChange}
-                selectedConnectors={selectedConnectors}
-                searchMode={searchMode}
-                onSearchModeChange={onSearchModeChange}
-                researchMode={researchMode}
-                onResearchModeChange={onResearchModeChange}
-            />
-        </ChatInput>
-    );
-};
+CustomChatInput.displayName = "CustomChatInput";
