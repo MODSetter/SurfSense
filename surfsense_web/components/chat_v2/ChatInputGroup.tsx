@@ -138,7 +138,7 @@ const ConnectorSelector = React.memo(
         const [isOpen, setIsOpen] = useState(false);
 
         const { connectorSourceItems, isLoading, isLoaded, fetchConnectors } =
-            useSearchSourceConnectors();
+            useSearchSourceConnectors(true);
 
         const handleOpenChange = useCallback(
             (open: boolean) => {

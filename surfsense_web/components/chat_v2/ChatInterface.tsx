@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import {
     ChatSection,
     ChatHandler,
@@ -12,8 +13,8 @@ import {
 import { Document } from "@/hooks/use-documents";
 import { CustomChatInput } from "@/components/chat_v2/ChatInputGroup";
 import { ResearchMode } from "@/components/chat";
-import React from "react";
 import TerminalDisplay from "@/components/chat_v2/ChatTerminal";
+import ChatSourcesDisplay from "@/components/chat_v2/ChatSources";
 
 interface ChatInterfaceProps {
     handler: ChatHandler;
@@ -43,6 +44,7 @@ function ChatMessageDisplay({
             {message.role === "assistant" ? (
                 <div className="flex-1 flex flex-col space-y-4">
                     <TerminalDisplay message={message} />
+                    <ChatSourcesDisplay message={message} />
                     <ChatMessage.Content className="flex-1">
                         <ChatMessage.Content.Markdown />
                     </ChatMessage.Content>

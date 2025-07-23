@@ -60,7 +60,7 @@ class StreamingService:
         self.message_annotations[1]["content"] = sources
 
         # Return only the delta annotation
-        annotation = {"type": "SOURCES", "content": sources}
+        annotation = {"type": "SOURCES", "data": sources}
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_answer_delta(self, answer_chunk: str) -> str:

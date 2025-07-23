@@ -21,10 +21,10 @@ export interface ConnectorSourceItem {
 /**
  * Hook to fetch search source connectors from the API
  */
-export const useSearchSourceConnectors = () => {
+export const useSearchSourceConnectors = (lazy: boolean = false) => {
     const [connectors, setConnectors] = useState<SearchSourceConnector[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoading, setIsLoading] = useState(!lazy); // Don't show loading initially for lazy mode
+    const [isLoaded, setIsLoaded] = useState(false); // Memoization flag
     const [error, setError] = useState<Error | null>(null);
     const [connectorSourceItems, setConnectorSourceItems] = useState<
         ConnectorSourceItem[]
@@ -56,7 +56,7 @@ export const useSearchSourceConnectors = () => {
     ]);
 
     const fetchConnectors = useCallback(async () => {
-        if (isLoaded) return; // Don't fetch if already loaded
+        if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
 
         try {
             setIsLoading(true);
@@ -100,7 +100,19 @@ export const useSearchSourceConnectors = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoaded]);
+    }, [isLoaded, lazy]);
+
+    useEffect(() => {
+        if (!lazy) {
+            fetchConnectors();
+        }
+    }, [lazy, fetchConnectors]);
+
+    // Function to refresh the connectors list
+    const refreshConnectors = useCallback(async () => {
+        setIsLoaded(false); // Reset memoization flag to allow refetch
+        await fetchConnectors();
+    }, [fetchConnectors]);
 
     // Update connector source items when connectors change
     const updateConnectorSourceItems = (
@@ -363,5 +375,6 @@ export const useSearchSourceConnectors = () => {
         indexConnector,
         getConnectorSourceItems,
         connectorSourceItems,
+        refreshConnectors,
     };
 };
