@@ -42,7 +42,8 @@ const DocumentSelector = React.memo(
         const [isOpen, setIsOpen] = useState(false);
 
         const { documents, loading, isLoaded, fetchDocuments } = useDocuments(
-            Number(search_space_id)
+            Number(search_space_id),
+            true
         );
 
         const handleOpenChange = useCallback(

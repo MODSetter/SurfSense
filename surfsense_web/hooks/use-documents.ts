@@ -23,7 +23,7 @@ export type DocumentType =
     | "LINEAR_CONNECTOR"
     | "DISCORD_CONNECTOR";
 
-export function useDocuments(searchSpaceId: number, lazy: boolean = true) {
+export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(!lazy); // Don't show loading initially for lazy mode
     const [error, setError] = useState<string | null>(null);
