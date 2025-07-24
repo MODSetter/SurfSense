@@ -220,20 +220,16 @@ async def fetch_documents_by_ids(
 
                 elif doc_type == "DISCORD_CONNECTOR":
                     # Extract Discord-specific metadata
-                    channel_name = metadata.get("channel_name", "Unknown Channel")
-                    channel_id = metadata.get("channel_id", "")
-                    guild_id = metadata.get("guild_id", "")
-                    message_date = metadata.get("start_date", "")
+                    channel_name = metadata.get('channel_name', 'Unknown Channel')
+                    channel_id = metadata.get('channel_id', '')
+                    guild_id = metadata.get('guild_id', '')
+                    message_date = metadata.get('start_date', '')
 
                     title = f"Discord: {channel_name}"
                     if message_date:
                         title += f" ({message_date})"
 
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content[:100] + "..." if len(doc.content) > 100 else doc.content
 
                     if guild_id and channel_id:
                         url = f"https://discord.com/channels/{guild_id}/{channel_id}"
@@ -244,28 +240,20 @@ async def fetch_documents_by_ids(
 
                 elif doc_type == "JIRA_CONNECTOR":
                     # Extract Jira-specific metadata
-                    issue_key = metadata.get("issue_key", "Unknown Issue")
-                    issue_title = metadata.get("issue_title", "Untitled Issue")
-                    status = metadata.get("status", "")
-                    priority = metadata.get("priority", "")
-                    issue_type = metadata.get("issue_type", "")
+                    issue_key = metadata.get('issue_key', 'Unknown Issue')
+                    issue_title = metadata.get('issue_title', 'Untitled Issue')
+                    status = metadata.get('status', '')
+                    priority = metadata.get('priority', '')
+                    issue_type = metadata.get('issue_type', '')
 
                     title = f"Jira: {issue_key} - {issue_title}"
                     if status:
                         title += f" ({status})"
 
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
-                    if priority:
-                        description += f" | Priority: {priority}"
-                    if issue_type:
-                        description += f" | Type: {issue_type}"
+                    description = doc.content[:100] + "..." if len(doc.content) > 100 else doc.content
 
                     # Construct Jira URL if we have the base URL
-                    base_url = metadata.get("base_url", "")
+                    base_url = metadata.get('base_url', '')
                     if base_url and issue_key:
                         url = f"{base_url}/browse/{issue_key}"
                     else:
@@ -889,7 +877,7 @@ async def fetch_relevant_documents(
                         user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
+                        search_mode=search_mode
                     )
 
                     # Add to sources and raw documents

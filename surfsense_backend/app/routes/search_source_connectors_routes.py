@@ -45,6 +45,11 @@ from app.tasks.connectors_indexing_tasks import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from pydantic import BaseModel, Field, ValidationError
+from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues, index_discord_messages, index_jira_issues
+from app.connectors.github_connector import GitHubConnector
+from datetime import datetime, timedelta
+import logging
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -444,17 +449,8 @@ async def index_connector_content(
 
         elif connector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR:
             # Run indexing in background
-            logger.info(
-                f"Triggering Jira indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            background_tasks.add_task(
-                run_jira_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
-            )
+            logger.info(f"Triggering Jira indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}")
+            background_tasks.add_task(run_jira_indexing_with_new_session, connector_id, search_space_id, str(user.id), indexing_from, indexing_to)
             response_message = "Jira indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
@@ -825,7 +821,7 @@ async def run_discord_indexing(
                 f"Discord indexing failed or no documents processed: {error_or_warning}"
             )
     except Exception as e:
-        logger.error(f"Error in background Discord indexing task: {e!s}")
+        logger.error(f"Error in background Discord indexing task: {str(e)}")
 
 
 # Add new helper functions for Jira indexing
@@ -834,18 +830,13 @@ async def run_jira_indexing_with_new_session(
     search_space_id: int,
     user_id: str,
     start_date: str,
-    end_date: str,
+    end_date: str
 ):
     """Wrapper to run Jira indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing Jira connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
-    )
+    logger.info(f"Background task started: Indexing Jira connector {connector_id} into space {search_space_id} from {start_date} to {end_date}")
     async with async_session_maker() as session:
-        await run_jira_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
+        await run_jira_indexing(session, connector_id, search_space_id, user_id, start_date, end_date)
     logger.info(f"Background task finished: Indexing Jira connector {connector_id}")
-
 
 async def run_jira_indexing(
     session: AsyncSession,
@@ -853,34 +844,22 @@ async def run_jira_indexing(
     search_space_id: int,
     user_id: str,
     start_date: str,
-    end_date: str,
+    end_date: str
 ):
     """Runs the Jira indexing task and updates the timestamp."""
     try:
         indexed_count, error_message = await index_jira_issues(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
+            session, connector_id, search_space_id, user_id, start_date, end_date, update_last_indexed=False
         )
         if error_message:
-            logger.error(
-                f"Jira indexing failed for connector {connector_id}: {error_message}"
-            )
+            logger.error(f"Jira indexing failed for connector {connector_id}: {error_message}")
             # Optionally update status in DB to indicate failure
         else:
-            logger.info(
-                f"Jira indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
+            logger.info(f"Jira indexing successful for connector {connector_id}. Indexed {indexed_count} documents.")
             # Update the last indexed timestamp only on success
             await update_connector_last_indexed(session, connector_id)
-            await session.commit()  # Commit timestamp update
+            await session.commit() # Commit timestamp update
     except Exception as e:
-        logger.error(
-            f"Critical error in run_jira_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
+        await session.rollback()
+        logger.error(f"Critical error in run_jira_indexing for connector {connector_id}: {e}", exc_info=True)
         # Optionally update status in DB to indicate failure
