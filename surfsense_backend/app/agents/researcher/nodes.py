@@ -696,10 +696,7 @@ async def fetch_relevant_documents(
                         )
 
                 elif connector == "LINKUP_API":
-                    if top_k > 10:
-                        linkup_mode = "deep"
-                    else:
-                        linkup_mode = "standard"
+                    linkup_mode = "standard"
                         
                     source_object, linkup_chunks = await connector_service.search_linkup(
                         user_query=reformulated_query,
@@ -789,12 +786,36 @@ async def fetch_relevant_documents(
         
         if source_id and source_type:
             source_key = f"{source_type}_{source_id}"
+            current_sources_count = len(source_obj.get('sources', []))
+            
             if source_key not in seen_source_keys:
                 seen_source_keys.add(source_key)
                 deduplicated_sources.append(source_obj)
+                print(f"Debug: Added source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {current_sources_count}")
+            else:
+                # Check if this source object has more sources than the existing one
+                existing_index = None
+                for i, existing_source in enumerate(deduplicated_sources):
+                    existing_id = existing_source.get('id')
+                    existing_type = existing_source.get('type')
+                    if existing_id == source_id and existing_type == source_type:
+                        existing_index = i
+                        break
+                
+                if existing_index is not None:
+                    existing_sources_count = len(deduplicated_sources[existing_index].get('sources', []))
+                    if current_sources_count > existing_sources_count:
+                        # Replace the existing source object with the new one that has more sources
+                        deduplicated_sources[existing_index] = source_obj
+                        print(f"Debug: Replaced source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {existing_sources_count} -> {current_sources_count}")
+                    else:
+                        print(f"Debug: Skipped duplicate source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {current_sources_count} <= {existing_sources_count}")
+                else:
+                    print(f"Debug: Skipped duplicate source - ID: {source_id}, Type: {source_type}, Key: {source_key} (couldn't find existing)")
         else:
             # If there's no ID or type, just add it to be safe
             deduplicated_sources.append(source_obj)
+            print(f"Debug: Added source without ID/type - {source_obj.get('name', 'UNKNOWN')}")
     
     # Stream info about deduplicated sources
     if streaming_service and writer:
