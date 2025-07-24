@@ -452,8 +452,6 @@ class JiraConnector:
             return "Unknown date"
 
         try:
-            from datetime import datetime
-
             # Jira dates are typically in format: 2023-01-01T12:00:00.000+0000
             dt = datetime.fromisoformat(iso_date.replace("Z", "+00:00"))
             return dt.strftime("%Y-%m-%d %H:%M:%S")
