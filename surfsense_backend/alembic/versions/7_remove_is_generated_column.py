@@ -8,6 +8,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -16,10 +17,16 @@ down_revision: Union[str, None] = '6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-
 def upgrade() -> None:
-    # Drop the is_generated column
-    op.drop_column('podcasts', 'is_generated')
+    # Get the current database connection
+    bind = op.get_bind()
+    inspector = inspect(bind)
+
+    # Check if the column exists before attempting to drop it
+    columns = [col["name"] for col in inspector.get_columns("podcasts")]
+    if "is_generated" in columns:
+        op.drop_column('podcasts', 'is_generated')
+
 
 
 def downgrade() -> None:

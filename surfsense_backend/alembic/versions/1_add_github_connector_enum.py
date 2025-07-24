@@ -24,7 +24,22 @@ def upgrade() -> None:
     
     # Manually add the command to add the enum value
     # Note: It's generally better to let autogenerate handle this, but we're bypassing it
-    op.execute("ALTER TYPE searchsourceconnectortype ADD VALUE 'GITHUB_CONNECTOR'")
+    op.execute("""
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_enum
+        WHERE enumlabel = 'GITHUB_CONNECTOR'
+        AND enumtypid = (
+            SELECT oid FROM pg_type WHERE typname = 'searchsourceconnectortype'
+        )
+    ) THEN
+        ALTER TYPE searchsourceconnectortype ADD VALUE 'GITHUB_CONNECTOR';
+    END IF;
+END$$;
+""")
+
     
     # Pass for the rest, as autogenerate didn't run to add other schema details
     pass

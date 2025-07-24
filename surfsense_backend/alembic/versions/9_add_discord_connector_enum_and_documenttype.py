@@ -24,11 +24,35 @@ DOCUMENT_NEW_VALUE = "DISCORD_CONNECTOR"
 
 
 def upgrade() -> None:
-    """Upgrade schema - add DISCORD_CONNECTOR to connector and document enum."""
-    # Add DISCORD_CONNECTOR to searchsourceconnectortype
-    op.execute(f"ALTER TYPE {CONNECTOR_ENUM} ADD VALUE '{CONNECTOR_NEW_VALUE}'")
-    # Add DISCORD_CONNECTOR to documenttype
-    op.execute(f"ALTER TYPE {DOCUMENT_ENUM} ADD VALUE '{DOCUMENT_NEW_VALUE}'")
+    """Upgrade schema - add DISCORD_CONNECTOR to connector and document enum safely."""
+    # Add DISCORD_CONNECTOR to searchsourceconnectortype only if not exists
+    op.execute(f"""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_enum
+                WHERE enumlabel = '{CONNECTOR_NEW_VALUE}'
+                AND enumtypid = (SELECT oid FROM pg_type WHERE typname = '{CONNECTOR_ENUM}')
+            ) THEN
+                ALTER TYPE {CONNECTOR_ENUM} ADD VALUE '{CONNECTOR_NEW_VALUE}';
+            END IF;
+        END$$;
+    """)
+
+    # Add DISCORD_CONNECTOR to documenttype only if not exists
+    op.execute(f"""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_enum
+                WHERE enumlabel = '{DOCUMENT_NEW_VALUE}'
+                AND enumtypid = (SELECT oid FROM pg_type WHERE typname = '{DOCUMENT_ENUM}')
+            ) THEN
+                ALTER TYPE {DOCUMENT_ENUM} ADD VALUE '{DOCUMENT_NEW_VALUE}';
+            END IF;
+        END$$;
+    """)
+
 
 
 def downgrade() -> None:
