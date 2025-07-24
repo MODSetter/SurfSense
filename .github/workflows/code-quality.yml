@@ -47,24 +47,25 @@ jobs:
 
       - name: Run file quality checks on changed files
         run: |
-          # Use pre-commit's native diff detection to run only on changed files
+          # Get list of changed files and run specific hooks on them
           if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
-            echo "Running pre-commit with native diff detection against ${{ github.base_ref }} branch"
-            pre-commit run --from-ref ${{ github.base_ref }} --to-ref HEAD \
-              check-yaml check-json check-toml check-merge-conflict \
-              check-added-large-files debug-statements check-case-conflict
+            BASE_REF="${{ github.base_ref }}"
           elif git show-ref --verify --quiet refs/remotes/origin/${{ github.base_ref }}; then
-            echo "Running pre-commit with native diff detection against origin/${{ github.base_ref }}"
-            pre-commit run --from-ref origin/${{ github.base_ref }} --to-ref HEAD \
-              check-yaml check-json check-toml check-merge-conflict \
-              check-added-large-files debug-statements check-case-conflict
+            BASE_REF="origin/${{ github.base_ref }}"
           else
-            echo "Base branch reference not found, running pre-commit on all files"
-            echo "⚠️  This may take longer and show more issues than normal"
-            pre-commit run --all-files \
-              check-yaml check-json check-toml check-merge-conflict \
-              check-added-large-files debug-statements check-case-conflict
+            echo "Base branch reference not found, running file quality hooks on all files"
+            pre-commit run --all-files check-yaml check-json check-toml check-merge-conflict check-added-large-files debug-statements check-case-conflict
+            exit 0
           fi
+          
+          echo "Running file quality hooks on changed files against $BASE_REF"
+          
+          # Run each hook individually on changed files
+          SKIP=detect-secrets,bandit,ruff,ruff-format,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+            pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
+          
+          # Exit with the same code as pre-commit
+          exit ${exit_code:-0}
 
   security-scan:
     name: Security Scan
@@ -81,55 +82,47 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }}:${{ github.base_ref }} 2>/dev/null || git fetch origin ${{ github.base_ref }} 2>/dev/null || true
 
-      - name: Get changed files
-        id: changed-files
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Cache pre-commit hooks
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-security-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-security-
+
+      - name: Install hook environments (cache)
+        run: pre-commit install-hooks
+
+      - name: Run security scans on changed files
         run: |
+          # Get base ref for comparison
           if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
             BASE_REF="${{ github.base_ref }}"
           elif git show-ref --verify --quiet refs/remotes/origin/${{ github.base_ref }}; then
             BASE_REF="origin/${{ github.base_ref }}"
           else
-            echo "changed_files=all" >> $GITHUB_OUTPUT
+            echo "Base branch reference not found, running security scans on all files"
+            echo "⚠️  This may take longer than normal"
+            pre-commit run --all-files detect-secrets bandit
             exit 0
           fi
           
-          # Get list of changed files, excluding the patterns we don't want to scan
-          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT $BASE_REF...HEAD | \
-            grep -v -E '\.(env\.example|env\.template)$|/tests/|test.*\.py$|^test_.*\.py$|\.github/workflows/.*\.ya?ml$|pnpm-lock\.yaml$|alembic\.ini$|alembic/versions/.*\.py$|\.mdx$' || true)
+          echo "Running security scans on changed files against $BASE_REF"
           
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "No relevant files changed for security scan"
-            echo "changed_files=none" >> $GITHUB_OUTPUT
-          else
-            echo "Changed files for security scan:"
-            echo "$CHANGED_FILES"
-            # Convert to space-separated string for detect-secrets
-            CHANGED_FILES_STR=$(echo "$CHANGED_FILES" | tr '\n' ' ')
-            echo "changed_files=$CHANGED_FILES_STR" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set up Python
-        if: steps.changed-files.outputs.changed_files != 'none'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install detect-secrets
-        if: steps.changed-files.outputs.changed_files != 'none'
-        run: pip install detect-secrets
-
-      - name: Run detect-secrets scan on changed files
-        if: steps.changed-files.outputs.changed_files != 'none' && steps.changed-files.outputs.changed_files != 'all'
-        run: |
-          CHANGED_FILES="${{ steps.changed-files.outputs.changed_files }}"
-          if [ -n "$CHANGED_FILES" ]; then
-            detect-secrets scan --baseline .secrets.baseline $CHANGED_FILES
-          fi
-
-      - name: Run detect-secrets scan on all files
-        if: steps.changed-files.outputs.changed_files == 'all'
-        run: |
-          detect-secrets scan --baseline .secrets.baseline --exclude-files '.*\.env\.example|.*\.env\.template|.*/tests/.*|.*test.*\.py|test_.*\.py|.github/workflows/.*\.yml|.github/workflows/.*\.yaml|.*pnpm-lock\.yaml|.*alembic\.ini|.*alembic/versions/.*\.py|.*\.mdx$'
+          # Run only security hooks on changed files
+          SKIP=check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,ruff,ruff-format,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+            pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
+          
+          # Exit with the same code as pre-commit
+          exit ${exit_code:-0}
 
   python-backend:
     name: Python Backend Quality
@@ -172,29 +165,45 @@ jobs:
         working-directory: surfsense_backend
         run: uv sync
 
-      - name: Run Ruff linting
+      - name: Install pre-commit for backend checks
         if: steps.backend-changes.outputs.backend == 'true'
-        working-directory: surfsense_backend
-        run: |
-          # Ruff will automatically use pyproject.toml configuration
-          uv run ruff check . --output-format=github
+        run: pip install pre-commit
 
-      - name: Run Ruff formatting check
+      - name: Cache pre-commit hooks
         if: steps.backend-changes.outputs.backend == 'true'
-        working-directory: surfsense_backend
-        run: |
-          # Ruff will automatically use pyproject.toml configuration
-          uv run ruff format --check . --diff
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-backend-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-backend-
 
-      - name: Install Bandit
+      - name: Install hook environments (cache)
         if: steps.backend-changes.outputs.backend == 'true'
-        run: pip install bandit
+        run: pre-commit install-hooks
 
-      - name: Run Bandit security scan
+      - name: Run Python backend quality checks
         if: steps.backend-changes.outputs.backend == 'true'
-        working-directory: surfsense_backend
         run: |
-          bandit -r . -f json --severity-level high --confidence-level high --exclude ./tests/,./test_*.py,./*test*.py,./alembic/
+          # Get base ref for comparison
+          if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
+            BASE_REF="${{ github.base_ref }}"
+          elif git show-ref --verify --quiet refs/remotes/origin/${{ github.base_ref }}; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          else
+            echo "Base branch reference not found, running Python backend checks on all files"
+            pre-commit run --all-files ruff ruff-format
+            exit 0
+          fi
+          
+          echo "Running Python backend checks on changed files against $BASE_REF"
+          
+          # Run only ruff hooks on changed Python files
+          SKIP=detect-secrets,bandit,check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+            pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
+          
+          # Exit with the same code as pre-commit
+          exit ${exit_code:-0}
 
   quality-gate:
     name: Quality Gate
