@@ -35,6 +35,7 @@ repos:
             .github/workflows/.*\.yaml|
             .*pnpm-lock\.yaml|
             .*alembic\.ini|
+            .*alembic/versions/.*\.py|
             .*\.mdx$
           )$
 
