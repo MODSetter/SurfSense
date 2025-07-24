@@ -5,20 +5,19 @@ Revises: 5
 
 """
 
-from collections.abc import Sequence
+from typing import Sequence, Union
 
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import JSON
-from sqlalchemy import inspect
-
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "6"
-down_revision: str | None = "5"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+down_revision: Union[str, None] = "5"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
 
 def upgrade() -> None:
     bind = op.get_bind()
@@ -26,19 +25,23 @@ def upgrade() -> None:
 
     columns = [col["name"] for col in inspector.get_columns("podcasts")]
     if "podcast_transcript" not in columns:
-        op.add_column('podcasts', sa.Column('podcast_transcript', JSON, nullable=False, server_default='{}'))
+        op.add_column(
+            "podcasts",
+            sa.Column("podcast_transcript", JSON, nullable=False, server_default="{}"),
+        )
 
         # Copy data from old column to new column
-        op.execute("""
-            UPDATE podcasts 
-            SET podcast_transcript = jsonb_build_object('text', podcast_content) 
+        op.execute(
+            """
+            UPDATE podcasts
+            SET podcast_transcript = jsonb_build_object('text', podcast_content)
             WHERE podcast_content != ''
-        """)
+        """
+        )
 
     # Drop the old column only if it exists
     if "podcast_content" in columns:
-        op.drop_column('podcasts', 'podcast_content')
-
+        op.drop_column("podcasts", "podcast_content")
 
 
 def downgrade() -> None:

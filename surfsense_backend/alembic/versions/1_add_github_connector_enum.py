@@ -5,7 +5,7 @@ Revises:
 
 """
 
-from collections.abc import Sequence
+from typing import Sequence, Union
 
 from alembic import op
 
@@ -15,9 +15,9 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "1"
-down_revision: str | None = None
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+down_revision: Union[str, None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
@@ -25,7 +25,8 @@ def upgrade() -> None:
 
     # Manually add the command to add the enum value
     # Note: It's generally better to let autogenerate handle this, but we're bypassing it
-    op.execute("""
+    op.execute(
+        """
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -39,9 +40,9 @@ BEGIN
         ALTER TYPE searchsourceconnectortype ADD VALUE 'GITHUB_CONNECTOR';
     END IF;
 END$$;
-""")
+"""
+    )
 
-    
     # Pass for the rest, as autogenerate didn't run to add other schema details
     pass
     # ### end Alembic commands ###
@@ -62,8 +63,10 @@ def downgrade() -> None:
         "CREATE TYPE searchsourceconnectortype AS ENUM('SERPER_API', 'TAVILY_API', 'SLACK_CONNECTOR', 'NOTION_CONNECTOR')"
     )
     op.execute(
-        "ALTER TABLE search_source_connectors ALTER COLUMN connector_type TYPE searchsourceconnectortype USING "
-        "connector_type::text::searchsourceconnectortype"
+        (
+            "ALTER TABLE search_source_connectors ALTER COLUMN connector_type TYPE searchsourceconnectortype USING "
+            "connector_type::text::searchsourceconnectortype"
+        )
     )
     op.execute("DROP TYPE searchsourceconnectortype_old")
 
