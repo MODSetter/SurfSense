@@ -1,21 +1,22 @@
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = 'e55302644c51'
-down_revision: Union[str, None] = '1'
+revision: str = "e55302644c51"
+down_revision: Union[str, None] = "1"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 # Define the ENUM type name and the new value
-ENUM_NAME = 'documenttype'
-NEW_VALUE = 'GITHUB_CONNECTOR'
+ENUM_NAME = "documenttype"
+NEW_VALUE = "GITHUB_CONNECTOR"
+
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.execute(f"""
+    op.execute(
+        f"""
     DO $$
     BEGIN
         IF NOT EXISTS (
@@ -28,32 +29,32 @@ def upgrade() -> None:
             ALTER TYPE {ENUM_NAME} ADD VALUE '{NEW_VALUE}';
         END IF;
     END$$;
-    """)
+    """
+    )
+
 
 def downgrade() -> None:
     """Downgrade schema - remove GITHUB_CONNECTOR from enum."""
     old_enum_name = f"{ENUM_NAME}_old"
 
     old_values = (
-        'EXTENSION',
-        'CRAWLED_URL',
-        'FILE',
-        'SLACK_CONNECTOR',
-        'NOTION_CONNECTOR',
-        'YOUTUBE_VIDEO'
+        "EXTENSION",
+        "CRAWLED_URL",
+        "FILE",
+        "SLACK_CONNECTOR",
+        "NOTION_CONNECTOR",
+        "YOUTUBE_VIDEO",
     )
     old_values_sql = ", ".join([f"'{v}'" for v in old_values])
 
-    table_name = 'documents'
-    column_name = 'document_type'
+    table_name = "documents"
+    column_name = "document_type"
 
     # 1. Create the new enum type with the old values
     op.execute(f"CREATE TYPE {old_enum_name} AS ENUM({old_values_sql})")
 
     # 2. Delete rows using the new value
-    op.execute(
-        f"DELETE FROM {table_name} WHERE {column_name}::text = '{NEW_VALUE}'"
-    )
+    op.execute(f"DELETE FROM {table_name} WHERE {column_name}::text = '{NEW_VALUE}'")
 
     # 3. Alter the column to use the old enum type
     op.execute(

@@ -7,8 +7,6 @@ Revises: 8
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = "9"
@@ -26,7 +24,8 @@ DOCUMENT_NEW_VALUE = "DISCORD_CONNECTOR"
 def upgrade() -> None:
     """Upgrade schema - add DISCORD_CONNECTOR to connector and document enum safely."""
     # Add DISCORD_CONNECTOR to searchsourceconnectortype only if not exists
-    op.execute(f"""
+    op.execute(
+        f"""
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -37,10 +36,12 @@ def upgrade() -> None:
                 ALTER TYPE {CONNECTOR_ENUM} ADD VALUE '{CONNECTOR_NEW_VALUE}';
             END IF;
         END$$;
-    """)
+    """
+    )
 
     # Add DISCORD_CONNECTOR to documenttype only if not exists
-    op.execute(f"""
+    op.execute(
+        f"""
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -51,8 +52,8 @@ def upgrade() -> None:
                 ALTER TYPE {DOCUMENT_ENUM} ADD VALUE '{DOCUMENT_NEW_VALUE}';
             END IF;
         END$$;
-    """)
-
+    """
+    )
 
 
 def downgrade() -> None:
@@ -108,7 +109,6 @@ def downgrade() -> None:
 
     # 4. Drop the old connector enum type
     op.execute(f"DROP TYPE {old_connector_enum_name}")
-
 
     # Document Enum Downgrade Steps
     # 1. Rename the current document enum type

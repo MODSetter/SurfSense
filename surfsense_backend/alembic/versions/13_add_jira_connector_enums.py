@@ -5,12 +5,12 @@ Revises: 12
 """
 
 from typing import Sequence, Union
+
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = '13'
-down_revision: Union[str, None] = '12'
+revision: str = "13"
+down_revision: Union[str, None] = "12"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -19,7 +19,8 @@ def upgrade() -> None:
     """Safely add 'JIRA_CONNECTOR' to enum types if missing."""
 
     # Add to searchsourceconnectortype enum
-    op.execute("""
+    op.execute(
+        """
     DO $$
     BEGIN
         IF NOT EXISTS (
@@ -31,10 +32,12 @@ def upgrade() -> None:
         END IF;
     END
     $$;
-    """)
+    """
+    )
 
     # Add to documenttype enum
-    op.execute("""
+    op.execute(
+        """
     DO $$
     BEGIN
         IF NOT EXISTS (
@@ -46,7 +49,8 @@ def upgrade() -> None:
         END IF;
     END
     $$;
-    """)
+    """
+    )
 
 
 def downgrade() -> None:
