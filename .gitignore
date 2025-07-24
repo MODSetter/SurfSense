@@ -1,3 +1,5 @@
 .flashrank_cache*
 podcasts/
 .env
+
+.ruff_cache/
