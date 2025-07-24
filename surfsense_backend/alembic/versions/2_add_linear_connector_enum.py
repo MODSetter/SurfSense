@@ -4,17 +4,15 @@ Revision ID: 2
 Revises: e55302644c51
 
 """
-from typing import Sequence, Union
-
-import sqlalchemy as sa
+from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '2'
-down_revision: Union[str, None] = 'e55302644c51'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = 'e55302644c51'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -34,10 +32,10 @@ def downgrade() -> None:
     # Downgrading removal of an enum value requires recreating the type
     op.execute("ALTER TYPE searchsourceconnectortype RENAME TO searchsourceconnectortype_old")
     op.execute("CREATE TYPE searchsourceconnectortype AS ENUM('SERPER_API', 'TAVILY_API', 'SLACK_CONNECTOR', 'NOTION_CONNECTOR', 'GITHUB_CONNECTOR')")
-    op.execute((
+    op.execute(
         "ALTER TABLE search_source_connectors ALTER COLUMN connector_type TYPE searchsourceconnectortype USING "
         "connector_type::text::searchsourceconnectortype"
-    ))
+    )
     op.execute("DROP TYPE searchsourceconnectortype_old")
 
     pass

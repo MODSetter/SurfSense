@@ -71,7 +71,6 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
-    "alembic/versions",
 ]
 
 line-length = 88
