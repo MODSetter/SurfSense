@@ -952,14 +952,7 @@ class ConnectorService:
 
         return result_object, linear_chunks
 
-    async def search_jira(
-        self,
-        user_query: str,
-        user_id: str,
-        search_space_id: int,
-        top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
-    ) -> tuple:
+    async def search_jira(self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20, search_mode: SearchMode = SearchMode.CHUNKS) -> tuple:
         """
         Search for Jira issues and comments and return both the source information and langchain documents
 
@@ -979,7 +972,7 @@ class ConnectorService:
                 top_k=top_k,
                 user_id=user_id,
                 search_space_id=search_space_id,
-                document_type="JIRA_CONNECTOR",
+                document_type="JIRA_CONNECTOR"
             )
         elif search_mode == SearchMode.DOCUMENTS:
             jira_chunks = await self.document_retriever.hybrid_search(
@@ -987,7 +980,7 @@ class ConnectorService:
                 top_k=top_k,
                 user_id=user_id,
                 search_space_id=search_space_id,
-                document_type="JIRA_CONNECTOR",
+                document_type="JIRA_CONNECTOR"
             )
             # Transform document retriever results to match expected format
             jira_chunks = self._transform_document_results(jira_chunks)
@@ -995,7 +988,7 @@ class ConnectorService:
         # Early return if no results
         if not jira_chunks:
             return {
-                "id": 30,
+                "id": 10,
                 "name": "Jira Issues",
                 "type": "JIRA_CONNECTOR",
                 "sources": [],
@@ -1006,16 +999,16 @@ class ConnectorService:
         async with self.counter_lock:
             for _i, chunk in enumerate(jira_chunks):
                 # Extract document metadata
-                document = chunk.get("document", {})
-                metadata = document.get("metadata", {})
+                document = chunk.get('document', {})
+                metadata = document.get('metadata', {})
 
                 # Extract Jira-specific metadata
-                issue_key = metadata.get("issue_key", "")
-                issue_title = metadata.get("issue_title", "Untitled Issue")
-                status = metadata.get("status", "")
-                priority = metadata.get("priority", "")
-                issue_type = metadata.get("issue_type", "")
-                comment_count = metadata.get("comment_count", 0)
+                issue_key = metadata.get('issue_key', '')
+                issue_title = metadata.get('issue_title', 'Untitled Issue')
+                status = metadata.get('status', '')
+                priority = metadata.get('priority', '')
+                issue_type = metadata.get('issue_type', '')
+                comment_count = metadata.get('comment_count', 0)
 
                 # Create a more descriptive title for Jira issues
                 title = f"Jira: {issue_key} - {issue_title}"
@@ -1023,7 +1016,7 @@ class ConnectorService:
                     title += f" ({status})"
 
                 # Create a more descriptive description for Jira issues
-                description = chunk.get("content", "")[:100]
+                description = chunk.get('content', '')[:100]
                 if len(description) == 100:
                     description += "..."
 
@@ -1040,16 +1033,16 @@ class ConnectorService:
                     if description:
                         description += f" | {' | '.join(info_parts)}"
                     else:
-                        description = " | ".join(info_parts)
+                        description = ' | '.join(info_parts)
 
                 # For URL, we could construct a URL to the Jira issue if we have the base URL
                 # For now, use a generic placeholder
                 url = ""
-                if issue_key and metadata.get("base_url"):
+                if issue_key and metadata.get('base_url'):
                     url = f"{metadata.get('base_url')}/browse/{issue_key}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": document.get('id', self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -1057,7 +1050,7 @@ class ConnectorService:
                     "status": status,
                     "priority": priority,
                     "issue_type": issue_type,
-                    "comment_count": comment_count,
+                    "comment_count": comment_count
                 }
 
                 self.source_id_counter += 1
@@ -1073,9 +1066,7 @@ class ConnectorService:
 
         return result_object, jira_chunks
 
-    async def search_linkup(
-        self, user_query: str, user_id: str, mode: str = "standard"
-    ) -> tuple:
+    async def search_linkup(self, user_query: str, user_id: str, mode: str = "standard") -> tuple:
         """
         Search using Linkup API and return both the source information and documents
 
