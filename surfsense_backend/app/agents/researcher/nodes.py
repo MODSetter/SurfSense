@@ -172,20 +172,41 @@ async def fetch_documents_by_ids(
                     channel_id = metadata.get('channel_id', '')
                     guild_id = metadata.get('guild_id', '')
                     message_date = metadata.get('start_date', '')
-                    
+
                     title = f"Discord: {channel_name}"
                     if message_date:
                         title += f" ({message_date})"
-                    
+
                     description = doc.content[:100] + "..." if len(doc.content) > 100 else doc.content
-                    
+
                     if guild_id and channel_id:
                         url = f"https://discord.com/channels/{guild_id}/{channel_id}"
                     elif channel_id:
                         url = f"https://discord.com/channels/@me/{channel_id}"
                     else:
                         url = ""
-                        
+
+                elif doc_type == "JIRA_CONNECTOR":
+                    # Extract Jira-specific metadata
+                    issue_key = metadata.get('issue_key', 'Unknown Issue')
+                    issue_title = metadata.get('issue_title', 'Untitled Issue')
+                    status = metadata.get('status', '')
+                    priority = metadata.get('priority', '')
+                    issue_type = metadata.get('issue_type', '')
+
+                    title = f"Jira: {issue_key} - {issue_title}"
+                    if status:
+                        title += f" ({status})"
+
+                    description = doc.content[:100] + "..." if len(doc.content) > 100 else doc.content
+
+                    # Construct Jira URL if we have the base URL
+                    base_url = metadata.get('base_url', '')
+                    if base_url and issue_key:
+                        url = f"{base_url}/browse/{issue_key}"
+                    else:
+                        url = ""
+
                 elif doc_type == "EXTENSION":
                     # Extract Extension-specific metadata
                     webpage_title = metadata.get('VisitedWebPageTitle', doc.title)
@@ -227,6 +248,7 @@ async def fetch_documents_by_ids(
                 "GITHUB_CONNECTOR": "GitHub (Selected)",
                 "YOUTUBE_VIDEO": "YouTube Videos (Selected)",
                 "DISCORD_CONNECTOR": "Discord (Selected)",
+                "JIRA_CONNECTOR": "Jira Issues (Selected)",
                 "EXTENSION": "Browser Extension (Selected)",
                 "CRAWLED_URL": "Web Pages (Selected)",
                 "FILE": "Files (Selected)"
@@ -737,6 +759,30 @@ async def fetch_relevant_documents(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
                                     f"🗨️ Found {len(discord_chunks)} Discord messages related to your query"
+                                )
+                            }
+                        )
+
+                elif connector == "JIRA_CONNECTOR":
+                    source_object, jira_chunks = await connector_service.search_jira(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(jira_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"🎫 Found {len(jira_chunks)} Jira issues related to your query"
                                 )
                             }
                         )

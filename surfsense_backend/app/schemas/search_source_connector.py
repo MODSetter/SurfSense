@@ -101,6 +101,19 @@ class SearchSourceConnectorBase(BaseModel):
             # Ensure the bot token is not empty
             if not config.get("DISCORD_BOT_TOKEN"):
                 raise ValueError("DISCORD_BOT_TOKEN cannot be empty")
+        elif connector_type == SearchSourceConnectorType.JIRA_CONNECTOR:
+            # For JIRA_CONNECTOR, allow JIRA_PERSONAL_ACCESS_TOKEN and JIRA_BASE_URL
+            allowed_keys = ["JIRA_PERSONAL_ACCESS_TOKEN", "JIRA_BASE_URL"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(f"For JIRA_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
+
+            # Ensure the token is not empty
+            if not config.get("JIRA_PERSONAL_ACCESS_TOKEN"):
+                raise ValueError("JIRA_PERSONAL_ACCESS_TOKEN cannot be empty")
+
+            # Ensure the base URL is not empty
+            if not config.get("JIRA_BASE_URL"):
+                raise ValueError("JIRA_BASE_URL cannot be empty")
 
         return config
 
