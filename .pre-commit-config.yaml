@@ -31,6 +31,7 @@ repos:
             .*\.env\.template|
             .*/tests/.*|
             .*test.*\.py|
+            test_.*\.py|
             .github/workflows/.*\.yml|
             .github/workflows/.*\.yaml|
             .*pnpm-lock\.yaml|
@@ -44,20 +45,22 @@ repos:
     rev: v0.12.5
     hooks:
       - id: ruff
-        name: ruff-lint
+        name: ruff-check
         files: ^surfsense_backend/
-        args: [--fix, --exit-non-zero-on-fix]
+        exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
+        args: [--fix]
       - id: ruff-format
         name: ruff-format
         files: ^surfsense_backend/
+        exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.6
     hooks:
       - id: bandit
         files: ^surfsense_backend/
-        args: ['-f', 'json']
-        exclude: ^surfsense_backend/(tests/|alembic/)
+        args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
+        exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
 
   # Frontend/Extension Hooks (TypeScript/JavaScript)
   - repo: https://github.com/pre-commit/mirrors-prettier

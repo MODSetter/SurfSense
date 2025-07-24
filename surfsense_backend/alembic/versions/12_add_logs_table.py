@@ -17,17 +17,17 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Upgrade schema - add LogLevel and LogStatus enums and logs table."""
-    
+
     # Create LogLevel enum
     op.execute("""
         CREATE TYPE loglevel AS ENUM ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
     """)
-    
-    # Create LogStatus enum  
+
+    # Create LogStatus enum
     op.execute("""
         CREATE TYPE logstatus AS ENUM ('IN_PROGRESS', 'SUCCESS', 'FAILED')
     """)
-    
+
     # Create logs table
     op.execute("""
         CREATE TABLE logs (
@@ -41,28 +41,28 @@ def upgrade() -> None:
             search_space_id INTEGER NOT NULL REFERENCES searchspaces(id) ON DELETE CASCADE
         )
     """)
-    
+
     # Create indexes
-    op.create_index(op.f('ix_logs_id'), 'logs', ['id'], unique=False)
-    op.create_index(op.f('ix_logs_created_at'), 'logs', ['created_at'], unique=False)
-    op.create_index(op.f('ix_logs_level'), 'logs', ['level'], unique=False)
-    op.create_index(op.f('ix_logs_status'), 'logs', ['status'], unique=False)
-    op.create_index(op.f('ix_logs_source'), 'logs', ['source'], unique=False)
+    op.create_index(op.f("ix_logs_id"), "logs", ["id"], unique=False)
+    op.create_index(op.f("ix_logs_created_at"), "logs", ["created_at"], unique=False)
+    op.create_index(op.f("ix_logs_level"), "logs", ["level"], unique=False)
+    op.create_index(op.f("ix_logs_status"), "logs", ["status"], unique=False)
+    op.create_index(op.f("ix_logs_source"), "logs", ["source"], unique=False)
 
 
 def downgrade() -> None:
     """Downgrade schema - remove logs table and enums."""
-    
+
     # Drop indexes
-    op.drop_index(op.f('ix_logs_source'), table_name='logs')
-    op.drop_index(op.f('ix_logs_status'), table_name='logs')
-    op.drop_index(op.f('ix_logs_level'), table_name='logs')
-    op.drop_index(op.f('ix_logs_created_at'), table_name='logs')
-    op.drop_index(op.f('ix_logs_id'), table_name='logs')
-    
+    op.drop_index(op.f("ix_logs_source"), table_name="logs")
+    op.drop_index(op.f("ix_logs_status"), table_name="logs")
+    op.drop_index(op.f("ix_logs_level"), table_name="logs")
+    op.drop_index(op.f("ix_logs_created_at"), table_name="logs")
+    op.drop_index(op.f("ix_logs_id"), table_name="logs")
+
     # Drop logs table
-    op.drop_table('logs')
-    
+    op.drop_table("logs")
+
     # Drop enums
     op.execute("DROP TYPE IF EXISTS logstatus")
-    op.execute("DROP TYPE IF EXISTS loglevel") 
+    op.execute("DROP TYPE IF EXISTS loglevel")

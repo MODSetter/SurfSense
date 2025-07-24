@@ -83,7 +83,6 @@ def downgrade() -> None:
     # 4. Drop the old connector enum type
     op.execute(f"DROP TYPE {old_connector_enum_name}")
 
-
     # Document Enum Downgrade Steps
     # 1. Rename the current document enum type
     op.execute(f"ALTER TYPE {DOCUMENT_ENUM} RENAME TO {old_document_enum_name}")
