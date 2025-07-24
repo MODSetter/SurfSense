@@ -103,6 +103,8 @@ ignore = [
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
 ]
 
+extend-select = ["I"]
+
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
@@ -122,6 +124,7 @@ skip-magic-trailing-comma = false
 
 # Automatically detect the appropriate line ending.
 line-ending = "auto"
+
 
 [tool.ruff.lint.isort]
 # Group imports by type

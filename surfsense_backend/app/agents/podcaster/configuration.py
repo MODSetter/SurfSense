@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 
@@ -17,11 +16,11 @@ class Configuration:
     # create assistants (https://langchain-ai.github.io/langgraph/cloud/how-tos/configuration_cloud/)
     # and when you invoke the graph
     podcast_title: str
-    user_id: str 
+    user_id: str
 
     @classmethod
     def from_runnable_config(
-        cls, config: Optional[RunnableConfig] = None
+        cls, config: RunnableConfig | None = None
     ) -> Configuration:
         """Create a Configuration instance from a RunnableConfig object."""
         configurable = (config.get("configurable") or {}) if config else {}
