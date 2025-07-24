@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Extend global type for OAuth sessions
+declare global {
+  var oauthSessions: Map<string, {
+    access_token: string;
+    refresh_token: string;
+    connector_name: string;
+    timestamp: number;
+  }> | undefined;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -67,39 +77,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch user's Google Drive files
-    const filesResponse = await fetch('https://www.googleapis.com/drive/v3/files?pageSize=100&fields=files(id,name,mimeType,size,modifiedTime,webViewLink,parents)', {
-      headers: {
-        'Authorization': `Bearer ${access_token}`,
-      },
-    });
-
-    if (!filesResponse.ok) {
-      console.error('Failed to fetch Google Drive files');
-      return NextResponse.redirect(
-        new URL(`/dashboard?error=${encodeURIComponent('Failed to fetch Google Drive files')}`, request.url)
-      );
-    }
-
-    const filesData = await filesResponse.json();
-    const files = filesData.files || [];
-
-    // Store the OAuth data in sessionStorage via URL parameters
-    // This is a temporary solution - in production, you might want to use a more secure method
-    const oauthData = {
+    // Store tokens securely in sessionStorage via a temporary session
+    // Create a temporary session ID to store the tokens securely
+    const sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
+    // In a real implementation, you'd store this in Redis or a database
+    // For now, we'll use a simple in-memory store (note: this won't work in production with multiple instances)
+    global.oauthSessions = global.oauthSessions || new Map();
+    global.oauthSessions.set(sessionId, {
       access_token,
       refresh_token,
-      files,
       connector_name: connector_name || 'Google Drive Connector',
-    };
+      timestamp: Date.now()
+    });
 
-    // Encode the data to pass it back to the frontend
-    const encodedData = encodeURIComponent(JSON.stringify(oauthData));
+    // Clean up old sessions (older than 10 minutes)
+    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+    Array.from(global.oauthSessions.entries()).forEach(([key, value]) => {
+      if (value.timestamp < tenMinutesAgo) {
+        global.oauthSessions!.delete(key);
+      }
+    });
     
-    // Redirect back to the Google Drive connector page with the OAuth data
+    // Redirect back to the Google Drive connector page with the session ID
     const redirectUrl = search_space_id 
-      ? `/dashboard/${search_space_id}/connectors/add/google-drive-connector?oauth_success=true&data=${encodedData}`
-      : `/dashboard?oauth_success=true&data=${encodedData}`;
+      ? `/dashboard/${search_space_id}/connectors/add/google-drive-connector?oauth_success=true&session=${sessionId}`
+      : `/dashboard?oauth_success=true&session=${sessionId}`;
 
     return NextResponse.redirect(new URL(redirectUrl, request.url));
 

@@ -94,31 +94,53 @@ export default function GoogleDriveConnectorPage() {
 
         const urlParams = new URLSearchParams(window.location.search);
         const oauthSuccess = urlParams.get('oauth_success');
-        const oauthData = urlParams.get('data');
+        const sessionId = urlParams.get('session');
 
-        if (oauthSuccess === 'true' && oauthData) {
-            try {
-                const data = JSON.parse(decodeURIComponent(oauthData));
-                const { access_token, refresh_token, files: driveFiles, connector_name } = data;
-
-                if (access_token && driveFiles) {
+        if (oauthSuccess === 'true' && sessionId) {
+            // Fetch OAuth tokens from session
+            fetch(`/api/auth/google/session?session=${sessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    const { access_token, refresh_token, connector_name } = data;
                     setOauthTokens({ access_token, refresh_token });
-                    setFiles(driveFiles);
                     setConnectorName(connector_name || connectorName);
+                    
+                    // Now fetch Google Drive files
+                    return fetch('/api/google-drive/files', {
+                        headers: {
+                            'Authorization': `Bearer ${access_token}`
+                        }
+                    });
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    setFiles(data.files || []);
                     setStep('select_files');
                     setIsAuthenticating(false);
-
+                    
                     // Clean up URL parameters
                     const cleanUrl = window.location.pathname;
                     window.history.replaceState({}, document.title, cleanUrl);
-
+                    
                     toast.success("Successfully connected to Google Drive!");
-                }
-            } catch (error) {
-                console.error('Error parsing OAuth data:', error);
-                toast.error("Failed to process Google Drive authentication data.");
-                setIsAuthenticating(false);
-            }
+                })
+                .catch(error => {
+                    console.error('Error processing OAuth callback:', error);
+                    toast.error(`Failed to process Google Drive authentication: ${error.message}`);
+                    setIsAuthenticating(false);
+                    
+                    // Clean up URL parameters
+                    const cleanUrl = window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                });
         }
 
         // Handle OAuth errors
