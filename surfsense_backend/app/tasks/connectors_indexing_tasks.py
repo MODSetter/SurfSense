@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
@@ -1378,9 +1377,9 @@ async def index_linear_issues(
         # Process each issue
         for issue in issues:
             try:
-                issue_id = issue.get("id")
-                issue_identifier = issue.get("identifier", "")
-                issue_title = issue.get("title", "")
+                issue_id = issue.get("key")
+                issue_identifier = issue.get("id", "")
+                issue_title = issue.get("key", "")
 
                 if not issue_id or not issue_title:
                     logger.warning(
@@ -2031,11 +2030,13 @@ async def index_jira_issues(
     try:
         # Get the connector from the database
         result = await session.execute(
-            select(SearchSourceConnector).where(
-                SearchSourceConnector.id == connector_id
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.JIRA_CONNECTOR,
             )
         )
-        connector = result.scalar_one_or_none()
+        connector = result.scalars().first()
 
         if not connector:
             await task_logger.log_task_failure(
@@ -2076,15 +2077,43 @@ async def index_jira_issues(
             # Fall back to calculating dates based on last_indexed_at
             calculated_end_date = datetime.now()
 
+            # Use last_indexed_at as start date if available, otherwise use 365 days ago
             if connector.last_indexed_at:
-                calculated_start_date = connector.last_indexed_at
-            else:
-                # If never indexed, go back 30 days
-                calculated_start_date = calculated_end_date - timedelta(days=30)
+                # Convert dates to be comparable (both timezone-naive)
+                last_indexed_naive = (
+                    connector.last_indexed_at.replace(tzinfo=None)
+                    if connector.last_indexed_at.tzinfo
+                    else connector.last_indexed_at
+                )
 
-            start_date_str = calculated_start_date.strftime("%Y-%m-%d")
-            end_date_str = calculated_end_date.strftime("%Y-%m-%d")
+                # Check if last_indexed_at is in the future or after end_date
+                if last_indexed_naive > calculated_end_date:
+                    logger.warning(
+                        f"Last indexed date ({last_indexed_naive.strftime('%Y-%m-%d')}) is in the future. Using 365 days ago instead."
+                    )
+                    calculated_start_date = calculated_end_date - timedelta(days=365)
+                else:
+                    calculated_start_date = last_indexed_naive
+                    logger.info(
+                        f"Using last_indexed_at ({calculated_start_date.strftime('%Y-%m-%d')}) as start date"
+                    )
+            else:
+                calculated_start_date = calculated_end_date - timedelta(
+                    days=365
+                )  # Use 365 days as default
+                logger.info(
+                    f"No last_indexed_at found, using {calculated_start_date.strftime('%Y-%m-%d')} (365 days ago) as start date"
+                )
+
+            # Use calculated dates if not provided
+            start_date_str = (
+                start_date if start_date else calculated_start_date.strftime("%Y-%m-%d")
+            )
+            end_date_str = (
+                end_date if end_date else calculated_end_date.strftime("%Y-%m-%d")
+            )
         else:
+            # Use provided dates
             start_date_str = start_date
             end_date_str = end_date
 
@@ -2103,8 +2132,6 @@ async def index_jira_issues(
             issues, error = jira_client.get_issues_by_date_range(
                 start_date=start_date_str, end_date=end_date_str, include_comments=True
             )
-
-            print(json.dumps(issues, indent=2))
 
             if error:
                 logger.error(f"Failed to get Jira issues: {error}")
@@ -2138,146 +2165,174 @@ async def index_jira_issues(
 
             logger.info(f"Retrieved {len(issues)} issues from Jira API")
 
-            await task_logger.log_task_progress(
-                log_entry,
-                f"Retrieved {len(issues)} issues from Jira API",
-                {"stage": "processing_issues", "issues_found": len(issues)},
-            )
-
         except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Error fetching Jira issues: {str(e)}",
-                "Fetch Error",
-                {"error_type": type(e).__name__},
-            )
             logger.error(f"Error fetching Jira issues: {str(e)}", exc_info=True)
             return 0, f"Error fetching Jira issues: {str(e)}"
 
         # Process and index each issue
-        indexed_count = 0
+        documents_indexed = 0
+        skipped_issues = []
+        documents_skipped = 0
 
         for issue in issues:
             try:
+                issue_id = issue.get("key")
+                issue_identifier = issue.get("key", "")
+                issue_title = issue.get("id", "")
+
+                if not issue_id or not issue_title:
+                    logger.warning(
+                        f"Skipping issue with missing ID or title: {issue_id or 'Unknown'}"
+                    )
+                    skipped_issues.append(
+                        f"{issue_identifier or 'Unknown'} (missing data)"
+                    )
+                    documents_skipped += 1
+                    continue
+
                 # Format the issue for better readability
                 formatted_issue = jira_client.format_issue(issue)
 
                 # Convert to markdown
-                issue_markdown = jira_client.format_issue_to_markdown(formatted_issue)
+                issue_content = jira_client.format_issue_to_markdown(formatted_issue)
 
-                # Create document metadata
-                metadata = {
-                    "issue_key": formatted_issue.get("key", ""),
-                    "issue_title": formatted_issue.get("title", ""),
-                    "status": formatted_issue.get("status", ""),
-                    "priority": formatted_issue.get("priority", ""),
-                    "issue_type": formatted_issue.get("issue_type", ""),
-                    "project": formatted_issue.get("project", ""),
-                    "assignee": (
-                        formatted_issue.get("assignee", {}).get("display_name", "")
-                        if formatted_issue.get("assignee")
-                        else ""
-                    ),
-                    "reporter": formatted_issue.get("reporter", {}).get(
-                        "display_name", ""
-                    ),
-                    "created_at": formatted_issue.get("created_at", ""),
-                    "updated_at": formatted_issue.get("updated_at", ""),
-                    "comment_count": len(formatted_issue.get("comments", [])),
-                    "connector_id": connector_id,
-                    "source": "jira",
-                    "base_url": jira_base_url,
-                }
-
-                # Generate content hash
-                content_hash = generate_content_hash(issue_markdown)
-
-                # Check if document already exists
-                existing_doc_result = await session.execute(
-                    select(Document).where(Document.content_hash == content_hash)
-                )
-                existing_doc = existing_doc_result.scalar_one_or_none()
-
-                if existing_doc:
-                    logger.debug(
-                        f"Document with hash {content_hash} already exists, skipping"
+                if not issue_content:
+                    logger.warning(
+                        f"Skipping issue with no content: {issue_identifier} - {issue_title}"
                     )
+                    skipped_issues.append(f"{issue_identifier} (no content)")
+                    documents_skipped += 1
                     continue
 
-                # Create new document
-                document = Document(
-                    title=f"Jira: {formatted_issue.get('key', 'Unknown')} - {formatted_issue.get('title', 'Untitled')}",
-                    document_type=DocumentType.JIRA_CONNECTOR,
-                    document_metadata=metadata,
-                    content=issue_markdown,
-                    content_hash=content_hash,
-                    search_space_id=search_space_id,
+                # Create a simple summary
+                summary_content = f"Jira Issue {issue_identifier}: {issue_title}\n\nStatus: {formatted_issue.get('status', 'Unknown')}\n\n"
+                if formatted_issue.get("description"):
+                    summary_content += (
+                        f"Description: {formatted_issue.get('description')}\n\n"
+                    )
+
+                # Add comment count
+                comment_count = len(formatted_issue.get("comments", []))
+                summary_content += f"Comments: {comment_count}"
+
+                # Generate content hash
+                content_hash = generate_content_hash(issue_content, search_space_id)
+
+                # Check if document already exists
+                existing_doc_by_hash_result = await session.execute(
+                    select(Document).where(Document.content_hash == content_hash)
+                )
+                existing_document_by_hash = (
+                    existing_doc_by_hash_result.scalars().first()
                 )
 
-                # Generate embedding
-                embedding = await config.embedding_model_instance.get_embedding(
-                    issue_markdown
+                if existing_document_by_hash:
+                    logger.info(
+                        f"Document with content hash {content_hash} already exists for issue {issue_identifier}. Skipping processing."
+                    )
+                    documents_skipped += 1
+                    continue
+
+                # Generate embedding for the summary
+                summary_embedding = config.embedding_model_instance.embed(
+                    summary_content
                 )
-                document.embedding = embedding
+
+                # Process chunks - using the full issue content with comments
+                chunks = [
+                    Chunk(
+                        content=chunk.text,
+                        embedding=config.embedding_model_instance.embed(chunk.text),
+                    )
+                    for chunk in config.chunker_instance.chunk(issue_content)
+                ]
+
+                # Create and store new document
+                logger.info(
+                    f"Creating new document for issue {issue_identifier} - {issue_title}"
+                )
+                document = Document(
+                    search_space_id=search_space_id,
+                    title=f"Jira - {issue_identifier}: {issue_title}",
+                    document_type=DocumentType.JIRA_CONNECTOR,
+                    document_metadata={
+                        "issue_id": issue_id,
+                        "issue_identifier": issue_identifier,
+                        "issue_title": issue_title,
+                        "state": formatted_issue.get("status", "Unknown"),
+                        "comment_count": comment_count,
+                        "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    },
+                    content=summary_content,
+                    content_hash=content_hash,
+                    embedding=summary_embedding,
+                    chunks=chunks,
+                )
 
                 session.add(document)
-                await session.flush()  # Flush to get the document ID
-
-                # Create chunks for the document
-                chunks = await config.chunking_model_instance.chunk_document(
-                    issue_markdown
-                )
-
-                for chunk_content in chunks:
-                    chunk_embedding = (
-                        await config.embedding_model_instance.get_embedding(
-                            chunk_content
-                        )
-                    )
-
-                    chunk = Chunk(
-                        content=chunk_content,
-                        embedding=chunk_embedding,
-                        document_id=document.id,
-                    )
-                    session.add(chunk)
-
-                indexed_count += 1
-                logger.debug(
-                    f"Indexed Jira issue: {formatted_issue.get('key', 'Unknown')}"
+                documents_indexed += 1
+                logger.info(
+                    f"Successfully indexed new issue {issue_identifier} - {issue_title}"
                 )
 
             except Exception as e:
                 logger.error(
-                    f"Error processing Jira issue {issue.get('key', 'Unknown')}: {str(e)}",
+                    f"Error processing issue {issue.get('identifier', 'Unknown')}: {str(e)}",
                     exc_info=True,
                 )
-                continue
+                skipped_issues.append(
+                    f"{issue.get('identifier', 'Unknown')} (processing error)"
+                )
+                documents_skipped += 1
+                continue  # Skip this issue and continue with others
+
+        # Update the last_indexed_at timestamp for the connector only if requested
+        total_processed = documents_indexed
+        if update_last_indexed:
+            connector.last_indexed_at = datetime.now()
+            logger.info(f"Updated last_indexed_at to {connector.last_indexed_at}")
 
         # Commit all changes
         await session.commit()
+        logger.info("Successfully committed all JIRA document changes to database")
 
-        # Update last_indexed_at timestamp
-        if update_last_indexed:
-            connector.last_indexed_at = datetime.now()
-            await session.commit()
-            logger.info(f"Updated last_indexed_at to {connector.last_indexed_at}")
-
+        # Log success
         await task_logger.log_task_success(
             log_entry,
-            f"Successfully indexed {indexed_count} Jira issues",
-            {"issues_indexed": indexed_count},
+            f"Successfully completed JIRA indexing for connector {connector_id}",
+            {
+                "issues_processed": total_processed,
+                "documents_indexed": documents_indexed,
+                "documents_skipped": documents_skipped,
+                "skipped_issues_count": len(skipped_issues),
+            },
         )
 
-        logger.info(f"Successfully indexed {indexed_count} Jira issues")
-        return indexed_count, None
+        logger.info(
+            f"JIRA indexing completed: {documents_indexed} new issues, {documents_skipped} skipped"
+        )
+        return (
+            total_processed,
+            None,
+        )  # Return None as the error message to indicate success
 
-    except Exception as e:
+    except SQLAlchemyError as db_error:
+        await session.rollback()
         await task_logger.log_task_failure(
             log_entry,
-            f"Failed to index Jira issues: {str(e)}",
+            f"Database error during JIRA indexing for connector {connector_id}",
+            str(db_error),
+            {"error_type": "SQLAlchemyError"},
+        )
+        logger.error(f"Database error: {str(db_error)}", exc_info=True)
+        return 0, f"Database error: {str(db_error)}"
+    except Exception as e:
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Failed to index JIRA issues for connector {connector_id}",
             str(e),
             {"error_type": type(e).__name__},
         )
-        logger.error(f"Failed to index Jira issues: {str(e)}", exc_info=True)
-        return 0, f"Failed to index Jira issues: {str(e)}"
+        logger.error(f"Failed to index JIRA issues: {str(e)}", exc_info=True)
+        return 0, f"Failed to index JIRA issues: {str(e)}"
