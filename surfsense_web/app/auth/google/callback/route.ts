@@ -77,12 +77,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Store tokens securely in sessionStorage via a temporary session
-    // Create a temporary session ID to store the tokens securely
+    // Store tokens securely in a temporary session
     const sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     
-    // In a real implementation, you'd store this in Redis or a database
-    // For now, we'll use a simple in-memory store (note: this won't work in production with multiple instances)
+    // Store session data in memory (consider using Redis or database for production scaling)
     global.oauthSessions = global.oauthSessions || new Map();
     global.oauthSessions.set(sessionId, {
       access_token,
