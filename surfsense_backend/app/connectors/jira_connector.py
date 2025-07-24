@@ -5,8 +5,10 @@ A module for retrieving data from Jira.
 Allows fetching issue lists and their comments, projects and more.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+import base64
+import json
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -17,55 +19,76 @@ class JiraConnector:
     def __init__(
         self,
         base_url: Optional[str] = None,
-        personal_access_token: Optional[str] = None,
+        email: Optional[str] = None,
+        api_token: Optional[str] = None,
     ):
         """
         Initialize the JiraConnector class.
 
         Args:
             base_url: Jira instance base URL (e.g., 'https://yourcompany.atlassian.net') (optional)
-            personal_access_token: Jira personal access token (optional)
+            email: Jira account email address (optional)
+            api_token: Jira API token (optional)
         """
         self.base_url = base_url.rstrip("/") if base_url else None
-        self.personal_access_token = personal_access_token
+        self.email = email
+        self.api_token = api_token
         self.api_version = "3"  # Jira Cloud API version
 
-    def set_credentials(self, base_url: str, personal_access_token: str) -> None:
+    def set_credentials(self, base_url: str, email: str, api_token: str) -> None:
         """
         Set the Jira credentials.
 
         Args:
             base_url: Jira instance base URL
-            personal_access_token: Jira personal access token
+            email: Jira account email address
+            api_token: Jira API token
         """
         self.base_url = base_url.rstrip("/")
-        self.personal_access_token = personal_access_token
+        self.email = email
+        self.api_token = api_token
 
-    def set_personal_access_token(self, personal_access_token: str) -> None:
+    def set_email(self, email: str) -> None:
         """
-        Set the Jira personal access token.
+        Set the Jira account email.
 
         Args:
-            personal_access_token: Jira personal access token
+            email: Jira account email address
         """
-        self.personal_access_token = personal_access_token
+        self.email = email
+
+    def set_api_token(self, api_token: str) -> None:
+        """
+        Set the Jira API token.
+
+        Args:
+            api_token: Jira API token
+        """
+        self.api_token = api_token
 
     def get_headers(self) -> Dict[str, str]:
         """
-        Get headers for Jira API requests.
+        Get headers for Jira API requests using Basic Authentication.
 
         Returns:
             Dictionary of headers
 
         Raises:
-            ValueError: If personal_access_token or base_url have not been set
+            ValueError: If email, api_token, or base_url have not been set
         """
-        if not all([self.base_url, self.personal_access_token]):
-            raise ValueError("Jira personal access token or base URL not initialized.")
+        if not all([self.base_url, self.email, self.api_token]):
+            raise ValueError(
+                "Jira credentials not initialized. Call set_credentials() first."
+            )
+
+        # Create Basic Auth header using email:api_token
+        auth_str = f"{self.email}:{self.api_token}"
+        auth_bytes = auth_str.encode("utf-8")
+        auth_header = "Basic " + base64.b64encode(auth_bytes).decode("ascii")
 
         return {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.personal_access_token}",
+            "Authorization": auth_header,
             "Accept": "application/json",
         }
 
@@ -83,16 +106,20 @@ class JiraConnector:
             Response data from the API
 
         Raises:
-            ValueError: If personal_access_token or base_url have not been set
+            ValueError: If email, api_token, or base_url have not been set
             Exception: If the API request fails
         """
-        if not all([self.base_url, self.personal_access_token]):
-            raise ValueError("Jira personal access token or base URL not initialized.")
+        if not all([self.base_url, self.email, self.api_token]):
+            raise ValueError(
+                "Jira credentials not initialized. Call set_credentials() first."
+            )
 
         url = f"{self.base_url}/rest/api/{self.api_version}/{endpoint}"
         headers = self.get_headers()
 
         response = requests.get(url, headers=headers, params=params, timeout=500)
+
+        print(json.dumps(response.json(), indent=2))
 
         if response.status_code == 200:
             return response.json()
@@ -197,9 +224,11 @@ class JiraConnector:
         try:
             # Build JQL query for date range
             # Query issues that were either created OR updated within the date range
-            date_filter = f"(created >= '{start_date}' AND created <= '{end_date}') OR (updated >= '{start_date}' AND updated <= '{end_date}')"
+            date_filter = (
+                f"(createdDate >= '{start_date}' AND createdDate <= '{end_date}')"
+            )
 
-            jql = f"{date_filter} ORDER BY created DESC"
+            jql = f"{date_filter}"
             if project_key:
                 jql = (
                     f'project = "{project_key}" AND {date_filter} ORDER BY created DESC'
@@ -234,7 +263,10 @@ class JiraConnector:
 
             while True:
                 params["startAt"] = start_at
+                print(json.dumps(params, indent=2))
                 result = self.make_api_request("search", params)
+
+                print(json.dumps(result, indent=2))
 
                 if not isinstance(result, dict) or "issues" not in result:
                     return [], "Invalid response from Jira API"

@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
-from typing import Any
-
-from pydantic import BaseModel, ConfigDict, field_validator
+from typing import Any, Dict, Optional
 
 from app.db import SearchSourceConnectorType
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from .base import IDModel, TimestampModel
+
 
 from .base import IDModel, TimestampModel
 
@@ -13,14 +15,14 @@ class SearchSourceConnectorBase(BaseModel):
     name: str
     connector_type: SearchSourceConnectorType
     is_indexable: bool
-    last_indexed_at: datetime | None = None
-    config: dict[str, Any]
+    last_indexed_at: Optional[datetime] = None
+    config: Dict[str, Any]
 
     @field_validator("config")
     @classmethod
     def validate_config_for_connector_type(
-        cls, config: dict[str, Any], values: dict[str, Any]
-    ) -> dict[str, Any]:
+        cls, config: Dict[str, Any], values: Dict[str, Any]
+    ) -> Dict[str, Any]:
         connector_type = values.data.get("connector_type")
 
         if connector_type == SearchSourceConnectorType.SERPER_API:
@@ -124,14 +126,20 @@ class SearchSourceConnectorBase(BaseModel):
             if not config.get("DISCORD_BOT_TOKEN"):
                 raise ValueError("DISCORD_BOT_TOKEN cannot be empty")
         elif connector_type == SearchSourceConnectorType.JIRA_CONNECTOR:
-            # For JIRA_CONNECTOR, allow JIRA_PERSONAL_ACCESS_TOKEN and JIRA_BASE_URL
-            allowed_keys = ["JIRA_PERSONAL_ACCESS_TOKEN", "JIRA_BASE_URL"]
+            # For JIRA_CONNECTOR, require JIRA_EMAIL, JIRA_API_TOKEN and JIRA_BASE_URL
+            allowed_keys = ["JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_BASE_URL"]
             if set(config.keys()) != set(allowed_keys):
-                raise ValueError(f"For JIRA_CONNECTOR connector type, config must only contain these keys: {allowed_keys}")
+                raise ValueError(
+                    f"For JIRA_CONNECTOR connector type, config must only contain these keys: {allowed_keys}"
+                )
 
-            # Ensure the token is not empty
-            if not config.get("JIRA_PERSONAL_ACCESS_TOKEN"):
-                raise ValueError("JIRA_PERSONAL_ACCESS_TOKEN cannot be empty")
+            # Ensure the email is not empty
+            if not config.get("JIRA_EMAIL"):
+                raise ValueError("JIRA_EMAIL cannot be empty")
+
+            # Ensure the API token is not empty
+            if not config.get("JIRA_API_TOKEN"):
+                raise ValueError("JIRA_API_TOKEN cannot be empty")
 
             # Ensure the base URL is not empty
             if not config.get("JIRA_BASE_URL"):
@@ -150,6 +158,7 @@ class SearchSourceConnectorUpdate(BaseModel):
     is_indexable: bool | None = None
     last_indexed_at: datetime | None = None
     config: dict[str, Any] | None = None
+
 
 
 class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampModel):

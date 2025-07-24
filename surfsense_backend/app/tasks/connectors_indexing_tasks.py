@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
@@ -2046,10 +2047,11 @@ async def index_jira_issues(
             return 0, f"Connector with ID {connector_id} not found"
 
         # Get the Jira credentials from the connector config
-        jira_token = connector.config.get("JIRA_PERSONAL_ACCESS_TOKEN")
+        jira_email = connector.config.get("JIRA_EMAIL")
+        jira_api_token = connector.config.get("JIRA_API_TOKEN")
         jira_base_url = connector.config.get("JIRA_BASE_URL")
 
-        if not jira_token or not jira_base_url:
+        if not jira_email or not jira_api_token or not jira_base_url:
             await task_logger.log_task_failure(
                 log_entry,
                 f"Jira credentials not found in connector config for connector {connector_id}",
@@ -2066,7 +2068,7 @@ async def index_jira_issues(
         )
 
         jira_client = JiraConnector(
-            base_url=jira_base_url, personal_access_token=jira_token
+            base_url=jira_base_url, email=jira_email, api_token=jira_api_token
         )
 
         # Calculate date range
@@ -2102,6 +2104,8 @@ async def index_jira_issues(
                 start_date=start_date_str, end_date=end_date_str, include_comments=True
             )
 
+            print(json.dumps(issues, indent=2))
+
             if error:
                 logger.error(f"Failed to get Jira issues: {error}")
 
@@ -2117,10 +2121,10 @@ async def index_jira_issues(
                             f"Updated last_indexed_at to {connector.last_indexed_at} despite no issues found"
                         )
 
-                    await task_logger.log_task_completion(
+                    await task_logger.log_task_success(
                         log_entry,
                         f"No Jira issues found in date range {start_date_str} to {end_date_str}",
-                        {"indexed_count": 0},
+                        {"issues_found": 0},
                     )
                     return 0, None
                 else:
@@ -2137,7 +2141,7 @@ async def index_jira_issues(
             await task_logger.log_task_progress(
                 log_entry,
                 f"Retrieved {len(issues)} issues from Jira API",
-                {"stage": "processing_issues", "issue_count": len(issues)},
+                {"stage": "processing_issues", "issues_found": len(issues)},
             )
 
         except Exception as e:
@@ -2259,10 +2263,10 @@ async def index_jira_issues(
             await session.commit()
             logger.info(f"Updated last_indexed_at to {connector.last_indexed_at}")
 
-        await task_logger.log_task_completion(
+        await task_logger.log_task_success(
             log_entry,
             f"Successfully indexed {indexed_count} Jira issues",
-            {"indexed_count": indexed_count},
+            {"issues_indexed": indexed_count},
         )
 
         logger.info(f"Successfully indexed {indexed_count} Jira issues")
