@@ -5,7 +5,8 @@ A module for retrieving data from Jira.
 Allows fetching issue lists and their comments, projects and more.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime
 
 import requests
 
