@@ -1,5 +1,4 @@
-"""QnA Agent.
-"""
+"""QnA Agent."""
 
 from .graph import graph
 
