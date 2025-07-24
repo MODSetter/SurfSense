@@ -252,7 +252,7 @@ class JiraConnector:
                 fields.append("comment")
 
             params = {
-                "jql": jql,
+                "jql": "",
                 "fields": ",".join(fields),
                 "maxResults": 100,
                 "startAt": 0,
