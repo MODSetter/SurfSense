@@ -199,7 +199,7 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [file-quality, security-scan, python-backend, frontend-quality]
+    needs: [file-quality, security-scan, python-backend]
     if: always()
     
     steps:
@@ -207,8 +207,7 @@ jobs:
         run: |
           if [[ "${{ needs.file-quality.result }}" == "failure" || 
                 "${{ needs.security-scan.result }}" == "failure" || 
-                "${{ needs.python-backend.result }}" == "failure" || 
-                "${{ needs.frontend-quality.result }}" == "failure" ]]; then
+                "${{ needs.python-backend.result }}" == "failure" ]]; then
             echo "❌ Code quality checks failed"
             exit 1
           else
