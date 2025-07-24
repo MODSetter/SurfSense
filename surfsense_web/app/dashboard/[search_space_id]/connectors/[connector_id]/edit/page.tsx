@@ -193,17 +193,10 @@ export default function EditConnectorPage() {
                     />
                     <EditSimpleTokenForm
                       control={editForm.control}
-                      fieldName="JIRA_EMAIL"
-                      fieldLabel="Jira Email"
-                      fieldDescription="Update your Atlassian account email if needed."
-                      placeholder="your.email@company.com"
-                    />
-                    <EditSimpleTokenForm
-                      control={editForm.control}
-                      fieldName="JIRA_API_TOKEN"
-                      fieldLabel="Jira API Token"
-                      fieldDescription="Update your Jira API Token if needed."
-                      placeholder="Your Jira API Token"
+                      fieldName="JIRA_PERSONAL_ACCESS_TOKEN"
+                      fieldLabel="Jira Personal Access Token"
+                      fieldDescription="Update your Jira Personal Access Token if needed."
+                      placeholder="Your Jira Personal Access Token"
                     />
                   </div>
                 )}

@@ -57,11 +57,8 @@ const jiraConnectorFormSchema = z.object({
         message: "Please enter a valid Jira instance URL",
       },
     ),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  api_token: z.string().min(10, {
-    message: "Jira API Token is required and must be valid.",
+  personal_access_token: z.string().min(10, {
+    message: "Jira Personal Access Token is required and must be valid.",
   }),
 });
 
@@ -81,8 +78,7 @@ export default function JiraConnectorPage() {
     defaultValues: {
       name: "Jira Connector",
       base_url: "",
-      email: "",
-      api_token: "",
+      personal_access_token: "",
     },
   });
 
@@ -95,8 +91,7 @@ export default function JiraConnectorPage() {
         connector_type: "JIRA_CONNECTOR",
         config: {
           JIRA_BASE_URL: values.base_url,
-          JIRA_EMAIL: values.email,
-          JIRA_API_TOKEN: values.api_token,
+          JIRA_PERSONAL_ACCESS_TOKEN: values.personal_access_token,
         },
         is_indexable: true,
         last_indexed_at: null,
@@ -215,40 +210,20 @@ export default function JiraConnectorPage() {
 
                     <FormField
                       control={form.control}
-                      name="email"
+                      name="personal_access_token"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email Address</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="your.email@company.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Your Atlassian account email address.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="api_token"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>API Token</FormLabel>
+                          <FormLabel>Personal Access Token</FormLabel>
                           <FormControl>
                             <Input
                               type="password"
-                              placeholder="Your Jira API Token"
+                              placeholder="Your Jira Personal Access Token"
                               {...field}
                             />
                           </FormControl>
                           <FormDescription>
-                            Your Jira API Token will be encrypted and stored securely.
+                            Your Jira Personal Access Token will be encrypted
+                            and stored securely.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -321,8 +296,8 @@ export default function JiraConnectorPage() {
                 <div>
                   <h3 className="text-xl font-semibold mb-2">How it works</h3>
                   <p className="text-muted-foreground">
-                    The Jira connector uses the Jira REST API with Basic Authentication
-                    to fetch all issues and comments that your account has
+                    The Jira connector uses the Jira REST API to fetch all
+                    issues and comments that the Personal Access Token has
                     access to within your Jira instance.
                   </p>
                   <ul className="mt-2 list-disc pl-5 text-muted-foreground">
@@ -349,14 +324,15 @@ export default function JiraConnectorPage() {
                         <AlertTitle>Read-Only Access is Sufficient</AlertTitle>
                         <AlertDescription>
                           You only need read access for this connector to work.
-                          The API Token will only be used to read your Jira data.
+                          The Personal Access Token will only be used to read
+                          your Jira data.
                         </AlertDescription>
                       </Alert>
 
                       <div className="space-y-6">
                         <div>
                           <h4 className="font-medium mb-2">
-                            Step 1: Create an API Token
+                            Step 1: Create a Personal Access Token
                           </h4>
                           <ol className="list-decimal pl-5 space-y-3">
                             <li>Log in to your Atlassian account</li>
@@ -393,10 +369,10 @@ export default function JiraConnectorPage() {
                             Step 2: Grant necessary access
                           </h4>
                           <p className="text-muted-foreground mb-3">
-                            The API Token will have access to all projects and
-                            issues that your user account can see. Make sure your
-                            account has appropriate permissions for the projects
-                            you want to index.
+                            The Personal Access Token will have access to all
+                            projects and issues that your user account can see.
+                            Make sure your account has appropriate permissions
+                            for the projects you want to index.
                           </p>
                           <Alert className="bg-muted">
                             <Info className="h-4 w-4" />

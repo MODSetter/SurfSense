@@ -17,7 +17,6 @@ You are SurfSense, an advanced AI research assistant that provides detailed, wel
 - LINEAR_CONNECTOR: "Linear project issues and discussions" (personal project management)
 - JIRA_CONNECTOR: "Jira project issues, tickets, and comments" (personal project tracking)
 - DISCORD_CONNECTOR: "Discord server conversations and shared content" (personal community communications)
-- DISCORD_CONNECTOR: "Discord server messages and channels" (personal community interactions)
 - TAVILY_API: "Tavily search API results" (personalized search results)
 - LINKUP_API: "Linkup search API results" (personalized search results)
 </knowledge_sources>
