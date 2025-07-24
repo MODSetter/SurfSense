@@ -25,8 +25,7 @@ def upgrade() -> None:
 
     # Manually add the command to add the enum value
     # Note: It's generally better to let autogenerate handle this, but we're bypassing it
-    op.execute(
-        """
+    op.execute("""
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -40,9 +39,9 @@ BEGIN
         ALTER TYPE searchsourceconnectortype ADD VALUE 'GITHUB_CONNECTOR';
     END IF;
 END$$;
-"""
-    )
+""")
 
+    
     # Pass for the rest, as autogenerate didn't run to add other schema details
     pass
     # ### end Alembic commands ###

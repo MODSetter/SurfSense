@@ -22,8 +22,7 @@ NEW_VALUE = "LINEAR_CONNECTOR"
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.execute(
-        f"""
+    op.execute(f"""
     DO $$
     BEGIN
         IF NOT EXISTS (
@@ -36,9 +35,9 @@ def upgrade() -> None:
             ALTER TYPE {ENUM_NAME} ADD VALUE '{NEW_VALUE}';
         END IF;
     END$$;
-    """
-    )
+    """)
 
+        
 
 # Warning: This will delete all rows with the new value
 def downgrade() -> None:

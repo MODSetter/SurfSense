@@ -24,8 +24,7 @@ DOCUMENT_NEW_VALUE = "DISCORD_CONNECTOR"
 def upgrade() -> None:
     """Upgrade schema - add DISCORD_CONNECTOR to connector and document enum safely."""
     # Add DISCORD_CONNECTOR to searchsourceconnectortype only if not exists
-    op.execute(
-        f"""
+    op.execute(f"""
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -36,12 +35,10 @@ def upgrade() -> None:
                 ALTER TYPE {CONNECTOR_ENUM} ADD VALUE '{CONNECTOR_NEW_VALUE}';
             END IF;
         END$$;
-    """
-    )
+    """)
 
     # Add DISCORD_CONNECTOR to documenttype only if not exists
-    op.execute(
-        f"""
+    op.execute(f"""
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -52,8 +49,8 @@ def upgrade() -> None:
                 ALTER TYPE {DOCUMENT_ENUM} ADD VALUE '{DOCUMENT_NEW_VALUE}';
             END IF;
         END$$;
-    """
-    )
+    """)
+
 
 
 def downgrade() -> None:

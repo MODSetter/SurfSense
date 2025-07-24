@@ -17,8 +17,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute(
-        """
+    op.execute("""
     DO $$
     BEGIN
         IF NOT EXISTS (
@@ -31,10 +30,7 @@ def upgrade() -> None:
             ALTER TYPE searchsourceconnectortype ADD VALUE 'LINEAR_CONNECTOR';
         END IF;
     END$$;
-    """
-    )
-
-
+    """)
 #
 
 
