@@ -88,6 +88,51 @@ export default function GoogleDriveConnectorPage() {
         },
     });
 
+    // Handle OAuth success callback
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const oauthSuccess = urlParams.get('oauth_success');
+        const oauthData = urlParams.get('data');
+
+        if (oauthSuccess === 'true' && oauthData) {
+            try {
+                const data = JSON.parse(decodeURIComponent(oauthData));
+                const { access_token, refresh_token, files: driveFiles, connector_name } = data;
+
+                if (access_token && driveFiles) {
+                    setOauthTokens({ access_token, refresh_token });
+                    setFiles(driveFiles);
+                    setConnectorName(connector_name || connectorName);
+                    setStep('select_files');
+                    setIsAuthenticating(false);
+
+                    // Clean up URL parameters
+                    const cleanUrl = window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+
+                    toast.success("Successfully connected to Google Drive!");
+                }
+            } catch (error) {
+                console.error('Error parsing OAuth data:', error);
+                toast.error("Failed to process Google Drive authentication data.");
+                setIsAuthenticating(false);
+            }
+        }
+
+        // Handle OAuth errors
+        const error = urlParams.get('error');
+        if (error) {
+            toast.error(decodeURIComponent(error));
+            setIsAuthenticating(false);
+            
+            // Clean up URL parameters
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+    }, [connectorName]);
+
     // Function to initiate OAuth flow
     const initiateOAuthFlow = async (values: GoogleDriveFormValues) => {
         setIsAuthenticating(true);
