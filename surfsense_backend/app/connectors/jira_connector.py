@@ -6,7 +6,6 @@ Allows fetching issue lists and their comments, projects and more.
 """
 
 import base64
-import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -119,8 +118,6 @@ class JiraConnector:
 
         response = requests.get(url, headers=headers, params=params, timeout=500)
 
-        print(json.dumps(response.json(), indent=2))
-
         if response.status_code == 200:
             return response.json()
         else:
@@ -227,6 +224,7 @@ class JiraConnector:
             date_filter = (
                 f"(createdDate >= '{start_date}' AND createdDate <= '{end_date}')"
             )
+            # TODO : This JQL needs some improvement to work as expected
 
             jql = f"{date_filter}"
             if project_key:
@@ -252,7 +250,7 @@ class JiraConnector:
                 fields.append("comment")
 
             params = {
-                "jql": "",
+                "jql": "",  # TODO : Add a JQL query to filter from a date range
                 "fields": ",".join(fields),
                 "maxResults": 100,
                 "startAt": 0,
@@ -263,10 +261,8 @@ class JiraConnector:
 
             while True:
                 params["startAt"] = start_at
-                print(json.dumps(params, indent=2))
-                result = self.make_api_request("search", params)
 
-                print(json.dumps(result, indent=2))
+                result = self.make_api_request("search", params)
 
                 if not isinstance(result, dict) or "issues" not in result:
                     return [], "Invalid response from Jira API"

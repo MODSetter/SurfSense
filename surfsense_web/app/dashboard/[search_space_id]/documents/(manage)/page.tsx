@@ -60,7 +60,7 @@ import {
   IconBrandSlack,
   IconBrandYoutube,
   IconLayoutKanban,
-  IconBrandTrello,
+  IconTicket,
 } from "@tabler/icons-react";
 import {
   ColumnDef,
@@ -178,7 +178,7 @@ const documentTypeIcons = {
   YOUTUBE_VIDEO: IconBrandYoutube,
   GITHUB_CONNECTOR: IconBrandGithub,
   LINEAR_CONNECTOR: IconLayoutKanban,
-  JIRA_CONNECTOR: IconBrandTrello,
+  JIRA_CONNECTOR: IconTicket,
   DISCORD_CONNECTOR: IconBrandDiscord,
 } as const;
 
