@@ -1,9 +1,12 @@
+from datetime import UTC, datetime
+
 from langchain_core.prompts.prompt import PromptTemplate
-from datetime import datetime, timezone
 
-DATE_TODAY = "Today's date is " + datetime.now(timezone.utc).astimezone().isoformat() + '\n'
+DATE_TODAY = "Today's date is " + datetime.now(UTC).astimezone().isoformat() + "\n"
 
-SUMMARY_PROMPT = DATE_TODAY + """
+SUMMARY_PROMPT = (
+    DATE_TODAY
+    + """
 <INSTRUCTIONS>
     <context>
         You are an expert document analyst and summarization specialist tasked with distilling complex information into clear, 
@@ -96,8 +99,8 @@ SUMMARY_PROMPT = DATE_TODAY + """
     </document_to_summarize>
 </INSTRUCTIONS>
 """
+)
 
 SUMMARY_PROMPT_TEMPLATE = PromptTemplate(
-    input_variables=["document"],
-    template=SUMMARY_PROMPT
+    input_variables=["document"], template=SUMMARY_PROMPT
 )

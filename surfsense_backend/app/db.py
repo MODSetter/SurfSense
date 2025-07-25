@@ -1,11 +1,9 @@
 from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
-from app.config import config
-from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
-from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
 from fastapi import Depends
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
@@ -13,9 +11,7 @@ from sqlalchemy import (
     TIMESTAMP,
     Boolean,
     Column,
-)
-from sqlalchemy import Enum as SQLAlchemyEnum
-from sqlalchemy import (
+    Enum as SQLAlchemyEnum,
     ForeignKey,
     Integer,
     String,
@@ -26,17 +22,12 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, relationship
 
+from app.config import config
+from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
+from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
+
 if config.AUTH_TYPE == "GOOGLE":
-    from fastapi_users.db import (
-        SQLAlchemyBaseOAuthAccountTableUUID,
-        SQLAlchemyBaseUserTableUUID,
-        SQLAlchemyUserDatabase,
-    )
-else:
-    from fastapi_users.db import (
-        SQLAlchemyBaseUserTableUUID,
-        SQLAlchemyUserDatabase,
-    )
+    from fastapi_users.db import SQLAlchemyBaseOAuthAccountTableUUID
 
 DATABASE_URL = config.DATABASE_URL
 
@@ -118,11 +109,11 @@ class Base(DeclarativeBase):
 
 class TimestampMixin:
     @declared_attr
-    def created_at(cls):
+    def created_at(cls):  # noqa: N805
         return Column(
             TIMESTAMP(timezone=True),
             nullable=False,
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
             index=True,
         )
 

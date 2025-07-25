@@ -1,14 +1,11 @@
 from langgraph.graph import StateGraph
 
 from .configuration import Configuration
+from .nodes import create_merged_podcast_audio, create_podcast_transcript
 from .state import State
 
 
-from .nodes import create_merged_podcast_audio, create_podcast_transcript
-
-
 def build_graph():
-    
     # Define a new graph
     workflow = StateGraph(State, config_schema=Configuration)
 
@@ -24,8 +21,9 @@ def build_graph():
     # Compile the workflow into an executable graph
     graph = workflow.compile()
     graph.name = "Surfsense Podcaster"  # This defines the custom name in LangSmith
-    
+
     return graph
+
 
 # Compile the graph once when the module is loaded
 graph = build_graph()

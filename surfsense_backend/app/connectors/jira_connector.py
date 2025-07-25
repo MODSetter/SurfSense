@@ -7,7 +7,7 @@ Allows fetching issue lists and their comments, projects and more.
 
 import base64
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -17,9 +17,9 @@ class JiraConnector:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        email: Optional[str] = None,
-        api_token: Optional[str] = None,
+        base_url: str | None = None,
+        email: str | None = None,
+        api_token: str | None = None,
     ):
         """
         Initialize the JiraConnector class.
@@ -65,7 +65,7 @@ class JiraConnector:
         """
         self.api_token = api_token
 
-    def get_headers(self) -> Dict[str, str]:
+    def get_headers(self) -> dict[str, str]:
         """
         Get headers for Jira API requests using Basic Authentication.
 
@@ -92,8 +92,8 @@ class JiraConnector:
         }
 
     def make_api_request(
-        self, endpoint: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, endpoint: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Make a request to the Jira API.
 
@@ -138,7 +138,7 @@ class JiraConnector:
         """
         return self.make_api_request("project/search")
 
-    def get_all_issues(self, project_key: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_all_issues(self, project_key: str | None = None) -> list[dict[str, Any]]:
         """
         Fetch all issues from Jira.
 
@@ -204,8 +204,8 @@ class JiraConnector:
         start_date: str,
         end_date: str,
         include_comments: bool = True,
-        project_key: Optional[str] = None,
-    ) -> tuple[List[Dict[str, Any]], Optional[str]]:
+        project_key: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
         """
         Fetch issues within a date range.
 
@@ -226,9 +226,9 @@ class JiraConnector:
             )
             # TODO : This JQL needs some improvement to work as expected
 
-            jql = f"{date_filter}"
+            _jql = f"{date_filter}"
             if project_key:
-                jql = (
+                _jql = (
                     f'project = "{project_key}" AND {date_filter} ORDER BY created DESC'
                 )
 
@@ -250,7 +250,7 @@ class JiraConnector:
                 fields.append("comment")
 
             params = {
-               # "jql": "",   TODO : Add a JQL query to filter from a date range
+                # "jql": "",   TODO : Add a JQL query to filter from a date range
                 "fields": ",".join(fields),
                 "maxResults": 100,
                 "startAt": 0,
@@ -283,9 +283,9 @@ class JiraConnector:
             return all_issues, None
 
         except Exception as e:
-            return [], f"Error fetching issues: {str(e)}"
+            return [], f"Error fetching issues: {e!s}"
 
-    def format_issue(self, issue: Dict[str, Any]) -> Dict[str, Any]:
+    def format_issue(self, issue: dict[str, Any]) -> dict[str, Any]:
         """
         Format an issue for easier consumption.
 
@@ -401,7 +401,7 @@ class JiraConnector:
 
         return formatted
 
-    def format_issue_to_markdown(self, issue: Dict[str, Any]) -> str:
+    def format_issue_to_markdown(self, issue: dict[str, Any]) -> str:
         """
         Convert an issue to markdown format.
 

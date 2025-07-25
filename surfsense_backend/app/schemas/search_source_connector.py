@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.db import SearchSourceConnectorType
-from pydantic import BaseModel, ConfigDict, field_validator
 
 from .base import IDModel, TimestampModel
 
@@ -12,14 +13,14 @@ class SearchSourceConnectorBase(BaseModel):
     name: str
     connector_type: SearchSourceConnectorType
     is_indexable: bool
-    last_indexed_at: Optional[datetime] = None
-    config: Dict[str, Any]
+    last_indexed_at: datetime | None = None
+    config: dict[str, Any]
 
     @field_validator("config")
     @classmethod
     def validate_config_for_connector_type(
-        cls, config: Dict[str, Any], values: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        cls, config: dict[str, Any], values: dict[str, Any]
+    ) -> dict[str, Any]:
         connector_type = values.data.get("connector_type")
 
         if connector_type == SearchSourceConnectorType.SERPER_API:
@@ -150,11 +151,11 @@ class SearchSourceConnectorCreate(SearchSourceConnectorBase):
 
 
 class SearchSourceConnectorUpdate(BaseModel):
-    name: Optional[str] = None
-    connector_type: Optional[SearchSourceConnectorType] = None
-    is_indexable: Optional[bool] = None
-    last_indexed_at: Optional[datetime] = None
-    config: Optional[Dict[str, Any]] = None
+    name: str | None = None
+    connector_type: SearchSourceConnectorType | None = None
+    is_indexable: bool | None = None
+    last_indexed_at: datetime | None = None
+    config: dict[str, Any] | None = None
 
 
 class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampModel):

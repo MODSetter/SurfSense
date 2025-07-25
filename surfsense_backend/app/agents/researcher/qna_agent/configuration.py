@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from typing import Optional, List, Any
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
@@ -15,13 +15,15 @@ class Configuration:
     # Configuration parameters for the Q&A agent
     user_query: str  # The user's question to answer
     reformulated_query: str  # The reformulated query
-    relevant_documents: List[Any]  # Documents provided directly to the agent for answering
+    relevant_documents: list[
+        Any
+    ]  # Documents provided directly to the agent for answering
     user_id: str  # User identifier
     search_space_id: int  # Search space identifier
 
     @classmethod
     def from_runnable_config(
-        cls, config: Optional[RunnableConfig] = None
+        cls, config: RunnableConfig | None = None
     ) -> Configuration:
         """Create a Configuration instance from a RunnableConfig object."""
         configurable = (config.get("configurable") or {}) if config else {}
