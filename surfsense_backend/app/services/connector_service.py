@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 from linkup import LinkupClient
 from sqlalchemy import func
@@ -204,7 +205,9 @@ class ConnectorService:
 
         return result_object, files_chunks
 
-    def _transform_document_results(self, document_results: list[dict]) -> list[dict]:
+    def _transform_document_results(
+        self, document_results: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Transform results from document_retriever.hybrid_search() to match the format
         expected by the processing code.
@@ -608,6 +611,7 @@ class ConnectorService:
                 visit_duration = metadata.get(
                     "VisitedWebPageVisitDurationInMilliseconds", ""
                 )
+                _browsing_session_id = metadata.get("BrowsingSessionId", "")
 
                 # Create a more descriptive title for extension data
                 title = webpage_title
@@ -948,6 +952,127 @@ class ConnectorService:
 
         return result_object, linear_chunks
 
+    async def search_jira(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for Jira issues and comments and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            jira_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="JIRA_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            jira_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="JIRA_CONNECTOR",
+            )
+            # Transform document retriever results to match expected format
+            jira_chunks = self._transform_document_results(jira_chunks)
+
+        # Early return if no results
+        if not jira_chunks:
+            return {
+                "id": 30,
+                "name": "Jira Issues",
+                "type": "JIRA_CONNECTOR",
+                "sources": [],
+            }, []
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(jira_chunks):
+                # Extract document metadata
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                # Extract Jira-specific metadata
+                issue_key = metadata.get("issue_key", "")
+                issue_title = metadata.get("issue_title", "Untitled Issue")
+                status = metadata.get("status", "")
+                priority = metadata.get("priority", "")
+                issue_type = metadata.get("issue_type", "")
+                comment_count = metadata.get("comment_count", 0)
+
+                # Create a more descriptive title for Jira issues
+                title = f"Jira: {issue_key} - {issue_title}"
+                if status:
+                    title += f" ({status})"
+
+                # Create a more descriptive description for Jira issues
+                description = chunk.get("content", "")[:100]
+                if len(description) == 100:
+                    description += "..."
+
+                # Add priority and type info to description
+                info_parts = []
+                if priority:
+                    info_parts.append(f"Priority: {priority}")
+                if issue_type:
+                    info_parts.append(f"Type: {issue_type}")
+                if comment_count:
+                    info_parts.append(f"Comments: {comment_count}")
+
+                if info_parts:
+                    if description:
+                        description += f" | {' | '.join(info_parts)}"
+                    else:
+                        description = " | ".join(info_parts)
+
+                # For URL, we could construct a URL to the Jira issue if we have the base URL
+                # For now, use a generic placeholder
+                url = ""
+                if issue_key and metadata.get("base_url"):
+                    url = f"{metadata.get('base_url')}/browse/{issue_key}"
+
+                source = {
+                    "id": document.get("id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                    "issue_key": issue_key,
+                    "status": status,
+                    "priority": priority,
+                    "issue_type": issue_type,
+                    "comment_count": comment_count,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+
+        # Create result object
+        result_object = {
+            "id": 10,  # Assign a unique ID for the Jira connector
+            "name": "Jira Issues",
+            "type": "JIRA_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, jira_chunks
+
     async def search_linkup(
         self, user_query: str, user_id: str, mode: str = "standard"
     ) -> tuple:
@@ -1013,12 +1138,12 @@ class ConnectorService:
                     # Create a source entry
                     source = {
                         "id": self.source_id_counter,
-                        "title": result.name
-                        if hasattr(result, "name")
-                        else "Linkup Result",
-                        "description": result.content[:100]
-                        if hasattr(result, "content")
-                        else "",
+                        "title": (
+                            result.name if hasattr(result, "name") else "Linkup Result"
+                        ),
+                        "description": (
+                            result.content[:100] if hasattr(result, "content") else ""
+                        ),
                         "url": result.url if hasattr(result, "url") else "",
                     }
                     sources_list.append(source)
@@ -1030,9 +1155,11 @@ class ConnectorService:
                         "score": 1.0,  # Default score since not provided by Linkup
                         "document": {
                             "id": self.source_id_counter,
-                            "title": result.name
-                            if hasattr(result, "name")
-                            else "Linkup Result",
+                            "title": (
+                                result.name
+                                if hasattr(result, "name")
+                                else "Linkup Result"
+                            ),
                             "document_type": "LINKUP_API",
                             "metadata": {
                                 "url": result.url if hasattr(result, "url") else "",

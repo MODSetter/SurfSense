@@ -1,8 +1,17 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   IconBrandDiscord,
   IconBrandGithub,
@@ -67,23 +76,26 @@ const connectorCategories: ConnectorCategory[] = [
       {
         id: "slack-connector",
         title: "Slack",
-        description: "Connect to your Slack workspace to access messages and channels.",
+        description:
+          "Connect to your Slack workspace to access messages and channels.",
         icon: <IconBrandSlack className="h-6 w-6" />,
         status: "available",
       },
       {
         id: "ms-teams",
         title: "Microsoft Teams",
-        description: "Connect to Microsoft Teams to access your team's conversations.",
+        description:
+          "Connect to Microsoft Teams to access your team's conversations.",
         icon: <IconBrandWindows className="h-6 w-6" />,
         status: "coming-soon",
       },
       {
         id: "discord-connector",
         title: "Discord",
-        description: "Connect to Discord servers to access messages and channels.",
+        description:
+          "Connect to Discord servers to access messages and channels.",
         icon: <IconBrandDiscord className="h-6 w-6" />,
-        status: "available"
+        status: "available",
       },
     ],
   },
@@ -94,16 +106,18 @@ const connectorCategories: ConnectorCategory[] = [
       {
         id: "linear-connector",
         title: "Linear",
-        description: "Connect to Linear to search issues, comments and project data.",
+        description:
+          "Connect to Linear to search issues, comments and project data.",
         icon: <IconLayoutKanban className="h-6 w-6" />,
         status: "available",
       },
       {
         id: "jira-connector",
         title: "Jira",
-        description: "Connect to Jira to search issues, tickets and project data.",
+        description:
+          "Connect to Jira to search issues, tickets and project data.",
         icon: <IconTicket className="h-6 w-6" />,
-        status: "coming-soon",
+        status: "available",
       },
     ],
   },
@@ -114,14 +128,16 @@ const connectorCategories: ConnectorCategory[] = [
       {
         id: "notion-connector",
         title: "Notion",
-        description: "Connect to your Notion workspace to access pages and databases.",
+        description:
+          "Connect to your Notion workspace to access pages and databases.",
         icon: <IconBrandNotion className="h-6 w-6" />,
         status: "available",
       },
       {
         id: "github-connector",
         title: "GitHub",
-        description: "Connect a GitHub PAT to index code and docs from accessible repositories.",
+        description:
+          "Connect a GitHub PAT to index code and docs from accessible repositories.",
         icon: <IconBrandGithub className="h-6 w-6" />,
         status: "available",
       },
@@ -141,7 +157,8 @@ const connectorCategories: ConnectorCategory[] = [
       {
         id: "zoom",
         title: "Zoom",
-        description: "Connect to Zoom to access meeting recordings and transcripts.",
+        description:
+          "Connect to Zoom to access meeting recordings and transcripts.",
         icon: <IconBrandZoom className="h-6 w-6" />,
         status: "coming-soon",
       },
@@ -152,7 +169,7 @@ const connectorCategories: ConnectorCategory[] = [
 // Animation variants
 const fadeIn = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.4 } }
+  visible: { opacity: 1, transition: { duration: 0.4 } },
 };
 
 const staggerContainer = {
@@ -160,43 +177,49 @@ const staggerContainer = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     y: 0,
-    transition: { 
+    transition: {
       type: "spring",
       stiffness: 260,
-      damping: 20
-    }
+      damping: 20,
+    },
   },
-  hover: { 
+  hover: {
     scale: 1.02,
-    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-    transition: { 
+    boxShadow:
+      "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+    transition: {
       type: "spring",
       stiffness: 400,
-      damping: 10
-    }
-  }
+      damping: 10,
+    },
+  },
 };
 
 export default function ConnectorsPage() {
   const params = useParams();
   const searchSpaceId = params.search_space_id as string;
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(["search-engines", "knowledge-bases", "project-management", "team-chats"]);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([
+    "search-engines",
+    "knowledge-bases",
+    "project-management",
+    "team-chats",
+  ]);
 
   const toggleCategory = (categoryId: string) => {
-    setExpandedCategories(prev => 
-      prev.includes(categoryId) 
-        ? prev.filter(id => id !== categoryId) 
-        : [...prev, categoryId]
+    setExpandedCategories((prev) =>
+      prev.includes(categoryId)
+        ? prev.filter((id) => id !== categoryId)
+        : [...prev, categoryId],
     );
   };
 
@@ -205,9 +228,9 @@ export default function ConnectorsPage() {
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ 
+        transition={{
           duration: 0.6,
-          ease: [0.22, 1, 0.36, 1]
+          ease: [0.22, 1, 0.36, 1],
         }}
         className="mb-12 text-center"
       >
@@ -215,18 +238,19 @@ export default function ConnectorsPage() {
           Connect Your Tools
         </h1>
         <p className="text-muted-foreground mt-3 text-lg max-w-2xl mx-auto">
-          Integrate with your favorite services to enhance your research capabilities.
+          Integrate with your favorite services to enhance your research
+          capabilities.
         </p>
       </motion.div>
 
-      <motion.div 
+      <motion.div
         className="space-y-8"
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
       >
         {connectorCategories.map((category) => (
-          <motion.div 
+          <motion.div
             key={category.id}
             variants={fadeIn}
             className="rounded-lg border bg-card text-card-foreground shadow-sm"
@@ -239,9 +263,17 @@ export default function ConnectorsPage() {
               <div className="flex items-center justify-between space-x-4 p-4">
                 <h3 className="text-xl font-semibold">{category.title}</h3>
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="w-9 p-0 hover:bg-muted">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-9 p-0 hover:bg-muted"
+                  >
                     <motion.div
-                      animate={{ rotate: expandedCategories.includes(category.id) ? 180 : 0 }}
+                      animate={{
+                        rotate: expandedCategories.includes(category.id)
+                          ? 180
+                          : 0,
+                      }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                     >
                       <IconChevronDown className="h-5 w-5" />
@@ -250,10 +282,10 @@ export default function ConnectorsPage() {
                   </Button>
                 </CollapsibleTrigger>
               </div>
-              
+
               <CollapsibleContent>
                 <AnimatePresence>
-                  <motion.div 
+                  <motion.div
                     className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 p-4"
                     variants={staggerContainer}
                     initial="hidden"
@@ -279,50 +311,75 @@ export default function ConnectorsPage() {
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <h3 className="font-medium">{connector.title}</h3>
+                                <h3 className="font-medium">
+                                  {connector.title}
+                                </h3>
                                 {connector.status === "coming-soon" && (
-                                  <Badge variant="outline" className="text-xs bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                                  >
                                     Coming soon
                                   </Badge>
                                 )}
                                 {connector.status === "connected" && (
-                                  <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
+                                  >
                                     Connected
                                   </Badge>
                                 )}
                               </div>
                             </div>
                           </CardHeader>
-                          
+
                           <CardContent className="pb-4">
                             <p className="text-sm text-muted-foreground">
                               {connector.description}
                             </p>
                           </CardContent>
-                          
+
                           <CardFooter className="mt-auto pt-2">
-                            {connector.status === 'available' && (
-                              <Link href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`} className="w-full">
-                                <Button variant="default" className="w-full group">
+                            {connector.status === "available" && (
+                              <Link
+                                href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}
+                                className="w-full"
+                              >
+                                <Button
+                                  variant="default"
+                                  className="w-full group"
+                                >
                                   <span>Connect</span>
                                   <motion.div
                                     className="ml-1"
                                     initial={{ x: 0 }}
                                     whileHover={{ x: 3 }}
-                                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                    transition={{
+                                      type: "spring",
+                                      stiffness: 400,
+                                      damping: 10,
+                                    }}
                                   >
                                     <IconChevronRight className="h-4 w-4" />
                                   </motion.div>
                                 </Button>
                               </Link>
                             )}
-                            {connector.status === 'coming-soon' && (
-                              <Button variant="outline" disabled className="w-full opacity-70">
+                            {connector.status === "coming-soon" && (
+                              <Button
+                                variant="outline"
+                                disabled
+                                className="w-full opacity-70"
+                              >
                                 Coming Soon
                               </Button>
                             )}
-                            {connector.status === 'connected' && (
-                              <Button variant="outline" className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950">
+                            {connector.status === "connected" && (
+                              <Button
+                                variant="outline"
+                                className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                              >
                                 Manage
                               </Button>
                             )}

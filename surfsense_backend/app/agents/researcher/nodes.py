@@ -84,9 +84,9 @@ async def fetch_documents_by_ids(
                 "document": {
                     "id": doc.id,
                     "title": doc.title,
-                    "document_type": doc.document_type.value
-                    if doc.document_type
-                    else "UNKNOWN",
+                    "document_type": (
+                        doc.document_type.value if doc.document_type else "UNKNOWN"
+                    ),
                     "metadata": doc.document_metadata or {},
                 },
                 "source": doc.document_type.value if doc.document_type else "UNKNOWN",
@@ -186,9 +186,11 @@ async def fetch_documents_by_ids(
                     title = f"GitHub: {doc.title}"
                     description = metadata.get(
                         "description",
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content,
+                        (
+                            doc.content[:100] + "..."
+                            if len(doc.content) > 100
+                            else doc.content
+                        ),
                     )
                     url = metadata.get("url", "")
 
@@ -204,9 +206,11 @@ async def fetch_documents_by_ids(
 
                     description = metadata.get(
                         "description",
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content,
+                        (
+                            doc.content[:100] + "..."
+                            if len(doc.content) > 100
+                            else doc.content
+                        ),
                     )
                     url = (
                         f"https://www.youtube.com/watch?v={video_id}"
@@ -235,6 +239,35 @@ async def fetch_documents_by_ids(
                         url = f"https://discord.com/channels/{guild_id}/{channel_id}"
                     elif channel_id:
                         url = f"https://discord.com/channels/@me/{channel_id}"
+                    else:
+                        url = ""
+
+                elif doc_type == "JIRA_CONNECTOR":
+                    # Extract Jira-specific metadata
+                    issue_key = metadata.get("issue_key", "Unknown Issue")
+                    issue_title = metadata.get("issue_title", "Untitled Issue")
+                    status = metadata.get("status", "")
+                    priority = metadata.get("priority", "")
+                    issue_type = metadata.get("issue_type", "")
+
+                    title = f"Jira: {issue_key} - {issue_title}"
+                    if status:
+                        title += f" ({status})"
+
+                    description = (
+                        doc.content[:100] + "..."
+                        if len(doc.content) > 100
+                        else doc.content
+                    )
+                    if priority:
+                        description += f" | Priority: {priority}"
+                    if issue_type:
+                        description += f" | Type: {issue_type}"
+
+                    # Construct Jira URL if we have the base URL
+                    base_url = metadata.get("base_url", "")
+                    if base_url and issue_key:
+                        url = f"{base_url}/browse/{issue_key}"
                     else:
                         url = ""
 
@@ -268,9 +301,11 @@ async def fetch_documents_by_ids(
                         "og:description",
                         metadata.get(
                             "ogDescription",
-                            doc.content[:100] + "..."
-                            if len(doc.content) > 100
-                            else doc.content,
+                            (
+                                doc.content[:100] + "..."
+                                if len(doc.content) > 100
+                                else doc.content
+                            ),
                         ),
                     )
                     url = metadata.get("url", "")
@@ -301,6 +336,7 @@ async def fetch_documents_by_ids(
                 "GITHUB_CONNECTOR": "GitHub (Selected)",
                 "YOUTUBE_VIDEO": "YouTube Videos (Selected)",
                 "DISCORD_CONNECTOR": "Discord (Selected)",
+                "JIRA_CONNECTOR": "Jira Issues (Selected)",
                 "EXTENSION": "Browser Extension (Selected)",
                 "CRAWLED_URL": "Web Pages (Selected)",
                 "FILE": "Files (Selected)",
@@ -376,10 +412,10 @@ async def write_answer_outline(
     # Create the human message content
     human_message_content = f"""
     Now Please create an answer outline for the following query:
-    
+
     User Query: {reformulated_query}
     Number of Sections: {num_sections}
-    
+
     Remember to format your response as valid JSON exactly matching this structure:
     {{
       "answer_outline": [
@@ -393,7 +429,7 @@ async def write_answer_outline(
         }}
       ]
     }}
-    
+
     Your output MUST be valid JSON in exactly this format. Do not include any other text or explanation.
     """
 
@@ -802,7 +838,9 @@ async def fetch_relevant_documents(
                         source_object,
                         linkup_chunks,
                     ) = await connector_service.search_linkup(
-                        user_query=reformulated_query, user_id=user_id, mode=linkup_mode
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        mode=linkup_mode,
                     )
 
                     # Add to sources and raw documents
@@ -841,6 +879,30 @@ async def fetch_relevant_documents(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
                                     f"🗨️ Found {len(discord_chunks)} Discord messages related to your query"
+                                )
+                            }
+                        )
+
+                elif connector == "JIRA_CONNECTOR":
+                    source_object, jira_chunks = await connector_service.search_jira(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode,
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(jira_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"🎫 Found {len(jira_chunks)} Jira issues related to your query"
                                 )
                             }
                         )
@@ -1214,7 +1276,7 @@ async def process_sections(
 
     # Combine the results into a final report with section titles
     final_report = []
-    for _, (section, content) in enumerate(
+    for _i, (section, content) in enumerate(
         zip(answer_outline.answer_outline, processed_results, strict=False)
     ):
         # Skip adding the section header since the content already contains the title
@@ -1725,11 +1787,11 @@ async def generate_further_questions(
     # Create the human message content
     human_message_content = f"""
     {chat_history_xml}
-    
+
     {documents_xml}
-    
+
     Based on the chat history and available documents above, generate 3-5 contextually relevant follow-up questions that would naturally extend the conversation and provide additional value to the user. Make sure the questions can be reasonably answered using the available documents or knowledge base.
-    
+
     Your response MUST be valid JSON in exactly this format:
     {{
       "further_questions": [
@@ -1743,7 +1805,7 @@ async def generate_further_questions(
         }}
       ]
     }}
-    
+
     Do not include any other text or explanation. Only return the JSON.
     """
 

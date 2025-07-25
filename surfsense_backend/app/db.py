@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from enum import Enum
 
 from fastapi import Depends
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
@@ -26,13 +27,7 @@ from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
 
 if config.AUTH_TYPE == "GOOGLE":
-    from fastapi_users.db import (
-        SQLAlchemyBaseOAuthAccountTableUUID,
-        SQLAlchemyBaseUserTableUUID,
-        SQLAlchemyUserDatabase,
-    )
-else:
-    from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
+    from fastapi_users.db import SQLAlchemyBaseOAuthAccountTableUUID
 
 DATABASE_URL = config.DATABASE_URL
 
@@ -47,6 +42,7 @@ class DocumentType(str, Enum):
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
     LINEAR_CONNECTOR = "LINEAR_CONNECTOR"
     DISCORD_CONNECTOR = "DISCORD_CONNECTOR"
+    JIRA_CONNECTOR = "JIRA_CONNECTOR"
 
 
 class SearchSourceConnectorType(str, Enum):
@@ -58,6 +54,7 @@ class SearchSourceConnectorType(str, Enum):
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
     LINEAR_CONNECTOR = "LINEAR_CONNECTOR"
     DISCORD_CONNECTOR = "DISCORD_CONNECTOR"
+    JIRA_CONNECTOR = "JIRA_CONNECTOR"
 
 
 class ChatType(str, Enum):
@@ -320,6 +317,7 @@ if config.AUTH_TYPE == "GOOGLE":
         strategic_llm = relationship(
             "LLMConfig", foreign_keys=[strategic_llm_id], post_update=True
         )
+
 else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
@@ -402,6 +400,7 @@ if config.AUTH_TYPE == "GOOGLE":
 
     async def get_user_db(session: AsyncSession = Depends(get_async_session)):
         yield SQLAlchemyUserDatabase(session, User, OAuthAccount)
+
 else:
 
     async def get_user_db(session: AsyncSession = Depends(get_async_session)):

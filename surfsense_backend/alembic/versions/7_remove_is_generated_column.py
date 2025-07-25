@@ -8,6 +8,7 @@ Revises: 6
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 from alembic import op
 
@@ -19,8 +20,14 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Drop the is_generated column
-    op.drop_column("podcasts", "is_generated")
+    # Get the current database connection
+    bind = op.get_bind()
+    inspector = inspect(bind)
+
+    # Check if the column exists before attempting to drop it
+    columns = [col["name"] for col in inspector.get_columns("podcasts")]
+    if "is_generated" in columns:
+        op.drop_column("podcasts", "is_generated")
 
 
 def downgrade() -> None:

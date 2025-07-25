@@ -22,7 +22,22 @@ NEW_VALUE = "LINEAR_CONNECTOR"
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.execute(f"ALTER TYPE {ENUM_NAME} ADD VALUE '{NEW_VALUE}'")
+    op.execute(
+        f"""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_enum
+            WHERE enumlabel = '{NEW_VALUE}'
+            AND enumtypid = (
+                SELECT oid FROM pg_type WHERE typname = '{ENUM_NAME}'
+            )
+        ) THEN
+            ALTER TYPE {ENUM_NAME} ADD VALUE '{NEW_VALUE}';
+        END IF;
+    END$$;
+    """
+    )
 
 
 # Warning: This will delete all rows with the new value

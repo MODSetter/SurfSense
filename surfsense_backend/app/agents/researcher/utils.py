@@ -43,6 +43,8 @@ def get_connector_emoji(connector_name: str) -> str:
         "NOTION_CONNECTOR": "📘",
         "GITHUB_CONNECTOR": "🐙",
         "LINEAR_CONNECTOR": "📊",
+        "JIRA_CONNECTOR": "🎫",
+        "DISCORD_CONNECTOR": "🗨️",
         "TAVILY_API": "🔍",
         "LINKUP_API": "🔗",
     }
@@ -60,6 +62,8 @@ def get_connector_friendly_name(connector_name: str) -> str:
         "NOTION_CONNECTOR": "Notion",
         "GITHUB_CONNECTOR": "GitHub",
         "LINEAR_CONNECTOR": "Linear",
+        "JIRA_CONNECTOR": "Jira",
+        "DISCORD_CONNECTOR": "Discord",
         "TAVILY_API": "Tavily Search",
         "LINKUP_API": "Linkup Search",
     }

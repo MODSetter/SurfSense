@@ -8,6 +8,7 @@ Revises: 5
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import JSON
 
 from alembic import op
@@ -20,21 +21,28 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Drop the old column and create a new one with the new name and type
-    # We need to do this because PostgreSQL doesn't support direct column renames with type changes
-    op.add_column(
-        "podcasts",
-        sa.Column("podcast_transcript", JSON, nullable=False, server_default="{}"),
-    )
+    bind = op.get_bind()
+    inspector = inspect(bind)
 
-    # Copy data from old column to new column
-    # Convert text to JSON by storing it as a JSON string value
-    op.execute(
-        "UPDATE podcasts SET podcast_transcript = jsonb_build_object('text', podcast_content) WHERE podcast_content != ''"
-    )
+    columns = [col["name"] for col in inspector.get_columns("podcasts")]
+    if "podcast_transcript" not in columns:
+        op.add_column(
+            "podcasts",
+            sa.Column("podcast_transcript", JSON, nullable=False, server_default="{}"),
+        )
 
-    # Drop the old column
-    op.drop_column("podcasts", "podcast_content")
+        # Copy data from old column to new column
+        op.execute(
+            """
+            UPDATE podcasts
+            SET podcast_transcript = jsonb_build_object('text', podcast_content)
+            WHERE podcast_content != ''
+        """
+        )
+
+    # Drop the old column only if it exists
+    if "podcast_content" in columns:
+        op.drop_column("podcasts", "podcast_content")
 
 
 def downgrade() -> None:

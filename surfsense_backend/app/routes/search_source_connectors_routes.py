@@ -38,6 +38,7 @@ from app.schemas import (
 from app.tasks.connectors_indexing_tasks import (
     index_discord_messages,
     index_github_repos,
+    index_jira_issues,
     index_linear_issues,
     index_notion_pages,
     index_slack_messages,
@@ -336,6 +337,7 @@ async def index_connector_content(
     - NOTION_CONNECTOR: Indexes pages from all accessible Notion pages
     - GITHUB_CONNECTOR: Indexes code and documentation from GitHub repositories
     - LINEAR_CONNECTOR: Indexes issues and comments from Linear
+    - JIRA_CONNECTOR: Indexes issues and comments from Jira
     - DISCORD_CONNECTOR: Indexes messages from all accessible Discord channels
 
     Args:
@@ -353,7 +355,9 @@ async def index_connector_content(
         )
 
         # Check if the search space belongs to the user
-        await check_ownership(session, SearchSpace, search_space_id, user)
+        _search_space = await check_ownership(
+            session, SearchSpace, search_space_id, user
+        )
 
         # Handle different connector types
         response_message = ""
@@ -437,6 +441,21 @@ async def index_connector_content(
                 indexing_to,
             )
             response_message = "Linear indexing started in the background."
+
+        elif connector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR:
+            # Run indexing in background
+            logger.info(
+                f"Triggering Jira indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            background_tasks.add_task(
+                run_jira_indexing_with_new_session,
+                connector_id,
+                search_space_id,
+                str(user.id),
+                indexing_from,
+                indexing_to,
+            )
+            response_message = "Jira indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
             # Run indexing in background
@@ -807,3 +826,61 @@ async def run_discord_indexing(
             )
     except Exception as e:
         logger.error(f"Error in background Discord indexing task: {e!s}")
+
+
+# Add new helper functions for Jira indexing
+async def run_jira_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Wrapper to run Jira indexing with its own database session."""
+    logger.info(
+        f"Background task started: Indexing Jira connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+    )
+    async with async_session_maker() as session:
+        await run_jira_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+    logger.info(f"Background task finished: Indexing Jira connector {connector_id}")
+
+
+async def run_jira_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Runs the Jira indexing task and updates the timestamp."""
+    try:
+        indexed_count, error_message = await index_jira_issues(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            start_date,
+            end_date,
+            update_last_indexed=False,
+        )
+        if error_message:
+            logger.error(
+                f"Jira indexing failed for connector {connector_id}: {error_message}"
+            )
+            # Optionally update status in DB to indicate failure
+        else:
+            logger.info(
+                f"Jira indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+            )
+            # Update the last indexed timestamp only on success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()  # Commit timestamp update
+    except Exception as e:
+        logger.error(
+            f"Critical error in run_jira_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
+        # Optionally update status in DB to indicate failure
