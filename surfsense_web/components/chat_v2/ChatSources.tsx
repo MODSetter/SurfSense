@@ -19,10 +19,11 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, FileText, Github, Globe } from "lucide-react";
+import { ExternalLink, FileText, Globe } from "lucide-react";
+import { IconBrandGithub } from "@tabler/icons-react";
 
 interface Source {
-    id: number;
+    id: string;
     title: string;
     description: string;
     url: string;
@@ -35,14 +36,34 @@ interface SourceGroup {
     sources: Source[];
 }
 
+// New interfaces for the updated data format
+interface NodeMetadata {
+    title: string;
+    source_type: string;
+    group_name: string;
+}
+
+interface SourceNode {
+    id: string;
+    text: string;
+    url: string;
+    metadata: NodeMetadata;
+}
+
+interface NodesResponse {
+    nodes: SourceNode[];
+}
+
 function getSourceIcon(type: string) {
     switch (type) {
+        case "USER_SELECTED_GITHUB_CONNECTOR":
         case "GITHUB_CONNECTOR":
-            return <Github className="h-4 w-4" />;
+            return <IconBrandGithub className="h-4 w-4" />;
+        case "USER_SELECTED_NOTION_CONNECTOR":
         case "NOTION_CONNECTOR":
             return <FileText className="h-4 w-4" />;
-        case "FILE":
         case "USER_SELECTED_FILE":
+        case "FILE":
             return <FileText className="h-4 w-4" />;
         default:
             return <Globe className="h-4 w-4" />;
@@ -55,24 +76,24 @@ function SourceCard({ source }: { source: Source }) {
     return (
         <Card className="mb-3">
             <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium truncate">
+                <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-sm md:text-base font-medium leading-tight">
                         {source.title}
                     </CardTitle>
                     {hasUrl && (
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0"
+                            className="h-6 w-6 md:h-8 md:w-8 p-0 flex-shrink-0"
                             onClick={() => window.open(source.url, "_blank")}
                         >
-                            <ExternalLink className="h-3 w-3" />
+                            <ExternalLink className="h-3 w-3 md:h-4 md:w-4" />
                         </Button>
                     )}
                 </div>
             </CardHeader>
             <CardContent className="pt-0">
-                <CardDescription className="text-xs line-clamp-3">
+                <CardDescription className="text-xs md:text-sm line-clamp-3 md:line-clamp-4 leading-relaxed">
                     {source.description}
                 </CardDescription>
             </CardContent>
@@ -82,22 +103,49 @@ function SourceCard({ source }: { source: Source }) {
 
 export default function ChatSourcesDisplay({ message }: { message: Message }) {
     const [open, setOpen] = useState(false);
-    const annotations = getAnnotationData(message, "SOURCES");
+    const annotations = getAnnotationData(message, "sources");
 
-    // Flatten the nested array structure and ensure we have source groups
-    const sourceGroups: SourceGroup[] =
-        Array.isArray(annotations) && annotations.length > 0
-            ? annotations
-                  .flat()
-                  .filter(
-                      (group): group is SourceGroup =>
-                          group !== null &&
-                          group !== undefined &&
-                          typeof group === "object" &&
-                          "sources" in group &&
-                          Array.isArray(group.sources)
-                  )
-            : [];
+    // Transform the new data format to the expected SourceGroup format
+    const sourceGroups: SourceGroup[] = [];
+    
+    if (Array.isArray(annotations) && annotations.length > 0) {
+        // Extract all nodes from the response
+        const allNodes: SourceNode[] = [];
+        
+        annotations.forEach((item) => {
+            if (item && typeof item === "object" && "nodes" in item && Array.isArray(item.nodes)) {
+                allNodes.push(...item.nodes);
+            }
+        });
+
+        // Group nodes by source_type
+        const groupedByType = allNodes.reduce((acc, node) => {
+            const sourceType = node.metadata.source_type;
+            if (!acc[sourceType]) {
+                acc[sourceType] = [];
+            }
+            acc[sourceType].push(node);
+            return acc;
+        }, {} as Record<string, SourceNode[]>);
+
+        // Convert grouped nodes to SourceGroup format
+        Object.entries(groupedByType).forEach(([sourceType, nodes], index) => {
+            if (nodes.length > 0) {
+                const firstNode = nodes[0];
+                sourceGroups.push({
+                    id: index + 100, // Generate unique ID
+                    name: firstNode.metadata.group_name,
+                    type: sourceType,
+                    sources: nodes.map(node => ({
+                        id: node.id,
+                        title: node.metadata.title,
+                        description: node.text,
+                        url: node.url || ""
+                    }))
+                });
+            }
+        });
+    }
 
     if (sourceGroups.length === 0) {
         return null;
@@ -116,7 +164,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
                     View Sources ({totalSources})
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+            <DialogContent className="max-w-4xl md:h-[80vh] h-[90vh] w-[95vw] md:w-auto flex flex-col">
                 <DialogHeader className="flex-shrink-0">
                     <DialogTitle>Sources</DialogTitle>
                 </DialogHeader>
@@ -124,29 +172,28 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
                     defaultValue={sourceGroups[0]?.type}
                     className="flex-1 flex flex-col min-h-0"
                 >
-                    <TabsList
-                        className="grid w-full flex-shrink-0"
-                        style={{
-                            gridTemplateColumns: `repeat(${sourceGroups.length}, 1fr)`,
-                        }}
-                    >
-                        {sourceGroups.map((group) => (
-                            <TabsTrigger
-                                key={group.type}
-                                value={group.type}
-                                className="flex items-center gap-2"
-                            >
-                                {getSourceIcon(group.type)}
-                                <span className="truncate">{group.name}</span>
-                                <Badge
-                                    variant="secondary"
-                                    className="ml-1 h-5 text-xs"
+                    <div className="flex-shrink-0 w-full overflow-x-auto">
+                        <TabsList className="flex w-max min-w-full">
+                            {sourceGroups.map((group) => (
+                                <TabsTrigger
+                                    key={group.type}
+                                    value={group.type}
+                                    className="flex items-center gap-2 whitespace-nowrap px-3 md:px-4"
                                 >
-                                    {group.sources.length}
-                                </Badge>
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
+                                    {getSourceIcon(group.type)}
+                                    <span className="truncate max-w-[100px] md:max-w-none">
+                                        {group.name}
+                                    </span>
+                                    <Badge
+                                        variant="secondary"
+                                        className="ml-1 h-5 text-xs flex-shrink-0"
+                                    >
+                                        {group.sources.length}
+                                    </Badge>
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                    </div>
                     {sourceGroups.map((group) => (
                         <TabsContent
                             key={group.type}

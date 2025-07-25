@@ -60,7 +60,23 @@ class StreamingService:
         self.message_annotations[1]["content"] = sources
 
         # Return only the delta annotation
-        annotation = {"type": "SOURCES", "data": sources}
+        nodes = []
+
+        for group in sources:
+            for source in group.get("sources", []):
+                node = {
+                    "id": str(source.get("id", "")),
+                    "text": source.get("description", ""),
+                    "url": source.get("url", ""),
+                    "metadata": {
+                        "title": source.get("title", ""),
+                        "source_type": group.get("type", ""),
+                        "group_name": group.get("name", ""),
+                    },
+                }
+                nodes.append(node)
+
+        annotation = {"type": "sources", "data": {"nodes": nodes}}
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_answer_delta(self, answer_chunk: str) -> str:
