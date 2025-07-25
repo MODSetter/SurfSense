@@ -601,7 +601,7 @@ const CustomChatInputOptions = React.memo(
 
 CustomChatInputOptions.displayName = "CustomChatInputOptions";
 
-export const CustomChatInput = React.memo(
+export const ChatInputUI = React.memo(
     ({
         onDocumentSelectionChange,
         selectedDocuments,
@@ -642,4 +642,4 @@ export const CustomChatInput = React.memo(
     }
 );
 
-CustomChatInput.displayName = "CustomChatInput";
+ChatInputUI.displayName = "ChatInputUI";

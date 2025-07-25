@@ -6,6 +6,8 @@ import { getAnnotationData, Message } from "@llamaindex/chat-ui";
 export default function TerminalDisplay({ message, open }: { message: Message, open: boolean }) {
     const [isCollapsed, setIsCollapsed] = React.useState(!open);
 
+    const bottomRef = React.useRef<HTMLDivElement>(null);
+
     // Get the last assistant message that's not being typed
     if (!message) {
         return <></>;
@@ -25,6 +27,12 @@ export default function TerminalDisplay({ message, open }: { message: Message, o
     if (events.length === 0) {
         return <></>;
     }
+
+    React.useEffect(() => {
+        if (bottomRef.current) {
+            bottomRef.current.scrollTo({ top: bottomRef.current.scrollHeight, behavior: "smooth" });
+        }
+    }, [events]);
 
     return (
         <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden font-mono text-sm shadow-lg">
@@ -76,7 +84,7 @@ export default function TerminalDisplay({ message, open }: { message: Message, o
 
             {/* Terminal Content */}
             {!isCollapsed && (
-                <div className="h-64 overflow-y-auto p-4 space-y-1 bg-gray-900">
+                <div ref={bottomRef} className="h-64 overflow-y-auto p-4 space-y-1 bg-gray-900">
                     {events.map((event, index) => (
                         <div
                             key={`${event.id}-${index}`}
