@@ -1,10 +1,7 @@
 import asyncio
 import json
-from typing import Any, Dict, List
+from typing import Any
 
-from app.db import Document, SearchSpace
-from app.services.connector_service import ConnectorService
-from app.services.query_service import QueryService
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import StreamWriter
@@ -12,6 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Additional imports for document fetching
 from sqlalchemy.future import select
+
+from app.db import Document, SearchSpace
+from app.services.connector_service import ConnectorService
+from app.services.query_service import QueryService
 
 from .configuration import Configuration, SearchMode
 from .prompts import (
@@ -26,8 +27,8 @@ from .utils import AnswerOutline, get_connector_emoji, get_connector_friendly_na
 
 
 async def fetch_documents_by_ids(
-    document_ids: List[int], user_id: str, db_session: AsyncSession
-) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    document_ids: list[int], user_id: str, db_session: AsyncSession
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Fetch documents by their IDs with ownership check using DOCUMENTS mode approach.
 
@@ -358,13 +359,13 @@ async def fetch_documents_by_ids(
         return source_objects, formatted_documents
 
     except Exception as e:
-        print(f"Error fetching documents by IDs: {str(e)}")
+        print(f"Error fetching documents by IDs: {e!s}")
         return [], []
 
 
 async def write_answer_outline(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a structured answer outline based on the user query.
 
@@ -502,27 +503,27 @@ async def write_answer_outline(
 
     except (json.JSONDecodeError, ValueError) as e:
         # Log the error and re-raise it
-        error_message = f"Error parsing LLM response: {str(e)}"
+        error_message = f"Error parsing LLM response: {e!s}"
         writer({"yield_value": streaming_service.format_error(error_message)})
 
-        print(f"Error parsing LLM response: {str(e)}")
+        print(f"Error parsing LLM response: {e!s}")
         print(f"Raw response: {response.content}")
         raise
 
 
 async def fetch_relevant_documents(
-    research_questions: List[str],
+    research_questions: list[str],
     user_id: str,
     search_space_id: int,
     db_session: AsyncSession,
-    connectors_to_search: List[str],
+    connectors_to_search: list[str],
     writer: StreamWriter = None,
     state: State = None,
     top_k: int = 10,
     connector_service: ConnectorService = None,
     search_mode: SearchMode = SearchMode.CHUNKS,
-    user_selected_sources: List[Dict[str, Any]] = None,
-) -> List[Dict[str, Any]]:
+    user_selected_sources: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """
     Fetch relevant documents for research questions using the provided connectors.
 
@@ -832,8 +833,11 @@ async def fetch_relevant_documents(
 
                 elif connector == "LINKUP_API":
                     linkup_mode = "standard"
-                        
-                    source_object, linkup_chunks = await connector_service.search_linkup(
+
+                    (
+                        source_object,
+                        linkup_chunks,
+                    ) = await connector_service.search_linkup(
                         user_query=reformulated_query,
                         user_id=user_id,
                         mode=linkup_mode,
@@ -904,7 +908,7 @@ async def fetch_relevant_documents(
                         )
 
             except Exception as e:
-                error_message = f"Error searching connector {connector}: {str(e)}"
+                error_message = f"Error searching connector {connector}: {e!s}"
                 print(error_message)
 
                 # Stream error message
@@ -913,7 +917,7 @@ async def fetch_relevant_documents(
                     writer(
                         {
                             "yield_value": streaming_service.format_error(
-                                f"Error searching {friendly_name}: {str(e)}"
+                                f"Error searching {friendly_name}: {e!s}"
                             )
                         }
                     )
@@ -948,37 +952,49 @@ async def fetch_relevant_documents(
 
         if source_id and source_type:
             source_key = f"{source_type}_{source_id}"
-            current_sources_count = len(source_obj.get('sources', []))
-            
+            current_sources_count = len(source_obj.get("sources", []))
+
             if source_key not in seen_source_keys:
                 seen_source_keys.add(source_key)
                 deduplicated_sources.append(source_obj)
-                print(f"Debug: Added source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {current_sources_count}")
+                print(
+                    f"Debug: Added source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {current_sources_count}"
+                )
             else:
                 # Check if this source object has more sources than the existing one
                 existing_index = None
                 for i, existing_source in enumerate(deduplicated_sources):
-                    existing_id = existing_source.get('id')
-                    existing_type = existing_source.get('type')
+                    existing_id = existing_source.get("id")
+                    existing_type = existing_source.get("type")
                     if existing_id == source_id and existing_type == source_type:
                         existing_index = i
                         break
-                
+
                 if existing_index is not None:
-                    existing_sources_count = len(deduplicated_sources[existing_index].get('sources', []))
+                    existing_sources_count = len(
+                        deduplicated_sources[existing_index].get("sources", [])
+                    )
                     if current_sources_count > existing_sources_count:
                         # Replace the existing source object with the new one that has more sources
                         deduplicated_sources[existing_index] = source_obj
-                        print(f"Debug: Replaced source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {existing_sources_count} -> {current_sources_count}")
+                        print(
+                            f"Debug: Replaced source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {existing_sources_count} -> {current_sources_count}"
+                        )
                     else:
-                        print(f"Debug: Skipped duplicate source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {current_sources_count} <= {existing_sources_count}")
+                        print(
+                            f"Debug: Skipped duplicate source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {current_sources_count} <= {existing_sources_count}"
+                        )
                 else:
-                    print(f"Debug: Skipped duplicate source - ID: {source_id}, Type: {source_type}, Key: {source_key} (couldn't find existing)")
+                    print(
+                        f"Debug: Skipped duplicate source - ID: {source_id}, Type: {source_type}, Key: {source_key} (couldn't find existing)"
+                    )
         else:
             # If there's no ID or type, just add it to be safe
             deduplicated_sources.append(source_obj)
-            print(f"Debug: Added source without ID/type - {source_obj.get('name', 'UNKNOWN')}")
-    
+            print(
+                f"Debug: Added source without ID/type - {source_obj.get('name', 'UNKNOWN')}"
+            )
+
     # Stream info about deduplicated sources
     if streaming_service and writer:
         user_source_count = len(user_selected_sources) if user_selected_sources else 0
@@ -1039,7 +1055,7 @@ async def fetch_relevant_documents(
 
 async def process_sections(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Process all sections in parallel and combine the results.
 
@@ -1100,13 +1116,13 @@ async def process_sections(
     )
 
     if configuration.num_sections == 1:
-        TOP_K = 10
+        top_k = 10
     elif configuration.num_sections == 3:
-        TOP_K = 20
+        top_k = 20
     elif configuration.num_sections == 6:
-        TOP_K = 30
+        top_k = 30
     else:
-        TOP_K = 10
+        top_k = 10
 
     relevant_documents = []
     user_selected_documents = []
@@ -1155,13 +1171,13 @@ async def process_sections(
             connectors_to_search=configuration.connectors_to_search,
             writer=writer,
             state=state,
-            top_k=TOP_K,
+            top_k=top_k,
             connector_service=connector_service,
             search_mode=configuration.search_mode,
             user_selected_sources=user_selected_sources,
         )
     except Exception as e:
-        error_message = f"Error fetching relevant documents: {str(e)}"
+        error_message = f"Error fetching relevant documents: {e!s}"
         print(error_message)
         writer({"yield_value": streaming_service.format_error(error_message)})
         # Log the error and continue with an empty list of documents
@@ -1251,7 +1267,7 @@ async def process_sections(
     for i, result in enumerate(section_results):
         if isinstance(result, Exception):
             section_title = answer_outline.answer_outline[i].section_title
-            error_message = f"Error processing section '{section_title}': {str(result)}"
+            error_message = f"Error processing section '{section_title}': {result!s}"
             print(error_message)
             writer({"yield_value": streaming_service.format_error(error_message)})
             processed_results.append(error_message)
@@ -1260,8 +1276,8 @@ async def process_sections(
 
     # Combine the results into a final report with section titles
     final_report = []
-    for i, (section, content) in enumerate(
-        zip(answer_outline.answer_outline, processed_results)
+    for _i, (section, content) in enumerate(
+        zip(answer_outline.answer_outline, processed_results, strict=False)
     ):
         # Skip adding the section header since the content already contains the title
         final_report.append(content)
@@ -1299,15 +1315,15 @@ async def process_sections(
 async def process_section_with_documents(
     section_id: int,
     section_title: str,
-    section_questions: List[str],
+    section_questions: list[str],
     user_id: str,
     search_space_id: int,
-    relevant_documents: List[Dict[str, Any]],
+    relevant_documents: list[dict[str, Any]],
     user_query: str,
     state: State = None,
     writer: StreamWriter = None,
     sub_section_type: SubSectionType = SubSectionType.MIDDLE,
-    section_contents: Dict[int, Dict[str, Any]] = None,
+    section_contents: dict[int, dict[str, Any]] | None = None,
 ) -> str:
     """
     Process a single section using pre-fetched documents.
@@ -1388,7 +1404,7 @@ async def process_section_with_documents(
         # Variables to track streaming state
         complete_content = ""  # Tracks the complete content received so far
 
-        async for chunk_type, chunk in sub_section_writer_graph.astream(
+        async for _chunk_type, chunk in sub_section_writer_graph.astream(
             sub_state, config, stream_mode=["values"]
         ):
             if "final_answer" in chunk:
@@ -1448,24 +1464,24 @@ async def process_section_with_documents(
 
         return complete_content
     except Exception as e:
-        print(f"Error processing section '{section_title}': {str(e)}")
+        print(f"Error processing section '{section_title}': {e!s}")
 
         # Send error update via streaming if available
         if state and state.streaming_service and writer:
             writer(
                 {
                     "yield_value": state.streaming_service.format_error(
-                        f'Error processing section "{section_title}": {str(e)}'
+                        f'Error processing section "{section_title}": {e!s}'
                     )
                 }
             )
 
-        return f"Error processing section: {section_title}. Details: {str(e)}"
+        return f"Error processing section: {section_title}. Details: {e!s}"
 
 
 async def reformulate_user_query(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Reforms the user query based on the chat history.
     """
@@ -1490,7 +1506,7 @@ async def reformulate_user_query(
 
 async def handle_qna_workflow(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Handle the QNA research workflow.
 
@@ -1532,7 +1548,7 @@ async def handle_qna_workflow(
     )
 
     # Use a reasonable top_k for QNA - not too many documents to avoid overwhelming the LLM
-    TOP_K = 15
+    top_k = 15
 
     relevant_documents = []
     user_selected_documents = []
@@ -1584,13 +1600,13 @@ async def handle_qna_workflow(
             connectors_to_search=configuration.connectors_to_search,
             writer=writer,
             state=state,
-            top_k=TOP_K,
+            top_k=top_k,
             connector_service=connector_service,
             search_mode=configuration.search_mode,
             user_selected_sources=user_selected_sources,
         )
     except Exception as e:
-        error_message = f"Error fetching relevant documents for QNA: {str(e)}"
+        error_message = f"Error fetching relevant documents for QNA: {e!s}"
         print(error_message)
         writer({"yield_value": streaming_service.format_error(error_message)})
         # Continue with empty documents - the QNA agent will handle this gracefully
@@ -1688,16 +1704,16 @@ async def handle_qna_workflow(
         }
 
     except Exception as e:
-        error_message = f"Error generating QNA answer: {str(e)}"
+        error_message = f"Error generating QNA answer: {e!s}"
         print(error_message)
         writer({"yield_value": streaming_service.format_error(error_message)})
 
-        return {"final_written_report": f"Error generating answer: {str(e)}"}
+        return {"final_written_report": f"Error generating answer: {e!s}"}
 
 
 async def generate_further_questions(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate contextually relevant follow-up questions based on chat history and available documents.
 
@@ -1748,7 +1764,7 @@ async def generate_further_questions(
                 chat_history_xml += f"<assistant>{message.content}</assistant>\n"
         else:
             # Handle other message types if needed
-            chat_history_xml += f"<message>{str(message)}</message>\n"
+            chat_history_xml += f"<message>{message!s}</message>\n"
     chat_history_xml += "</chat_history>"
 
     # Format available documents for the prompt
@@ -1868,7 +1884,7 @@ async def generate_further_questions(
 
     except (json.JSONDecodeError, ValueError) as e:
         # Log the error and return empty list
-        error_message = f"Error parsing further questions response: {str(e)}"
+        error_message = f"Error parsing further questions response: {e!s}"
         print(error_message)
         writer(
             {"yield_value": streaming_service.format_error(f"Warning: {error_message}")}
@@ -1880,7 +1896,7 @@ async def generate_further_questions(
 
     except Exception as e:
         # Handle any other errors
-        error_message = f"Error generating further questions: {str(e)}"
+        error_message = f"Error generating further questions: {e!s}"
         print(error_message)
         writer(
             {"yield_value": streaming_service.format_error(f"Warning: {error_message}")}

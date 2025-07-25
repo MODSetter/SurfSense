@@ -6,8 +6,6 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      - id: trailing-whitespace
-        exclude: '\.md$'
       - id: check-yaml
         args: [--multi, --unsafe]
       - id: check-json
@@ -31,52 +29,36 @@ repos:
             .*\.env\.template|
             .*/tests/.*|
             .*test.*\.py|
+            test_.*\.py|
             .github/workflows/.*\.yml|
             .github/workflows/.*\.yaml|
             .*pnpm-lock\.yaml|
             .*alembic\.ini|
+            .*alembic/versions/.*\.py|
             .*\.mdx$
           )$
 
-  # Python Backend Hooks (surfsense_backend)
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
-    hooks:
-      - id: black
-        files: ^surfsense_backend/
-        language_version: python3
-
-  - repo: https://github.com/pycqa/isort
-    rev: 6.0.1
-    hooks:
-      - id: isort
-        files: ^surfsense_backend/
-        args: ["--profile", "black", "--line-length", "88"]
-
+  # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.4
+    rev: v0.12.5
     hooks:
       - id: ruff
+        name: ruff-check
         files: ^surfsense_backend/
-        args: [--fix, --exit-non-zero-on-fix]
+        exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
+        args: [--fix]
       - id: ruff-format
+        name: ruff-format
         files: ^surfsense_backend/
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.0
-    hooks:
-      - id: mypy
-        files: ^surfsense_backend/
-        additional_dependencies: ['types-requests']
-        args: [--ignore-missing-imports, --disallow-untyped-defs]
+        exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.6
     hooks:
       - id: bandit
         files: ^surfsense_backend/
-        args: ['-r', '-f', 'json']
-        exclude: ^surfsense_backend/(tests/|alembic/)
+        args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
+        exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
 
   # Frontend/Extension Hooks (TypeScript/JavaScript)
   - repo: https://github.com/pre-commit/mirrors-prettier

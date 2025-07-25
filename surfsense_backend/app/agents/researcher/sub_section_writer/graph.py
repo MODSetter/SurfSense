@@ -1,7 +1,8 @@
 from langgraph.graph import StateGraph
-from .state import State
-from .nodes import write_sub_section, rerank_documents
+
 from .configuration import Configuration
+from .nodes import rerank_documents, write_sub_section
+from .state import State
 
 # Define a new graph
 workflow = StateGraph(State, config_schema=Configuration)

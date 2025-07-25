@@ -32,7 +32,7 @@ async def convert_element_to_markdown(element) -> str:
         "Footer": lambda x: f"*{x}*\n\n",
         "CodeSnippet": lambda x: f"```\n{x}\n```",
         "PageNumber": lambda x: f"*Page {x}*\n\n",
-        "UncategorizedText": lambda x: f"{x}\n\n"
+        "UncategorizedText": lambda x: f"{x}\n\n",
     }
 
     converter = markdown_mapping.get(element_category, lambda x: x)
@@ -74,7 +74,7 @@ def convert_chunks_to_langchain_documents(chunks):
     except ImportError:
         raise ImportError(
             "LangChain is not installed. Please install it with `pip install langchain langchain-core`"
-        )
+        ) from None
 
     langchain_docs = []
 
@@ -92,17 +92,20 @@ def convert_chunks_to_langchain_documents(chunks):
         # Add document information to metadata
         if "document" in chunk:
             doc = chunk["document"]
-            metadata.update({
-                "document_id": doc.get("id"),
-                "document_title": doc.get("title"),
-                "document_type": doc.get("document_type"),
-            })
+            metadata.update(
+                {
+                    "document_id": doc.get("id"),
+                    "document_title": doc.get("title"),
+                    "document_type": doc.get("document_type"),
+                }
+            )
 
             # Add document metadata if available
             if "metadata" in doc:
                 # Prefix document metadata keys to avoid conflicts
-                doc_metadata = {f"doc_meta_{k}": v for k,
-                                v in doc.get("metadata", {}).items()}
+                doc_metadata = {
+                    f"doc_meta_{k}": v for k, v in doc.get("metadata", {}).items()
+                }
                 metadata.update(doc_metadata)
 
                 # Add source URL if available in metadata
@@ -131,10 +134,7 @@ def convert_chunks_to_langchain_documents(chunks):
         """
 
         # Create LangChain Document
-        langchain_doc = LangChainDocument(
-            page_content=new_content,
-            metadata=metadata
-        )
+        langchain_doc = LangChainDocument(page_content=new_content, metadata=metadata)
 
         langchain_docs.append(langchain_doc)
 
@@ -144,4 +144,4 @@ def convert_chunks_to_langchain_documents(chunks):
 def generate_content_hash(content: str, search_space_id: int) -> str:
     """Generate SHA-256 hash for the given content combined with search space ID."""
     combined_data = f"{search_space_id}:{content}"
-    return hashlib.sha256(combined_data.encode('utf-8')).hexdigest()
+    return hashlib.sha256(combined_data.encode("utf-8")).hexdigest()

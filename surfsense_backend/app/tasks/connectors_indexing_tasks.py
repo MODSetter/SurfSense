@@ -1,7 +1,11 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from datetime import UTC, datetime, timedelta
+
+from slack_sdk.errors import SlackApiError
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from app.config import config
 from app.connectors.discord_connector import DiscordConnector
@@ -21,10 +25,6 @@ from app.prompts import SUMMARY_PROMPT_TEMPLATE
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import generate_content_hash
-from slack_sdk.errors import SlackApiError
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -35,10 +35,10 @@ async def index_slack_messages(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    start_date: str = None,
-    end_date: str = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     update_last_indexed: bool = True,
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, str | None]:
     """
     Index Slack messages from all accessible channels.
 
@@ -192,7 +192,7 @@ async def index_slack_messages(
                 str(e),
                 {"error_type": "ChannelFetchError"},
             )
-            return 0, f"Failed to get Slack channels: {str(e)}"
+            return 0, f"Failed to get Slack channels: {e!s}"
 
         if not channels:
             await task_logger.log_task_success(
@@ -400,13 +400,13 @@ async def index_slack_messages(
 
             except SlackApiError as slack_error:
                 logger.error(
-                    f"Slack API error for channel {channel_name}: {str(slack_error)}"
+                    f"Slack API error for channel {channel_name}: {slack_error!s}"
                 )
                 skipped_channels.append(f"{channel_name} (Slack API error)")
                 documents_skipped += 1
                 continue  # Skip this channel and continue with others
             except Exception as e:
-                logger.error(f"Error processing channel {channel_name}: {str(e)}")
+                logger.error(f"Error processing channel {channel_name}: {e!s}")
                 skipped_channels.append(f"{channel_name} (processing error)")
                 documents_skipped += 1
                 continue  # Skip this channel and continue with others
@@ -453,8 +453,8 @@ async def index_slack_messages(
             str(db_error),
             {"error_type": "SQLAlchemyError"},
         )
-        logger.error(f"Database error: {str(db_error)}")
-        return 0, f"Database error: {str(db_error)}"
+        logger.error(f"Database error: {db_error!s}")
+        return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -463,8 +463,8 @@ async def index_slack_messages(
             str(e),
             {"error_type": type(e).__name__},
         )
-        logger.error(f"Failed to index Slack messages: {str(e)}")
-        return 0, f"Failed to index Slack messages: {str(e)}"
+        logger.error(f"Failed to index Slack messages: {e!s}")
+        return 0, f"Failed to index Slack messages: {e!s}"
 
 
 async def index_notion_pages(
@@ -472,10 +472,10 @@ async def index_notion_pages(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    start_date: str = None,
-    end_date: str = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     update_last_indexed: bool = True,
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, str | None]:
     """
     Index Notion pages from all accessible pages.
 
@@ -611,8 +611,8 @@ async def index_notion_pages(
                 str(e),
                 {"error_type": "PageFetchError"},
             )
-            logger.error(f"Error fetching Notion pages: {str(e)}", exc_info=True)
-            return 0, f"Failed to get Notion pages: {str(e)}"
+            logger.error(f"Error fetching Notion pages: {e!s}", exc_info=True)
+            return 0, f"Failed to get Notion pages: {e!s}"
 
         if not pages:
             await task_logger.log_task_success(
@@ -799,7 +799,7 @@ async def index_notion_pages(
 
             except Exception as e:
                 logger.error(
-                    f"Error processing Notion page {page.get('title', 'Unknown')}: {str(e)}",
+                    f"Error processing Notion page {page.get('title', 'Unknown')}: {e!s}",
                     exc_info=True,
                 )
                 skipped_pages.append(
@@ -852,9 +852,9 @@ async def index_notion_pages(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(
-            f"Database error during Notion indexing: {str(db_error)}", exc_info=True
+            f"Database error during Notion indexing: {db_error!s}", exc_info=True
         )
-        return 0, f"Database error: {str(db_error)}"
+        return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -863,8 +863,8 @@ async def index_notion_pages(
             str(e),
             {"error_type": type(e).__name__},
         )
-        logger.error(f"Failed to index Notion pages: {str(e)}", exc_info=True)
-        return 0, f"Failed to index Notion pages: {str(e)}"
+        logger.error(f"Failed to index Notion pages: {e!s}", exc_info=True)
+        return 0, f"Failed to index Notion pages: {e!s}"
 
 
 async def index_github_repos(
@@ -872,10 +872,10 @@ async def index_github_repos(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    start_date: str = None,
-    end_date: str = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     update_last_indexed: bool = True,
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, str | None]:
     """
     Index code and documentation files from accessible GitHub repositories.
 
@@ -978,7 +978,7 @@ async def index_github_repos(
                 str(e),
                 {"error_type": "ClientInitializationError"},
             )
-            return 0, f"Failed to initialize GitHub client: {str(e)}"
+            return 0, f"Failed to initialize GitHub client: {e!s}"
 
         # 4. Validate selected repositories
         #    For simplicity, we'll proceed with the list provided.
@@ -1097,7 +1097,7 @@ async def index_github_repos(
                         "url": file_url,
                         "sha": file_sha,
                         "type": file_type,
-                        "indexed_at": datetime.now(timezone.utc).isoformat(),
+                        "indexed_at": datetime.now(UTC).isoformat(),
                     }
 
                     # Create new document
@@ -1175,10 +1175,10 @@ async def index_linear_issues(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    start_date: str = None,
-    end_date: str = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     update_last_indexed: bool = True,
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, str | None]:
     """
     Index Linear issues and comments.
 
@@ -1339,8 +1339,8 @@ async def index_linear_issues(
             logger.info(f"Retrieved {len(issues)} issues from Linear API")
 
         except Exception as e:
-            logger.error(f"Exception when calling Linear API: {str(e)}", exc_info=True)
-            return 0, f"Failed to get Linear issues: {str(e)}"
+            logger.error(f"Exception when calling Linear API: {e!s}", exc_info=True)
+            return 0, f"Failed to get Linear issues: {e!s}"
 
         if not issues:
             logger.info("No Linear issues found for the specified date range")
@@ -1481,7 +1481,7 @@ async def index_linear_issues(
 
             except Exception as e:
                 logger.error(
-                    f"Error processing issue {issue.get('identifier', 'Unknown')}: {str(e)}",
+                    f"Error processing issue {issue.get('identifier', 'Unknown')}: {e!s}",
                     exc_info=True,
                 )
                 skipped_issues.append(
@@ -1528,8 +1528,8 @@ async def index_linear_issues(
             str(db_error),
             {"error_type": "SQLAlchemyError"},
         )
-        logger.error(f"Database error: {str(db_error)}", exc_info=True)
-        return 0, f"Database error: {str(db_error)}"
+        logger.error(f"Database error: {db_error!s}", exc_info=True)
+        return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -1538,8 +1538,8 @@ async def index_linear_issues(
             str(e),
             {"error_type": type(e).__name__},
         )
-        logger.error(f"Failed to index Linear issues: {str(e)}", exc_info=True)
-        return 0, f"Failed to index Linear issues: {str(e)}"
+        logger.error(f"Failed to index Linear issues: {e!s}", exc_info=True)
+        return 0, f"Failed to index Linear issues: {e!s}"
 
 
 async def index_discord_messages(
@@ -1547,10 +1547,10 @@ async def index_discord_messages(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    start_date: str = None,
-    end_date: str = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     update_last_indexed: bool = True,
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, str | None]:
     """
     Index Discord messages from all accessible channels.
 
@@ -1632,13 +1632,11 @@ async def index_discord_messages(
         # Calculate date range
         if start_date is None or end_date is None:
             # Fall back to calculating dates based on last_indexed_at
-            calculated_end_date = datetime.now(timezone.utc)
+            calculated_end_date = datetime.now(UTC)
 
             # Use last_indexed_at as start date if available, otherwise use 365 days ago
             if connector.last_indexed_at:
-                calculated_start_date = connector.last_indexed_at.replace(
-                    tzinfo=timezone.utc
-                )
+                calculated_start_date = connector.last_indexed_at.replace(tzinfo=UTC)
                 logger.info(
                     f"Using last_indexed_at ({calculated_start_date.strftime('%Y-%m-%d')}) as start date"
                 )
@@ -1655,7 +1653,7 @@ async def index_discord_messages(
                 # Convert YYYY-MM-DD to ISO format
                 start_date_iso = (
                     datetime.strptime(start_date, "%Y-%m-%d")
-                    .replace(tzinfo=timezone.utc)
+                    .replace(tzinfo=UTC)
                     .isoformat()
                 )
 
@@ -1665,20 +1663,18 @@ async def index_discord_messages(
                 # Convert YYYY-MM-DD to ISO format
                 end_date_iso = (
                     datetime.strptime(end_date, "%Y-%m-%d")
-                    .replace(tzinfo=timezone.utc)
+                    .replace(tzinfo=UTC)
                     .isoformat()
                 )
         else:
             # Convert provided dates to ISO format for Discord API
             start_date_iso = (
                 datetime.strptime(start_date, "%Y-%m-%d")
-                .replace(tzinfo=timezone.utc)
+                .replace(tzinfo=UTC)
                 .isoformat()
             )
             end_date_iso = (
-                datetime.strptime(end_date, "%Y-%m-%d")
-                .replace(tzinfo=timezone.utc)
-                .isoformat()
+                datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=UTC).isoformat()
             )
 
         logger.info(
@@ -1710,9 +1706,9 @@ async def index_discord_messages(
                 str(e),
                 {"error_type": "GuildFetchError"},
             )
-            logger.error(f"Failed to get Discord guilds: {str(e)}", exc_info=True)
+            logger.error(f"Failed to get Discord guilds: {e!s}", exc_info=True)
             await discord_client.close_bot()
-            return 0, f"Failed to get Discord guilds: {str(e)}"
+            return 0, f"Failed to get Discord guilds: {e!s}"
         if not guilds:
             await task_logger.log_task_success(
                 log_entry,
@@ -1754,7 +1750,7 @@ async def index_discord_messages(
                         )
                     except Exception as e:
                         logger.error(
-                            f"Failed to get messages for channel {channel_name}: {str(e)}"
+                            f"Failed to get messages for channel {channel_name}: {e!s}"
                         )
                         skipped_channels.append(
                             f"{guild_name}#{channel_name} (fetch error)"
@@ -1886,7 +1882,9 @@ async def index_discord_messages(
 
                     chunks = [
                         Chunk(content=raw_chunk.text, embedding=embedding)
-                        for raw_chunk, embedding in zip(raw_chunks, chunk_embeddings)
+                        for raw_chunk, embedding in zip(
+                            raw_chunks, chunk_embeddings, strict=False
+                        )
                     ]
 
                     # Create and store new document
@@ -1902,7 +1900,7 @@ async def index_discord_messages(
                             "message_count": len(formatted_messages),
                             "start_date": start_date_iso,
                             "end_date": end_date_iso,
-                            "indexed_at": datetime.now(timezone.utc).strftime(
+                            "indexed_at": datetime.now(UTC).strftime(
                                 "%Y-%m-%d %H:%M:%S"
                             ),
                         },
@@ -1920,14 +1918,14 @@ async def index_discord_messages(
 
             except Exception as e:
                 logger.error(
-                    f"Error processing guild {guild_name}: {str(e)}", exc_info=True
+                    f"Error processing guild {guild_name}: {e!s}", exc_info=True
                 )
                 skipped_channels.append(f"{guild_name} (processing error)")
                 documents_skipped += 1
                 continue
 
         if update_last_indexed and documents_indexed > 0:
-            connector.last_indexed_at = datetime.now(timezone.utc)
+            connector.last_indexed_at = datetime.now(UTC)
             logger.info(f"Updated last_indexed_at to {connector.last_indexed_at}")
 
         await session.commit()
@@ -1968,9 +1966,9 @@ async def index_discord_messages(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(
-            f"Database error during Discord indexing: {str(db_error)}", exc_info=True
+            f"Database error during Discord indexing: {db_error!s}", exc_info=True
         )
-        return 0, f"Database error: {str(db_error)}"
+        return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -1979,8 +1977,8 @@ async def index_discord_messages(
             str(e),
             {"error_type": type(e).__name__},
         )
-        logger.error(f"Failed to index Discord messages: {str(e)}", exc_info=True)
-        return 0, f"Failed to index Discord messages: {str(e)}"
+        logger.error(f"Failed to index Discord messages: {e!s}", exc_info=True)
+        return 0, f"Failed to index Discord messages: {e!s}"
 
 
 async def index_jira_issues(
@@ -1988,10 +1986,10 @@ async def index_jira_issues(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    start_date: str = None,
-    end_date: str = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     update_last_indexed: bool = True,
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, str | None]:
     """
     Index Jira issues and comments.
 
@@ -2161,8 +2159,8 @@ async def index_jira_issues(
             logger.info(f"Retrieved {len(issues)} issues from Jira API")
 
         except Exception as e:
-            logger.error(f"Error fetching Jira issues: {str(e)}", exc_info=True)
-            return 0, f"Error fetching Jira issues: {str(e)}"
+            logger.error(f"Error fetching Jira issues: {e!s}", exc_info=True)
+            return 0, f"Error fetching Jira issues: {e!s}"
 
         # Process and index each issue
         documents_indexed = 0
@@ -2272,7 +2270,7 @@ async def index_jira_issues(
 
             except Exception as e:
                 logger.error(
-                    f"Error processing issue {issue.get('identifier', 'Unknown')}: {str(e)}",
+                    f"Error processing issue {issue.get('identifier', 'Unknown')}: {e!s}",
                     exc_info=True,
                 )
                 skipped_issues.append(
@@ -2319,8 +2317,8 @@ async def index_jira_issues(
             str(db_error),
             {"error_type": "SQLAlchemyError"},
         )
-        logger.error(f"Database error: {str(db_error)}", exc_info=True)
-        return 0, f"Database error: {str(db_error)}"
+        logger.error(f"Database error: {db_error!s}", exc_info=True)
+        return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -2329,5 +2327,5 @@ async def index_jira_issues(
             str(e),
             {"error_type": type(e).__name__},
         )
-        logger.error(f"Failed to index JIRA issues: {str(e)}", exc_info=True)
-        return 0, f"Failed to index JIRA issues: {str(e)}"
+        logger.error(f"Failed to index JIRA issues: {e!s}", exc_info=True)
+        return 0, f"Failed to index JIRA issues: {e!s}"

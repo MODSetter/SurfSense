@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Any
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.services.streaming_service import StreamingService
+
 
 @dataclass
 class State:
@@ -15,23 +18,23 @@ class State:
     See: https://langchain-ai.github.io/langgraph/concepts/low_level/#state
     for more information.
     """
+
     # Runtime context (not part of actual graph state)
     db_session: AsyncSession
-    
+
     # Streaming service
     streaming_service: StreamingService
-    
-    chat_history: Optional[List[Any]] = field(default_factory=list)
-    
-    reformulated_query: Optional[str] = field(default=None)
+
+    chat_history: list[Any] | None = field(default_factory=list)
+
+    reformulated_query: str | None = field(default=None)
     # Using field to explicitly mark as part of state
-    answer_outline: Optional[Any] = field(default=None)
-    further_questions: Optional[Any] = field(default=None)
-    
+    answer_outline: Any | None = field(default=None)
+    further_questions: Any | None = field(default=None)
+
     # Temporary field to hold reranked documents from sub-agents for further question generation
-    reranked_documents: Optional[List[Any]] = field(default=None)
-    
+    reranked_documents: list[Any] | None = field(default=None)
+
     # OUTPUT: Populated by agent nodes
     # Using field to explicitly mark as part of state
-    final_written_report: Optional[str] = field(default=None)
-
+    final_written_report: str | None = field(default=None)

@@ -4,16 +4,17 @@ Revision ID: 12
 Revises: 11
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+
+from sqlalchemy import inspect
 
 from alembic import op
-from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = "12"
-down_revision: Union[str, None] = "11"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "11"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

@@ -12,7 +12,13 @@ Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from app.connectors.github_connector import GitHubConnector
 from app.db import (
@@ -39,11 +45,6 @@ from app.tasks.connectors_indexing_tasks import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class GitHubPATRequest(BaseModel):
 
 
 # --- New Endpoint to list GitHub Repositories ---
-@router.post("/github/repositories/", response_model=List[Dict[str, Any]])
+@router.post("/github/repositories/", response_model=list[dict[str, Any]])
 async def list_github_repositories(
     pat_request: GitHubPATRequest,
     user: User = Depends(current_active_user),  # Ensure the user is logged in
@@ -74,15 +75,13 @@ async def list_github_repositories(
         return repositories
     except ValueError as e:
         # Handle invalid token error specifically
-        logger.error(f"GitHub PAT validation failed for user {user.id}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Invalid GitHub PAT: {str(e)}")
+        logger.error(f"GitHub PAT validation failed for user {user.id}: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Invalid GitHub PAT: {e!s}") from e
     except Exception as e:
-        logger.error(
-            f"Failed to fetch GitHub repositories for user {user.id}: {str(e)}"
-        )
+        logger.error(f"Failed to fetch GitHub repositories for user {user.id}: {e!s}")
         raise HTTPException(
             status_code=500, detail="Failed to fetch GitHub repositories."
-        )
+        ) from e
 
 
 @router.post("/search-source-connectors/", response_model=SearchSourceConnectorRead)
@@ -118,32 +117,32 @@ async def create_search_source_connector(
         return db_connector
     except ValidationError as e:
         await session.rollback()
-        raise HTTPException(status_code=422, detail=f"Validation error: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"Validation error: {e!s}") from e
     except IntegrityError as e:
         await session.rollback()
         raise HTTPException(
             status_code=409,
-            detail=f"Integrity error: A connector with this type already exists. {str(e)}",
-        )
+            detail=f"Integrity error: A connector with this type already exists. {e!s}",
+        ) from e
     except HTTPException:
         await session.rollback()
         raise
     except Exception as e:
-        logger.error(f"Failed to create search source connector: {str(e)}")
+        logger.error(f"Failed to create search source connector: {e!s}")
         await session.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create search source connector: {str(e)}",
-        )
+            detail=f"Failed to create search source connector: {e!s}",
+        ) from e
 
 
 @router.get(
-    "/search-source-connectors/", response_model=List[SearchSourceConnectorRead]
+    "/search-source-connectors/", response_model=list[SearchSourceConnectorRead]
 )
 async def read_search_source_connectors(
     skip: int = 0,
     limit: int = 100,
-    search_space_id: int = None,
+    search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -160,8 +159,8 @@ async def read_search_source_connectors(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch search source connectors: {str(e)}",
-        )
+            detail=f"Failed to fetch search source connectors: {e!s}",
+        ) from e
 
 
 @router.get(
@@ -179,8 +178,8 @@ async def read_search_source_connector(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch search source connector: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to fetch search source connector: {e!s}"
+        ) from e
 
 
 @router.put(
@@ -238,8 +237,8 @@ async def update_search_source_connector(
         except ValidationError as e:
             # Raise specific validation error for the merged config
             raise HTTPException(
-                status_code=422, detail=f"Validation error for merged config: {str(e)}"
-            )
+                status_code=422, detail=f"Validation error for merged config: {e!s}"
+            ) from e
 
         # If validation passes, update the main update_data dict with the merged config
         update_data["config"] = merged_config
@@ -272,8 +271,8 @@ async def update_search_source_connector(
         await session.rollback()
         # This might occur if connector_type constraint is violated somehow after the check
         raise HTTPException(
-            status_code=409, detail=f"Database integrity error during update: {str(e)}"
-        )
+            status_code=409, detail=f"Database integrity error during update: {e!s}"
+        ) from e
     except Exception as e:
         await session.rollback()
         logger.error(
@@ -282,8 +281,8 @@ async def update_search_source_connector(
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to update search source connector: {str(e)}",
-        )
+            detail=f"Failed to update search source connector: {e!s}",
+        ) from e
 
 
 @router.delete("/search-source-connectors/{connector_id}", response_model=dict)
@@ -306,12 +305,12 @@ async def delete_search_source_connector(
         await session.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to delete search source connector: {str(e)}",
-        )
+            detail=f"Failed to delete search source connector: {e!s}",
+        ) from e
 
 
 @router.post(
-    "/search-source-connectors/{connector_id}/index", response_model=Dict[str, Any]
+    "/search-source-connectors/{connector_id}/index", response_model=dict[str, Any]
 )
 async def index_connector_content(
     connector_id: int,
@@ -356,7 +355,7 @@ async def index_connector_content(
         )
 
         # Check if the search space belongs to the user
-        search_space = await check_ownership(
+        _search_space = await check_ownership(
             session, SearchSpace, search_space_id, user
         )
 
@@ -381,10 +380,7 @@ async def index_connector_content(
         else:
             indexing_from = start_date
 
-        if end_date is None:
-            indexing_to = today_str
-        else:
-            indexing_to = end_date
+        indexing_to = end_date if end_date else today_str
 
         if connector.connector_type == SearchSourceConnectorType.SLACK_CONNECTOR:
             # Run indexing in background
@@ -497,8 +493,8 @@ async def index_connector_content(
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate indexing: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to initiate indexing: {e!s}"
+        ) from e
 
 
 async def update_connector_last_indexed(session: AsyncSession, connector_id: int):
@@ -523,7 +519,7 @@ async def update_connector_last_indexed(session: AsyncSession, connector_id: int
             logger.info(f"Updated last_indexed_at for connector {connector_id}")
     except Exception as e:
         logger.error(
-            f"Failed to update last_indexed_at for connector {connector_id}: {str(e)}"
+            f"Failed to update last_indexed_at for connector {connector_id}: {e!s}"
         )
         await session.rollback()
 
@@ -587,7 +583,7 @@ async def run_slack_indexing(
                 f"Slack indexing failed or no documents processed: {error_or_warning}"
             )
     except Exception as e:
-        logger.error(f"Error in background Slack indexing task: {str(e)}")
+        logger.error(f"Error in background Slack indexing task: {e!s}")
 
 
 async def run_notion_indexing_with_new_session(
@@ -649,7 +645,7 @@ async def run_notion_indexing(
                 f"Notion indexing failed or no documents processed: {error_or_warning}"
             )
     except Exception as e:
-        logger.error(f"Error in background Notion indexing task: {str(e)}")
+        logger.error(f"Error in background Notion indexing task: {e!s}")
 
 
 # Add new helper functions for GitHub indexing
@@ -829,7 +825,7 @@ async def run_discord_indexing(
                 f"Discord indexing failed or no documents processed: {error_or_warning}"
             )
     except Exception as e:
-        logger.error(f"Error in background Discord indexing task: {str(e)}")
+        logger.error(f"Error in background Discord indexing task: {e!s}")
 
 
 # Add new helper functions for Jira indexing

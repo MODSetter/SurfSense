@@ -1,5 +1,11 @@
 import asyncio
-from typing import Dict, List, Optional
+from typing import Any
+
+from linkup import LinkupClient
+from sqlalchemy import func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from tavily import TavilyClient
 
 from app.agents.researcher.configuration import SearchMode
 from app.db import (
@@ -11,15 +17,10 @@ from app.db import (
 )
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
-from linkup import LinkupClient
-from sqlalchemy import func
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from tavily import TavilyClient
 
 
 class ConnectorService:
-    def __init__(self, session: AsyncSession, user_id: str = None):
+    def __init__(self, session: AsyncSession, user_id: str | None = None):
         self.session = session
         self.chunk_retriever = ChucksHybridSearchRetriever(session)
         self.document_retriever = DocumentHybridSearchRetriever(session)
@@ -52,7 +53,7 @@ class ConnectorService:
                     f"Initialized source_id_counter to {self.source_id_counter} for user {self.user_id}"
                 )
             except Exception as e:
-                print(f"Error initializing source_id_counter: {str(e)}")
+                print(f"Error initializing source_id_counter: {e!s}")
                 # Fallback to default value
                 self.source_id_counter = 1
 
@@ -204,7 +205,9 @@ class ConnectorService:
 
         return result_object, files_chunks
 
-    def _transform_document_results(self, document_results: List[Dict]) -> List[Dict]:
+    def _transform_document_results(
+        self, document_results: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Transform results from document_retriever.hybrid_search() to match the format
         expected by the processing code.
@@ -233,7 +236,7 @@ class ConnectorService:
 
     async def get_connector_by_type(
         self, user_id: str, connector_type: SearchSourceConnectorType
-    ) -> Optional[SearchSourceConnector]:
+    ) -> SearchSourceConnector | None:
         """
         Get a connector by type for a specific user
 
@@ -350,7 +353,7 @@ class ConnectorService:
 
         except Exception as e:
             # Log the error and return empty results
-            print(f"Error searching with Tavily: {str(e)}")
+            print(f"Error searching with Tavily: {e!s}")
             return {
                 "id": 3,
                 "name": "Tavily Search",
@@ -596,7 +599,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(extension_chunks):
+            for _, chunk in enumerate(extension_chunks):
                 # Extract document metadata
                 document = chunk.get("document", {})
                 metadata = document.get("metadata", {})
@@ -608,7 +611,7 @@ class ConnectorService:
                 visit_duration = metadata.get(
                     "VisitedWebPageVisitDurationInMilliseconds", ""
                 )
-                browsing_session_id = metadata.get("BrowsingSessionId", "")
+                _browsing_session_id = metadata.get("BrowsingSessionId", "")
 
                 # Create a more descriptive title for extension data
                 title = webpage_title
@@ -622,7 +625,7 @@ class ConnectorService:
                             else visit_date
                         )
                         title += f" (visited: {formatted_date})"
-                    except:
+                    except Exception:
                         # Fallback if date parsing fails
                         title += f" (visited: {visit_date})"
 
@@ -642,7 +645,7 @@ class ConnectorService:
 
                         if description:
                             description += f" | Duration: {duration_text}"
-                    except:
+                    except Exception:
                         # Fallback if duration parsing fails
                         pass
 
@@ -1180,7 +1183,7 @@ class ConnectorService:
 
         except Exception as e:
             # Log the error and return empty results
-            print(f"Error searching with Linkup: {str(e)}")
+            print(f"Error searching with Linkup: {e!s}")
             return {
                 "id": 10,
                 "name": "Linkup Search",
@@ -1239,7 +1242,7 @@ class ConnectorService:
         # Process each chunk and create sources directly without deduplication
         sources_list = []
         async with self.counter_lock:
-            for i, chunk in enumerate(discord_chunks):
+            for _, chunk in enumerate(discord_chunks):
                 # Extract document metadata
                 document = chunk.get("document", {})
                 metadata = document.get("metadata", {})
