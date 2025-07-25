@@ -9,7 +9,10 @@ import * as z from "zod";
 import { toast } from "sonner";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 
-import { useSearchSourceConnectors, SearchSourceConnector } from "@/hooks/useSearchSourceConnectors";
+import {
+  useSearchSourceConnectors,
+  SearchSourceConnector,
+} from "@/hooks/useSearchSourceConnectors";
 import {
   Form,
   FormControl,
@@ -28,11 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Define the form schema with Zod
 const apiConnectorFormSchema = z.object({
@@ -47,13 +46,15 @@ const apiConnectorFormSchema = z.object({
 // Helper function to get connector type display name
 const getConnectorTypeDisplay = (type: string): string => {
   const typeMap: Record<string, string> = {
-    "SERPER_API": "Serper API",
-    "TAVILY_API": "Tavily API",
-    "SLACK_CONNECTOR": "Slack Connector",
-    "NOTION_CONNECTOR": "Notion Connector",
-    "GITHUB_CONNECTOR": "GitHub Connector",
-    "DISCORD_CONNECTOR": "Discord Connector",
-    "LINKUP_API": "Linkup",
+    SERPER_API: "Serper API",
+    TAVILY_API: "Tavily API",
+    SLACK_CONNECTOR: "Slack Connector",
+    NOTION_CONNECTOR: "Notion Connector",
+    GITHUB_CONNECTOR: "GitHub Connector",
+    LINEAR_CONNECTOR: "Linear Connector",
+    JIRA_CONNECTOR: "Jira Connector",
+    DISCORD_CONNECTOR: "Discord Connector",
+    LINKUP_API: "Linkup",
     // Add other connector types here as needed
   };
   return typeMap[type] || type;
@@ -67,9 +68,11 @@ export default function EditConnectorPage() {
   const params = useParams();
   const searchSpaceId = params.search_space_id as string;
   const connectorId = parseInt(params.connector_id as string, 10);
-  
+
   const { connectors, updateConnector } = useSearchSourceConnectors();
-  const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
+  const [connector, setConnector] = useState<SearchSourceConnector | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // console.log("connector", connector);
@@ -85,24 +88,24 @@ export default function EditConnectorPage() {
   // Get API key field name based on connector type
   const getApiKeyFieldName = (connectorType: string): string => {
     const fieldMap: Record<string, string> = {
-      "SERPER_API": "SERPER_API_KEY",
-      "TAVILY_API": "TAVILY_API_KEY",
-      "SLACK_CONNECTOR": "SLACK_BOT_TOKEN",
-      "NOTION_CONNECTOR": "NOTION_INTEGRATION_TOKEN",
-      "GITHUB_CONNECTOR": "GITHUB_PAT",
-      "DISCORD_CONNECTOR": "DISCORD_BOT_TOKEN",
-      "LINKUP_API": "LINKUP_API_KEY"
+      SERPER_API: "SERPER_API_KEY",
+      TAVILY_API: "TAVILY_API_KEY",
+      SLACK_CONNECTOR: "SLACK_BOT_TOKEN",
+      NOTION_CONNECTOR: "NOTION_INTEGRATION_TOKEN",
+      GITHUB_CONNECTOR: "GITHUB_PAT",
+      DISCORD_CONNECTOR: "DISCORD_BOT_TOKEN",
+      LINKUP_API: "LINKUP_API_KEY",
     };
     return fieldMap[connectorType] || "";
   };
 
   // Find connector in the list
   useEffect(() => {
-    const currentConnector = connectors.find(c => c.id === connectorId);
-    
+    const currentConnector = connectors.find((c) => c.id === connectorId);
+
     if (currentConnector) {
       setConnector(currentConnector);
-      
+
       // Check if connector type is supported
       const apiKeyField = getApiKeyFieldName(currentConnector.connector_type);
       if (apiKeyField) {
@@ -115,7 +118,7 @@ export default function EditConnectorPage() {
         toast.error("This connector type is not supported for editing");
         router.push(`/dashboard/${searchSpaceId}/connectors`);
       }
-      
+
       setIsLoading(false);
     } else if (!isLoading && connectors.length > 0) {
       // If connectors are loaded but this one isn't found
@@ -127,11 +130,11 @@ export default function EditConnectorPage() {
   // Handle form submission
   const onSubmit = async (values: ApiConnectorFormValues) => {
     if (!connector) return;
-    
+
     setIsSubmitting(true);
     try {
       const apiKeyField = getApiKeyFieldName(connector.connector_type);
-      
+
       // Only update the API key if a new one was provided
       const updatedConfig = { ...connector.config };
       if (values.api_key) {
@@ -150,7 +153,9 @@ export default function EditConnectorPage() {
       router.push(`/dashboard/${searchSpaceId}/connectors`);
     } catch (error) {
       console.error("Error updating connector:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to update connector");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update connector",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -186,24 +191,30 @@ export default function EditConnectorPage() {
         <Card className="border-2 border-border">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
-              Edit {connector ? getConnectorTypeDisplay(connector.connector_type) : ""} Connector
+              Edit{" "}
+              {connector
+                ? getConnectorTypeDisplay(connector.connector_type)
+                : ""}{" "}
+              Connector
             </CardTitle>
-            <CardDescription>
-              Update your connector settings.
-            </CardDescription>
+            <CardDescription>Update your connector settings.</CardDescription>
           </CardHeader>
           <CardContent>
             <Alert className="mb-6 bg-muted">
               <Info className="h-4 w-4" />
               <AlertTitle>API Key Security</AlertTitle>
               <AlertDescription>
-                Your API key is stored securely. For security reasons, we don't display your existing API key.
-                If you don't update the API key field, your existing key will be preserved.
+                Your API key is stored securely. For security reasons, we don't
+                display your existing API key. If you don't update the API key
+                field, your existing key will be preserved.
               </AlertDescription>
             </Alert>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-6"
+              >
                 <FormField
                   control={form.control}
                   name="name"
@@ -227,10 +238,10 @@ export default function EditConnectorPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {connector?.connector_type === "SLACK_CONNECTOR" 
-                          ? "Slack Bot Token" 
-                          : connector?.connector_type === "NOTION_CONNECTOR" 
-                            ? "Notion Integration Token" 
+                        {connector?.connector_type === "SLACK_CONNECTOR"
+                          ? "Slack Bot Token"
+                          : connector?.connector_type === "NOTION_CONNECTOR"
+                            ? "Notion Integration Token"
                             : connector?.connector_type === "GITHUB_CONNECTOR"
                               ? "GitHub Personal Access Token (PAT)"
                               : connector?.connector_type === "LINKUP_API"
@@ -238,27 +249,28 @@ export default function EditConnectorPage() {
                                 : "API Key"}
                       </FormLabel>
                       <FormControl>
-                        <Input 
-                          type="password" 
+                        <Input
+                          type="password"
                           placeholder={
-                            connector?.connector_type === "SLACK_CONNECTOR" 
-                              ? "Enter new Slack Bot Token (optional)" 
-                              : connector?.connector_type === "NOTION_CONNECTOR" 
+                            connector?.connector_type === "SLACK_CONNECTOR"
+                              ? "Enter new Slack Bot Token (optional)"
+                              : connector?.connector_type === "NOTION_CONNECTOR"
                                 ? "Enter new Notion Token (optional)"
-                                : connector?.connector_type === "GITHUB_CONNECTOR"
+                                : connector?.connector_type ===
+                                    "GITHUB_CONNECTOR"
                                   ? "Enter new GitHub PAT (optional)"
                                   : connector?.connector_type === "LINKUP_API"
                                     ? "Enter new Linkup API Key (optional)"
                                     : "Enter new API key (optional)"
-                          } 
-                          {...field} 
+                          }
+                          {...field}
                         />
                       </FormControl>
                       <FormDescription>
-                        {connector?.connector_type === "SLACK_CONNECTOR" 
-                          ? "Enter a new Slack Bot Token or leave blank to keep your existing token." 
-                          : connector?.connector_type === "NOTION_CONNECTOR" 
-                            ? "Enter a new Notion Integration Token or leave blank to keep your existing token." 
+                        {connector?.connector_type === "SLACK_CONNECTOR"
+                          ? "Enter a new Slack Bot Token or leave blank to keep your existing token."
+                          : connector?.connector_type === "NOTION_CONNECTOR"
+                            ? "Enter a new Notion Integration Token or leave blank to keep your existing token."
                             : connector?.connector_type === "GITHUB_CONNECTOR"
                               ? "Enter a new GitHub PAT or leave blank to keep your existing token."
                               : connector?.connector_type === "LINKUP_API"
@@ -271,8 +283,8 @@ export default function EditConnectorPage() {
                 />
 
                 <div className="flex justify-end">
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isSubmitting}
                     className="w-full sm:w-auto"
                   >
@@ -296,4 +308,4 @@ export default function EditConnectorPage() {
       </motion.div>
     </div>
   );
-} 
+}
