@@ -250,7 +250,7 @@ class JiraConnector:
                 fields.append("comment")
 
             params = {
-                "jql": "",  # TODO : Add a JQL query to filter from a date range
+               # "jql": "",   TODO : Add a JQL query to filter from a date range
                 "fields": ",".join(fields),
                 "maxResults": 100,
                 "startAt": 0,
