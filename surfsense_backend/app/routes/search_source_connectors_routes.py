@@ -12,13 +12,7 @@ Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from typing import Any, Dict, List
 
 from app.connectors.github_connector import GitHubConnector
 from app.db import (
@@ -45,11 +39,11 @@ from app.tasks.connectors_indexing_tasks import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
-from app.tasks.connectors_indexing_tasks import index_slack_messages, index_notion_pages, index_github_repos, index_linear_issues, index_discord_messages, index_jira_issues
-from app.connectors.github_connector import GitHubConnector
-from datetime import datetime, timedelta
-import logging
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -83,10 +77,12 @@ async def list_github_repositories(
         logger.error(f"GitHub PAT validation failed for user {user.id}: {e!s}")
         raise HTTPException(status_code=400, detail=f"Invalid GitHub PAT: {e!s}") from e
     except Exception as e:
-        logger.error(f"Failed to fetch GitHub repositories for user {user.id}: {e!s}")
+        logger.error(
+            f"Failed to fetch GitHub repositories for user {user.id}: {str(e)}"
+        )
         raise HTTPException(
             status_code=500, detail="Failed to fetch GitHub repositories."
-        ) from e
+        )
 
 
 @router.post("/search-source-connectors/", response_model=SearchSourceConnectorRead)
@@ -122,13 +118,13 @@ async def create_search_source_connector(
         return db_connector
     except ValidationError as e:
         await session.rollback()
-        raise HTTPException(status_code=422, detail=f"Validation error: {e!s}") from e
+        raise HTTPException(status_code=422, detail=f"Validation error: {str(e)}")
     except IntegrityError as e:
         await session.rollback()
         raise HTTPException(
             status_code=409,
-            detail=f"Integrity error: A connector with this type already exists. {e!s}",
-        ) from e
+            detail=f"Integrity error: A connector with this type already exists. {str(e)}",
+        )
     except HTTPException:
         await session.rollback()
         raise
@@ -137,12 +133,12 @@ async def create_search_source_connector(
         await session.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to create search source connector: {e!s}",
-        ) from e
+            detail=f"Failed to create search source connector: {str(e)}",
+        )
 
 
 @router.get(
-    "/search-source-connectors/", response_model=list[SearchSourceConnectorRead]
+    "/search-source-connectors/", response_model=List[SearchSourceConnectorRead]
 )
 async def read_search_source_connectors(
     skip: int = 0,
@@ -164,8 +160,8 @@ async def read_search_source_connectors(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch search source connectors: {e!s}",
-        ) from e
+            detail=f"Failed to fetch search source connectors: {str(e)}",
+        )
 
 
 @router.get(
@@ -183,8 +179,8 @@ async def read_search_source_connector(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch search source connector: {e!s}"
-        ) from e
+            status_code=500, detail=f"Failed to fetch search source connector: {str(e)}"
+        )
 
 
 @router.put(
@@ -242,8 +238,8 @@ async def update_search_source_connector(
         except ValidationError as e:
             # Raise specific validation error for the merged config
             raise HTTPException(
-                status_code=422, detail=f"Validation error for merged config: {e!s}"
-            ) from e
+                status_code=422, detail=f"Validation error for merged config: {str(e)}"
+            )
 
         # If validation passes, update the main update_data dict with the merged config
         update_data["config"] = merged_config
@@ -276,8 +272,8 @@ async def update_search_source_connector(
         await session.rollback()
         # This might occur if connector_type constraint is violated somehow after the check
         raise HTTPException(
-            status_code=409, detail=f"Database integrity error during update: {e!s}"
-        ) from e
+            status_code=409, detail=f"Database integrity error during update: {str(e)}"
+        )
     except Exception as e:
         await session.rollback()
         logger.error(
@@ -286,8 +282,8 @@ async def update_search_source_connector(
         )
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to update search source connector: {e!s}",
-        ) from e
+            detail=f"Failed to update search source connector: {str(e)}",
+        )
 
 
 @router.delete("/search-source-connectors/{connector_id}", response_model=dict)
@@ -310,12 +306,12 @@ async def delete_search_source_connector(
         await session.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to delete search source connector: {e!s}",
-        ) from e
+            detail=f"Failed to delete search source connector: {str(e)}",
+        )
 
 
 @router.post(
-    "/search-source-connectors/{connector_id}/index", response_model=dict[str, Any]
+    "/search-source-connectors/{connector_id}/index", response_model=Dict[str, Any]
 )
 async def index_connector_content(
     connector_id: int,
@@ -360,7 +356,7 @@ async def index_connector_content(
         )
 
         # Check if the search space belongs to the user
-        _search_space = await check_ownership(
+        search_space = await check_ownership(
             session, SearchSpace, search_space_id, user
         )
 
@@ -385,7 +381,10 @@ async def index_connector_content(
         else:
             indexing_from = start_date
 
-        indexing_to = end_date if end_date else today_str
+        if end_date is None:
+            indexing_to = today_str
+        else:
+            indexing_to = end_date
 
         if connector.connector_type == SearchSourceConnectorType.SLACK_CONNECTOR:
             # Run indexing in background
@@ -449,8 +448,17 @@ async def index_connector_content(
 
         elif connector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR:
             # Run indexing in background
-            logger.info(f"Triggering Jira indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}")
-            background_tasks.add_task(run_jira_indexing_with_new_session, connector_id, search_space_id, str(user.id), indexing_from, indexing_to)
+            logger.info(
+                f"Triggering Jira indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            background_tasks.add_task(
+                run_jira_indexing_with_new_session,
+                connector_id,
+                search_space_id,
+                str(user.id),
+                indexing_from,
+                indexing_to,
+            )
             response_message = "Jira indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
@@ -489,8 +497,8 @@ async def index_connector_content(
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate indexing: {e!s}"
-        ) from e
+            status_code=500, detail=f"Failed to initiate indexing: {str(e)}"
+        )
 
 
 async def update_connector_last_indexed(session: AsyncSession, connector_id: int):
@@ -515,7 +523,7 @@ async def update_connector_last_indexed(session: AsyncSession, connector_id: int
             logger.info(f"Updated last_indexed_at for connector {connector_id}")
     except Exception as e:
         logger.error(
-            f"Failed to update last_indexed_at for connector {connector_id}: {e!s}"
+            f"Failed to update last_indexed_at for connector {connector_id}: {str(e)}"
         )
         await session.rollback()
 
@@ -582,6 +590,7 @@ async def run_slack_indexing(
         logger.error(f"Error in background Slack indexing task: {e!s}")
 
 
+
 async def run_notion_indexing_with_new_session(
     connector_id: int,
     search_space_id: int,
@@ -642,6 +651,7 @@ async def run_notion_indexing(
             )
     except Exception as e:
         logger.error(f"Error in background Notion indexing task: {e!s}")
+
 
 
 # Add new helper functions for GitHub indexing
@@ -830,13 +840,18 @@ async def run_jira_indexing_with_new_session(
     search_space_id: int,
     user_id: str,
     start_date: str,
-    end_date: str
+    end_date: str,
 ):
     """Wrapper to run Jira indexing with its own database session."""
-    logger.info(f"Background task started: Indexing Jira connector {connector_id} into space {search_space_id} from {start_date} to {end_date}")
+    logger.info(
+        f"Background task started: Indexing Jira connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+    )
     async with async_session_maker() as session:
-        await run_jira_indexing(session, connector_id, search_space_id, user_id, start_date, end_date)
+        await run_jira_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
     logger.info(f"Background task finished: Indexing Jira connector {connector_id}")
+
 
 async def run_jira_indexing(
     session: AsyncSession,
@@ -844,22 +859,34 @@ async def run_jira_indexing(
     search_space_id: int,
     user_id: str,
     start_date: str,
-    end_date: str
+    end_date: str,
 ):
     """Runs the Jira indexing task and updates the timestamp."""
     try:
         indexed_count, error_message = await index_jira_issues(
-            session, connector_id, search_space_id, user_id, start_date, end_date, update_last_indexed=False
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            start_date,
+            end_date,
+            update_last_indexed=False,
         )
         if error_message:
-            logger.error(f"Jira indexing failed for connector {connector_id}: {error_message}")
+            logger.error(
+                f"Jira indexing failed for connector {connector_id}: {error_message}"
+            )
             # Optionally update status in DB to indicate failure
         else:
-            logger.info(f"Jira indexing successful for connector {connector_id}. Indexed {indexed_count} documents.")
+            logger.info(
+                f"Jira indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+            )
             # Update the last indexed timestamp only on success
             await update_connector_last_indexed(session, connector_id)
-            await session.commit() # Commit timestamp update
+            await session.commit()  # Commit timestamp update
     except Exception as e:
-        await session.rollback()
-        logger.error(f"Critical error in run_jira_indexing for connector {connector_id}: {e}", exc_info=True)
+        logger.error(
+            f"Critical error in run_jira_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
         # Optionally update status in DB to indicate failure

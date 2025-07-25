@@ -992,7 +992,7 @@ class ConnectorService:
         # Early return if no results
         if not jira_chunks:
             return {
-                "id": 10,
+                "id": 30,
                 "name": "Jira Issues",
                 "type": "JIRA_CONNECTOR",
                 "sources": [],

@@ -2,6 +2,9 @@ import asyncio
 import json
 from typing import Any
 
+from app.db import Document, SearchSpace
+from app.services.connector_service import ConnectorService
+from app.services.query_service import QueryService
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import StreamWriter
@@ -9,10 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Additional imports for document fetching
 from sqlalchemy.future import select
-
-from app.db import Document, SearchSpace
-from app.services.connector_service import ConnectorService
-from app.services.query_service import QueryService
 
 from .configuration import Configuration, SearchMode
 from .prompts import (
@@ -27,8 +26,8 @@ from .utils import AnswerOutline, get_connector_emoji, get_connector_friendly_na
 
 
 async def fetch_documents_by_ids(
-    document_ids: list[int], user_id: str, db_session: AsyncSession
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    document_ids: List[int], user_id: str, db_session: AsyncSession
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Fetch documents by their IDs with ownership check using DOCUMENTS mode approach.
 
@@ -220,16 +219,20 @@ async def fetch_documents_by_ids(
 
                 elif doc_type == "DISCORD_CONNECTOR":
                     # Extract Discord-specific metadata
-                    channel_name = metadata.get('channel_name', 'Unknown Channel')
-                    channel_id = metadata.get('channel_id', '')
-                    guild_id = metadata.get('guild_id', '')
-                    message_date = metadata.get('start_date', '')
+                    channel_name = metadata.get("channel_name", "Unknown Channel")
+                    channel_id = metadata.get("channel_id", "")
+                    guild_id = metadata.get("guild_id", "")
+                    message_date = metadata.get("start_date", "")
 
                     title = f"Discord: {channel_name}"
                     if message_date:
                         title += f" ({message_date})"
 
-                    description = doc.content[:100] + "..." if len(doc.content) > 100 else doc.content
+                    description = (
+                        doc.content[:100] + "..."
+                        if len(doc.content) > 100
+                        else doc.content
+                    )
 
                     if guild_id and channel_id:
                         url = f"https://discord.com/channels/{guild_id}/{channel_id}"
@@ -240,20 +243,28 @@ async def fetch_documents_by_ids(
 
                 elif doc_type == "JIRA_CONNECTOR":
                     # Extract Jira-specific metadata
-                    issue_key = metadata.get('issue_key', 'Unknown Issue')
-                    issue_title = metadata.get('issue_title', 'Untitled Issue')
-                    status = metadata.get('status', '')
-                    priority = metadata.get('priority', '')
-                    issue_type = metadata.get('issue_type', '')
+                    issue_key = metadata.get("issue_key", "Unknown Issue")
+                    issue_title = metadata.get("issue_title", "Untitled Issue")
+                    status = metadata.get("status", "")
+                    priority = metadata.get("priority", "")
+                    issue_type = metadata.get("issue_type", "")
 
                     title = f"Jira: {issue_key} - {issue_title}"
                     if status:
                         title += f" ({status})"
 
-                    description = doc.content[:100] + "..." if len(doc.content) > 100 else doc.content
+                    description = (
+                        doc.content[:100] + "..."
+                        if len(doc.content) > 100
+                        else doc.content
+                    )
+                    if priority:
+                        description += f" | Priority: {priority}"
+                    if issue_type:
+                        description += f" | Type: {issue_type}"
 
                     # Construct Jira URL if we have the base URL
-                    base_url = metadata.get('base_url', '')
+                    base_url = metadata.get("base_url", "")
                     if base_url and issue_key:
                         url = f"{base_url}/browse/{issue_key}"
                     else:
@@ -353,7 +364,7 @@ async def fetch_documents_by_ids(
 
 async def write_answer_outline(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Create a structured answer outline based on the user query.
 
@@ -510,8 +521,8 @@ async def fetch_relevant_documents(
     top_k: int = 10,
     connector_service: ConnectorService = None,
     search_mode: SearchMode = SearchMode.CHUNKS,
-    user_selected_sources: list[dict[str, Any]] | None = None,
-) -> list[dict[str, Any]]:
+    user_selected_sources: List[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
     """
     Fetch relevant documents for research questions using the provided connectors.
 
@@ -877,7 +888,7 @@ async def fetch_relevant_documents(
                         user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode
+                        search_mode=search_mode,
                     )
 
                     # Add to sources and raw documents
@@ -1043,7 +1054,7 @@ async def fetch_relevant_documents(
 
 async def process_sections(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Process all sections in parallel and combine the results.
 
@@ -1110,7 +1121,7 @@ async def process_sections(
     elif configuration.num_sections == 6:
         top_k = 30
     else:
-        top_k = 10
+        TOP_K = 10
 
     relevant_documents = []
     user_selected_documents = []
@@ -1264,8 +1275,8 @@ async def process_sections(
 
     # Combine the results into a final report with section titles
     final_report = []
-    for _i, (section, content) in enumerate(
-        zip(answer_outline.answer_outline, processed_results, strict=False)
+    for i, (section, content) in enumerate(
+        zip(answer_outline.answer_outline, processed_results)
     ):
         # Skip adding the section header since the content already contains the title
         final_report.append(content)
@@ -1303,15 +1314,15 @@ async def process_sections(
 async def process_section_with_documents(
     section_id: int,
     section_title: str,
-    section_questions: list[str],
+    section_questions: List[str],
     user_id: str,
     search_space_id: int,
-    relevant_documents: list[dict[str, Any]],
+    relevant_documents: List[Dict[str, Any]],
     user_query: str,
     state: State = None,
     writer: StreamWriter = None,
     sub_section_type: SubSectionType = SubSectionType.MIDDLE,
-    section_contents: dict[int, dict[str, Any]] | None = None,
+    section_contents: Dict[int, Dict[str, Any]] = None,
 ) -> str:
     """
     Process a single section using pre-fetched documents.
@@ -1392,7 +1403,7 @@ async def process_section_with_documents(
         # Variables to track streaming state
         complete_content = ""  # Tracks the complete content received so far
 
-        async for _chunk_type, chunk in sub_section_writer_graph.astream(
+        async for chunk_type, chunk in sub_section_writer_graph.astream(
             sub_state, config, stream_mode=["values"]
         ):
             if "final_answer" in chunk:
@@ -1452,7 +1463,7 @@ async def process_section_with_documents(
 
         return complete_content
     except Exception as e:
-        print(f"Error processing section '{section_title}': {e!s}")
+        print(f"Error processing section '{section_title}': {str(e)}")
 
         # Send error update via streaming if available
         if state and state.streaming_service and writer:
@@ -1469,7 +1480,7 @@ async def process_section_with_documents(
 
 async def reformulate_user_query(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Reforms the user query based on the chat history.
     """
@@ -1494,7 +1505,7 @@ async def reformulate_user_query(
 
 async def handle_qna_workflow(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Handle the QNA research workflow.
 
@@ -1536,7 +1547,7 @@ async def handle_qna_workflow(
     )
 
     # Use a reasonable top_k for QNA - not too many documents to avoid overwhelming the LLM
-    top_k = 15
+    TOP_K = 15
 
     relevant_documents = []
     user_selected_documents = []
@@ -1701,7 +1712,7 @@ async def handle_qna_workflow(
 
 async def generate_further_questions(
     state: State, config: RunnableConfig, writer: StreamWriter
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Generate contextually relevant follow-up questions based on chat history and available documents.
 
