@@ -3,8 +3,8 @@
 import React from "react";
 import { getAnnotationData, Message } from "@llamaindex/chat-ui";
 
-export default function TerminalDisplay({ message }: { message: Message }) {
-    const [isCollapsed, setIsCollapsed] = React.useState(true);
+export default function TerminalDisplay({ message, open }: { message: Message, open: boolean }) {
+    const [isCollapsed, setIsCollapsed] = React.useState(!open);
 
     // Get the last assistant message that's not being typed
     if (!message) {

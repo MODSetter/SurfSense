@@ -132,7 +132,14 @@ class StreamingService:
         self.message_annotations[3]["content"] = further_questions
 
         # Return only the delta annotation
-        annotation = {"type": "FURTHER_QUESTIONS", "content": further_questions}
+        annotation = {
+            "type": "FURTHER_QUESTIONS",
+            "data": [
+                question.get("question", "")
+                for question in further_questions
+                if question.get("question", "") != ""
+            ],
+        }
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_text_chunk(self, text: str) -> str:
