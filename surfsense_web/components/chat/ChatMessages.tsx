@@ -7,16 +7,17 @@ import {
 	Message,
 	useChatUI,
 } from "@llamaindex/chat-ui";
-import TerminalDisplay from "@/components/chat_v2/ChatTerminal";
-import ChatSourcesDisplay from "@/components/chat_v2/ChatSources";
-import { CitationDisplay } from "@/components/chat_v2/ChatCitation";
-import { ChatFurtherQuestions } from "@/components/chat_v2/ChatFurtherQuestions";
+import TerminalDisplay from "@/components/chat/ChatTerminal";
+import ChatSourcesDisplay from "@/components/chat/ChatSources";
+import { CitationDisplay } from "@/components/chat/ChatCitation";
+import { ChatFurtherQuestions } from "@/components/chat/ChatFurtherQuestions";
 
 export function ChatMessagesUI() {
 	const { messages } = useChatUI();
 
 	return (
 		<LlamaIndexChatMessages className="flex-1">
+			<LlamaIndexChatMessages.Empty heading="Welcome to Surfsense!" subheading="Ask me anything from your documents" />
 			<LlamaIndexChatMessages.List className="p-4">
 				{messages.map((message, index) => (
 					<ChatMessageUI

@@ -6,9 +6,9 @@ import {
 	ChatHandler,
 } from "@llamaindex/chat-ui";
 import { Document } from "@/hooks/use-documents";
-import { ChatInputUI } from "@/components/chat_v2/ChatInputGroup";
+import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ResearchMode } from "@/components/chat";
-import { ChatMessagesUI } from "@/components/chat_v2/ChatMessages";
+import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 
 interface ChatInterfaceProps {
 	handler: ChatHandler;

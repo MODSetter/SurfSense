@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Suspense, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useDocuments, Document } from "@/hooks/use-documents";
-import { DocumentsDataTable } from "@/components/chat_v2/DocumentsDataTable";
+import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 import {
 	getConnectorIcon,

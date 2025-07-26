@@ -4,11 +4,11 @@ import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import type { ResearchMode } from "@/components/chat";
-import ChatInterface from "@/components/chat_v2/ChatInterface";
+import ChatInterface from "@/components/chat/ChatInterface";
 import type { Document } from "@/hooks/use-documents";
 import { useChatAPI, useChatState } from "@/hooks/useChat";
 
-export default function ResearchChatPageV2() {
+export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
 	const router = useRouter();
 
