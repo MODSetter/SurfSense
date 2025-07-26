@@ -123,7 +123,7 @@ export default function ResearcherPage() {
 				searchMode,
 				researchMode,
 			});
-			router.replace(`/dashboard/${search_space_id}/v2/${newChatId}`);
+			router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
 		}
 		return newChatId;
 	};
