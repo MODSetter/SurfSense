@@ -1,5 +1,6 @@
 .flashrank_cache*
 podcasts/
 .env
+.vscode/
 
 .ruff_cache/

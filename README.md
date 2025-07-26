@@ -50,6 +50,7 @@ Open source and easy to deploy locally.
 - Blazingly fast podcast generation agent. (Creates a 3-minute podcast in under 20 seconds.)
 - Convert your chat conversations into engaging audio content
 - Support for multiple TTS providers (OpenAI, Azure, Google Vertex AI)
+- **Local TTS with Dia**: Fully local podcast generation using GPU-accelerated Dia model (requires 4GB+ VRAM)
 
 ### 📊 **Advanced RAG Techniques**
 - Supports 100+ LLM's
