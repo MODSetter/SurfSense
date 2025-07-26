@@ -61,6 +61,7 @@
     "react-json-view": "^1.21.3",
     "react-json-view-lite": "^2.4.0",
     "react-markdown": "^10.0.1",
+    "react-rough-notation": "^1.0.5",
     "react-syntax-highlighter": "^15.6.1",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
