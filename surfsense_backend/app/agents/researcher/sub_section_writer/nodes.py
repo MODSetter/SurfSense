@@ -93,7 +93,7 @@ async def write_sub_section(state: State, config: RunnableConfig) -> dict[str, A
 
     This node takes the relevant documents provided in the configuration and uses
     an LLM to generate a comprehensive answer to the sub-section title with
-    proper citations. The citations follow IEEE format using source IDs from the
+    proper citations. The citations follow [citation:source_id] format using source IDs from the
     documents. If no documents are provided, it will use chat history to generate
     content.
 
