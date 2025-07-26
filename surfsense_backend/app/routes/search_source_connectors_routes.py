@@ -36,6 +36,7 @@ from app.schemas import (
     SearchSourceConnectorUpdate,
 )
 from app.tasks.connectors_indexing_tasks import (
+    index_confluence_pages,
     index_discord_messages,
     index_github_repos,
     index_jira_issues,
@@ -456,6 +457,21 @@ async def index_connector_content(
                 indexing_to,
             )
             response_message = "Jira indexing started in the background."
+
+        elif connector.connector_type == SearchSourceConnectorType.CONFLUENCE_CONNECTOR:
+            # Run indexing in background
+            logger.info(
+                f"Triggering Confluence indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            background_tasks.add_task(
+                run_confluence_indexing_with_new_session,
+                connector_id,
+                search_space_id,
+                str(user.id),
+                indexing_from,
+                indexing_to,
+            )
+            response_message = "Confluence indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
             # Run indexing in background
@@ -881,6 +897,64 @@ async def run_jira_indexing(
     except Exception as e:
         logger.error(
             f"Critical error in run_jira_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
+        # Optionally update status in DB to indicate failure
+
+
+# Add new helper functions for Confluence indexing
+async def run_confluence_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Wrapper to run Confluence indexing with its own database session."""
+    logger.info(
+        f"Background task started: Indexing Confluence connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+    )
+    async with async_session_maker() as session:
+        await run_confluence_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+    logger.info(f"Background task finished: Indexing Confluence connector {connector_id}")
+
+
+async def run_confluence_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Runs the Confluence indexing task and updates the timestamp."""
+    try:
+        indexed_count, error_message = await index_confluence_pages(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            start_date,
+            end_date,
+            update_last_indexed=False,
+        )
+        if error_message:
+            logger.error(
+                f"Confluence indexing failed for connector {connector_id}: {error_message}"
+            )
+            # Optionally update status in DB to indicate failure
+        else:
+            logger.info(
+                f"Confluence indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+            )
+            # Update the last indexed timestamp only on success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()  # Commit timestamp update
+    except Exception as e:
+        logger.error(
+            f"Critical error in run_confluence_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
         # Optionally update status in DB to indicate failure
