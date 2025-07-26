@@ -35,15 +35,21 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
     });
     const editForm = useForm<EditConnectorFormValues>({
         resolver: zodResolver(editConnectorSchema),
-        defaultValues: { 
-            name: "", 
-            SLACK_BOT_TOKEN: "", 
-            NOTION_INTEGRATION_TOKEN: "", 
-            SERPER_API_KEY: "", 
+        defaultValues: {
+            name: "",
+            SLACK_BOT_TOKEN: "",
+            NOTION_INTEGRATION_TOKEN: "",
+            SERPER_API_KEY: "",
             TAVILY_API_KEY: "",
             LINEAR_API_KEY: "",
             DISCORD_BOT_TOKEN: "",
-        }, 
+            CONFLUENCE_BASE_URL: "",
+            CONFLUENCE_EMAIL: "",
+            CONFLUENCE_API_TOKEN: "",
+            JIRA_BASE_URL: "",
+            JIRA_EMAIL: "",
+            JIRA_API_TOKEN: "",
+        },
     });
 
     // Effect to load initial data

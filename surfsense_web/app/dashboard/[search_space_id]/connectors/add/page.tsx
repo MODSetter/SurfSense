@@ -13,6 +13,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  IconBook,
   IconBrandDiscord,
   IconBrandGithub,
   IconBrandNotion,
@@ -139,6 +140,14 @@ const connectorCategories: ConnectorCategory[] = [
         description:
           "Connect a GitHub PAT to index code and docs from accessible repositories.",
         icon: <IconBrandGithub className="h-6 w-6" />,
+        status: "available",
+      },
+      {
+        id: "confluence-connector",
+        title: "Confluence",
+        description:
+          "Connect to Confluence to search pages, comments and documentation.",
+        icon: <IconBook className="h-6 w-6" />,
         status: "available",
       },
     ],

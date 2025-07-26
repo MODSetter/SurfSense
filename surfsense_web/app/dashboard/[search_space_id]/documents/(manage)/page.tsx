@@ -57,6 +57,7 @@ import {
   IconBrandDiscord,
   IconBrandGithub,
   IconBrandNotion,
+  IconBrandPagekit,
   IconBrandSlack,
   IconBrandYoutube,
   IconLayoutKanban,
@@ -180,6 +181,7 @@ const documentTypeIcons = {
   LINEAR_CONNECTOR: IconLayoutKanban,
   JIRA_CONNECTOR: IconTicket,
   DISCORD_CONNECTOR: IconBrandDiscord,
+  CONFLUENCE_CONNECTOR: IconBrandPagekit,
 } as const;
 
 const columns: ColumnDef<Document>[] = [

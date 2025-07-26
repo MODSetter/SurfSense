@@ -208,6 +208,33 @@ export default function EditConnectorPage() {
                   </div>
                 )}
 
+                {/* == Confluence == */}
+                {connector.connector_type === "CONFLUENCE_CONNECTOR" && (
+                  <div className="space-y-4">
+                    <EditSimpleTokenForm
+                      control={editForm.control}
+                      fieldName="CONFLUENCE_BASE_URL"
+                      fieldLabel="Confluence Base URL"
+                      fieldDescription="Update your Confluence instance URL if needed."
+                      placeholder="https://yourcompany.atlassian.net"
+                    />
+                    <EditSimpleTokenForm
+                      control={editForm.control}
+                      fieldName="CONFLUENCE_EMAIL"
+                      fieldLabel="Confluence Email"
+                      fieldDescription="Update your Atlassian account email if needed."
+                      placeholder="your.email@company.com"
+                    />
+                    <EditSimpleTokenForm
+                      control={editForm.control}
+                      fieldName="CONFLUENCE_API_TOKEN"
+                      fieldLabel="Confluence API Token"
+                      fieldDescription="Update your Confluence API Token if needed."
+                      placeholder="Your Confluence API Token"
+                    />
+                  </div>
+                )}
+
                 {/* == Linkup == */}
                 {connector.connector_type === "LINKUP_API" && (
                   <EditSimpleTokenForm
