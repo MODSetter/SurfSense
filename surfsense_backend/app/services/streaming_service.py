@@ -43,7 +43,7 @@ class StreamingService:
         self.message_annotations[0]["content"].append(message)
 
         # Return only the delta annotation
-        annotation = {"type": "TERMINAL_INFO", "content": [message]}
+        annotation = {"type": "TERMINAL_INFO", "data": message}
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_sources_delta(self, sources: list[dict[str, Any]]) -> str:
@@ -60,7 +60,23 @@ class StreamingService:
         self.message_annotations[1]["content"] = sources
 
         # Return only the delta annotation
-        annotation = {"type": "SOURCES", "content": sources}
+        nodes = []
+
+        for group in sources:
+            for source in group.get("sources", []):
+                node = {
+                    "id": str(source.get("id", "")),
+                    "text": source.get("description", ""),
+                    "url": source.get("url", ""),
+                    "metadata": {
+                        "title": source.get("title", ""),
+                        "source_type": group.get("type", ""),
+                        "group_name": group.get("name", ""),
+                    },
+                }
+                nodes.append(node)
+
+        annotation = {"type": "sources", "data": {"nodes": nodes}}
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_answer_delta(self, answer_chunk: str) -> str:
@@ -116,7 +132,14 @@ class StreamingService:
         self.message_annotations[3]["content"] = further_questions
 
         # Return only the delta annotation
-        annotation = {"type": "FURTHER_QUESTIONS", "content": further_questions}
+        annotation = {
+            "type": "FURTHER_QUESTIONS",
+            "data": [
+                question.get("question", "")
+                for question in further_questions
+                if question.get("question", "") != ""
+            ],
+        }
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_text_chunk(self, text: str) -> str:
