@@ -41,6 +41,11 @@ dependencies = [
 dev = [
     "ruff>=0.12.5",
 ]
+local-tts = [
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "nari-tts@git+https://github.com/nari-labs/dia.git@main",
+]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.

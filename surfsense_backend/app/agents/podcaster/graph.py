@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph
 
 from .configuration import Configuration
-from .nodes import create_merged_podcast_audio, create_podcast_transcript
+from .nodes import create_merged_podcast_audio_with_dia, create_podcast_transcript
 from .state import State
 
 
@@ -11,7 +11,7 @@ def build_graph():
 
     # Add the node to the graph
     workflow.add_node("create_podcast_transcript", create_podcast_transcript)
-    workflow.add_node("create_merged_podcast_audio", create_merged_podcast_audio)
+    workflow.add_node("create_merged_podcast_audio", create_merged_podcast_audio_with_dia)
 
     # Set the entrypoint as `call_model`
     workflow.add_edge("__start__", "create_podcast_transcript")

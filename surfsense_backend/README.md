@@ -116,3 +116,31 @@ See pyproject.toml for detailed dependency information. Key dependencies include
 - rerankers with FlashRank: Advanced result ranking
 - Various AI and NLP libraries
 - Integration clients for Slack, Notion, etc.
+
+### Optional: Local TTS with Dia
+
+For fully local podcast generation without cloud dependencies, you can install Dia:
+
+```bash
+# Install local TTS dependencies (requires GPU with 4GB+ VRAM)
+pip install -e .[local-tts]
+```
+
+**GPU Requirements:**
+- NVIDIA GPU with 4GB+ VRAM (CUDA support)
+- Apple Silicon with unified memory (MPS support)
+
+**Configuration:**
+Add to your `.env` file:
+```bash
+# Enable/disable Dia TTS (default: true)
+ENABLE_DIA_TTS=true
+
+# Prefer local TTS over cloud when available (default: true)
+PREFER_DIA_TTS=true
+```
+
+The system will automatically:
+1. Check if Dia dependencies are installed
+2. Verify GPU availability and VRAM requirements
+3. Fall back to cloud TTS if local TTS is unavailable

@@ -95,6 +95,12 @@ class Config:
     STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
     STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")
 
+    # Dia TTS Configuration (Local TTS with GPU requirement)
+    # Enable/disable Dia TTS (defaults to True to attempt local TTS)
+    ENABLE_DIA_TTS = os.getenv("ENABLE_DIA_TTS", "true").lower() == "true"
+    # Prefer Dia over cloud TTS when available (defaults to True for local-first approach)
+    PREFER_DIA_TTS = os.getenv("PREFER_DIA_TTS", "true").lower() == "true"
+
     # Validation Checks
     # Check embedding dimension
     if (
