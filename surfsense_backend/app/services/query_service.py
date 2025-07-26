@@ -1,9 +1,10 @@
 import datetime
-from langchain.schema import HumanMessage, SystemMessage, AIMessage
-from app.config import config
-from app.services.llm_service import get_user_strategic_llm
+from typing import Any
+
+from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Any, List, Optional
+
+from app.services.llm_service import get_user_strategic_llm
 
 
 class QueryService:
@@ -13,13 +14,13 @@ class QueryService:
 
     @staticmethod
     async def reformulate_query_with_chat_history(
-        user_query: str, 
-        session: AsyncSession, 
-        user_id: str, 
-        chat_history_str: Optional[str] = None
+        user_query: str,
+        session: AsyncSession,
+        user_id: str,
+        chat_history_str: str | None = None,
     ) -> str:
         """
-        Reformulate the user query using the user's strategic LLM to make it more 
+        Reformulate the user query using the user's strategic LLM to make it more
         effective for information retrieval and research purposes.
 
         Args:
@@ -38,7 +39,9 @@ class QueryService:
             # Get the user's strategic LLM instance
             llm = await get_user_strategic_llm(session, user_id)
             if not llm:
-                print(f"Warning: No strategic LLM configured for user {user_id}. Using original query.")
+                print(
+                    f"Warning: No strategic LLM configured for user {user_id}. Using original query."
+                )
                 return user_query
 
             # Create system message with instructions
@@ -92,14 +95,13 @@ class QueryService:
             print(f"Error reformulating query: {e}")
             return user_query
 
-
     @staticmethod
-    async def langchain_chat_history_to_str(chat_history: List[Any]) -> str:
+    async def langchain_chat_history_to_str(chat_history: list[Any]) -> str:
         """
         Convert a list of chat history messages to a string.
         """
         chat_history_str = "<chat_history>\n"
-        
+
         for chat_message in chat_history:
             if isinstance(chat_message, HumanMessage):
                 chat_history_str += f"<user>{chat_message.content}</user>\n"
@@ -107,6 +109,6 @@ class QueryService:
                 chat_history_str += f"<assistant>{chat_message.content}</assistant>\n"
             elif isinstance(chat_message, SystemMessage):
                 chat_history_str += f"<system>{chat_message.content}</system>\n"
-                
+
         chat_history_str += "</chat_history>"
         return chat_history_str

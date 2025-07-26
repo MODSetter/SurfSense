@@ -1,0 +1,224 @@
+name: Code Quality Checks
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  file-quality:
+    name: File Quality Checks
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: |
+          # Ensure we have the base branch reference for comparison
+          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }} 2>/dev/null || git fetch origin ${{ github.base_ref }} 2>/dev/null || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Cache pre-commit hooks
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-
+
+      - name: Install hook environments (cache)
+        run: pre-commit install-hooks
+
+      - name: Run file quality checks on changed files
+        run: |
+          # Get list of changed files and run specific hooks on them
+          if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
+            BASE_REF="${{ github.base_ref }}"
+          elif git show-ref --verify --quiet refs/remotes/origin/${{ github.base_ref }}; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          else
+            echo "Base branch reference not found, running file quality hooks on all files"
+            pre-commit run --all-files check-yaml check-json check-toml check-merge-conflict check-added-large-files debug-statements check-case-conflict
+            exit 0
+          fi
+          
+          echo "Running file quality hooks on changed files against $BASE_REF"
+          
+          # Run each hook individually on changed files
+          SKIP=detect-secrets,bandit,ruff,ruff-format,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+            pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
+          
+          # Exit with the same code as pre-commit
+          exit ${exit_code:-0}
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: |
+          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }} 2>/dev/null || git fetch origin ${{ github.base_ref }} 2>/dev/null || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Cache pre-commit hooks
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-security-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-security-
+
+      - name: Install hook environments (cache)
+        run: pre-commit install-hooks
+
+      - name: Run security scans on changed files
+        run: |
+          # Get base ref for comparison
+          if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
+            BASE_REF="${{ github.base_ref }}"
+          elif git show-ref --verify --quiet refs/remotes/origin/${{ github.base_ref }}; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          else
+            echo "Base branch reference not found, running security scans on all files"
+            echo "⚠️  This may take longer than normal"
+            pre-commit run --all-files detect-secrets bandit
+            exit 0
+          fi
+          
+          echo "Running security scans on changed files against $BASE_REF"
+          
+          # Run only security hooks on changed files
+          SKIP=check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,ruff,ruff-format,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+            pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
+          
+          # Exit with the same code as pre-commit
+          exit ${exit_code:-0}
+
+  python-backend:
+    name: Python Backend Quality
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v3
+
+      - name: Check if backend files changed
+        id: backend-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'surfsense_backend/**'
+
+      - name: Cache dependencies
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            surfsense_backend/.venv
+          key: python-deps-${{ hashFiles('surfsense_backend/uv.lock') }}
+
+      - name: Install dependencies
+        if: steps.backend-changes.outputs.backend == 'true'
+        working-directory: surfsense_backend
+        run: uv sync
+
+      - name: Install pre-commit for backend checks
+        if: steps.backend-changes.outputs.backend == 'true'
+        run: pip install pre-commit
+
+      - name: Cache pre-commit hooks
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-backend-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-backend-
+
+      - name: Install hook environments (cache)
+        if: steps.backend-changes.outputs.backend == 'true'
+        run: pre-commit install-hooks
+
+      - name: Run Python backend quality checks
+        if: steps.backend-changes.outputs.backend == 'true'
+        run: |
+          # Get base ref for comparison
+          if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
+            BASE_REF="${{ github.base_ref }}"
+          elif git show-ref --verify --quiet refs/remotes/origin/${{ github.base_ref }}; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          else
+            echo "Base branch reference not found, running Python backend checks on all files"
+            pre-commit run --all-files ruff ruff-format
+            exit 0
+          fi
+          
+          echo "Running Python backend checks on changed files against $BASE_REF"
+          
+          # Run only ruff hooks on changed Python files
+          SKIP=detect-secrets,bandit,check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+            pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
+          
+          # Exit with the same code as pre-commit
+          exit ${exit_code:-0}
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [file-quality, security-scan, python-backend]
+    if: always()
+    
+    steps:
+      - name: Check all jobs status
+        run: |
+          if [[ "${{ needs.file-quality.result }}" == "failure" || 
+                "${{ needs.security-scan.result }}" == "failure" || 
+                "${{ needs.python-backend.result }}" == "failure" ]]; then
+            echo "❌ Code quality checks failed"
+            exit 1
+          else
+            echo "✅ All code quality checks passed"
+          fi

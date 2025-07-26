@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List
+from typing import Any
 
 
 class StreamingService:
@@ -46,7 +46,7 @@ class StreamingService:
         annotation = {"type": "TERMINAL_INFO", "data": message}
         return f"8:[{json.dumps(annotation)}]\n"
 
-    def format_sources_delta(self, sources: List[Dict[str, Any]]) -> str:
+    def format_sources_delta(self, sources: list[dict[str, Any]]) -> str:
         """
         Format sources as a delta annotation
 
@@ -99,7 +99,7 @@ class StreamingService:
         annotation = {"type": "ANSWER", "content": [answer_chunk]}
         return f"8:[{json.dumps(annotation)}]\n"
 
-    def format_answer_annotation(self, answer_lines: List[str]) -> str:
+    def format_answer_annotation(self, answer_lines: list[str]) -> str:
         """
         Format the complete answer as a replacement annotation
 
@@ -117,7 +117,7 @@ class StreamingService:
         return f"8:[{json.dumps(annotation)}]\n"
 
     def format_further_questions_delta(
-        self, further_questions: List[Dict[str, Any]]
+        self, further_questions: list[dict[str, Any]]
     ) -> str:
         """
         Format further questions as a delta annotation

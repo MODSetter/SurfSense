@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from enum import Enum
-from typing import Optional, List, Any
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
 
 class SubSectionType(Enum):
     """Enum defining the type of sub-section."""
+
     START = "START"
     MIDDLE = "MIDDLE"
     END = "END"
@@ -22,17 +23,16 @@ class Configuration:
 
     # Input parameters provided at invocation
     sub_section_title: str
-    sub_section_questions: List[str]
+    sub_section_questions: list[str]
     sub_section_type: SubSectionType
     user_query: str
-    relevant_documents: List[Any]  # Documents provided directly to the agent
+    relevant_documents: list[Any]  # Documents provided directly to the agent
     user_id: str
     search_space_id: int
 
-
     @classmethod
     def from_runnable_config(
-        cls, config: Optional[RunnableConfig] = None
+        cls, config: RunnableConfig | None = None
     ) -> Configuration:
         """Create a Configuration instance from a RunnableConfig object."""
         configurable = (config.get("configurable") or {}) if config else {}

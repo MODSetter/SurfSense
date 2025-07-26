@@ -1,7 +1,9 @@
-import uvicorn
 import argparse
 import logging
+
+import uvicorn
 from dotenv import load_dotenv
+
 from app.config.uvicorn import load_uvicorn_config
 
 logging.basicConfig(

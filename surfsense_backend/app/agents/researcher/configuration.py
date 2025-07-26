@@ -4,17 +4,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from enum import Enum
-from typing import Optional, List, Any
 
 from langchain_core.runnables import RunnableConfig
 
-class SearchMode(Enum): 
+
+class SearchMode(Enum):
     """Enum defining the type of search mode."""
+
     CHUNKS = "CHUNKS"
     DOCUMENTS = "DOCUMENTS"
 
+
 class ResearchMode(Enum):
     """Enum defining the type of research mode."""
+
     QNA = "QNA"
     REPORT_GENERAL = "REPORT_GENERAL"
     REPORT_DEEP = "REPORT_DEEP"
@@ -28,16 +31,16 @@ class Configuration:
     # Input parameters provided at invocation
     user_query: str
     num_sections: int
-    connectors_to_search: List[str]
+    connectors_to_search: list[str]
     user_id: str
     search_space_id: int
     search_mode: SearchMode
     research_mode: ResearchMode
-    document_ids_to_add_in_context: List[int]
+    document_ids_to_add_in_context: list[int]
 
     @classmethod
     def from_runnable_config(
-        cls, config: Optional[RunnableConfig] = None
+        cls, config: RunnableConfig | None = None
     ) -> Configuration:
         """Create a Configuration instance from a RunnableConfig object."""
         configurable = (config.get("configurable") or {}) if config else {}

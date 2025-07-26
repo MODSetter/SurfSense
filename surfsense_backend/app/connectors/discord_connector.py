@@ -6,11 +6,12 @@ A module for interacting with Discord's HTTP API to retrieve guilds, channels, a
 Requires a Discord bot token.
 """
 
+import asyncio
+import datetime
 import logging
+
 import discord
 from discord.ext import commands
-import datetime
-import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class DiscordConnector(commands.Bot):
     """Class for retrieving guild, channel, and message history from Discord."""
 
-    def __init__(self, token: str = None):
+    def __init__(self, token: str | None = None):
         """
         Initialize the DiscordConnector with a bot token.
 
@@ -30,7 +31,9 @@ class DiscordConnector(commands.Bot):
         intents.messages = True  # Required to fetch messages
         intents.message_content = True  # Required to read message content
         intents.members = True  # Required to fetch member information
-        super().__init__(command_prefix="!", intents=intents) # command_prefix is required but not strictly used here
+        super().__init__(
+            command_prefix="!", intents=intents
+        )  # command_prefix is required but not strictly used here
         self.token = token
         self._bot_task = None  # Holds the async bot task
         self._is_running = False  # Flag to track if the bot is running
@@ -48,7 +51,7 @@ class DiscordConnector(commands.Bot):
         @self.event
         async def on_disconnect():
             logger.debug("Bot disconnected from Discord gateway.")
-            self._is_running = False # Reset flag on disconnect
+            self._is_running = False  # Reset flag on disconnect
 
         @self.event
         async def on_resumed():
@@ -63,17 +66,23 @@ class DiscordConnector(commands.Bot):
 
         try:
             if self._is_running:
-                logger.warning("Bot is already running. Use close_bot() to stop it before starting again.")
+                logger.warning(
+                    "Bot is already running. Use close_bot() to stop it before starting again."
+                )
                 return
 
             await self.start(self.token)
             logger.info("Discord bot started successfully.")
         except discord.LoginFailure:
-            logger.error("Failed to log in: Invalid token was provided. Please check your bot token.")
+            logger.error(
+                "Failed to log in: Invalid token was provided. Please check your bot token."
+            )
             self._is_running = False
             raise
         except discord.PrivilegedIntentsRequired as e:
-            logger.error(f"Privileged Intents Required: {e}. Make sure all required intents are enabled in your bot's application page.")
+            logger.error(
+                f"Privileged Intents Required: {e}. Make sure all required intents are enabled in your bot's application page."
+            )
             self._is_running = False
             raise
         except discord.ConnectionClosed as e:
@@ -96,7 +105,6 @@ class DiscordConnector(commands.Bot):
         else:
             logger.info("Bot is not running or already disconnected.")
 
-
     def set_token(self, token: str) -> None:
         """
         Set the discord bot token.
@@ -106,8 +114,10 @@ class DiscordConnector(commands.Bot):
         """
         logger.info("Setting Discord bot token.")
         self.token = token
-        logger.info("Token set successfully. You can now start the bot with start_bot().")
-    
+        logger.info(
+            "Token set successfully. You can now start the bot with start_bot()."
+        )
+
     async def _wait_until_ready(self):
         """Helper to wait until the bot is connected and ready."""
         logger.info("Waiting for the bot to be ready...")
@@ -115,16 +125,20 @@ class DiscordConnector(commands.Bot):
         # Give the event loop a chance to switch to the bot's startup task.
         # This allows self.start() to begin initializing the client.
         # Terrible solution, but necessary to avoid blocking the event loop.
-        await asyncio.sleep(1) # Yield control to the event loop
-        
+        await asyncio.sleep(1)  # Yield control to the event loop
+
         try:
             await asyncio.wait_for(self.wait_until_ready(), timeout=60.0)
             logger.info("Bot is ready.")
-        except asyncio.TimeoutError:
-            logger.error(f"Bot did not become ready within 60 seconds. Connection may have failed.")
+        except TimeoutError:
+            logger.error(
+                "Bot did not become ready within 60 seconds. Connection may have failed."
+            )
             raise
         except Exception as e:
-            logger.error(f"An unexpected error occurred while waiting for the bot to be ready: {e}")
+            logger.error(
+                f"An unexpected error occurred while waiting for the bot to be ready: {e}"
+            )
             raise
 
     async def get_guilds(self) -> list[dict]:
@@ -143,7 +157,9 @@ class DiscordConnector(commands.Bot):
 
         guilds_data = []
         for guild in self.guilds:
-            member_count = guild.member_count if guild.member_count is not None else "N/A"
+            member_count = (
+                guild.member_count if guild.member_count is not None else "N/A"
+            )
             guilds_data.append(
                 {
                     "id": str(guild.id),
@@ -183,15 +199,17 @@ class DiscordConnector(commands.Bot):
                 channels_data.append(
                     {"id": str(channel.id), "name": channel.name, "type": "text"}
                 )
-            
-        logger.info(f"Fetched {len(channels_data)} text channels from guild {guild_id}.")
+
+        logger.info(
+            f"Fetched {len(channels_data)} text channels from guild {guild_id}."
+        )
         return channels_data
 
     async def get_channel_history(
         self,
         channel_id: str,
-        start_date: str = None,
-        end_date: str = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> list[dict]:
         """
         Fetch message history from a text channel.
@@ -227,20 +245,26 @@ class DiscordConnector(commands.Bot):
 
         if start_date:
             try:
-                start_datetime = datetime.datetime.fromisoformat(start_date).replace(tzinfo=datetime.timezone.utc)
+                start_datetime = datetime.datetime.fromisoformat(start_date).replace(
+                    tzinfo=datetime.UTC
+                )
                 after = start_datetime
             except ValueError:
                 logger.warning(f"Invalid start_date format: {start_date}. Ignoring.")
 
         if end_date:
             try:
-                end_datetime = datetime.datetime.fromisoformat(f"{end_date}").replace(tzinfo=datetime.timezone.utc)
+                end_datetime = datetime.datetime.fromisoformat(f"{end_date}").replace(
+                    tzinfo=datetime.UTC
+                )
                 before = end_datetime
             except ValueError:
                 logger.warning(f"Invalid end_date format: {end_date}. Ignoring.")
 
         try:
-            async for message in channel.history(limit=None, before=before, after=after):
+            async for message in channel.history(
+                limit=None, before=before, after=after
+            ):
                 messages_data.append(
                     {
                         "id": str(message.id),
@@ -251,12 +275,14 @@ class DiscordConnector(commands.Bot):
                     }
                 )
         except discord.Forbidden:
-            logger.error(f"Bot does not have permissions to read message history in channel {channel_id}.")
+            logger.error(
+                f"Bot does not have permissions to read message history in channel {channel_id}."
+            )
             raise
         except discord.HTTPException as e:
             logger.error(f"Failed to fetch messages from channel {channel_id}: {e}")
             return []
-        
+
         logger.info(f"Fetched {len(messages_data)} messages from channel {channel_id}.")
         return messages_data
 
@@ -278,7 +304,9 @@ class DiscordConnector(commands.Bot):
                                permissions to view members.
         """
         await self._wait_until_ready()
-        logger.info(f"Fetching user info for user ID: {user_id} in guild ID: {guild_id}")
+        logger.info(
+            f"Fetching user info for user ID: {user_id} in guild ID: {guild_id}"
+        )
 
         guild = self.get_guild(int(guild_id))
         if not guild:
@@ -294,7 +322,9 @@ class DiscordConnector(commands.Bot):
                 return {
                     "id": str(member.id),
                     "name": member.name,
-                    "joined_at": member.joined_at.isoformat() if member.joined_at else None,
+                    "joined_at": member.joined_at.isoformat()
+                    if member.joined_at
+                    else None,
                     "roles": roles,
                 }
             logger.warning(f"User {user_id} not found in guild {guild_id}.")
@@ -303,8 +333,12 @@ class DiscordConnector(commands.Bot):
             logger.warning(f"User {user_id} not found in guild {guild_id}.")
             return None
         except discord.Forbidden:
-            logger.error(f"Bot does not have permissions to fetch members in guild {guild_id}. Ensure GUILD_MEMBERS intent is enabled.")
+            logger.error(
+                f"Bot does not have permissions to fetch members in guild {guild_id}. Ensure GUILD_MEMBERS intent is enabled."
+            )
             raise
         except discord.HTTPException as e:
-            logger.error(f"Failed to fetch user info for {user_id} in guild {guild_id}: {e}")
+            logger.error(
+                f"Failed to fetch user info for {user_id} in guild {guild_id}: {e}"
+            )
             return None

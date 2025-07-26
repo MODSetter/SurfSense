@@ -1,18 +1,21 @@
-from app.services.reranker_service import RerankerService
-from .configuration import Configuration
-from langchain_core.runnables import RunnableConfig
-from .state import State
-from typing import Any, Dict
-from .prompts import get_qna_citation_system_prompt, get_qna_no_documents_system_prompt
+from typing import Any
+
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+
+from app.services.reranker_service import RerankerService
+
 from ..utils import (
-    optimize_documents_for_token_limit,
     calculate_token_count,
     format_documents_section,
+    optimize_documents_for_token_limit,
 )
+from .configuration import Configuration
+from .prompts import get_qna_citation_system_prompt, get_qna_no_documents_system_prompt
+from .state import State
 
 
-async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, Any]:
+async def rerank_documents(state: State, config: RunnableConfig) -> dict[str, Any]:
     """
     Rerank the documents based on relevance to the user's question.
 
@@ -71,13 +74,13 @@ async def rerank_documents(state: State, config: RunnableConfig) -> Dict[str, An
                 f"Reranked {len(reranked_docs)} documents for Q&A query: {user_query}"
             )
         except Exception as e:
-            print(f"Error during reranking: {str(e)}")
+            print(f"Error during reranking: {e!s}")
             # Use original docs if reranking fails
 
     return {"reranked_documents": reranked_docs}
 
 
-async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any]:
+async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any]:
     """
     Answer the user's question using the provided documents.
 
@@ -122,7 +125,8 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
 
         # Use initial system prompt for token calculation
         initial_system_prompt = get_qna_citation_system_prompt()
-        base_messages = state.chat_history + [
+        base_messages = [
+            *state.chat_history,
             SystemMessage(content=initial_system_prompt),
             HumanMessage(content=base_human_message_template),
         ]
@@ -173,7 +177,8 @@ async def answer_question(state: State, config: RunnableConfig) -> Dict[str, Any
     """
 
     # Create final messages for the LLM
-    messages_with_chat_history = state.chat_history + [
+    messages_with_chat_history = [
+        *state.chat_history,
         SystemMessage(content=system_prompt),
         HumanMessage(content=human_message_content),
     ]

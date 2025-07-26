@@ -1,0 +1,59 @@
+name: pre-commit
+
+on:
+  push:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for detecting diffs
+
+      - name: Fetch main branch
+        run: |
+          # Ensure we have the main branch reference for comparison
+          git fetch origin main:main 2>/dev/null || git fetch origin main 2>/dev/null || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-
+
+      - name: Install pre-commit
+        run: |
+          pip install pre-commit
+
+      - name: Install hook environments (cache)
+        run: |
+          pre-commit install-hooks
+
+      - name: Run pre-commit on changed files
+        run: |
+          # Use pre-commit's native diff detection with fallback strategies
+          if git show-ref --verify --quiet refs/heads/main; then
+            # Main branch exists locally, use pre-commit's native diff mode
+            echo "Running pre-commit with native diff detection against main branch"
+            pre-commit run --from-ref main --to-ref HEAD
+          elif git show-ref --verify --quiet refs/remotes/origin/main; then
+            # Origin/main exists, use it as reference
+            echo "Running pre-commit with native diff detection against origin/main"
+            pre-commit run --from-ref origin/main --to-ref HEAD
+          else
+            # Fallback: run on all files (for first commits or when main is unavailable)
+            echo "Main branch reference not found, running pre-commit on all files"
+            echo "⚠️  This may take longer and show more issues than normal"
+            pre-commit run --all-files
+          fi
