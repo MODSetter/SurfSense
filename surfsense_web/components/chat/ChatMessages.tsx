@@ -12,6 +12,9 @@ import ChatSourcesDisplay from "@/components/chat/ChatSources";
 import { CitationDisplay } from "@/components/chat/ChatCitation";
 import { ChatFurtherQuestions } from "@/components/chat/ChatFurtherQuestions";
 import { AnimatedEmptyState } from "@/components/chat/AnimatedEmptyState";
+import { languageRenderers } from "@/components/chat/CodeBlock";
+
+
 
 export function ChatMessagesUI() {
   const { messages } = useChatUI();
@@ -63,6 +66,7 @@ function ChatMessageUI({
           <LlamaIndexChatMessage.Content className="flex-1">
             <LlamaIndexChatMessage.Content.Markdown
               citationComponent={CitationDisplay}
+              languageRenderers={languageRenderers}
             />
           </LlamaIndexChatMessage.Content>
           <div ref={bottomRef} />
@@ -73,7 +77,9 @@ function ChatMessageUI({
         </div>
       ) : (
         <LlamaIndexChatMessage.Content className="flex-1">
-          <LlamaIndexChatMessage.Content.Markdown />
+          <LlamaIndexChatMessage.Content.Markdown 
+            languageRenderers={languageRenderers}
+          />
         </LlamaIndexChatMessage.Content>
       )}
     </LlamaIndexChatMessage>

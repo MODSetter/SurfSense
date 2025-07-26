@@ -4,4 +4,5 @@ export * from './ConnectorComponents';
 export * from './Citation';
 export * from './SourceUtils';
 export * from './ScrollUtils';
+export * from './CodeBlock';
 export * from './types'; 
