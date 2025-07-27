@@ -243,7 +243,7 @@ jobs:
       - name: Install dependencies for web
         if: steps.frontend-changes.outputs.web == 'true'
         working-directory: surfsense_web
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Install dependencies for extension
         if: steps.frontend-changes.outputs.extension == 'true'
