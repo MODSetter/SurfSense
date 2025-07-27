@@ -1,16 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { motion } from "framer-motion";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { motion } from "framer-motion";
+import { ArrowLeft, Check, CircleAlert, Github, Info, ListChecks, Loader2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import * as z from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Info, Loader2, Github, CircleAlert, ListChecks } from "lucide-react";
-
-// Assuming useSearchSourceConnectors hook exists and works similarly
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import * as z from "zod";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Form,
 	FormControl,
@@ -21,24 +35,9 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
+// Assuming useSearchSourceConnectors hook exists and works similarly
+import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
 // Define the form schema with Zod for GitHub PAT entry step
 const githubPatFormSchema = z.object({

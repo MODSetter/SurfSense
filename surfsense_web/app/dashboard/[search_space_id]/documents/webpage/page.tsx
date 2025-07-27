@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { type Tag, TagInput } from "emblor";
+import { Globe, Loader2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
 	Card,
 	CardContent,
@@ -13,8 +14,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { toast } from "sonner";
-import { Globe, Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 // URL validation regex
 const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;

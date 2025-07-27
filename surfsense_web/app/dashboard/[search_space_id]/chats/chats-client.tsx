@@ -1,25 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useSearchParams } from "next/navigation";
+import { format } from "date-fns";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import {
-	MessageCircleMore,
-	Search,
 	Calendar,
-	Tag,
-	Trash2,
-	ExternalLink,
-	MoreHorizontal,
-	Radio,
 	CheckCircle,
 	Circle,
+	ExternalLink,
+	MessageCircleMore,
+	MoreHorizontal,
 	Podcast,
+	Search,
+	Tag,
+	Trash2,
 } from "lucide-react";
-import { format } from "date-fns";
-
-// UI Components
-import { Input } from "@/components/ui/input";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -29,22 +27,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-	DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-	Pagination,
-	PaginationContent,
-	PaginationItem,
-	PaginationLink,
-	PaginationNext,
-	PaginationPrevious,
-} from "@/components/ui/pagination";
 import {
 	Dialog,
 	DialogContent,
@@ -54,6 +36,24 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+// UI Components
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Pagination,
+	PaginationContent,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
 	Select,
 	SelectContent,
 	SelectGroup,
@@ -61,9 +61,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
 
 interface Chat {
 	created_at: string;
@@ -86,13 +83,13 @@ interface ChatsPageClientProps {
 	searchSpaceId: string;
 }
 
-const pageVariants = {
+const pageVariants: Variants = {
 	initial: { opacity: 0 },
 	enter: { opacity: 1, transition: { duration: 0.3, ease: "easeInOut" } },
 	exit: { opacity: 0, transition: { duration: 0.3, ease: "easeInOut" } },
 };
 
-const chatCardVariants = {
+const chatCardVariants: Variants = {
 	initial: { y: 20, opacity: 0 },
 	animate: { y: 0, opacity: 1 },
 	exit: { y: -20, opacity: 0 },
@@ -101,6 +98,7 @@ const chatCardVariants = {
 const MotionCard = motion(Card);
 
 export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps) {
+	const router = useRouter();
 	const [chats, setChats] = useState<Chat[]>([]);
 	const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -134,7 +132,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		const pageParam = searchParams.get("page");
 		if (pageParam) {
 			const pageNumber = parseInt(pageParam, 10);
-			if (!isNaN(pageNumber) && pageNumber > 0) {
+			if (!Number.isNaN(pageNumber) && pageNumber > 0) {
 				setCurrentPage(pageNumber);
 			}
 		}
@@ -318,7 +316,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				throw new Error(errorData.detail || "Failed to generate podcast");
 			}
 
-			const data = await response.json();
+			const _data = await response.json();
 			toast.success(`Podcast "${currentTitle}" generation started!`);
 
 			// Move to the next chat or finish
@@ -636,7 +634,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 													<DropdownMenuContent align="end">
 														<DropdownMenuItem
 															onClick={() =>
-																(window.location.href = `/dashboard/${chat.search_space_id}/researcher/${chat.id}`)
+																router.push(
+																	`/dashboard/${chat.search_space_id}/researcher/${chat.id}`
+																)
 															}
 														>
 															<ExternalLink className="mr-2 h-4 w-4" />
@@ -841,10 +841,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 									</span>
 								</>
 							) : (
-								<>
-									Create a podcast from this chat. The podcast will be available in the podcasts
-									section once generated.
-								</>
+								"Create a podcast from this chat. The podcast will be available in the podcasts section once generated."
 							)}
 						</DialogDescription>
 					</DialogHeader>

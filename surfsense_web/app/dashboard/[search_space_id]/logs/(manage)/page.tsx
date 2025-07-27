@@ -1,6 +1,52 @@
 "use client";
 
 import {
+	type ColumnDef,
+	type ColumnFiltersState,
+	flexRender,
+	getCoreRowModel,
+	getFacetedUniqueValues,
+	getFilteredRowModel,
+	getPaginationRowModel,
+	getSortedRowModel,
+	type PaginationState,
+	type Row,
+	type SortingState,
+	useReactTable,
+	type VisibilityState,
+} from "@tanstack/react-table";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
+import {
+	Activity,
+	AlertCircle,
+	AlertTriangle,
+	Bug,
+	CheckCircle2,
+	ChevronDown,
+	ChevronFirst,
+	ChevronLast,
+	ChevronLeft,
+	ChevronRight,
+	ChevronUp,
+	CircleAlert,
+	CircleX,
+	Clock,
+	Columns3,
+	Filter,
+	Info,
+	ListFilter,
+	MoreHorizontal,
+	RefreshCw,
+	Terminal,
+	Trash,
+	X,
+	Zap,
+} from "lucide-react";
+import { useParams } from "next/navigation";
+import React, { useContext, useId, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
+import {
 	AlertDialog,
 	AlertDialogAction,
 	AlertDialogCancel,
@@ -12,7 +58,7 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DropdownMenu,
@@ -42,57 +88,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
-import { useLogs, useLogsSummary, type Log, type LogLevel, type LogStatus } from "@/hooks/use-logs";
+import { type Log, type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
 import { cn } from "@/lib/utils";
-import {
-	type ColumnDef,
-	type ColumnFiltersState,
-	type PaginationState,
-	type Row,
-	type SortingState,
-	type VisibilityState,
-	flexRender,
-	getCoreRowModel,
-	getFacetedUniqueValues,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-	Activity,
-	AlertCircle,
-	AlertTriangle,
-	Bug,
-	CheckCircle2,
-	ChevronDown,
-	ChevronFirst,
-	ChevronLast,
-	ChevronLeft,
-	ChevronRight,
-	ChevronUp,
-	CircleAlert,
-	CircleX,
-	Clock,
-	Columns3,
-	Filter,
-	Info,
-	ListFilter,
-	MoreHorizontal,
-	RefreshCw,
-	Terminal,
-	Trash,
-	X,
-	Zap,
-} from "lucide-react";
-import { useParams } from "next/navigation";
-import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
 // Define animation variants for reuse
-const fadeInScale = {
+const fadeInScale: Variants = {
 	hidden: { opacity: 0, scale: 0.95 },
 	visible: {
 		opacity: 1,
@@ -324,13 +324,13 @@ export default function LogsManagePage() {
 		const levelColumn = table.getColumn("level");
 		if (!levelColumn) return [];
 		return Array.from(levelColumn.getFacetedUniqueValues().keys()).sort();
-	}, [table.getColumn("level")?.getFacetedUniqueValues()]);
+	}, [table.getColumn]);
 
 	const uniqueStatuses = useMemo(() => {
 		const statusColumn = table.getColumn("status");
 		if (!statusColumn) return [];
 		return Array.from(statusColumn.getFacetedUniqueValues().keys()).sort();
-	}, [table.getColumn("status")?.getFacetedUniqueValues()]);
+	}, [table.getColumn]);
 
 	const handleDeleteRows = async () => {
 		const selectedRows = table.getSelectedRowModel().rows;
@@ -631,15 +631,17 @@ function LogsFilters({
 						<ListFilter size={16} strokeWidth={2} />
 					</div>
 					{Boolean(table.getColumn("message")?.getFilterValue()) && (
-						<button
+						<Button
 							className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 hover:text-foreground"
+							variant="ghost"
+							size="icon"
 							onClick={() => {
 								table.getColumn("message")?.setFilterValue("");
 								inputRef.current?.focus();
 							}}
 						>
 							<CircleX size={16} strokeWidth={2} />
-						</button>
+						</Button>
 					)}
 				</motion.div>
 
@@ -705,7 +707,7 @@ function FilterDropdown({
 	const selectedValues = useMemo(() => {
 		const filterValue = column?.getFilterValue() as string[];
 		return filterValue ?? [];
-	}, [column?.getFilterValue()]);
+	}, [column?.getFilterValue]);
 
 	const handleValueChange = (checked: boolean, value: string) => {
 		const filterValue = column?.getFilterValue() as string[];
@@ -848,7 +850,9 @@ function LogsTable({
 										className="h-12 px-4 py-3"
 									>
 										{header.isPlaceholder ? null : header.column.getCanSort() ? (
-											<div
+											<Button
+												variant="ghost"
+												size="sm"
 												className={cn(
 													"flex h-full cursor-pointer select-none items-center justify-between gap-2"
 												)}
@@ -859,7 +863,7 @@ function LogsTable({
 													asc: <ChevronUp className="shrink-0 opacity-60" size={16} />,
 													desc: <ChevronDown className="shrink-0 opacity-60" size={16} />,
 												}[header.column.getIsSorted() as string] ?? null}
-											</div>
+											</Button>
 										) : (
 											flexRender(header.column.columnDef.header, header.getContext())
 										)}

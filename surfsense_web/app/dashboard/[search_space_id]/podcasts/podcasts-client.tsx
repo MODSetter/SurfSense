@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import {
 	Calendar,
 	MoreHorizontal,
@@ -16,8 +16,9 @@ import {
 	VolumeX,
 	X,
 } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-
+import { toast } from "sonner";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,7 +46,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { toast } from "sonner";
 
 interface PodcastItem {
 	id: number;
@@ -60,7 +60,7 @@ interface PodcastsPageClientProps {
 	searchSpaceId: string;
 }
 
-const pageVariants = {
+const pageVariants: Variants = {
 	initial: { opacity: 0 },
 	enter: {
 		opacity: 1,
@@ -69,7 +69,7 @@ const pageVariants = {
 	exit: { opacity: 0, transition: { duration: 0.3, ease: "easeInOut" } },
 };
 
-const podcastCardVariants = {
+const podcastCardVariants: Variants = {
 	initial: { scale: 0.95, y: 20, opacity: 0 },
 	animate: {
 		scale: 1,
@@ -162,7 +162,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 		};
 
 		fetchPodcasts();
-	}, [searchSpaceId]);
+	}, []);
 
 	// Filter and sort podcasts based on search query and sort order
 	useEffect(() => {
@@ -540,11 +540,13 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 								>
 									<div className="relative w-full aspect-[16/10] mb-4 rounded-lg overflow-hidden">
 										{/* Podcast image with gradient overlay */}
-										<img
+										<Image
 											src={PODCAST_IMAGE_URL}
 											alt="Podcast illustration"
 											className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 brightness-[0.85] contrast-[1.1]"
 											loading="lazy"
+											width={100}
+											height={100}
 										/>
 
 										{/* Better overlay with gradient for improved text legibility */}
@@ -675,7 +677,8 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 											animate={{ opacity: 1, y: 0 }}
 											transition={{ delay: 0.1 }}
 										>
-											<div
+											<Button
+												variant="ghost"
 												className="h-1.5 bg-muted rounded-full cursor-pointer group relative overflow-hidden"
 												onClick={(e) => {
 													e.stopPropagation();
@@ -702,7 +705,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 														whileHover={{ scale: 1.5 }}
 													/>
 												</motion.div>
-											</div>
+											</Button>
 											<div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
 												<span>{formatTime(currentTime)}</span>
 												<span>{formatTime(duration)}</span>
@@ -1024,7 +1027,9 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 					// Reset playing state on error
 					setIsPlaying(false);
 				}}
-			/>
+			>
+				<track kind="captions" />
+			</audio>
 		</motion.div>
 	);
 }

@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { IconBrandYoutube } from "@tabler/icons-react";
 import { type Tag, TagInput } from "emblor";
+import { motion, type Variants } from "framer-motion";
+import { Loader2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
 	Card,
 	CardContent,
@@ -13,9 +16,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { toast } from "sonner";
-import { Youtube, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { Label } from "@/components/ui/label";
 
 // YouTube video ID validation regex
 const youtubeRegex =
@@ -135,7 +136,7 @@ export default function YouTubeVideoAdder() {
 	};
 
 	// Animation variants
-	const containerVariants = {
+	const containerVariants: Variants = {
 		hidden: { opacity: 0 },
 		visible: {
 			opacity: 1,
@@ -145,7 +146,7 @@ export default function YouTubeVideoAdder() {
 		},
 	};
 
-	const itemVariants = {
+	const itemVariants: Variants = {
 		hidden: { y: 20, opacity: 0 },
 		visible: {
 			y: 0,
@@ -165,7 +166,7 @@ export default function YouTubeVideoAdder() {
 					<motion.div variants={itemVariants}>
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
-								<Youtube className="h-5 w-5" />
+								<IconBrandYoutube className="h-5 w-5" />
 								Add YouTube Videos
 							</CardTitle>
 							<CardDescription>
@@ -282,7 +283,7 @@ export default function YouTubeVideoAdder() {
 											transition={{ delay: 0.2 }}
 											className="mr-2"
 										>
-											<Youtube className="h-4 w-4" />
+											<IconBrandYoutube className="h-4 w-4" />
 										</motion.span>
 										Submit YouTube Videos
 									</>

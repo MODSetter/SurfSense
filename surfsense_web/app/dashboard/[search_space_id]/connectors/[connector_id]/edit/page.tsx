@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Loader2, Github } from "lucide-react";
-
-import { Form } from "@/components/ui/form";
+import { getConnectorIcon } from "@/components/chat";
+import { EditConnectorLoadingSkeleton } from "@/components/editConnector/EditConnectorLoadingSkeleton";
+import { EditConnectorNameForm } from "@/components/editConnector/EditConnectorNameForm";
+import { EditGitHubConnectorConfig } from "@/components/editConnector/EditGitHubConnectorConfig";
+import { EditSimpleTokenForm } from "@/components/editConnector/EditSimpleTokenForm";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -16,15 +19,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-
+import { Form } from "@/components/ui/form";
+import { useConnectorEditPage } from "@/hooks/useConnectorEditPage";
 // Import Utils, Types, Hook, and Components
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
-import { useConnectorEditPage } from "@/hooks/useConnectorEditPage";
-import { EditConnectorLoadingSkeleton } from "@/components/editConnector/EditConnectorLoadingSkeleton";
-import { EditConnectorNameForm } from "@/components/editConnector/EditConnectorNameForm";
-import { EditGitHubConnectorConfig } from "@/components/editConnector/EditGitHubConnectorConfig";
-import { EditSimpleTokenForm } from "@/components/editConnector/EditSimpleTokenForm";
-import { getConnectorIcon } from "@/components/chat";
 
 export default function EditConnectorPage() {
 	const router = useRouter();
@@ -58,7 +56,7 @@ export default function EditConnectorPage() {
 
 	// Redirect if connectorId is not a valid number after parsing
 	useEffect(() => {
-		if (isNaN(connectorId)) {
+		if (Number.isNaN(connectorId)) {
 			toast.error("Invalid Connector ID.");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		}
@@ -67,7 +65,7 @@ export default function EditConnectorPage() {
 	// Loading State
 	if (connectorsLoading || !connector) {
 		// Handle NaN case before showing skeleton
-		if (isNaN(connectorId)) return null;
+		if (Number.isNaN(connectorId)) return null;
 		return <EditConnectorLoadingSkeleton />;
 	}
 

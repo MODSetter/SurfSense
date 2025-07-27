@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Calendar, CheckCircle2, FileType, Tag, Upload, X } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { X, Upload, Tag, CheckCircle2, Calendar, FileType } from "lucide-react";
-import { useRouter, useParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 // Grid pattern component inspired by Aceternity UI
 function GridPattern() {
@@ -230,7 +230,7 @@ export default function FileUploader() {
 		const k = 1024;
 		const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / k ** i).toFixed(2)) + " " + sizes[i];
+		return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 	};
 
 	const handleUpload = async () => {

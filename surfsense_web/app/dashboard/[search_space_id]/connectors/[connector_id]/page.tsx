@@ -1,18 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { motion } from "framer-motion";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
-
-import {
-	useSearchSourceConnectors,
-	type SearchSourceConnector,
-} from "@/hooks/useSearchSourceConnectors";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Form,
 	FormControl,
@@ -23,9 +21,10 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+	type SearchSourceConnector,
+	useSearchSourceConnectors,
+} from "@/hooks/useSearchSourceConnectors";
 
 // Define the form schema with Zod
 const apiConnectorFormSchema = z.object({
@@ -57,6 +56,20 @@ const getConnectorTypeDisplay = (type: string): string => {
 // Define the type for the form values
 type ApiConnectorFormValues = z.infer<typeof apiConnectorFormSchema>;
 
+// Get API key field name based on connector type
+const getApiKeyFieldName = (connectorType: string): string => {
+	const fieldMap: Record<string, string> = {
+		SERPER_API: "SERPER_API_KEY",
+		TAVILY_API: "TAVILY_API_KEY",
+		SLACK_CONNECTOR: "SLACK_BOT_TOKEN",
+		NOTION_CONNECTOR: "NOTION_INTEGRATION_TOKEN",
+		GITHUB_CONNECTOR: "GITHUB_PAT",
+		DISCORD_CONNECTOR: "DISCORD_BOT_TOKEN",
+		LINKUP_API: "LINKUP_API_KEY",
+	};
+	return fieldMap[connectorType] || "";
+};
+
 export default function EditConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
@@ -76,20 +89,6 @@ export default function EditConnectorPage() {
 			api_key: "",
 		},
 	});
-
-	// Get API key field name based on connector type
-	const getApiKeyFieldName = (connectorType: string): string => {
-		const fieldMap: Record<string, string> = {
-			SERPER_API: "SERPER_API_KEY",
-			TAVILY_API: "TAVILY_API_KEY",
-			SLACK_CONNECTOR: "SLACK_BOT_TOKEN",
-			NOTION_CONNECTOR: "NOTION_INTEGRATION_TOKEN",
-			GITHUB_CONNECTOR: "GITHUB_PAT",
-			DISCORD_CONNECTOR: "DISCORD_BOT_TOKEN",
-			LINKUP_API: "LINKUP_API_KEY",
-		};
-		return fieldMap[connectorType] || "";
-	};
 
 	// Find connector in the list
 	useEffect(() => {

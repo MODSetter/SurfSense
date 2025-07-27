@@ -1,5 +1,57 @@
 "use client";
 
+import {
+	IconBrandDiscord,
+	IconBrandGithub,
+	IconBrandNotion,
+	IconBrandSlack,
+	IconBrandYoutube,
+	IconLayoutKanban,
+	IconTicket,
+} from "@tabler/icons-react";
+import {
+	type ColumnDef,
+	type ColumnFiltersState,
+	flexRender,
+	getCoreRowModel,
+	getFacetedUniqueValues,
+	getFilteredRowModel,
+	getPaginationRowModel,
+	getSortedRowModel,
+	type PaginationState,
+	type Row,
+	type SortingState,
+	useReactTable,
+	type VisibilityState,
+} from "@tanstack/react-table";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
+import {
+	AlertCircle,
+	ChevronDown,
+	ChevronFirst,
+	ChevronLast,
+	ChevronLeft,
+	ChevronRight,
+	ChevronUp,
+	CircleAlert,
+	CircleX,
+	Columns3,
+	File,
+	FileX,
+	Filter,
+	Globe,
+	ListFilter,
+	MoreHorizontal,
+	Trash,
+	Webhook,
+} from "lucide-react";
+import { useParams } from "next/navigation";
+import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
+import { toast } from "sonner";
 import { DocumentViewer } from "@/components/document-viewer";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import {
@@ -43,64 +95,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDocuments } from "@/hooks/use-documents";
 import { cn } from "@/lib/utils";
-import {
-	IconBrandDiscord,
-	IconBrandGithub,
-	IconBrandNotion,
-	IconBrandSlack,
-	IconBrandYoutube,
-	IconLayoutKanban,
-	IconTicket,
-} from "@tabler/icons-react";
-import {
-	type ColumnDef,
-	type ColumnFiltersState,
-	type FilterFn,
-	type PaginationState,
-	type Row,
-	type SortingState,
-	type VisibilityState,
-	flexRender,
-	getCoreRowModel,
-	getFacetedUniqueValues,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-	AlertCircle,
-	ChevronDown,
-	ChevronFirst,
-	ChevronLast,
-	ChevronLeft,
-	ChevronRight,
-	ChevronUp,
-	CircleAlert,
-	CircleX,
-	Columns3,
-	File,
-	FileX,
-	Filter,
-	Globe,
-	ListFilter,
-	MoreHorizontal,
-	Trash,
-	Webhook,
-} from "lucide-react";
-import { useParams } from "next/navigation";
-import React, { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
-import { toast } from "sonner";
 
 // Define animation variants for reuse
-const fadeInScale = {
+const fadeInScale: Variants = {
 	hidden: { opacity: 0, scale: 0.95 },
 	visible: {
 		opacity: 1,
@@ -130,19 +130,6 @@ type Document = {
 	content: string;
 	created_at: string;
 	search_space_id: number;
-};
-
-// Custom filter function for multi-column searching
-const multiColumnFilterFn: FilterFn<Document> = (row, columnId, filterValue) => {
-	const searchableRowContent = `${row.original.title}`.toLowerCase();
-	const searchTerm = (filterValue ?? "").toLowerCase();
-	return searchableRowContent.includes(searchTerm);
-};
-
-const statusFilterFn: FilterFn<Document> = (row, columnId, filterValue: string[]) => {
-	if (!filterValue?.length) return true;
-	const status = row.getValue(columnId) as string;
-	return filterValue.includes(status);
 };
 
 // Add document type icons mapping
@@ -187,6 +174,8 @@ const columns: ColumnDef<Document>[] = [
 		accessorKey: "title",
 		cell: ({ row }) => {
 			const Icon = documentTypeIcons[row.original.document_type];
+			const title = row.getValue("title") as string;
+			const truncatedTitle = title.length > 30 ? `${title.slice(0, 30)}...` : title;
 			return (
 				<motion.div
 					className="flex items-center gap-2 font-medium"
@@ -194,8 +183,17 @@ const columns: ColumnDef<Document>[] = [
 					transition={{ type: "spring", stiffness: 300 }}
 					style={{ display: "flex" }}
 				>
-					<Icon size={16} className="text-muted-foreground shrink-0" />
-					<span>{row.getValue("title")}</span>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span className="flex items-center gap-2">
+								<Icon size={16} className="text-muted-foreground shrink-0" />
+								<span>{truncatedTitle}</span>
+							</span>
+						</TooltipTrigger>
+						<TooltipContent>
+							<p>{title}</p>
+						</TooltipContent>
+					</Tooltip>
 				</motion.div>
 			);
 		},
@@ -231,7 +229,7 @@ const columns: ColumnDef<Document>[] = [
 			const title = row.getValue("title") as string;
 
 			// Create a truncated preview (first 150 characters)
-			const previewContent = content.length > 150 ? content.substring(0, 150) + "..." : content;
+			const previewContent = content.length > 150 ? `${content.substring(0, 150)}...` : content;
 
 			return (
 				<div className="flex flex-col gap-2">
@@ -336,7 +334,7 @@ export default function DocumentsTable() {
 
 	useEffect(() => {
 		if (documents) {
-			setData(documents);
+			setData(documents as Document[]);
 		}
 	}, [documents]);
 
@@ -408,19 +406,19 @@ export default function DocumentsTable() {
 		const values = Array.from(statusColumn.getFacetedUniqueValues().keys());
 
 		return values.sort();
-	}, [table.getColumn("document_type")?.getFacetedUniqueValues()]);
+	}, [table.getColumn]);
 
 	// Get counts for each status
 	const statusCounts = useMemo(() => {
 		const statusColumn = table.getColumn("document_type");
 		if (!statusColumn) return new Map();
 		return statusColumn.getFacetedUniqueValues();
-	}, [table.getColumn("document_type")?.getFacetedUniqueValues()]);
+	}, [table.getColumn]);
 
 	const selectedStatuses = useMemo(() => {
 		const filterValue = table.getColumn("document_type")?.getFilterValue() as string[];
 		return filterValue ?? [];
-	}, [table.getColumn("document_type")?.getFilterValue()]);
+	}, [table.getColumn]);
 
 	const handleStatusChange = (checked: boolean, value: string) => {
 		const filterValue = table.getColumn("document_type")?.getFilterValue() as string[];
@@ -722,7 +720,8 @@ export default function DocumentsTable() {
 													className="h-12 px-4 py-3"
 												>
 													{header.isPlaceholder ? null : header.column.getCanSort() ? (
-														<div
+														<Button
+															variant="ghost"
 															className={cn(
 																header.column.getCanSort() &&
 																	"flex h-full cursor-pointer select-none items-center justify-between gap-2"
@@ -759,7 +758,7 @@ export default function DocumentsTable() {
 																	/>
 																),
 															}[header.column.getIsSorted() as string] ?? null}
-														</div>
+														</Button>
 													) : (
 														flexRender(header.column.columnDef.header, header.getContext())
 													)}

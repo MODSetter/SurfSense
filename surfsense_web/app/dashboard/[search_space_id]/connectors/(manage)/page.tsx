@@ -1,22 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { Calendar as CalendarIcon, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Edit, Plus, Trash2, RefreshCw, Calendar as CalendarIcon } from "lucide-react";
-
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { getConnectorIcon } from "@/components/chat";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -28,7 +18,9 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -36,14 +28,20 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
-import { getConnectorIcon } from "@/components/chat";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 // Helper function to format date with time
 const formatDateTime = (dateString: string | null): string => {

@@ -1,8 +1,4 @@
 "use client";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
 	IconBrandDiscord,
 	IconBrandGithub,
@@ -12,16 +8,20 @@ import {
 	IconBrandZoom,
 	IconChevronDown,
 	IconChevronRight,
-	IconMail,
-	IconWorldWww,
-	IconTicket,
 	IconLayoutKanban,
 	IconLinkPlus,
+	IconMail,
+	IconTicket,
+	IconWorldWww,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Define the Connector type
 interface Connector {

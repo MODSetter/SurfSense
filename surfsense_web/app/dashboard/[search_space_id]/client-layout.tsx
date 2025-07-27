@@ -1,10 +1,10 @@
 "use client";
 
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import type React from "react";
-import { Separator } from "@/components/ui/separator";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
+import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
+import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 export function DashboardClientLayout({
 	children,
