@@ -60,6 +60,29 @@ repos:
         args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
         exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
 
+  # Biome hooks for TypeScript/JavaScript projects
+  - repo: local
+    hooks:
+      # Biome check for surfsense_web
+      - id: biome-check-web
+        name: biome-check-web
+        entry: bash -c 'cd surfsense_web && npx @biomejs/biome check --diagnostic-level=error .'
+        language: system
+        files: ^surfsense_web/
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # Biome check for surfsense_browser_extension
+      - id: biome-check-extension
+        name: biome-check-extension
+        entry: bash -c 'cd surfsense_browser_extension && npx @biomejs/biome check --diagnostic-level=error .'
+        language: system
+        files: ^surfsense_browser_extension/
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
   # Commit message linting
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.8.3
