@@ -1,5 +1,4 @@
 "use client";
-import { cn } from "@/lib/utils";
 import {
 	IconBrandDiscord,
 	IconBrandGithub,
@@ -8,6 +7,7 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 import type React from "react";
+import { cn } from "@/lib/utils";
 
 export function Footer() {
 	const pages = [
@@ -32,8 +32,8 @@ export function Footer() {
 					</div>
 
 					<ul className="transition-colors flex sm:flex-row flex-col hover:text-text-neutral-800 text-neutral-600 dark:text-neutral-300 list-none gap-4">
-						{pages.map((page, idx) => (
-							<li key={"pages" + idx} className="list-none">
+						{pages.map((page) => (
+							<li key={`pages-${page.title}`} className="list-none">
 								<Link className="transition-colors hover:text-text-neutral-800" href={page.href}>
 									{page.title}
 								</Link>

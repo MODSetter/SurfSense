@@ -1,28 +1,28 @@
-import type React from "react";
 import {
-	ChevronDown,
-	Plus,
-	Search,
-	Globe,
-	Sparkles,
-	Microscope,
-	Telescope,
-	File,
-	Link,
-	Webhook,
-	MessageCircle,
-	FileText,
-} from "lucide-react";
-import {
+	IconBrandDiscord,
+	IconBrandGithub,
 	IconBrandNotion,
 	IconBrandSlack,
 	IconBrandYoutube,
-	IconBrandGithub,
 	IconLayoutKanban,
 	IconLinkPlus,
-	IconBrandDiscord,
 	IconTicket,
 } from "@tabler/icons-react";
+import {
+	ChevronDown,
+	File,
+	FileText,
+	Globe,
+	Link,
+	MessageCircle,
+	Microscope,
+	Plus,
+	Search,
+	Sparkles,
+	Telescope,
+	Webhook,
+} from "lucide-react";
+import type React from "react";
 import { Button } from "@/components/ui/button";
 import type { Connector, ResearchMode } from "./types";
 
@@ -238,7 +238,7 @@ export const ResearchModeControl = ({ value, onChange }: ResearchModeControlProp
 		<div className="flex items-center gap-2">
 			{/* Main Q/A vs Report Toggle */}
 			<div className="flex h-8 rounded-md border border-border overflow-hidden">
-				<button
+				<Button
 					className={`flex h-full items-center gap-1 px-3 text-xs font-medium transition-colors whitespace-nowrap ${
 						isQnaMode
 							? "bg-primary text-primary-foreground"
@@ -249,8 +249,8 @@ export const ResearchModeControl = ({ value, onChange }: ResearchModeControlProp
 				>
 					<MessageCircle className="h-3 w-3" />
 					<span>Q/A</span>
-				</button>
-				<button
+				</Button>
+				<Button
 					className={`flex h-full items-center gap-1 px-3 text-xs font-medium transition-colors whitespace-nowrap ${
 						isReportMode
 							? "bg-primary text-primary-foreground"
@@ -261,14 +261,14 @@ export const ResearchModeControl = ({ value, onChange }: ResearchModeControlProp
 				>
 					<FileText className="h-3 w-3" />
 					<span>Report</span>
-				</button>
+				</Button>
 			</div>
 
 			{/* Report Sub-options (only show when in Report mode) */}
 			{isReportMode && (
 				<div className="flex h-8 rounded-md border border-border overflow-hidden">
 					{reportSubOptions.map((option) => (
-						<button
+						<Button
 							key={option.value}
 							className={`flex h-full items-center gap-1 px-2 text-xs font-medium transition-colors whitespace-nowrap ${
 								getCurrentReportMode() === option.value
@@ -280,7 +280,7 @@ export const ResearchModeControl = ({ value, onChange }: ResearchModeControlProp
 						>
 							{option.icon}
 							<span>{option.label}</span>
-						</button>
+						</Button>
 					))}
 				</div>
 			)}

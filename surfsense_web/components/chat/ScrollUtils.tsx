@@ -47,7 +47,7 @@ export const useScrollIndicators = (
 		// Add resize listener to update indicators when window size changes
 		window.addEventListener("resize", updateIndicators);
 		return () => window.removeEventListener("resize", updateIndicators);
-	}, []);
+	}, [updateIndicators]);
 
 	return updateIndicators;
 };

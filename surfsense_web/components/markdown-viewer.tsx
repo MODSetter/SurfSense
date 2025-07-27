@@ -1,15 +1,17 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import { Check, Copy } from "lucide-react";
+import Image from "next/image";
+import { useTheme } from "next-themes";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Citation } from "./chat/Citation";
 import type { Source } from "./chat/types";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneLight, oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { Check, Copy } from "lucide-react";
-import { useTheme } from "next-themes";
 import CopyButton from "./copy-button";
 
 interface MarkdownViewerProps {
@@ -112,7 +114,13 @@ export function MarkdownViewer({
 			),
 			hr: ({ node, ...props }: any) => <hr className="my-4 border-muted" {...props} />,
 			img: ({ node, ...props }: any) => (
-				<img className="max-w-full h-auto my-4 rounded" {...props} />
+				<Image
+					className="max-w-full h-auto my-4 rounded"
+					alt="markdown image"
+					height={100}
+					width={100}
+					{...props}
+				/>
 			),
 			table: ({ node, ...props }: any) => (
 				<div className="overflow-x-auto my-4">
@@ -186,7 +194,8 @@ const CodeBlock = ({ children, language }: { children: string; language: string 
 	return (
 		<div className="relative my-4 group">
 			<div className="absolute right-2 top-2 z-10">
-				<button
+				<Button
+					variant="ghost"
 					onClick={handleCopy}
 					className="p-1.5 rounded-md bg-background/80 hover:bg-background border border-border flex items-center justify-center transition-colors"
 					aria-label="Copy code"
@@ -196,7 +205,7 @@ const CodeBlock = ({ children, language }: { children: string; language: string 
 					) : (
 						<Copy size={14} className="text-muted-foreground" />
 					)}
-				</button>
+				</Button>
 			</div>
 			{mounted ? (
 				<SyntaxHighlighter
@@ -297,10 +306,10 @@ const processCitationsInText = (
 	const citationRegex = /\[(\d+)\]/g;
 	const parts: React.ReactNode[] = [];
 	let lastIndex = 0;
-	let match;
+	let match: RegExpExecArray | null = citationRegex.exec(text);
 	let position = 0;
 
-	while ((match = citationRegex.exec(text)) !== null) {
+	while (match !== null) {
 		// Add text before the citation
 		if (match.index > lastIndex) {
 			parts.push(text.substring(lastIndex, match.index));
@@ -322,6 +331,7 @@ const processCitationsInText = (
 
 		lastIndex = match.index + match[0].length;
 		position++;
+		match = citationRegex.exec(text);
 	}
 
 	// Add any remaining text after the last citation

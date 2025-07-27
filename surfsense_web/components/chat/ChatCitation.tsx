@@ -1,13 +1,14 @@
 "use client";
 
-import type React from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ExternalLink } from "lucide-react";
+import type React from "react";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index, node }) => {
 	const truncateText = (text: string, maxLength: number = 200) => {
 		if (text.length <= maxLength) return text;
-		return text.substring(0, maxLength) + "...";
+		return `${text.substring(0, maxLength)}...`;
 	};
 
 	const handleUrlClick = (e: React.MouseEvent, url: string) => {
@@ -26,13 +27,15 @@ export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index,
 			<PopoverContent className="w-80 p-4 space-y-3 relative" align="start">
 				{/* External Link Button - Top Right */}
 				{node?.url && (
-					<button
+					<Button
+						size="icon"
+						variant="ghost"
 						onClick={(e) => handleUrlClick(e, node.url)}
 						className="absolute top-3 right-3 inline-flex items-center justify-center w-6 h-6 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
 						title="Open in new tab"
 					>
 						<ExternalLink size={14} />
-					</button>
+					</Button>
 				)}
 
 				{/* Heading */}

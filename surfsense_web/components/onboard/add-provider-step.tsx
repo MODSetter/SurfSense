@@ -1,8 +1,11 @@
 "use client";
 
-import type React from "react";
-import { useState } from "react";
 import { motion } from "framer-motion";
+import { AlertCircle, Bot, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,12 +17,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-
-import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Bot, AlertCircle } from "lucide-react";
-import { useLLMConfigs, type CreateLLMConfig } from "@/hooks/use-llm-configs";
-import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 
 const LLM_PROVIDERS = [
 	{ value: "OPENAI", label: "OpenAI", example: "gpt-4o, gpt-4, gpt-3.5-turbo" },

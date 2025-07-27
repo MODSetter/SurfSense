@@ -1,4 +1,5 @@
 import type React from "react";
+import { Button } from "@/components/ui/button";
 
 type SegmentedControlProps<T extends string> = {
 	value: T;
@@ -21,7 +22,7 @@ function SegmentedControl<T extends string>({
 	return (
 		<div className="flex h-7 rounded-md border border-border overflow-hidden">
 			{options.map((option) => (
-				<button
+				<Button
 					key={option.value}
 					className={`flex h-full items-center gap-1 px-2 text-xs transition-colors ${
 						value === option.value ? "bg-primary text-primary-foreground" : "hover:bg-muted"
@@ -31,7 +32,7 @@ function SegmentedControl<T extends string>({
 				>
 					{option.icon}
 					<span>{option.label}</span>
-				</button>
+				</Button>
 			))}
 		</div>
 	);

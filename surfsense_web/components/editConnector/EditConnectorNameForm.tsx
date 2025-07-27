@@ -1,6 +1,7 @@
-import React from "react";
+"use client";
+
 import type { Control } from "react-hook-form";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
 // Assuming EditConnectorFormValues is defined elsewhere or passed as generic

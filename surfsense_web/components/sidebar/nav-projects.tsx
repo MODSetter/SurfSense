@@ -1,7 +1,7 @@
 "use client";
 
-import { ExternalLink, Folder, MoreHorizontal, Share, Trash2, type LucideIcon } from "lucide-react";
-
+import { ExternalLink, Folder, type LucideIcon, MoreHorizontal, Share, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -18,7 +18,6 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { useRouter } from "next/navigation";
 
 // Map of icon names to their components
 const actionIconMap: Record<string, LucideIcon> = {

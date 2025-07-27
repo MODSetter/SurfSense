@@ -1,4 +1,7 @@
+import { FileText } from "lucide-react";
 import type React from "react";
+import { MarkdownViewer } from "@/components/markdown-viewer";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,9 +9,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { MarkdownViewer } from "@/components/markdown-viewer";
-import { FileText } from "lucide-react";
 
 interface DocumentViewerProps {
 	title: string;

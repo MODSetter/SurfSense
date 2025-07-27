@@ -1,15 +1,16 @@
-import React from "react";
+"use client";
+
+import { KeyRound } from "lucide-react";
 import type { Control } from "react-hook-form";
 import {
+	FormControl,
+	FormDescription,
 	FormField,
 	FormItem,
 	FormLabel,
-	FormControl,
-	FormDescription,
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { KeyRound } from "lucide-react";
 
 // Assuming EditConnectorFormValues is defined elsewhere or passed as generic
 interface EditSimpleTokenFormProps {

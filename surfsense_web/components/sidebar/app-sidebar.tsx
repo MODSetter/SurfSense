@@ -1,23 +1,23 @@
 "use client";
 
-import * as React from "react";
 import {
+	AlertCircle,
 	BookOpen,
 	Cable,
+	ExternalLink,
 	FileStack,
-	Undo2,
+	FileText,
+	Info,
+	type LucideIcon,
 	MessageCircleMore,
+	Podcast,
 	Settings2,
 	SquareLibrary,
 	SquareTerminal,
-	AlertCircle,
-	Info,
-	ExternalLink,
 	Trash2,
-	Podcast,
-	type LucideIcon,
-	FileText,
+	Undo2,
 } from "lucide-react";
+import { useMemo } from "react";
 
 import { Logo } from "@/components/Logo";
 import { NavMain } from "@/components/sidebar/nav-main";
@@ -26,7 +26,6 @@ import { NavSecondary } from "@/components/sidebar/nav-secondary";
 import {
 	Sidebar,
 	SidebarContent,
-	SidebarFooter,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -178,7 +177,7 @@ export function AppSidebar({
 	...props
 }: AppSidebarProps) {
 	// Process navMain to resolve icon names to components
-	const processedNavMain = React.useMemo(() => {
+	const processedNavMain = useMemo(() => {
 		return navMain.map((item) => ({
 			...item,
 			icon: iconMap[item.icon] || SquareTerminal, // Fallback to SquareTerminal if icon not found
@@ -186,7 +185,7 @@ export function AppSidebar({
 	}, [navMain]);
 
 	// Process navSecondary to resolve icon names to components
-	const processedNavSecondary = React.useMemo(() => {
+	const processedNavSecondary = useMemo(() => {
 		return navSecondary.map((item) => ({
 			...item,
 			icon: iconMap[item.icon] || Undo2, // Fallback to Undo2 if icon not found
@@ -194,7 +193,7 @@ export function AppSidebar({
 	}, [navSecondary]);
 
 	// Process RecentChats to resolve icon names to components
-	const processedRecentChats = React.useMemo(() => {
+	const processedRecentChats = useMemo(() => {
 		return (
 			RecentChats?.map((item) => ({
 				...item,
@@ -227,9 +226,6 @@ export function AppSidebar({
 				{processedRecentChats.length > 0 && <NavProjects chats={processedRecentChats} />}
 				<NavSecondary items={processedNavSecondary} className="mt-auto" />
 			</SidebarContent>
-			{/* <SidebarFooter>
-        footer
-      </SidebarFooter> */}
 		</Sidebar>
 	);
 }

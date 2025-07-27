@@ -1,7 +1,7 @@
 "use client";
 
 import { BadgeCheck, ChevronsUpDown, LogOut, Settings } from "lucide-react";
-
+import { useParams, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
 	DropdownMenu,
@@ -18,7 +18,6 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { useRouter, useParams } from "next/navigation";
 
 export function NavUser({
 	user,

@@ -1,9 +1,7 @@
 "use client";
-import { cn } from "@/lib/utils";
-import { IconFileTypeDoc, IconBrandGithub, IconBrandDiscord } from "@tabler/icons-react";
+import { IconBrandDiscord, IconBrandGithub, IconFileTypeDoc } from "@tabler/icons-react";
 import Link from "next/link";
-import React from "react";
-import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 
 export function ModernHeroWithGradients() {
@@ -88,6 +86,7 @@ const TopLines = () => {
 			xmlns="http://www.w3.org/2000/svg"
 			className="aspect-square pointer-events-none absolute inset-x-0 top-0 h-[100px] w-full md:h-[200px]"
 		>
+			<title>Top Lines</title>
 			<line
 				y1="-0.5"
 				x2="406"
@@ -212,6 +211,7 @@ const BottomLines = () => {
 			xmlns="http://www.w3.org/2000/svg"
 			className="aspect-square pointer-events-none absolute inset-x-0 -bottom-20 z-20 h-[150px] w-full md:h-[300px]"
 		>
+			<title>Bottom Lines</title>
 			<line x1="139.5" y1="418" x2="139.5" y2="12" stroke="url(#paint0_linear_0_1)" />
 			<line x1="172.5" y1="418" x2="172.5" y2="12" stroke="url(#paint1_linear_0_1)" />
 			<line x1="205.5" y1="418" x2="205.5" y2="12" stroke="url(#paint2_linear_0_1)" />
@@ -344,6 +344,7 @@ const SideLines = () => {
 			xmlns="http://www.w3.org/2000/svg"
 			className="pointer-events-none absolute inset-0 z-30 h-full w-full"
 		>
+			<title>Side Lines</title>
 			<path
 				d="M268 115L181.106 6.97176C178.069 3.19599 173.485 1 168.639 1H0"
 				stroke="url(#paint0_linear_337_46)"
@@ -451,6 +452,7 @@ const BottomGradient = ({ className }: { className?: string }) => {
 				className
 			)}
 		>
+			<title>Bottom Gradient</title>
 			<path
 				d="M118.499 0H532.468L635.375 38.6161L665 194.625L562.093 346H0L24.9473 121.254L118.499 0Z"
 				fill="url(#paint0_radial_254_132)"
@@ -487,6 +489,7 @@ const TopGradient = ({ className }: { className?: string }) => {
 				className
 			)}
 		>
+			<title>Top Gradient</title>
 			<path
 				d="M807 110.119L699.5 -117.546L8.5 -154L-141 246.994L-7 952L127 782.111L279 652.114L513 453.337L807 110.119Z"
 				fill="url(#paint0_radial_254_135)"
@@ -527,7 +530,7 @@ const TopGradient = ({ className }: { className?: string }) => {
 	);
 };
 
-const DarkModeGradient = ({ className }: { className?: string } = {}) => {
+const DarkModeGradient = () => {
 	return (
 		<div className="hidden dark:block">
 			<div className="absolute -left-48 -top-48 h-[800px] w-[800px] rounded-full bg-purple-900/20 blur-[180px]"></div>

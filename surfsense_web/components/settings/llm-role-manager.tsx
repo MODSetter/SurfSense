@@ -1,8 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import {
+	AlertCircle,
+	Bot,
+	Brain,
+	CheckCircle,
+	Loader2,
+	RefreshCw,
+	RotateCcw,
+	Save,
+	Settings2,
+	Zap,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -10,23 +27,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-	Brain,
-	Zap,
-	Bot,
-	AlertCircle,
-	CheckCircle,
-	Settings2,
-	RefreshCw,
-	Save,
-	RotateCcw,
-	Loader2,
-} from "lucide-react";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
 
 const ROLE_DESCRIPTIONS = {
 	long_context: {
@@ -405,7 +406,7 @@ export function LLMRoleManager() {
 												</div>
 
 												<div className="space-y-2">
-													<label className="text-sm font-medium">Assign LLM Configuration:</label>
+													<Label className="text-sm font-medium">Assign LLM Configuration:</Label>
 													<Select
 														value={currentAssignment?.toString() || "unassigned"}
 														onValueChange={(value) => handleRoleAssignment(`${key}_llm_id`, value)}
@@ -494,7 +495,7 @@ export function LLMRoleManager() {
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							<span>Progress:</span>
 							<div className="flex gap-1">
-								{Object.keys(ROLE_DESCRIPTIONS).map((key, index) => (
+								{Object.keys(ROLE_DESCRIPTIONS).map((key) => (
 									<div
 										key={key}
 										className={`w-2 h-2 rounded-full ${

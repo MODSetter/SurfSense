@@ -1,16 +1,26 @@
 "use client";
 
-import React from "react";
 import { getAnnotationData, type Message } from "@llamaindex/chat-ui";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function TerminalDisplay({ message, open }: { message: Message; open: boolean }) {
-	const [isCollapsed, setIsCollapsed] = React.useState(!open);
+	const [isCollapsed, setIsCollapsed] = useState(!open);
 
-	const bottomRef = React.useRef<HTMLDivElement>(null);
+	const bottomRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (bottomRef.current) {
+			bottomRef.current.scrollTo({
+				top: bottomRef.current.scrollHeight,
+				behavior: "smooth",
+			});
+		}
+	}, []);
 
 	// Get the last assistant message that's not being typed
 	if (!message) {
-		return <></>;
+		return null;
 	}
 
 	interface TerminalInfo {
@@ -22,24 +32,17 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 	const events = getAnnotationData(message, "TERMINAL_INFO") as TerminalInfo[];
 
 	if (events.length === 0) {
-		return <></>;
+		return null;
 	}
-
-	React.useEffect(() => {
-		if (bottomRef.current) {
-			bottomRef.current.scrollTo({
-				top: bottomRef.current.scrollHeight,
-				behavior: "smooth",
-			});
-		}
-	}, [events]);
 
 	return (
 		<div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden font-mono text-sm shadow-lg">
 			{/* Terminal Header */}
-			<div
-				className="bg-gray-800 px-4 py-2 flex items-center gap-2 border-b border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
+			<Button
+				className="w-full bg-gray-800 px-4 py-2 flex items-center gap-2 border-b border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
 				onClick={() => setIsCollapsed(!isCollapsed)}
+				variant="ghost"
+				type="button"
 			>
 				<div className="flex gap-2">
 					<div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -52,6 +55,7 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 				<div className="text-gray-400">
 					{isCollapsed ? (
 						<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<title>Collapse</title>
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -61,6 +65,7 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 						</svg>
 					) : (
 						<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<title>Expand</title>
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -70,7 +75,7 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 						</svg>
 					)}
 				</div>
-			</div>
+			</Button>
 
 			{/* Terminal Content */}
 			{!isCollapsed && (

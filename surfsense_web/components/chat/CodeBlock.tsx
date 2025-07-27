@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneLight, oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { Check, Copy } from "lucide-react";
 import { useTheme } from "next-themes";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 // Constants for styling and configuration
 const COPY_TIMEOUT = 2000;
@@ -41,14 +41,14 @@ interface CodeBlockProps {
 	language: string;
 }
 
-type LanguageRenderer = (props: { code: string }) => React.JSX.Element
+type LanguageRenderer = (props: { code: string }) => React.JSX.Element;
 
 interface SyntaxStyle {
 	[key: string]: React.CSSProperties;
 }
 
 // Memoized fallback component for SSR/hydration
-const FallbackCodeBlock = React.memo(({ children }: { children: string }) => (
+const FallbackCodeBlock = memo(({ children }: { children: string }) => (
 	<div className="bg-muted p-4 rounded-md">
 		<pre className="m-0 p-0 border-0">
 			<code className="text-xs font-mono border-0 leading-6">{children}</code>
@@ -59,7 +59,7 @@ const FallbackCodeBlock = React.memo(({ children }: { children: string }) => (
 FallbackCodeBlock.displayName = "FallbackCodeBlock";
 
 // Code block component with syntax highlighting and copy functionality
-export const CodeBlock = React.memo<CodeBlockProps>(({ children, language }) => {
+export const CodeBlock = memo<CodeBlockProps>(({ children, language }) => {
 	const [copied, setCopied] = useState(false);
 	const { resolvedTheme, theme } = useTheme();
 	const [mounted, setMounted] = useState(false);

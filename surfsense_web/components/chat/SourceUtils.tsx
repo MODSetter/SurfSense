@@ -1,4 +1,4 @@
-import type { Source, Connector } from "./types";
+import type { Connector, Source } from "./types";
 
 /**
  * Function to get sources for the main view

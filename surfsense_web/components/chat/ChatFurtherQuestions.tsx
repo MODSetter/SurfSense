@@ -1,7 +1,7 @@
 "use client";
 
-import { SuggestedQuestions } from "@llamaindex/chat-ui/widgets";
 import { getAnnotationData, type Message, useChatUI } from "@llamaindex/chat-ui";
+import { SuggestedQuestions } from "@llamaindex/chat-ui/widgets";
 import {
 	Accordion,
 	AccordionContent,
@@ -14,7 +14,7 @@ export const ChatFurtherQuestions: React.FC<{ message: Message }> = ({ message }
 	const { append, requestData } = useChatUI();
 
 	if (annotations.length !== 1 || annotations[0].length === 0) {
-		return <></>;
+		return null;
 	}
 
 	return (

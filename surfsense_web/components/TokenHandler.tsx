@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 interface TokenHandlerProps {
 	redirectPath?: string; // Path to redirect after storing token

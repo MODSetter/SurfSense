@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
 	type ColumnDef,
 	type ColumnFiltersState,
@@ -14,9 +13,11 @@ import {
 	type VisibilityState,
 } from "@tanstack/react-table";
 import { ArrowUpDown, Calendar, FileText, Search } from "lucide-react";
-
+import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -24,7 +25,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import {
 	Table,
 	TableBody,
@@ -33,7 +33,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import type { Document, DocumentType } from "@/hooks/use-documents";
 
 interface DocumentsDataTableProps {
@@ -206,13 +205,13 @@ export function DocumentsDataTable({
 	onDone,
 	initialSelectedDocuments = [],
 }: DocumentsDataTableProps) {
-	const [sorting, setSorting] = React.useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-	const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-	const [documentTypeFilter, setDocumentTypeFilter] = React.useState<DocumentType | "ALL">("ALL");
+	const [sorting, setSorting] = useState<SortingState>([]);
+	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+	const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentType | "ALL">("ALL");
 
 	// Memoize initial row selection to prevent infinite loops
-	const initialRowSelection = React.useMemo(() => {
+	const initialRowSelection = useMemo(() => {
 		if (!documents.length || !initialSelectedDocuments.length) return {};
 
 		const selection: Record<string, boolean> = {};
@@ -222,24 +221,24 @@ export function DocumentsDataTable({
 		return selection;
 	}, [documents, initialSelectedDocuments]);
 
-	const [rowSelection, setRowSelection] = React.useState<Record<string, boolean>>({});
+	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
 
 	// Only update row selection when initialRowSelection actually changes and is not empty
-	React.useEffect(() => {
+	useEffect(() => {
 		const hasChanges = JSON.stringify(rowSelection) !== JSON.stringify(initialRowSelection);
 		if (hasChanges && Object.keys(initialRowSelection).length > 0) {
 			setRowSelection(initialRowSelection);
 		}
-	}, [initialRowSelection]);
+	}, [initialRowSelection, rowSelection]);
 
 	// Initialize row selection on mount
-	React.useEffect(() => {
+	useEffect(() => {
 		if (Object.keys(rowSelection).length === 0 && Object.keys(initialRowSelection).length > 0) {
 			setRowSelection(initialRowSelection);
 		}
-	}, []);
+	}, [initialRowSelection, rowSelection]);
 
-	const filteredDocuments = React.useMemo(() => {
+	const filteredDocuments = useMemo(() => {
 		if (documentTypeFilter === "ALL") return documents;
 		return documents.filter((doc) => doc.document_type === documentTypeFilter);
 	}, [documents, documentTypeFilter]);
@@ -260,11 +259,11 @@ export function DocumentsDataTable({
 		state: { sorting, columnFilters, columnVisibility, rowSelection },
 	});
 
-	React.useEffect(() => {
+	useEffect(() => {
 		const selectedRows = table.getFilteredSelectedRowModel().rows;
 		const selectedDocuments = selectedRows.map((row) => row.original);
 		onSelectionChange(selectedDocuments);
-	}, [rowSelection, onSelectionChange, table]);
+	}, [onSelectionChange, table]);
 
 	const handleClearAll = () => setRowSelection({});
 

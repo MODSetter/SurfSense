@@ -1,10 +1,9 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, Bot, Brain, CheckCircle, Sparkles, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Bot, Brain, Zap, Sparkles, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
 const ROLE_ICONS = {

@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { getAnnotationData, type Message } from "@llamaindex/chat-ui";
+import { IconBrandGithub } from "@tabler/icons-react";
+import { ExternalLink, FileText, Globe } from "lucide-react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -11,10 +15,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ExternalLink, FileText, Globe } from "lucide-react";
-import { IconBrandGithub } from "@tabler/icons-react";
 
 interface Source {
 	id: string;
@@ -42,10 +42,6 @@ interface SourceNode {
 	text: string;
 	url: string;
 	metadata: NodeMetadata;
-}
-
-interface NodesResponse {
-	nodes: SourceNode[];
 }
 
 function getSourceIcon(type: string) {

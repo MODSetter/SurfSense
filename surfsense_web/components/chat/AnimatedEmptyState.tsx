@@ -1,11 +1,11 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { Manrope } from "next/font/google";
-import React, { useRef, useEffect, useReducer, useMemo } from "react";
-import { RoughNotation, RoughNotationGroup } from "react-rough-notation";
 import { useInView } from "framer-motion";
+import { Manrope } from "next/font/google";
+import { useEffect, useMemo, useReducer, useRef } from "react";
+import { RoughNotation, RoughNotationGroup } from "react-rough-notation";
 import { useSidebar } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 // Font configuration - could be moved to a global font config file
 const manrope = Manrope({
@@ -115,7 +115,7 @@ export function AnimatedEmptyState() {
 		}, TIMING.SIDEBAR_TRANSITION);
 
 		return () => clearTimeout(stabilizeTimer);
-	}, [sidebarState]);
+	}, []);
 
 	// Handle highlight visibility based on layout stability and viewport visibility
 	useEffect(() => {

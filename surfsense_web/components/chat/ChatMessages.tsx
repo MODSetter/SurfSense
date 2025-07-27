@@ -1,17 +1,17 @@
 "use client";
 
-import React from "react";
 import {
 	ChatMessage as LlamaIndexChatMessage,
 	ChatMessages as LlamaIndexChatMessages,
 	type Message,
 	useChatUI,
 } from "@llamaindex/chat-ui";
-import TerminalDisplay from "@/components/chat/ChatTerminal";
-import ChatSourcesDisplay from "@/components/chat/ChatSources";
+import { useEffect, useRef } from "react";
+import { AnimatedEmptyState } from "@/components/chat/AnimatedEmptyState";
 import { CitationDisplay } from "@/components/chat/ChatCitation";
 import { ChatFurtherQuestions } from "@/components/chat/ChatFurtherQuestions";
-import { AnimatedEmptyState } from "@/components/chat/AnimatedEmptyState";
+import ChatSourcesDisplay from "@/components/chat/ChatSources";
+import TerminalDisplay from "@/components/chat/ChatTerminal";
 import { languageRenderers } from "@/components/chat/CodeBlock";
 
 export function ChatMessagesUI() {
@@ -37,13 +37,13 @@ export function ChatMessagesUI() {
 }
 
 function ChatMessageUI({ message, isLast }: { message: Message; isLast: boolean }) {
-	const bottomRef = React.useRef<HTMLDivElement>(null);
+	const bottomRef = useRef<HTMLDivElement>(null);
 
-	React.useEffect(() => {
+	useEffect(() => {
 		if (isLast && bottomRef.current) {
 			bottomRef.current.scrollIntoView({ behavior: "smooth" });
 		}
-	}, [message]);
+	}, [isLast]);
 
 	return (
 		<LlamaIndexChatMessage message={message} isLast={isLast} className="flex flex-col ">

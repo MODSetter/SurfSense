@@ -1,15 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { motion, type Variants } from "framer-motion";
 import { MoveLeftIcon, Plus, Search, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Tilt } from "@/components/ui/tilt";
-import { Spotlight } from "@/components/ui/spotlight";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -21,9 +18,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
 	Form,
 	FormControl,
@@ -33,7 +28,11 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
-import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Spotlight } from "@/components/ui/spotlight";
+import { Tilt } from "@/components/ui/tilt";
+import { cn } from "@/lib/utils";
 
 // Define the form schema with Zod
 const searchSpaceFormSchema = z.object({
@@ -97,7 +96,7 @@ export function SearchSpaceForm({
 		},
 	};
 
-	const itemVariants = {
+	const itemVariants: Variants = {
 		hidden: { y: 20, opacity: 0 },
 		visible: {
 			y: 0,
@@ -128,7 +127,8 @@ export function SearchSpaceForm({
 							: "Create a new search space to organize your documents, chats, and podcasts."}
 					</p>
 				</div>
-				<button
+				<Button
+					variant="ghost"
 					className="group relative rounded-full p-3 bg-background/80 hover:bg-muted border border-border hover:border-primary/20 shadow-sm hover:shadow-md transition-all duration-200 backdrop-blur-sm"
 					onClick={() => {
 						router.push("/dashboard");
@@ -139,7 +139,7 @@ export function SearchSpaceForm({
 						className="text-muted-foreground group-hover:text-foreground transition-colors duration-200"
 					/>
 					<div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-				</button>
+				</Button>
 			</motion.div>
 
 			<motion.div className="w-full" variants={itemVariants}>

@@ -1,13 +1,12 @@
 "use client";
-import { cn } from "@/lib/utils";
-import { IconMenu2, IconX, IconBrandGoogleFilled, IconUser } from "@tabler/icons-react";
-import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
+import { IconMenu2, IconUser, IconX } from "@tabler/icons-react";
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 import Link from "next/link";
-import type React from "react";
 import { useRef, useState } from "react";
-import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { ThemeTogglerComponent } from "./theme/theme-toggle";
+import { Button } from "./ui/button";
 
 interface NavbarProps {
 	navItems: {
@@ -109,7 +108,7 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
 				>
 					{navItems.map((navItem, idx) => (
 						<motion.div
-							key={`nav-item-${idx}`}
+							key={`nav-item-${navItem.name}`}
 							onHoverStart={() => setHoveredIndex(idx)}
 							className="relative"
 						>
@@ -194,96 +193,94 @@ const MobileNav = ({ navItems, visible }: NavbarProps) => {
 	};
 
 	return (
-		<>
-			<motion.div
-				animate={{
-					backdropFilter: "blur(16px)",
-					background: visible
-						? "rgba(var(--background-rgb), 0.8)"
-						: "rgba(var(--background-rgb), 0.6)",
-					width: visible ? "80%" : "90%",
-					y: visible ? 0 : 8,
-					borderRadius: open ? "24px" : "full",
-					padding: "8px 16px",
-				}}
-				initial={{
-					width: "80%",
-					background: "rgba(var(--background-rgb), 0.6)",
-				}}
-				transition={{
-					type: "spring",
-					stiffness: 400,
-					damping: 30,
-				}}
-				className={cn(
-					"flex relative flex-col lg:hidden w-full justify-between items-center max-w-[calc(100vw-2rem)] mx-auto z-50 backdrop-saturate-[1.8] rounded-full",
-					visible ? "border border-solid dark:border-white/40 border-gray-300/30" : "border-0"
-				)}
-				style={
-					{
-						"--background-rgb": "var(--tw-dark) ? '0, 0, 0' : '255, 255, 255'",
-					} as React.CSSProperties
-				}
-			>
-				<div className="flex flex-row justify-between items-center w-full">
-					<Logo className="h-8 w-8 rounded-md" />
-					<div className="flex items-center gap-2">
-						<ThemeTogglerComponent />
-						{open ? (
-							<IconX className="dark:text-white/90 text-gray-800" onClick={() => setOpen(!open)} />
-						) : (
-							<IconMenu2
-								className="dark:text-white/90 text-gray-800"
-								onClick={() => setOpen(!open)}
-							/>
-						)}
-					</div>
-				</div>
-
-				<AnimatePresence>
-					{open && (
-						<motion.div
-							initial={{
-								opacity: 0,
-								y: -20,
-							}}
-							animate={{
-								opacity: 1,
-								y: 0,
-							}}
-							exit={{
-								opacity: 0,
-								y: -20,
-							}}
-							transition={{
-								type: "spring",
-								stiffness: 400,
-								damping: 30,
-							}}
-							className="flex rounded-3xl absolute top-16 dark:bg-black/80 bg-white/90 backdrop-blur-xl backdrop-saturate-[1.8] inset-x-0 z-50 flex-col items-start justify-start gap-4 w-full px-6 py-8"
-						>
-							{navItems.map((navItem: { link: string; name: string }, idx: number) => (
-								<Link
-									key={`link=${idx}`}
-									href={navItem.link}
-									onClick={() => setOpen(false)}
-									className="relative dark:text-white/90 text-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
-								>
-									<motion.span className="block">{navItem.name}</motion.span>
-								</Link>
-							))}
-							<Button
-								onClick={handleGoogleLogin}
-								variant="outline"
-								className="flex cursor-pointer items-center gap-2 mt-4 w-full justify-center rounded-full dark:bg-white/20 dark:hover:bg-white/30 dark:text-white bg-gray-100 hover:bg-gray-200 text-gray-800 border-0"
-							>
-								<IconUser className="h-4 w-4" />
-								<span>Sign in</span>
-							</Button>
-						</motion.div>
+		<motion.div
+			animate={{
+				backdropFilter: "blur(16px)",
+				background: visible
+					? "rgba(var(--background-rgb), 0.8)"
+					: "rgba(var(--background-rgb), 0.6)",
+				width: visible ? "80%" : "90%",
+				y: visible ? 0 : 8,
+				borderRadius: open ? "24px" : "full",
+				padding: "8px 16px",
+			}}
+			initial={{
+				width: "80%",
+				background: "rgba(var(--background-rgb), 0.6)",
+			}}
+			transition={{
+				type: "spring",
+				stiffness: 400,
+				damping: 30,
+			}}
+			className={cn(
+				"flex relative flex-col lg:hidden w-full justify-between items-center max-w-[calc(100vw-2rem)] mx-auto z-50 backdrop-saturate-[1.8] rounded-full",
+				visible ? "border border-solid dark:border-white/40 border-gray-300/30" : "border-0"
+			)}
+			style={
+				{
+					"--background-rgb": "var(--tw-dark) ? '0, 0, 0' : '255, 255, 255'",
+				} as React.CSSProperties
+			}
+		>
+			<div className="flex flex-row justify-between items-center w-full">
+				<Logo className="h-8 w-8 rounded-md" />
+				<div className="flex items-center gap-2">
+					<ThemeTogglerComponent />
+					{open ? (
+						<IconX className="dark:text-white/90 text-gray-800" onClick={() => setOpen(!open)} />
+					) : (
+						<IconMenu2
+							className="dark:text-white/90 text-gray-800"
+							onClick={() => setOpen(!open)}
+						/>
 					)}
-				</AnimatePresence>
-			</motion.div>
-		</>
+				</div>
+			</div>
+
+			<AnimatePresence>
+				{open && (
+					<motion.div
+						initial={{
+							opacity: 0,
+							y: -20,
+						}}
+						animate={{
+							opacity: 1,
+							y: 0,
+						}}
+						exit={{
+							opacity: 0,
+							y: -20,
+						}}
+						transition={{
+							type: "spring",
+							stiffness: 400,
+							damping: 30,
+						}}
+						className="flex rounded-3xl absolute top-16 dark:bg-black/80 bg-white/90 backdrop-blur-xl backdrop-saturate-[1.8] inset-x-0 z-50 flex-col items-start justify-start gap-4 w-full px-6 py-8"
+					>
+						{navItems.map((navItem: { link: string; name: string }) => (
+							<Link
+								key={`link-${navItem.name}`}
+								href={navItem.link}
+								onClick={() => setOpen(false)}
+								className="relative dark:text-white/90 text-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+							>
+								<motion.span className="block">{navItem.name}</motion.span>
+							</Link>
+						))}
+						<Button
+							onClick={handleGoogleLogin}
+							variant="outline"
+							className="flex cursor-pointer items-center gap-2 mt-4 w-full justify-center rounded-full dark:bg-white/20 dark:hover:bg-white/30 dark:text-white bg-gray-100 hover:bg-gray-200 text-gray-800 border-0"
+						>
+							<IconUser className="h-4 w-4" />
+							<span>Sign in</span>
+						</Button>
+					</motion.div>
+				)}
+			</AnimatePresence>
+		</motion.div>
 	);
 };

@@ -1,10 +1,33 @@
 "use client";
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+	AlertCircle,
+	Bot,
+	CheckCircle,
+	Clock,
+	Edit3,
+	Eye,
+	EyeOff,
+	Loader2,
+	Plus,
+	RefreshCw,
+	Settings2,
+	Trash2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,37 +37,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import {
-	Plus,
-	Trash2,
-	Bot,
-	AlertCircle,
-	Edit3,
-	Settings2,
-	Eye,
-	EyeOff,
-	CheckCircle,
-	Clock,
-	AlertTriangle,
-	RefreshCw,
-	Loader2,
-} from "lucide-react";
-import {
-	useLLMConfigs,
-	type CreateLLMConfig,
-	UpdateLLMConfig,
-	type LLMConfig,
-} from "@/hooks/use-llm-configs";
-import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 
 const LLM_PROVIDERS = [
 	{
@@ -179,7 +172,7 @@ export function ModelConfigManager() {
 
 		setIsSubmitting(true);
 
-		let result;
+		let result: LLMConfig | null = null;
 		if (editingConfig) {
 			// Update existing config
 			result = await updateLLMConfig(editingConfig.id, formData);

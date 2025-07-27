@@ -1,22 +1,24 @@
 "use client";
 
-import * as React from "react";
-import { useTheme } from "next-themes";
-import { MoonIcon, SunIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { MoonIcon, SunIcon } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export function ThemeTogglerComponent() {
 	const { theme, setTheme } = useTheme();
 
-	const [isClient, setIsClient] = React.useState(false);
+	const [isClient, setIsClient] = useState(false);
 
-	React.useEffect(() => {
+	useEffect(() => {
 		setIsClient(true);
 	}, []);
 
 	return (
 		isClient && (
-			<button
+			<Button
+				variant="ghost"
 				onClick={() => {
 					theme === "dark" ? setTheme("light") : setTheme("dark");
 				}}
@@ -63,7 +65,7 @@ export function ThemeTogglerComponent() {
 				)}
 
 				<span className="sr-only">Toggle theme</span>
-			</button>
+			</Button>
 		)
 	);
 }

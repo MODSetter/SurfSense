@@ -1,15 +1,24 @@
 "use client";
 
 import { ChatInput } from "@llamaindex/chat-ui";
-import { FolderOpen, Check, Zap, Brain } from "lucide-react";
+import { Brain, Check, FolderOpen, Zap } from "lucide-react";
+import { useParams } from "next/navigation";
+import React, { Suspense, useCallback, useState } from "react";
+import type { ResearchMode } from "@/components/chat";
+import {
+	ConnectorButton as ConnectorButtonComponent,
+	getConnectorIcon,
+} from "@/components/chat/ConnectorComponents";
+import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
+	DialogFooter,
 	DialogTitle,
 	DialogTrigger,
-	DialogFooter,
 } from "@/components/ui/dialog";
 import {
 	Select,
@@ -18,19 +27,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Suspense, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useDocuments, type Document } from "@/hooks/use-documents";
-import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
-import {
-	getConnectorIcon,
-	ConnectorButton as ConnectorButtonComponent,
-} from "@/components/chat/ConnectorComponents";
-import type { ResearchMode } from "@/components/chat";
+import { type Document, useDocuments } from "@/hooks/use-documents";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
-import React from "react";
+import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
 const DocumentSelector = React.memo(
 	({
@@ -188,24 +187,17 @@ const ConnectorSelector = React.memo(
 								const isSelected = selectedConnectors.includes(connector.type);
 
 								return (
-									<div
+									<Button
 										key={connector.id}
-										className={`flex items-center gap-2 p-2 rounded-md border cursor-pointer transition-colors ${
-											isSelected
-												? "border-primary bg-primary/10"
-												: "border-border hover:border-primary/50 hover:bg-muted"
-										}`}
+										className={`flex items-center gap-2 p-2 rounded-md border cursor-pointer transition-colors`}
 										onClick={() => handleConnectorToggle(connector.type)}
-										role="checkbox"
-										aria-checked={isSelected}
-										tabIndex={0}
+										variant={isSelected ? "default" : "outline"}
+										size="sm"
+										type="button"
 									>
-										<div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-muted">
-											{getConnectorIcon(connector.type)}
-										</div>
+										{getConnectorIcon(connector.type)}
 										<span className="flex-1 text-sm font-medium">{connector.name}</span>
-										{isSelected && <Check className="h-4 w-4 text-primary" />}
-									</div>
+									</Button>
 								);
 							})
 						)}
