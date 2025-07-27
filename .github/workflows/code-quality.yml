@@ -276,6 +276,7 @@ jobs:
           echo "Running TypeScript/JavaScript checks on changed files against $BASE_REF"
           
           # Run only Biome hooks on changed TypeScript/JavaScript files
+          # Biome hooks use --diagnostic-level=error to only fail on errors, not warnings
           SKIP=detect-secrets,bandit,check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,ruff,ruff-format,commitizen \
             pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
           
