@@ -1,20 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
-	useSearchSourceConnectors,
-	type SearchSourceConnector,
-} from "@/hooks/useSearchSourceConnectors";
-import {
-	type GithubRepo,
+	type EditConnectorFormValues,
 	type EditMode,
-	githubPatSchema,
 	editConnectorSchema,
 	type GithubPatFormValues,
-	type EditConnectorFormValues,
+	type GithubRepo,
+	githubPatSchema,
 } from "@/components/editConnector/types";
+import {
+	type SearchSourceConnector,
+	useSearchSourceConnectors,
+} from "@/hooks/useSearchSourceConnectors";
 
 export function useConnectorEditPage(connectorId: number, searchSpaceId: string) {
 	const router = useRouter();

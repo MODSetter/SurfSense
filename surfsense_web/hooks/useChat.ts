@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
 import type { Message } from "@ai-sdk/react";
+import { useCallback, useEffect, useState } from "react";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/hooks/use-documents";
 
@@ -8,7 +8,7 @@ interface UseChatStateProps {
 	chat_id?: string;
 }
 
-export function useChatState({ search_space_id, chat_id }: UseChatStateProps) {
+export function useChatState({ chat_id }: UseChatStateProps) {
 	const [token, setToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [currentChatId, setCurrentChatId] = useState<string | null>(chat_id || null);
