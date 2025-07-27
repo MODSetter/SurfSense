@@ -1,5 +1,5 @@
-import type { NextConfig } from "next";
 import { createMDX } from "fumadocs-mdx/next";
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
 	typescript: {
@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
 	},
 	eslint: {
 		ignoreDuringBuilds: true,
+	},
+	images: {
+		remotePatterns: [
+			{
+				protocol: "https",
+				hostname: "images.unsplash.com",
+			},
+		],
 	},
 };
 

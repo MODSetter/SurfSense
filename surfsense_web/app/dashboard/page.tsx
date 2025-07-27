@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { motion, type Variants } from "framer-motion";
+import { AlertCircle, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Plus, Search, Trash2, AlertCircle, Loader2 } from "lucide-react";
-import { Tilt } from "@/components/ui/tilt";
-import { Spotlight } from "@/components/ui/spotlight";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
-import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -22,7 +22,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -31,9 +31,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Spotlight } from "@/components/ui/spotlight";
+import { Tilt } from "@/components/ui/tilt";
 import { useSearchSpaces } from "@/hooks/use-search-spaces";
 import { apiClient } from "@/lib/api";
-import { useRouter } from "next/navigation";
 
 interface User {
 	id: string;
@@ -131,7 +132,7 @@ const ErrorScreen = ({ message }: { message: string }) => {
 
 const DashboardPage = () => {
 	// Animation variants
-	const containerVariants = {
+	const containerVariants: Variants = {
 		hidden: { opacity: 0 },
 		visible: {
 			opacity: 1,
@@ -141,7 +142,7 @@ const DashboardPage = () => {
 		},
 	};
 
-	const itemVariants = {
+	const itemVariants: Variants = {
 		hidden: { y: 20, opacity: 0 },
 		visible: {
 			y: 0,
@@ -154,7 +155,6 @@ const DashboardPage = () => {
 		},
 	};
 
-	const router = useRouter();
 	const { searchSpaces, loading, error, refreshSearchSpaces } = useSearchSpaces();
 
 	// User state management
@@ -264,6 +264,7 @@ const DashboardPage = () => {
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{searchSpaces &&
+							searchSpaces.length > 0 &&
 							searchSpaces.map((space) => (
 								<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
 									<motion.div key={space.id} variants={itemVariants} className="aspect-[4/3]">
@@ -288,14 +289,16 @@ const DashboardPage = () => {
 											/>
 											<div className="flex flex-col h-full overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
 												<div className="relative h-32 w-full overflow-hidden">
-													<img
+													<Image
 														src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1740&q=80"
 														alt={space.name}
 														className="h-full w-full object-cover grayscale duration-700 group-hover:grayscale-0"
+														width={248}
+														height={248}
 													/>
 													<div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
 													<div className="absolute top-2 right-2">
-														<div onClick={(e) => e.preventDefault()}>
+														<div>
 															<AlertDialog>
 																<AlertDialogTrigger asChild>
 																	<Button

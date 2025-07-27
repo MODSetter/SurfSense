@@ -1,9 +1,9 @@
 "use client";
 
-import { toast } from "sonner";
-import { SearchSpaceForm } from "@/components/search-space-form";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { SearchSpaceForm } from "@/components/search-space-form";
 export default function SearchSpacesPage() {
 	const router = useRouter();
 	const handleCreateSearchSpace = async (data: { name: string; description: string }) => {
@@ -34,7 +34,7 @@ export default function SearchSpacesPage() {
 			router.push(`/dashboard`);
 
 			return result;
-		} catch (error: any) {
+		} catch (error) {
 			console.error("Error creating search space:", error);
 			throw error;
 		}

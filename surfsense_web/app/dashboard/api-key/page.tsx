@@ -1,4 +1,5 @@
-import React from "react";
+"use client";
+
 import ClientWrapper from "./client-wrapper";
 
 export default function ApiKeyPage() {
