@@ -60,29 +60,6 @@ repos:
         args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
         exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
 
-  # Frontend/Extension Hooks (TypeScript/JavaScript)
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v4.0.0-alpha.8
-    hooks:
-      - id: prettier
-        files: ^(surfsense_web|surfsense_browser_extension)/
-        types_or: [javascript, jsx, ts, tsx, json, yaml, markdown]
-        exclude: '(package-lock\.json|\.next/|build/|dist/)'
-
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.31.0
-    hooks:
-      - id: eslint
-        files: ^surfsense_web/
-        types: [file]
-        types_or: [javascript, jsx, ts, tsx]
-        additional_dependencies:
-          - 'eslint@^9'
-          - 'eslint-config-next@15.2.0'
-          - '@eslint/eslintrc@^3'
-        args: [--fix]
-        exclude: '(\.next/|build/|dist/)'
-
   # TypeScript compilation check
   - repo: local
     hooks:
