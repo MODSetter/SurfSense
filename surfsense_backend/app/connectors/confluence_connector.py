@@ -349,31 +349,7 @@ class ConfluenceConnector:
                     else:
                         break
 
-            # Filter pages by date range
-            filtered_pages = []
-            start_datetime = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
-            end_datetime = datetime.fromisoformat(end_date + "T23:59:59").replace(tzinfo=timezone.utc)
-
-            for page in all_pages:
-                created_at = page.get("createdAt")
-                if created_at:
-                    try:
-                        page_date = datetime.fromisoformat(
-                            created_at.replace("Z", "+00:00")
-                        )
-                        if start_datetime <= page_date <= end_datetime:
-                            # Add comments if requested
-                            if include_comments:
-                                page["comments"] = self.get_page_comments(page["id"])
-                            filtered_pages.append(page)
-                    except ValueError:
-                        # Skip pages with invalid date format
-                        continue
-
-            if not filtered_pages:
-                return [], "No pages found in the specified date range."
-
-            return filtered_pages, None
+            return all_pages, None
 
         except Exception as e:
             return [], f"Error fetching pages: {e!s}"
