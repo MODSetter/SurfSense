@@ -145,7 +145,11 @@ class SearchSourceConnectorBase(BaseModel):
 
         elif connector_type == SearchSourceConnectorType.CONFLUENCE_CONNECTOR:
             # For CONFLUENCE_CONNECTOR, only allow specific keys
-            allowed_keys = ["CONFLUENCE_BASE_URL", "CONFLUENCE_EMAIL", "CONFLUENCE_API_TOKEN"]
+            allowed_keys = [
+                "CONFLUENCE_BASE_URL",
+                "CONFLUENCE_EMAIL",
+                "CONFLUENCE_API_TOKEN",
+            ]
             if set(config.keys()) != set(allowed_keys):
                 raise ValueError(
                     f"For CONFLUENCE_CONNECTOR connector type, config must only contain these keys: {allowed_keys}"

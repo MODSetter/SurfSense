@@ -1072,6 +1072,7 @@ class ConnectorService:
         }
 
         return result_object, jira_chunks
+
     async def search_confluence(
         self,
         user_query: str,
@@ -1145,7 +1146,7 @@ class ConnectorService:
                     description += "..."
 
                 # For URL, we can use a placeholder or construct a URL to the Confluence page if available
-                url = ""
+                url = ""  # TODO: Add base_url to metadata
                 if page_id:
                     url = f"{metadata.get('base_url')}/pages/{page_id}"
 

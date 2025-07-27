@@ -6,7 +6,6 @@ Allows fetching pages and their comments from specified spaces.
 """
 
 import base64
-from datetime import datetime, timezone
 from typing import Any
 
 import requests

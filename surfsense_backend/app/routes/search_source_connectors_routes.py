@@ -918,7 +918,9 @@ async def run_confluence_indexing_with_new_session(
         await run_confluence_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
-    logger.info(f"Background task finished: Indexing Confluence connector {connector_id}")
+    logger.info(
+        f"Background task finished: Indexing Confluence connector {connector_id}"
+    )
 
 
 async def run_confluence_indexing(

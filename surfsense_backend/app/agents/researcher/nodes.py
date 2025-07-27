@@ -920,28 +920,31 @@ async def fetch_relevant_documents(
                             }
                         )
                 elif connector == "CONFLUENCE_CONNECTOR":
-                        source_object, confluence_chunks = await connector_service.search_confluence(
-                            user_query=reformulated_query,
-                            user_id=user_id,
-                            search_space_id=search_space_id,
-                            top_k=top_k,
-                            search_mode=search_mode,
+                    (
+                        source_object,
+                        confluence_chunks,
+                    ) = await connector_service.search_confluence(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode,
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(confluence_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"📚 Found {len(confluence_chunks)} Confluence pages related to your query"
+                                )
+                            }
                         )
-
-                        # Add to sources and raw documents
-                        if source_object:
-                            all_sources.append(source_object)
-                        all_raw_documents.extend(confluence_chunks)
-
-                        # Stream found document count
-                        if streaming_service and writer:
-                            writer(
-                                {
-                                    "yield_value": streaming_service.format_terminal_info_delta(
-                                        f"📚 Found {len(confluence_chunks)} Confluence pages related to your query"
-                                    )
-                                }
-                            )
 
             except Exception as e:
                 error_message = f"Error searching connector {connector}: {e!s}"

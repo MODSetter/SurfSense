@@ -2413,7 +2413,9 @@ async def index_confluence_pages(
         )
 
         confluence_client = ConfluenceConnector(
-            base_url=confluence_base_url, email=confluence_email, api_token=confluence_api_token
+            base_url=confluence_base_url,
+            email=confluence_email,
+            api_token=confluence_api_token,
         )
 
         # Calculate date range
@@ -2528,9 +2530,7 @@ async def index_confluence_pages(
                     logger.warning(
                         f"Skipping page with missing ID or title: {page_id or 'Unknown'}"
                     )
-                    skipped_pages.append(
-                        f"{page_title or 'Unknown'} (missing data)"
-                    )
+                    skipped_pages.append(f"{page_title or 'Unknown'} (missing data)")
                     documents_skipped += 1
                     continue
 
@@ -2549,7 +2549,9 @@ async def index_confluence_pages(
                         if comment.get("body") and comment["body"].get("storage"):
                             comment_body = comment["body"]["storage"].get("value", "")
 
-                        comment_author = comment.get("version", {}).get("authorId", "Unknown")
+                        comment_author = comment.get("version", {}).get(
+                            "authorId", "Unknown"
+                        )
                         comment_date = comment.get("version", {}).get("createdAt", "")
 
                         comments_content += f"**Comment by {comment_author}** ({comment_date}):\n{comment_body}\n\n"
@@ -2558,15 +2560,15 @@ async def index_confluence_pages(
                 full_content = f"# {page_title}\n\n{page_content}{comments_content}"
 
                 if not full_content.strip():
-                    logger.warning(
-                        f"Skipping page with no content: {page_title}"
-                    )
+                    logger.warning(f"Skipping page with no content: {page_title}")
                     skipped_pages.append(f"{page_title} (no content)")
                     documents_skipped += 1
                     continue
 
                 # Create a simple summary
-                summary_content = f"Confluence Page: {page_title}\n\nSpace ID: {space_id}\n\n"
+                summary_content = (
+                    f"Confluence Page: {page_title}\n\nSpace ID: {space_id}\n\n"
+                )
                 if page_content:
                     # Take first 500 characters of content for summary
                     content_preview = page_content[:500]
@@ -2611,9 +2613,7 @@ async def index_confluence_pages(
                 ]
 
                 # Create and store new document
-                logger.info(
-                    f"Creating new document for page {page_title}"
-                )
+                logger.info(f"Creating new document for page {page_title}")
                 document = Document(
                     search_space_id=search_space_id,
                     title=f"Confluence - {page_title}",
@@ -2633,9 +2633,7 @@ async def index_confluence_pages(
 
                 session.add(document)
                 documents_indexed += 1
-                logger.info(
-                    f"Successfully indexed new page {page_title}"
-                )
+                logger.info(f"Successfully indexed new page {page_title}")
 
             except Exception as e:
                 logger.error(
@@ -2656,7 +2654,9 @@ async def index_confluence_pages(
 
         # Commit all changes
         await session.commit()
-        logger.info("Successfully committed all Confluence document changes to database")
+        logger.info(
+            "Successfully committed all Confluence document changes to database"
+        )
 
         # Log success
         await task_logger.log_task_success(
