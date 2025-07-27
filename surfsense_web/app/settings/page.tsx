@@ -1,12 +1,11 @@
 "use client";
 
-import React from "react";
+import { ArrowLeft, Bot, Brain, Settings } from "lucide-react"; // Import ArrowLeft icon
 import { useRouter } from "next/navigation"; // Add this import
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Bot, Settings, Brain, ArrowLeft } from "lucide-react"; // Import ArrowLeft icon
-import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
+import { ModelConfigManager } from "@/components/settings/model-config-manager";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SettingsPage() {
 	const router = useRouter(); // Initialize router

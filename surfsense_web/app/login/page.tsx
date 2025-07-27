@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { GoogleLoginButton } from "./GoogleLoginButton";
-import { LocalLoginForm } from "./LocalLoginForm";
+import { Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { AmbientBackground } from "./AmbientBackground";
-import { useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { GoogleLoginButton } from "./GoogleLoginButton";
+import { LocalLoginForm } from "./LocalLoginForm";
 
 function LoginContent() {
 	const [authType, setAuthType] = useState<string | null>(null);

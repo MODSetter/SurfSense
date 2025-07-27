@@ -1,8 +1,7 @@
 "use client";
-import type React from "react";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export function LocalLoginForm() {
 	const [username, setUsername] = useState("");
@@ -46,9 +45,10 @@ export function LocalLoginForm() {
 				throw new Error(data.detail || "Failed to login");
 			}
 
-			router.push("/auth/callback?token=" + data.access_token);
-		} catch (err: any) {
-			setError(err.message || "An error occurred during login");
+			router.push(`/auth/callback?token=${data.access_token}`);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "An error occurred during login";
+			setError(errorMessage);
 		} finally {
 			setIsLoading(false);
 		}

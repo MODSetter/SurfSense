@@ -1,8 +1,8 @@
 "use client";
-import type React from "react";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { AmbientBackground } from "../login/AmbientBackground";
 
@@ -57,8 +57,10 @@ export default function RegisterPage() {
 
 			// Redirect to login page after successful registration
 			router.push("/login?registered=true");
-		} catch (err: any) {
-			setError(err.message || "An error occurred during registration");
+		} catch (err: unknown) {
+			const errorMessage =
+				err instanceof Error ? err.message : "An error occurred during registration";
+			setError(errorMessage);
 		} finally {
 			setIsLoading(false);
 		}
