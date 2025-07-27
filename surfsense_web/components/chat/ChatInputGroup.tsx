@@ -21,14 +21,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Suspense, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { useDocuments, Document } from "@/hooks/use-documents";
+import { useDocuments, type Document } from "@/hooks/use-documents";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 import {
 	getConnectorIcon,
 	ConnectorButton as ConnectorButtonComponent,
 } from "@/components/chat/ConnectorComponents";
-import { ResearchMode } from "@/components/chat";
+import type { ResearchMode } from "@/components/chat";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import React from "react";
 
@@ -45,7 +45,7 @@ const DocumentSelector = React.memo(
 
 		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(
 			Number(search_space_id),
-			true,
+			true
 		);
 
 		const handleOpenChange = useCallback(
@@ -55,24 +55,21 @@ const DocumentSelector = React.memo(
 					fetchDocuments();
 				}
 			},
-			[fetchDocuments, isLoaded],
+			[fetchDocuments, isLoaded]
 		);
 
 		const handleSelectionChange = useCallback(
 			(documents: Document[]) => {
 				onSelectionChange?.(documents);
 			},
-			[onSelectionChange],
+			[onSelectionChange]
 		);
 
 		const handleDone = useCallback(() => {
 			setIsOpen(false);
 		}, []);
 
-		const selectedCount = React.useMemo(
-			() => selectedDocuments.length,
-			[selectedDocuments.length],
-		);
+		const selectedCount = React.useMemo(() => selectedDocuments.length, [selectedDocuments.length]);
 
 		return (
 			<Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -90,9 +87,7 @@ const DocumentSelector = React.memo(
 				<DialogContent className="max-w-[95vw] md:max-w-5xl h-[90vh] md:h-[85vh] p-0 flex flex-col">
 					<div className="flex flex-col h-full">
 						<div className="px-4 md:px-6 py-4 border-b flex-shrink-0">
-							<DialogTitle className="text-lg md:text-xl">
-								Select Documents
-							</DialogTitle>
+							<DialogTitle className="text-lg md:text-xl">Select Documents</DialogTitle>
 							<DialogDescription className="mt-1 text-sm">
 								Choose documents to include in your research context
 							</DialogDescription>
@@ -103,9 +98,7 @@ const DocumentSelector = React.memo(
 								<div className="flex items-center justify-center h-full">
 									<div className="text-center space-y-2">
 										<div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-										<p className="text-sm text-muted-foreground">
-											Loading documents...
-										</p>
+										<p className="text-sm text-muted-foreground">Loading documents...</p>
 									</div>
 								</div>
 							) : isLoaded ? (
@@ -121,7 +114,7 @@ const DocumentSelector = React.memo(
 				</DialogContent>
 			</Dialog>
 		);
-	},
+	}
 );
 
 DocumentSelector.displayName = "DocumentSelector";
@@ -146,7 +139,7 @@ const ConnectorSelector = React.memo(
 					fetchConnectors();
 				}
 			},
-			[fetchConnectors, isLoaded],
+			[fetchConnectors, isLoaded]
 		);
 
 		const handleConnectorToggle = useCallback(
@@ -157,7 +150,7 @@ const ConnectorSelector = React.memo(
 					: [...selectedConnectors, connectorType];
 				onSelectionChange?.(newSelection);
 			},
-			[selectedConnectors, onSelectionChange],
+			[selectedConnectors, onSelectionChange]
 		);
 
 		const handleSelectAll = useCallback(() => {
@@ -210,9 +203,7 @@ const ConnectorSelector = React.memo(
 										<div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-muted">
 											{getConnectorIcon(connector.type)}
 										</div>
-										<span className="flex-1 text-sm font-medium">
-											{connector.name}
-										</span>
+										<span className="flex-1 text-sm font-medium">{connector.name}</span>
 										{isSelected && <Check className="h-4 w-4 text-primary" />}
 									</div>
 								);
@@ -231,7 +222,7 @@ const ConnectorSelector = React.memo(
 				</DialogContent>
 			</Dialog>
 		);
-	},
+	}
 );
 
 ConnectorSelector.displayName = "ConnectorSelector";
@@ -254,9 +245,7 @@ const SearchModeSelector = React.memo(
 
 		return (
 			<div className="flex items-center gap-1 sm:gap-2">
-				<span className="text-xs text-muted-foreground hidden sm:block">
-					Scope:
-				</span>
+				<span className="text-xs text-muted-foreground hidden sm:block">Scope:</span>
 				<div className="flex rounded-md border border-border overflow-hidden">
 					<Button
 						variant={searchMode === "DOCUMENTS" ? "default" : "ghost"}
@@ -278,7 +267,7 @@ const SearchModeSelector = React.memo(
 				</div>
 			</div>
 		);
-	},
+	}
 );
 
 SearchModeSelector.displayName = "SearchModeSelector";
@@ -295,7 +284,7 @@ const ResearchModeSelector = React.memo(
 			(value: string) => {
 				onResearchModeChange?.(value as ResearchMode);
 			},
-			[onResearchModeChange],
+			[onResearchModeChange]
 		);
 
 		// Memoize mode options to prevent recreation
@@ -318,14 +307,12 @@ const ResearchModeSelector = React.memo(
 					shortLabel: "Deeper",
 				},
 			],
-			[],
+			[]
 		);
 
 		return (
 			<div className="flex items-center gap-1 sm:gap-2">
-				<span className="text-xs text-muted-foreground hidden sm:block">
-					Mode:
-				</span>
+				<span className="text-xs text-muted-foreground hidden sm:block">Mode:</span>
 				<Select value={researchMode} onValueChange={handleValueChange}>
 					<SelectTrigger className="w-auto min-w-[80px] sm:min-w-[120px] h-8 text-xs border-border bg-background hover:bg-muted/50 transition-colors duration-200 focus:ring-2 focus:ring-primary/20">
 						<SelectValue placeholder="Mode" className="text-xs" />
@@ -348,27 +335,21 @@ const ResearchModeSelector = React.memo(
 				</Select>
 			</div>
 		);
-	},
+	}
 );
 
 ResearchModeSelector.displayName = "ResearchModeSelector";
 
 const LLMSelector = React.memo(() => {
 	const { llmConfigs, loading: llmLoading, error } = useLLMConfigs();
-	const {
-		preferences,
-		updatePreferences,
-		loading: preferencesLoading,
-	} = useLLMPreferences();
+	const { preferences, updatePreferences, loading: preferencesLoading } = useLLMPreferences();
 
 	const isLoading = llmLoading || preferencesLoading;
 
 	// Memoize the selected config to avoid repeated lookups
 	const selectedConfig = React.useMemo(() => {
 		if (!preferences.fast_llm_id || !llmConfigs.length) return null;
-		return (
-			llmConfigs.find((config) => config.id === preferences.fast_llm_id) || null
-		);
+		return llmConfigs.find((config) => config.id === preferences.fast_llm_id) || null;
 	}, [preferences.fast_llm_id, llmConfigs]);
 
 	// Memoize the display value for the trigger
@@ -390,7 +371,7 @@ const LLMSelector = React.memo(() => {
 			const llmId = value ? parseInt(value, 10) : undefined;
 			updatePreferences({ fast_llm_id: llmId });
 		},
-		[updatePreferences],
+		[updatePreferences]
 	);
 
 	// Loading skeleton
@@ -432,9 +413,7 @@ const LLMSelector = React.memo(() => {
 					<div className="flex items-center gap-2 min-w-0">
 						<Zap className="h-3 w-3 text-primary flex-shrink-0" />
 						<SelectValue placeholder="Fast LLM" className="text-xs">
-							{displayValue || (
-								<span className="text-muted-foreground">Select LLM</span>
-							)}
+							{displayValue || <span className="text-muted-foreground">Select LLM</span>}
 						</SelectValue>
 					</div>
 				</SelectTrigger>
@@ -452,9 +431,7 @@ const LLMSelector = React.memo(() => {
 							<div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
 								<Brain className="h-5 w-5 text-muted-foreground" />
 							</div>
-							<h4 className="text-sm font-medium mb-1">
-								No LLM configurations
-							</h4>
+							<h4 className="text-sm font-medium mb-1">No LLM configurations</h4>
 							<p className="text-xs text-muted-foreground mb-3">
 								Configure AI models to get started
 							</p>
@@ -482,13 +459,8 @@ const LLMSelector = React.memo(() => {
 											</div>
 											<div className="min-w-0 flex-1">
 												<div className="flex items-center gap-2 mb-1">
-													<span className="font-medium text-sm truncate">
-														{config.name}
-													</span>
-													<Badge
-														variant="outline"
-														className="text-xs px-1.5 py-0.5 flex-shrink-0"
-													>
+													<span className="font-medium text-sm truncate">{config.name}</span>
+													<Badge variant="outline" className="text-xs px-1.5 py-0.5 flex-shrink-0">
 														{config.provider}
 													</Badge>
 												</div>
@@ -537,10 +509,8 @@ const CustomChatInputOptions = React.memo(
 	}) => {
 		// Memoize the loading fallback to prevent recreation
 		const loadingFallback = React.useMemo(
-			() => (
-				<div className="h-8 min-w-[100px] animate-pulse bg-muted rounded-md" />
-			),
-			[],
+			() => <div className="h-8 min-w-[100px] animate-pulse bg-muted rounded-md" />,
+			[]
 		);
 
 		return (
@@ -557,10 +527,7 @@ const CustomChatInputOptions = React.memo(
 						selectedConnectors={selectedConnectors}
 					/>
 				</Suspense>
-				<SearchModeSelector
-					searchMode={searchMode}
-					onSearchModeChange={onSearchModeChange}
-				/>
+				<SearchModeSelector searchMode={searchMode} onSearchModeChange={onSearchModeChange} />
 				<ResearchModeSelector
 					researchMode={researchMode}
 					onResearchModeChange={onResearchModeChange}
@@ -568,7 +535,7 @@ const CustomChatInputOptions = React.memo(
 				<LLMSelector />
 			</div>
 		);
-	},
+	}
 );
 
 CustomChatInputOptions.displayName = "CustomChatInputOptions";
@@ -611,7 +578,7 @@ export const ChatInputUI = React.memo(
 				/>
 			</ChatInput>
 		);
-	},
+	}
 );
 
 ChatInputUI.displayName = "ChatInputUI";

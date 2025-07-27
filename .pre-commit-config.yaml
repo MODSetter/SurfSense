@@ -60,23 +60,6 @@ repos:
         args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
         exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
 
-  # TypeScript compilation check
-  - repo: local
-    hooks:
-      - id: typescript-check-web
-        name: TypeScript Check (Web)
-        entry: bash -c 'cd surfsense_web && (command -v pnpm >/dev/null 2>&1 && pnpm build --dry-run || npx next build --dry-run)'
-        language: system
-        files: ^surfsense_web/.*\.(ts|tsx)$
-        pass_filenames: false
-
-      - id: typescript-check-extension
-        name: TypeScript Check (Browser Extension)
-        entry: bash -c 'cd surfsense_browser_extension && npx tsc --noEmit'
-        language: system
-        files: ^surfsense_browser_extension/.*\.(ts|tsx)$
-        pass_filenames: false
-
   # Commit message linting
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.8.3

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getAnnotationData, Message } from "@llamaindex/chat-ui";
+import { getAnnotationData, type Message } from "@llamaindex/chat-ui";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -11,13 +11,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, FileText, Globe } from "lucide-react";
 import { IconBrandGithub } from "@tabler/icons-react";
@@ -113,12 +107,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 		const allNodes: SourceNode[] = [];
 
 		annotations.forEach((item) => {
-			if (
-				item &&
-				typeof item === "object" &&
-				"nodes" in item &&
-				Array.isArray(item.nodes)
-			) {
+			if (item && typeof item === "object" && "nodes" in item && Array.isArray(item.nodes)) {
 				allNodes.push(...item.nodes);
 			}
 		});
@@ -133,7 +122,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 				acc[sourceType].push(node);
 				return acc;
 			},
-			{} as Record<string, SourceNode[]>,
+			{} as Record<string, SourceNode[]>
 		);
 
 		// Convert grouped nodes to SourceGroup format
@@ -159,10 +148,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 		return null;
 	}
 
-	const totalSources = sourceGroups.reduce(
-		(acc, group) => acc + group.sources.length,
-		0,
-	);
+	const totalSources = sourceGroups.reduce((acc, group) => acc + group.sources.length, 0);
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -176,10 +162,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 				<DialogHeader className="flex-shrink-0">
 					<DialogTitle>Sources</DialogTitle>
 				</DialogHeader>
-				<Tabs
-					defaultValue={sourceGroups[0]?.type}
-					className="flex-1 flex flex-col min-h-0"
-				>
+				<Tabs defaultValue={sourceGroups[0]?.type} className="flex-1 flex flex-col min-h-0">
 					<div className="flex-shrink-0 w-full overflow-x-auto">
 						<TabsList className="flex w-max min-w-full">
 							{sourceGroups.map((group) => (
@@ -189,13 +172,8 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 									className="flex items-center gap-2 whitespace-nowrap px-3 md:px-4"
 								>
 									{getSourceIcon(group.type)}
-									<span className="truncate max-w-[100px] md:max-w-none">
-										{group.name}
-									</span>
-									<Badge
-										variant="secondary"
-										className="ml-1 h-5 text-xs flex-shrink-0"
-									>
+									<span className="truncate max-w-[100px] md:max-w-none">{group.name}</span>
+									<Badge variant="secondary" className="ml-1 h-5 text-xs flex-shrink-0">
 										{group.sources.length}
 									</Badge>
 								</TabsTrigger>
@@ -203,11 +181,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 						</TabsList>
 					</div>
 					{sourceGroups.map((group) => (
-						<TabsContent
-							key={group.type}
-							value={group.type}
-							className="flex-1 min-h-0 mt-4"
-						>
+						<TabsContent key={group.type} value={group.type} className="flex-1 min-h-0 mt-4">
 							<div className="h-full overflow-y-auto pr-2">
 								<div className="space-y-3">
 									{group.sources.map((source) => (

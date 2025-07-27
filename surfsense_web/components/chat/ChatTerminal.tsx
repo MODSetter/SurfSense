@@ -1,15 +1,9 @@
 "use client";
 
 import React from "react";
-import { getAnnotationData, Message } from "@llamaindex/chat-ui";
+import { getAnnotationData, type Message } from "@llamaindex/chat-ui";
 
-export default function TerminalDisplay({
-	message,
-	open,
-}: {
-	message: Message;
-	open: boolean;
-}) {
+export default function TerminalDisplay({ message, open }: { message: Message; open: boolean }) {
 	const [isCollapsed, setIsCollapsed] = React.useState(!open);
 
 	const bottomRef = React.useRef<HTMLDivElement>(null);
@@ -57,12 +51,7 @@ export default function TerminalDisplay({
 				</div>
 				<div className="text-gray-400">
 					{isCollapsed ? (
-						<svg
-							className="w-4 h-4"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
+						<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -71,12 +60,7 @@ export default function TerminalDisplay({
 							/>
 						</svg>
 					) : (
-						<svg
-							className="w-4 h-4"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
+						<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -90,10 +74,7 @@ export default function TerminalDisplay({
 
 			{/* Terminal Content */}
 			{!isCollapsed && (
-				<div
-					ref={bottomRef}
-					className="h-64 overflow-y-auto p-4 space-y-1 bg-gray-900"
-				>
+				<div ref={bottomRef} className="h-64 overflow-y-auto p-4 space-y-1 bg-gray-900">
 					{events.map((event, index) => (
 						<div key={`${event.id}-${index}`} className="text-green-400">
 							<span className="text-blue-400">$</span>
@@ -104,9 +85,7 @@ export default function TerminalDisplay({
 						</div>
 					))}
 					{events.length === 0 && (
-						<div className="text-gray-500 italic">
-							No agent events to display...
-						</div>
+						<div className="text-gray-500 italic">No agent events to display...</div>
 					)}
 				</div>
 			)}

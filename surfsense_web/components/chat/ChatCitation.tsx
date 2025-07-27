@@ -1,17 +1,10 @@
 "use client";
 
-import React from "react";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/components/ui/popover";
+import type React from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ExternalLink } from "lucide-react";
 
-export const CitationDisplay: React.FC<{ index: number; node: any }> = ({
-	index,
-	node,
-}) => {
+export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index, node }) => {
 	const truncateText = (text: string, maxLength: number = 200) => {
 		if (text.length <= maxLength) return text;
 		return text.substring(0, maxLength) + "...";

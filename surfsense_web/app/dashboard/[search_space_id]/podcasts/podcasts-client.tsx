@@ -83,9 +83,7 @@ const podcastCardVariants = {
 
 const MotionCard = motion(Card);
 
-export default function PodcastsPageClient({
-	searchSpaceId,
-}: PodcastsPageClientProps) {
+export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClientProps) {
 	const [podcasts, setPodcasts] = useState<PodcastItem[]>([]);
 	const [filteredPodcasts, setFilteredPodcasts] = useState<PodcastItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -100,9 +98,7 @@ export default function PodcastsPageClient({
 	const [isDeleting, setIsDeleting] = useState(false);
 
 	// Audio player state
-	const [currentPodcast, setCurrentPodcast] = useState<PodcastItem | null>(
-		null,
-	);
+	const [currentPodcast, setCurrentPodcast] = useState<PodcastItem | null>(null);
 	const [audioSrc, setAudioSrc] = useState<string | undefined>(undefined);
 	const [isAudioLoading, setIsAudioLoading] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -141,13 +137,13 @@ export default function PodcastsPageClient({
 							"Content-Type": "application/json",
 						},
 						cache: "no-store",
-					},
+					}
 				);
 
 				if (!response.ok) {
 					const errorData = await response.json().catch(() => null);
 					throw new Error(
-						`Failed to fetch podcasts: ${response.status} ${errorData?.detail || ""}`,
+						`Failed to fetch podcasts: ${response.status} ${errorData?.detail || ""}`
 					);
 				}
 
@@ -157,9 +153,7 @@ export default function PodcastsPageClient({
 				setError(null);
 			} catch (error) {
 				console.error("Error fetching podcasts:", error);
-				setError(
-					error instanceof Error ? error.message : "Unknown error occurred",
-				);
+				setError(error instanceof Error ? error.message : "Unknown error occurred");
 				setPodcasts([]);
 				setFilteredPodcasts([]);
 			} finally {
@@ -177,15 +171,11 @@ export default function PodcastsPageClient({
 		// Filter by search term
 		if (searchQuery) {
 			const query = searchQuery.toLowerCase();
-			result = result.filter((podcast) =>
-				podcast.title.toLowerCase().includes(query),
-			);
+			result = result.filter((podcast) => podcast.title.toLowerCase().includes(query));
 		}
 
 		// Filter by search space
-		result = result.filter(
-			(podcast) => podcast.search_space_id === parseInt(searchSpaceId),
-		);
+		result = result.filter((podcast) => podcast.search_space_id === parseInt(searchSpaceId));
 
 		// Sort podcasts
 		result.sort((a, b) => {
@@ -294,7 +284,7 @@ export default function PodcastsPageClient({
 		if (audioRef.current) {
 			audioRef.current.currentTime = Math.min(
 				audioRef.current.duration,
-				audioRef.current.currentTime + 10,
+				audioRef.current.currentTime + 10
 			);
 		}
 	};
@@ -302,10 +292,7 @@ export default function PodcastsPageClient({
 	// Skip backward 10 seconds
 	const skipBackward = () => {
 		if (audioRef.current) {
-			audioRef.current.currentTime = Math.max(
-				0,
-				audioRef.current.currentTime - 10,
-			);
+			audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
 		}
 	};
 
@@ -361,13 +348,11 @@ export default function PodcastsPageClient({
 							Authorization: `Bearer ${token}`,
 						},
 						signal: controller.signal,
-					},
+					}
 				);
 
 				if (!response.ok) {
-					throw new Error(
-						`Failed to fetch audio stream: ${response.statusText}`,
-					);
+					throw new Error(`Failed to fetch audio stream: ${response.statusText}`);
 				}
 
 				const blob = await response.blob();
@@ -389,11 +374,7 @@ export default function PodcastsPageClient({
 			}
 		} catch (error) {
 			console.error("Error fetching or playing podcast:", error);
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Failed to load podcast audio.",
-			);
+			toast.error(error instanceof Error ? error.message : "Failed to load podcast audio.");
 			// Reset state on error
 			setCurrentPodcast(null);
 			setAudioSrc(undefined);
@@ -422,7 +403,7 @@ export default function PodcastsPageClient({
 						Authorization: `Bearer ${token}`,
 						"Content-Type": "application/json",
 					},
-				},
+				}
 			);
 
 			if (!response.ok) {
@@ -435,7 +416,7 @@ export default function PodcastsPageClient({
 
 			// Update local state by removing the deleted podcast
 			setPodcasts((prevPodcasts) =>
-				prevPodcasts.filter((podcast) => podcast.id !== podcastToDelete.id),
+				prevPodcasts.filter((podcast) => podcast.id !== podcastToDelete.id)
 			);
 
 			// If the current playing podcast is deleted, stop playback
@@ -450,9 +431,7 @@ export default function PodcastsPageClient({
 			toast.success("Podcast deleted successfully");
 		} catch (error) {
 			console.error("Error deleting podcast:", error);
-			toast.error(
-				error instanceof Error ? error.message : "Failed to delete podcast",
-			);
+			toast.error(error instanceof Error ? error.message : "Failed to delete podcast");
 		} finally {
 			setIsDeleting(false);
 		}
@@ -507,9 +486,7 @@ export default function PodcastsPageClient({
 					<div className="flex items-center justify-center h-40">
 						<div className="flex flex-col items-center gap-2">
 							<div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-							<p className="text-sm text-muted-foreground">
-								Loading podcasts...
-							</p>
+							<p className="text-sm text-muted-foreground">Loading podcasts...</p>
 						</div>
 					</div>
 				)}
@@ -589,18 +566,13 @@ export default function PodcastsPageClient({
 													transition={{ type: "spring", damping: 20 }}
 												>
 													<div className="h-14 w-14 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
-													<p className="text-sm text-foreground font-medium">
-														Loading podcast...
-													</p>
+													<p className="text-sm text-foreground font-medium">Loading podcast...</p>
 												</motion.div>
 											</motion.div>
 										)}
 
 										{/* Play button with animations */}
-										{!(
-											currentPodcast?.id === podcast.id &&
-											(isPlaying || isAudioLoading)
-										) && (
+										{!(currentPodcast?.id === podcast.id && (isPlaying || isAudioLoading)) && (
 											<motion.div
 												className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
 												whileHover={{ scale: 1.1 }}
@@ -636,42 +608,40 @@ export default function PodcastsPageClient({
 										)}
 
 										{/* Pause button with animations */}
-										{currentPodcast?.id === podcast.id &&
-											isPlaying &&
-											!isAudioLoading && (
-												<motion.div
-													className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
-													whileHover={{ scale: 1.1 }}
-													whileTap={{ scale: 0.9 }}
-												>
-													<Button
-														variant="secondary"
-														size="icon"
-														className="h-16 w-16 rounded-full 
+										{currentPodcast?.id === podcast.id && isPlaying && !isAudioLoading && (
+											<motion.div
+												className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+												whileHover={{ scale: 1.1 }}
+												whileTap={{ scale: 0.9 }}
+											>
+												<Button
+													variant="secondary"
+													size="icon"
+													className="h-16 w-16 rounded-full 
                             bg-background/80 hover:bg-background/95 backdrop-blur-md
                             transition-all duration-200 shadow-xl border-0
                             flex items-center justify-center"
-														onClick={(e) => {
-															e.stopPropagation();
-															togglePlayPause();
+													onClick={(e) => {
+														e.stopPropagation();
+														togglePlayPause();
+													}}
+													disabled={isAudioLoading}
+												>
+													<motion.div
+														initial={{ scale: 0.8 }}
+														animate={{ scale: 1 }}
+														transition={{
+															type: "spring",
+															stiffness: 400,
+															damping: 10,
 														}}
-														disabled={isAudioLoading}
+														className="text-primary w-10 h-10 flex items-center justify-center"
 													>
-														<motion.div
-															initial={{ scale: 0.8 }}
-															animate={{ scale: 1 }}
-															transition={{
-																type: "spring",
-																stiffness: 400,
-																damping: 10,
-															}}
-															className="text-primary w-10 h-10 flex items-center justify-center"
-														>
-															<Pause className="h-8 w-8" />
-														</motion.div>
-													</Button>
-												</motion.div>
-											)}
+														<Pause className="h-8 w-8" />
+													</motion.div>
+												</Button>
+											</motion.div>
+										)}
 
 										{/* Now playing indicator */}
 										{currentPodcast?.id === podcast.id && !isAudioLoading && (
@@ -713,10 +683,7 @@ export default function PodcastsPageClient({
 													const container = e.currentTarget;
 													const rect = container.getBoundingClientRect();
 													const x = e.clientX - rect.left;
-													const percentage = Math.max(
-														0,
-														Math.min(1, x / rect.width),
-													);
+													const percentage = Math.max(0, Math.min(1, x / rect.width));
 													const newTime = percentage * duration;
 													handleSeek([newTime]);
 												}}
@@ -750,10 +717,7 @@ export default function PodcastsPageClient({
 											animate={{ opacity: 1, y: 0 }}
 											transition={{ delay: 0.2 }}
 										>
-											<motion.div
-												whileHover={{ scale: 1.2 }}
-												whileTap={{ scale: 0.95 }}
-											>
+											<motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.95 }}>
 												<Button
 													variant="ghost"
 													size="icon"
@@ -768,10 +732,7 @@ export default function PodcastsPageClient({
 													<SkipBack className="w-5 h-5" />
 												</Button>
 											</motion.div>
-											<motion.div
-												whileHover={{ scale: 1.2 }}
-												whileTap={{ scale: 0.95 }}
-											>
+											<motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.95 }}>
 												<Button
 													variant="ghost"
 													size="icon"
@@ -789,10 +750,7 @@ export default function PodcastsPageClient({
 													)}
 												</Button>
 											</motion.div>
-											<motion.div
-												whileHover={{ scale: 1.2 }}
-												whileTap={{ scale: 0.95 }}
-											>
+											<motion.div whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.95 }}>
 												<Button
 													variant="ghost"
 													size="icon"
@@ -872,9 +830,7 @@ export default function PodcastsPageClient({
 								</div>
 
 								<div className="flex-grow min-w-0">
-									<h4 className="font-medium text-sm line-clamp-1">
-										{currentPodcast.title}
-									</h4>
+									<h4 className="font-medium text-sm line-clamp-1">{currentPodcast.title}</h4>
 
 									<div className="flex items-center gap-2 mt-2">
 										<div className="flex-grow relative">
@@ -901,24 +857,13 @@ export default function PodcastsPageClient({
 								</div>
 
 								<div className="flex items-center gap-2">
-									<motion.div
-										whileHover={{ scale: 1.1 }}
-										whileTap={{ scale: 0.95 }}
-									>
-										<Button
-											variant="ghost"
-											size="icon"
-											onClick={skipBackward}
-											className="h-8 w-8"
-										>
+									<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+										<Button variant="ghost" size="icon" onClick={skipBackward} className="h-8 w-8">
 											<SkipBack className="h-4 w-4" />
 										</Button>
 									</motion.div>
 
-									<motion.div
-										whileHover={{ scale: 1.1 }}
-										whileTap={{ scale: 0.95 }}
-									>
+									<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
 										<Button
 											variant="default"
 											size="icon"
@@ -933,25 +878,14 @@ export default function PodcastsPageClient({
 										</Button>
 									</motion.div>
 
-									<motion.div
-										whileHover={{ scale: 1.1 }}
-										whileTap={{ scale: 0.95 }}
-									>
-										<Button
-											variant="ghost"
-											size="icon"
-											onClick={skipForward}
-											className="h-8 w-8"
-										>
+									<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+										<Button variant="ghost" size="icon" onClick={skipForward} className="h-8 w-8">
 											<SkipForward className="h-4 w-4" />
 										</Button>
 									</motion.div>
 
 									<div className="hidden md:flex items-center gap-2 ml-4 w-32">
-										<motion.div
-											whileHover={{ scale: 1.1 }}
-											whileTap={{ scale: 0.95 }}
-										>
+										<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
 											<Button
 												variant="ghost"
 												size="icon"
@@ -984,10 +918,7 @@ export default function PodcastsPageClient({
 										</div>
 									</div>
 
-									<motion.div
-										whileHover={{ scale: 1.1 }}
-										whileTap={{ scale: 0.95 }}
-									>
+									<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
 										<Button
 											variant="default"
 											size="icon"
@@ -1014,8 +945,8 @@ export default function PodcastsPageClient({
 						</DialogTitle>
 						<DialogDescription>
 							Are you sure you want to delete{" "}
-							<span className="font-medium">{podcastToDelete?.title}</span>?
-							This action cannot be undone.
+							<span className="font-medium">{podcastToDelete?.title}</span>? This action cannot be
+							undone.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="flex gap-2 sm:justify-end">
@@ -1086,10 +1017,7 @@ export default function PodcastsPageClient({
 						console.error("Audio error code:", audioRef.current.error.code);
 
 						// Don't show error message for aborted loads
-						if (
-							audioRef.current.error.code !==
-							audioRef.current.error.MEDIA_ERR_ABORTED
-						) {
+						if (audioRef.current.error.code !== audioRef.current.error.MEDIA_ERR_ABORTED) {
 							toast.error("Error playing audio. Please try again.");
 						}
 					}
