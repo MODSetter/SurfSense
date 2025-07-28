@@ -76,18 +76,10 @@ async def generate_chat_podcast(
                 chat_history_str += f"<user_message>{message['content']}</user_message>"
                 processed_messages += 1
             elif message["role"] == "assistant":
-                # Last annotation type will always be "ANSWER" here
-                answer_annotation = message["annotations"][-1]
-                answer_text = ""
-                if answer_annotation["type"] == "ANSWER":
-                    answer_text = answer_annotation["content"]
-                    # If content is a list, join it into a single string
-                    if isinstance(answer_text, list):
-                        answer_text = "\n".join(answer_text)
-                    chat_history_str += (
-                        f"<assistant_message>{answer_text}</assistant_message>"
-                    )
-                    processed_messages += 1
+                chat_history_str += (
+                    f"<assistant_message>{message['content']}</assistant_message>"
+                )
+                processed_messages += 1
 
         chat_history_str += "</chat_history>"
 
