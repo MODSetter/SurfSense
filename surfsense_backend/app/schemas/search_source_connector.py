@@ -143,6 +143,30 @@ class SearchSourceConnectorBase(BaseModel):
             if not config.get("JIRA_BASE_URL"):
                 raise ValueError("JIRA_BASE_URL cannot be empty")
 
+        elif connector_type == SearchSourceConnectorType.CONFLUENCE_CONNECTOR:
+            # For CONFLUENCE_CONNECTOR, only allow specific keys
+            allowed_keys = [
+                "CONFLUENCE_BASE_URL",
+                "CONFLUENCE_EMAIL",
+                "CONFLUENCE_API_TOKEN",
+            ]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(
+                    f"For CONFLUENCE_CONNECTOR connector type, config must only contain these keys: {allowed_keys}"
+                )
+
+            # Ensure the email is not empty
+            if not config.get("CONFLUENCE_EMAIL"):
+                raise ValueError("CONFLUENCE_EMAIL cannot be empty")
+
+            # Ensure the API token is not empty
+            if not config.get("CONFLUENCE_API_TOKEN"):
+                raise ValueError("CONFLUENCE_API_TOKEN cannot be empty")
+
+            # Ensure the base URL is not empty
+            if not config.get("CONFLUENCE_BASE_URL"):
+                raise ValueError("CONFLUENCE_BASE_URL cannot be empty")
+
         return config
 
 

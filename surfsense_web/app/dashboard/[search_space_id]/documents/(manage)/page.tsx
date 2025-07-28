@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	IconBook,
 	IconBrandDiscord,
 	IconBrandGithub,
 	IconBrandNotion,
@@ -144,6 +145,7 @@ const documentTypeIcons = {
 	LINEAR_CONNECTOR: IconLayoutKanban,
 	JIRA_CONNECTOR: IconTicket,
 	DISCORD_CONNECTOR: IconBrandDiscord,
+	CONFLUENCE_CONNECTOR: IconBook,
 } as const;
 
 const columns: ColumnDef<Document>[] = [
@@ -964,7 +966,13 @@ export default function DocumentsTable() {
 function RowActions({ row }: { row: Row<Document> }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const { deleteDocument, refreshDocuments } = useContext(DocumentsContext)!;
+	const context = useContext(DocumentsContext);
+
+	if (!context) {
+		throw new Error("DocumentsContext not found");
+	}
+
+	const { deleteDocument, refreshDocuments } = context;
 	const document = row.original;
 
 	const handleDelete = async () => {

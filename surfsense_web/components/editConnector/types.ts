@@ -33,5 +33,11 @@ export const editConnectorSchema = z.object({
 	LINEAR_API_KEY: z.string().optional(),
 	LINKUP_API_KEY: z.string().optional(),
 	DISCORD_BOT_TOKEN: z.string().optional(),
+	CONFLUENCE_BASE_URL: z.string().optional(),
+	CONFLUENCE_EMAIL: z.string().optional(),
+	CONFLUENCE_API_TOKEN: z.string().optional(),
+	JIRA_BASE_URL: z.string().optional(),
+	JIRA_EMAIL: z.string().optional(),
+	JIRA_API_TOKEN: z.string().optional(),
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>;

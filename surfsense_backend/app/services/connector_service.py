@@ -1073,6 +1073,103 @@ class ConnectorService:
 
         return result_object, jira_chunks
 
+    async def search_confluence(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for Confluence pages and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            confluence_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="CONFLUENCE_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            confluence_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="CONFLUENCE_CONNECTOR",
+            )
+            # Transform document retriever results to match expected format
+            confluence_chunks = self._transform_document_results(confluence_chunks)
+
+        # Early return if no results
+        if not confluence_chunks:
+            return {
+                "id": 40,
+                "name": "Confluence",
+                "type": "CONFLUENCE_CONNECTOR",
+                "sources": [],
+            }, []
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(confluence_chunks):
+                # Extract document metadata
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                # Extract Confluence-specific metadata
+                page_title = metadata.get("page_title", "Untitled Page")
+                page_id = metadata.get("page_id", "")
+                space_key = metadata.get("space_key", "")
+
+                # Create a more descriptive title for Confluence pages
+                title = f"Confluence: {page_title}"
+                if space_key:
+                    title += f" ({space_key})"
+
+                # Create a more descriptive description for Confluence pages
+                description = chunk.get("content", "")[:100]
+                if len(description) == 100:
+                    description += "..."
+
+                # For URL, we can use a placeholder or construct a URL to the Confluence page if available
+                url = ""  # TODO: Add base_url to metadata
+                if page_id:
+                    url = f"{metadata.get('base_url')}/pages/{page_id}"
+
+                source = {
+                    "id": document.get("id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+
+        # Create result object
+        result_object = {
+            "id": 40,
+            "name": "Confluence",
+            "type": "CONFLUENCE_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, confluence_chunks
+
     async def search_linkup(
         self, user_query: str, user_id: str, mode: str = "standard"
     ) -> tuple:

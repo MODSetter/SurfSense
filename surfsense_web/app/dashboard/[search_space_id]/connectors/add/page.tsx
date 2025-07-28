@@ -1,5 +1,7 @@
 "use client";
+
 import {
+	IconBook,
 	IconBrandDiscord,
 	IconBrandGithub,
 	IconBrandNotion,
@@ -14,7 +16,7 @@ import {
 	IconTicket,
 	IconWorldWww,
 } from "@tabler/icons-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -125,6 +127,13 @@ const connectorCategories: ConnectorCategory[] = [
 				icon: <IconBrandGithub className="h-6 w-6" />,
 				status: "available",
 			},
+			{
+				id: "confluence-connector",
+				title: "Confluence",
+				description: "Connect to Confluence to search pages, comments and documentation.",
+				icon: <IconBook className="h-6 w-6" />,
+				status: "available",
+			},
 		],
 	},
 	{
@@ -165,7 +174,7 @@ const staggerContainer = {
 	},
 };
 
-const cardVariants = {
+const cardVariants: Variants = {
 	hidden: { opacity: 0, y: 20 },
 	visible: {
 		opacity: 1,

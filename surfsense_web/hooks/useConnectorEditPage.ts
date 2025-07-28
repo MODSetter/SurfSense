@@ -46,6 +46,12 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			TAVILY_API_KEY: "",
 			LINEAR_API_KEY: "",
 			DISCORD_BOT_TOKEN: "",
+			CONFLUENCE_BASE_URL: "",
+			CONFLUENCE_EMAIL: "",
+			CONFLUENCE_API_TOKEN: "",
+			JIRA_BASE_URL: "",
+			JIRA_EMAIL: "",
+			JIRA_API_TOKEN: "",
 		},
 	});
 
@@ -66,6 +72,12 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					LINEAR_API_KEY: config.LINEAR_API_KEY || "",
 					LINKUP_API_KEY: config.LINKUP_API_KEY || "",
 					DISCORD_BOT_TOKEN: config.DISCORD_BOT_TOKEN || "",
+					CONFLUENCE_BASE_URL: config.CONFLUENCE_BASE_URL || "",
+					CONFLUENCE_EMAIL: config.CONFLUENCE_EMAIL || "",
+					CONFLUENCE_API_TOKEN: config.CONFLUENCE_API_TOKEN || "",
+					JIRA_BASE_URL: config.JIRA_BASE_URL || "",
+					JIRA_EMAIL: config.JIRA_EMAIL || "",
+					JIRA_API_TOKEN: config.JIRA_API_TOKEN || "",
 				});
 				if (currentConnector.connector_type === "GITHUB_CONNECTOR") {
 					const savedRepos = config.repo_full_names || [];
@@ -104,7 +116,10 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories/`,
 					{
 						method: "POST",
-						headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
 						body: JSON.stringify({ github_pat: values.github_pat }),
 					}
 				);
@@ -165,7 +180,10 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							setIsSaving(false);
 							return;
 						}
-						newConfig = { GITHUB_PAT: currentPatInForm, repo_full_names: newSelectedRepos };
+						newConfig = {
+							GITHUB_PAT: currentPatInForm,
+							repo_full_names: newSelectedRepos,
+						};
 						if (reposChanged && newSelectedRepos.length === 0) {
 							toast.warning("Warning: No repositories selected.");
 						}
@@ -189,7 +207,9 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							setIsSaving(false);
 							return;
 						}
-						newConfig = { NOTION_INTEGRATION_TOKEN: formData.NOTION_INTEGRATION_TOKEN };
+						newConfig = {
+							NOTION_INTEGRATION_TOKEN: formData.NOTION_INTEGRATION_TOKEN,
+						};
 					}
 					break;
 				case "SERPER_API":
@@ -241,6 +261,46 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							return;
 						}
 						newConfig = { DISCORD_BOT_TOKEN: formData.DISCORD_BOT_TOKEN };
+					}
+					break;
+				case "CONFLUENCE_CONNECTOR":
+					if (
+						formData.CONFLUENCE_BASE_URL !== originalConfig.CONFLUENCE_BASE_URL ||
+						formData.CONFLUENCE_EMAIL !== originalConfig.CONFLUENCE_EMAIL ||
+						formData.CONFLUENCE_API_TOKEN !== originalConfig.CONFLUENCE_API_TOKEN
+					) {
+						if (
+							!formData.CONFLUENCE_BASE_URL ||
+							!formData.CONFLUENCE_EMAIL ||
+							!formData.CONFLUENCE_API_TOKEN
+						) {
+							toast.error("All Confluence fields are required.");
+							setIsSaving(false);
+							return;
+						}
+						newConfig = {
+							CONFLUENCE_BASE_URL: formData.CONFLUENCE_BASE_URL,
+							CONFLUENCE_EMAIL: formData.CONFLUENCE_EMAIL,
+							CONFLUENCE_API_TOKEN: formData.CONFLUENCE_API_TOKEN,
+						};
+					}
+					break;
+				case "JIRA_CONNECTOR":
+					if (
+						formData.JIRA_BASE_URL !== originalConfig.JIRA_BASE_URL ||
+						formData.JIRA_EMAIL !== originalConfig.JIRA_EMAIL ||
+						formData.JIRA_API_TOKEN !== originalConfig.JIRA_API_TOKEN
+					) {
+						if (!formData.JIRA_BASE_URL || !formData.JIRA_EMAIL || !formData.JIRA_API_TOKEN) {
+							toast.error("All Jira fields are required.");
+							setIsSaving(false);
+							return;
+						}
+						newConfig = {
+							JIRA_BASE_URL: formData.JIRA_BASE_URL,
+							JIRA_EMAIL: formData.JIRA_EMAIL,
+							JIRA_API_TOKEN: formData.JIRA_API_TOKEN,
+						};
 					}
 					break;
 			}
@@ -297,6 +357,14 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						editForm.setValue("LINKUP_API_KEY", newlySavedConfig.LINKUP_API_KEY || "");
 					} else if (connector.connector_type === "DISCORD_CONNECTOR") {
 						editForm.setValue("DISCORD_BOT_TOKEN", newlySavedConfig.DISCORD_BOT_TOKEN || "");
+					} else if (connector.connector_type === "CONFLUENCE_CONNECTOR") {
+						editForm.setValue("CONFLUENCE_BASE_URL", newlySavedConfig.CONFLUENCE_BASE_URL || "");
+						editForm.setValue("CONFLUENCE_EMAIL", newlySavedConfig.CONFLUENCE_EMAIL || "");
+						editForm.setValue("CONFLUENCE_API_TOKEN", newlySavedConfig.CONFLUENCE_API_TOKEN || "");
+					} else if (connector.connector_type === "JIRA_CONNECTOR") {
+						editForm.setValue("JIRA_BASE_URL", newlySavedConfig.JIRA_BASE_URL || "");
+						editForm.setValue("JIRA_EMAIL", newlySavedConfig.JIRA_EMAIL || "");
+						editForm.setValue("JIRA_API_TOKEN", newlySavedConfig.JIRA_API_TOKEN || "");
 					}
 				}
 				if (connector.connector_type === "GITHUB_CONNECTOR") {
