@@ -1,0 +1,115 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": true,
+		"experimentalScannerIgnores": ["node_modules", ".git", ".next", "dist", "build", "coverage"],
+		"maxSize": 1048576
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"indentWidth": 2,
+		"lineWidth": 100,
+		"lineEnding": "lf",
+		"formatWithErrors": false
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"suspicious": {
+				"noExplicitAny": "warn",
+				"noArrayIndexKey": "warn"
+			},
+			"style": {
+				"useConst": "error",
+				"useTemplate": "warn"
+			},
+			"correctness": {
+				"useExhaustiveDependencies": "warn"
+			}
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"jsxQuoteStyle": "double",
+			"quoteProperties": "asNeeded",
+			"trailingCommas": "es5",
+			"semicolons": "always",
+			"arrowParentheses": "always",
+			"bracketSameLine": false,
+			"bracketSpacing": true
+		},
+		"linter": {
+			"enabled": true
+		},
+		"assist": {
+			"enabled": true
+		}
+	},
+	"json": {
+		"formatter": {
+			"enabled": true,
+			"indentStyle": "tab",
+			"indentWidth": 2,
+			"lineWidth": 100
+		},
+		"linter": {
+			"enabled": true
+		}
+	},
+	"css": {
+		"formatter": {
+			"enabled": true,
+			"indentStyle": "tab",
+			"indentWidth": 2,
+			"lineWidth": 100,
+			"quoteStyle": "double"
+		},
+		"linter": {
+			"enabled": true
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["*.json", "*.jsonc"],
+			"json": {
+				"parser": {
+					"allowComments": true,
+					"allowTrailingCommas": false
+				}
+			}
+		},
+		{
+			"includes": [".vscode/**/*.json"],
+			"json": {
+				"parser": {
+					"allowComments": true,
+					"allowTrailingCommas": true
+				}
+			}
+		},
+		{
+			"includes": ["**/*.config.*", "**/next.config.*"],
+			"javascript": {
+				"formatter": {
+					"semicolons": "always"
+				}
+			}
+		}
+	]
+}

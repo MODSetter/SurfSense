@@ -1,14 +1,10 @@
 "use client";
 
-import React from "react";
-import {
-	ChatSection as LlamaIndexChatSection,
-	ChatHandler,
-} from "@llamaindex/chat-ui";
-import { Document } from "@/hooks/use-documents";
+import { type ChatHandler, ChatSection as LlamaIndexChatSection } from "@llamaindex/chat-ui";
+import type { ResearchMode } from "@/components/chat";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
-import { ResearchMode } from "@/components/chat";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
+import type { Document } from "@/hooks/use-documents";
 
 interface ChatInterfaceProps {
 	handler: ChatHandler;

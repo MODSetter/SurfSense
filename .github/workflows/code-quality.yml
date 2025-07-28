@@ -61,7 +61,7 @@ jobs:
           echo "Running file quality hooks on changed files against $BASE_REF"
           
           # Run each hook individually on changed files
-          SKIP=detect-secrets,bandit,ruff,ruff-format,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+          SKIP=detect-secrets,bandit,ruff,ruff-format,biome-check-web,biome-check-extension,commitizen \
             pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
           
           # Exit with the same code as pre-commit
@@ -118,7 +118,7 @@ jobs:
           echo "Running security scans on changed files against $BASE_REF"
           
           # Run only security hooks on changed files
-          SKIP=check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,ruff,ruff-format,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+          SKIP=check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,ruff,ruff-format,biome-check-web,biome-check-extension,commitizen \
             pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
           
           # Exit with the same code as pre-commit
@@ -199,7 +199,89 @@ jobs:
           echo "Running Python backend checks on changed files against $BASE_REF"
           
           # Run only ruff hooks on changed Python files
-          SKIP=detect-secrets,bandit,check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,prettier,eslint,typescript-check-web,typescript-check-extension,commitizen \
+          SKIP=detect-secrets,bandit,check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,biome-check-web,biome-check-extension,commitizen \
+            pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
+          
+          # Exit with the same code as pre-commit
+          exit ${exit_code:-0}
+
+  typescript-frontend:
+    name: TypeScript/JavaScript Quality
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: |
+          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }} 2>/dev/null || git fetch origin ${{ github.base_ref }} 2>/dev/null || true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Check if frontend files changed
+        id: frontend-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            web:
+              - 'surfsense_web/**'
+            extension:
+              - 'surfsense_browser_extension/**'
+
+      - name: Install dependencies for web
+        if: steps.frontend-changes.outputs.web == 'true'
+        working-directory: surfsense_web
+        run: pnpm install --frozen-lockfile
+
+      - name: Install dependencies for extension
+        if: steps.frontend-changes.outputs.extension == 'true'
+        working-directory: surfsense_browser_extension
+        run: pnpm install --frozen-lockfile
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Cache pre-commit hooks
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-frontend-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-frontend-
+
+      - name: Install hook environments (cache)
+        run: pre-commit install-hooks
+
+      - name: Run TypeScript/JavaScript quality checks
+        run: |
+          # Get base ref for comparison
+          if git show-ref --verify --quiet refs/heads/${{ github.base_ref }}; then
+            BASE_REF="${{ github.base_ref }}"
+          elif git show-ref --verify --quiet refs/remotes/origin/${{ github.base_ref }}; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          else
+            echo "Base branch reference not found, running TypeScript/JavaScript checks on all files"
+            pre-commit run --all-files biome-check-web biome-check-extension
+            exit 0
+          fi
+          
+          echo "Running TypeScript/JavaScript checks on changed files against $BASE_REF"
+          
+          # Run only Biome hooks on changed TypeScript/JavaScript files
+          # Biome hooks use --diagnostic-level=error to only fail on errors, not warnings
+          SKIP=detect-secrets,bandit,check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,ruff,ruff-format,commitizen \
             pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
           
           # Exit with the same code as pre-commit
@@ -208,7 +290,7 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [file-quality, security-scan, python-backend]
+    needs: [file-quality, security-scan, python-backend, typescript-frontend]
     if: always()
     
     steps:
@@ -216,7 +298,8 @@ jobs:
         run: |
           if [[ "${{ needs.file-quality.result }}" == "failure" || 
                 "${{ needs.security-scan.result }}" == "failure" || 
-                "${{ needs.python-backend.result }}" == "failure" ]]; then
+                "${{ needs.python-backend.result }}" == "failure" ||
+                "${{ needs.typescript-frontend.result }}" == "failure" ]]; then
             echo "❌ Code quality checks failed"
             exit 1
           else
