@@ -552,6 +552,19 @@ async def fetch_relevant_documents(
     # Only use streaming if both writer and state are provided
     streaming_service = state.streaming_service if state is not None else None
 
+    # Handle case when no connectors are selected
+    if not connectors_to_search or len(connectors_to_search) == 0:
+        if streaming_service and writer:
+            writer(
+                {
+                    "yield_value": streaming_service.format_terminal_info_delta(
+                        "📹 No data sources selected. Research will be generated using general knowledge and any user-selected documents."
+                    )
+                }
+            )
+        print("No connectors selected for research. Returning empty document list.")
+        return []  # Return empty list gracefully
+
     # Stream initial status update
     if streaming_service and writer:
         connector_names = [
@@ -1363,8 +1376,8 @@ async def process_section_with_documents(
             if state and state.streaming_service and writer:
                 writer(
                     {
-                        "yield_value": state.streaming_service.format_error(
-                            f'Warning: No relevant documents found for section: "{section_title}"'
+                        "yield_value": state.streaming_service.format_terminal_info_delta(
+                            f'📝 Writing section "{section_title}" using general knowledge (no specific sources found)'
                         )
                     }
                 )
