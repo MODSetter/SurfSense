@@ -1,4 +1,4 @@
 export interface WebHistory {
-    tabsessionId: number;
-    tabHistory: any[];
+	tabsessionId: number;
+	tabHistory: any[];
 }

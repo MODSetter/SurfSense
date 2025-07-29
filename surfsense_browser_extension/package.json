@@ -1,62 +1,62 @@
 {
-  "name": "surfsense_browser_extension",
-  "displayName": "Surfsense Browser Extension",
-  "version": "0.0.7",
-  "description": "Extension to collect Browsing History for SurfSense.",
-  "author": "https://github.com/MODSetter",
-  "scripts": {
-    "dev": "plasmo dev",
-    "build": "plasmo build",
-    "package": "plasmo package"
-  },
-  "dependencies": {
-    "@plasmohq/messaging": "^0.6.2",
-    "@plasmohq/storage": "^1.11.0",
-    "@radix-ui/react-dialog": "^1.1.2",
-    "@radix-ui/react-icons": "^1.3.2",
-    "@radix-ui/react-popover": "^1.1.2",
-    "@radix-ui/react-slot": "^1.1.0",
-    "@radix-ui/react-toast": "^1.2.2",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.1",
-    "cmdk": "^1.0.3",
-    "dom-to-semantic-markdown": "^1.2.11",
-    "linkedom": "0.1.34",
-    "lucide-react": "^0.454.0",
-    "plasmo": "0.89.4",
-    "postcss-loader": "^8.1.1",
-    "radix-ui": "^1.0.1",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-hooks-global-state": "^2.1.0",
-    "react-router-dom": "^6.26.1",
-    "tailwind-merge": "^2.5.4",
-    "tailwindcss-animate": "^1.0.7"
-  },
-  "devDependencies": {
-    "@ianvs/prettier-plugin-sort-imports": "4.1.1",
-    "@types/chrome": "0.0.258",
-    "@types/node": "20.11.5",
-    "@types/react": "18.2.48",
-    "@types/react-dom": "18.2.18",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.41",
-    "prettier": "3.2.4",
-    "tailwindcss": "^3.4.10",
-    "typescript": "5.3.3"
-  },
-  "manifest": {
-    "host_permissions": [
-      "<all_urls>"
-    ],
-    "name": "SurfSense",
-    "description": "Extension to collect Browsing History for SurfSense.",
-    "version": "0.0.3"
-  },
-  "permissions": [
-    "storage",
-    "scripting",
-    "unlimitedStorage",
-    "activeTab"
-  ]
+	"name": "surfsense_browser_extension",
+	"displayName": "Surfsense Browser Extension",
+	"version": "0.0.7",
+	"description": "Extension to collect Browsing History for SurfSense.",
+	"author": "https://github.com/MODSetter",
+	"scripts": {
+		"dev": "plasmo dev",
+		"build": "plasmo build",
+		"package": "plasmo package"
+	},
+	"dependencies": {
+		"@plasmohq/messaging": "^0.6.2",
+		"@plasmohq/storage": "^1.11.0",
+		"@radix-ui/react-dialog": "^1.1.2",
+		"@radix-ui/react-icons": "^1.3.2",
+		"@radix-ui/react-label": "^2.1.7",
+		"@radix-ui/react-popover": "^1.1.2",
+		"@radix-ui/react-slot": "^1.1.0",
+		"@radix-ui/react-toast": "^1.2.2",
+		"class-variance-authority": "^0.7.0",
+		"clsx": "^2.1.1",
+		"cmdk": "^1.0.3",
+		"dom-to-semantic-markdown": "^1.2.11",
+		"linkedom": "0.1.34",
+		"lucide-react": "^0.454.0",
+		"plasmo": "0.89.4",
+		"postcss-loader": "^8.1.1",
+		"radix-ui": "^1.0.1",
+		"react": "18.2.0",
+		"react-dom": "18.2.0",
+		"react-hooks-global-state": "^2.1.0",
+		"react-router-dom": "^6.26.1",
+		"tailwind-merge": "^2.5.4",
+		"tailwindcss-animate": "^1.0.7"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.1.2",
+		"@types/chrome": "0.0.258",
+		"@types/node": "20.11.5",
+		"@types/react": "18.2.48",
+		"@types/react-dom": "18.2.18",
+		"autoprefixer": "^10.4.20",
+		"postcss": "^8.4.41",
+		"tailwindcss": "^3.4.10",
+		"typescript": "5.3.3"
+	},
+	"manifest": {
+		"host_permissions": [
+			"<all_urls>"
+		],
+		"name": "SurfSense",
+		"description": "Extension to collect Browsing History for SurfSense.",
+		"version": "0.0.3"
+	},
+	"permissions": [
+		"storage",
+		"scripting",
+		"unlimitedStorage",
+		"activeTab"
+	]
 }

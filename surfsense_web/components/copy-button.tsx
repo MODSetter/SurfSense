@@ -1,14 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
-import { Button } from "./ui/button";
 import { Copy, CopyCheck } from "lucide-react";
+import type { RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "./ui/button";
 
-export default function CopyButton({
-	ref,
-}: {
-	ref: RefObject<HTMLDivElement | null>;
-}) {
+export default function CopyButton({ ref }: { ref: RefObject<HTMLDivElement | null> }) {
 	const [copy, setCopy] = useState(false);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 

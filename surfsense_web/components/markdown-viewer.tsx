@@ -1,18 +1,17 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import { Check, Copy } from "lucide-react";
+import Image from "next/image";
+import { useTheme } from "next-themes";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Citation } from "./chat/Citation";
-import { Source } from "./chat/types";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-	oneLight,
-	oneDark,
-} from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { Check, Copy } from "lucide-react";
-import { useTheme } from "next-themes";
+import type { Source } from "./chat/types";
 import CopyButton from "./copy-button";
 
 interface MarkdownViewerProps {
@@ -68,12 +67,8 @@ export function MarkdownViewer({
 					: children;
 				return <li {...props}>{processedChildren}</li>;
 			},
-			ul: ({ node, ...props }: any) => (
-				<ul className="list-disc pl-5 my-2" {...props} />
-			),
-			ol: ({ node, ...props }: any) => (
-				<ol className="list-decimal pl-5 my-2" {...props} />
-			),
+			ul: ({ node, ...props }: any) => <ul className="list-disc pl-5 my-2" {...props} />,
+			ol: ({ node, ...props }: any) => <ol className="list-decimal pl-5 my-2" {...props} />,
 			h1: ({ node, children, ...props }: any) => {
 				const processedChildren = getCitationSource
 					? processCitationsInReactChildren(children, getCitationSource)
@@ -115,16 +110,17 @@ export function MarkdownViewer({
 				);
 			},
 			blockquote: ({ node, ...props }: any) => (
-				<blockquote
-					className="border-l-4 border-muted pl-4 italic my-2"
+				<blockquote className="border-l-4 border-muted pl-4 italic my-2" {...props} />
+			),
+			hr: ({ node, ...props }: any) => <hr className="my-4 border-muted" {...props} />,
+			img: ({ node, ...props }: any) => (
+				<Image
+					className="max-w-full h-auto my-4 rounded"
+					alt="markdown image"
+					height={100}
+					width={100}
 					{...props}
 				/>
-			),
-			hr: ({ node, ...props }: any) => (
-				<hr className="my-4 border-muted" {...props} />
-			),
-			img: ({ node, ...props }: any) => (
-				<img className="max-w-full h-auto my-4 rounded" {...props} />
 			),
 			table: ({ node, ...props }: any) => (
 				<div className="overflow-x-auto my-4">
@@ -161,10 +157,7 @@ export function MarkdownViewer({
 	}, [getCitationSource]);
 
 	return (
-		<div
-			className={cn("prose prose-sm dark:prose-invert max-w-none", className)}
-			ref={ref}
-		>
+		<div className={cn("prose prose-sm dark:prose-invert max-w-none", className)} ref={ref}>
 			<ReactMarkdown
 				rehypePlugins={[rehypeRaw, rehypeSanitize]}
 				remarkPlugins={[remarkGfm]}
@@ -178,13 +171,7 @@ export function MarkdownViewer({
 }
 
 // Code block component with syntax highlighting and copy functionality
-const CodeBlock = ({
-	children,
-	language,
-}: {
-	children: string;
-	language: string;
-}) => {
+const CodeBlock = ({ children, language }: { children: string; language: string }) => {
 	const [copied, setCopied] = useState(false);
 	const { resolvedTheme, theme } = useTheme();
 	const [mounted, setMounted] = useState(false);
@@ -207,7 +194,8 @@ const CodeBlock = ({
 	return (
 		<div className="relative my-4 group">
 			<div className="absolute right-2 top-2 z-10">
-				<button
+				<Button
+					variant="ghost"
 					onClick={handleCopy}
 					className="p-1.5 rounded-md bg-background/80 hover:bg-background border border-border flex items-center justify-center transition-colors"
 					aria-label="Copy code"
@@ -217,7 +205,7 @@ const CodeBlock = ({
 					) : (
 						<Copy size={14} className="text-muted-foreground" />
 					)}
-				</button>
+				</Button>
 			</div>
 			{mounted ? (
 				<SyntaxHighlighter
@@ -272,9 +260,7 @@ const CodeBlock = ({
 			) : (
 				<div className="bg-muted p-4 rounded-md">
 					<pre className="m-0 p-0 border-0">
-						<code className="text-xs font-mono border-0 leading-6">
-							{children}
-						</code>
+						<code className="text-xs font-mono border-0 leading-6">{children}</code>
 					</pre>
 				</div>
 			)}
@@ -285,7 +271,7 @@ const CodeBlock = ({
 // Helper function to process citations within React children
 const processCitationsInReactChildren = (
 	children: React.ReactNode,
-	getCitationSource: (id: number) => Source | null,
+	getCitationSource: (id: number) => Source | null
 ): React.ReactNode => {
 	// If children is not an array or string, just return it
 	if (!children || (typeof children !== "string" && !Array.isArray(children))) {
@@ -313,17 +299,17 @@ const processCitationsInReactChildren = (
 // Process citation references in text content
 const processCitationsInText = (
 	text: string,
-	getCitationSource: (id: number) => Source | null,
+	getCitationSource: (id: number) => Source | null
 ): React.ReactNode[] => {
 	// Use improved regex to catch citation numbers more reliably
 	// This will match patterns like [1], [42], etc. including when they appear at the end of a line or sentence
 	const citationRegex = /\[(\d+)\]/g;
 	const parts: React.ReactNode[] = [];
 	let lastIndex = 0;
-	let match;
+	let match: RegExpExecArray | null = citationRegex.exec(text);
 	let position = 0;
 
-	while ((match = citationRegex.exec(text)) !== null) {
+	while (match !== null) {
 		// Add text before the citation
 		if (match.index > lastIndex) {
 			parts.push(text.substring(lastIndex, match.index));
@@ -340,11 +326,12 @@ const processCitationsInText = (
 				citationText={match[0]}
 				position={position}
 				source={source}
-			/>,
+			/>
 		);
 
 		lastIndex = match.index + match[0].length;
 		position++;
+		match = citationRegex.exec(text);
 	}
 
 	// Add any remaining text after the last citation
