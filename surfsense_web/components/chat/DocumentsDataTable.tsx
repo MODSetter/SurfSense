@@ -54,6 +54,7 @@ const DOCUMENT_TYPES: (DocumentType | "ALL")[] = [
 	"LINEAR_CONNECTOR",
 	"DISCORD_CONNECTOR",
 	"JIRA_CONNECTOR",
+	"CONFLUENCE_CONNECTOR",
 ];
 
 const getDocumentTypeColor = (type: DocumentType) => {
@@ -68,6 +69,7 @@ const getDocumentTypeColor = (type: DocumentType) => {
 		LINEAR_CONNECTOR: "bg-pink-50 text-pink-700 border-pink-200",
 		DISCORD_CONNECTOR: "bg-violet-50 text-violet-700 border-violet-200",
 		JIRA_CONNECTOR: "bg-orange-50 text-orange-700 border-orange-200",
+		CONFLUENCE_CONNECTOR: "bg-teal-50 text-teal-700 border-teal-200",
 	};
 	return colors[type] || "bg-gray-50 text-gray-700 border-gray-200";
 };
