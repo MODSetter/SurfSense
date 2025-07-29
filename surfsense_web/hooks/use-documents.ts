@@ -22,7 +22,8 @@ export type DocumentType =
 	| "GITHUB_CONNECTOR"
 	| "LINEAR_CONNECTOR"
 	| "DISCORD_CONNECTOR"
-	| "JIRA_CONNECTOR";
+	| "JIRA_CONNECTOR"
+	| "CONFLUENCE_CONNECTOR";
 
 export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
 	const [documents, setDocuments] = useState<Document[]>([]);
