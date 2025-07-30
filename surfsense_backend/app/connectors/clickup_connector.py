@@ -5,7 +5,6 @@ A module for retrieving data from ClickUp.
 Allows fetching tasks from workspaces and lists.
 """
 
-from datetime import datetime
 from typing import Any
 
 import requests
@@ -169,14 +168,6 @@ class ClickUpConnector:
             Tuple containing (tasks list, error message or None)
         """
         try:
-            # Convert dates to Unix timestamps (milliseconds)
-            start_timestamp = int(
-                datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000
-            )
-            end_timestamp = int(
-                datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000
-            )
-
             # TODO : Include date range in api request
 
             params = {

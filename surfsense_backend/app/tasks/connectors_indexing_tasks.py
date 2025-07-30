@@ -1,10 +1,8 @@
 import asyncio
-import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
 
 from slack_sdk.errors import SlackApiError
-from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -2742,7 +2740,6 @@ async def index_clickup_tasks(
     )
 
     try:
-
         # Get connector configuration
         result = await session.execute(
             select(SearchSourceConnector).filter(
@@ -2828,7 +2825,9 @@ async def index_clickup_tasks(
                     include_closed=True,
                 )
                 if error:
-                    logger.warning(f"Error fetching tasks from workspace {workspace_name}: {error}")
+                    logger.warning(
+                        f"Error fetching tasks from workspace {workspace_name}: {error}"
+                    )
                     continue
             else:
                 tasks = clickup_client.get_workspace_tasks(
@@ -2848,12 +2847,15 @@ async def index_clickup_tasks(
                     task_name = task.get("name", "Untitled Task")
                     task_description = task.get("description", "")
                     task_status = task.get("status", {}).get("status", "Unknown")
-                    task_priority = task.get("priority", {}).get("priority", "Unknown") if task.get("priority") else "None"
+                    task_priority = (
+                        task.get("priority", {}).get("priority", "Unknown")
+                        if task.get("priority")
+                        else "None"
+                    )
                     task_assignees = task.get("assignees", [])
                     task_due_date = task.get("due_date")
                     task_created = task.get("date_created")
                     task_updated = task.get("date_updated")
-                    task_url = task.get("url", "")
 
                     # Get list and space information
                     task_list = task.get("list", {})
@@ -2867,15 +2869,20 @@ async def index_clickup_tasks(
                     if task_description:
                         content_parts.append(f"Description: {task_description}")
 
-                    content_parts.extend([
-                        f"Status: {task_status}",
-                        f"Priority: {task_priority}",
-                        f"List: {task_list_name}",
-                        f"Space: {task_space_name}",
-                    ])
+                    content_parts.extend(
+                        [
+                            f"Status: {task_status}",
+                            f"Priority: {task_priority}",
+                            f"List: {task_list_name}",
+                            f"Space: {task_space_name}",
+                        ]
+                    )
 
                     if task_assignees:
-                        assignee_names = [assignee.get("username", "Unknown") for assignee in task_assignees]
+                        assignee_names = [
+                            assignee.get("username", "Unknown")
+                            for assignee in task_assignees
+                        ]
                         content_parts.append(f"Assignees: {', '.join(assignee_names)}")
 
                     if task_due_date:
@@ -2887,53 +2894,34 @@ async def index_clickup_tasks(
                         logger.warning(f"Skipping task with no content: {task_name}")
                         continue
 
-                    # Create document metadata
-                    document_metadata = {
-                        "task_id": task_id,
-                        "task_name": task_name,
-                        "task_url": task_url,
-                        "task_status": task_status,
-                        "task_priority": task_priority,
-                        "task_assignees": task_assignees,
-                        "task_due_date": task_due_date,
-                        "task_created": task_created,
-                        "task_updated": task_updated,
-                        "task_list_name": task_list_name,
-                        "task_space_name": task_space_name,
-                        "workspace_id": workspace_id,
-                        "workspace_name": workspace_name,
-                        "connector_id": connector_id,
-                        "source": "CLICKUP_CONNECTOR",
-                    }
-
                     # Generate content hash
                     content_hash = generate_content_hash(task_content, search_space_id)
 
                     # Check if document already exists
                     existing_doc_by_hash_result = await session.execute(
-                    select(Document).where(Document.content_hash == content_hash)
+                        select(Document).where(Document.content_hash == content_hash)
                     )
                     existing_document_by_hash = (
-                    existing_doc_by_hash_result.scalars().first()
+                        existing_doc_by_hash_result.scalars().first()
                     )
 
                     if existing_document_by_hash:
                         logger.info(
-                        f"Document with content hash {content_hash} already exists for task {task_name}. Skipping processing."
+                            f"Document with content hash {content_hash} already exists for task {task_name}. Skipping processing."
                         )
                         documents_skipped += 1
                         continue
 
                     # Generate embedding for the summary
                     summary_embedding = config.embedding_model_instance.embed(
-                    task_content
+                        task_content
                     )
 
                     # Process chunks - using the full page content with comments
                     chunks = [
                         Chunk(
-                        content=chunk.text,
-                        embedding=config.embedding_model_instance.embed(chunk.text),
+                            content=chunk.text,
+                            embedding=config.embedding_model_instance.embed(chunk.text),
                         )
                         for chunk in config.chunker_instance.chunk(task_content)
                     ]
@@ -2942,24 +2930,24 @@ async def index_clickup_tasks(
                     logger.info(f"Creating new document for task {task_name}")
 
                     document = Document(
-                    search_space_id=search_space_id,
-                    title=f"Task - {task_name}",
-                    document_type=DocumentType.CLICKUP_CONNECTOR,
-                    document_metadata={
-                        "task_id": task_id,
-                        "task_name": task_name,
-                        "task_status": task_status,
-                        "task_priority": task_priority,
-                        "task_assignees": task_assignees,
-                        "task_due_date": task_due_date,
-                        "task_created": task_created,
-                        "task_updated": task_updated,
-                        "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    },
-                    content=task_content,
-                    content_hash=content_hash,
-                    embedding=summary_embedding,
-                    chunks=chunks,
+                        search_space_id=search_space_id,
+                        title=f"Task - {task_name}",
+                        document_type=DocumentType.CLICKUP_CONNECTOR,
+                        document_metadata={
+                            "task_id": task_id,
+                            "task_name": task_name,
+                            "task_status": task_status,
+                            "task_priority": task_priority,
+                            "task_assignees": task_assignees,
+                            "task_due_date": task_due_date,
+                            "task_created": task_created,
+                            "task_updated": task_updated,
+                            "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        },
+                        content=task_content,
+                        content_hash=content_hash,
+                        embedding=summary_embedding,
+                        chunks=chunks,
                     )
 
                     session.add(document)
@@ -2968,11 +2956,10 @@ async def index_clickup_tasks(
 
                 except Exception as e:
                     logger.error(
-                    f"Error processing task {task.get('name', 'Unknown')}: {e!s}",
-                    exc_info=True,
+                        f"Error processing task {task.get('name', 'Unknown')}: {e!s}",
+                        exc_info=True,
                     )
                     documents_skipped += 1
-
 
             # Update the last_indexed_at timestamp for the connector only if requested
             total_processed = documents_indexed
@@ -3006,22 +2993,22 @@ async def index_clickup_tasks(
             )  # Return None as the error message to indicate success
 
     except SQLAlchemyError as db_error:
-            await session.rollback()
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Database error during Cickup indexing for connector {connector_id}",
-                str(db_error),
-                {"error_type": "SQLAlchemyError"},
-            )
-            logger.error(f"Database error: {db_error!s}", exc_info=True)
-            return 0, f"Database error: {db_error!s}"
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Database error during Cickup indexing for connector {connector_id}",
+            str(db_error),
+            {"error_type": "SQLAlchemyError"},
+        )
+        logger.error(f"Database error: {db_error!s}", exc_info=True)
+        return 0, f"Database error: {db_error!s}"
     except Exception as e:
-            await session.rollback()
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to index ClickUp tasks for connector {connector_id}",
-                str(e),
-                {"error_type": type(e).__name__},
-            )
-            logger.error(f"Failed to index ClickUp tasks: {e!s}", exc_info=True)
-            return 0, f"Failed to index ClickUp tasks: {e!s}"
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Failed to index ClickUp tasks for connector {connector_id}",
+            str(e),
+            {"error_type": type(e).__name__},
+        )
+        logger.error(f"Failed to index ClickUp tasks: {e!s}", exc_info=True)
+        return 0, f"Failed to index ClickUp tasks: {e!s}"

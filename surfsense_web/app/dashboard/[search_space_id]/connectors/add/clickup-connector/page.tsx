@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft, ExternalLink, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Form,
 	FormControl,
@@ -16,10 +20,6 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, ExternalLink, Eye, EyeOff } from "lucide-react";
-import Link from "next/link";
-import { toast } from "sonner";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
 interface ClickUpConnectorPageProps {
@@ -103,7 +103,8 @@ export default function ClickUpConnectorPage({ params }: ClickUpConnectorPagePro
 				<CardHeader>
 					<CardTitle>ClickUp Configuration</CardTitle>
 					<CardDescription>
-						Enter your ClickUp API token to connect your workspace. You can generate a personal API token from your ClickUp settings.
+						Enter your ClickUp API token to connect your workspace. You can generate a personal API
+						token from your ClickUp settings.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -116,10 +117,7 @@ export default function ClickUpConnectorPage({ params }: ClickUpConnectorPagePro
 									<FormItem>
 										<FormLabel>Connector Name</FormLabel>
 										<FormControl>
-											<Input
-												placeholder="ClickUp Connector"
-												{...field}
-											/>
+											<Input placeholder="ClickUp Connector" {...field} />
 										</FormControl>
 										<FormDescription>
 											A friendly name to identify this ClickUp connector.
@@ -199,15 +197,11 @@ export default function ClickUpConnectorPage({ params }: ClickUpConnectorPagePro
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div className="space-y-2">
-						<p className="text-sm text-muted-foreground">
-							1. Log in to your ClickUp account
-						</p>
+						<p className="text-sm text-muted-foreground">1. Log in to your ClickUp account</p>
 						<p className="text-sm text-muted-foreground">
 							2. Click your avatar in the upper-right corner and select "Settings"
 						</p>
-						<p className="text-sm text-muted-foreground">
-							3. In the sidebar, click "Apps"
-						</p>
+						<p className="text-sm text-muted-foreground">3. In the sidebar, click "Apps"</p>
 						<p className="text-sm text-muted-foreground">
 							4. Under "API Token", click "Generate" or "Regenerate"
 						</p>

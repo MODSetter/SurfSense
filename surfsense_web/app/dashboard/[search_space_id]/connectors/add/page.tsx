@@ -8,6 +8,7 @@ import {
 	IconBrandSlack,
 	IconBrandWindows,
 	IconBrandZoom,
+	IconChecklist,
 	IconChevronDown,
 	IconChevronRight,
 	IconLayoutKanban,
@@ -15,7 +16,6 @@ import {
 	IconMail,
 	IconTicket,
 	IconWorldWww,
-	IconChecklist,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import Link from "next/link";
