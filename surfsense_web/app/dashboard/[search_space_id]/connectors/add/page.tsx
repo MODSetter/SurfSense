@@ -15,6 +15,7 @@ import {
 	IconMail,
 	IconTicket,
 	IconWorldWww,
+	IconChecklist,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import Link from "next/link";
@@ -105,6 +106,13 @@ const connectorCategories: ConnectorCategory[] = [
 				title: "Jira",
 				description: "Connect to Jira to search issues, tickets and project data.",
 				icon: <IconTicket className="h-6 w-6" />,
+				status: "available",
+			},
+			{
+				id: "clickup-connector",
+				title: "ClickUp",
+				description: "Connect to ClickUp to search tasks, comments and project data.",
+				icon: <IconChecklist className="h-6 w-6" />,
 				status: "available",
 			},
 		],

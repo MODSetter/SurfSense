@@ -6,15 +6,15 @@ Create Date: 2025-07-29 12:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "15_add_clickup_connector_enums"
-down_revision: Union[str, None] = "14_add_confluence_connector_enums"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "14_add_confluence_connector_enums"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

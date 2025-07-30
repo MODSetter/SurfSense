@@ -7,6 +7,7 @@ import {
 	IconBrandNotion,
 	IconBrandSlack,
 	IconBrandYoutube,
+	IconChecklist,
 	IconLayoutKanban,
 	IconTicket,
 } from "@tabler/icons-react";
@@ -146,6 +147,7 @@ const documentTypeIcons = {
 	JIRA_CONNECTOR: IconTicket,
 	DISCORD_CONNECTOR: IconBrandDiscord,
 	CONFLUENCE_CONNECTOR: IconBook,
+	CLICKUP_CONNECTOR: IconChecklist,
 } as const;
 
 const columns: ColumnDef<Document>[] = [

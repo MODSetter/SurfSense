@@ -1246,7 +1246,9 @@ class ConnectorService:
             if task_priority:
                 description_parts.append(f"Priority: {task_priority}")
             if task_assignees:
-                assignee_names = [assignee.get("username", "Unknown") for assignee in task_assignees]
+                assignee_names = [
+                    assignee.get("username", "Unknown") for assignee in task_assignees
+                ]
                 description_parts.append(f"Assignees: {', '.join(assignee_names)}")
             if task_due_date:
                 description_parts.append(f"Due: {task_due_date}")
@@ -1255,7 +1257,9 @@ class ConnectorService:
             if task_space_name:
                 description_parts.append(f"Space: {task_space_name}")
 
-            description = " | ".join(description_parts) if description_parts else "ClickUp Task"
+            description = (
+                " | ".join(description_parts) if description_parts else "ClickUp Task"
+            )
 
             source = {
                 "id": document.get("id", self.source_id_counter),
