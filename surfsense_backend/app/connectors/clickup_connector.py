@@ -177,14 +177,13 @@ class ClickUpConnector:
                 datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000
             )
 
+            # TODO : Include date range in api request
+
             params = {
                 "page": 0,
                 "order_by": "created",
                 "reverse": "true",
                 "subtasks": "true",
-                "include_closed": str(include_closed).lower(),
-                "date_created_gt": start_timestamp,
-                "date_created_lt": end_timestamp,
             }
 
             all_tasks = []
