@@ -1170,6 +1170,120 @@ class ConnectorService:
 
         return result_object, confluence_chunks
 
+    async def search_clickup(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for ClickUp tasks and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            clickup_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="CLICKUP_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            clickup_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="CLICKUP_CONNECTOR",
+            )
+            # Transform document retriever results to match expected format
+            clickup_chunks = self._transform_document_results(clickup_chunks)
+
+        # Early return if no results
+        if not clickup_chunks:
+            return {
+                "id": 31,
+                "name": "ClickUp Tasks",
+                "type": "CLICKUP_CONNECTOR",
+                "sources": [],
+            }, []
+
+        sources_list = []
+
+        for chunk in clickup_chunks:
+            if hasattr(chunk, "metadata") and chunk.metadata:
+                document = chunk.metadata
+            else:
+                # Handle case where chunk is a dict (from document retriever)
+                document = chunk
+
+            # Extract ClickUp task information from metadata
+            task_name = document.get("task_name", "Unknown Task")
+            task_id = document.get("task_id", "")
+            task_url = document.get("task_url", "")
+            task_status = document.get("task_status", "Unknown")
+            task_priority = document.get("task_priority", "Unknown")
+            task_assignees = document.get("task_assignees", [])
+            task_due_date = document.get("task_due_date", "")
+            task_list_name = document.get("task_list_name", "")
+            task_space_name = document.get("task_space_name", "")
+
+            # Create description from task details
+            description_parts = []
+            if task_status:
+                description_parts.append(f"Status: {task_status}")
+            if task_priority:
+                description_parts.append(f"Priority: {task_priority}")
+            if task_assignees:
+                assignee_names = [assignee.get("username", "Unknown") for assignee in task_assignees]
+                description_parts.append(f"Assignees: {', '.join(assignee_names)}")
+            if task_due_date:
+                description_parts.append(f"Due: {task_due_date}")
+            if task_list_name:
+                description_parts.append(f"List: {task_list_name}")
+            if task_space_name:
+                description_parts.append(f"Space: {task_space_name}")
+
+            description = " | ".join(description_parts) if description_parts else "ClickUp Task"
+
+            source = {
+                "id": document.get("id", self.source_id_counter),
+                "title": task_name,
+                "description": description,
+                "url": task_url,
+                "task_id": task_id,
+                "status": task_status,
+                "priority": task_priority,
+                "assignees": task_assignees,
+                "due_date": task_due_date,
+                "list_name": task_list_name,
+                "space_name": task_space_name,
+            }
+
+            self.source_id_counter += 1
+            sources_list.append(source)
+
+        # Create result object
+        result_object = {
+            "id": 31,  # Assign a unique ID for the ClickUp connector
+            "name": "ClickUp Tasks",
+            "type": "CLICKUP_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, clickup_chunks
+
     async def search_linkup(
         self, user_query: str, user_id: str, mode: str = "standard"
     ) -> tuple:
