@@ -1,5 +1,4 @@
 import asyncio
-import json
 from typing import Any
 
 from linkup import LinkupClient
@@ -1223,7 +1222,6 @@ class ConnectorService:
         sources_list = []
 
         for chunk in clickup_chunks:
-            
             # Extract document metadata
             document = chunk.get("document", {})
             metadata = document.get("metadata", {})

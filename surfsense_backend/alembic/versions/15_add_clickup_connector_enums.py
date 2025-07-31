@@ -11,8 +11,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '15'
-down_revision: str | None = '14'
+revision: str = "15"
+down_revision: str | None = "14"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
