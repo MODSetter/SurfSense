@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import Any
 
 from linkup import LinkupClient
@@ -1222,22 +1223,21 @@ class ConnectorService:
         sources_list = []
 
         for chunk in clickup_chunks:
-            if hasattr(chunk, "metadata") and chunk.metadata:
-                document = chunk.metadata
-            else:
-                # Handle case where chunk is a dict (from document retriever)
-                document = chunk
+            
+            # Extract document metadata
+            document = chunk.get("document", {})
+            metadata = document.get("metadata", {})
 
             # Extract ClickUp task information from metadata
-            task_name = document.get("task_name", "Unknown Task")
-            task_id = document.get("task_id", "")
-            task_url = document.get("task_url", "")
-            task_status = document.get("task_status", "Unknown")
-            task_priority = document.get("task_priority", "Unknown")
-            task_assignees = document.get("task_assignees", [])
-            task_due_date = document.get("task_due_date", "")
-            task_list_name = document.get("task_list_name", "")
-            task_space_name = document.get("task_space_name", "")
+            task_name = metadata.get("task_name", "Unknown Task")
+            task_id = metadata.get("task_id", "")
+            task_url = metadata.get("task_url", "")
+            task_status = metadata.get("task_status", "Unknown")
+            task_priority = metadata.get("task_priority", "Unknown")
+            task_assignees = metadata.get("task_assignees", [])
+            task_due_date = metadata.get("task_due_date", "")
+            task_list_name = metadata.get("task_list_name", "")
+            task_space_name = metadata.get("task_space_name", "")
 
             # Create description from task details
             description_parts = []

@@ -1,7 +1,7 @@
 """Add ClickUp connector enums
 
-Revision ID: 15_add_clickup_connector_enums
-Revises: 14_add_confluence_connector_enums
+Revision ID: '15'
+Revises: '14'
 Create Date: 2025-07-29 12:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "15_add_clickup_connector_enums"
-down_revision: str | None = "14_add_confluence_connector_enums"
+revision: str = '15'
+down_revision: str | None = '14'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
