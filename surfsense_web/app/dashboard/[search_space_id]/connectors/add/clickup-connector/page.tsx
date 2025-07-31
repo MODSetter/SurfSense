@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ExternalLink, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -22,12 +22,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
-interface ClickUpConnectorPageProps {
-	params: {
-		search_space_id: string;
-	};
-}
-
 // Define the form schema with Zod
 const clickupConnectorFormSchema = z.object({
 	name: z.string().min(3, {
@@ -41,8 +35,10 @@ const clickupConnectorFormSchema = z.object({
 // Define the type for the form values
 type ClickUpConnectorFormValues = z.infer<typeof clickupConnectorFormSchema>;
 
-export default function ClickUpConnectorPage({ params }: ClickUpConnectorPageProps) {
+export default function ClickUpConnectorPage() {
 	const router = useRouter();
+	const params = useParams();
+	const searchSpaceId = params.search_space_id as string;
 	const { createConnector } = useSearchSourceConnectors();
 	const [isLoading, setIsLoading] = useState(false);
 	const [showApiToken, setShowApiToken] = useState(false);
@@ -74,7 +70,7 @@ export default function ClickUpConnectorPage({ params }: ClickUpConnectorPagePro
 			await createConnector(connectorData);
 
 			toast.success("ClickUp connector created successfully!");
-			router.push(`/dashboard/${params.search_space_id}/connectors`);
+			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		} catch (error) {
 			console.error("Error creating ClickUp connector:", error);
 			toast.error("Failed to create ClickUp connector. Please try again.");
@@ -85,19 +81,14 @@ export default function ClickUpConnectorPage({ params }: ClickUpConnectorPagePro
 
 	return (
 		<div className="container mx-auto py-6 max-w-2xl">
-			<div className="mb-6">
-				<Link
-					href={`/dashboard/${params.search_space_id}/connectors/add`}
-					className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
-				>
-					<ArrowLeft className="mr-2 h-4 w-4" />
-					Back to connectors
-				</Link>
-				<h1 className="text-3xl font-bold">Add ClickUp Connector</h1>
-				<p className="text-muted-foreground mt-2">
-					Connect your ClickUp workspace to search and retrieve tasks.
-				</p>
-			</div>
+			<Button
+				variant="ghost"
+				className="mb-6"
+				onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}
+			>
+				<ArrowLeft className="mr-2 h-4 w-4" />
+				Back to Connectors
+			</Button>
 
 			<Card>
 				<CardHeader>
