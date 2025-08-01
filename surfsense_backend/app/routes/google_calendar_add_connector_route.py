@@ -2,16 +2,19 @@
 
 import base64
 import json
+from sqlite3 import IntegrityError
 from uuid import UUID
+from venv import logger
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
+from jsonschema import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.config import config
-from app.db import GoogleCalendarAccount, User, get_async_session
+from app.db import SearchSourceConnector, User, get_async_session
 from app.users import current_active_user
 
 router = APIRouter()
@@ -41,7 +44,7 @@ def get_google_flow():
         ) from e
 
 
-@router.get("/auth/google/calendar/connector/init/")
+@router.get("/auth/google/calendar/connector/add/")
 async def connect_calendar(space_id: int, user: User = Depends(current_active_user)):
     try:
         if not space_id:
@@ -90,31 +93,57 @@ async def calendar_callback(
         flow.fetch_token(code=code)
 
         creds = flow.credentials
-        token = creds.token
-        refresh_token = creds.refresh_token
+        creds_dict = json.loads(creds.to_json())
 
-        existing = await session.scalar(
-            select(GoogleCalendarAccount).where(
-                GoogleCalendarAccount.user_id == user_id
-            )
-        )
-        if existing:
-            existing.access_token = token
-            existing.refresh_token = refresh_token or existing.refresh_token
-        else:
-            session.add(
-                GoogleCalendarAccount(
-                    user_id=user_id,
-                    access_token=token,
-                    refresh_token=refresh_token,
+        try:
+            # Check if a connector with the same type already exists for this user
+            result = await session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.connector_type == "GOOGLE_CALENDAR_CONNECTOR",
                 )
             )
+            existing_connector = result.scalars().first()
+            if existing_connector:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A GOOGLE_CALENDAR_CONNECTOR connector already exists. Each user can have only one connector of each type.",
+                )
+            db_connector = SearchSourceConnector(
+                name="Google Calendar Connector",
+                connector_type="GOOGLE_CALENDAR_CONNECTOR",
+                config=creds_dict,
+                user_id=user_id,
+                is_indexable=True,
+            )
+            session.add(db_connector)
+            await session.commit()
+            await session.refresh(db_connector)
+            return RedirectResponse(
+                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/google-calendar-connector?success=true"
+            )
+        except ValidationError as e:
+            await session.rollback()
+            raise HTTPException(
+                status_code=422, detail=f"Validation error: {e!s}"
+            ) from e
+        except IntegrityError as e:
+            await session.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f"Integrity error: A connector with this type already exists. {e!s}",
+            ) from e
+        except HTTPException:
+            await session.rollback()
+            raise
+        except Exception as e:
+            logger.error(f"Failed to create search source connector: {e!s}")
+            await session.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create search source connector: {e!s}",
+            ) from e
 
-        await session.commit()
-
-        return RedirectResponse(
-            f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/google-calendar-connector?success=true"
-        )
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Google OAuth: {e!s}"
