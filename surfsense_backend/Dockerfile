@@ -21,8 +21,12 @@ RUN pip install --upgrade certifi pip-system-certs
 COPY pyproject.toml .
 COPY uv.lock .
 
-# Install CUDA-enabled PyTorch for WSL2 before other dependencies
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Install PyTorch based on architecture
+RUN if [ "$(uname -m)" = "x86_64" ]; then \
+        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121; \
+    else \
+        pip install --no-cache-dir torch torchvision torchaudio; \
+    fi
 
 # Install python dependencies
 RUN pip install --no-cache-dir uv && \
@@ -58,4 +62,4 @@ ENV UVICORN_LOOP=asyncio
 
 # Run
 EXPOSE 8000
-CMD ["python", "main.py"] 
+CMD ["python", "main.py", "--reload"] 
