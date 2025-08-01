@@ -7,6 +7,7 @@ import {
 	IconBrandNotion,
 	IconBrandSlack,
 	IconBrandYoutube,
+	IconChecklist,
 	IconLayoutKanban,
 	IconTicket,
 } from "@tabler/icons-react";
@@ -146,6 +147,7 @@ const documentTypeIcons = {
 	JIRA_CONNECTOR: IconTicket,
 	DISCORD_CONNECTOR: IconBrandDiscord,
 	CONFLUENCE_CONNECTOR: IconBook,
+	CLICKUP_CONNECTOR: IconChecklist,
 } as const;
 
 const columns: ColumnDef<Document>[] = [
@@ -222,6 +224,7 @@ const columns: ColumnDef<Document>[] = [
 			);
 		},
 		size: 180,
+		enableColumnFilter: true,
 	},
 	{
 		header: "Content Summary",
@@ -402,25 +405,29 @@ export default function DocumentsTable() {
 	// Get unique status values
 	const uniqueStatusValues = useMemo(() => {
 		const statusColumn = table.getColumn("document_type");
+		if (!data.length) return []; // Don't compute until data is present
 
 		if (!statusColumn) return [];
 
 		const values = Array.from(statusColumn.getFacetedUniqueValues().keys());
 
 		return values.sort();
-	}, [table.getColumn]);
+	}, [table.getColumn, data]);
 
 	// Get counts for each status
 	const statusCounts = useMemo(() => {
 		const statusColumn = table.getColumn("document_type");
+		if (!data.length) return new Map(); // Don't compute until data is present
 		if (!statusColumn) return new Map();
 		return statusColumn.getFacetedUniqueValues();
-	}, [table.getColumn]);
+	}, [table.getColumn, data, columnFilters]);
 
 	const selectedStatuses = useMemo(() => {
 		const filterValue = table.getColumn("document_type")?.getFilterValue() as string[];
+		if (!data.length) return []; // Don't compute until data is present
+
 		return filterValue ?? [];
-	}, [table.getColumn]);
+	}, [table.getColumn, data, columnFilters]);
 
 	const handleStatusChange = (checked: boolean, value: string) => {
 		const filterValue = table.getColumn("document_type")?.getFilterValue() as string[];
@@ -434,6 +441,13 @@ export default function DocumentsTable() {
 				newFilterValue.splice(index, 1);
 			}
 		}
+
+		setColumnFilters([
+			{
+				id: "document_type",
+				value: newFilterValue,
+			},
+		]);
 
 		table
 			.getColumn("document_type")

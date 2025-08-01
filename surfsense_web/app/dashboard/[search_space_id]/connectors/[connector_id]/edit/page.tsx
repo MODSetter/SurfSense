@@ -228,6 +228,17 @@ export default function EditConnectorPage() {
 									</div>
 								)}
 
+								{/* == ClickUp == */}
+								{connector.connector_type === "CLICKUP_CONNECTOR" && (
+									<EditSimpleTokenForm
+										control={editForm.control}
+										fieldName="CLICKUP_API_TOKEN"
+										fieldLabel="ClickUp API Token"
+										fieldDescription="Update your ClickUp API Token if needed."
+										placeholder="pk_..."
+									/>
+								)}
+
 								{/* == Linkup == */}
 								{connector.connector_type === "LINKUP_API" && (
 									<EditSimpleTokenForm
