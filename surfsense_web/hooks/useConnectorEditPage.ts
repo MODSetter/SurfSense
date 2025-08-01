@@ -52,6 +52,9 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			JIRA_BASE_URL: "",
 			JIRA_EMAIL: "",
 			JIRA_API_TOKEN: "",
+			ZENDESK_SUBDOMAIN: "",
+			ZENDESK_EMAIL: "",
+			ZENDESK_API_TOKEN: "",
 		},
 	});
 
@@ -78,6 +81,9 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					JIRA_BASE_URL: config.JIRA_BASE_URL || "",
 					JIRA_EMAIL: config.JIRA_EMAIL || "",
 					JIRA_API_TOKEN: config.JIRA_API_TOKEN || "",
+					ZENDESK_SUBDOMAIN: config.ZENDESK_SUBDOMAIN || "",
+					ZENDESK_EMAIL: config.ZENDESK_EMAIL || "",
+					ZENDESK_API_TOKEN: config.ZENDESK_API_TOKEN || "",
 				});
 				if (currentConnector.connector_type === "GITHUB_CONNECTOR") {
 					const savedRepos = config.repo_full_names || [];
@@ -303,6 +309,28 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						};
 					}
 					break;
+				case "ZENDESK_CONNECTOR":
+					if (
+						formData.ZENDESK_SUBDOMAIN !== originalConfig.ZENDESK_SUBDOMAIN ||
+						formData.ZENDESK_EMAIL !== originalConfig.ZENDESK_EMAIL ||
+						formData.ZENDESK_API_TOKEN !== originalConfig.ZENDESK_API_TOKEN
+					) {
+						if (
+							!formData.ZENDESK_SUBDOMAIN ||
+							!formData.ZENDESK_EMAIL ||
+							!formData.ZENDESK_API_TOKEN
+						) {
+							toast.error("All Zendesk fields are required.");
+							setIsSaving(false);
+							return;
+						}
+						newConfig = {
+							ZENDESK_SUBDOMAIN: formData.ZENDESK_SUBDOMAIN,
+							ZENDESK_EMAIL: formData.ZENDESK_EMAIL,
+							ZENDESK_API_TOKEN: formData.ZENDESK_API_TOKEN,
+						};
+					}
+					break;
 			}
 
 			if (newConfig !== null) {
@@ -365,6 +393,10 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						editForm.setValue("JIRA_BASE_URL", newlySavedConfig.JIRA_BASE_URL || "");
 						editForm.setValue("JIRA_EMAIL", newlySavedConfig.JIRA_EMAIL || "");
 						editForm.setValue("JIRA_API_TOKEN", newlySavedConfig.JIRA_API_TOKEN || "");
+					} else if (connector.connector_type === "ZENDESK_CONNECTOR") {
+						editForm.setValue("ZENDESK_SUBDOMAIN", newlySavedConfig.ZENDESK_SUBDOMAIN || "");
+						editForm.setValue("ZENDESK_EMAIL", newlySavedConfig.ZENDESK_EMAIL || "");
+						editForm.setValue("ZENDESK_API_TOKEN", newlySavedConfig.ZENDESK_API_TOKEN || "");
 					}
 				}
 				if (connector.connector_type === "GITHUB_CONNECTOR") {

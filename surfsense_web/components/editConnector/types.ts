@@ -39,5 +39,8 @@ export const editConnectorSchema = z.object({
 	JIRA_BASE_URL: z.string().optional(),
 	JIRA_EMAIL: z.string().optional(),
 	JIRA_API_TOKEN: z.string().optional(),
+	ZENDESK_SUBDOMAIN: z.string().optional(),
+	ZENDESK_EMAIL: z.string().optional(),
+	ZENDESK_API_TOKEN: z.string().optional(),
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>;
