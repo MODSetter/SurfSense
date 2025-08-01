@@ -4,7 +4,7 @@
 	"private": true,
 	"description": "SurfSense Frontend",
 	"scripts": {
-		"dev": "next dev",
+		"dev": "next dev --turbopack",
 		"dev:turbo": "next dev --turbopack",
 		"build": "next build",
 		"start": "next start",

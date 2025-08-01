@@ -2,19 +2,21 @@ version: '3.8'
 
 services:
   frontend:
-    build: ghcr.io/modsetter/surfsense_ui:latest
+    image: ghcr.io/modsetter/surfsense_ui:latest
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     volumes:
       - ./surfsense_web:/app
       - /app/node_modules
+    env_file:
+      - ./surfsense_web/.env
     depends_on:
       - backend
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:8000}
 
   backend:
-    build: ghcr.io/modsetter/surfsense_backend:latest
+    image: ghcr.io/modsetter/surfsense_backend:latest
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -28,14 +30,5 @@ services:
       - PYTHONPATH=/app
       - UVICORN_LOOP=asyncio
       - UNSTRUCTURED_HAS_PATCHED_LOOP=1
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - LANGCHAIN_TRACING_V2=false
       - LANGSMITH_TRACING=false
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
