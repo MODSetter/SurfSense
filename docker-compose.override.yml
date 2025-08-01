@@ -32,10 +32,4 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - LANGCHAIN_TRACING_V2=false
       - LANGSMITH_TRACING=false
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    

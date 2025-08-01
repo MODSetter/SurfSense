@@ -167,6 +167,26 @@ class SearchSourceConnectorBase(BaseModel):
             if not config.get("CONFLUENCE_BASE_URL"):
                 raise ValueError("CONFLUENCE_BASE_URL cannot be empty")
 
+        elif connector_type == SearchSourceConnectorType.ZENDESK_CONNECTOR:
+            # For ZENDESK_CONNECTOR, require ZENDESK_SUBDOMAIN, ZENDESK_EMAIL, and ZENDESK_API_TOKEN
+            allowed_keys = ["ZENDESK_SUBDOMAIN", "ZENDESK_EMAIL", "ZENDESK_API_TOKEN"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(
+                    f"For ZENDESK_CONNECTOR connector type, config must only contain these keys: {allowed_keys}"
+                )
+
+            # Ensure the subdomain is not empty
+            if not config.get("ZENDESK_SUBDOMAIN"):
+                raise ValueError("ZENDESK_SUBDOMAIN cannot be empty")
+
+            # Ensure the email is not empty
+            if not config.get("ZENDESK_EMAIL"):
+                raise ValueError("ZENDESK_EMAIL cannot be empty")
+
+            # Ensure the API token is not empty
+            if not config.get("ZENDESK_API_TOKEN"):
+                raise ValueError("ZENDESK_API_TOKEN cannot be empty")
+
         return config
 
 

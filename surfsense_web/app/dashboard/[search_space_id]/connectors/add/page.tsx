@@ -137,6 +137,19 @@ const connectorCategories: ConnectorCategory[] = [
 		],
 	},
 	{
+		id: "customer-support",
+		title: "Customer Support",
+		connectors: [
+			{
+				id: "zendesk-connector",
+				title: "Zendesk",
+				description: "Connect to Zendesk to search tickets and support data.",
+				icon: <IconTicket className="h-6 w-6" />,
+				status: "available",
+			},
+		],
+	},
+	{
 		id: "communication",
 		title: "Communication",
 		connectors: [
