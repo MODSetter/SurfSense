@@ -271,6 +271,49 @@ async def fetch_documents_by_ids(
                     else:
                         url = ""
 
+                elif doc_type == "GOOGLE_CALENDAR_CONNECTOR":
+                    # Extract Google Calendar-specific metadata
+                    event_id = metadata.get("event_id", "Unknown Event")
+                    event_summary = metadata.get("event_summary", "Untitled Event")
+                    calendar_id = metadata.get("calendar_id", "")
+                    start_time = metadata.get("start_time", "")
+                    location = metadata.get("location", "")
+
+                    title = f"Calendar: {event_summary}"
+                    if start_time:
+                        # Format the start time for display
+                        try:
+                            if "T" in start_time:
+                                from datetime import datetime
+
+                                start_dt = datetime.fromisoformat(
+                                    start_time.replace("Z", "+00:00")
+                                )
+                                formatted_time = start_dt.strftime("%Y-%m-%d %H:%M")
+                                title += f" ({formatted_time})"
+                            else:
+                                title += f" ({start_time})"
+                        except Exception:
+                            title += f" ({start_time})"
+
+                    description = (
+                        doc.content[:100] + "..."
+                        if len(doc.content) > 100
+                        else doc.content
+                    )
+                    if location:
+                        description += f" | Location: {location}"
+                    if calendar_id and calendar_id != "primary":
+                        description += f" | Calendar: {calendar_id}"
+
+                    # Construct Google Calendar URL
+                    if event_id:
+                        url = (
+                            f"https://calendar.google.com/calendar/event?eid={event_id}"
+                        )
+                    else:
+                        url = ""
+
                 elif doc_type == "EXTENSION":
                     # Extract Extension-specific metadata
                     webpage_title = metadata.get("VisitedWebPageTitle", doc.title)
@@ -916,6 +959,32 @@ async def fetch_relevant_documents(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
                                     f"🎫 Found {len(jira_chunks)} Jira issues related to your query"
+                                )
+                            }
+                        )
+                elif connector == "GOOGLE_CALENDAR_CONNECTOR":
+                    (
+                        source_object,
+                        calendar_chunks,
+                    ) = await connector_service.search_google_calendar(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode,
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(calendar_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"📅 Found {len(calendar_chunks)} calendar events related to your query"
                                 )
                             }
                         )

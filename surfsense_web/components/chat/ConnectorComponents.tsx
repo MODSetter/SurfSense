@@ -4,6 +4,7 @@ import {
 	IconBrandNotion,
 	IconBrandSlack,
 	IconBrandYoutube,
+	IconCalendar,
 	IconLayoutKanban,
 	IconLinkPlus,
 	IconTicket,
@@ -56,6 +57,8 @@ export const getConnectorIcon = (connectorType: string) => {
 			return <IconBrandDiscord {...iconProps} />;
 		case "JIRA_CONNECTOR":
 			return <IconTicket {...iconProps} />;
+		case "GOOGLE_CALENDAR_CONNECTOR":
+			return <IconCalendar {...iconProps} />;
 		case "DEEP":
 			return <Sparkles {...iconProps} />;
 		case "DEEPER":
