@@ -47,6 +47,7 @@ def get_connector_emoji(connector_name: str) -> str:
         "DISCORD_CONNECTOR": "🗨️",
         "TAVILY_API": "🔍",
         "LINKUP_API": "🔗",
+        "GOOGLE_CALENDAR_CONNECTOR": "📅",
     }
     return connector_emojis.get(connector_name, "🔎")
 
@@ -63,6 +64,8 @@ def get_connector_friendly_name(connector_name: str) -> str:
         "GITHUB_CONNECTOR": "GitHub",
         "LINEAR_CONNECTOR": "Linear",
         "JIRA_CONNECTOR": "Jira",
+        "CONFLUENCE_CONNECTOR": "Confluence",
+        "GOOGLE_CALENDAR_CONNECTOR": "Google Calendar",
         "DISCORD_CONNECTOR": "Discord",
         "TAVILY_API": "Tavily Search",
         "LINKUP_API": "Linkup Search",

@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.db import SearchSourceConnectorType
+from app.schemas.google_auth_credentials import GoogleAuthCredentialsBase
 
 from .base import IDModel, TimestampModel
 
@@ -178,6 +179,14 @@ class SearchSourceConnectorBase(BaseModel):
             # Ensure the API token is not empty
             if not config.get("CLICKUP_API_TOKEN"):
                 raise ValueError("CLICKUP_API_TOKEN cannot be empty")
+
+        elif connector_type == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR:
+            # Required fields
+            required_keys = list(GoogleAuthCredentialsBase.model_fields.keys())
+
+            for key in required_keys:
+                if key not in config or config[key] in (None, ""):
+                    raise ValueError(f"{key} is required and cannot be empty")
 
         return config
 

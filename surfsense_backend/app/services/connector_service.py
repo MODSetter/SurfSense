@@ -1073,6 +1073,141 @@ class ConnectorService:
 
         return result_object, jira_chunks
 
+    async def search_google_calendar(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for Google Calendar events and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            calendar_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="GOOGLE_CALENDAR_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            calendar_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="GOOGLE_CALENDAR_CONNECTOR",
+            )
+            # Transform document retriever results to match expected format
+            calendar_chunks = self._transform_document_results(calendar_chunks)
+
+        # Early return if no results
+        if not calendar_chunks:
+            return {
+                "id": 31,
+                "name": "Google Calendar Events",
+                "type": "GOOGLE_CALENDAR_CONNECTOR",
+                "sources": [],
+            }, []
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(calendar_chunks):
+                # Extract document metadata
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                # Extract Google Calendar-specific metadata
+                event_id = metadata.get("event_id", "")
+                event_summary = metadata.get("event_summary", "Untitled Event")
+                calendar_id = metadata.get("calendar_id", "")
+                start_time = metadata.get("start_time", "")
+                end_time = metadata.get("end_time", "")
+                location = metadata.get("location", "")
+
+                # Create a more descriptive title for calendar events
+                title = f"Calendar: {event_summary}"
+                if start_time:
+                    # Format the start time for display
+                    try:
+                        if "T" in start_time:
+                            from datetime import datetime
+
+                            start_dt = datetime.fromisoformat(
+                                start_time.replace("Z", "+00:00")
+                            )
+                            formatted_time = start_dt.strftime("%Y-%m-%d %H:%M")
+                            title += f" ({formatted_time})"
+                        else:
+                            title += f" ({start_time})"
+                    except Exception:
+                        title += f" ({start_time})"
+
+                # Create a more descriptive description for calendar events
+                description = chunk.get("content", "")[:100]
+                if len(description) == 100:
+                    description += "..."
+
+                # Add event info to description
+                info_parts = []
+                if location:
+                    info_parts.append(f"Location: {location}")
+                if calendar_id and calendar_id != "primary":
+                    info_parts.append(f"Calendar: {calendar_id}")
+                if end_time:
+                    info_parts.append(f"End: {end_time}")
+
+                if info_parts:
+                    if description:
+                        description += f" | {' | '.join(info_parts)}"
+                    else:
+                        description = " | ".join(info_parts)
+
+                # For URL, we could construct a URL to the Google Calendar event
+                url = ""
+                if event_id and calendar_id:
+                    # Google Calendar event URL format
+                    url = f"https://calendar.google.com/calendar/event?eid={event_id}"
+
+                source = {
+                    "id": document.get("id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                    "event_id": event_id,
+                    "event_summary": event_summary,
+                    "calendar_id": calendar_id,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "location": location,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+
+        # Create result object
+        result_object = {
+            "id": 31,  # Assign a unique ID for the Google Calendar connector
+            "name": "Google Calendar Events",
+            "type": "GOOGLE_CALENDAR_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, calendar_chunks
+
     async def search_confluence(
         self,
         user_query: str,

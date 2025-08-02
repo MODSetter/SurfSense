@@ -86,6 +86,8 @@ export const useSearchSourceConnectors = (lazy: boolean = false) => {
 
 			// Update connector source items when connectors change
 			updateConnectorSourceItems(data);
+
+			return data;
 		} catch (err) {
 			setError(err instanceof Error ? err : new Error("An unknown error occurred"));
 			console.error("Error fetching search source connectors:", err);
