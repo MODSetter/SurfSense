@@ -257,7 +257,7 @@ class GoogleCalendarAccount(BaseModel):
     )
 
     access_token = Column(String, nullable=False)
-    refresh_token = Column(String, nullable=False)
+    refresh_token = Column(String, nullable=True)
     user = relationship("User", back_populates="calendar_account")
 
 

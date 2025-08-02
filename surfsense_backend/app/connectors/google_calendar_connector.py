@@ -1,6 +1,5 @@
 """
 Google Calendar Connector Module | Google OAuth Credentials | Google Calendar API
-
 A module for retrieving calendar events from Google Calendar using Google OAuth credentials.
 Allows fetching events from specified calendars within date ranges using Google OAuth credentials.
 """
@@ -8,6 +7,8 @@ Allows fetching events from specified calendars within date ranges using Google 
 from datetime import datetime
 from typing import Any
 
+import pytz
+from dateutil.parser import isoparse
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -22,7 +23,6 @@ class GoogleCalendarConnector:
     ):
         """
         Initialize the GoogleCalendarConnector class.
-
         Args:
             credentials: Google OAuth Credentials object
         """
@@ -32,10 +32,8 @@ class GoogleCalendarConnector:
     def _get_credentials(self) -> Credentials:
         """
         Get valid Google OAuth credentials.
-
         Returns:
             Google OAuth credentials
-
         Raises:
             ValueError: If credentials have not been set
             Exception: If credential refresh fails
@@ -78,10 +76,8 @@ class GoogleCalendarConnector:
     def _get_service(self):
         """
         Get the Google Calendar service instance using Google OAuth credentials.
-
         Returns:
             Google Calendar service instance
-
         Raises:
             ValueError: If credentials have not been set
             Exception: If service creation fails
@@ -99,7 +95,6 @@ class GoogleCalendarConnector:
     def get_calendars(self) -> tuple[list[dict[str, Any]], str | None]:
         """
         Fetch list of user's calendars using Google OAuth credentials.
-
         Returns:
             Tuple containing (calendars list, error message or None)
         """
@@ -129,19 +124,43 @@ class GoogleCalendarConnector:
 
     def get_all_primary_calendar_events(
         self,
+        start_date: str,
+        end_date: str,
         max_results: int = 2500,
     ) -> tuple[list[dict[str, Any]], str | None]:
         """
         Fetch events from the primary calendar using Google OAuth credentials.
-
         Args:
             max_results: Maximum number of events to fetch (default: 2500)
-
         Returns:
             Tuple containing (events list, error message or None)
         """
         try:
             service = self._get_service()
+
+            # Parse both dates
+            dt_start = isoparse(start_date)
+            dt_end = isoparse(end_date)
+
+            if dt_start.tzinfo is None:
+                dt_start = dt_start.replace(tzinfo=pytz.UTC)
+            else:
+                dt_start = dt_start.astimezone(pytz.UTC)
+
+            if dt_end.tzinfo is None:
+                dt_end = dt_end.replace(tzinfo=pytz.UTC)
+            else:
+                dt_end = dt_end.astimezone(pytz.UTC)
+
+            if dt_start >= dt_end:
+                return [], (
+                    f"start_date ({dt_start.isoformat()}) must be strictly before "
+                    f"end_date ({dt_end.isoformat()})."
+                )
+
+            # RFC3339 with 'Z' for UTC
+            time_min = dt_start.isoformat().replace("+00:00", "Z")
+            time_max = dt_end.isoformat().replace("+00:00", "Z")
 
             # Fetch events
             events_result = (
@@ -151,6 +170,8 @@ class GoogleCalendarConnector:
                     maxResults=max_results,
                     singleEvents=True,
                     orderBy="startTime",
+                    timeMin=time_min,
+                    timeMax=time_max,
                 )
                 .execute()
             )
@@ -168,10 +189,8 @@ class GoogleCalendarConnector:
     def format_event_to_markdown(self, event: dict[str, Any]) -> str:
         """
         Format a Google Calendar event to markdown.
-
         Args:
             event: Event object from Google Calendar API
-
         Returns:
             Formatted markdown string
         """

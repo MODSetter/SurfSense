@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -11,3 +11,8 @@ class GoogleAuthCredentialsBase(BaseModel):
     expiry: datetime
     scopes: list[str]
     client_secret: str
+
+    @property
+    def is_expired(self) -> bool:
+        """Check if the credentials have expired."""
+        return self.expiry <= datetime.now(UTC)

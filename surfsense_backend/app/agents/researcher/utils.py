@@ -63,6 +63,8 @@ def get_connector_friendly_name(connector_name: str) -> str:
         "GITHUB_CONNECTOR": "GitHub",
         "LINEAR_CONNECTOR": "Linear",
         "JIRA_CONNECTOR": "Jira",
+        "CONFLUENCE_CONNECTOR": "Confluence",
+        "GOOGLE_CALENDAR_CONNECTOR": "Google Calendar",
         "DISCORD_CONNECTOR": "Discord",
         "TAVILY_API": "Tavily Search",
         "LINKUP_API": "Linkup Search",

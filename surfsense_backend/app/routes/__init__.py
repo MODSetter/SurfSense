@@ -2,7 +2,9 @@ from fastapi import APIRouter
 
 from .chats_routes import router as chats_router
 from .documents_routes import router as documents_router
-from .google_calendar_add_connector_route import router as google_oauth_router
+from .google_calendar_add_connector_route import (
+    router as google_calendar_add_connector_router,
+)
 from .llm_config_routes import router as llm_config_router
 from .logs_routes import router as logs_router
 from .podcasts_routes import router as podcasts_router
@@ -16,6 +18,6 @@ router.include_router(documents_router)
 router.include_router(podcasts_router)
 router.include_router(chats_router)
 router.include_router(search_source_connectors_router)
-router.include_router(google_oauth_router)
+router.include_router(google_calendar_add_connector_router)
 router.include_router(llm_config_router)
 router.include_router(logs_router)
