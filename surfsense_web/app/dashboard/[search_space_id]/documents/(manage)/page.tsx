@@ -7,8 +7,8 @@ import {
 	IconBrandNotion,
 	IconBrandSlack,
 	IconBrandYoutube,
-	IconChecklist,
 	IconCalendar,
+	IconChecklist,
 	IconLayoutKanban,
 	IconTicket,
 } from "@tabler/icons-react";

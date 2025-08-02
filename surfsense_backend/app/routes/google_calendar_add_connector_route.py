@@ -1,21 +1,27 @@
 # app/routes/google_calendar.py
-
 import base64
 import json
-from sqlite3 import IntegrityError
+import logging
 from uuid import UUID
-from venv import logger
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
-from jsonschema import ValidationError
+from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.config import config
-from app.db import SearchSourceConnector, User, get_async_session
+from app.db import (
+    SearchSourceConnector,
+    SearchSourceConnectorType,
+    User,
+    get_async_session,
+)
 from app.users import current_active_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -100,7 +106,8 @@ async def calendar_callback(
             result = await session.execute(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type == "GOOGLE_CALENDAR_CONNECTOR",
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
                 )
             )
             existing_connector = result.scalars().first()
@@ -111,7 +118,7 @@ async def calendar_callback(
                 )
             db_connector = SearchSourceConnector(
                 name="Google Calendar Connector",
-                connector_type="GOOGLE_CALENDAR_CONNECTOR",
+                connector_type=SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
                 config=creds_dict,
                 user_id=user_id,
                 is_indexable=True,
