@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -227,11 +228,12 @@ class SearchSpace(BaseModel, TimestampMixin):
 
 class SearchSourceConnector(BaseModel, TimestampMixin):
     __tablename__ = "search_source_connectors"
+    __table_args__ = (
+        UniqueConstraint("user_id", "connector_type", name="uq_user_connector_type"),
+    )
 
     name = Column(String(100), nullable=False, index=True)
-    connector_type = Column(
-        SQLAlchemyEnum(SearchSourceConnectorType), nullable=False, unique=True
-    )
+    connector_type = Column(SQLAlchemyEnum(SearchSourceConnectorType), nullable=False)
     is_indexable = Column(Boolean, nullable=False, default=False)
     last_indexed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     config = Column(JSON, nullable=False)
