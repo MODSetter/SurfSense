@@ -8,6 +8,7 @@ import {
 	IconBrandSlack,
 	IconBrandWindows,
 	IconBrandZoom,
+	IconCalendar,
 	IconChecklist,
 	IconChevronDown,
 	IconChevronRight,
@@ -149,7 +150,14 @@ const connectorCategories: ConnectorCategory[] = [
 		title: "Communication",
 		connectors: [
 			{
-				id: "gmail",
+				id: "google-calendar-connector",
+				title: "Google Calendar",
+				description: "Connect to Google Calendar to search events, meetings and schedules.",
+				icon: <IconCalendar className="h-6 w-6" />,
+				status: "available",
+			},
+			{
+				id: "google-gmail-connector",
 				title: "Gmail",
 				description: "Connect to your Gmail account to access emails.",
 				icon: <IconMail className="h-6 w-6" />,

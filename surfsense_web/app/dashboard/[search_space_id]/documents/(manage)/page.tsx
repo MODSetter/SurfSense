@@ -9,6 +9,7 @@ import {
 	IconBrandYoutube,
 	IconChecklist,
 	IconLayoutKanban,
+	IconMail,
 	IconTicket,
 } from "@tabler/icons-react";
 import {
@@ -148,6 +149,7 @@ const documentTypeIcons = {
 	DISCORD_CONNECTOR: IconBrandDiscord,
 	CONFLUENCE_CONNECTOR: IconBook,
 	CLICKUP_CONNECTOR: IconChecklist,
+	GOOGLE_GMAIL_CONNECTOR: IconMail,
 } as const;
 
 const columns: ColumnDef<Document>[] = [

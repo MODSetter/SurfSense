@@ -6,6 +6,7 @@ import {
 	IconBrandYoutube,
 	IconLayoutKanban,
 	IconLinkPlus,
+	IconMail,
 	IconTicket,
 } from "@tabler/icons-react";
 import {
@@ -56,6 +57,8 @@ export const getConnectorIcon = (connectorType: string) => {
 			return <IconBrandDiscord {...iconProps} />;
 		case "JIRA_CONNECTOR":
 			return <IconTicket {...iconProps} />;
+		case "GOOGLE_GMAIL_CONNECTOR":
+			return <IconMail {...iconProps} />;
 		case "DEEP":
 			return <Sparkles {...iconProps} />;
 		case "DEEPER":
