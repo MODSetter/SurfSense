@@ -919,6 +919,32 @@ async def fetch_relevant_documents(
                                 )
                             }
                         )
+                elif connector == "GOOGLE_GMAIL_CONNECTOR":
+                    (
+                        source_object,
+                        gmail_chunks,
+                    ) = await connector_service.search_google_gmail(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode,
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(gmail_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"📧 Found {len(gmail_chunks)} Gmail messages related to your query"
+                                )
+                            }
+                        )
                 elif connector == "CONFLUENCE_CONNECTOR":
                     (
                         source_object,
