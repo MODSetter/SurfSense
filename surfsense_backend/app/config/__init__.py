@@ -47,6 +47,9 @@ class Config:
         GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
         GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 
+    # Google Gmail redirect URI
+    GOOGLE_GMAIL_REDIRECT_URI = os.getenv("GOOGLE_GMAIL_REDIRECT_URI")
+
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 
