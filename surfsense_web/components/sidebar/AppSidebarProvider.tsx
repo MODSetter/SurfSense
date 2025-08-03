@@ -1,7 +1,7 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { apiClient } from "@/lib/api"; // Import the API client
+import { apiClient } from "@/lib/api";
 
 interface Chat {
 	created_at: string;
@@ -50,6 +50,26 @@ interface AppSidebarProviderProps {
 	}[];
 }
 
+// Loading skeleton component
+const LoadingSkeleton = () => (
+	<div className="space-y-2 p-2">
+		{Array.from({ length: 3 }).map((_, i) => (
+			<div key={i} className="h-8 bg-muted animate-pulse rounded-md" />
+		))}
+	</div>
+);
+
+// Error state component
+const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
+	<div className="p-4 text-center">
+		<AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+		<p className="text-sm text-muted-foreground mb-2">{error}</p>
+		<Button variant="outline" size="sm" onClick={onRetry}>
+			Retry
+		</Button>
+	</div>
+);
+
 export function AppSidebarProvider({
 	searchSpaceId,
 	navSecondary,
@@ -80,66 +100,82 @@ export function AppSidebarProvider({
 		setIsClient(true);
 	}, []);
 
+	// Memoized fetch function for chats
+	const fetchRecentChats = useCallback(async () => {
+		try {
+			// Only run on client-side
+			if (typeof window === "undefined") return;
+
+			const chats: Chat[] = await apiClient.get<Chat[]>(
+				`api/v1/chats/?limit=5&skip=0&search_space_id=${searchSpaceId}`
+			);
+
+			// Sort chats by created_at in descending order (newest first)
+			const sortedChats = chats.sort(
+				(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+			);
+
+			// Transform API response to the format expected by AppSidebar
+			const formattedChats = sortedChats.map((chat) => ({
+				name: chat.title || `Chat ${chat.id}`,
+				url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
+				icon: "MessageCircleMore",
+				id: chat.id,
+				search_space_id: chat.search_space_id,
+				actions: [
+					{
+						name: "Delete",
+						icon: "Trash2",
+						onClick: () => {
+							setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
+							setShowDeleteDialog(true);
+						},
+					},
+				],
+			}));
+
+			setRecentChats(formattedChats);
+			setChatError(null);
+		} catch (error) {
+			console.error("Error fetching chats:", error);
+			setChatError(error instanceof Error ? error.message : "Unknown error occurred");
+			setRecentChats([]);
+		} finally {
+			setIsLoadingChats(false);
+		}
+	}, [searchSpaceId]);
+
+	// Memoized fetch function for search space
+	const fetchSearchSpace = useCallback(async () => {
+		try {
+			// Only run on client-side
+			if (typeof window === "undefined") return;
+
+			const data: SearchSpace = await apiClient.get<SearchSpace>(
+				`api/v1/searchspaces/${searchSpaceId}`
+			);
+			setSearchSpace(data);
+			setSearchSpaceError(null);
+		} catch (error) {
+			console.error("Error fetching search space:", error);
+			setSearchSpaceError(error instanceof Error ? error.message : "Unknown error occurred");
+		} finally {
+			setIsLoadingSearchSpace(false);
+		}
+	}, [searchSpaceId]);
+
+	// Retry function
+	const retryFetch = useCallback(() => {
+		setChatError(null);
+		setSearchSpaceError(null);
+		setIsLoadingChats(true);
+		setIsLoadingSearchSpace(true);
+		fetchRecentChats();
+		fetchSearchSpace();
+	}, [fetchRecentChats, fetchSearchSpace]);
+
 	// Fetch recent chats
 	useEffect(() => {
-		const fetchRecentChats = async () => {
-			try {
-				// Only run on client-side
-				if (typeof window === "undefined") return;
-
-				try {
-					// Use the API client instead of direct fetch - filter by current search space ID
-					const chats: Chat[] = await apiClient.get<Chat[]>(
-						`api/v1/chats/?limit=5&skip=0&search_space_id=${searchSpaceId}`
-					);
-
-					// Sort chats by created_at in descending order (newest first)
-					const sortedChats = chats.sort(
-						(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-					);
-					// console.log("sortedChats", sortedChats);
-					// Transform API response to the format expected by AppSidebar
-					const formattedChats = sortedChats.map((chat) => ({
-						name: chat.title || `Chat ${chat.id}`, // Fallback if title is empty
-						url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
-						icon: "MessageCircleMore",
-						id: chat.id,
-						search_space_id: chat.search_space_id,
-						actions: [
-							{
-								name: "View Details",
-								icon: "ExternalLink",
-								onClick: () => {
-									window.location.href = `/dashboard/${chat.search_space_id}/researcher/${chat.id}`;
-								},
-							},
-							{
-								name: "Delete",
-								icon: "Trash2",
-								onClick: () => {
-									setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
-									setShowDeleteDialog(true);
-								},
-							},
-						],
-					}));
-
-					setRecentChats(formattedChats);
-					setChatError(null);
-				} catch (error) {
-					console.error("Error fetching chats:", error);
-					setChatError(error instanceof Error ? error.message : "Unknown error occurred");
-					// Provide empty array to ensure UI still renders
-					setRecentChats([]);
-				} finally {
-					setIsLoadingChats(false);
-				}
-			} catch (error) {
-				console.error("Error in fetchRecentChats:", error);
-				setIsLoadingChats(false);
-			}
-		};
-
 		fetchRecentChats();
 
 		// Set up a refresh interval (every 5 minutes)
@@ -147,144 +183,144 @@ export function AppSidebarProvider({
 
 		// Clean up interval on component unmount
 		return () => clearInterval(intervalId);
-	}, [searchSpaceId]);
+	}, [fetchRecentChats]);
 
-	// Handle delete chat
-	const handleDeleteChat = async () => {
+	// Fetch search space details
+	useEffect(() => {
+		fetchSearchSpace();
+	}, [fetchSearchSpace]);
+
+	// Handle delete chat with better error handling
+	const handleDeleteChat = useCallback(async () => {
 		if (!chatToDelete) return;
 
 		try {
 			setIsDeleting(true);
 
-			// Use the API client instead of direct fetch
 			await apiClient.delete(`api/v1/chats/${chatToDelete.id}`);
 
-			// Close dialog and refresh chats
-			setRecentChats(recentChats.filter((chat) => chat.id !== chatToDelete.id));
+			// Update local state
+			setRecentChats((prev) => prev.filter((chat) => chat.id !== chatToDelete.id));
 		} catch (error) {
 			console.error("Error deleting chat:", error);
+			// You could show a toast notification here
 		} finally {
 			setIsDeleting(false);
 			setShowDeleteDialog(false);
 			setChatToDelete(null);
 		}
-	};
+	}, [chatToDelete]);
 
-	// Fetch search space details
-	useEffect(() => {
-		const fetchSearchSpace = async () => {
-			try {
-				// Only run on client-side
-				if (typeof window === "undefined") return;
+	// Memoized fallback chats
+	const fallbackChats = useMemo(() => {
+		if (chatError) {
+			return [
+				{
+					name: "Error loading chats",
+					url: "#",
+					icon: "AlertCircle",
+					id: 0,
+					search_space_id: Number(searchSpaceId),
+					actions: [
+						{
+							name: "Retry",
+							icon: "RefreshCw",
+							onClick: retryFetch,
+						},
+					],
+				},
+			];
+		}
 
-				try {
-					// Use the API client instead of direct fetch
-					const data: SearchSpace = await apiClient.get<SearchSpace>(
-						`api/v1/searchspaces/${searchSpaceId}`
-					);
-					setSearchSpace(data);
-					setSearchSpaceError(null);
-				} catch (error) {
-					console.error("Error fetching search space:", error);
-					setSearchSpaceError(error instanceof Error ? error.message : "Unknown error occurred");
-				} finally {
-					setIsLoadingSearchSpace(false);
-				}
-			} catch (error) {
-				console.error("Error in fetchSearchSpace:", error);
-				setIsLoadingSearchSpace(false);
-			}
-		};
+		if (!isLoadingChats && recentChats.length === 0) {
+			return [
+				{
+					name: "No recent chats",
+					url: "#",
+					icon: "MessageCircleMore",
+					id: 0,
+					search_space_id: Number(searchSpaceId),
+					actions: [],
+				},
+			];
+		}
 
-		fetchSearchSpace();
-	}, [searchSpaceId]);
-
-	// Create a fallback chat if there's an error or no chats
-	const fallbackChats =
-		chatError || (!isLoadingChats && recentChats.length === 0)
-			? [
-					{
-						name: chatError ? "Error loading chats" : "No recent chats",
-						url: "#",
-						icon: chatError ? "AlertCircle" : "MessageCircleMore",
-						id: 0,
-						search_space_id: Number(searchSpaceId),
-						actions: [],
-					},
-				]
-			: [];
+		return [];
+	}, [chatError, isLoadingChats, recentChats.length, searchSpaceId, retryFetch]);
 
 	// Use fallback chats if there's an error or no chats
 	const displayChats = recentChats.length > 0 ? recentChats : fallbackChats;
 
-	// Update the first item in navSecondary to show the search space name
-	const updatedNavSecondary = [...navSecondary];
-	if (updatedNavSecondary.length > 0 && isClient) {
-		updatedNavSecondary[0] = {
-			...updatedNavSecondary[0],
-			title:
-				searchSpace?.name ||
-				(isLoadingSearchSpace
-					? "Loading..."
-					: searchSpaceError
-						? "Error loading search space"
-						: "Unknown Search Space"),
-		};
+	// Memoized updated navSecondary
+	const updatedNavSecondary = useMemo(() => {
+		const updated = [...navSecondary];
+		if (updated.length > 0 && isClient) {
+			updated[0] = {
+				...updated[0],
+				title:
+					searchSpace?.name ||
+					(isLoadingSearchSpace
+						? "Loading..."
+						: searchSpaceError
+							? "Error loading search space"
+							: "Unknown Search Space"),
+			};
+		}
+		return updated;
+	}, [navSecondary, isClient, searchSpace?.name, isLoadingSearchSpace, searchSpaceError]);
+
+	// Show loading state if not client-side
+	if (!isClient) {
+		return <AppSidebar navSecondary={navSecondary} navMain={navMain} RecentChats={[]} />;
 	}
 
 	return (
 		<>
-			<AppSidebar
-				navSecondary={updatedNavSecondary}
-				navMain={navMain}
-				RecentChats={isClient ? displayChats : []}
-			/>
+			<AppSidebar navSecondary={updatedNavSecondary} navMain={navMain} RecentChats={displayChats} />
 
-			{/* Delete Confirmation Dialog - Only render on client */}
-			{isClient && (
-				<Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-					<DialogContent className="sm:max-w-md">
-						<DialogHeader>
-							<DialogTitle className="flex items-center gap-2">
-								<Trash2 className="h-5 w-5 text-destructive" />
-								<span>Delete Chat</span>
-							</DialogTitle>
-							<DialogDescription>
-								Are you sure you want to delete{" "}
-								<span className="font-medium">{chatToDelete?.name}</span>? This action cannot be
-								undone.
-							</DialogDescription>
-						</DialogHeader>
-						<DialogFooter className="flex gap-2 sm:justify-end">
-							<Button
-								variant="outline"
-								onClick={() => setShowDeleteDialog(false)}
-								disabled={isDeleting}
-							>
-								Cancel
-							</Button>
-							<Button
-								variant="destructive"
-								onClick={handleDeleteChat}
-								disabled={isDeleting}
-								className="gap-2"
-							>
-								{isDeleting ? (
-									<>
-										<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-										Deleting...
-									</>
-								) : (
-									<>
-										<Trash2 className="h-4 w-4" />
-										Delete
-									</>
-								)}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-			)}
+			{/* Delete Confirmation Dialog */}
+			<Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<Trash2 className="h-5 w-5 text-destructive" />
+							<span>Delete Chat</span>
+						</DialogTitle>
+						<DialogDescription>
+							Are you sure you want to delete{" "}
+							<span className="font-medium">{chatToDelete?.name}</span>? This action cannot be
+							undone.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowDeleteDialog(false)}
+							disabled={isDeleting}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleDeleteChat}
+							disabled={isDeleting}
+							className="gap-2"
+						>
+							{isDeleting ? (
+								<>
+									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									Deleting...
+								</>
+							) : (
+								<>
+									<Trash2 className="h-4 w-4" />
+									Delete
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</>
 	);
 }

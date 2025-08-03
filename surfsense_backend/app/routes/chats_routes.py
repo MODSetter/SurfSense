@@ -6,7 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db import Chat, SearchSpace, User, get_async_session
-from app.schemas import AISDKChatRequest, ChatCreate, ChatRead, ChatUpdate
+from app.schemas import (
+    AISDKChatRequest,
+    ChatCreate,
+    ChatRead,
+    ChatReadWithoutMessages,
+    ChatUpdate,
+)
 from app.tasks.stream_connector_search_results import stream_connector_search_results
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
@@ -112,7 +118,7 @@ async def create_chat(
         ) from None
 
 
-@router.get("/chats/", response_model=list[ChatRead])
+@router.get("/chats/", response_model=list[ChatReadWithoutMessages])
 async def read_chats(
     skip: int = 0,
     limit: int = 100,
@@ -121,14 +127,26 @@ async def read_chats(
     user: User = Depends(current_active_user),
 ):
     try:
-        query = select(Chat).join(SearchSpace).filter(SearchSpace.user_id == user.id)
+        # Select specific fields excluding messages
+        query = (
+            select(
+                Chat.id,
+                Chat.type,
+                Chat.title,
+                Chat.initial_connectors,
+                Chat.search_space_id,
+                Chat.created_at,
+            )
+            .join(SearchSpace)
+            .filter(SearchSpace.user_id == user.id)
+        )
 
         # Filter by search_space_id if provided
         if search_space_id is not None:
             query = query.filter(Chat.search_space_id == search_space_id)
 
         result = await session.execute(query.offset(skip).limit(limit))
-        return result.scalars().all()
+        return result.all()
     except OperationalError:
         raise HTTPException(
             status_code=503, detail="Database operation failed. Please try again later."
