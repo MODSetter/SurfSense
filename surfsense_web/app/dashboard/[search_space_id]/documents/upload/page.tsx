@@ -1,12 +1,17 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Calendar, CheckCircle2, FileType, Tag, Upload, X } from "lucide-react";
+import { CheckCircle2, FileType, Info, Tag, Upload, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 // Grid pattern component inspired by Aceternity UI
 function GridPattern() {
@@ -34,14 +39,13 @@ function GridPattern() {
 }
 
 export default function FileUploader() {
-	// Use the useParams hook to get the params
 	const params = useParams();
 	const search_space_id = params.search_space_id as string;
 
 	const [files, setFiles] = useState<File[]>([]);
 	const [isUploading, setIsUploading] = useState(false);
+	const [uploadProgress, setUploadProgress] = useState(0);
 	const router = useRouter();
-	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	// Audio files are always supported (using whisper)
 	const audioFileTypes = {
@@ -204,7 +208,6 @@ export default function FileUploader() {
 	};
 
 	const acceptedFileTypes = getAcceptedFileTypes();
-
 	const supportedExtensions = Array.from(new Set(Object.values(acceptedFileTypes).flat())).sort();
 
 	const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -215,11 +218,9 @@ export default function FileUploader() {
 		onDrop,
 		accept: acceptedFileTypes,
 		maxSize: 50 * 1024 * 1024, // 50MB
+		noClick: false, // Ensure clicking is enabled
+		noKeyboard: false, // Ensure keyboard navigation is enabled
 	});
-
-	const handleClick = () => {
-		fileInputRef.current?.click();
-	};
 
 	const removeFile = (index: number) => {
 		setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
@@ -235,6 +236,7 @@ export default function FileUploader() {
 
 	const handleUpload = async () => {
 		setIsUploading(true);
+		setUploadProgress(0);
 
 		const formData = new FormData();
 		files.forEach((file) => {
@@ -244,12 +246,16 @@ export default function FileUploader() {
 		formData.append("search_space_id", search_space_id);
 
 		try {
-			// toast("File Upload", {
-			//     description: "Files Uploading Initiated",
-			// })
+			// Simulate progress for better UX
+			const progressInterval = setInterval(() => {
+				setUploadProgress((prev) => {
+					if (prev >= 90) return prev;
+					return prev + Math.random() * 10;
+				});
+			}, 200);
 
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL!}/api/v1/documents/fileupload`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/fileupload`,
 				{
 					method: "POST",
 					headers: {
@@ -258,6 +264,9 @@ export default function FileUploader() {
 					body: formData,
 				}
 			);
+
+			clearInterval(progressInterval);
+			setUploadProgress(100);
 
 			if (!response.ok) {
 				throw new Error("Upload failed");
@@ -272,31 +281,15 @@ export default function FileUploader() {
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
 			setIsUploading(false);
+			setUploadProgress(0);
 			toast("Upload Error", {
 				description: `Error uploading files: ${error.message}`,
 			});
 		}
 	};
 
-	const mainVariant = {
-		initial: {
-			x: 0,
-			y: 0,
-		},
-		animate: {
-			x: 20,
-			y: -20,
-			opacity: 0.9,
-		},
-	};
-
-	const secondaryVariant = {
-		initial: {
-			opacity: 0,
-		},
-		animate: {
-			opacity: 1,
-		},
+	const getTotalFileSize = () => {
+		return files.reduce((total, file) => total + file.size, 0);
 	};
 
 	const containerVariants = {
@@ -326,251 +319,252 @@ export default function FileUploader() {
 	return (
 		<div className="grow flex items-center justify-center p-4 md:p-8">
 			<motion.div
-				className="w-full max-w-3xl mx-auto"
+				className="w-full max-w-4xl mx-auto space-y-6"
 				initial="hidden"
 				animate="visible"
 				variants={containerVariants}
 			>
-				<motion.div
-					className="bg-background rounded-xl shadow-lg overflow-hidden border border-border"
-					variants={itemVariants}
-				>
-					<motion.div
-						className="p-10 group/file block rounded-lg cursor-pointer w-full relative overflow-hidden"
-						whileHover="animate"
-						onClick={handleClick}
-					>
+				{/* Header Card */}
+				<motion.div variants={itemVariants}>
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Upload className="h-5 w-5" />
+								Upload Documents
+							</CardTitle>
+							<CardDescription>
+								Upload your files to make them searchable and accessible through AI-powered
+								conversations.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<Alert>
+								<Info className="h-4 w-4" />
+								<AlertDescription>
+									Maximum file size: 50MB per file. Supported formats vary based on your ETL service
+									configuration.
+								</AlertDescription>
+							</Alert>
+						</CardContent>
+					</Card>
+				</motion.div>
+
+				{/* Upload Area Card */}
+				<motion.div variants={itemVariants}>
+					<Card className="relative overflow-hidden">
 						{/* Grid background pattern */}
-						<div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]">
+						<div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] opacity-30">
 							<GridPattern />
 						</div>
 
-						<div className="relative z-10">
-							{/* Dropzone area */}
-							<div {...getRootProps()} className="flex flex-col items-center justify-center">
-								<input {...getInputProps()} ref={fileInputRef} className="hidden" />
-
-								<p className="relative z-20 font-sans font-bold text-neutral-700 dark:text-neutral-300 text-xl">
-									Upload files
-								</p>
-								<p className="relative z-20 font-sans font-normal text-neutral-400 dark:text-neutral-400 text-base mt-2">
-									Drag or drop your files here or click to upload
-								</p>
-
-								<div className="relative w-full mt-10 max-w-xl mx-auto">
-									{!files.length && (
-										<motion.div
-											layoutId="file-upload"
-											variants={mainVariant}
-											transition={{
-												type: "spring",
-												stiffness: 300,
-												damping: 20,
-											}}
-											className="relative group-hover/file:shadow-2xl z-40 bg-white dark:bg-neutral-900 flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md shadow-[0px_10px_50px_rgba(0,0,0,0.1)]"
-											key="upload-icon"
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-										>
-											{isDragActive ? (
-												<motion.p
-													initial={{ opacity: 0 }}
-													animate={{ opacity: 1 }}
-													className="text-neutral-600 flex flex-col items-center"
-												>
-													Drop it
-													<Upload className="h-4 w-4 text-neutral-600 dark:text-neutral-400 mt-2" />
-												</motion.p>
-											) : (
-												<Upload className="h-8 w-8 text-neutral-600 dark:text-neutral-300" />
-											)}
-										</motion.div>
-									)}
-
-									{!files.length && (
-										<motion.div
-											variants={secondaryVariant}
-											className="absolute opacity-0 border border-dashed border-primary inset-0 z-30 bg-transparent flex items-center justify-center h-32 mt-4 w-full max-w-[8rem] mx-auto rounded-md"
-											key="upload-border"
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-										></motion.div>
-									)}
-								</div>
-							</div>
-						</div>
-					</motion.div>
-
-					{/* File list section */}
-					<AnimatePresence mode="wait">
-						{files.length > 0 && (
-							<motion.div
-								className="px-8 pb-8"
-								initial={{ opacity: 0, height: 0 }}
-								animate={{ opacity: 1, height: "auto" }}
-								exit={{ opacity: 0, height: 0 }}
-								transition={{ duration: 0.3 }}
+						<CardContent className="p-10 relative z-10">
+							<div
+								{...getRootProps()}
+								className="flex flex-col items-center justify-center min-h-[300px] border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary/50 transition-colors cursor-pointer"
 							>
-								<div className="mb-4 flex items-center justify-between">
-									<h3 className="font-medium">Selected Files ({files.length})</h3>
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() => {
-											// Use AnimatePresence to properly handle the transition
-											// This will ensure the file icon reappears properly
-											setFiles([]);
+								<input {...getInputProps()} className="hidden" />
 
-											// Force a re-render after animation completes
-											setTimeout(() => {
-												const event = new Event("resize");
-												window.dispatchEvent(event);
-											}, 350);
-										}}
-										disabled={isUploading}
+								{isDragActive ? (
+									<motion.div
+										initial={{ opacity: 0, scale: 0.8 }}
+										animate={{ opacity: 1, scale: 1 }}
+										className="flex flex-col items-center gap-4"
 									>
-										Clear all
+										<Upload className="h-12 w-12 text-primary" />
+										<p className="text-lg font-medium text-primary">Drop files here</p>
+									</motion.div>
+								) : (
+									<motion.div
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										className="flex flex-col items-center gap-4"
+									>
+										<Upload className="h-12 w-12 text-muted-foreground" />
+										<div className="text-center">
+											<p className="text-lg font-medium">Drag & drop files here</p>
+											<p className="text-sm text-muted-foreground mt-1">or click to browse</p>
+										</div>
+									</motion.div>
+								)}
+
+								{/* Fallback button for better accessibility */}
+								<div className="mt-4">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={(e) => {
+											e.stopPropagation();
+											const input = document.querySelector(
+												'input[type="file"]'
+											) as HTMLInputElement;
+											if (input) input.click();
+										}}
+									>
+										Browse Files
 									</Button>
 								</div>
+							</div>
+						</CardContent>
+					</Card>
+				</motion.div>
 
-								<div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-									<AnimatePresence>
-										{files.map((file, index) => (
-											<motion.div
-												key={`${file.name}-${index}`}
-												layoutId={index === 0 ? "file-upload" : `file-upload-${index}`}
-												className="relative overflow-hidden z-40 bg-white dark:bg-neutral-900 flex flex-col items-start justify-start p-4 w-full mx-auto rounded-md shadow-sm border border-border"
-												initial="hidden"
-												animate="visible"
-												exit="exit"
-												variants={fileItemVariants}
-											>
-												<div className="flex justify-between w-full items-center gap-4">
-													<motion.p
-														initial={{ opacity: 0 }}
-														animate={{ opacity: 1 }}
-														layout
-														className="text-base text-neutral-700 dark:text-neutral-300 truncate max-w-xs font-medium"
-													>
-														{file.name}
-													</motion.p>
+				{/* File List Card */}
+				<AnimatePresence mode="wait">
+					{files.length > 0 && (
+						<motion.div
+							variants={itemVariants}
+							initial={{ opacity: 0, height: 0 }}
+							animate={{ opacity: 1, height: "auto" }}
+							exit={{ opacity: 0, height: 0 }}
+							transition={{ duration: 0.3 }}
+						>
+							<Card>
+								<CardHeader>
+									<div className="flex items-center justify-between">
+										<div>
+											<CardTitle>Selected Files ({files.length})</CardTitle>
+											<CardDescription>
+												Total size: {formatFileSize(getTotalFileSize())}
+											</CardDescription>
+										</div>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => setFiles([])}
+											disabled={isUploading}
+										>
+											Clear all
+										</Button>
+									</div>
+								</CardHeader>
+								<CardContent>
+									<div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+										<AnimatePresence>
+											{files.map((file, index) => (
+												<motion.div
+													key={`${file.name}-${index}`}
+													variants={fileItemVariants}
+													initial="hidden"
+													animate="visible"
+													exit="exit"
+													className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+												>
+													<div className="flex items-center gap-3 flex-1 min-w-0">
+														<div className="flex-shrink-0">
+															<FileType className="h-5 w-5 text-muted-foreground" />
+														</div>
+														<div className="flex-1 min-w-0">
+															<p className="font-medium truncate">{file.name}</p>
+															<div className="flex items-center gap-2 mt-1">
+																<Badge variant="secondary" className="text-xs">
+																	{formatFileSize(file.size)}
+																</Badge>
+																<Badge variant="outline" className="text-xs">
+																	{file.type || "Unknown type"}
+																</Badge>
+															</div>
+														</div>
+													</div>
 													<div className="flex items-center gap-2">
-														<motion.p
-															initial={{ opacity: 0 }}
-															animate={{ opacity: 1 }}
-															layout
-															className="rounded-lg px-2 py-1 w-fit flex-shrink-0 text-sm text-neutral-600 dark:bg-neutral-800 dark:text-white bg-neutral-100"
-														>
-															{formatFileSize(file.size)}
-														</motion.p>
 														<Button
 															variant="ghost"
 															size="icon"
 															onClick={() => removeFile(index)}
 															disabled={isUploading}
 															className="h-8 w-8"
-															aria-label={`Remove ${file.name}`}
 														>
 															<X className="h-4 w-4" />
 														</Button>
 													</div>
-												</div>
-
-												<div className="flex text-sm md:flex-row flex-col items-start md:items-center w-full mt-2 justify-between text-neutral-600 dark:text-neutral-400">
-													<motion.div
-														initial={{ opacity: 0 }}
-														animate={{ opacity: 1 }}
-														layout
-														className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 dark:bg-neutral-800"
-													>
-														<FileType className="h-3 w-3" />
-														<span>{file.type || "Unknown type"}</span>
-													</motion.div>
-
-													<motion.div
-														initial={{ opacity: 0 }}
-														animate={{ opacity: 1 }}
-														layout
-														className="flex items-center gap-1 mt-2 md:mt-0"
-													>
-														<Calendar className="h-3 w-3" />
-														<span>modified {new Date(file.lastModified).toLocaleDateString()}</span>
-													</motion.div>
-												</div>
-											</motion.div>
-										))}
-									</AnimatePresence>
-								</div>
-
-								<motion.div
-									className="mt-6"
-									initial={{ opacity: 0, y: 10 }}
-									animate={{ opacity: 1, y: 0 }}
-									transition={{ delay: 0.2 }}
-								>
-									<Button
-										className="w-full py-6 text-base font-medium"
-										onClick={handleUpload}
-										disabled={isUploading || files.length === 0}
-									>
-										{isUploading ? (
-											<motion.div
-												className="flex items-center gap-2"
-												initial={{ opacity: 0 }}
-												animate={{ opacity: 1 }}
-											>
-												<motion.div
-													animate={{ rotate: 360 }}
-													transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-												>
-													<Upload className="h-5 w-5" />
 												</motion.div>
-												<span>Uploading...</span>
-											</motion.div>
-										) : (
-											<motion.div
-												className="flex items-center gap-2"
-												whileHover={{ scale: 1.02 }}
-												whileTap={{ scale: 0.98 }}
-											>
-												<CheckCircle2 className="h-5 w-5" />
-												<span>
-													Upload {files.length} {files.length === 1 ? "file" : "files"}
-												</span>
-											</motion.div>
-										)}
-									</Button>
-								</motion.div>
-							</motion.div>
-						)}
-					</AnimatePresence>
+											))}
+										</AnimatePresence>
+									</div>
 
-					{/* File type information */}
-					<motion.div className="px-8 pb-8" variants={itemVariants}>
-						<div className="p-4 bg-muted rounded-lg">
-							<div className="flex items-center gap-2 mb-3">
-								<Tag className="h-4 w-4 text-primary" />
-								<p className="text-sm font-medium">Supported file types:</p>
-							</div>
+									{isUploading && (
+										<motion.div
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											className="mt-6 space-y-3"
+										>
+											<Separator />
+											<div className="space-y-2">
+												<div className="flex items-center justify-between text-sm">
+													<span>Uploading files...</span>
+													<span>{Math.round(uploadProgress)}%</span>
+												</div>
+												<Progress value={uploadProgress} className="h-2" />
+											</div>
+										</motion.div>
+									)}
+
+									<motion.div
+										className="mt-6"
+										initial={{ opacity: 0, y: 10 }}
+										animate={{ opacity: 1, y: 0 }}
+										transition={{ delay: 0.2 }}
+									>
+										<Button
+											className="w-full py-6 text-base font-medium"
+											onClick={handleUpload}
+											disabled={isUploading || files.length === 0}
+										>
+											{isUploading ? (
+												<motion.div
+													className="flex items-center gap-2"
+													initial={{ opacity: 0 }}
+													animate={{ opacity: 1 }}
+												>
+													<motion.div
+														animate={{ rotate: 360 }}
+														transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+													>
+														<Upload className="h-5 w-5" />
+													</motion.div>
+													<span>Uploading...</span>
+												</motion.div>
+											) : (
+												<motion.div
+													className="flex items-center gap-2"
+													whileHover={{ scale: 1.02 }}
+													whileTap={{ scale: 0.98 }}
+												>
+													<CheckCircle2 className="h-5 w-5" />
+													<span>
+														Upload {files.length} {files.length === 1 ? "file" : "files"}
+													</span>
+												</motion.div>
+											)}
+										</Button>
+									</motion.div>
+								</CardContent>
+							</Card>
+						</motion.div>
+					)}
+				</AnimatePresence>
+
+				{/* Supported File Types Card */}
+				<motion.div variants={itemVariants}>
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Tag className="h-5 w-5" />
+								Supported File Types
+							</CardTitle>
+							<CardDescription>
+								These file types are supported based on your current ETL service configuration.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
 							<div className="flex flex-wrap gap-2">
 								{supportedExtensions.map((ext) => (
-									<motion.span
-										key={ext}
-										className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
-										whileHover={{ scale: 1.05, backgroundColor: "rgba(var(--primary), 0.2)" }}
-										initial={{ opacity: 1 }}
-										animate={{ opacity: 1 }}
-										exit={{ opacity: 1 }}
-										layout
-									>
+									<Badge key={ext} variant="outline" className="text-xs">
 										{ext}
-									</motion.span>
+									</Badge>
 								))}
 							</div>
-						</div>
-					</motion.div>
+						</CardContent>
+					</Card>
 				</motion.div>
 			</motion.div>
 
