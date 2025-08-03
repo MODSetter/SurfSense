@@ -31,7 +31,6 @@ export default function DashboardLayout({
 			title: "Researcher",
 			url: `/dashboard/${search_space_id}/researcher`,
 			icon: "SquareTerminal",
-			isActive: true,
 			items: [],
 		},
 

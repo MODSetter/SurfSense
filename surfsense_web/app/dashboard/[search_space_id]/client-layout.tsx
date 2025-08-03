@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -28,8 +29,11 @@ export function DashboardClientLayout({
 			<SidebarInset>
 				<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
 					<div className="flex items-center justify-between w-full gap-2 px-4">
-						<SidebarTrigger className="-ml-1" />
-						<Separator orientation="vertical" className="h-6" />
+						<div className="flex items-center gap-2">
+							<SidebarTrigger className="-ml-1" />
+							<Separator orientation="vertical" className="h-6" />
+							<DashboardBreadcrumb />
+						</div>
 						<ThemeTogglerComponent />
 					</div>
 				</header>
