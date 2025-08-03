@@ -41,6 +41,11 @@ export const editConnectorSchema = z.object({
 	JIRA_API_TOKEN: z.string().optional(),
 	ZENDESK_SUBDOMAIN: z.string().optional(),
 	ZENDESK_EMAIL: z.string().optional(),
-	ZENDESK_API_TOKEN: z.string().optional(),
+	ZENDESK_API_TOKEN: z
+		.string()
+		.optional()
+		.refine((token) => !token || /^[a-zA-Z0-9]{40}$/.test(token), {
+			message: "Zendesk API Token must be exactly 40 alphanumeric characters.",
+		}),
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>;
