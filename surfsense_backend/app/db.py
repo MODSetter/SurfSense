@@ -246,21 +246,6 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     user = relationship("User", back_populates="search_source_connectors")
 
 
-class GoogleCalendarAccount(BaseModel):
-    __tablename__ = "google_calendar_accounts"
-
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-    )
-
-    access_token = Column(String, nullable=False)
-    refresh_token = Column(String, nullable=True)
-    user = relationship("User", back_populates="calendar_account")
-
-
 class LLMConfig(BaseModel, TimestampMixin):
     __tablename__ = "llm_configs"
 
@@ -314,12 +299,6 @@ if config.AUTH_TYPE == "GOOGLE":
         search_source_connectors = relationship(
             "SearchSourceConnector", back_populates="user"
         )
-        calendar_account = relationship(
-            "GoogleCalendarAccount",
-            back_populates="user",
-            uselist=False,
-            cascade="all, delete-orphan",
-        )
         llm_configs = relationship(
             "LLMConfig",
             back_populates="user",
@@ -353,12 +332,6 @@ else:
         search_spaces = relationship("SearchSpace", back_populates="user")
         search_source_connectors = relationship(
             "SearchSourceConnector", back_populates="user"
-        )
-        calendar_account = relationship(
-            "GoogleCalendarAccount",
-            back_populates="user",
-            uselist=False,
-            cascade="all, delete-orphan",
         )
         llm_configs = relationship(
             "LLMConfig",

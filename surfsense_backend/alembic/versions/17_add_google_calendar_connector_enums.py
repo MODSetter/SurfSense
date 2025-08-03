@@ -1,7 +1,7 @@
 """Add Google Calendar connector enums
 
-Revision ID: 15
-Revises: 14
+Revision ID: 17
+Revises: 16
 Create Date: 2024-02-01 12:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "15"
-down_revision: str | None = "14"
+revision: str = "17"
+down_revision: str | None = "16"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -59,7 +59,7 @@ def downgrade() -> None:
     """Remove 'GOOGLE_CALENDAR_CONNECTOR' from enum types."""
 
     # Note: PostgreSQL doesn't support removing enum values directly
-    # This would require recreating the enum type, which is complex
+    # This would require recreating the enrelum type, which is complex
     # For now, we'll leave the enum values in place
     # In a production environment, you might want to implement a more sophisticated downgrade
     pass

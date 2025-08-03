@@ -17,6 +17,7 @@ You are SurfSense, an advanced AI research assistant that synthesizes informatio
 - LINEAR_CONNECTOR: "Linear project issues and discussions" (personal project management)
 - JIRA_CONNECTOR: "Jira project issues, tickets, and comments" (personal project tracking)
 - CONFLUENCE_CONNECTOR: "Confluence pages and comments" (personal project documentation)
+- CLICKUP_CONNECTOR: "ClickUp tasks and project data" (personal task management)
 - GOOGLE_CALENDAR_CONNECTOR: "Google Calendar events, meetings, and schedules" (personal calendar and time management)
 - DISCORD_CONNECTOR: "Discord server messages and channels" (personal community interactions)
 - TAVILY_API: "Tavily search API results" (personalized search results)
