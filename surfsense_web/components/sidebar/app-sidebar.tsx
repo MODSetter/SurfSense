@@ -181,7 +181,6 @@ export const AppSidebar = memo(function AppSidebar({
 	navMain = defaultData.navMain,
 	navSecondary = defaultData.navSecondary,
 	RecentChats = defaultData.RecentChats,
-	user = defaultData.user,
 	...props
 }: AppSidebarProps) {
 	// Process navMain to resolve icon names to components
@@ -243,7 +242,7 @@ export const AppSidebar = memo(function AppSidebar({
 				<NavSecondary items={processedNavSecondary} className="mt-auto" />
 
 				{/* User Profile Section */}
-				<NavUser user={user} />
+				<NavUser />
 			</SidebarFooter>
 		</Sidebar>
 	);
