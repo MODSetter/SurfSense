@@ -1,0 +1,28 @@
+```yaml
+name: consistent-container-image-sources
+description: Maintain consistent image sources in Docker compose files using authorized registries
+globs: ['**/docker-compose.yml', '**/docker-compose.*.yml'] 
+alwaysApply: true
+```
+
+Docker compose files should use consistent image sources from authorized registries rather than local builds in production configurations.
+
+❌ Bad - Mixing build and image sources:
+```yaml
+services:
+  frontend:
+    build: ./frontend
+  backend:
+    image: ghcr.io/org/backend:latest
+```
+
+✅ Good - Consistent image sources:
+```yaml
+services:
+  frontend:
+    image: ghcr.io/org/frontend:latest
+  backend:
+    image: ghcr.io/org/backend:latest
+```
+
+Use build contexts only in development compose files.
