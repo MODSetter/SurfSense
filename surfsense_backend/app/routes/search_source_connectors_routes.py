@@ -41,6 +41,7 @@ from app.tasks.connector_indexers import (
     index_discord_messages,
     index_github_repos,
     index_google_calendar_events,
+    index_google_gmail_messages,
     index_jira_issues,
     index_linear_issues,
     index_notion_pages,
@@ -507,6 +508,22 @@ async def index_connector_content(
                 indexing_to,
             )
             response_message = "Google Calendar indexing started in the background."
+        elif (
+            connector.connector_type == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR
+        ):
+            # Run indexing in background
+            logger.info(
+                f"Triggering Google Gmail indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            background_tasks.add_task(
+                run_google_gmail_indexing_with_new_session,
+                connector_id,
+                search_space_id,
+                str(user.id),
+                indexing_from,
+                indexing_to,
+            )
+            response_message = "Google Gmail indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
             # Run indexing in background
@@ -1110,6 +1127,65 @@ async def run_google_calendar_indexing(
     except Exception as e:
         logger.error(
             f"Critical error in run_google_calendar_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
+        # Optionally update status in DB to indicate failure
+
+
+async def run_google_gmail_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    max_messages: int,
+    days_back: int,
+):
+    """Wrapper to run Google Gmail indexing with its own database session."""
+    logger.info(
+        f"Background task started: Indexing Google Gmail connector {connector_id} into space {search_space_id} for {max_messages} messages from the last {days_back} days"
+    )
+    async with async_session_maker() as session:
+        await run_google_gmail_indexing(
+            session, connector_id, search_space_id, user_id, max_messages, days_back
+        )
+    logger.info(
+        f"Background task finished: Indexing Google Gmail connector {connector_id}"
+    )
+
+
+async def run_google_gmail_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    max_messages: int,
+    days_back: int,
+):
+    """Runs the Google Gmail indexing task and updates the timestamp."""
+    try:
+        indexed_count, error_message = await index_google_gmail_messages(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            max_messages,
+            days_back,
+            update_last_indexed=False,
+        )
+        if error_message:
+            logger.error(
+                f"Google Gmail indexing failed for connector {connector_id}: {error_message}"
+            )
+            # Optionally update status in DB to indicate failure
+        else:
+            logger.info(
+                f"Google Gmail indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+            )
+            # Update the last indexed timestamp only on success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()  # Commit timestamp update
+    except Exception as e:
+        logger.error(
+            f"Critical error in run_google_gmail_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
         # Optionally update status in DB to indicate failure
