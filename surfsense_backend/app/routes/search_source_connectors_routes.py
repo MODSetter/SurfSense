@@ -43,7 +43,7 @@ from app.tasks.connectors_indexing_tasks import (
     index_linear_issues,
     index_notion_pages,
     index_slack_messages,
-    index_zendesk_tickets,
+    # index_zendesk_tickets,
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
@@ -489,20 +489,20 @@ async def index_connector_content(
             )
             response_message = "Discord indexing started in the background."
 
-        elif connector.connector_type == SearchSourceConnectorType.ZENDESK_CONNECTOR:
-            # Run indexing in background
-            logger.info(
-                f"Triggering Zendesk indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            background_tasks.add_task(
-                run_zendesk_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
-            )
-            response_message = "Zendesk indexing started in the background."
+        # elif connector.connector_type == SearchSourceConnectorType.ZENDESK_CONNECTOR:
+        #     # Run indexing in background
+        #     logger.info(
+        #         f"Triggering Zendesk indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+        #     )
+        #     background_tasks.add_task(
+        #         run_zendesk_indexing_with_new_session,
+        #         connector_id,
+        #         search_space_id,
+        #         str(user.id),
+        #         indexing_from,
+        #         indexing_to,
+        #     )
+        #     response_message = "Zendesk indexing started in the background."
 
         else:
             raise HTTPException(
@@ -978,58 +978,58 @@ async def run_confluence_indexing(
         # Optionally update status in DB to indicate failure
 
 
-async def run_zendesk_indexing_with_new_session(
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Wrapper to run Zendesk indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing Zendesk connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
-    )
-    async with async_session_maker() as session:
-        await run_zendesk_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
-        )
-    logger.info(f"Background task finished: Indexing Zendesk connector {connector_id}")
+# async def run_zendesk_indexing_with_new_session(
+#     connector_id: int,
+#     search_space_id: int,
+#     user_id: str,
+#     start_date: str,
+#     end_date: str,
+# ):
+#     """Wrapper to run Zendesk indexing with its own database session."""
+#     logger.info(
+#         f"Background task started: Indexing Zendesk connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+#     )
+#     async with async_session_maker() as session:
+#         await run_zendesk_indexing(
+#             session, connector_id, search_space_id, user_id, start_date, end_date
+#         )
+#     logger.info(f"Background task finished: Indexing Zendesk connector {connector_id}")
 
 
-async def run_zendesk_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Runs the Zendesk indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_zendesk_tickets(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Zendesk indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Zendesk indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_zendesk_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+# async def run_zendesk_indexing(
+#     session: AsyncSession,
+#     connector_id: int,
+#     search_space_id: int,
+#     user_id: str,
+#     start_date: str,
+#     end_date: str,
+# ):
+#     """Runs the Zendesk indexing task and updates the timestamp."""
+#     try:
+#         indexed_count, error_message = await index_zendesk_tickets(
+#             session,
+#             connector_id,
+#             search_space_id,
+#             user_id,
+#             start_date,
+#             end_date,
+#             update_last_indexed=False,
+#         )
+#         if error_message:
+#             logger.error(
+#                 f"Zendesk indexing failed for connector {connector_id}: {error_message}"
+#             )
+#             # Optionally update status in DB to indicate failure
+#         else:
+#             logger.info(
+#                 f"Zendesk indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+#             )
+#             # Update the last indexed timestamp only on success
+#             await update_connector_last_indexed(session, connector_id)
+#             await session.commit()  # Commit timestamp update
+#     except Exception as e:
+#         logger.error(
+#             f"Critical error in run_zendesk_indexing for connector {connector_id}: {e}",
+#             exc_info=True,
+#         )
+#         # Optionally update status in DB to indicate failure
