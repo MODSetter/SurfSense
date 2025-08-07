@@ -1,4 +1,7 @@
-# app/routes/google_calendar.py
+import os
+
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+
 import base64
 import json
 import logging
