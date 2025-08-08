@@ -1,5 +1,6 @@
-"use client";
+"use server";
 
+import { cookies } from "next/headers";
 import type React from "react";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
@@ -7,7 +8,7 @@ import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
-export function DashboardClientLayout({
+export async function DashboardClientLayout({
 	children,
 	searchSpaceId,
 	navSecondary,
@@ -18,8 +19,11 @@ export function DashboardClientLayout({
 	navSecondary: any[];
 	navMain: any[];
 }) {
+	const cookieStore = await cookies();
+	const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+
 	return (
-		<SidebarProvider>
+		<SidebarProvider defaultOpen={defaultOpen}>
 			{/* Use AppSidebarProvider which fetches user, search space, and recent chats */}
 			<AppSidebarProvider
 				searchSpaceId={searchSpaceId}

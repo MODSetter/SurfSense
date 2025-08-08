@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -49,26 +49,6 @@ interface AppSidebarProviderProps {
 		}[];
 	}[];
 }
-
-// Loading skeleton component
-const LoadingSkeleton = () => (
-	<div className="space-y-2 p-2">
-		{Array.from({ length: 3 }).map((_, i) => (
-			<div key={i} className="h-8 bg-muted animate-pulse rounded-md" />
-		))}
-	</div>
-);
-
-// Error state component
-const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
-	<div className="p-4 text-center">
-		<AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-		<p className="text-sm text-muted-foreground mb-2">{error}</p>
-		<Button variant="outline" size="sm" onClick={onRetry}>
-			Retry
-		</Button>
-	</div>
-);
 
 export function AppSidebarProvider({
 	searchSpaceId,
