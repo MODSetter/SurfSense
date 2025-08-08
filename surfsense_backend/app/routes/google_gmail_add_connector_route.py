@@ -157,7 +157,3 @@ async def gmail_callback(
         raise
     except Exception as e:
         logger.error(f"Unexpected error in Gmail callback: {e!s}", exc_info=True)
-        # Redirect to frontend with error
-        return RedirectResponse(
-            url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/google-gmail-connector?error=auth_failed"
-        )
