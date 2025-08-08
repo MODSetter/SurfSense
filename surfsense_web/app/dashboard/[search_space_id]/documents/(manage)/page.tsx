@@ -10,6 +10,7 @@ import {
 	IconCalendar,
 	IconChecklist,
 	IconLayoutKanban,
+	IconMail,
 	IconTicket,
 } from "@tabler/icons-react";
 import {
@@ -150,6 +151,7 @@ const documentTypeIcons = {
 	CONFLUENCE_CONNECTOR: IconBook,
 	CLICKUP_CONNECTOR: IconChecklist,
 	GOOGLE_CALENDAR_CONNECTOR: IconCalendar,
+	GOOGLE_GMAIL_CONNECTOR: IconMail,
 } as const;
 
 const columns: ColumnDef<Document>[] = [

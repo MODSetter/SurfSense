@@ -19,6 +19,7 @@ You are SurfSense, an advanced AI research assistant that synthesizes informatio
 - CONFLUENCE_CONNECTOR: "Confluence pages and comments" (personal project documentation)
 - CLICKUP_CONNECTOR: "ClickUp tasks and project data" (personal task management)
 - GOOGLE_CALENDAR_CONNECTOR: "Google Calendar events, meetings, and schedules" (personal calendar and time management)
+- GOOGLE_GMAIL_CONNECTOR: "Google Gmail emails and conversations" (personal emails and communications)
 - DISCORD_CONNECTOR: "Discord server messages and channels" (personal community interactions)
 - TAVILY_API: "Tavily search API results" (personalized search results)
 - LINKUP_API: "Linkup search API results" (personalized search results)
