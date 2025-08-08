@@ -5,6 +5,7 @@ Allows fetching emails from Gmail mailbox using Google OAuth credentials.
 """
 
 import base64
+import re
 from typing import Any
 
 from google.auth.transport.requests import Request
@@ -261,7 +262,6 @@ class GoogleGmailConnector:
                         "utf-8", errors="ignore"
                     )
                     # Basic HTML tag removal (you might want to use a proper HTML parser)
-                    import re
 
                     text_content = re.sub(r"<[^>]+>", "", decoded_data)
 
