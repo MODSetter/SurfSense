@@ -1,9 +1,3 @@
-import os
-
-os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = (
-    "1"  # It is to disbale the error "Invalid token scope" when using Google OAuth with increemental scopes
-)
-
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
