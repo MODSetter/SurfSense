@@ -8,6 +8,7 @@ import {
 	IconBrandSlack,
 	IconBrandWindows,
 	IconBrandZoom,
+	IconCalendar,
 	IconChecklist,
 	IconChevronDown,
 	IconChevronRight,
@@ -149,6 +150,13 @@ const connectorCategories: ConnectorCategory[] = [
 		title: "Communication",
 		connectors: [
 			{
+				id: "google-calendar-connector",
+				title: "Google Calendar",
+				description: "Connect to Google Calendar to search events, meetings and schedules.",
+				icon: <IconCalendar className="h-6 w-6" />,
+				status: "available",
+			},
+			{
 				id: "gmail",
 				title: "Gmail",
 				description: "Connect to your Gmail account to access emails.",
@@ -212,6 +220,7 @@ export default function ConnectorsPage() {
 		"knowledge-bases",
 		"project-management",
 		"team-chats",
+		"communication",
 	]);
 
 	const toggleCategory = (categoryId: string) => {

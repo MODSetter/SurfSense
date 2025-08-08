@@ -196,7 +196,7 @@ const ConnectorSelector = React.memo(
 										type="button"
 									>
 										{getConnectorIcon(connector.type)}
-										<span className="flex-1 text-sm font-medium">{connector.name}</span>
+										<span className="flex-1 text-sm truncate font-medium">{connector.name}</span>
 									</Button>
 								);
 							})

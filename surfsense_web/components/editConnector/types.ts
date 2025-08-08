@@ -39,5 +39,9 @@ export const editConnectorSchema = z.object({
 	JIRA_BASE_URL: z.string().optional(),
 	JIRA_EMAIL: z.string().optional(),
 	JIRA_API_TOKEN: z.string().optional(),
+	GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
+	GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
+	GOOGLE_CALENDAR_REFRESH_TOKEN: z.string().optional(),
+	GOOGLE_CALENDAR_CALENDAR_IDS: z.string().optional(),
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>;

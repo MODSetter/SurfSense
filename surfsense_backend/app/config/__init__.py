@@ -41,11 +41,15 @@ class Config:
 
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
 
-    # AUTH: Google OAuth
+    # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")
-    if AUTH_TYPE == "GOOGLE":
-        GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
-        GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+
+    # Google OAuth
+    GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+    GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+
+    # Google Calendar redirect URI
+    GOOGLE_CALENDAR_REDIRECT_URI = os.getenv("GOOGLE_CALENDAR_REDIRECT_URI")
 
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
