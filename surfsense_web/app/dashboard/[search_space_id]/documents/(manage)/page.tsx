@@ -7,6 +7,7 @@ import {
 	IconBrandNotion,
 	IconBrandSlack,
 	IconBrandYoutube,
+	IconCalendar,
 	IconChecklist,
 	IconLayoutKanban,
 	IconTicket,
@@ -148,6 +149,7 @@ const documentTypeIcons = {
 	DISCORD_CONNECTOR: IconBrandDiscord,
 	CONFLUENCE_CONNECTOR: IconBook,
 	CLICKUP_CONNECTOR: IconChecklist,
+	GOOGLE_CALENDAR_CONNECTOR: IconCalendar,
 } as const;
 
 const columns: ColumnDef<Document>[] = [

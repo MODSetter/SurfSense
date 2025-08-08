@@ -1,0 +1,22 @@
+```yaml
+name: no-env-files-in-repo
+description: Prevent committing environment and configuration files containing sensitive credentials
+globs: ['**/.env', '**/.env.*', '**/config/*.yml', '**/config/*.yaml']
+alwaysApply: true
+```
+
+Configuration files like `.env` should never be committed to version control as they often contain sensitive information like API keys, passwords, and tokens.
+
+❌ Bad - Committing .env files:
+```
+POSTGRES_DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/db
+API_KEY=sk-1234567890abcdef
+```
+
+✅ Good - Use .env.example instead:
+```
+POSTGRES_DATABASE_URL=postgresql+psycopg2://user:password@host:5432/dbname
+API_KEY=your-api-key-here
+```
+
+Add `.env` and similar config files to .gitignore and provide example templates instead.

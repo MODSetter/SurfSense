@@ -1,0 +1,28 @@
+```yaml
+name: avoid-source-deduplication
+description: Preserve unique source entries in search results to maintain proper citation tracking
+globs: ['**/connector_service.py', '**/search_service.py']
+alwaysApply: true
+```
+
+Search result processing should preserve all source entries to maintain accurate citation tracking, rather than deduplicating sources.
+
+❌ Bad - Deduplicating sources:
+```python
+mapped_sources = {}
+for chunk in chunks:
+    source_key = chunk.get('url') or chunk.get('title')
+    if source_key not in mapped_sources:
+        mapped_sources[source_key] = create_source(chunk)
+sources_list = list(mapped_sources.values())
+```
+
+✅ Good - Preserving unique sources:
+```python
+sources_list = []
+for chunk in chunks:
+    source = create_source(chunk)
+    sources_list.append(source)
+```
+
+Each chunk should maintain its unique source reference for proper citation tracking.

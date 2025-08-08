@@ -1,0 +1,28 @@
+```yaml
+name: require-unique-id-props
+description: Ensure unique key props are provided when mapping arrays to React elements
+globs: ['**/*.tsx', '**/*.jsx']
+alwaysApply: true
+```
+
+When mapping arrays to React elements, each element must have a unique key prop to help React efficiently update the DOM.
+
+❌ Bad - Missing key prop:
+```jsx
+{items.map((item) => (
+  <Link href={`/dashboard/${item.id}`}>
+    <Card>{item.name}</Card>
+  </Link>
+))}
+```
+
+✅ Good - With key prop:
+```jsx
+{items.map((item) => (
+  <Link key={item.id} href={`/dashboard/${item.id}`}>
+    <Card>{item.name}</Card>
+  </Link>
+))}
+```
+
+Keys should be stable, predictable, and unique among siblings.
