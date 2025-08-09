@@ -19,14 +19,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -61,22 +54,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 interface Chat {
 	created_at: string;
 	id: number;
 	type: string;
 	title: string;
-	messages: ChatMessage[];
 	search_space_id: number;
-}
-
-interface ChatMessage {
-	id: string;
-	createdAt: string;
-	role: string;
-	content: string;
-	parts?: any;
 }
 
 interface ChatsPageClientProps {
@@ -580,12 +565,12 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 									animate="animate"
 									exit="exit"
 									transition={{ duration: 0.2, delay: index * 0.05 }}
-									className={`overflow-hidden hover:shadow-md transition-shadow 
-                    ${
-											selectionMode && selectedChats.includes(chat.id)
-												? "ring-2 ring-primary ring-offset-2"
-												: ""
-										}`}
+									className={cn(
+										"overflow-hidden hover:shadow-md transition-shadow",
+										selectionMode && selectedChats.includes(chat.id)
+											? "ring-2 ring-primary ring-offset-2"
+											: ""
+									)}
 									onClick={(e) => {
 										if (!selectionMode) return;
 										// Ignore clicks coming from interactive elements
@@ -672,24 +657,21 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 											)}
 										</div>
 									</CardHeader>
-									<CardContent>
-										<div className="text-sm text-muted-foreground line-clamp-3">
-											{chat.messages && chat.messages.length > 0
-												? typeof chat.messages[0] === "string"
-													? chat.messages[0]
-													: chat.messages[0]?.content || "No message content"
-												: "No messages in this chat."}
-										</div>
-									</CardContent>
-									<CardFooter className="flex justify-between pt-2">
-										<div className="flex items-center text-xs text-muted-foreground">
-											<MessageCircleMore className="mr-1 h-3.5 w-3.5" />
-											<span>{chat.messages?.length || 0} messages</span>
-										</div>
+
+									<CardFooter className="flex items-center justify-between gap-2 w-full">
 										<Badge variant="secondary" className="text-xs">
 											<Tag className="mr-1 h-3 w-3" />
 											{chat.type || "Unknown"}
 										</Badge>
+										<Button
+											size="sm"
+											onClick={() =>
+												router.push(`/dashboard/${chat.search_space_id}/researcher/${chat.id}`)
+											}
+										>
+											<MessageCircleMore className="h-4 w-4" />
+											<span>View Chat</span>
+										</Button>
 									</CardFooter>
 								</MotionCard>
 							))}

@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import type * as React from "react";
+import { useMemo } from "react";
 
 import {
 	SidebarGroup,
@@ -11,23 +12,28 @@ import {
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
+interface NavSecondaryItem {
+	title: string;
+	url: string;
+	icon: LucideIcon;
+}
+
 export function NavSecondary({
 	items,
 	...props
 }: {
-	items: {
-		title: string;
-		url: string;
-		icon: LucideIcon;
-	}[];
+	items: NavSecondaryItem[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+	// Memoize items to prevent unnecessary re-renders
+	const memoizedItems = useMemo(() => items, [items]);
+
 	return (
 		<SidebarGroup {...props}>
 			<SidebarGroupLabel>SearchSpace</SidebarGroupLabel>
 			<SidebarMenu>
-				{items.map((item, index) => (
+				{memoizedItems.map((item, index) => (
 					<SidebarMenuItem key={`${item.title}-${index}`}>
-						<SidebarMenuButton asChild size="sm">
+						<SidebarMenuButton asChild size="sm" aria-label={item.title}>
 							<a href={item.url}>
 								<item.icon />
 								<span>{item.title}</span>

@@ -15,6 +15,12 @@ class ChatBase(BaseModel):
     search_space_id: int
 
 
+class ChatBaseWithoutMessages(BaseModel):
+    type: ChatType
+    title: str
+    search_space_id: int
+
+
 class ClientAttachment(BaseModel):
     name: str
     content_type: str
@@ -49,4 +55,8 @@ class ChatUpdate(ChatBase):
 
 
 class ChatRead(ChatBase, IDModel, TimestampModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChatReadWithoutMessages(ChatBaseWithoutMessages, IDModel, TimestampModel):
     model_config = ConfigDict(from_attributes=True)

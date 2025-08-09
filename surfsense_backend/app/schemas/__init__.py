@@ -1,5 +1,12 @@
 from .base import IDModel, TimestampModel
-from .chats import AISDKChatRequest, ChatBase, ChatCreate, ChatRead, ChatUpdate
+from .chats import (
+    AISDKChatRequest,
+    ChatBase,
+    ChatCreate,
+    ChatRead,
+    ChatReadWithoutMessages,
+    ChatUpdate,
+)
 from .chunks import ChunkBase, ChunkCreate, ChunkRead, ChunkUpdate
 from .documents import (
     DocumentBase,
@@ -37,6 +44,7 @@ __all__ = [
     "ChatBase",
     "ChatCreate",
     "ChatRead",
+    "ChatReadWithoutMessages",
     "ChatUpdate",
     "ChunkBase",
     "ChunkCreate",
