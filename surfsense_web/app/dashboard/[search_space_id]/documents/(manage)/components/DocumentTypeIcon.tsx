@@ -10,6 +10,7 @@ import {
 	IconCalendar,
 	IconChecklist,
 	IconLayoutKanban,
+	IconMail,
 	IconTicket,
 } from "@tabler/icons-react";
 import { File, Globe, Webhook } from "lucide-react";
@@ -31,6 +32,7 @@ const documentTypeIcons: Record<string, IconComponent> = {
 	CONFLUENCE_CONNECTOR: IconBook,
 	CLICKUP_CONNECTOR: IconChecklist,
 	GOOGLE_CALENDAR_CONNECTOR: IconCalendar,
+	GOOGLE_GMAIL_CONNECTOR: IconMail,
 };
 
 export function getDocumentTypeIcon(type: string): IconComponent {
