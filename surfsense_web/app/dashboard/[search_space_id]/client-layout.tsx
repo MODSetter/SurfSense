@@ -1,14 +1,14 @@
 "use client";
 
-import { cookies } from "next/headers";
 import type React from "react";
+import { useState } from "react";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
-export async function DashboardClientLayout({
+export function DashboardClientLayout({
 	children,
 	searchSpaceId,
 	navSecondary,
@@ -19,11 +19,18 @@ export async function DashboardClientLayout({
 	navSecondary: any[];
 	navMain: any[];
 }) {
-	const cookieStore = await cookies();
-	const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+	const [open, setOpen] = useState<boolean>(() => {
+		try {
+			const match = document.cookie.match(/(?:^|; )sidebar_state=([^;]+)/);
+			if (match) return match[1] === "true";
+		} catch {
+			// ignore
+		}
+		return true;
+	});
 
 	return (
-		<SidebarProvider defaultOpen={defaultOpen}>
+		<SidebarProvider open={open} onOpenChange={setOpen}>
 			{/* Use AppSidebarProvider which fetches user, search space, and recent chats */}
 			<AppSidebarProvider
 				searchSpaceId={searchSpaceId}
