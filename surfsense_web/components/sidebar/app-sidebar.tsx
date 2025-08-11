@@ -17,15 +17,17 @@ import {
 	Trash2,
 	Undo2,
 } from "lucide-react";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 import { Logo } from "@/components/Logo";
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
+import { NavUser } from "@/components/sidebar/nav-user";
 import {
 	Sidebar,
 	SidebarContent,
+	SidebarFooter,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -64,7 +66,6 @@ const defaultData = {
 			isActive: true,
 			items: [],
 		},
-
 		{
 			title: "Documents",
 			url: "#",
@@ -154,12 +155,12 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	navSecondary?: {
 		title: string;
 		url: string;
-		icon: string; // Changed to string (icon name)
+		icon: string;
 	}[];
 	RecentChats?: {
 		name: string;
 		url: string;
-		icon: string; // Changed to string (icon name)
+		icon: string;
 		id?: number;
 		search_space_id?: number;
 		actions?: {
@@ -168,9 +169,15 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 			onClick: () => void;
 		}[];
 	}[];
+	user?: {
+		name: string;
+		email: string;
+		avatar: string;
+	};
 }
 
-export function AppSidebar({
+// Memoized AppSidebar component for better performance
+export const AppSidebar = memo(function AppSidebar({
 	navMain = defaultData.navMain,
 	navSecondary = defaultData.navSecondary,
 	RecentChats = defaultData.RecentChats,
@@ -180,7 +187,7 @@ export function AppSidebar({
 	const processedNavMain = useMemo(() => {
 		return navMain.map((item) => ({
 			...item,
-			icon: iconMap[item.icon] || SquareTerminal, // Fallback to SquareTerminal if icon not found
+			icon: iconMap[item.icon] || SquareTerminal,
 		}));
 	}, [navMain]);
 
@@ -188,7 +195,7 @@ export function AppSidebar({
 	const processedNavSecondary = useMemo(() => {
 		return navSecondary.map((item) => ({
 			...item,
-			icon: iconMap[item.icon] || Undo2, // Fallback to Undo2 if icon not found
+			icon: iconMap[item.icon] || Undo2,
 		}));
 	}, [navSecondary]);
 
@@ -197,17 +204,17 @@ export function AppSidebar({
 		return (
 			RecentChats?.map((item) => ({
 				...item,
-				icon: iconMap[item.icon] || MessageCircleMore, // Fallback to MessageCircleMore if icon not found
+				icon: iconMap[item.icon] || MessageCircleMore,
 			})) || []
 		);
 	}, [RecentChats]);
 
 	return (
-		<Sidebar variant="inset" {...props}>
+		<Sidebar variant="inset" collapsible="icon" aria-label="Main navigation" {...props}>
 			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<SidebarMenuButton size="lg" asChild>
+						<SidebarMenuButton size="lg" asChild aria-label="Go to home page">
 							<div>
 								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
 									<Logo className="rounded-lg" />
@@ -221,11 +228,22 @@ export function AppSidebar({
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarHeader>
-			<SidebarContent>
+
+			<SidebarContent className="space-y-6">
 				<NavMain items={processedNavMain} />
-				{processedRecentChats.length > 0 && <NavProjects chats={processedRecentChats} />}
-				<NavSecondary items={processedNavSecondary} className="mt-auto" />
+
+				{processedRecentChats.length > 0 && (
+					<div className="space-y-2">
+						<NavProjects chats={processedRecentChats} />
+					</div>
+				)}
 			</SidebarContent>
+			<SidebarFooter>
+				<NavSecondary items={processedNavSecondary} className="mt-auto" />
+
+				{/* User Profile Section */}
+				<NavUser />
+			</SidebarFooter>
 		</Sidebar>
 	);
-}
+});
