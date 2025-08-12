@@ -35,7 +35,7 @@ from app.schemas import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
-from app.tasks.connectors_indexing_tasks import (
+from app.tasks.connector_indexers import (
     index_clickup_tasks,
     index_confluence_pages,
     index_discord_messages,
