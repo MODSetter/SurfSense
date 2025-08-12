@@ -16,6 +16,7 @@ from app.services.llm_service import get_user_long_context_llm
 from .configuration import Configuration
 from .prompts import get_podcast_generation_prompt
 from .state import PodcastTranscriptEntry, PodcastTranscripts, State
+from .utils import get_voice_for_provider
 
 
 async def create_podcast_transcript(
@@ -121,16 +122,6 @@ async def create_merged_podcast_audio(
     output_path = f"podcasts/{session_id}_podcast.mp3"
     os.makedirs("podcasts", exist_ok=True)
 
-    # Map of speaker_id to voice
-    voice_mapping = {
-        0: "alloy",  # Default/intro voice
-        1: "echo",  # First speaker
-        # 2: "fable",  # Second speaker
-        # 3: "onyx",   # Third speaker
-        # 4: "nova",   # Fourth speaker
-        # 5: "shimmer" # Fifth speaker
-    }
-
     # Generate audio for each transcript segment
     audio_files = []
 
@@ -144,7 +135,7 @@ async def create_merged_podcast_audio(
             dialog = segment.get("dialog", "")
 
         # Select voice based on speaker_id
-        voice = voice_mapping.get(speaker_id, "alloy")
+        voice = get_voice_for_provider(app_config.TTS_SERVICE, speaker_id)
 
         # Generate a unique filename for this segment
         filename = f"{temp_dir}/{session_id}_{index}.mp3"
