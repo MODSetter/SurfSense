@@ -163,7 +163,6 @@ async def index_discord_messages(
             f"Indexing Discord messages from {start_date_iso} to {end_date_iso}"
         )
 
-
         try:
             await task_logger.log_task_progress(
                 log_entry,
@@ -220,7 +219,9 @@ async def index_discord_messages(
                 try:
                     channels = await discord_client.get_text_channels(guild_id)
                     if not channels:
-                        logger.info(f"No channels found in guild {guild_name}. Skipping.")
+                        logger.info(
+                            f"No channels found in guild {guild_name}. Skipping."
+                        )
                         skipped_channels.append(f"{guild_name} (no channels)")
                         documents_skipped += 1
                         continue
@@ -310,8 +311,10 @@ async def index_discord_messages(
                         )
 
                         # Skip duplicates by hash
-                        existing_document_by_hash = await check_duplicate_document_by_hash(
-                            session, content_hash
+                        existing_document_by_hash = (
+                            await check_duplicate_document_by_hash(
+                                session, content_hash
+                            )
                         )
                         if existing_document_by_hash:
                             logger.info(

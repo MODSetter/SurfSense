@@ -217,9 +217,7 @@ async def index_github_repos(
 
                     # Chunk the content
                     try:
-                        chunks_data = [
-                            await create_document_chunks(file_content)
-                        ][0]
+                        chunks_data = [await create_document_chunks(file_content)][0]
 
                         # Use code chunker if available, otherwise regular chunker
                         if hasattr(config, "code_chunker_instance"):

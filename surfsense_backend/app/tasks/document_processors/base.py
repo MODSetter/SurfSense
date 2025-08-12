@@ -2,7 +2,6 @@
 Base functionality and shared imports for document processors.
 """
 
-
 from langchain_community.document_transformers import MarkdownifyTransformer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select

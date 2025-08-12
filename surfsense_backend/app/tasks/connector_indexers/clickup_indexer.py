@@ -195,9 +195,7 @@ async def index_clickup_tasks(
                             assignee.get("username", "Unknown")
                             for assignee in task_assignees
                         ]
-                        content_parts.append(
-                            f"Assignees: {', '.join(assignee_names)}"
-                        )
+                        content_parts.append(f"Assignees: {', '.join(assignee_names)}")
                     if task_due_date:
                         content_parts.append(f"Due Date: {task_due_date}")
 
