@@ -10,7 +10,7 @@ from app.config import config as app_config
 from app.db import Document, DocumentType, Log, SearchSpace, User, get_async_session
 from app.schemas import DocumentRead, DocumentsCreate, DocumentUpdate
 from app.services.task_logging_service import TaskLoggingService
-from app.tasks.background_tasks import (
+from app.tasks.document_processors import (
     add_crawled_url_document,
     add_extension_received_document,
     add_received_file_document_using_docling,
