@@ -23,7 +23,6 @@ import { Logo } from "@/components/Logo";
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
-import { NavUser } from "@/components/sidebar/nav-user";
 import {
 	Sidebar,
 	SidebarContent,
@@ -240,9 +239,6 @@ export const AppSidebar = memo(function AppSidebar({
 			</SidebarContent>
 			<SidebarFooter>
 				<NavSecondary items={processedNavSecondary} className="mt-auto" />
-
-				{/* User Profile Section */}
-				<NavUser />
 			</SidebarFooter>
 		</Sidebar>
 	);
