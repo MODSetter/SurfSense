@@ -49,6 +49,7 @@ Open source and easy to deploy locally.
 ### 🎙️ Podcasts 
 - Blazingly fast podcast generation agent. (Creates a 3-minute podcast in under 20 seconds.)
 - Convert your chat conversations into engaging audio content
+- Support for local TTS providers (Kokoro TTS)
 - Support for multiple TTS providers (OpenAI, Azure, Google Vertex AI)
 
 ### 📊 **Advanced RAG Techniques**
