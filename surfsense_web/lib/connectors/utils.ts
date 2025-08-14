@@ -10,6 +10,10 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		JIRA_CONNECTOR: "Jira",
 		DISCORD_CONNECTOR: "Discord",
 		LINKUP_API: "Linkup",
+		CONFLUENCE_CONNECTOR: "Confluence",
+		CLICKUP_CONNECTOR: "ClickUp",
+		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
+		GOOGLE_GMAIL_CONNECTOR: "Google Gmail",
 	};
 	return typeMap[type] || type;
 };
