@@ -9,6 +9,14 @@ def get_voice_for_provider(provider: str, speaker_id: int) -> dict | str:
     Returns:
         Voice configuration - string for OpenAI, dict for Vertex AI
     """
+    if provider == "local/kokoro":
+        # Kokoro voice mapping - https://huggingface.co/hexgrad/Kokoro-82M/tree/main/voices
+        kokoro_voices = {
+            0: "am_adam",  # Default/intro voice
+            1: "af_bella",  # First speaker
+        }
+        return kokoro_voices.get(speaker_id, "af_heart")
+
     # Extract provider type from the model string
     provider_type = (
         provider.split("/")[0].lower() if "/" in provider else provider.lower()
@@ -59,11 +67,7 @@ def get_voice_for_provider(provider: str, speaker_id: int) -> dict | str:
     else:
         # Default fallback to OpenAI format for unknown providers
         default_voices = {
-            0: "alloy",
-            1: "echo",
-            2: "fable",
-            3: "onyx",
-            4: "nova",
-            5: "shimmer",
+            0: {},
+            1: {},
         }
-        return default_voices.get(speaker_id, "alloy")
+        return default_voices.get(speaker_id, default_voices[0])

@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     unzip \
     gnupg2 \
+    espeak-ng \
+    libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Update certificates and install SSL tools
@@ -51,7 +53,7 @@ RUN python -c "try:\n    from docling.document_converter import DocumentConverte
 
 # Install Playwright browsers for web scraping if needed
 RUN pip install playwright && \
-    playwright install --with-deps chromium
+    playwright install chromium
 
 # Copy source code
 COPY . .
