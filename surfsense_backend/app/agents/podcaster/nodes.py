@@ -11,6 +11,7 @@ from langchain_core.runnables import RunnableConfig
 from litellm import aspeech
 
 from app.config import config as app_config
+from app.services.kokoro_tts_service import get_kokoro_tts_service
 from app.services.llm_service import get_user_long_context_llm
 
 from .configuration import Configuration
@@ -138,34 +139,49 @@ async def create_merged_podcast_audio(
         voice = get_voice_for_provider(app_config.TTS_SERVICE, speaker_id)
 
         # Generate a unique filename for this segment
-        filename = f"{temp_dir}/{session_id}_{index}.mp3"
+        if app_config.TTS_SERVICE == "local/kokoro":
+            # Kokoro generates WAV files
+            filename = f"{temp_dir}/{session_id}_{index}.wav"
+        else:
+            # Other services generate MP3 files
+            filename = f"{temp_dir}/{session_id}_{index}.mp3"
 
         try:
-            if app_config.TTS_SERVICE_API_BASE:
-                response = await aspeech(
-                    model=app_config.TTS_SERVICE,
-                    api_base=app_config.TTS_SERVICE_API_BASE,
-                    api_key=app_config.TTS_SERVICE_API_KEY,
-                    voice=voice,
-                    input=dialog,
-                    max_retries=2,
-                    timeout=600,
+            if app_config.TTS_SERVICE == "local/kokoro":
+                # Use Kokoro TTS service
+                kokoro_service = await get_kokoro_tts_service(
+                    lang_code="a"
+                )  # American English
+                audio_path = await kokoro_service.generate_speech(
+                    text=dialog, voice=voice, speed=1.0, output_path=filename
                 )
+                return audio_path
             else:
-                response = await aspeech(
-                    model=app_config.TTS_SERVICE,
-                    api_key=app_config.TTS_SERVICE_API_KEY,
-                    voice=voice,
-                    input=dialog,
-                    max_retries=2,
-                    timeout=600,
-                )
+                if app_config.TTS_SERVICE_API_BASE:
+                    response = await aspeech(
+                        model=app_config.TTS_SERVICE,
+                        api_base=app_config.TTS_SERVICE_API_BASE,
+                        api_key=app_config.TTS_SERVICE_API_KEY,
+                        voice=voice,
+                        input=dialog,
+                        max_retries=2,
+                        timeout=600,
+                    )
+                else:
+                    response = await aspeech(
+                        model=app_config.TTS_SERVICE,
+                        api_key=app_config.TTS_SERVICE_API_KEY,
+                        voice=voice,
+                        input=dialog,
+                        max_retries=2,
+                        timeout=600,
+                    )
 
-            # Save the audio to a file - use proper streaming method
-            with open(filename, "wb") as f:
-                f.write(response.content)
+                # Save the audio to a file - use proper streaming method
+                with open(filename, "wb") as f:
+                    f.write(response.content)
 
-            return filename
+                return filename
         except Exception as e:
             print(f"Error generating speech for segment {index}: {e!s}")
             raise
