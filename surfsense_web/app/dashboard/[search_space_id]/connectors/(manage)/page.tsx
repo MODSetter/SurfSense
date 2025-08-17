@@ -40,6 +40,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,7 @@ export default function ConnectorsPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
+	const today = new Date();
 
 	const { connectors, isLoading, error, deleteConnector, indexConnector } =
 		useSearchSourceConnectors();
@@ -136,6 +138,28 @@ export default function ConnectorsPage() {
 			toast.error(error instanceof Error ? error.message : "Failed to index connector content");
 		} finally {
 			setIndexingConnectorId(null);
+		}
+	};
+
+	const getDisabledEndDates = (date: Date) => {
+		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
+
+		switch (connector?.connector_type) {
+			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
+				return startDate ? date < startDate : false;
+			default:
+				return date > today || (startDate ? date < startDate : false);
+		}
+	};
+
+	const getDisabledStartDates = (date: Date) => {
+		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
+
+		switch (connector?.connector_type) {
+			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
+				return endDate ? date > endDate : false;
+			default:
+				return date > today || (endDate ? date > endDate : false);
 		}
 	};
 
@@ -342,7 +366,7 @@ export default function ConnectorsPage() {
 											mode="single"
 											selected={startDate}
 											onSelect={setStartDate}
-											disabled={(date) => date > new Date() || (endDate ? date > endDate : false)}
+											disabled={getDisabledStartDates}
 											initialFocus
 										/>
 									</PopoverContent>
@@ -369,9 +393,7 @@ export default function ConnectorsPage() {
 											mode="single"
 											selected={endDate}
 											onSelect={setEndDate}
-											disabled={(date) =>
-												date > new Date() || (startDate ? date < startDate : false)
-											}
+											disabled={getDisabledEndDates}
 											initialFocus
 										/>
 									</PopoverContent>
@@ -393,7 +415,6 @@ export default function ConnectorsPage() {
 								variant="outline"
 								size="sm"
 								onClick={() => {
-									const today = new Date();
 									const thirtyDaysAgo = new Date(today);
 									thirtyDaysAgo.setDate(today.getDate() - 30);
 									setStartDate(thirtyDaysAgo);
@@ -406,7 +427,6 @@ export default function ConnectorsPage() {
 								variant="outline"
 								size="sm"
 								onClick={() => {
-									const today = new Date();
 									const yearAgo = new Date(today);
 									yearAgo.setFullYear(today.getFullYear() - 1);
 									setStartDate(yearAgo);
