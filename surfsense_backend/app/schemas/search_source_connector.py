@@ -188,6 +188,14 @@ class SearchSourceConnectorBase(BaseModel):
                 if key not in config or config[key] in (None, ""):
                     raise ValueError(f"{key} is required and cannot be empty")
 
+        elif connector_type == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR:
+            # Required fields for Gmail connector (same as Calendar - uses Google OAuth)
+            required_keys = list(GoogleAuthCredentialsBase.model_fields.keys())
+
+            for key in required_keys:
+                if key not in config or config[key] in (None, ""):
+                    raise ValueError(f"{key} is required and cannot be empty")
+
         return config
 
 

@@ -157,11 +157,11 @@ const connectorCategories: ConnectorCategory[] = [
 				status: "available",
 			},
 			{
-				id: "gmail",
+				id: "google-gmail-connector",
 				title: "Gmail",
-				description: "Connect to your Gmail account to access emails.",
+				description: "Connect to your Gmail account to search through your emails.",
 				icon: <IconMail className="h-6 w-6" />,
-				status: "coming-soon",
+				status: "available",
 			},
 			{
 				id: "zoom",

@@ -14,6 +14,7 @@ Available indexers:
 - Confluence: Index pages from Confluence spaces
 - Discord: Index messages from Discord servers
 - ClickUp: Index tasks from ClickUp workspaces
+- Google Gmail: Index messages from Google Gmail
 - Google Calendar: Index events from Google Calendar
 """
 
@@ -27,6 +28,7 @@ from .github_indexer import index_github_repos
 
 # Calendar and scheduling
 from .google_calendar_indexer import index_google_calendar_events
+from .google_gmail_indexer import index_google_gmail_messages
 from .jira_indexer import index_jira_issues
 
 # Issue tracking and project management
@@ -36,7 +38,7 @@ from .linear_indexer import index_linear_issues
 from .notion_indexer import index_notion_pages
 from .slack_indexer import index_slack_messages
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     "index_clickup_tasks",
     "index_confluence_pages",
     "index_discord_messages",
@@ -51,4 +53,5 @@ __all__ = [
     "index_notion_pages",
     # Communication platforms
     "index_slack_messages",
+    "index_google_gmail_messages",
 ]
