@@ -8,19 +8,20 @@ from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.slack_history import SlackHistory
 from app.db import Document, DocumentType, SearchSourceConnectorType
-from app.prompts import SUMMARY_PROMPT_TEMPLATE
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     build_document_metadata_string,
     calculate_date_range,
     check_duplicate_document_by_hash,
-    create_document_chunks,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -289,14 +290,16 @@ async def index_slack_messages(
                     documents_skipped += 1
                     continue
 
-                # Generate summary
-                summary_chain = SUMMARY_PROMPT_TEMPLATE | user_llm
-                summary_result = await summary_chain.ainvoke(
-                    {"document": combined_document_string}
-                )
-                summary_content = summary_result.content
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
+                # Generate summary with metadata
+                document_metadata = {
+                    "channel_name": channel_name,
+                    "channel_id": channel_id,
+                    "message_count": len(formatted_messages),
+                    "document_type": "Slack Channel Messages",
+                    "connector_type": "Slack",
+                }
+                summary_content, summary_embedding = await generate_document_summary(
+                    combined_document_string, user_llm, document_metadata
                 )
 
                 # Process chunks

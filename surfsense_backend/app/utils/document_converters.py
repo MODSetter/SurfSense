@@ -1,5 +1,71 @@
 import hashlib
 
+from app.config import config
+from app.db import Chunk
+from app.prompts import SUMMARY_PROMPT_TEMPLATE
+
+
+async def generate_document_summary(
+    content: str,
+    user_llm,
+    document_metadata: dict | None = None,
+) -> tuple[str, list[float]]:
+    """
+    Generate summary and embedding for document content with metadata.
+
+    Args:
+        content: Document content
+        user_llm: User's LLM instance
+        document_metadata: Optional metadata dictionary to include in summary
+
+    Returns:
+        Tuple of (enhanced_summary_content, summary_embedding)
+    """
+    summary_chain = SUMMARY_PROMPT_TEMPLATE | user_llm
+    content_with_metadata = f"<DOCUMENT><DOCUMENT_METADATA>\n\n{document_metadata}\n\n</DOCUMENT_METADATA>\n\n<DOCUMENT_CONTENT>\n\n{content}\n\n</DOCUMENT_CONTENT></DOCUMENT>"
+    summary_result = await summary_chain.ainvoke({"document": content_with_metadata})
+    summary_content = summary_result.content
+
+    # Combine summary with metadata if provided
+    if document_metadata:
+        metadata_parts = []
+        metadata_parts.append("# DOCUMENT METADATA")
+
+        for key, value in document_metadata.items():
+            if value:  # Only include non-empty values
+                formatted_key = key.replace("_", " ").title()
+                metadata_parts.append(f"**{formatted_key}:** {value}")
+
+        metadata_section = "\n".join(metadata_parts)
+        enhanced_summary_content = (
+            f"{metadata_section}\n\n# DOCUMENT SUMMARY\n\n{summary_content}"
+        )
+    else:
+        enhanced_summary_content = summary_content
+
+    summary_embedding = config.embedding_model_instance.embed(enhanced_summary_content)
+
+    return enhanced_summary_content, summary_embedding
+
+
+async def create_document_chunks(content: str) -> list[Chunk]:
+    """
+    Create chunks from document content.
+
+    Args:
+        content: Document content to chunk
+
+    Returns:
+        List of Chunk objects with embeddings
+    """
+    return [
+        Chunk(
+            content=chunk.text,
+            embedding=config.embedding_model_instance.embed(chunk.text),
+        )
+        for chunk in config.chunker_instance.chunk(content)
+    ]
+
 
 async def convert_element_to_markdown(element) -> str:
     """

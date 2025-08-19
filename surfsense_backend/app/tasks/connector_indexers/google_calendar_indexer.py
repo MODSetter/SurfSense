@@ -11,11 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import config
 from app.connectors.google_calendar_connector import GoogleCalendarConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
+from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
-    create_document_chunks,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -237,18 +241,6 @@ async def index_google_calendar_events(
                 location = event.get("location", "")
                 description = event.get("description", "")
 
-                summary_content = f"Google Calendar Event: {event_summary}\n\n"
-                summary_content += f"Calendar: {calendar_id}\n"
-                summary_content += f"Start: {start_time}\n"
-                summary_content += f"End: {end_time}\n"
-                if location:
-                    summary_content += f"Location: {location}\n"
-                if description:
-                    desc_preview = description[:300]
-                    if len(description) > 300:
-                        desc_preview += "..."
-                    summary_content += f"Description: {desc_preview}\n"
-
                 content_hash = generate_content_hash(event_markdown, search_space_id)
 
                 # Duplicate check via simple query using helper in base
@@ -266,10 +258,42 @@ async def index_google_calendar_events(
                     documents_skipped += 1
                     continue
 
-                # Embeddings and chunks
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                # Generate summary with metadata
+                user_llm = await get_user_long_context_llm(session, user_id)
+
+                if user_llm:
+                    document_metadata = {
+                        "event_id": event_id,
+                        "event_summary": event_summary,
+                        "calendar_id": calendar_id,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "location": location or "No location",
+                        "document_type": "Google Calendar Event",
+                        "connector_type": "Google Calendar",
+                    }
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        event_markdown, user_llm, document_metadata
+                    )
+                else:
+                    # Fallback to simple summary if no LLM configured
+                    summary_content = f"Google Calendar Event: {event_summary}\n\n"
+                    summary_content += f"Calendar: {calendar_id}\n"
+                    summary_content += f"Start: {start_time}\n"
+                    summary_content += f"End: {end_time}\n"
+                    if location:
+                        summary_content += f"Location: {location}\n"
+                    if description:
+                        desc_preview = description[:300]
+                        if len(description) > 300:
+                            desc_preview += "..."
+                        summary_content += f"Description: {desc_preview}\n"
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
                 chunks = await create_document_chunks(event_markdown)
 
                 document = Document(

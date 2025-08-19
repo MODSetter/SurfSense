@@ -13,12 +13,14 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from app.db import Document, DocumentType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     check_duplicate_document,
-    create_document_chunks,
-    generate_document_summary,
 )
 
 
@@ -242,8 +244,18 @@ async def add_youtube_video_document(
             {"stage": "summary_generation"},
         )
 
+        # Generate summary with metadata
+        document_metadata = {
+            "url": url,
+            "video_id": video_id,
+            "title": video_data.get("title", "YouTube Video"),
+            "author": video_data.get("author_name", "Unknown"),
+            "thumbnail": video_data.get("thumbnail_url", ""),
+            "document_type": "YouTube Video Document",
+            "has_transcript": "No captions available" not in transcript_text,
+        }
         summary_content, summary_embedding = await generate_document_summary(
-            combined_document_string, user_llm
+            combined_document_string, user_llm, document_metadata
         )
 
         # Process chunks

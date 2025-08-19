@@ -13,12 +13,14 @@ from app.config import config
 from app.db import Document, DocumentType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     check_duplicate_document,
-    create_document_chunks,
-    generate_document_summary,
     md,
 )
 
@@ -170,8 +172,15 @@ async def add_crawled_url_document(
             {"stage": "summary_generation"},
         )
 
+        # Generate summary with metadata
+        document_metadata = {
+            "url": url,
+            "title": url_crawled[0].metadata.get("title", url),
+            "document_type": "Crawled URL Document",
+            "crawler_type": type(crawl_loader).__name__,
+        }
         summary_content, summary_embedding = await generate_document_summary(
-            combined_document_string, user_llm
+            combined_document_string, user_llm, document_metadata
         )
 
         # Process chunks
