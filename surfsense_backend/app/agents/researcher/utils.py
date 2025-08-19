@@ -91,7 +91,7 @@ def format_document_for_citation(document: dict[str, Any]) -> str:
     """Format a single document for citation in the standard XML format."""
     content = document.get("content", "")
     doc_info = document.get("document", {})
-    document_id = doc_info.get("id", "")
+    document_id = document.get("chunk_id", "")
     document_type = doc_info.get("document_type", "CRAWLED_URL")
 
     return f"""<document>

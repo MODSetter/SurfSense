@@ -109,7 +109,7 @@ class ConnectorService:
 
                 # Create a source entry
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": document.get("title", "Untitled Document"),
                     "description": metadata.get(
                         "og:description",
@@ -183,7 +183,7 @@ class ConnectorService:
 
                 # Create a source entry
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": document.get("title", "Untitled Document"),
                     "description": metadata.get(
                         "og:description",
@@ -312,7 +312,7 @@ class ConnectorService:
             documents = []
 
             async with self.counter_lock:
-                for i, result in enumerate(tavily_results):
+                for _i, result in enumerate(tavily_results):
                     # Create a source entry
                     source = {
                         "id": self.source_id_counter,
@@ -324,7 +324,7 @@ class ConnectorService:
 
                     # Create a document entry
                     document = {
-                        "chunk_id": f"tavily_chunk_{i}",
+                        "chunk_id": self.source_id_counter,
                         "content": result.get("content", ""),
                         "score": result.get("score", 0.0),
                         "document": {
@@ -432,7 +432,7 @@ class ConnectorService:
                     url = f"https://slack.com/app_redirect?channel={channel_id}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -529,7 +529,7 @@ class ConnectorService:
                     url = f"https://notion.so/{page_id.replace('-', '')}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -650,7 +650,7 @@ class ConnectorService:
                         pass
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": webpage_url,
@@ -747,7 +747,7 @@ class ConnectorService:
                 url = f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -820,7 +820,7 @@ class ConnectorService:
 
                 # Create a source entry
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": document.get(
                         "title", "GitHub Document"
                     ),  # Use specific title if available
@@ -930,7 +930,7 @@ class ConnectorService:
                     url = f"https://linear.app/issue/{issue_identifier}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -1049,7 +1049,7 @@ class ConnectorService:
                     url = f"{metadata.get('base_url')}/browse/{issue_key}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -1183,7 +1183,7 @@ class ConnectorService:
                     url = f"https://calendar.google.com/calendar/event?eid={event_id}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -1310,7 +1310,7 @@ class ConnectorService:
                     url = f"https://mail.google.com/mail/u/0/#inbox/{message_id}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -1412,7 +1412,7 @@ class ConnectorService:
                     url = f"{metadata.get('base_url')}/pages/{page_id}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,
@@ -1521,7 +1521,7 @@ class ConnectorService:
             )
 
             source = {
-                "id": document.get("id", self.source_id_counter),
+                "id": chunk.get("chunk_id", self.source_id_counter),
                 "title": task_name,
                 "description": description,
                 "url": task_url,
@@ -1604,7 +1604,7 @@ class ConnectorService:
             documents = []
 
             async with self.counter_lock:
-                for i, result in enumerate(linkup_results):
+                for _i, result in enumerate(linkup_results):
                     # Only process results that have content
                     if not hasattr(result, "content") or not result.content:
                         continue
@@ -1624,7 +1624,7 @@ class ConnectorService:
 
                     # Create a document entry
                     document = {
-                        "chunk_id": f"linkup_chunk_{i}",
+                        "chunk_id": self.source_id_counter,
                         "content": result.content if hasattr(result, "content") else "",
                         "score": 1.0,  # Default score since not provided by Linkup
                         "document": {
@@ -1745,7 +1745,7 @@ class ConnectorService:
                     url = f"https://discord.com/channels/@me/{channel_id}"
 
                 source = {
-                    "id": document.get("id", self.source_id_counter),
+                    "id": chunk.get("chunk_id", self.source_id_counter),
                     "title": title,
                     "description": description,
                     "url": url,

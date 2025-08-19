@@ -266,29 +266,29 @@ const DashboardPage = () => {
 						{searchSpaces &&
 							searchSpaces.length > 0 &&
 							searchSpaces.map((space) => (
-								<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
-									<motion.div key={space.id} variants={itemVariants} className="aspect-[4/3]">
-										<Tilt
-											rotationFactor={6}
-											isRevese
+								<motion.div key={space.id} variants={itemVariants} className="aspect-[4/3]">
+									<Tilt
+										rotationFactor={6}
+										isRevese
+										springOptions={{
+											stiffness: 26.7,
+											damping: 4.1,
+											mass: 0.2,
+										}}
+										className="group relative rounded-lg h-full"
+									>
+										<Spotlight
+											className="z-10 from-blue-500/20 via-blue-300/10 to-blue-200/5 blur-2xl"
+											size={248}
 											springOptions={{
 												stiffness: 26.7,
 												damping: 4.1,
 												mass: 0.2,
 											}}
-											className="group relative rounded-lg h-full"
-										>
-											<Spotlight
-												className="z-10 from-blue-500/20 via-blue-300/10 to-blue-200/5 blur-2xl"
-												size={248}
-												springOptions={{
-													stiffness: 26.7,
-													damping: 4.1,
-													mass: 0.2,
-												}}
-											/>
-											<div className="flex flex-col h-full overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
-												<div className="relative h-32 w-full overflow-hidden">
+										/>
+										<div className="flex flex-col h-full overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
+											<div className="relative h-32 w-full overflow-hidden">
+												<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
 													<Image
 														src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1740&q=80"
 														alt={space.name}
@@ -297,42 +297,43 @@ const DashboardPage = () => {
 														height={248}
 													/>
 													<div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-													<div className="absolute top-2 right-2">
-														<div>
-															<AlertDialog>
-																<AlertDialogTrigger asChild>
-																	<Button
-																		variant="ghost"
-																		size="icon"
-																		className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-destructive/90 cursor-pointer"
+												</Link>
+												<div className="absolute top-2 right-2">
+													<div>
+														<AlertDialog>
+															<AlertDialogTrigger asChild>
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-destructive/90 cursor-pointer"
+																>
+																	<Trash2 className="h-4 w-4" />
+																</Button>
+															</AlertDialogTrigger>
+															<AlertDialogContent>
+																<AlertDialogHeader>
+																	<AlertDialogTitle>Delete Search Space</AlertDialogTitle>
+																	<AlertDialogDescription>
+																		Are you sure you want to delete &quot;{space.name}&quot;? This
+																		action cannot be undone. All documents, chats, and podcasts in
+																		this search space will be permanently deleted.
+																	</AlertDialogDescription>
+																</AlertDialogHeader>
+																<AlertDialogFooter>
+																	<AlertDialogCancel>Cancel</AlertDialogCancel>
+																	<AlertDialogAction
+																		onClick={() => handleDeleteSearchSpace(space.id)}
+																		className="bg-destructive hover:bg-destructive/90"
 																	>
-																		<Trash2 className="h-4 w-4" />
-																	</Button>
-																</AlertDialogTrigger>
-																<AlertDialogContent>
-																	<AlertDialogHeader>
-																		<AlertDialogTitle>Delete Search Space</AlertDialogTitle>
-																		<AlertDialogDescription>
-																			Are you sure you want to delete &quot;{space.name}&quot;? This
-																			action cannot be undone. All documents, chats, and podcasts in
-																			this search space will be permanently deleted.
-																		</AlertDialogDescription>
-																	</AlertDialogHeader>
-																	<AlertDialogFooter>
-																		<AlertDialogCancel>Cancel</AlertDialogCancel>
-																		<AlertDialogAction
-																			onClick={() => handleDeleteSearchSpace(space.id)}
-																			className="bg-destructive hover:bg-destructive/90"
-																		>
-																			Delete
-																		</AlertDialogAction>
-																	</AlertDialogFooter>
-																</AlertDialogContent>
-															</AlertDialog>
-														</div>
+																		Delete
+																	</AlertDialogAction>
+																</AlertDialogFooter>
+															</AlertDialogContent>
+														</AlertDialog>
 													</div>
 												</div>
-
+											</div>
+											<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
 												<div className="flex flex-1 flex-col justify-between p-4">
 													<div>
 														<h3 className="font-medium text-lg">{space.name}</h3>
@@ -345,10 +346,10 @@ const DashboardPage = () => {
 														<span>Created {formatDate(space.created_at)}</span>
 													</div>
 												</div>
-											</div>
-										</Tilt>
-									</motion.div>
-								</Link>
+											</Link>
+										</div>
+									</Tilt>
+								</motion.div>
 							))}
 
 						{searchSpaces.length === 0 && (
