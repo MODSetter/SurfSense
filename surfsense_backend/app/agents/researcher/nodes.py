@@ -1708,7 +1708,7 @@ async def handle_qna_workflow(
     )
 
     # Use a reasonable top_k for QNA - not too many documents to avoid overwhelming the LLM
-    top_k = 15
+    top_k = 20
 
     relevant_documents = []
     user_selected_documents = []
