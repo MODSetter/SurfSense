@@ -10,12 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import config
 from app.connectors.clickup_connector import ClickUpConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
+from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     check_duplicate_document_by_hash,
-    create_document_chunks,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -217,10 +221,34 @@ async def index_clickup_tasks(
                         documents_skipped += 1
                         continue
 
-                    # Embedding and chunks
-                    summary_embedding = config.embedding_model_instance.embed(
-                        task_content
-                    )
+                    # Generate summary with metadata
+                    user_llm = await get_user_long_context_llm(session, user_id)
+
+                    if user_llm:
+                        document_metadata = {
+                            "task_id": task_id,
+                            "task_name": task_name,
+                            "task_status": task_status,
+                            "task_priority": task_priority,
+                            "task_list": task_list_name,
+                            "task_space": task_space_name,
+                            "assignees": len(task_assignees),
+                            "document_type": "ClickUp Task",
+                            "connector_type": "ClickUp",
+                        }
+                        (
+                            summary_content,
+                            summary_embedding,
+                        ) = await generate_document_summary(
+                            task_content, user_llm, document_metadata
+                        )
+                    else:
+                        # Fallback to simple summary if no LLM configured
+                        summary_content = task_content
+                        summary_embedding = config.embedding_model_instance.embed(
+                            task_content
+                        )
+
                     chunks = await create_document_chunks(task_content)
 
                     document = Document(
@@ -238,7 +266,7 @@ async def index_clickup_tasks(
                             "task_updated": task_updated,
                             "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         },
-                        content=task_content,
+                        content=summary_content,
                         content_hash=content_hash,
                         embedding=summary_embedding,
                         chunks=chunks,

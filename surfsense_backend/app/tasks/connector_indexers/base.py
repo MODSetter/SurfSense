@@ -8,9 +8,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.config import config
 from app.db import (
-    Chunk,
     Document,
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -37,25 +35,6 @@ async def check_duplicate_document_by_hash(
         select(Document).where(Document.content_hash == content_hash)
     )
     return existing_doc_result.scalars().first()
-
-
-async def create_document_chunks(content: str) -> list[Chunk]:
-    """
-    Create chunks from document content.
-
-    Args:
-        content: Document content to chunk
-
-    Returns:
-        List of Chunk objects with embeddings
-    """
-    return [
-        Chunk(
-            content=chunk.text,
-            embedding=config.embedding_model_instance.embed(chunk.text),
-        )
-        for chunk in config.chunker_instance.chunk(content)
-    ]
 
 
 async def get_connector_by_id(

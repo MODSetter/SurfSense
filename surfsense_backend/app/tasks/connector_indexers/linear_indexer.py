@@ -10,13 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import config
 from app.connectors.linear_connector import LinearConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
+from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     calculate_date_range,
     check_duplicate_document_by_hash,
-    create_document_chunks,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -209,22 +213,6 @@ async def index_linear_issues(
                     documents_skipped += 1
                     continue
 
-                # Create a short summary for the embedding
-                state = formatted_issue.get("state", "Unknown")
-                description = formatted_issue.get("description", "")
-                # Truncate description if it's too long for the summary
-                if description and len(description) > 500:
-                    description = description[:497] + "..."
-
-                # Create a simple summary from the issue data
-                summary_content = f"Linear Issue {issue_identifier}: {issue_title}\n\nStatus: {state}\n\n"
-                if description:
-                    summary_content += f"Description: {description}\n\n"
-
-                # Add comment count
-                comment_count = len(formatted_issue.get("comments", []))
-                summary_content += f"Comments: {comment_count}"
-
                 content_hash = generate_content_hash(issue_content, search_space_id)
 
                 # Check if document with this content hash already exists
@@ -239,10 +227,40 @@ async def index_linear_issues(
                     documents_skipped += 1
                     continue
 
-                # Generate embedding for the summary
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                # Generate summary with metadata
+                user_llm = await get_user_long_context_llm(session, user_id)
+                state = formatted_issue.get("state", "Unknown")
+                description = formatted_issue.get("description", "")
+                comment_count = len(formatted_issue.get("comments", []))
+
+                if user_llm:
+                    document_metadata = {
+                        "issue_id": issue_identifier,
+                        "issue_title": issue_title,
+                        "state": state,
+                        "priority": formatted_issue.get("priority", "Unknown"),
+                        "comment_count": comment_count,
+                        "document_type": "Linear Issue",
+                        "connector_type": "Linear",
+                    }
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        issue_content, user_llm, document_metadata
+                    )
+                else:
+                    # Fallback to simple summary if no LLM configured
+                    # Truncate description if it's too long for the summary
+                    if description and len(description) > 500:
+                        description = description[:497] + "..."
+                    summary_content = f"Linear Issue {issue_identifier}: {issue_title}\n\nStatus: {state}\n\n"
+                    if description:
+                        summary_content += f"Description: {description}\n\n"
+                    summary_content += f"Comments: {comment_count}"
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
 
                 # Process chunks - using the full issue content with comments
                 chunks = await create_document_chunks(issue_content)

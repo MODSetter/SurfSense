@@ -15,12 +15,16 @@ from app.db import (
     DocumentType,
     SearchSourceConnectorType,
 )
+from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     check_duplicate_document_by_hash,
-    create_document_chunks,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -186,11 +190,6 @@ async def index_google_gmail_messages(
                     documents_skipped += 1
                     continue
 
-                # Create a simple summary
-                summary_content = f"Google Gmail Message: {subject}\n\n"
-                summary_content += f"Sender: {sender}\n"
-                summary_content += f"Date: {date_str}\n"
-
                 # Generate content hash
                 content_hash = generate_content_hash(markdown_content, search_space_id)
 
@@ -206,10 +205,33 @@ async def index_google_gmail_messages(
                     documents_skipped += 1
                     continue
 
-                # Generate embedding for the summary
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                # Generate summary with metadata
+                user_llm = await get_user_long_context_llm(session, user_id)
+
+                if user_llm:
+                    document_metadata = {
+                        "message_id": message_id,
+                        "thread_id": thread_id,
+                        "subject": subject,
+                        "sender": sender,
+                        "date": date_str,
+                        "document_type": "Gmail Message",
+                        "connector_type": "Google Gmail",
+                    }
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        markdown_content, user_llm, document_metadata
+                    )
+                else:
+                    # Fallback to simple summary if no LLM configured
+                    summary_content = f"Google Gmail Message: {subject}\n\n"
+                    summary_content += f"Sender: {sender}\n"
+                    summary_content += f"Date: {date_str}\n"
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
 
                 # Process chunks
                 chunks = await create_document_chunks(markdown_content)
@@ -228,7 +250,7 @@ async def index_google_gmail_messages(
                         "date": date_str,
                         "connector_id": connector_id,
                     },
-                    content=markdown_content,
+                    content=summary_content,
                     content_hash=content_hash,
                     embedding=summary_embedding,
                     chunks=chunks,

@@ -7,18 +7,19 @@ from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.notion_history import NotionHistoryConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
-from app.prompts import SUMMARY_PROMPT_TEMPLATE
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     build_document_metadata_string,
     check_duplicate_document_by_hash,
-    create_document_chunks,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -302,15 +303,16 @@ async def index_notion_pages(
                     documents_skipped += 1
                     continue
 
-                # Generate summary
+                # Generate summary with metadata
                 logger.debug(f"Generating summary for page {page_title}")
-                summary_chain = SUMMARY_PROMPT_TEMPLATE | user_llm
-                summary_result = await summary_chain.ainvoke(
-                    {"document": combined_document_string}
-                )
-                summary_content = summary_result.content
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
+                document_metadata = {
+                    "page_title": page_title,
+                    "page_id": page_id,
+                    "document_type": "Notion Page",
+                    "connector_type": "Notion",
+                }
+                summary_content, summary_embedding = await generate_document_summary(
+                    markdown_content, user_llm, document_metadata
                 )
 
                 # Process chunks

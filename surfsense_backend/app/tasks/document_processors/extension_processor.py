@@ -11,12 +11,14 @@ from app.db import Document, DocumentType
 from app.schemas import ExtensionDocumentContent
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     check_duplicate_document,
-    create_document_chunks,
-    generate_document_summary,
 )
 
 
@@ -106,9 +108,18 @@ async def add_extension_received_document(
         if not user_llm:
             raise RuntimeError(f"No long context LLM configured for user {user_id}")
 
-        # Generate summary
+        # Generate summary with metadata
+        document_metadata = {
+            "session_id": content.metadata.BrowsingSessionId,
+            "url": content.metadata.VisitedWebPageURL,
+            "title": content.metadata.VisitedWebPageTitle,
+            "referrer": content.metadata.VisitedWebPageReffererURL,
+            "timestamp": content.metadata.VisitedWebPageDateWithTimeInISOString,
+            "duration_ms": content.metadata.VisitedWebPageVisitDurationInMilliseconds,
+            "document_type": "Browser Extension Capture",
+        }
         summary_content, summary_embedding = await generate_document_summary(
-            combined_document_string, user_llm
+            combined_document_string, user_llm, document_metadata
         )
 
         # Process chunks

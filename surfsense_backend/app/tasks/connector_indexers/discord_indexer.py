@@ -8,18 +8,19 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.discord_connector import DiscordConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
-from app.prompts import SUMMARY_PROMPT_TEMPLATE
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     build_document_metadata_string,
     check_duplicate_document_by_hash,
-    create_document_chunks,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -335,14 +336,19 @@ async def index_discord_messages(
                             documents_skipped += 1
                             continue
 
-                        # Generate summary using summary_chain
-                        summary_chain = SUMMARY_PROMPT_TEMPLATE | user_llm
-                        summary_result = await summary_chain.ainvoke(
-                            {"document": combined_document_string}
-                        )
-                        summary_content = summary_result.content
-                        summary_embedding = config.embedding_model_instance.embed(
-                            summary_content
+                        # Generate summary with metadata
+                        document_metadata = {
+                            "guild_name": guild_name,
+                            "channel_name": channel_name,
+                            "message_count": len(formatted_messages),
+                            "document_type": "Discord Channel Messages",
+                            "connector_type": "Discord",
+                        }
+                        (
+                            summary_content,
+                            summary_embedding,
+                        ) = await generate_document_summary(
+                            combined_document_string, user_llm, document_metadata
                         )
 
                         # Chunks from channel content

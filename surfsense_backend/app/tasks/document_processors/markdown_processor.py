@@ -10,12 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Document, DocumentType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     check_duplicate_document,
-    create_document_chunks,
-    generate_document_summary,
 )
 
 
@@ -77,9 +79,13 @@ async def add_received_markdown_file_document(
         if not user_llm:
             raise RuntimeError(f"No long context LLM configured for user {user_id}")
 
-        # Generate summary
+        # Generate summary with metadata
+        document_metadata = {
+            "file_name": file_name,
+            "document_type": "Markdown File Document",
+        }
         summary_content, summary_embedding = await generate_document_summary(
-            file_in_markdown, user_llm
+            file_in_markdown, user_llm, document_metadata
         )
 
         # Process chunks

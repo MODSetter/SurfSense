@@ -10,13 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import config
 from app.connectors.jira_connector import JiraConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
+from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     calculate_date_range,
     check_duplicate_document_by_hash,
-    create_document_chunks,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -196,17 +200,6 @@ async def index_jira_issues(
                     documents_skipped += 1
                     continue
 
-                # Create a simple summary
-                summary_content = f"Jira Issue {issue_identifier}: {issue_title}\n\nStatus: {formatted_issue.get('status', 'Unknown')}\n\n"
-                if formatted_issue.get("description"):
-                    summary_content += (
-                        f"Description: {formatted_issue.get('description')}\n\n"
-                    )
-
-                # Add comment count
-                comment_count = len(formatted_issue.get("comments", []))
-                summary_content += f"Comments: {comment_count}"
-
                 # Generate content hash
                 content_hash = generate_content_hash(issue_content, search_space_id)
 
@@ -222,10 +215,37 @@ async def index_jira_issues(
                     documents_skipped += 1
                     continue
 
-                # Generate embedding for the summary
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                # Generate summary with metadata
+                user_llm = await get_user_long_context_llm(session, user_id)
+                comment_count = len(formatted_issue.get("comments", []))
+
+                if user_llm:
+                    document_metadata = {
+                        "issue_key": issue_identifier,
+                        "issue_title": issue_title,
+                        "status": formatted_issue.get("status", "Unknown"),
+                        "priority": formatted_issue.get("priority", "Unknown"),
+                        "comment_count": comment_count,
+                        "document_type": "Jira Issue",
+                        "connector_type": "Jira",
+                    }
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        issue_content, user_llm, document_metadata
+                    )
+                else:
+                    # Fallback to simple summary if no LLM configured
+                    summary_content = f"Jira Issue {issue_identifier}: {issue_title}\n\nStatus: {formatted_issue.get('status', 'Unknown')}\n\n"
+                    if formatted_issue.get("description"):
+                        summary_content += (
+                            f"Description: {formatted_issue.get('description')}\n\n"
+                        )
+                    summary_content += f"Comments: {comment_count}"
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
 
                 # Process chunks - using the full issue content with comments
                 chunks = await create_document_chunks(issue_content)

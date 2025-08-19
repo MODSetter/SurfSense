@@ -10,12 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import config
 from app.connectors.github_connector import GitHubConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
+from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.document_converters import generate_content_hash
+from app.utils.document_converters import (
+    create_document_chunks,
+    generate_content_hash,
+    generate_document_summary,
+)
 
 from .base import (
     check_duplicate_document_by_hash,
-    create_document_chunks,
     get_connector_by_id,
     logger,
 )
@@ -208,12 +212,34 @@ async def index_github_repos(
                         )
                         continue
 
-                    # Use file_content directly for chunking, maybe summary for main content?
-                    # For now, let's use the full content for both, might need refinement
-                    summary_content = f"GitHub file: {full_path_key}\n\n{file_content[:1000]}..."  # Simple summary
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    # Generate summary with metadata
+                    user_llm = await get_user_long_context_llm(session, user_id)
+                    if user_llm:
+                        # Extract file extension from file path
+                        file_extension = (
+                            file_path.split(".")[-1] if "." in file_path else None
+                        )
+                        document_metadata = {
+                            "file_path": full_path_key,
+                            "repository": repo_full_name,
+                            "file_type": file_extension or "unknown",
+                            "document_type": "GitHub Repository File",
+                            "connector_type": "GitHub",
+                        }
+                        (
+                            summary_content,
+                            summary_embedding,
+                        ) = await generate_document_summary(
+                            file_content, user_llm, document_metadata
+                        )
+                    else:
+                        # Fallback to simple summary if no LLM configured
+                        summary_content = (
+                            f"GitHub file: {full_path_key}\n\n{file_content[:1000]}..."
+                        )
+                        summary_embedding = config.embedding_model_instance.embed(
+                            summary_content
+                        )
 
                     # Chunk the content
                     try:

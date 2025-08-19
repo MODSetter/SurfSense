@@ -12,13 +12,13 @@ from app.db import Document, DocumentType
 from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     convert_document_to_markdown,
+    create_document_chunks,
     generate_content_hash,
+    generate_document_summary,
 )
 
 from .base import (
     check_duplicate_document,
-    create_document_chunks,
-    generate_document_summary,
 )
 
 
@@ -64,9 +64,14 @@ async def add_received_file_document_using_unstructured(
         if not user_llm:
             raise RuntimeError(f"No long context LLM configured for user {user_id}")
 
-        # Generate summary
+        # Generate summary with metadata
+        document_metadata = {
+            "file_name": file_name,
+            "etl_service": "UNSTRUCTURED",
+            "document_type": "File Document",
+        }
         summary_content, summary_embedding = await generate_document_summary(
-            file_in_markdown, user_llm
+            file_in_markdown, user_llm, document_metadata
         )
 
         # Process chunks
@@ -139,9 +144,14 @@ async def add_received_file_document_using_llamacloud(
         if not user_llm:
             raise RuntimeError(f"No long context LLM configured for user {user_id}")
 
-        # Generate summary
+        # Generate summary with metadata
+        document_metadata = {
+            "file_name": file_name,
+            "etl_service": "LLAMACLOUD",
+            "document_type": "File Document",
+        }
         summary_content, summary_embedding = await generate_document_summary(
-            file_in_markdown, user_llm
+            file_in_markdown, user_llm, document_metadata
         )
 
         # Process chunks
@@ -224,9 +234,30 @@ async def add_received_file_document_using_docling(
             content=file_in_markdown, llm=user_llm, document_title=file_name
         )
 
+        # Enhance summary with metadata
+        document_metadata = {
+            "file_name": file_name,
+            "etl_service": "DOCLING",
+            "document_type": "File Document",
+        }
+        metadata_parts = []
+        metadata_parts.append("# DOCUMENT METADATA")
+
+        for key, value in document_metadata.items():
+            if value:  # Only include non-empty values
+                formatted_key = key.replace("_", " ").title()
+                metadata_parts.append(f"**{formatted_key}:** {value}")
+
+        metadata_section = "\n".join(metadata_parts)
+        enhanced_summary_content = (
+            f"{metadata_section}\n\n# DOCUMENT SUMMARY\n\n{summary_content}"
+        )
+
         from app.config import config
 
-        summary_embedding = config.embedding_model_instance.embed(summary_content)
+        summary_embedding = config.embedding_model_instance.embed(
+            enhanced_summary_content
+        )
 
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
@@ -240,7 +271,7 @@ async def add_received_file_document_using_docling(
                 "FILE_NAME": file_name,
                 "ETL_SERVICE": "DOCLING",
             },
-            content=summary_content,
+            content=enhanced_summary_content,
             embedding=summary_embedding,
             chunks=chunks,
             content_hash=content_hash,
