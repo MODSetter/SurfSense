@@ -9,7 +9,6 @@ async def generate_document_summary(
     content: str,
     user_llm,
     document_metadata: dict | None = None,
-    document_title: str = "",
 ) -> tuple[str, list[float]]:
     """
     Generate summary and embedding for document content with metadata.
@@ -18,7 +17,6 @@ async def generate_document_summary(
         content: Document content
         user_llm: User's LLM instance
         document_metadata: Optional metadata dictionary to include in summary
-        document_title: Optional document title for context (deprecated, use metadata)
 
     Returns:
         Tuple of (enhanced_summary_content, summary_embedding)
