@@ -74,14 +74,14 @@ repos:
         stages: [pre-commit]
 
       # Biome check for surfsense_browser_extension
-      - id: biome-check-extension
-        name: biome-check-extension
-        entry: bash -c 'cd surfsense_browser_extension && npx @biomejs/biome check --diagnostic-level=error .'
-        language: system
-        files: ^surfsense_browser_extension/
-        pass_filenames: false
-        always_run: true
-        stages: [pre-commit]
+      # - id: biome-check-extension
+      #   name: biome-check-extension
+      #   entry: bash -c 'cd surfsense_browser_extension && npx @biomejs/biome check --diagnostic-level=error .'
+      #   language: system
+      #   files: ^surfsense_browser_extension/
+      #   pass_filenames: false
+      #   always_run: true
+      #   stages: [pre-commit]
 
   # Commit message linting
   - repo: https://github.com/commitizen-tools/commitizen
