@@ -222,6 +222,7 @@ class ConnectorService:
         for doc in document_results:
             transformed_results.append(
                 {
+                    "chunk_id": doc.get("document_id"),
                     "document": {
                         "id": doc.get("document_id"),
                         "title": doc.get("title", "Untitled Document"),

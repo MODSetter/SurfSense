@@ -71,39 +71,41 @@ async def fetch_documents_by_ids(
             chunks_result = await db_session.execute(chunks_query)
             chunks = chunks_result.scalars().all()
 
-            # Concatenate chunks content (similar to SearchMode.DOCUMENTS approach)
-            concatenated_chunks_content = (
-                " ".join([chunk.content for chunk in chunks]) if chunks else doc.content
-            )
+            # Return individual chunks instead of concatenated content
+            if chunks:
+                for chunk in chunks:
+                    # Format each chunk to match connector service return format
+                    formatted_chunk = {
+                        "chunk_id": chunk.id,
+                        "content": chunk.content,  # Use individual chunk content
+                        "score": 0.5,  # High score since user explicitly selected these
+                        "document": {
+                            "id": chunk.id,
+                            "title": doc.title,
+                            "document_type": (
+                                doc.document_type.value
+                                if doc.document_type
+                                else "UNKNOWN"
+                            ),
+                            "metadata": doc.document_metadata or {},
+                        },
+                        "source": doc.document_type.value
+                        if doc.document_type
+                        else "UNKNOWN",
+                    }
+                    formatted_documents.append(formatted_chunk)
 
-            # Format to match connector service return format
-            formatted_doc = {
-                "chunk_id": f"user_doc_{doc.id}",
-                "content": concatenated_chunks_content,  # Use concatenated content like DOCUMENTS mode
-                "score": 0.5,  # High score since user explicitly selected these
-                "document": {
-                    "id": doc.id,
-                    "title": doc.title,
-                    "document_type": (
+                    # Group by document type for source objects
+                    doc_type = (
                         doc.document_type.value if doc.document_type else "UNKNOWN"
-                    ),
-                    "metadata": doc.document_metadata or {},
-                },
-                "source": doc.document_type.value if doc.document_type else "UNKNOWN",
-            }
-            formatted_documents.append(formatted_doc)
-
-            # Group by document type for source objects
-            doc_type = doc.document_type.value if doc.document_type else "UNKNOWN"
-            if doc_type not in documents_by_type:
-                documents_by_type[doc_type] = []
-            documents_by_type[doc_type].append(doc)
+                    )
+                    if doc_type not in documents_by_type:
+                        documents_by_type[doc_type] = []
+                    documents_by_type[doc_type].append(doc)
 
         # Create source objects for each document type (similar to ConnectorService)
         source_objects = []
-        connector_id_counter = (
-            100  # Start from 100 to avoid conflicts with regular connectors
-        )
+        connector_id_counter = 100
 
         for doc_type, docs in documents_by_type.items():
             sources_list = []
@@ -395,7 +397,7 @@ async def fetch_documents_by_ids(
             connector_id_counter += 1
 
         print(
-            f"Fetched {len(formatted_documents)} user-selected documents (with concatenated chunks) from {len(document_ids)} requested IDs"
+            f"Fetched {len(formatted_documents)} user-selected chunks from {len(document_ids)} requested document IDs"
         )
         print(f"Created {len(source_objects)} source objects for UI display")
 
@@ -1708,7 +1710,7 @@ async def handle_qna_workflow(
     )
 
     # Use a reasonable top_k for QNA - not too many documents to avoid overwhelming the LLM
-    top_k = 20
+    top_k = 5 if configuration.search_mode == SearchMode.DOCUMENTS else 20
 
     relevant_documents = []
     user_selected_documents = []

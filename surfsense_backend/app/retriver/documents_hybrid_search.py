@@ -240,7 +240,7 @@ class DocumentHybridSearchRetriever:
         if not documents_with_scores:
             return []
 
-        # Convert to serializable dictionaries
+        # Convert to serializable dictionaries - return individual chunks
         serialized_results = []
         for document, score in documents_with_scores:
             # Fetch associated chunks for this document
@@ -254,26 +254,36 @@ class DocumentHybridSearchRetriever:
             chunks_result = await self.db_session.execute(chunks_query)
             chunks = chunks_result.scalars().all()
 
-            # Concatenate chunks content
-            concatenated_chunks_content = (
-                " ".join([chunk.content for chunk in chunks])
-                if chunks
-                else document.content
-            )
-
-            serialized_results.append(
-                {
-                    "document_id": document.id,
-                    "title": document.title,
-                    "content": document.content,
-                    "chunks_content": concatenated_chunks_content,
-                    "document_type": document.document_type.value
-                    if hasattr(document, "document_type")
-                    else None,
-                    "metadata": document.document_metadata,
-                    "score": float(score),  # Ensure score is a Python float
-                    "search_space_id": document.search_space_id,
-                }
-            )
+            # Return individual chunks instead of concatenated content
+            if chunks:
+                for chunk in chunks:
+                    serialized_results.append(
+                        {
+                            "document_id": chunk.id,
+                            "title": document.title,
+                            "content": chunk.content,  # Use chunk content instead of document content
+                            "document_type": document.document_type.value
+                            if hasattr(document, "document_type")
+                            else None,
+                            "metadata": document.document_metadata,
+                            "score": float(score),  # Ensure score is a Python float
+                            "search_space_id": document.search_space_id,
+                        }
+                    )
+            else:
+                # If no chunks exist, return the document content as a single result
+                serialized_results.append(
+                    {
+                        "document_id": chunk.id,
+                        "title": document.title,
+                        "content": document.content,
+                        "document_type": document.document_type.value
+                        if hasattr(document, "document_type")
+                        else None,
+                        "metadata": document.document_metadata,
+                        "score": float(score),  # Ensure score is a Python float
+                        "search_space_id": document.search_space_id,
+                    }
+                )
 
         return serialized_results
