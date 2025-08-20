@@ -274,7 +274,7 @@ class DocumentHybridSearchRetriever:
                 # If no chunks exist, return the document content as a single result
                 serialized_results.append(
                     {
-                        "document_id": chunk.id,
+                        "document_id": document.id,
                         "title": document.title,
                         "content": document.content,
                         "document_type": document.document_type.value
