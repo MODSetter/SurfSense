@@ -129,7 +129,7 @@ async def index_google_gmail_messages(
 
         # Fetch recent Google gmail messages
         logger.info(f"Fetching recent emails for connector {connector_id}")
-        messages, error = gmail_connector.get_recent_messages(
+        messages, error = await gmail_connector.get_recent_messages(
             max_results=max_messages, days_back=days_back
         )
 
