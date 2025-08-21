@@ -108,7 +108,6 @@ async def index_notion_pages(
         )
 
         logger.info(f"Initializing Notion client for connector {connector_id}")
-        notion_client = NotionHistoryConnector(token=notion_token)
 
         # Calculate date range
         if start_date is None or end_date is None:
@@ -143,6 +142,8 @@ async def index_notion_pages(
                 "%Y-%m-%dT%H:%M:%SZ"
             )
 
+        notion_client = NotionHistoryConnector(token=notion_token)
+
         logger.info(f"Fetching Notion pages from {start_date_iso} to {end_date_iso}")
 
         await task_logger.log_task_progress(
@@ -157,7 +158,7 @@ async def index_notion_pages(
 
         # Get all pages
         try:
-            pages = notion_client.get_all_pages(
+            pages = await notion_client.get_all_pages(
                 start_date=start_date_iso, end_date=end_date_iso
             )
             logger.info(f"Found {len(pages)} Notion pages")
@@ -169,6 +170,7 @@ async def index_notion_pages(
                 {"error_type": "PageFetchError"},
             )
             logger.error(f"Error fetching Notion pages: {e!s}", exc_info=True)
+            await notion_client.close()
             return 0, f"Failed to get Notion pages: {e!s}"
 
         if not pages:
@@ -178,6 +180,7 @@ async def index_notion_pages(
                 {"pages_found": 0},
             )
             logger.info("No Notion pages found to index")
+            await notion_client.close()
             return 0, "No Notion pages found"
 
         # Track the number of documents indexed
@@ -382,6 +385,10 @@ async def index_notion_pages(
         logger.info(
             f"Notion indexing completed: {documents_indexed} new pages, {documents_skipped} skipped"
         )
+
+        # Clean up the async client
+        await notion_client.close()
+
         return total_processed, result_message
 
     except SQLAlchemyError as db_error:
@@ -395,6 +402,9 @@ async def index_notion_pages(
         logger.error(
             f"Database error during Notion indexing: {db_error!s}", exc_info=True
         )
+        # Clean up the async client in case of error
+        if "notion_client" in locals():
+            await notion_client.close()
         return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
@@ -405,4 +415,7 @@ async def index_notion_pages(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Notion pages: {e!s}", exc_info=True)
+        # Clean up the async client in case of error
+        if "notion_client" in locals():
+            await notion_client.close()
         return 0, f"Failed to index Notion pages: {e!s}"
