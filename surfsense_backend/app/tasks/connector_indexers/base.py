@@ -160,3 +160,41 @@ def build_document_metadata_string(
 
     document_parts.append("</DOCUMENT>")
     return "\n".join(document_parts)
+
+
+def build_document_metadata_markdown(
+    metadata_sections: list[tuple[str, list[str]]],
+) -> str:
+    """
+    Build a markdown document string from metadata sections.
+
+    Args:
+        metadata_sections: List of (section_title, section_content) tuples
+
+    Returns:
+        Combined markdown document string
+    """
+    document_parts = []
+
+    for section_title, section_content in metadata_sections:
+        # Convert section title to proper markdown header
+        document_parts.append(f"## {section_title.title()}")
+        document_parts.append("")  # Empty line after header
+
+        for content_line in section_content:
+            # Handle special content formatting
+            if content_line == "TEXT_START" or content_line == "TEXT_END":
+                continue  # Skip text delimiters in markdown
+            elif content_line.startswith("FORMAT: "):
+                # Skip format indicators in markdown
+                continue
+            else:
+                document_parts.append(content_line)
+
+        document_parts.append("")  # Empty line after section
+
+    # Remove trailing empty lines
+    while document_parts and document_parts[-1] == "":
+        document_parts.pop()
+
+    return "\n".join(document_parts)
