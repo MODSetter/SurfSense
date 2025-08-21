@@ -8,18 +8,17 @@ from slack_sdk.errors import SlackApiError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 from app.connectors.slack_history import SlackHistory
 from app.db import Document, DocumentType, SearchSourceConnectorType
-from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
-    generate_document_summary,
 )
 
 from .base import (
-    build_document_metadata_string,
+    build_document_metadata_markdown,
     calculate_date_range,
     check_duplicate_document_by_hash,
     get_connector_by_id,
@@ -234,98 +233,77 @@ async def index_slack_messages(
                     documents_skipped += 1
                     continue  # Skip if no valid messages after filtering
 
-                # Convert messages to markdown format
-                channel_content = f"# Slack Channel: {channel_name}\n\n"
-
                 for msg in formatted_messages:
-                    user_name = msg.get("user_name", "Unknown User")
                     timestamp = msg.get("datetime", "Unknown Time")
-                    text = msg.get("text", "")
+                    msg_user_name = msg.get("user_name", "Unknown User")
+                    msg_user_email = msg.get("user_email", "Unknown Email")
+                    msg_text = msg.get("text", "")
 
-                    channel_content += (
-                        f"## {user_name} ({timestamp})\n\n{text}\n\n---\n\n"
+                    # Format document metadata
+                    metadata_sections = [
+                        (
+                            "METADATA",
+                            [
+                                f"CHANNEL_NAME: {channel_name}",
+                                f"CHANNEL_ID: {channel_id}",
+                                f"MESSAGE_TIMESTAMP: {timestamp}",
+                                f"MESSAGE_USER_NAME: {msg_user_name}",
+                                f"MESSAGE_USER_EMAIL: {msg_user_email}",
+                            ],
+                        ),
+                        (
+                            "CONTENT",
+                            ["FORMAT: markdown", "TEXT_START", msg_text, "TEXT_END"],
+                        ),
+                    ]
+
+                    # Build the document string
+                    combined_document_string = build_document_metadata_markdown(
+                        metadata_sections
+                    )
+                    content_hash = generate_content_hash(
+                        combined_document_string, search_space_id
                     )
 
-                # Format document metadata
-                metadata_sections = [
-                    (
-                        "METADATA",
-                        [
-                            f"CHANNEL_NAME: {channel_name}",
-                            f"CHANNEL_ID: {channel_id}",
-                            f"MESSAGE_COUNT: {len(formatted_messages)}",
-                        ],
-                    ),
-                    (
-                        "CONTENT",
-                        ["FORMAT: markdown", "TEXT_START", channel_content, "TEXT_END"],
-                    ),
-                ]
-
-                # Build the document string
-                combined_document_string = build_document_metadata_string(
-                    metadata_sections
-                )
-                content_hash = generate_content_hash(
-                    combined_document_string, search_space_id
-                )
-
-                # Check if document with this content hash already exists
-                existing_document_by_hash = await check_duplicate_document_by_hash(
-                    session, content_hash
-                )
-
-                if existing_document_by_hash:
-                    logger.info(
-                        f"Document with content hash {content_hash} already exists for channel {channel_name}. Skipping processing."
+                    # Check if document with this content hash already exists
+                    existing_document_by_hash = await check_duplicate_document_by_hash(
+                        session, content_hash
                     )
-                    documents_skipped += 1
-                    continue
 
-                # Get user's long context LLM
-                user_llm = await get_user_long_context_llm(session, user_id)
-                if not user_llm:
-                    logger.error(f"No long context LLM configured for user {user_id}")
-                    skipped_channels.append(f"{channel_name} (no LLM configured)")
-                    documents_skipped += 1
-                    continue
+                    if existing_document_by_hash:
+                        logger.info(
+                            f"Document with content hash {content_hash} already exists for channel {channel_name}. Skipping processing."
+                        )
+                        documents_skipped += 1
+                        continue
 
-                # Generate summary with metadata
-                document_metadata = {
-                    "channel_name": channel_name,
-                    "channel_id": channel_id,
-                    "message_count": len(formatted_messages),
-                    "document_type": "Slack Channel Messages",
-                    "connector_type": "Slack",
-                }
-                summary_content, summary_embedding = await generate_document_summary(
-                    combined_document_string, user_llm, document_metadata
-                )
+                    # Process chunks
+                    chunks = await create_document_chunks(combined_document_string)
+                    doc_embedding = config.embedding_model_instance.embed(
+                        combined_document_string
+                    )
 
-                # Process chunks
-                chunks = await create_document_chunks(channel_content)
+                    # Create and store new document
+                    document = Document(
+                        search_space_id=search_space_id,
+                        title=f"Slack - {channel_name}",
+                        document_type=DocumentType.SLACK_CONNECTOR,
+                        document_metadata={
+                            "channel_name": channel_name,
+                            "channel_id": channel_id,
+                            "start_date": start_date_str,
+                            "end_date": end_date_str,
+                            "message_count": len(formatted_messages),
+                            "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        },
+                        content=combined_document_string,
+                        embedding=doc_embedding,
+                        chunks=chunks,
+                        content_hash=content_hash,
+                    )
 
-                # Create and store new document
-                document = Document(
-                    search_space_id=search_space_id,
-                    title=f"Slack - {channel_name}",
-                    document_type=DocumentType.SLACK_CONNECTOR,
-                    document_metadata={
-                        "channel_name": channel_name,
-                        "channel_id": channel_id,
-                        "start_date": start_date_str,
-                        "end_date": end_date_str,
-                        "message_count": len(formatted_messages),
-                        "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    },
-                    content=summary_content,
-                    embedding=summary_embedding,
-                    chunks=chunks,
-                    content_hash=content_hash,
-                )
-
-                session.add(document)
-                documents_indexed += 1
+                    session.add(document)
+                    documents_indexed += 1
                 logger.info(
                     f"Successfully indexed new channel {channel_name} with {len(formatted_messages)} messages"
                 )
