@@ -232,7 +232,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 					View Sources ({totalSources})
 				</Button>
 			</SheetTrigger>
-			<SheetContent className="w-[400px] sm:w-[480px] md:w-[540px] flex flex-col p-0 overflow-hidden">
+			<SheetContent className="w-[400px] sm:w-[540px] md:w-[640px] lg:w-[720px] xl:w-[800px] sm:max-w-[540px] md:max-w-[640px] lg:max-w-[720px] xl:max-w-[800px] flex flex-col p-0 overflow-hidden">
 				<SheetHeader className="px-6 py-4 border-b flex-shrink-0">
 					<div className="flex items-center justify-between">
 						<SheetTitle className="text-lg font-semibold">Sources</SheetTitle>
@@ -248,11 +248,13 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 								<TabsTrigger
 									key={group.type}
 									value={group.type}
-									className="flex items-center gap-2 whitespace-nowrap px-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+									className="flex items-center gap-2 whitespace-nowrap px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm"
 								>
 									{getSourceIcon(group.type)}
-									<span className="truncate max-w-[100px] sm:max-w-none">{group.name}</span>
-									<Badge variant="secondary" className="ml-1 h-5 text-xs flex-shrink-0">
+									<span className="truncate max-w-[120px] md:max-w-[180px] lg:max-w-none">
+										{group.name}
+									</span>
+									<Badge variant="secondary" className="ml-1.5 h-5 text-xs flex-shrink-0">
 										{group.sources.length}
 									</Badge>
 								</TabsTrigger>
@@ -266,7 +268,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 							className="flex-1 min-h-0 mt-0 px-6 pb-6 data-[state=active]:flex data-[state=active]:flex-col"
 						>
 							<div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-								<div className="space-y-3 pt-4">
+								<div className="grid gap-3 pt-4 grid-cols-1 lg:grid-cols-2">
 									{group.sources.map((source) => (
 										<SourceCard key={source.id} source={source} />
 									))}
