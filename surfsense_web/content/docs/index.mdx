@@ -51,10 +51,15 @@ See the [installation notes](https://github.com/pgvector/pgvector/tree/master#in
 
 SurfSense supports both Google OAuth and local email/password authentication. Google OAuth is optional - if you prefer local authentication, you can skip this section.
 
+**Note**: Google OAuth setup is **required** in your `.env` files if you want to use the Gmail and Google Calendar connectors in SurfSense.
+
 To set up Google OAuth:
 
 1. Login to your [Google Developer Console](https://console.cloud.google.com/)
-2. Enable People API.
+2. Enable the required APIs:
+   - **People API** (required for basic Google OAuth)
+   - **Gmail API** (required if you want to use the Gmail connector)
+   - **Google Calendar API** (required if you want to use the Google Calendar connector)
 ![Google Developer Console People API](/docs/google_oauth_people_api.png)
 3. Set up OAuth consent screen.
 ![Google Developer Console OAuth consent screen](/docs/google_oauth_screen.png)
