@@ -5,10 +5,24 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Up
 from litellm import atranscription
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
 from app.config import config as app_config
-from app.db import Document, DocumentType, Log, SearchSpace, User, get_async_session
-from app.schemas import DocumentRead, DocumentsCreate, DocumentUpdate
+from app.db import (
+    Chunk,
+    Document,
+    DocumentType,
+    Log,
+    SearchSpace,
+    User,
+    get_async_session,
+)
+from app.schemas import (
+    DocumentRead,
+    DocumentsCreate,
+    DocumentUpdate,
+    DocumentWithChunksRead,
+)
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.document_processors import (
     add_crawled_url_document,
@@ -138,6 +152,423 @@ async def create_documents_file_upload(
         raise HTTPException(
             status_code=500, detail=f"Failed to upload files: {e!s}"
         ) from e
+
+
+@router.get("/documents/", response_model=list[DocumentRead])
+async def read_documents(
+    skip: int = 0,
+    limit: int = 3000,
+    search_space_id: int | None = None,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    try:
+        query = (
+            select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
+        )
+
+        # Filter by search_space_id if provided
+        if search_space_id is not None:
+            query = query.filter(Document.search_space_id == search_space_id)
+
+        result = await session.execute(query.offset(skip).limit(limit))
+        db_documents = result.scalars().all()
+
+        # Convert database objects to API-friendly format
+        api_documents = []
+        for doc in db_documents:
+            api_documents.append(
+                DocumentRead(
+                    id=doc.id,
+                    title=doc.title,
+                    document_type=doc.document_type,
+                    document_metadata=doc.document_metadata,
+                    content=doc.content,
+                    created_at=doc.created_at,
+                    search_space_id=doc.search_space_id,
+                )
+            )
+
+        return api_documents
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch documents: {e!s}"
+        ) from e
+
+
+@router.get("/documents/{document_id}", response_model=DocumentRead)
+async def read_document(
+    document_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    try:
+        result = await session.execute(
+            select(Document)
+            .join(SearchSpace)
+            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
+        )
+        document = result.scalars().first()
+
+        if not document:
+            raise HTTPException(
+                status_code=404, detail=f"Document with id {document_id} not found"
+            )
+
+        # Convert database object to API-friendly format
+        return DocumentRead(
+            id=document.id,
+            title=document.title,
+            document_type=document.document_type,
+            document_metadata=document.document_metadata,
+            content=document.content,
+            created_at=document.created_at,
+            search_space_id=document.search_space_id,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch document: {e!s}"
+        ) from e
+
+
+@router.put("/documents/{document_id}", response_model=DocumentRead)
+async def update_document(
+    document_id: int,
+    document_update: DocumentUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    try:
+        # Query the document directly instead of using read_document function
+        result = await session.execute(
+            select(Document)
+            .join(SearchSpace)
+            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
+        )
+        db_document = result.scalars().first()
+
+        if not db_document:
+            raise HTTPException(
+                status_code=404, detail=f"Document with id {document_id} not found"
+            )
+
+        update_data = document_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_document, key, value)
+        await session.commit()
+        await session.refresh(db_document)
+
+        # Convert to DocumentRead for response
+        return DocumentRead(
+            id=db_document.id,
+            title=db_document.title,
+            document_type=db_document.document_type,
+            document_metadata=db_document.document_metadata,
+            content=db_document.content,
+            created_at=db_document.created_at,
+            search_space_id=db_document.search_space_id,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update document: {e!s}"
+        ) from e
+
+
+@router.delete("/documents/{document_id}", response_model=dict)
+async def delete_document(
+    document_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    try:
+        # Query the document directly instead of using read_document function
+        result = await session.execute(
+            select(Document)
+            .join(SearchSpace)
+            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
+        )
+        document = result.scalars().first()
+
+        if not document:
+            raise HTTPException(
+                status_code=404, detail=f"Document with id {document_id} not found"
+            )
+
+        await session.delete(document)
+        await session.commit()
+        return {"message": "Document deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete document: {e!s}"
+        ) from e
+
+
+@router.get("/documents/by-chunk/{chunk_id}", response_model=DocumentWithChunksRead)
+async def get_document_by_chunk_id(
+    chunk_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Retrieves a document based on a chunk ID, including all its chunks ordered by creation time.
+    The document's embedding and chunk embeddings are excluded from the response.
+    """
+    try:
+        # First, get the chunk and verify it exists
+        chunk_result = await session.execute(select(Chunk).filter(Chunk.id == chunk_id))
+        chunk = chunk_result.scalars().first()
+
+        if not chunk:
+            raise HTTPException(
+                status_code=404, detail=f"Chunk with id {chunk_id} not found"
+            )
+
+        # Get the associated document and verify ownership
+        document_result = await session.execute(
+            select(Document)
+            .options(selectinload(Document.chunks))
+            .join(SearchSpace)
+            .filter(Document.id == chunk.document_id, SearchSpace.user_id == user.id)
+        )
+        document = document_result.scalars().first()
+
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found or you don't have access to it",
+            )
+
+        # Sort chunks by creation time
+        sorted_chunks = sorted(document.chunks, key=lambda x: x.created_at)
+
+        # Return the document with its chunks
+        return DocumentWithChunksRead(
+            id=document.id,
+            title=document.title,
+            document_type=document.document_type,
+            document_metadata=document.document_metadata,
+            content=document.content,
+            created_at=document.created_at,
+            search_space_id=document.search_space_id,
+            chunks=sorted_chunks,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve document: {e!s}"
+        ) from e
+
+
+async def process_extension_document_with_new_session(
+    individual_document, search_space_id: int, user_id: str
+):
+    """Create a new session and process extension document."""
+    from app.db import async_session_maker
+    from app.services.task_logging_service import TaskLoggingService
+
+    async with async_session_maker() as session:
+        # Initialize task logging service
+        task_logger = TaskLoggingService(session, search_space_id)
+
+        # Log task start
+        log_entry = await task_logger.log_task_start(
+            task_name="process_extension_document",
+            source="document_processor",
+            message=f"Starting processing of extension document from {individual_document.metadata.VisitedWebPageTitle}",
+            metadata={
+                "document_type": "EXTENSION",
+                "url": individual_document.metadata.VisitedWebPageURL,
+                "title": individual_document.metadata.VisitedWebPageTitle,
+                "user_id": user_id,
+            },
+        )
+
+        try:
+            result = await add_extension_received_document(
+                session, individual_document, search_space_id, user_id
+            )
+
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully processed extension document: {individual_document.metadata.VisitedWebPageTitle}",
+                    {"document_id": result.id, "content_hash": result.content_hash},
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Extension document already exists (duplicate): {individual_document.metadata.VisitedWebPageTitle}",
+                    {"duplicate_detected": True},
+                )
+        except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to process extension document: {individual_document.metadata.VisitedWebPageTitle}",
+                str(e),
+                {"error_type": type(e).__name__},
+            )
+            import logging
+
+            logging.error(f"Error processing extension document: {e!s}")
+
+
+async def process_crawled_url_with_new_session(
+    url: str, search_space_id: int, user_id: str
+):
+    """Create a new session and process crawled URL."""
+    from app.db import async_session_maker
+    from app.services.task_logging_service import TaskLoggingService
+
+    async with async_session_maker() as session:
+        # Initialize task logging service
+        task_logger = TaskLoggingService(session, search_space_id)
+
+        # Log task start
+        log_entry = await task_logger.log_task_start(
+            task_name="process_crawled_url",
+            source="document_processor",
+            message=f"Starting URL crawling and processing for: {url}",
+            metadata={"document_type": "CRAWLED_URL", "url": url, "user_id": user_id},
+        )
+
+        try:
+            result = await add_crawled_url_document(
+                session, url, search_space_id, user_id
+            )
+
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully crawled and processed URL: {url}",
+                    {
+                        "document_id": result.id,
+                        "title": result.title,
+                        "content_hash": result.content_hash,
+                    },
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"URL document already exists (duplicate): {url}",
+                    {"duplicate_detected": True},
+                )
+        except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to crawl URL: {url}",
+                str(e),
+                {"error_type": type(e).__name__},
+            )
+            import logging
+
+            logging.error(f"Error processing crawled URL: {e!s}")
+
+
+async def process_file_in_background_with_new_session(
+    file_path: str, filename: str, search_space_id: int, user_id: str
+):
+    """Create a new session and process file."""
+    from app.db import async_session_maker
+    from app.services.task_logging_service import TaskLoggingService
+
+    async with async_session_maker() as session:
+        # Initialize task logging service
+        task_logger = TaskLoggingService(session, search_space_id)
+
+        # Log task start
+        log_entry = await task_logger.log_task_start(
+            task_name="process_file_upload",
+            source="document_processor",
+            message=f"Starting file processing for: {filename}",
+            metadata={
+                "document_type": "FILE",
+                "filename": filename,
+                "file_path": file_path,
+                "user_id": user_id,
+            },
+        )
+
+        try:
+            await process_file_in_background(
+                file_path,
+                filename,
+                search_space_id,
+                user_id,
+                session,
+                task_logger,
+                log_entry,
+            )
+
+            # Note: success/failure logging is handled within process_file_in_background
+        except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to process file: {filename}",
+                str(e),
+                {"error_type": type(e).__name__},
+            )
+            import logging
+
+            logging.error(f"Error processing file: {e!s}")
+
+
+async def process_youtube_video_with_new_session(
+    url: str, search_space_id: int, user_id: str
+):
+    """Create a new session and process YouTube video."""
+    from app.db import async_session_maker
+    from app.services.task_logging_service import TaskLoggingService
+
+    async with async_session_maker() as session:
+        # Initialize task logging service
+        task_logger = TaskLoggingService(session, search_space_id)
+
+        # Log task start
+        log_entry = await task_logger.log_task_start(
+            task_name="process_youtube_video",
+            source="document_processor",
+            message=f"Starting YouTube video processing for: {url}",
+            metadata={"document_type": "YOUTUBE_VIDEO", "url": url, "user_id": user_id},
+        )
+
+        try:
+            result = await add_youtube_video_document(
+                session, url, search_space_id, user_id
+            )
+
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully processed YouTube video: {result.title}",
+                    {
+                        "document_id": result.id,
+                        "video_id": result.document_metadata.get("video_id"),
+                        "content_hash": result.content_hash,
+                    },
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"YouTube video document already exists (duplicate): {url}",
+                    {"duplicate_detected": True},
+                )
+        except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to process YouTube video: {url}",
+                str(e),
+                {"error_type": type(e).__name__},
+            )
+            import logging
+
+            logging.error(f"Error processing YouTube video: {e!s}")
 
 
 async def process_file_in_background(
@@ -508,363 +939,3 @@ async def process_file_in_background(
 
         logging.error(f"Error processing file in background: {e!s}")
         raise  # Re-raise so the wrapper can also handle it
-
-
-@router.get("/documents/", response_model=list[DocumentRead])
-async def read_documents(
-    skip: int = 0,
-    limit: int = 3000,
-    search_space_id: int | None = None,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    try:
-        query = (
-            select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
-        )
-
-        # Filter by search_space_id if provided
-        if search_space_id is not None:
-            query = query.filter(Document.search_space_id == search_space_id)
-
-        result = await session.execute(query.offset(skip).limit(limit))
-        db_documents = result.scalars().all()
-
-        # Convert database objects to API-friendly format
-        api_documents = []
-        for doc in db_documents:
-            api_documents.append(
-                DocumentRead(
-                    id=doc.id,
-                    title=doc.title,
-                    document_type=doc.document_type,
-                    document_metadata=doc.document_metadata,
-                    content=doc.content,
-                    created_at=doc.created_at,
-                    search_space_id=doc.search_space_id,
-                )
-            )
-
-        return api_documents
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch documents: {e!s}"
-        ) from e
-
-
-@router.get("/documents/{document_id}", response_model=DocumentRead)
-async def read_document(
-    document_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    try:
-        result = await session.execute(
-            select(Document)
-            .join(SearchSpace)
-            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
-        )
-        document = result.scalars().first()
-
-        if not document:
-            raise HTTPException(
-                status_code=404, detail=f"Document with id {document_id} not found"
-            )
-
-        # Convert database object to API-friendly format
-        return DocumentRead(
-            id=document.id,
-            title=document.title,
-            document_type=document.document_type,
-            document_metadata=document.document_metadata,
-            content=document.content,
-            created_at=document.created_at,
-            search_space_id=document.search_space_id,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch document: {e!s}"
-        ) from e
-
-
-@router.put("/documents/{document_id}", response_model=DocumentRead)
-async def update_document(
-    document_id: int,
-    document_update: DocumentUpdate,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    try:
-        # Query the document directly instead of using read_document function
-        result = await session.execute(
-            select(Document)
-            .join(SearchSpace)
-            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
-        )
-        db_document = result.scalars().first()
-
-        if not db_document:
-            raise HTTPException(
-                status_code=404, detail=f"Document with id {document_id} not found"
-            )
-
-        update_data = document_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_document, key, value)
-        await session.commit()
-        await session.refresh(db_document)
-
-        # Convert to DocumentRead for response
-        return DocumentRead(
-            id=db_document.id,
-            title=db_document.title,
-            document_type=db_document.document_type,
-            document_metadata=db_document.document_metadata,
-            content=db_document.content,
-            created_at=db_document.created_at,
-            search_space_id=db_document.search_space_id,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update document: {e!s}"
-        ) from e
-
-
-@router.delete("/documents/{document_id}", response_model=dict)
-async def delete_document(
-    document_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    try:
-        # Query the document directly instead of using read_document function
-        result = await session.execute(
-            select(Document)
-            .join(SearchSpace)
-            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
-        )
-        document = result.scalars().first()
-
-        if not document:
-            raise HTTPException(
-                status_code=404, detail=f"Document with id {document_id} not found"
-            )
-
-        await session.delete(document)
-        await session.commit()
-        return {"message": "Document deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete document: {e!s}"
-        ) from e
-
-
-async def process_extension_document_with_new_session(
-    individual_document, search_space_id: int, user_id: str
-):
-    """Create a new session and process extension document."""
-    from app.db import async_session_maker
-    from app.services.task_logging_service import TaskLoggingService
-
-    async with async_session_maker() as session:
-        # Initialize task logging service
-        task_logger = TaskLoggingService(session, search_space_id)
-
-        # Log task start
-        log_entry = await task_logger.log_task_start(
-            task_name="process_extension_document",
-            source="document_processor",
-            message=f"Starting processing of extension document from {individual_document.metadata.VisitedWebPageTitle}",
-            metadata={
-                "document_type": "EXTENSION",
-                "url": individual_document.metadata.VisitedWebPageURL,
-                "title": individual_document.metadata.VisitedWebPageTitle,
-                "user_id": user_id,
-            },
-        )
-
-        try:
-            result = await add_extension_received_document(
-                session, individual_document, search_space_id, user_id
-            )
-
-            if result:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Successfully processed extension document: {individual_document.metadata.VisitedWebPageTitle}",
-                    {"document_id": result.id, "content_hash": result.content_hash},
-                )
-            else:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Extension document already exists (duplicate): {individual_document.metadata.VisitedWebPageTitle}",
-                    {"duplicate_detected": True},
-                )
-        except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to process extension document: {individual_document.metadata.VisitedWebPageTitle}",
-                str(e),
-                {"error_type": type(e).__name__},
-            )
-            import logging
-
-            logging.error(f"Error processing extension document: {e!s}")
-
-
-async def process_crawled_url_with_new_session(
-    url: str, search_space_id: int, user_id: str
-):
-    """Create a new session and process crawled URL."""
-    from app.db import async_session_maker
-    from app.services.task_logging_service import TaskLoggingService
-
-    async with async_session_maker() as session:
-        # Initialize task logging service
-        task_logger = TaskLoggingService(session, search_space_id)
-
-        # Log task start
-        log_entry = await task_logger.log_task_start(
-            task_name="process_crawled_url",
-            source="document_processor",
-            message=f"Starting URL crawling and processing for: {url}",
-            metadata={"document_type": "CRAWLED_URL", "url": url, "user_id": user_id},
-        )
-
-        try:
-            result = await add_crawled_url_document(
-                session, url, search_space_id, user_id
-            )
-
-            if result:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Successfully crawled and processed URL: {url}",
-                    {
-                        "document_id": result.id,
-                        "title": result.title,
-                        "content_hash": result.content_hash,
-                    },
-                )
-            else:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"URL document already exists (duplicate): {url}",
-                    {"duplicate_detected": True},
-                )
-        except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to crawl URL: {url}",
-                str(e),
-                {"error_type": type(e).__name__},
-            )
-            import logging
-
-            logging.error(f"Error processing crawled URL: {e!s}")
-
-
-async def process_file_in_background_with_new_session(
-    file_path: str, filename: str, search_space_id: int, user_id: str
-):
-    """Create a new session and process file."""
-    from app.db import async_session_maker
-    from app.services.task_logging_service import TaskLoggingService
-
-    async with async_session_maker() as session:
-        # Initialize task logging service
-        task_logger = TaskLoggingService(session, search_space_id)
-
-        # Log task start
-        log_entry = await task_logger.log_task_start(
-            task_name="process_file_upload",
-            source="document_processor",
-            message=f"Starting file processing for: {filename}",
-            metadata={
-                "document_type": "FILE",
-                "filename": filename,
-                "file_path": file_path,
-                "user_id": user_id,
-            },
-        )
-
-        try:
-            await process_file_in_background(
-                file_path,
-                filename,
-                search_space_id,
-                user_id,
-                session,
-                task_logger,
-                log_entry,
-            )
-
-            # Note: success/failure logging is handled within process_file_in_background
-        except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to process file: {filename}",
-                str(e),
-                {"error_type": type(e).__name__},
-            )
-            import logging
-
-            logging.error(f"Error processing file: {e!s}")
-
-
-async def process_youtube_video_with_new_session(
-    url: str, search_space_id: int, user_id: str
-):
-    """Create a new session and process YouTube video."""
-    from app.db import async_session_maker
-    from app.services.task_logging_service import TaskLoggingService
-
-    async with async_session_maker() as session:
-        # Initialize task logging service
-        task_logger = TaskLoggingService(session, search_space_id)
-
-        # Log task start
-        log_entry = await task_logger.log_task_start(
-            task_name="process_youtube_video",
-            source="document_processor",
-            message=f"Starting YouTube video processing for: {url}",
-            metadata={"document_type": "YOUTUBE_VIDEO", "url": url, "user_id": user_id},
-        )
-
-        try:
-            result = await add_youtube_video_document(
-                session, url, search_space_id, user_id
-            )
-
-            if result:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Successfully processed YouTube video: {result.title}",
-                    {
-                        "document_id": result.id,
-                        "video_id": result.document_metadata.get("video_id"),
-                        "content_hash": result.content_hash,
-                    },
-                )
-            else:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"YouTube video document already exists (duplicate): {url}",
-                    {"duplicate_detected": True},
-                )
-        except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to process YouTube video: {url}",
-                str(e),
-                {"error_type": type(e).__name__},
-            )
-            import logging
-
-            logging.error(f"Error processing YouTube video: {e!s}")
