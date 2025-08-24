@@ -13,6 +13,7 @@ from .documents import (
     DocumentRead,
     DocumentsCreate,
     DocumentUpdate,
+    DocumentWithChunksRead,
     ExtensionDocumentContent,
     ExtensionDocumentMetadata,
 )
@@ -53,6 +54,7 @@ __all__ = [
     "DocumentBase",
     "DocumentRead",
     "DocumentUpdate",
+    "DocumentWithChunksRead",
     "DocumentsCreate",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",

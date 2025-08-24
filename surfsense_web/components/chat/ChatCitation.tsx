@@ -1,15 +1,53 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, FileText, Loader2 } from "lucide-react";
 import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@/components/ui/sheet";
+import { useDocumentByChunk } from "@/hooks/use-document-by-chunk";
+import { cn } from "@/lib/utils";
 
 export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index, node }) => {
-	const truncateText = (text: string, maxLength: number = 200) => {
-		if (text.length <= maxLength) return text;
-		return `${text.substring(0, maxLength)}...`;
+	const chunkId = Number(node?.id);
+	const sourceType = node?.metadata?.source_type;
+	const [isOpen, setIsOpen] = useState(false);
+	const { document, loading, error, fetchDocumentByChunk, clearDocument } = useDocumentByChunk();
+	const chunksContainerRef = useRef<HTMLDivElement>(null);
+	const highlightedChunkRef = useRef<HTMLDivElement>(null);
+
+	// Check if this is a source type that should render directly from node
+	const isDirectRenderSource = sourceType === "TAVILY_API" || sourceType === "LINKUP_API";
+
+	const handleOpenChange = async (open: boolean) => {
+		setIsOpen(open);
+		if (open && chunkId && !isDirectRenderSource) {
+			await fetchDocumentByChunk(chunkId);
+		} else if (!open && !isDirectRenderSource) {
+			clearDocument();
+		}
 	};
+
+	useEffect(() => {
+		// Scroll to highlighted chunk when document loads
+		if (document && highlightedChunkRef.current && chunksContainerRef.current) {
+			setTimeout(() => {
+				highlightedChunkRef.current?.scrollIntoView({
+					behavior: "smooth",
+					block: "start",
+				});
+			}, 100);
+		}
+	}, [document]);
 
 	const handleUrlClick = (e: React.MouseEvent, url: string) => {
 		e.preventDefault();
@@ -17,42 +55,148 @@ export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index,
 		window.open(url, "_blank", "noopener,noreferrer");
 	};
 
+	const formatDocumentType = (type: string) => {
+		return type
+			.split("_")
+			.map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+			.join(" ");
+	};
+
 	return (
-		<Popover>
-			<PopoverTrigger asChild>
+		<Sheet open={isOpen} onOpenChange={handleOpenChange}>
+			<SheetTrigger asChild>
 				<span className="text-[10px] font-bold bg-slate-500 hover:bg-slate-600 text-white rounded-full w-4 h-4 inline-flex items-center justify-center align-super cursor-pointer transition-colors">
 					{index + 1}
 				</span>
-			</PopoverTrigger>
-			<PopoverContent className="w-80 p-4 space-y-3 relative" align="start">
-				{/* External Link Button - Top Right */}
-				{node?.url && (
-					<Button
-						size="icon"
-						variant="ghost"
-						onClick={(e) => handleUrlClick(e, node.url)}
-						className="absolute top-3 right-3 inline-flex items-center justify-center w-6 h-6 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-						title="Open in new tab"
-					>
-						<ExternalLink size={14} />
-					</Button>
+			</SheetTrigger>
+			<SheetContent side="right" className="w-full sm:max-w-5xl lg:max-w-7xl">
+				<SheetHeader className="px-6 py-4 border-b">
+					<SheetTitle className="flex items-center gap-3 text-lg">
+						<FileText className="h-6 w-6" />
+						{document?.title || node?.metadata?.title || node?.metadata?.group_name || "Source"}
+					</SheetTitle>
+					<SheetDescription className="text-base mt-2">
+						{document
+							? formatDocumentType(document.document_type)
+							: sourceType && formatDocumentType(sourceType)}
+					</SheetDescription>
+				</SheetHeader>
+
+				{!isDirectRenderSource && loading && (
+					<div className="flex items-center justify-center h-64 px-6">
+						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+					</div>
 				)}
 
-				{/* Heading */}
-				<div className="text-sm font-semibold text-slate-900 dark:text-slate-100 pr-8">
-					{node?.metadata?.group_name || "Source"}
-				</div>
+				{!isDirectRenderSource && error && (
+					<div className="flex items-center justify-center h-64 px-6">
+						<p className="text-sm text-destructive">{error}</p>
+					</div>
+				)}
 
-				{/* Source */}
-				<div className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-					{node?.metadata?.title || "Untitled"}
-				</div>
+				{/* Direct render for TAVILY_API and LINEAR_API */}
+				{isDirectRenderSource && (
+					<ScrollArea className="h-[calc(100vh-10rem)]">
+						<div className="px-6 py-4">
+							{/* External Link */}
+							{node?.url && (
+								<div className="mb-8">
+									<Button
+										size="default"
+										variant="outline"
+										onClick={(e) => handleUrlClick(e, node.url)}
+										className="w-full py-3"
+									>
+										<ExternalLink className="mr-2 h-4 w-4" />
+										Open in Browser
+									</Button>
+								</div>
+							)}
 
-				{/* Body */}
-				<div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-					{truncateText(node?.text || "No content available")}
-				</div>
-			</PopoverContent>
-		</Popover>
+							{/* Source Information */}
+							<div className="mb-8 p-6 bg-muted/50 rounded-lg border">
+								<h3 className="text-base font-semibold mb-4">Source Information</h3>
+								<div className="text-sm text-muted-foreground mb-3 font-medium">
+									{node?.metadata?.title || "Untitled"}
+								</div>
+								<div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+									{node?.text || "No content available"}
+								</div>
+							</div>
+						</div>
+					</ScrollArea>
+				)}
+
+				{/* API-fetched document content */}
+				{!isDirectRenderSource && document && (
+					<ScrollArea className="h-[calc(100vh-10rem)]">
+						<div className="px-6 py-4">
+							{/* Document Metadata */}
+							{document.document_metadata && Object.keys(document.document_metadata).length > 0 && (
+								<div className="mb-8 p-6 bg-muted/50 rounded-lg border">
+									<h3 className="text-base font-semibold mb-4">Document Information</h3>
+									<dl className="grid grid-cols-1 gap-3 text-sm">
+										{Object.entries(document.document_metadata).map(([key, value]) => (
+											<div key={key} className="flex gap-3">
+												<dt className="font-medium text-muted-foreground capitalize min-w-0 flex-shrink-0">
+													{key.replace(/_/g, " ")}:
+												</dt>
+												<dd className="text-foreground break-words">{String(value)}</dd>
+											</div>
+										))}
+									</dl>
+								</div>
+							)}
+
+							{/* External Link */}
+							{node?.url && (
+								<div className="mb-8">
+									<Button
+										size="default"
+										variant="outline"
+										onClick={(e) => handleUrlClick(e, node.url)}
+										className="w-full py-3"
+									>
+										<ExternalLink className="mr-2 h-4 w-4" />
+										Open in Browser
+									</Button>
+								</div>
+							)}
+
+							{/* Chunks */}
+							<div className="space-y-6" ref={chunksContainerRef}>
+								<h3 className="text-base font-semibold mb-4">Document Content</h3>
+								{document.chunks.map((chunk, idx) => (
+									<div
+										key={chunk.id}
+										ref={chunk.id === chunkId ? highlightedChunkRef : null}
+										className={cn(
+											"p-6 rounded-lg border transition-all duration-300",
+											chunk.id === chunkId
+												? "bg-primary/10 border-primary shadow-md ring-1 ring-primary/20"
+												: "bg-background border-border hover:bg-muted/50 hover:border-muted-foreground/20"
+										)}
+									>
+										<div className="mb-4 flex items-center justify-between">
+											<span className="text-sm font-medium text-muted-foreground">
+												Chunk {idx + 1} of {document.chunks.length}
+											</span>
+											{chunk.id === chunkId && (
+												<span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
+													Referenced Chunk
+												</span>
+											)}
+										</div>
+										<div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+											<MarkdownViewer content={chunk.content} className="max-w-fit" />
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+					</ScrollArea>
+				)}
+			</SheetContent>
+		</Sheet>
 	);
 };

@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict
 
 from app.db import DocumentType
 
+from .chunks import ChunkRead
+
 
 class ExtensionDocumentMetadata(BaseModel):
     BrowsingSessionId: str
@@ -43,5 +45,11 @@ class DocumentRead(BaseModel):
     content: str  # Changed to string to match frontend
     created_at: datetime
     search_space_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentWithChunksRead(DocumentRead):
+    chunks: list[ChunkRead] = []
 
     model_config = ConfigDict(from_attributes=True)
