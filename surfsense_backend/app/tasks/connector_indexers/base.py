@@ -60,6 +60,27 @@ async def get_connector_by_id(
     return result.scalars().first()
 
 
+async def get_connector_by_type(
+    session: AsyncSession, connector_type: SearchSourceConnectorType
+) -> SearchSourceConnector | None:
+    """
+    Get a connector by type from the database.
+
+    Args:
+        session: Database session
+        connector_type: Type of the connector
+
+    Returns:
+        Connector object if found, None otherwise
+    """
+    result = await session.execute(
+        select(SearchSourceConnector).filter(
+            SearchSourceConnector.connector_type == connector_type,
+        )
+    )
+    return result.scalars().first()
+
+
 def calculate_date_range(
     connector: SearchSourceConnector,
     start_date: str | None = None,

@@ -95,6 +95,7 @@ async def index_google_gmail_messages(
 
         # Create credentials from connector config
         config_data = connector.config
+        exp = config_data.get("expiry").replace("Z", "")
         credentials = Credentials(
             token=config_data.get("token"),
             refresh_token=config_data.get("refresh_token"),
@@ -102,6 +103,7 @@ async def index_google_gmail_messages(
             client_id=config_data.get("client_id"),
             client_secret=config_data.get("client_secret"),
             scopes=config_data.get("scopes", []),
+            expiry=datetime.fromisoformat(exp),
         )
 
         if (
@@ -125,11 +127,11 @@ async def index_google_gmail_messages(
         )
 
         # Initialize Google gmail connector
-        gmail_connector = GoogleGmailConnector(credentials)
+        gmail_connector = GoogleGmailConnector(credentials, session, user_id)
 
         # Fetch recent Google gmail messages
         logger.info(f"Fetching recent emails for connector {connector_id}")
-        messages, error = gmail_connector.get_recent_messages(
+        messages, error = await gmail_connector.get_recent_messages(
             max_results=max_messages, days_back=days_back
         )
 

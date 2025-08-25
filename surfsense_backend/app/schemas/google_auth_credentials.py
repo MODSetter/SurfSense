@@ -13,6 +13,6 @@ class GoogleAuthCredentialsBase(BaseModel):
     client_secret: str
 
     @property
-    def is_expired(self) -> bool:
+    def expired(self) -> bool:
         """Check if the credentials have expired."""
         return self.expiry <= datetime.now(UTC)
