@@ -78,7 +78,7 @@ class GoogleGmailConnector:
         )
 
         # Refresh the token if needed
-        if self._credentials.expired:
+        if self._credentials.expired or not self._credentials.valid:
             try:
                 self._credentials.refresh(Request())
                 # Update the connector config in DB
