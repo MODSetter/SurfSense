@@ -36,6 +36,8 @@ TOKEN_URL = "https://airtable.com/oauth2/v1/token"
 SCOPES = [
     "data.records:read",
     "data.recordComments:read",
+    "schema.bases:read",
+    "user.email:read",
 ]
 
 

@@ -1,5 +1,7 @@
 import asyncio
 import json
+import logging
+import traceback
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -1196,6 +1198,7 @@ async def fetch_relevant_documents(
                         )
 
             except Exception as e:
+                logging.error("Error in search_airtable: %s", traceback.format_exc())
                 error_message = f"Error searching connector {connector}: {e!s}"
                 print(error_message)
 

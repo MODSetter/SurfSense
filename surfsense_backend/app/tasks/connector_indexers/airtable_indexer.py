@@ -5,6 +5,7 @@ Airtable connector indexer.
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 from app.connectors.airtable_connector import AirtableConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
@@ -28,6 +29,8 @@ from .base import (
 async def index_airtable_records(
     session: AsyncSession,
     connector_id: int,
+    search_space_id: int,
+    user_id: str,
     start_date: str | None = None,
     end_date: str | None = None,
     max_records: int = 2500,
@@ -39,6 +42,8 @@ async def index_airtable_records(
     Args:
         session: Database session
         connector_id: ID of the Airtable connector
+        search_space_id: ID of the search space to store documents in
+        user_id: ID of the user
         start_date: Start date for filtering records (YYYY-MM-DD)
         end_date: End date for filtering records (YYYY-MM-DD)
         max_records: Maximum number of records to fetch per table
@@ -47,11 +52,14 @@ async def index_airtable_records(
     Returns:
         Tuple of (number_of_documents_processed, error_message)
     """
-    task_logger = TaskLoggingService(session)
-    log_entry = await task_logger.create_task_log(
-        task_name="index_airtable_records",
-        task_params={
+    task_logger = TaskLoggingService(session, search_space_id)
+    log_entry = await task_logger.log_task_start(
+        task_name="airtable_indexing",
+        source="connector_indexing_task",
+        message=f"Starting Airtable indexing for connector {connector_id}",
+        metadata={
             "connector_id": connector_id,
+            "user_id": str(user_id),
             "start_date": start_date,
             "end_date": end_date,
             "max_records": max_records,
@@ -178,12 +186,13 @@ async def index_airtable_records(
                             airtable_connector.get_records_by_date_range(
                                 base_id=base_id,
                                 table_id=table_id,
-                                date_field="createdTime",
+                                date_field="CREATED_TIME()",
                                 start_date=start_date_str,
                                 end_date=end_date_str,
                                 max_records=max_records,
                             )
                         )
+
                     else:
                         # Fetch all records
                         records, records_error = airtable_connector.get_all_records(
@@ -204,6 +213,9 @@ async def index_airtable_records(
 
                     logger.info(f"Found {len(records)} records in table {table_name}")
 
+                    documents_indexed = 0
+                    skipped_messages = []
+                    documents_skipped = 0
                     # Process each record
                     for record in records:
                         try:
@@ -214,88 +226,136 @@ async def index_airtable_records(
                                 )
                             )
 
-                            # Generate content hash
-                            content_hash = generate_content_hash(markdown_content)
-
-                            # Check for duplicates
-                            existing_doc = await check_duplicate_document_by_hash(
-                                session, content_hash
-                            )
-                            if existing_doc:
-                                logger.debug(
-                                    f"Skipping duplicate record {record.get('id')}"
+                            if not markdown_content.strip():
+                                logger.warning(
+                                    f"Skipping message with no content: {record.get('id')}"
                                 )
+                                skipped_messages.append(
+                                    f"{record.get('id')} (no content)"
+                                )
+                                documents_skipped += 1
+                                continue
+
+                            # Generate content hash
+                            content_hash = generate_content_hash(
+                                markdown_content, search_space_id
+                            )
+
+                            # Check if document already exists
+                            existing_document_by_hash = (
+                                await check_duplicate_document_by_hash(
+                                    session, content_hash
+                                )
+                            )
+
+                            if existing_document_by_hash:
+                                logger.info(
+                                    f"Document with content hash {content_hash} already exists for message {record.get('id')}. Skipping processing."
+                                )
+                                documents_skipped += 1
                                 continue
 
                             # Generate document summary
-                            llm = get_user_long_context_llm(connector.user_id)
-                            summary = await generate_document_summary(
-                                markdown_content, llm
-                            )
+                            user_llm = await get_user_long_context_llm(session, user_id)
 
-                            # Create document
+                            if user_llm:
+                                document_metadata = {
+                                    "record_id": record.get("id", "Unknown"),
+                                    "created_time": record.get("CREATED_TIME()", ""),
+                                    "document_type": "Airtable Record",
+                                    "connector_type": "Airtable",
+                                }
+                                (
+                                    summary_content,
+                                    summary_embedding,
+                                ) = await generate_document_summary(
+                                    markdown_content, user_llm, document_metadata
+                                )
+                            else:
+                                # Fallback to simple summary if no LLM configured
+                                summary_content = f"Airtable Record: {record.get('id', 'Unknown')}\n\n"
+                                summary_embedding = (
+                                    config.embedding_model_instance.embed(
+                                        summary_content
+                                    )
+                                )
+
+                            # Process chunks
+                            chunks = await create_document_chunks(markdown_content)
+
+                            # Create and store new document
+                            logger.info(
+                                f"Creating new document for Airtable record: {record.get('id', 'Unknown')}"
+                            )
                             document = Document(
-                                title=f"{base_name} - {table_name} - Record {record.get('id', 'Unknown')}",
-                                content=markdown_content,
-                                content_hash=content_hash,
-                                summary=summary,
+                                search_space_id=search_space_id,
+                                title=f"Airtable Record: {record.get('id', 'Unknown')}",
                                 document_type=DocumentType.AIRTABLE_CONNECTOR,
-                                source_url=f"https://airtable.com/{base_id}/{table_id}",
-                                metadata={
-                                    "base_id": base_id,
-                                    "base_name": base_name,
-                                    "table_id": table_id,
-                                    "table_name": table_name,
-                                    "record_id": record.get("id"),
-                                    "created_time": record.get("createdTime"),
-                                    "connector_id": connector_id,
+                                document_metadata={
+                                    "record_id": record.get("id", "Unknown"),
+                                    "created_time": record.get("CREATED_TIME()", ""),
                                 },
-                                user_id=connector.user_id,
+                                content=summary_content,
+                                content_hash=content_hash,
+                                embedding=summary_embedding,
+                                chunks=chunks,
                             )
 
                             session.add(document)
-                            await session.flush()
-
-                            # Create document chunks
-                            await create_document_chunks(
-                                session, document, markdown_content, llm
-                            )
-
-                            total_processed += 1
-                            logger.debug(
-                                f"Processed record {record.get('id')} from {table_name}"
+                            documents_indexed += 1
+                            logger.info(
+                                f"Successfully indexed new Airtable record {summary_content}"
                             )
 
                         except Exception as e:
                             logger.error(
-                                f"Error processing record {record.get('id')}: {e!s}"
+                                f"Error processing the Airtable record {record.get('id', 'Unknown')}: {e!s}",
+                                exc_info=True,
                             )
-                            continue
+                            skipped_messages.append(
+                                f"{record.get('id', 'Unknown')} (processing error)"
+                            )
+                            documents_skipped += 1
+                            continue  # Skip this message and continue with others
 
-            # Update last indexed timestamp
-            if update_last_indexed:
-                await update_connector_last_indexed(
-                    session, connector, update_last_indexed
-                )
+                    # Update the last_indexed_at timestamp for the connector only if requested
+                    total_processed = documents_indexed
+                    if total_processed > 0:
+                        await update_connector_last_indexed(
+                            session, connector, update_last_indexed
+                        )
 
-            await session.commit()
+                    # Commit all changes
+                    await session.commit()
+                    logger.info(
+                        "Successfully committed all Airtable document changes to database"
+                    )
 
-            success_msg = f"Successfully indexed {total_processed} Airtable records"
-            await task_logger.log_task_success(
-                log_entry,
-                success_msg,
-                {
-                    "records_processed": total_processed,
-                    "bases_count": len(bases),
-                    "date_range": f"{start_date_str} to {end_date_str}",
-                },
+                    # Log success
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Successfully completed Airtable indexing for connector {connector_id}",
+                        {
+                            "events_processed": total_processed,
+                            "documents_indexed": documents_indexed,
+                            "documents_skipped": documents_skipped,
+                            "skipped_messages_count": len(skipped_messages),
+                        },
+                    )
+
+                    logger.info(
+                        f"Airtable indexing completed: {documents_indexed} new records, {documents_skipped} skipped"
+                    )
+                    return (
+                        total_processed,
+                        None,
+                    )  # Return None as the error message to indicate success
+
+        except Exception as e:
+            logger.error(
+                f"Fetching Airtable bases for connector {connector_id} failed: {e!s}",
+                exc_info=True,
             )
-
-            logger.info(success_msg)
-            return total_processed, None
-
-        finally:
-            airtable_connector.close()
 
     except SQLAlchemyError as db_error:
         await session.rollback()

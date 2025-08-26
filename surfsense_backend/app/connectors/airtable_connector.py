@@ -305,19 +305,19 @@ class AirtableConnector:
                 )
 
             # Create Airtable formula for date filtering
-            filter_formula = (
-                f"AND("
-                f"IS_AFTER({{date_field}}, '{start_date}'), "
-                f"IS_BEFORE({{date_field}}, '{end_date}')"
-                f")"
-            ).replace("{date_field}", date_field)
+            # filter_formula = (
+            #    f"AND("
+            #    f"IS_AFTER({{date_field}}, '{start_date}'), "
+            #    f"IS_BEFORE({{date_field}}, '{end_date}')"
+            #    f")"
+            # ).replace("{date_field}", date_field)
+            # TODO: Investigate how to properly use filter formula
 
             return self.get_all_records(
                 base_id=base_id,
                 table_id=table_id,
                 max_records=max_records,
-                filter_by_formula=filter_formula,
-                sort=[{"field": date_field, "direction": "desc"}],
+                # filter_by_formula=filter_formula,
             )
 
         except Exception as e:
@@ -338,7 +338,7 @@ class AirtableConnector:
         """
         record_id = record.get("id", "Unknown")
         fields = record.get("fields", {})
-        created_time = record.get("createdTime", "")
+        created_time = record.get("CREATED_TIME()", "")
 
         markdown_parts = []
 
