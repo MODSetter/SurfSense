@@ -369,6 +369,30 @@ async def fetch_documents_by_ids(
                         except Exception:
                             title += f" ({start_time})"
 
+                elif doc_type == "AIRTABLE_CONNECTOR":
+                    # Extract Airtable-specific metadata
+                    base_name = metadata.get("base_name", "Unknown Base")
+                    table_name = metadata.get("table_name", "Unknown Table")
+                    record_id = metadata.get("record_id", "Unknown Record")
+                    created_time = metadata.get("created_time", "")
+
+                    title = f"Airtable: {base_name} - {table_name}"
+                    if record_id:
+                        title += f" (Record: {record_id[:8]}...)"
+                    if created_time:
+                        # Format the created time for display
+                        try:
+                            if "T" in created_time:
+                                from datetime import datetime
+
+                                created_dt = datetime.fromisoformat(
+                                    created_time.replace("Z", "+00:00")
+                                )
+                                formatted_time = created_dt.strftime("%Y-%m-%d %H:%M")
+                                title += f" - {formatted_time}"
+                        except Exception:
+                            pass
+
                     description = (
                         doc.content[:100] + "..."
                         if len(doc.content) > 100
@@ -456,6 +480,11 @@ async def fetch_documents_by_ids(
                 "EXTENSION": "Browser Extension (Selected)",
                 "CRAWLED_URL": "Web Pages (Selected)",
                 "FILE": "Files (Selected)",
+                "GOOGLE_CALENDAR_CONNECTOR": "Google Calendar (Selected)",
+                "GOOGLE_GMAIL_CONNECTOR": "Google Gmail (Selected)",
+                "CONFLUENCE_CONNECTOR": "Confluence (Selected)",
+                "CLICKUP_CONNECTOR": "ClickUp (Selected)",
+                "AIRTABLE_CONNECTOR": "Airtable (Selected)",
             }
 
             source_object = {
@@ -1058,6 +1087,32 @@ async def fetch_relevant_documents(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
                                     f"📅 Found {len(calendar_chunks)} calendar events related to your query"
+                                )
+                            }
+                        )
+                elif connector == "AIRTABLE_CONNECTOR":
+                    (
+                        source_object,
+                        airtable_chunks,
+                    ) = await connector_service.search_airtable(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode,
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(airtable_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"🗃️ Found {len(airtable_chunks)} Airtable records related to your query"
                                 )
                             }
                         )
