@@ -4,6 +4,7 @@ A module for retrieving calendar events from Google Calendar using Google OAuth 
 Allows fetching events from specified calendars within date ranges using Google OAuth credentials.
 """
 
+import json
 from datetime import datetime
 from typing import Any
 
@@ -12,6 +13,14 @@ from dateutil.parser import isoparse
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm.attributes import flag_modified
+
+from app.db import (
+    SearchSourceConnector,
+    SearchSourceConnectorType,
+)
 
 
 class GoogleCalendarConnector:
@@ -20,6 +29,8 @@ class GoogleCalendarConnector:
     def __init__(
         self,
         credentials: Credentials,
+        session: AsyncSession,
+        user_id: str,
     ):
         """
         Initialize the GoogleCalendarConnector class.
@@ -27,9 +38,13 @@ class GoogleCalendarConnector:
             credentials: Google OAuth Credentials object
         """
         self._credentials = credentials
+        self._session = session
+        self._user_id = user_id
         self.service = None
 
-    def _get_credentials(self) -> Credentials:
+    async def _get_credentials(
+        self,
+    ) -> Credentials:
         """
         Get valid Google OAuth credentials.
         Returns:
@@ -60,12 +75,30 @@ class GoogleCalendarConnector:
             client_id=self._credentials.client_id,
             client_secret=self._credentials.client_secret,
             scopes=self._credentials.scopes,
+            expiry=self._credentials.expiry,
         )
 
         # Refresh the token if needed
-        if self._credentials.expired or not self._credentials.valid:
+        if self._credentials.expired:
             try:
                 self._credentials.refresh(Request())
+                # Update the connector config in DB
+                if self._session:
+                    result = await self._session.execute(
+                        select(SearchSourceConnector).filter(
+                            SearchSourceConnector.user_id == self._user_id,
+                            SearchSourceConnector.connector_type
+                            == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+                        )
+                    )
+                    connector = result.scalars().first()
+                    if connector is None:
+                        raise RuntimeError(
+                            "GOOGLE_CALENDAR_CONNECTOR connector not found for current user; cannot persist refreshed token."
+                        )
+                    connector.config = json.loads(self._credentials.to_json())
+                    flag_modified(connector, "config")
+                    await self._session.commit()
             except Exception as e:
                 raise Exception(
                     f"Failed to refresh Google OAuth credentials: {e!s}"
@@ -73,7 +106,7 @@ class GoogleCalendarConnector:
 
         return self._credentials
 
-    def _get_service(self):
+    async def _get_service(self):
         """
         Get the Google Calendar service instance using Google OAuth credentials.
         Returns:
@@ -86,20 +119,20 @@ class GoogleCalendarConnector:
             return self.service
 
         try:
-            credentials = self._get_credentials()
+            credentials = await self._get_credentials()
             self.service = build("calendar", "v3", credentials=credentials)
             return self.service
         except Exception as e:
             raise Exception(f"Failed to create Google Calendar service: {e!s}") from e
 
-    def get_calendars(self) -> tuple[list[dict[str, Any]], str | None]:
+    async def get_calendars(self) -> tuple[list[dict[str, Any]], str | None]:
         """
         Fetch list of user's calendars using Google OAuth credentials.
         Returns:
             Tuple containing (calendars list, error message or None)
         """
         try:
-            service = self._get_service()
+            service = await self._get_service()
             calendars_result = service.calendarList().list().execute()
             calendars = calendars_result.get("items", [])
 
@@ -122,7 +155,7 @@ class GoogleCalendarConnector:
         except Exception as e:
             return [], f"Error fetching calendars: {e!s}"
 
-    def get_all_primary_calendar_events(
+    async def get_all_primary_calendar_events(
         self,
         start_date: str,
         end_date: str,
@@ -136,7 +169,7 @@ class GoogleCalendarConnector:
             Tuple containing (events list, error message or None)
         """
         try:
-            service = self._get_service()
+            service = await self._get_service()
 
             # Parse both dates
             dt_start = isoparse(start_date)
