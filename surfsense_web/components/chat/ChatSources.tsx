@@ -12,6 +12,7 @@ import {
 	BookOpen,
 	Calendar,
 	CheckSquare,
+	Database,
 	ExternalLink,
 	FileText,
 	Globe,
@@ -85,6 +86,11 @@ function getSourceIcon(type: string) {
 		case "USER_SELECTED_GOOGLE_GMAIL_CONNECTOR":
 		case "GOOGLE_GMAIL_CONNECTOR":
 			return <Mail className="h-4 w-4" />;
+
+		// Airtable
+		case "USER_SELECTED_AIRTABLE_CONNECTOR":
+		case "AIRTABLE_CONNECTOR":
+			return <Database className="h-4 w-4" />;
 
 		// YouTube
 		case "USER_SELECTED_YOUTUBE_VIDEO":
