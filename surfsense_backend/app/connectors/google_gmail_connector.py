@@ -5,12 +5,21 @@ Allows fetching emails from Gmail mailbox using Google OAuth credentials.
 """
 
 import base64
+import json
 import re
 from typing import Any
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm.attributes import flag_modified
+
+from app.db import (
+    SearchSourceConnector,
+    SearchSourceConnectorType,
+)
 
 
 class GoogleGmailConnector:
@@ -19,6 +28,8 @@ class GoogleGmailConnector:
     def __init__(
         self,
         credentials: Credentials,
+        session: AsyncSession,
+        user_id: str,
     ):
         """
         Initialize the GoogleGmailConnector class.
@@ -26,9 +37,13 @@ class GoogleGmailConnector:
             credentials: Google OAuth Credentials object
         """
         self._credentials = credentials
+        self._session = session
+        self._user_id = user_id
         self.service = None
 
-    def _get_credentials(self) -> Credentials:
+    async def _get_credentials(
+        self,
+    ) -> Credentials:
         """
         Get valid Google OAuth credentials.
         Returns:
@@ -59,12 +74,30 @@ class GoogleGmailConnector:
             client_id=self._credentials.client_id,
             client_secret=self._credentials.client_secret,
             scopes=self._credentials.scopes,
+            expiry=self._credentials.expiry,
         )
 
         # Refresh the token if needed
         if self._credentials.expired or not self._credentials.valid:
             try:
                 self._credentials.refresh(Request())
+                # Update the connector config in DB
+                if self._session:
+                    result = await self._session.execute(
+                        select(SearchSourceConnector).filter(
+                            SearchSourceConnector.user_id == self._user_id,
+                            SearchSourceConnector.connector_type
+                            == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+                        )
+                    )
+                    connector = result.scalars().first()
+                    if connector is None:
+                        raise RuntimeError(
+                            "GMAIL connector not found for current user; cannot persist refreshed token."
+                        )
+                    connector.config = json.loads(self._credentials.to_json())
+                    flag_modified(connector, "config")
+                    await self._session.commit()
             except Exception as e:
                 raise Exception(
                     f"Failed to refresh Google OAuth credentials: {e!s}"
@@ -72,7 +105,7 @@ class GoogleGmailConnector:
 
         return self._credentials
 
-    def _get_service(self):
+    async def _get_service(self):
         """
         Get the Gmail service instance using Google OAuth credentials.
         Returns:
@@ -85,20 +118,20 @@ class GoogleGmailConnector:
             return self.service
 
         try:
-            credentials = self._get_credentials()
+            credentials = await self._get_credentials()
             self.service = build("gmail", "v1", credentials=credentials)
             return self.service
         except Exception as e:
             raise Exception(f"Failed to create Gmail service: {e!s}") from e
 
-    def get_user_profile(self) -> tuple[dict[str, Any], str | None]:
+    async def get_user_profile(self) -> tuple[dict[str, Any], str | None]:
         """
         Fetch user's Gmail profile information.
         Returns:
             Tuple containing (profile dict, error message or None)
         """
         try:
-            service = self._get_service()
+            service = await self._get_service()
             profile = service.users().getProfile(userId="me").execute()
 
             return {
@@ -111,7 +144,7 @@ class GoogleGmailConnector:
         except Exception as e:
             return {}, f"Error fetching user profile: {e!s}"
 
-    def get_messages_list(
+    async def get_messages_list(
         self,
         max_results: int = 100,
         query: str = "",
@@ -129,7 +162,7 @@ class GoogleGmailConnector:
             Tuple containing (messages list, error message or None)
         """
         try:
-            service = self._get_service()
+            service = await self._get_service()
 
             # Build request parameters
             request_params = {
@@ -152,7 +185,9 @@ class GoogleGmailConnector:
         except Exception as e:
             return [], f"Error fetching messages list: {e!s}"
 
-    def get_message_details(self, message_id: str) -> tuple[dict[str, Any], str | None]:
+    async def get_message_details(
+        self, message_id: str
+    ) -> tuple[dict[str, Any], str | None]:
         """
         Fetch detailed information for a specific message.
         Args:
@@ -161,7 +196,7 @@ class GoogleGmailConnector:
             Tuple containing (message details dict, error message or None)
         """
         try:
-            service = self._get_service()
+            service = await self._get_service()
 
             # Get full message details
             message = (
@@ -176,7 +211,7 @@ class GoogleGmailConnector:
         except Exception as e:
             return {}, f"Error fetching message details: {e!s}"
 
-    def get_recent_messages(
+    async def get_recent_messages(
         self,
         max_results: int = 50,
         days_back: int = 30,
@@ -198,7 +233,7 @@ class GoogleGmailConnector:
             query = f"after:{date_query}"
 
             # Get messages list
-            messages_list, error = self.get_messages_list(
+            messages_list, error = await self.get_messages_list(
                 max_results=max_results, query=query
             )
 
@@ -208,7 +243,9 @@ class GoogleGmailConnector:
             # Get detailed information for each message
             detailed_messages = []
             for msg in messages_list:
-                message_details, detail_error = self.get_message_details(msg["id"])
+                message_details, detail_error = await self.get_message_details(
+                    msg["id"]
+                )
                 if detail_error:
                     continue  # Skip messages that can't be fetched
                 detailed_messages.append(message_details)

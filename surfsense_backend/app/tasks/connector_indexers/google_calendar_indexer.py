@@ -81,6 +81,7 @@ async def index_google_calendar_events(
             return 0, f"Connector with ID {connector_id} not found"
 
         # Get the Google Calendar credentials from the connector config
+        exp = connector.config.get("expiry").replace("Z", "")
         credentials = Credentials(
             token=connector.config.get("token"),
             refresh_token=connector.config.get("refresh_token"),
@@ -88,6 +89,7 @@ async def index_google_calendar_events(
             client_id=connector.config.get("client_id"),
             client_secret=connector.config.get("client_secret"),
             scopes=connector.config.get("scopes"),
+            expiry=datetime.fromisoformat(exp),
         )
 
         if (
@@ -110,7 +112,9 @@ async def index_google_calendar_events(
             {"stage": "client_initialization"},
         )
 
-        calendar_client = GoogleCalendarConnector(credentials=credentials)
+        calendar_client = GoogleCalendarConnector(
+            credentials=credentials, session=session, user_id=user_id
+        )
 
         # Calculate date range
         if start_date is None or end_date is None:
@@ -169,7 +173,7 @@ async def index_google_calendar_events(
 
         # Get events within date range from primary calendar
         try:
-            events, error = calendar_client.get_all_primary_calendar_events(
+            events, error = await calendar_client.get_all_primary_calendar_events(
                 start_date=start_date_str, end_date=end_date_str
             )
 
