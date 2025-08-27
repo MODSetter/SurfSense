@@ -79,6 +79,7 @@ async def get_user_llm_instance(
                 "GOOGLE": "gemini",
                 "OLLAMA": "ollama",
                 "MISTRAL": "mistral",
+                "AZURE_OPENAI": "azure",
                 # Add more mappings as needed
             }
             provider_prefix = provider_map.get(
