@@ -8,6 +8,7 @@ from app.services.reranker_service import RerankerService
 from ..utils import (
     calculate_token_count,
     format_documents_section,
+    langchain_chat_history_to_str,
     optimize_documents_for_token_limit,
 )
 from .configuration import Configuration, SubSectionType
@@ -134,6 +135,8 @@ async def write_sub_section(state: State, config: RunnableConfig) -> dict[str, A
     # Determine if we have documents and optimize for token limits
     has_documents_initially = documents and len(documents) > 0
 
+    chat_history_str = langchain_chat_history_to_str(state.chat_history)
+
     if has_documents_initially:
         # Create base message template for token calculation (without documents)
         base_human_message_template = f"""
@@ -160,9 +163,8 @@ async def write_sub_section(state: State, config: RunnableConfig) -> dict[str, A
         """
 
         # Use initial system prompt for token calculation
-        initial_system_prompt = get_citation_system_prompt()
+        initial_system_prompt = get_citation_system_prompt(chat_history_str)
         base_messages = [
-            *state.chat_history,
             SystemMessage(content=initial_system_prompt),
             HumanMessage(content=base_human_message_template),
         ]
@@ -180,9 +182,9 @@ async def write_sub_section(state: State, config: RunnableConfig) -> dict[str, A
 
     # Choose system prompt based on final document availability
     system_prompt = (
-        get_citation_system_prompt()
+        get_citation_system_prompt(chat_history_str)
         if has_documents
-        else get_no_documents_system_prompt()
+        else get_no_documents_system_prompt(chat_history_str)
     )
 
     # Generate documents section
@@ -223,7 +225,6 @@ async def write_sub_section(state: State, config: RunnableConfig) -> dict[str, A
 
     # Create final messages for the LLM
     messages_with_chat_history = [
-        *state.chat_history,
         SystemMessage(content=system_prompt),
         HumanMessage(content=human_message_content),
     ]
