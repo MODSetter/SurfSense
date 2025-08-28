@@ -1,5 +1,6 @@
 from typing import Any, NamedTuple
 
+from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from langchain_core.messages import BaseMessage
 from litellm import get_model_info, token_counter
 from pydantic import BaseModel, Field
@@ -241,3 +242,20 @@ def calculate_token_count(messages: list[BaseMessage], model_name: str) -> int:
     model = model_name
     messages_dict = convert_langchain_messages_to_dict(messages)
     return token_counter(messages=messages_dict, model=model)
+
+
+def langchain_chat_history_to_str(chat_history: list[BaseMessage]) -> str:
+    """
+    Convert a list of chat history messages to a string.
+    """
+    chat_history_str = ""
+
+    for chat_message in chat_history:
+        if isinstance(chat_message, HumanMessage):
+            chat_history_str += f"<user>{chat_message.content}</user>\n"
+        elif isinstance(chat_message, AIMessage):
+            chat_history_str += f"<assistant>{chat_message.content}</assistant>\n"
+        elif isinstance(chat_message, SystemMessage):
+            chat_history_str += f"<system>{chat_message.content}</system>\n"
+
+    return chat_history_str
