@@ -250,9 +250,10 @@ async def airtable_callback(
             await session.commit()
             logger.info(f"Successfully saved Airtable connector for user {user_id}")
 
-            # Redirect to frontend success page
-            frontend_url = f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors"
-            return RedirectResponse(url=frontend_url)
+            # Redirect to the frontend success page
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/airtable-connector?success=true"
+            )
 
         except ValidationError as e:
             await session.rollback()
