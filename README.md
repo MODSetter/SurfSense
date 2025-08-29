@@ -118,6 +118,21 @@ Open source and easy to deploy locally.
 - Its main usecase is to save any webpages protected beyond authentication.
 
 
+---
+---
+<p align="center">
+  <a href="https://handbook.opencoreventures.com/catalyst-sponsorship-program/" target="_blank" rel="noopener noreferrer">
+    <img 
+      src="https://github.com/user-attachments/assets/329c9bc2-6005-4aed-a629-700b5ae296b4" 
+      alt="Catalyst Sponsorship Program" 
+      width="600"
+    />
+  </a>
+</p>
+
+---
+---
+
 ## FEATURE REQUESTS AND FUTURE
 
 
@@ -267,7 +282,6 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 ## Future Work
 - Add More Connectors.
 - Patch minor bugs.
-- Document Chat **[REIMPLEMENT]**
 - Document Podcasts
 
 
