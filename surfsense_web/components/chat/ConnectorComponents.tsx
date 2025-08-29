@@ -8,6 +8,7 @@ import {
 	IconLayoutKanban,
 	IconLinkPlus,
 	IconMail,
+	IconTable,
 	IconTicket,
 } from "@tabler/icons-react";
 import {
@@ -62,6 +63,8 @@ export const getConnectorIcon = (connectorType: string) => {
 			return <IconCalendar {...iconProps} />;
 		case "GOOGLE_GMAIL_CONNECTOR":
 			return <IconMail {...iconProps} />;
+		case "AIRTABLE_CONNECTOR":
+			return <IconTable {...iconProps} />;
 		case "DEEP":
 			return <Sparkles {...iconProps} />;
 		case "DEEPER":

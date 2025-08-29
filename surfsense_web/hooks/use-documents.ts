@@ -23,7 +23,11 @@ export type DocumentType =
 	| "LINEAR_CONNECTOR"
 	| "DISCORD_CONNECTOR"
 	| "JIRA_CONNECTOR"
-	| "CONFLUENCE_CONNECTOR";
+	| "CONFLUENCE_CONNECTOR"
+	| "CLICKUP_CONNECTOR"
+	| "GOOGLE_CALENDAR_CONNECTOR"
+	| "GOOGLE_GMAIL_CONNECTOR"
+	| "AIRTABLE_CONNECTOR";
 
 export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
 	const [documents, setDocuments] = useState<Document[]>([]);

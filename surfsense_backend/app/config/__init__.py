@@ -54,6 +54,11 @@ class Config:
     # Google Gmail redirect URI
     GOOGLE_GMAIL_REDIRECT_URI = os.getenv("GOOGLE_GMAIL_REDIRECT_URI")
 
+    # Airtable OAuth
+    AIRTABLE_CLIENT_ID = os.getenv("AIRTABLE_CLIENT_ID")
+    AIRTABLE_CLIENT_SECRET = os.getenv("AIRTABLE_CLIENT_SECRET")
+    AIRTABLE_REDIRECT_URI = os.getenv("AIRTABLE_REDIRECT_URI")
+
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 
