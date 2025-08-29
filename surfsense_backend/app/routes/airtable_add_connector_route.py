@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import httpx
@@ -188,8 +188,6 @@ async def airtable_callback(
                 timeout=30.0,
             )
 
-            logger.info(f"Token response: {token_response.json()}")
-
         if token_response.status_code != 200:
             error_detail = token_response.text
             try:
@@ -203,10 +201,11 @@ async def airtable_callback(
 
         token_json = token_response.json()
 
-        # Calculate expiration time
+        # Calculate expiration time (UTC, tz-aware)
         expires_at = None
         if token_json.get("expires_in"):
-            expires_at = datetime.now() + timedelta(seconds=token_json["expires_in"])
+            now_utc = datetime.now(UTC)
+            expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
 
         # Create credentials object
         credentials = AirtableAuthCredentialsBase(
