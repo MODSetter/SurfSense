@@ -188,13 +188,14 @@ export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index,
 									{document.content && (
 										<Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
 											<CollapsibleContent className="pt-2 w-full">
-												<div className="w-full">
+												<div className="p-6 bg-muted/50 rounded-lg border">
 													<MarkdownViewer content={document.content} />
 												</div>
 											</CollapsibleContent>
 										</Collapsible>
 									)}
 								</div>
+
 								{document.chunks.map((chunk, idx) => (
 									<div
 										key={chunk.id}
