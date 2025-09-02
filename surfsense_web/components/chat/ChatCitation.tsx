@@ -1,10 +1,11 @@
 "use client";
 
-import { ExternalLink, FileText, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, FileText, Loader2 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	Sheet,
@@ -24,6 +25,7 @@ export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index,
 	const { document, loading, error, fetchDocumentByChunk, clearDocument } = useDocumentByChunk();
 	const chunksContainerRef = useRef<HTMLDivElement>(null);
 	const highlightedChunkRef = useRef<HTMLDivElement>(null);
+	const [summaryOpen, setSummaryOpen] = useState(false);
 
 	// Check if this is a source type that should render directly from node
 	const isDirectRenderSource = sourceType === "TAVILY_API" || sourceType === "LINKUP_API";
@@ -165,7 +167,35 @@ export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index,
 
 							{/* Chunks */}
 							<div className="space-y-6" ref={chunksContainerRef}>
-								<h3 className="text-base font-semibold mb-4">Document Content</h3>
+								<div className="mb-4">
+									{/* Header row: header and button side by side */}
+									<div className="flex flex-row items-center gap-4">
+										<h3 className="text-base font-semibold mb-2 md:mb-0">Document Content</h3>
+										{document.content && (
+											<Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
+												<CollapsibleTrigger className="flex items-center gap-2 py-2 px-3 font-medium border rounded-md bg-muted hover:bg-muted/80 transition-colors">
+													<span>Summary</span>
+													{summaryOpen ? (
+														<ChevronUp className="h-4 w-4 transition-transform" />
+													) : (
+														<ChevronDown className="h-4 w-4 transition-transform" />
+													)}
+												</CollapsibleTrigger>
+											</Collapsible>
+										)}
+									</div>
+									{/* Expanded summary content: always full width, below the row */}
+									{document.content && (
+										<Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
+											<CollapsibleContent className="pt-2 w-full">
+												<div className="p-6 bg-muted/50 rounded-lg border">
+													<MarkdownViewer content={document.content} />
+												</div>
+											</CollapsibleContent>
+										</Collapsible>
+									)}
+								</div>
+
 								{document.chunks.map((chunk, idx) => (
 									<div
 										key={chunk.id}
