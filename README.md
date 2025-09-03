@@ -118,20 +118,6 @@ Open source and easy to deploy locally.
 - Its main usecase is to save any webpages protected beyond authentication.
 
 
----
----
-<p align="center">
-  <a href="https://handbook.opencoreventures.com/catalyst-sponsorship-program/" target="_blank" rel="noopener noreferrer">
-    <img 
-      src="https://github.com/user-attachments/assets/329c9bc2-6005-4aed-a629-700b5ae296b4" 
-      alt="Catalyst Sponsorship Program" 
-      width="600"
-    />
-  </a>
-</p>
-
----
----
 
 ## FEATURE REQUESTS AND FUTURE
 
@@ -302,4 +288,17 @@ For detailed contribution guidelines, please see our [CONTRIBUTING.md](CONTRIBUT
    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
  </picture>
 </a>
+
+---
+---
+<p align="center">
+    <img 
+      src="https://github.com/user-attachments/assets/329c9bc2-6005-4aed-a629-700b5ae296b4" 
+      alt="Catalyst Project" 
+      width="200"
+    />
+</p>
+
+---
+---
 
