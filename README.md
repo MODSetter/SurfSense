@@ -10,7 +10,7 @@
 
 
 # SurfSense
-While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as Search Engines (Tavily, LinkUp), Slack, Linear, Jira, ClickUp, Confluence, Gmail, Notion, YouTube, GitHub, Discord, Google Calendar and more to come.
+While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as Search Engines (Tavily, LinkUp), Slack, Linear, Jira, ClickUp, Confluence, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar and more to come.
 
 <div align="center">
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -72,6 +72,7 @@ Open source and easy to deploy locally.
 - Youtube Videos
 - GitHub
 - Discord
+- Airtable
 - Google Calendar
 - and more to come.....
 
@@ -118,20 +119,6 @@ Open source and easy to deploy locally.
 - Its main usecase is to save any webpages protected beyond authentication.
 
 
----
----
-<p align="center">
-  <a href="https://handbook.opencoreventures.com/catalyst-sponsorship-program/" target="_blank" rel="noopener noreferrer">
-    <img 
-      src="https://github.com/user-attachments/assets/329c9bc2-6005-4aed-a629-700b5ae296b4" 
-      alt="Catalyst Sponsorship Program" 
-      width="600"
-    />
-  </a>
-</p>
-
----
----
 
 ## FEATURE REQUESTS AND FUTURE
 
@@ -302,4 +289,17 @@ For detailed contribution guidelines, please see our [CONTRIBUTING.md](CONTRIBUT
    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
  </picture>
 </a>
+
+---
+---
+<p align="center">
+    <img 
+      src="https://github.com/user-attachments/assets/329c9bc2-6005-4aed-a629-700b5ae296b4" 
+      alt="Catalyst Project" 
+      width="200"
+    />
+</p>
+
+---
+---
 

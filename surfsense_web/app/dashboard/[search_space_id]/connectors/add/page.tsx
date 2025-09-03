@@ -15,6 +15,7 @@ import {
 	IconLayoutKanban,
 	IconLinkPlus,
 	IconMail,
+	IconTable,
 	IconTicket,
 	IconWorldWww,
 } from "@tabler/icons-react";
@@ -141,6 +142,13 @@ const connectorCategories: ConnectorCategory[] = [
 				title: "Confluence",
 				description: "Connect to Confluence to search pages, comments and documentation.",
 				icon: <IconBook className="h-6 w-6" />,
+				status: "available",
+			},
+			{
+				id: "airtable-connector",
+				title: "Airtable",
+				description: "Connect to Airtable to search records, tables and database content.",
+				icon: <IconTable className="h-6 w-6" />,
 				status: "available",
 			},
 		],

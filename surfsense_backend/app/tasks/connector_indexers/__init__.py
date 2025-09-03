@@ -19,14 +19,14 @@ Available indexers:
 """
 
 # Communication platforms
+# Calendar and scheduling
+from .airtable_indexer import index_airtable_records
 from .clickup_indexer import index_clickup_tasks
 from .confluence_indexer import index_confluence_pages
 from .discord_indexer import index_discord_messages
 
 # Development platforms
 from .github_indexer import index_github_repos
-
-# Calendar and scheduling
 from .google_calendar_indexer import index_google_calendar_events
 from .google_gmail_indexer import index_google_gmail_messages
 from .jira_indexer import index_jira_issues
@@ -39,6 +39,7 @@ from .notion_indexer import index_notion_pages
 from .slack_indexer import index_slack_messages
 
 __all__ = [  # noqa: RUF022
+    "index_airtable_records",
     "index_clickup_tasks",
     "index_confluence_pages",
     "index_discord_messages",
