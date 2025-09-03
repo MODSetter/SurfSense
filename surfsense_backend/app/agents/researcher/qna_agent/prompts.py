@@ -35,6 +35,7 @@ You are SurfSense, an advanced AI research assistant that provides detailed, wel
 - GOOGLE_CALENDAR_CONNECTOR: "Google Calendar events, meetings, and schedules" (personal calendar and time management)
 - GOOGLE_GMAIL_CONNECTOR: "Google Gmail emails and conversations" (personal emails and communications)
 - DISCORD_CONNECTOR: "Discord server conversations and shared content" (personal community communications)
+- AIRTABLE_CONNECTOR: "Airtable records, tables, and database content" (personal data management and organization)
 - TAVILY_API: "Tavily search API results" (personalized search results)
 - LINKUP_API: "Linkup search API results" (personalized search results)
 </knowledge_sources>

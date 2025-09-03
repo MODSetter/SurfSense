@@ -1209,6 +1209,94 @@ class ConnectorService:
 
         return result_object, calendar_chunks
 
+    async def search_airtable(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for Airtable records and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            airtable_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="AIRTABLE_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            airtable_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="AIRTABLE_CONNECTOR",
+            )
+            # Transform document retriever results to match expected format
+            airtable_chunks = self._transform_document_results(airtable_chunks)
+
+        # Early return if no results
+        if not airtable_chunks:
+            return {
+                "id": 32,
+                "name": "Airtable Records",
+                "type": "AIRTABLE_CONNECTOR",
+                "sources": [],
+            }, []
+
+        # Process chunks to create sources
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(airtable_chunks):
+                # Extract document metadata
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                # Extract Airtable-specific metadata
+                record_id = metadata.get("record_id", "")
+                created_time = metadata.get("created_time", "")
+
+                # Create a more descriptive title for Airtable records
+                title = f"Airtable Record: {record_id}"
+
+                # Create a more descriptive description for Airtable records
+                description = f"Created: {created_time}"
+
+                source = {
+                    "id": chunk.get("chunk_id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": "",  # TODO: Add URL to Airtable record
+                    "record_id": record_id,
+                    "created_time": created_time,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+
+        result_object = {
+            "id": 32,
+            "name": "Airtable Records",
+            "type": "AIRTABLE_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, airtable_chunks
+
     async def search_google_gmail(
         self,
         user_query: str,

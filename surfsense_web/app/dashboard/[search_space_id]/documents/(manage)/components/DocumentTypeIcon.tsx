@@ -11,6 +11,7 @@ import {
 	IconChecklist,
 	IconLayoutKanban,
 	IconMail,
+	IconTable,
 	IconTicket,
 } from "@tabler/icons-react";
 import { File, Globe, Webhook } from "lucide-react";
@@ -33,6 +34,7 @@ const documentTypeIcons: Record<string, IconComponent> = {
 	CLICKUP_CONNECTOR: IconChecklist,
 	GOOGLE_CALENDAR_CONNECTOR: IconCalendar,
 	GOOGLE_GMAIL_CONNECTOR: IconMail,
+	AIRTABLE_CONNECTOR: IconTable,
 };
 
 export function getDocumentTypeIcon(type: string): IconComponent {
