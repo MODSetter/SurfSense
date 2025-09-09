@@ -15,8 +15,8 @@ from app.db import (
     SearchSourceConnectorType,
     SearchSpace,
 )
-from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
-from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
+from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
+from app.retriever.documents_hybrid_search import DocumentHybridSearchRetriever
 
 
 class ConnectorService:

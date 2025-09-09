@@ -141,7 +141,10 @@ class Chat(BaseModel, TimestampMixin):
 
     type = Column(SQLAlchemyEnum(ChatType), nullable=False)
     title = Column(String, nullable=False, index=True)
-    initial_connectors = Column(ARRAY(String), nullable=True)
+    if DATABASE_URL.startswith("postgresql"):
+        initial_connectors = Column(ARRAY(String), nullable=True)
+    else:
+        initial_connectors = Column(JSON, nullable=True)
     messages = Column(JSON, nullable=False)
 
     search_space_id = Column(
@@ -398,9 +401,11 @@ async def setup_indexes():
 
 async def create_db_and_tables():
     async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        if conn.dialect.name == "postgresql":
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
-    await setup_indexes()
+    if engine.dialect.name == "postgresql":
+        await setup_indexes()
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:

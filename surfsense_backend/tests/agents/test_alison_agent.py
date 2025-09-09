@@ -9,22 +9,21 @@ os.environ["RERANKERS_MODEL_NAME"] = "flashrank"
 os.environ["RERANKERS_MODEL_TYPE"] = "flashrank"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
-
 from surfsense_backend.app.agents.alison.graph import graph as alison_graph
 from surfsense_backend.app.agents.alison.state import AlisonState
 
 @pytest.mark.asyncio
 @patch('surfsense_backend.app.services.llm_service.get_user_fast_llm')
-@patch('surfsense_backend.app.retriever.alison_knowledge_retriever.AlisonKnowledgeRetriever.hybrid_search', new_callable=AsyncMock)
-async def test_alison_graph_success_path(mock_hybrid_search, mock_llm_service):
+@patch('surfsense_backend.app.retriever.alison_knowledge_retriever.AlisonKnowledgeRetriever')
+async def test_alison_graph_success_path(mock_retriever_cls, mock_llm_service):
     # Mock the LLM
     mock_llm = MagicMock()
     mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="projector not working"))
     mock_llm_service.return_value = mock_llm
 
     # Mock the retriever
-    mock_hybrid_search.return_value = [{"content": "Check the power cable."}]
+    mock_retriever_instance = mock_retriever_cls.return_value
+    mock_retriever_instance.hybrid_search.return_value = [{"content": "Check the power cable."}]
 
     # Mock the db session
     mock_session = AsyncMock()
@@ -104,3 +103,9 @@ async def test_alison_graph_escalation_path(mock_retriever_cls, mock_llm_service
     assert final_chunk is not None
     last_state = final_chunk[list(final_chunk.keys())[-1]]
     assert "Please contact IT support" in last_state["final_response"]
+
+def test_alison_imports():
+    from surfsense_backend.app.retriever.alison_knowledge_retriever import AlisonKnowledgeRetriever
+    mock_session = MagicMock()
+    retriever = AlisonKnowledgeRetriever(mock_session)
+    assert retriever is not None

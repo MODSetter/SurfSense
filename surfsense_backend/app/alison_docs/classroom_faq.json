@@ -1,0 +1,38 @@
+[
+  {
+    "issue": "Projector not displaying",
+    "causes": ["HDMI cable not connected", "Input source not selected"],
+    "resolution": [
+      "Check HDMI cable connection to laptop and projector",
+      "On projector remote, press 'Source' and select HDMI",
+      "Restart projector if display does not appear"
+    ]
+  },
+  {
+    "issue": "Microphone not working",
+    "causes": ["Mic muted", "Wrong input device selected"],
+    "resolution": [
+      "Ensure mic is unmuted (hardware switch or Zoom/Teams mute button)",
+      "Check audio settings to confirm correct microphone is selected",
+      "If still not working, try reconnecting mic via USB"
+    ]
+  },
+  {
+    "issue": "Zoom/Teams not starting",
+    "causes": ["Network connection issue", "App not updated"],
+    "resolution": [
+      "Check Wi-Fi connection",
+      "Restart Zoom/Teams",
+      "Update application to the latest version"
+    ]
+  },
+  {
+    "issue": "Wi-Fi not connecting",
+    "causes": ["Incorrect password", "Network down"],
+    "resolution": [
+      "Re-enter NU-Secure password",
+      "Forget and reconnect to NU-Secure",
+      "Contact IT support if Wi-Fi is still unavailable"
+    ]
+  }
+]
