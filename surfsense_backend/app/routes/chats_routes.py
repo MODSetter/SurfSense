@@ -77,6 +77,8 @@ async def handle_chat_data(
             langchain_chat_history,
             search_mode_str,
             document_ids_to_add_in_context,
+            alison_enabled=request.alison_enabled,
+            user_role=request.user_role,
         )
     )
 

@@ -45,6 +45,14 @@ class AISDKChatRequest(BaseModel):
     messages: list[Any]
     data: dict[str, Any] | None = None
 
+    @property
+    def alison_enabled(self) -> bool:
+        return self.data.get("alison_enabled", False) if self.data else False
+
+    @property
+    def user_role(self) -> str:
+        return self.data.get("user_role", "professor") if self.data else "professor"
+
 
 class ChatCreate(ChatBase):
     pass

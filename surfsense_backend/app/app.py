@@ -11,10 +11,13 @@ from app.schemas import UserCreate, UserRead, UserUpdate
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 
 
+from app.tasks.document_processors.alison_doc_indexer import index_alison_docs
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Not needed if you setup a migration system like Alembic
     await create_db_and_tables()
+    await index_alison_docs()
     yield
 
 
