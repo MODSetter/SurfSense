@@ -15,6 +15,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useDocumentByChunk } from "@/hooks/use-document-by-chunk";
 import { cn } from "@/lib/utils";
 
@@ -74,7 +75,7 @@ export const CitationDisplay: React.FC<{ index: number; node: any }> = ({ index,
 			<SheetContent side="right" className="w-full sm:max-w-5xl lg:max-w-7xl">
 				<SheetHeader className="px-6 py-4 border-b">
 					<SheetTitle className="flex items-center gap-3 text-lg">
-						<FileText className="h-6 w-6" />
+						{getConnectorIcon(sourceType)}
 						{document?.title || node?.metadata?.title || node?.metadata?.group_name || "Source"}
 					</SheetTitle>
 					<SheetDescription className="text-base mt-2">

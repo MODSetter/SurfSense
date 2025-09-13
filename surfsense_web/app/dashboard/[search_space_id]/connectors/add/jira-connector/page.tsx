@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
 // Define the form schema with Zod
@@ -90,7 +92,7 @@ export default function JiraConnectorPage() {
 		try {
 			await createConnector({
 				name: values.name,
-				connector_type: "JIRA_CONNECTOR",
+				connector_type: EnumConnectorName.JIRA_CONNECTOR,
 				config: {
 					JIRA_BASE_URL: values.base_url,
 					JIRA_EMAIL: values.email,
@@ -122,6 +124,21 @@ export default function JiraConnectorPage() {
 				<ArrowLeft className="mr-2 h-4 w-4" />
 				Back to Connectors
 			</Button>
+
+			{/* Header */}
+			<div className="mb-8">
+				<div className="flex items-center gap-4">
+					<div className="flex h-12 w-12 items-center justify-center rounded-lg">
+						{getConnectorIcon(EnumConnectorName.JIRA_CONNECTOR, "h-6 w-6")}
+					</div>
+					<div>
+						<h1 className="text-3xl font-bold tracking-tight">Connect Jira</h1>
+						<p className="text-muted-foreground">
+							Connect your Jira instance to search issues and tickets.
+						</p>
+					</div>
+				</div>
+			</div>
 
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}

@@ -1,80 +1,8 @@
-import {
-	IconBrandDiscord,
-	IconBrandGithub,
-	IconBrandNotion,
-	IconBrandSlack,
-	IconBrandYoutube,
-	IconCalendar,
-	IconLayoutKanban,
-	IconLinkPlus,
-	IconMail,
-	IconTable,
-	IconTicket,
-} from "@tabler/icons-react";
-import {
-	ChevronDown,
-	File,
-	FileText,
-	Globe,
-	Link,
-	MessageCircle,
-	Microscope,
-	Plus,
-	Search,
-	Sparkles,
-	Telescope,
-	Webhook,
-} from "lucide-react";
+import { ChevronDown, FileText, MessageCircle, Plus } from "lucide-react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Connector, ResearchMode } from "./types";
-
-// Helper function to get connector icon
-export const getConnectorIcon = (connectorType: string) => {
-	const iconProps = { className: "h-4 w-4" };
-
-	switch (connectorType) {
-		case "LINKUP_API":
-			return <IconLinkPlus {...iconProps} />;
-		case "LINEAR_CONNECTOR":
-			return <IconLayoutKanban {...iconProps} />;
-		case "GITHUB_CONNECTOR":
-			return <IconBrandGithub {...iconProps} />;
-		case "YOUTUBE_VIDEO":
-			return <IconBrandYoutube {...iconProps} />;
-		case "CRAWLED_URL":
-			return <Globe {...iconProps} />;
-		case "FILE":
-			return <File {...iconProps} />;
-		case "EXTENSION":
-			return <Webhook {...iconProps} />;
-		case "SERPER_API":
-		case "TAVILY_API":
-			return <Link {...iconProps} />;
-		case "SLACK_CONNECTOR":
-			return <IconBrandSlack {...iconProps} />;
-		case "NOTION_CONNECTOR":
-			return <IconBrandNotion {...iconProps} />;
-		case "DISCORD_CONNECTOR":
-			return <IconBrandDiscord {...iconProps} />;
-		case "JIRA_CONNECTOR":
-			return <IconTicket {...iconProps} />;
-		case "GOOGLE_CALENDAR_CONNECTOR":
-			return <IconCalendar {...iconProps} />;
-		case "GOOGLE_GMAIL_CONNECTOR":
-			return <IconMail {...iconProps} />;
-		case "AIRTABLE_CONNECTOR":
-			return <IconTable {...iconProps} />;
-		case "DEEP":
-			return <Sparkles {...iconProps} />;
-		case "DEEPER":
-			return <Microscope {...iconProps} />;
-		case "DEEPEST":
-			return <Telescope {...iconProps} />;
-		default:
-			return <Search {...iconProps} />;
-	}
-};
 
 export const researcherOptions: {
 	value: ResearchMode;

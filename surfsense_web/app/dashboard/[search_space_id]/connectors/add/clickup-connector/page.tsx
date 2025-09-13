@@ -20,6 +20,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
 // Define the form schema with Zod
@@ -59,7 +61,7 @@ export default function ClickUpConnectorPage() {
 		try {
 			const connectorData = {
 				name: values.name,
-				connector_type: "CLICKUP_CONNECTOR",
+				connector_type: EnumConnectorName.CLICKUP_CONNECTOR,
 				is_indexable: true,
 				config: {
 					CLICKUP_API_TOKEN: values.api_token,
@@ -89,6 +91,21 @@ export default function ClickUpConnectorPage() {
 				<ArrowLeft className="mr-2 h-4 w-4" />
 				Back to Connectors
 			</Button>
+
+			{/* Header */}
+			<div className="mb-8">
+				<div className="flex items-center gap-4">
+					<div className="flex h-12 w-12 items-center justify-center rounded-lg">
+						{getConnectorIcon(EnumConnectorName.CLICKUP_CONNECTOR, "h-6 w-6")}
+					</div>
+					<div>
+						<h1 className="text-3xl font-bold tracking-tight">Connect ClickUp</h1>
+						<p className="text-muted-foreground">
+							Connect your ClickUp workspace to search tasks and projects.
+						</p>
+					</div>
+				</div>
+			</div>
 
 			<Card>
 				<CardHeader>

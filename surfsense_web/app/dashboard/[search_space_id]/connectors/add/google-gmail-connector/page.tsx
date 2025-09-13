@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { IconMail } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -19,6 +18,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
@@ -36,7 +37,7 @@ export default function GoogleGmailConnectorPage() {
 	useEffect(() => {
 		fetchConnectors().then((data) => {
 			const connector = data.find(
-				(c: SearchSourceConnector) => c.connector_type === "GOOGLE_GMAIL_CONNECTOR"
+				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.GOOGLE_GMAIL_CONNECTOR
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
@@ -92,8 +93,8 @@ export default function GoogleGmailConnectorPage() {
 						Back to connectors
 					</Link>
 					<div className="flex items-center gap-4">
-						<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900">
-							<IconMail className="h-6 w-6 text-red-600 dark:text-red-400" />
+						<div className="flex h-12 w-12 items-center justify-center rounded-lg">
+							{getConnectorIcon(EnumConnectorName.GOOGLE_GMAIL_CONNECTOR, "h-6 w-6")}
 						</div>
 						<div>
 							<h1 className="text-3xl font-bold tracking-tight">Connect Google Gmail</h1>

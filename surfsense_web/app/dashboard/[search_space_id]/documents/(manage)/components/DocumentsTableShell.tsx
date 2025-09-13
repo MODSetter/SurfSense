@@ -197,7 +197,7 @@ export function DocumentsTableShell({
 							</TableHeader>
 							<TableBody>
 								{sorted.map((doc, index) => {
-									const Icon = getDocumentTypeIcon(doc.document_type);
+									const icon = getDocumentTypeIcon(doc.document_type);
 									const title = doc.title;
 									const truncatedTitle = title.length > 30 ? `${title.slice(0, 30)}...` : title;
 									return (
@@ -235,7 +235,7 @@ export function DocumentsTableShell({
 														<Tooltip>
 															<TooltipTrigger asChild>
 																<span className="flex items-center gap-2">
-																	<Icon size={16} className="text-muted-foreground shrink-0" />
+																	<span className="text-muted-foreground shrink-0">{icon}</span>
 																	<span>{truncatedTitle}</span>
 																</span>
 															</TooltipTrigger>
@@ -293,7 +293,7 @@ export function DocumentsTableShell({
 					</div>
 					<div className="md:hidden divide-y">
 						{sorted.map((doc) => {
-							const Icon = getDocumentTypeIcon(doc.document_type);
+							const icon = getDocumentTypeIcon(doc.document_type);
 							return (
 								<div key={doc.id} className="p-3">
 									<div className="flex items-start gap-3">
@@ -305,7 +305,7 @@ export function DocumentsTableShell({
 										<div className="flex-1 min-w-0">
 											<div className="flex items-center justify-between gap-2">
 												<div className="flex items-center gap-2 min-w-0">
-													<Icon size={16} className="text-muted-foreground shrink-0" />
+													<span className="text-muted-foreground shrink-0">{icon}</span>
 													<div className="font-medium truncate">{doc.title}</div>
 												</div>
 												<RowActions

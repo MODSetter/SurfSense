@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 // Assuming useSearchSourceConnectors hook exists and works similarly
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
@@ -148,7 +150,7 @@ export default function GithubConnectorPage() {
 		try {
 			await createConnector({
 				name: connectorName, // Use the stored name
-				connector_type: "GITHUB_CONNECTOR",
+				connector_type: EnumConnectorName.GITHUB_CONNECTOR,
 				config: {
 					GITHUB_PAT: validatedPat, // Use the stored validated PAT
 					repo_full_names: selectedRepos, // Add the selected repo names
@@ -215,7 +217,7 @@ export default function GithubConnectorPage() {
 							<CardHeader>
 								<CardTitle className="text-2xl font-bold flex items-center gap-2">
 									{step === "enter_pat" ? (
-										<Github className="h-6 w-6" />
+										getConnectorIcon(EnumConnectorName.GITHUB_CONNECTOR, "h-6 w-6")
 									) : (
 										<ListChecks className="h-6 w-6" />
 									)}

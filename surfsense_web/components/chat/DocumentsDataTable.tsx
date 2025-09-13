@@ -14,7 +14,6 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, Calendar, FileText, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -33,6 +32,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document, DocumentType } from "@/hooks/use-documents";
 
 interface DocumentsDataTableProps {
@@ -42,41 +43,15 @@ interface DocumentsDataTableProps {
 	initialSelectedDocuments?: Document[];
 }
 
-const DOCUMENT_TYPES: (DocumentType | "ALL")[] = [
+// Combine EnumConnectorName with additional document types
+const DOCUMENT_TYPES: (string | "ALL")[] = [
 	"ALL",
 	"FILE",
 	"EXTENSION",
 	"CRAWLED_URL",
 	"YOUTUBE_VIDEO",
-	"SLACK_CONNECTOR",
-	"NOTION_CONNECTOR",
-	"GITHUB_CONNECTOR",
-	"LINEAR_CONNECTOR",
-	"DISCORD_CONNECTOR",
-	"JIRA_CONNECTOR",
-	"CONFLUENCE_CONNECTOR",
-	"CLICKUP_CONNECTOR",
-	"GOOGLE_CALENDAR_CONNECTOR",
-	"GOOGLE_GMAIL_CONNECTOR",
-	"AIRTABLE_CONNECTOR",
+	...Object.values(EnumConnectorName),
 ];
-
-const getDocumentTypeColor = (type: DocumentType) => {
-	const colors = {
-		FILE: "bg-blue-50 text-blue-700 border-blue-200",
-		EXTENSION: "bg-green-50 text-green-700 border-green-200",
-		CRAWLED_URL: "bg-purple-50 text-purple-700 border-purple-200",
-		YOUTUBE_VIDEO: "bg-red-50 text-red-700 border-red-200",
-		SLACK_CONNECTOR: "bg-yellow-50 text-yellow-700 border-yellow-200",
-		NOTION_CONNECTOR: "bg-indigo-50 text-indigo-700 border-indigo-200",
-		GITHUB_CONNECTOR: "bg-gray-50 text-gray-700 border-gray-200",
-		LINEAR_CONNECTOR: "bg-pink-50 text-pink-700 border-pink-200",
-		DISCORD_CONNECTOR: "bg-violet-50 text-violet-700 border-violet-200",
-		JIRA_CONNECTOR: "bg-orange-50 text-orange-700 border-orange-200",
-		CONFLUENCE_CONNECTOR: "bg-teal-50 text-teal-700 border-teal-200",
-	};
-	return colors[type] || "bg-gray-50 text-gray-700 border-gray-200";
-};
 
 const columns: ColumnDef<Document>[] = [
 	{
@@ -133,13 +108,9 @@ const columns: ColumnDef<Document>[] = [
 		cell: ({ row }) => {
 			const type = row.getValue("document_type") as DocumentType;
 			return (
-				<Badge
-					variant="outline"
-					className={`${getDocumentTypeColor(type)} text-[10px] sm:text-xs px-1 sm:px-2`}
-				>
-					<span className="hidden sm:inline">{type.replace(/_/g, " ")}</span>
-					<span className="sm:hidden">{type.split("_")[0]}</span>
-				</Badge>
+				<div className="flex items-center gap-2" title={type}>
+					<span className="text-primary">{getConnectorIcon(type)}</span>
+				</div>
 			);
 		},
 		size: 80,
@@ -214,7 +185,7 @@ export function DocumentsDataTable({
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-	const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentType | "ALL">("ALL");
+	const [documentTypeFilter, setDocumentTypeFilter] = useState<string | "ALL">("ALL");
 
 	// Memoize initial row selection to prevent infinite loops
 	const initialRowSelection = useMemo(() => {
@@ -311,7 +282,7 @@ export function DocumentsDataTable({
 					</div>
 					<Select
 						value={documentTypeFilter}
-						onValueChange={(value) => setDocumentTypeFilter(value as DocumentType | "ALL")}
+						onValueChange={(value) => setDocumentTypeFilter(value as string | "ALL")}
 					>
 						<SelectTrigger className="w-full sm:w-[180px]">
 							<SelectValue />
