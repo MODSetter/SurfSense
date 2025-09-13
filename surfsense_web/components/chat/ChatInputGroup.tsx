@@ -5,10 +5,7 @@ import { Brain, Check, FolderOpen, Zap } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { Suspense, useCallback, useState } from "react";
 import type { ResearchMode } from "@/components/chat";
-import {
-	ConnectorButton as ConnectorButtonComponent,
-	getConnectorIcon,
-} from "@/components/chat/ConnectorComponents";
+import { ConnectorButton as ConnectorButtonComponent } from "@/components/chat/ConnectorComponents";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +24,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { type Document, useDocuments } from "@/hooks/use-documents";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";

@@ -1,31 +1,14 @@
 "use client";
 
 import { getAnnotationData, type Message } from "@llamaindex/chat-ui";
-import {
-	IconBrandDiscord,
-	IconBrandGithub,
-	IconBrandNotion,
-	IconBrandSlack,
-	IconBrandYoutube,
-} from "@tabler/icons-react";
-import {
-	BookOpen,
-	Calendar,
-	CheckSquare,
-	Database,
-	ExternalLink,
-	FileText,
-	Globe,
-	Link2,
-	Mail,
-	Puzzle,
-} from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 
 interface Source {
 	id: string;
@@ -56,86 +39,11 @@ interface SourceNode {
 }
 
 function getSourceIcon(type: string) {
-	switch (type) {
-		// GitHub
-		case "USER_SELECTED_GITHUB_CONNECTOR":
-		case "GITHUB_CONNECTOR":
-			return <IconBrandGithub className="h-4 w-4" />;
-
-		// Notion
-		case "USER_SELECTED_NOTION_CONNECTOR":
-		case "NOTION_CONNECTOR":
-			return <IconBrandNotion className="h-4 w-4" />;
-
-		// Slack
-		case "USER_SELECTED_SLACK_CONNECTOR":
-		case "SLACK_CONNECTOR":
-			return <IconBrandSlack className="h-4 w-4" />;
-
-		// Discord
-		case "USER_SELECTED_DISCORD_CONNECTOR":
-		case "DISCORD_CONNECTOR":
-			return <IconBrandDiscord className="h-4 w-4" />;
-
-		// Google Calendar
-		case "USER_SELECTED_GOOGLE_CALENDAR_CONNECTOR":
-		case "GOOGLE_CALENDAR_CONNECTOR":
-			return <Calendar className="h-4 w-4" />;
-
-		// Google Gmail
-		case "USER_SELECTED_GOOGLE_GMAIL_CONNECTOR":
-		case "GOOGLE_GMAIL_CONNECTOR":
-			return <Mail className="h-4 w-4" />;
-
-		// Airtable
-		case "USER_SELECTED_AIRTABLE_CONNECTOR":
-		case "AIRTABLE_CONNECTOR":
-			return <Database className="h-4 w-4" />;
-
-		// YouTube
-		case "USER_SELECTED_YOUTUBE_VIDEO":
-		case "YOUTUBE_VIDEO":
-			return <IconBrandYoutube className="h-4 w-4" />;
-
-		// Linear
-		case "USER_SELECTED_LINEAR_CONNECTOR":
-		case "LINEAR_CONNECTOR":
-			return <CheckSquare className="h-4 w-4" />;
-
-		// Jira
-		case "USER_SELECTED_JIRA_CONNECTOR":
-		case "JIRA_CONNECTOR":
-			return <CheckSquare className="h-4 w-4" />;
-
-		// Confluence
-		case "USER_SELECTED_CONFLUENCE_CONNECTOR":
-		case "CONFLUENCE_CONNECTOR":
-			return <BookOpen className="h-4 w-4" />;
-
-		// ClickUp
-		case "USER_SELECTED_CLICKUP_CONNECTOR":
-		case "CLICKUP_CONNECTOR":
-			return <CheckSquare className="h-4 w-4" />;
-
-		// Files
-		case "USER_SELECTED_FILE":
-		case "FILE":
-			return <FileText className="h-4 w-4" />;
-
-		// Extension
-		case "USER_SELECTED_EXTENSION":
-		case "EXTENSION":
-			return <Puzzle className="h-4 w-4" />;
-
-		// Crawled URL
-		case "USER_SELECTED_CRAWLED_URL":
-		case "CRAWLED_URL":
-			return <Link2 className="h-4 w-4" />;
-
-		// Default for any other source type
-		default:
-			return <Globe className="h-4 w-4" />;
-	}
+	// Handle USER_SELECTED_ prefix
+	const normalizedType = type.startsWith("USER_SELECTED_")
+		? type.replace("USER_SELECTED_", "")
+		: type;
+	return getConnectorIcon(normalizedType, "h-4 w-4");
 }
 
 function SourceCard({ source }: { source: Source }) {

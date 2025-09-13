@@ -1,23 +1,10 @@
 "use client";
 
 import {
-	IconBook,
-	IconBrandDiscord,
-	IconBrandGithub,
-	IconBrandNotion,
-	IconBrandSlack,
 	IconBrandWindows,
 	IconBrandZoom,
-	IconCalendar,
-	IconChecklist,
 	IconChevronDown,
 	IconChevronRight,
-	IconLayoutKanban,
-	IconLinkPlus,
-	IconMail,
-	IconTable,
-	IconTicket,
-	IconWorldWww,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import Link from "next/link";
@@ -27,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 
 // Define the Connector type
 interface Connector {
@@ -53,14 +42,14 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "tavily-api",
 				title: "Tavily API",
 				description: "Search the web using the Tavily API",
-				icon: <IconWorldWww className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.TAVILY_API, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "linkup-api",
 				title: "Linkup API",
 				description: "Search the web using the Linkup API",
-				icon: <IconLinkPlus className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.LINKUP_API, "h-6 w-6"),
 				status: "available",
 			},
 		],
@@ -73,7 +62,7 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "slack-connector",
 				title: "Slack",
 				description: "Connect to your Slack workspace to access messages and channels.",
-				icon: <IconBrandSlack className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.SLACK_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
@@ -87,7 +76,7 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "discord-connector",
 				title: "Discord",
 				description: "Connect to Discord servers to access messages and channels.",
-				icon: <IconBrandDiscord className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.DISCORD_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 		],
@@ -100,21 +89,21 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "linear-connector",
 				title: "Linear",
 				description: "Connect to Linear to search issues, comments and project data.",
-				icon: <IconLayoutKanban className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.LINEAR_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "jira-connector",
 				title: "Jira",
 				description: "Connect to Jira to search issues, tickets and project data.",
-				icon: <IconTicket className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.JIRA_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "clickup-connector",
 				title: "ClickUp",
 				description: "Connect to ClickUp to search tasks, comments and project data.",
-				icon: <IconChecklist className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.CLICKUP_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 		],
@@ -127,28 +116,28 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "notion-connector",
 				title: "Notion",
 				description: "Connect to your Notion workspace to access pages and databases.",
-				icon: <IconBrandNotion className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.NOTION_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "github-connector",
 				title: "GitHub",
 				description: "Connect a GitHub PAT to index code and docs from accessible repositories.",
-				icon: <IconBrandGithub className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.GITHUB_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "confluence-connector",
 				title: "Confluence",
 				description: "Connect to Confluence to search pages, comments and documentation.",
-				icon: <IconBook className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.CONFLUENCE_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "airtable-connector",
 				title: "Airtable",
 				description: "Connect to Airtable to search records, tables and database content.",
-				icon: <IconTable className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.AIRTABLE_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 		],
@@ -161,14 +150,14 @@ const connectorCategories: ConnectorCategory[] = [
 				id: "google-calendar-connector",
 				title: "Google Calendar",
 				description: "Connect to Google Calendar to search events, meetings and schedules.",
-				icon: <IconCalendar className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "google-gmail-connector",
 				title: "Gmail",
 				description: "Connect to your Gmail account to search through your emails.",
-				icon: <IconMail className="h-6 w-6" />,
+				icon: getConnectorIcon(EnumConnectorName.GOOGLE_GMAIL_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{

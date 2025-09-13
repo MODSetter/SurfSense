@@ -6,7 +6,6 @@ import { Calendar as CalendarIcon, Edit, Plus, RefreshCw, Trash2 } from "lucide-
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getConnectorIcon } from "@/components/chat";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -41,6 +40,7 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 import { cn } from "@/lib/utils";
 

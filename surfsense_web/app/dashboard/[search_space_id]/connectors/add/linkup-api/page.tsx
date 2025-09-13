@@ -28,6 +28,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
 // Define the form schema with Zod
@@ -65,7 +67,7 @@ export default function LinkupApiPage() {
 		try {
 			await createConnector({
 				name: values.name,
-				connector_type: "LINKUP_API",
+				connector_type: EnumConnectorName.LINKUP_API,
 				config: {
 					LINKUP_API_KEY: values.api_key,
 				},
@@ -95,6 +97,21 @@ export default function LinkupApiPage() {
 				<ArrowLeft className="mr-2 h-4 w-4" />
 				Back to Connectors
 			</Button>
+
+			{/* Header */}
+			<div className="mb-8">
+				<div className="flex items-center gap-4">
+					<div className="flex h-12 w-12 items-center justify-center rounded-lg">
+						{getConnectorIcon(EnumConnectorName.LINKUP_API, "h-6 w-6")}
+					</div>
+					<div>
+						<h1 className="text-3xl font-bold tracking-tight">Connect Linkup API</h1>
+						<p className="text-muted-foreground">
+							Connect Linkup API for enhanced search capabilities.
+						</p>
+					</div>
+				</div>
+			</div>
 
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}

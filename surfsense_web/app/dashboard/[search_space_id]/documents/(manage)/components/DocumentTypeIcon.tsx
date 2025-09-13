@@ -1,44 +1,12 @@
 "use client";
 
-import {
-	IconBook,
-	IconBrandDiscord,
-	IconBrandGithub,
-	IconBrandNotion,
-	IconBrandSlack,
-	IconBrandYoutube,
-	IconCalendar,
-	IconChecklist,
-	IconLayoutKanban,
-	IconMail,
-	IconTable,
-	IconTicket,
-} from "@tabler/icons-react";
-import { File, Globe, Webhook } from "lucide-react";
 import type React from "react";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
 
-const documentTypeIcons: Record<string, IconComponent> = {
-	EXTENSION: Webhook,
-	CRAWLED_URL: Globe,
-	SLACK_CONNECTOR: IconBrandSlack,
-	NOTION_CONNECTOR: IconBrandNotion,
-	FILE: File,
-	YOUTUBE_VIDEO: IconBrandYoutube,
-	GITHUB_CONNECTOR: IconBrandGithub,
-	LINEAR_CONNECTOR: IconLayoutKanban,
-	JIRA_CONNECTOR: IconTicket,
-	DISCORD_CONNECTOR: IconBrandDiscord,
-	CONFLUENCE_CONNECTOR: IconBook,
-	CLICKUP_CONNECTOR: IconChecklist,
-	GOOGLE_CALENDAR_CONNECTOR: IconCalendar,
-	GOOGLE_GMAIL_CONNECTOR: IconMail,
-	AIRTABLE_CONNECTOR: IconTable,
-};
-
-export function getDocumentTypeIcon(type: string): IconComponent {
-	return documentTypeIcons[type] ?? File;
+export function getDocumentTypeIcon(type: string): React.ReactNode {
+	return getConnectorIcon(type);
 }
 
 export function getDocumentTypeLabel(type: string): string {
@@ -49,7 +17,7 @@ export function getDocumentTypeLabel(type: string): string {
 }
 
 export function DocumentTypeChip({ type, className }: { type: string; className?: string }) {
-	const Icon = getDocumentTypeIcon(type);
+	const icon = getDocumentTypeIcon(type);
 	return (
 		<span
 			className={
@@ -57,7 +25,7 @@ export function DocumentTypeChip({ type, className }: { type: string; className?
 				(className ?? "")
 			}
 		>
-			<Icon size={14} className="text-primary" />
+			<span className="text-primary">{icon}</span>
 			{getDocumentTypeLabel(type)}
 		</span>
 	);

@@ -5,7 +5,6 @@ import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { getConnectorIcon } from "@/components/chat";
 import { EditConnectorLoadingSkeleton } from "@/components/editConnector/EditConnectorLoadingSkeleton";
 import { EditConnectorNameForm } from "@/components/editConnector/EditConnectorNameForm";
 import { EditGitHubConnectorConfig } from "@/components/editConnector/EditGitHubConnectorConfig";
@@ -20,6 +19,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useConnectorEditPage } from "@/hooks/useConnectorEditPage";
 // Import Utils, Types, Hook, and Components
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";

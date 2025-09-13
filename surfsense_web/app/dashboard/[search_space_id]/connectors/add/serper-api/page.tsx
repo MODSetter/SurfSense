@@ -28,6 +28,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
 
 // Define the form schema with Zod
@@ -65,7 +67,7 @@ export default function SerperApiPage() {
 		try {
 			await createConnector({
 				name: values.name,
-				connector_type: "SERPER_API",
+				connector_type: EnumConnectorName.SERPER_API,
 				config: {
 					SERPER_API_KEY: values.api_key,
 				},
@@ -95,6 +97,21 @@ export default function SerperApiPage() {
 				<ArrowLeft className="mr-2 h-4 w-4" />
 				Back to Connectors
 			</Button>
+
+			{/* Header */}
+			<div className="mb-8">
+				<div className="flex items-center gap-4">
+					<div className="flex h-12 w-12 items-center justify-center rounded-lg">
+						{getConnectorIcon(EnumConnectorName.SERPER_API, "h-6 w-6")}
+					</div>
+					<div>
+						<h1 className="text-3xl font-bold tracking-tight">Connect Serper API</h1>
+						<p className="text-muted-foreground">
+							Connect Serper API for Google search capabilities.
+						</p>
+					</div>
+				</div>
+			</div>
 
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
