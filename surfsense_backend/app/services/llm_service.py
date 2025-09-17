@@ -80,6 +80,7 @@ async def get_user_llm_instance(
                 "OLLAMA": "ollama",
                 "MISTRAL": "mistral",
                 "AZURE_OPENAI": "azure",
+                "OPENROUTER": "openrouter",
                 # Add more mappings as needed
             }
             provider_prefix = provider_map.get(

@@ -87,6 +87,7 @@ class LiteLLMProvider(str, Enum):
     OLLAMA = "OLLAMA"
     MISTRAL = "MISTRAL"
     TOGETHER_AI = "TOGETHER_AI"
+    OPENROUTER = "OPENROUTER"
     REPLICATE = "REPLICATE"
     PALM = "PALM"
     VERTEX_AI = "VERTEX_AI"
