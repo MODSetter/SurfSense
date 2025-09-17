@@ -112,6 +112,12 @@ const LLM_PROVIDERS = [
 		example: "meta/llama-2-70b-chat",
 		description: "Run models via API",
 	},
+    {
+        value: "OPENROUTER",
+        label: "OpenRouter",
+        example: "anthropic/claude-opus-4.1, openai/gpt-5",
+        description: "API gateway and LLM marketplace that provides unified access ",
+    },
 	{
 		value: "CUSTOM",
 		label: "Custom Provider",
