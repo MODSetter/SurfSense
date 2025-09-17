@@ -113,6 +113,12 @@ const LLM_PROVIDERS = [
 		description: "Run models via API",
 	},
 	{
+		value: "OPENROUTER",
+		label: "OpenRouter",
+		example: "anthropic/claude-opus-4.1, openai/gpt-5",
+		description: "API gateway and LLM marketplace that provides unified access ",
+	},
+	{
 		value: "CUSTOM",
 		label: "Custom Provider",
 		example: "your-custom-model",
