@@ -29,55 +29,70 @@ export type DocumentType =
 	| "GOOGLE_GMAIL_CONNECTOR"
 	| "AIRTABLE_CONNECTOR";
 
-export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
-	const [documents, setDocuments] = useState<Document[]>([]);
-	const [loading, setLoading] = useState(!lazy); // Don't show loading initially for lazy mode
-	const [error, setError] = useState<string | null>(null);
-	const [isLoaded, setIsLoaded] = useState(false); // Memoization flag
+export function useDocuments(
+    searchSpaceId: number,
+    optionsOrLazy?: boolean | { pageIndex?: number; pageSize?: number; lazy?: boolean }
+) {
+    const lazy = typeof optionsOrLazy === "boolean" ? optionsOrLazy : optionsOrLazy?.lazy ?? false;
+    const pageIndex = typeof optionsOrLazy === "object" && optionsOrLazy?.pageIndex !== undefined ? optionsOrLazy.pageIndex : 0;
+    const pageSize = typeof optionsOrLazy === "object" && optionsOrLazy?.pageSize !== undefined ? optionsOrLazy.pageSize : 50;
 
-	const fetchDocuments = useCallback(async () => {
-		if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
+    const [documents, setDocuments] = useState<Document[]>([]);
+    const [loading, setLoading] = useState(!lazy);
+    const [error, setError] = useState<string | null>(null);
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
 
-		try {
-			setLoading(true);
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
-			);
+    const fetchDocuments = useCallback(async (override?: { pageIndex?: number; pageSize?: number }) => {
+        if (isLoaded && lazy && !override) return;
 
-			if (!response.ok) {
-				toast.error("Failed to fetch documents");
-				throw new Error("Failed to fetch documents");
-			}
+        const effectivePageIndex = override?.pageIndex ?? pageIndex;
+        const effectivePageSize = override?.pageSize ?? pageSize;
+        const skip = effectivePageIndex * effectivePageSize;
+        const limit = effectivePageSize;
 
-			const data = await response.json();
-			setDocuments(data);
-			setError(null);
-			setIsLoaded(true);
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch documents");
-			console.error("Error fetching documents:", err);
-		} finally {
-			setLoading(false);
-		}
-	}, [searchSpaceId, isLoaded, lazy]);
+        try {
+            setLoading(true);
+            const url = new URL(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`);
+            if (searchSpaceId) url.searchParams.set("search_space_id", String(searchSpaceId));
+            url.searchParams.set("skip", String(skip));
+            url.searchParams.set("limit", String(limit));
 
-	useEffect(() => {
-		if (!lazy && searchSpaceId) {
-			fetchDocuments();
-		}
-	}, [searchSpaceId, lazy, fetchDocuments]);
+            const response = await fetch(url.toString(), {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+                },
+                method: "GET",
+            });
 
-	// Function to refresh the documents list
-	const refreshDocuments = useCallback(async () => {
-		setIsLoaded(false); // Reset memoization flag to allow refetch
-		await fetchDocuments();
-	}, [fetchDocuments]);
+            if (!response.ok) {
+                toast.error("Failed to fetch documents");
+                throw new Error("Failed to fetch documents");
+            }
+
+            const data = await response.json();
+            setDocuments(data);
+            setHasMore(Array.isArray(data) && data.length === effectivePageSize);
+            setError(null);
+            setIsLoaded(true);
+        } catch (err: any) {
+            setError(err.message || "Failed to fetch documents");
+            console.error("Error fetching documents:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [searchSpaceId, isLoaded, lazy, pageIndex, pageSize]);
+
+    useEffect(() => {
+        if (!lazy && searchSpaceId !== undefined && searchSpaceId !== null) {
+            fetchDocuments();
+        }
+    }, [searchSpaceId, lazy, fetchDocuments, pageIndex, pageSize]);
+
+    const refreshDocuments = useCallback(async (override?: { pageIndex?: number; pageSize?: number }) => {
+        setIsLoaded(false);
+        await fetchDocuments(override);
+    }, [fetchDocuments]);
 
 	// Function to delete a document
 	const deleteDocument = useCallback(
@@ -118,6 +133,9 @@ export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
 		isLoaded,
 		fetchDocuments, // Manual fetch function for lazy mode
 		refreshDocuments,
-		deleteDocument,
+        deleteDocument,
+        hasMore,
+        pageIndex,
+        pageSize,
 	};
 }

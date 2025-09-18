@@ -26,8 +26,11 @@ export default function DocumentsTable() {
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const { documents, loading, error, refreshDocuments, deleteDocument } =
-		useDocuments(searchSpaceId);
+    const [pageIndex, setPageIndex] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
+
+    const { documents, loading, error, refreshDocuments, deleteDocument, hasMore } =
+        useDocuments(searchSpaceId, { pageIndex, pageSize });
 
 	const [data, setData] = useState<Document[]>([]);
 	const [search, setSearch] = useState("");
@@ -39,8 +42,7 @@ export default function DocumentsTable() {
 		content: true,
 		created_at: true,
 	});
-	const [pageIndex, setPageIndex] = useState(0);
-	const [pageSize, setPageSize] = useState(10);
+    // pageIndex/pageSize state moved above to feed the hook
 	const [sortKey, setSortKey] = useState<SortKey>("title");
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -61,10 +63,11 @@ export default function DocumentsTable() {
 		return result;
 	}, [data, debouncedSearch, activeTypes]);
 
-	const total = filtered.length;
-	const pageStart = pageIndex * pageSize;
-	const pageEnd = Math.min(pageStart + pageSize, total);
-	const pageDocs = filtered.slice(pageStart, pageEnd);
+    // Server-side pagination: we filter only the current page's data client-side
+    const pageDocs = filtered;
+    const total = pageIndex * pageSize + pageDocs.length + (hasMore ? 1 : 0) - 1;
+    const pageStart = pageIndex * pageSize;
+    const pageEnd = pageStart + pageDocs.length;
 
 	const onToggleType = (type: string, checked: boolean) => {
 		setActiveTypes((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
@@ -151,16 +154,32 @@ export default function DocumentsTable() {
 				pageIndex={pageIndex}
 				pageSize={pageSize}
 				total={total}
-				onPageSizeChange={(s) => {
-					setPageSize(s);
-					setPageIndex(0);
-				}}
-				onFirst={() => setPageIndex(0)}
-				onPrev={() => setPageIndex((i) => Math.max(0, i - 1))}
-				onNext={() => setPageIndex((i) => (pageEnd < total ? i + 1 : i))}
-				onLast={() => setPageIndex(Math.max(0, Math.ceil(total / pageSize) - 1))}
-				canPrev={pageIndex > 0}
-				canNext={pageEnd < total}
+                onPageSizeChange={async (s) => {
+                    setPageIndex(0);
+                    setPageSize(s);
+                    await refreshDocuments?.({ pageIndex: 0, pageSize: s });
+                }}
+                onFirst={async () => {
+                    setPageIndex(0);
+                    await refreshDocuments?.({ pageIndex: 0, pageSize });
+                }}
+                onPrev={async () => {
+                    const next = Math.max(0, pageIndex - 1);
+                    if (next !== pageIndex) {
+                        setPageIndex(next);
+                        await refreshDocuments?.({ pageIndex: next, pageSize });
+                    }
+                }}
+                onNext={async () => {
+                    if (hasMore) {
+                        const next = pageIndex + 1;
+                        setPageIndex(next);
+                        await refreshDocuments?.({ pageIndex: next, pageSize });
+                    }
+                }}
+                onLast={() => {}}
+                canPrev={pageIndex > 0}
+                canNext={hasMore}
 				id={id}
 			/>
 		</motion.div>
