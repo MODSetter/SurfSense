@@ -42,17 +42,21 @@ export function LocalLoginForm() {
 			const data = await response.json();
 
 			if (!response.ok) {
-				throw new Error(data.detail || "Failed to login");
+				// 👇 Instead of generic error, show backend’s message
+				setError(data.detail || "Wrong username or password");
+				return;
 			}
 
 			router.push(`/auth/callback?token=${data.access_token}`);
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : "An error occurred during login";
+			const errorMessage =
+				err instanceof Error ? err.message : "An error occurred during login";
 			setError(errorMessage);
 		} finally {
 			setIsLoading(false);
 		}
 	};
+
 
 	return (
 		<div className="w-full max-w-md">

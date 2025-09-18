@@ -88,9 +88,15 @@ class CustomBearerTransport(BearerTransport):
         else:
             return JSONResponse(model_dump(bearer_response))
 
+    async def get_login_failure_response(self) -> Response:
+        # 👇 This is the new part — gives a clear message instead of raw error code
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Wrong username or password"},
+        )
+
 
 bearer_transport = CustomBearerTransport(tokenUrl="auth/jwt/login")
-
 
 auth_backend = AuthenticationBackend(
     name="jwt",
