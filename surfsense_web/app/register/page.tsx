@@ -1,12 +1,12 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { getAuthErrorDetails, shouldRetry, isNetworkError } from "@/lib/auth-errors";
 import { Logo } from "@/components/Logo";
+import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { AmbientBackground } from "../login/AmbientBackground";
 
 export default function RegisterPage() {
@@ -79,31 +79,30 @@ export default function RegisterPage() {
 			setTimeout(() => {
 				router.push("/login?registered=true");
 			}, 500);
-
 		} catch (err) {
 			// Use auth-errors utility to get proper error details
 			let errorCode = "UNKNOWN_ERROR";
-			
+
 			if (err instanceof Error) {
 				errorCode = err.message;
 			} else if (isNetworkError(err)) {
 				errorCode = "NETWORK_ERROR";
 			}
-			
+
 			// Get detailed error information from auth-errors utility
 			const errorDetails = getAuthErrorDetails(errorCode);
-			
+
 			// Set persistent error display
 			setErrorTitle(errorDetails.title);
 			setError(errorDetails.description);
-			
+
 			// Show error toast with conditional retry action
 			const toastOptions: any = {
 				id: loadingToast,
 				description: errorDetails.description,
 				duration: 6000,
 			};
-			
+
 			// Add retry action if the error is retryable
 			if (shouldRetry(errorCode)) {
 				toastOptions.action = {
@@ -111,7 +110,7 @@ export default function RegisterPage() {
 					onClick: () => handleSubmit(e),
 				};
 			}
-			
+
 			toast.error(errorDetails.title, toastOptions);
 		} finally {
 			setIsLoading(false);
@@ -159,9 +158,7 @@ export default function RegisterPage() {
 										</svg>
 										<div className="flex-1 min-w-0">
 											<p className="text-sm font-semibold mb-1">{errorTitle}</p>
-											<p className="text-sm text-red-700 dark:text-red-300">
-												{error}
-											</p>
+											<p className="text-sm text-red-700 dark:text-red-300">{error}</p>
 										</div>
 										<button
 											onClick={() => {

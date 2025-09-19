@@ -157,7 +157,7 @@ async def create_documents_file_upload(
 @router.get("/documents/", response_model=list[DocumentRead])
 async def read_documents(
     skip: int = 0,
-    limit: int = 3000,
+    limit: int = 300,
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),

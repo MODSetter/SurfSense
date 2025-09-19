@@ -1,12 +1,12 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { Logo } from "@/components/Logo";
+import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { AmbientBackground } from "./AmbientBackground";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 import { LocalLoginForm } from "./LocalLoginForm";
@@ -44,14 +44,14 @@ function LoginContent() {
 		if (error) {
 			// Use the auth-errors utility to get proper error details
 			const errorDetails = getAuthErrorDetails(error);
-			
+
 			// If we have a custom message from URL params, use it as description
 			const errorDescription = message ? decodeURIComponent(message) : errorDetails.description;
-			
+
 			// Set persistent error display
 			setUrlError({
 				title: errorDetails.title,
-				message: errorDescription
+				message: errorDescription,
 			});
 
 			// Show toast with conditional retry action
@@ -59,7 +59,7 @@ function LoginContent() {
 				description: errorDescription,
 				duration: 6000,
 			};
-			
+
 			// Add retry action if the error is retryable
 			if (shouldRetry(error)) {
 				toastOptions.action = {
@@ -67,7 +67,7 @@ function LoginContent() {
 					onClick: () => window.location.reload(),
 				};
 			}
-			
+
 			toast.error(errorDetails.title, toastOptions);
 		}
 
@@ -143,9 +143,7 @@ function LoginContent() {
 								</svg>
 								<div className="flex-1 min-w-0">
 									<p className="text-sm font-semibold mb-1">{urlError.title}</p>
-									<p className="text-sm text-red-700 dark:text-red-300">
-										{urlError.message}
-									</p>
+									<p className="text-sm text-red-700 dark:text-red-300">{urlError.message}</p>
 								</div>
 								<button
 									onClick={() => setUrlError(null)}
