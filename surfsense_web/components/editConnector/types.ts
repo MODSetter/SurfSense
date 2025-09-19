@@ -11,6 +11,10 @@ export interface GithubRepo {
 	last_updated: string | null;
 }
 
+export interface TrelloBoard {
+	id: string;
+	name: string;
+}
 export type EditMode = "viewing" | "editing_repos";
 
 // Schemas
@@ -43,5 +47,7 @@ export const editConnectorSchema = z.object({
 	GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
 	GOOGLE_CALENDAR_REFRESH_TOKEN: z.string().optional(),
 	GOOGLE_CALENDAR_CALENDAR_IDS: z.string().optional(),
+	TRELLO_API_KEY: z.string().optional(),
+	TRELLO_API_TOKEN: z.string().optional(),
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>;

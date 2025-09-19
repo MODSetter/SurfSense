@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.connectors.github_connector import GitHubConnector
+from app.connectors.trello_connector import TrelloConnector
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -48,6 +49,7 @@ from app.tasks.connector_indexers import (
     index_notion_pages,
     index_slack_messages,
 )
+from app.tasks.connector_indexers.trello_indexer import index_trello_boards
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 
@@ -61,6 +63,9 @@ router = APIRouter()
 class GitHubPATRequest(BaseModel):
     github_pat: str = Field(..., description="GitHub Personal Access Token")
 
+class TrelloCredentialsRequest(BaseModel):
+    trello_api_key: str = Field(..., description="Trello API Key")
+    trello_api_token: str = Field(..., description="Trello API Token")
 
 # --- New Endpoint to list GitHub Repositories ---
 @router.post("/github/repositories/", response_model=list[dict[str, Any]])
@@ -88,6 +93,29 @@ async def list_github_repositories(
             status_code=500, detail="Failed to fetch GitHub repositories."
         ) from e
 
+@router.post("/trello/boards/", response_model=list[dict[str, Any]])
+async def list_trello_boards(
+    credentials: TrelloCredentialsRequest,
+    user: User = Depends(current_active_user),
+):
+    """
+    Fetches a list of Trello boards accessible by the provided API key and token.
+    The credentials are used for this request only and are not stored.
+    """
+    try:
+        trello_client = TrelloConnector(
+            api_key=credentials.trello_api_key, token=credentials.trello_api_token
+        )
+        boards = trello_client.get_user_boards()
+        return boards
+    except ValueError as e:
+        logger.error(f"Trello credentials validation failed for user {user.id}: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Invalid Trello credentials: {e!s}") from e
+    except Exception as e:
+        logger.error(f"Failed to fetch Trello boards for user {user.id}: {e!s}")
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch Trello boards."
+        ) from e
 
 @router.post("/search-source-connectors/", response_model=SearchSourceConnectorRead)
 async def create_search_source_connector(
@@ -555,6 +583,22 @@ async def index_connector_content(
             )
             response_message = "Discord indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.TRELLO_CONNECTOR:
+            # Run indexing in background
+            logger.info(
+                f"Triggering Trello indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            background_tasks.add_task(
+                run_trello_indexing_with_new_session,
+                connector_id,
+                search_space_id,
+                str(user.id),
+                indexing_from,
+                indexing_to,
+            )
+            response_message = "Trello indexing started in the background."
+
+
         else:
             raise HTTPException(
                 status_code=400,
@@ -579,6 +623,59 @@ async def index_connector_content(
             status_code=500, detail=f"Failed to initiate indexing: {e!s}"
         ) from e
 
+async def run_trello_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Wrapper to run Trello indexing with its own database session."""
+    logger.info(
+        f"Background task started: Indexing Trello connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+    )
+    async with async_session_maker() as session:
+        await run_trello_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+    logger.info(f"Background task finished: Indexing Trello connector {connector_id}")
+
+
+async def run_trello_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Runs the Trello indexing task and updates the timestamp."""
+    try:
+        indexed_count, error_message = await index_trello_boards(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            start_date,
+            end_date,
+            update_last_indexed=False,
+        )
+        if error_message:
+            logger.error(
+                f"Trello indexing failed for connector {connector_id}: {error_message}"
+            )
+        else:
+            logger.info(
+                f"Trello indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+            )
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()
+    except Exception as e:
+        await session.rollback()
+        logger.error(
+            f"Critical error in run_trello_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
 
 async def update_connector_last_indexed(session: AsyncSession, connector_id: int):
     """

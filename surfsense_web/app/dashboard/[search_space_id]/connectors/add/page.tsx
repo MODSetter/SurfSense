@@ -5,6 +5,7 @@ import {
 	IconBrandZoom,
 	IconChevronDown,
 	IconChevronRight,
+	IconBrandTrello,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import Link from "next/link";
@@ -118,6 +119,13 @@ const connectorCategories: ConnectorCategory[] = [
 				description: "Connect to your Notion workspace to access pages and databases.",
 				icon: getConnectorIcon(EnumConnectorName.NOTION_CONNECTOR, "h-6 w-6"),
 				status: "available",
+			},
+			{
+			id: "trello-connector",
+			title: "Trello",
+			description: "Connect to Trello to search cards, comments and project data.",
+			icon: <IconBrandTrello className="h-6 w-6" />,
+			status: "available",
 			},
 			{
 				id: "github-connector",
