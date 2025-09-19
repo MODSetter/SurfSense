@@ -40,10 +40,10 @@ const DocumentSelector = React.memo(
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
-		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(
-			Number(search_space_id),
-			true
-		);
+		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(Number(search_space_id), {
+			lazy: true,
+			pageSize: 50,
+		});
 
 		const handleOpenChange = useCallback(
 			(open: boolean) => {

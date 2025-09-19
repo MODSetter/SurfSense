@@ -1,14 +1,11 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -44,7 +41,7 @@ export default function GoogleCalendarConnectorPage() {
 				setDoesConnectorExist(true);
 			}
 		});
-	}, []);
+	}, [fetchConnectors]);
 
 	// Handle Google OAuth connection
 	const handleConnectGoogle = async () => {

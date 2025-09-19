@@ -81,7 +81,7 @@ export default function YouTubeVideoAdder() {
 					body: JSON.stringify({
 						document_type: "YOUTUBE_VIDEO",
 						content: videoUrls,
-						search_space_id: parseInt(search_space_id),
+						search_space_id: parseInt(search_space_id, 10),
 					}),
 				}
 			);

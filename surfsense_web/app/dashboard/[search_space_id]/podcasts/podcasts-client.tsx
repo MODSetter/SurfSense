@@ -175,7 +175,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 		}
 
 		// Filter by search space
-		result = result.filter((podcast) => podcast.search_space_id === parseInt(searchSpaceId));
+		result = result.filter((podcast) => podcast.search_space_id === parseInt(searchSpaceId, 10));
 
 		// Sort podcasts
 		result.sort((a, b) => {

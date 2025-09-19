@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, ExternalLink, FileText, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { MarkdownViewer } from "@/components/markdown-viewer";

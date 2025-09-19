@@ -79,7 +79,7 @@ export function useLLMConfigs() {
 
 	useEffect(() => {
 		fetchLLMConfigs();
-	}, []);
+	}, [fetchLLMConfigs]);
 
 	const createLLMConfig = async (config: CreateLLMConfig): Promise<LLMConfig | null> => {
 		try {
@@ -216,7 +216,7 @@ export function useLLMPreferences() {
 
 	useEffect(() => {
 		fetchPreferences();
-	}, []);
+	}, [fetchPreferences]);
 
 	const updatePreferences = async (newPreferences: Partial<LLMPreferences>): Promise<boolean> => {
 		try {

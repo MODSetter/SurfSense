@@ -206,14 +206,14 @@ export function DocumentsDataTable({
 		if (hasChanges && Object.keys(initialRowSelection).length > 0) {
 			setRowSelection(initialRowSelection);
 		}
-	}, [initialRowSelection]);
+	}, [initialRowSelection, rowSelection]);
 
 	// Initialize row selection on mount
 	useEffect(() => {
 		if (Object.keys(rowSelection).length === 0 && Object.keys(initialRowSelection).length > 0) {
 			setRowSelection(initialRowSelection);
 		}
-	}, []);
+	}, [initialRowSelection, rowSelection]);
 
 	const filteredDocuments = useMemo(() => {
 		if (documentTypeFilter === "ALL") return documents;
@@ -240,7 +240,7 @@ export function DocumentsDataTable({
 		const selectedRows = table.getFilteredSelectedRowModel().rows;
 		const selectedDocuments = selectedRows.map((row) => row.original);
 		onSelectionChange(selectedDocuments);
-	}, [rowSelection, onSelectionChange, table]);
+	}, [onSelectionChange, table]);
 
 	const handleClearAll = () => setRowSelection({});
 

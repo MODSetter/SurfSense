@@ -54,7 +54,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 	const [error, setError] = useState<string | null>(null);
 
 	// Memoize filters to prevent infinite re-renders
-	const memoizedFilters = useMemo(() => filters, [JSON.stringify(filters)]);
+	const memoizedFilters = useMemo(() => filters, [filters]);
 
 	const buildQueryParams = useCallback(
 		(customFilters: LogFilters = {}) => {

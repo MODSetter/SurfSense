@@ -15,7 +15,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,7 @@ const MotionCard = motion(Card);
 
 export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps) {
 	const router = useRouter();
+	const podcastTitleId = useId();
 	const [chats, setChats] = useState<Chat[]>([]);
 	const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -280,7 +281,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 			const payload = {
 				type: "CHAT",
 				ids: [currentChatId], // Single chat ID
-				search_space_id: parseInt(searchSpaceId),
+				search_space_id: parseInt(searchSpaceId, 10),
 				podcast_title: currentTitle,
 			};
 
@@ -830,9 +831,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 
 					<div className="space-y-4 py-2">
 						<div className="space-y-2">
-							<Label htmlFor="podcast-title">Podcast Title</Label>
+							<Label htmlFor={podcastTitleId}>Podcast Title</Label>
 							<Input
-								id="podcast-title"
+								id={podcastTitleId}
 								placeholder="Enter podcast title"
 								value={podcastTitle}
 								onChange={(e) => updateCurrentChatTitle(e.target.value)}

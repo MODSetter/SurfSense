@@ -9,7 +9,7 @@ export default function SearchSpaceDashboardPage() {
 
 	useEffect(() => {
 		router.push(`/dashboard/${search_space_id}/chats`);
-	}, []);
+	}, [router.push, search_space_id]);
 
 	return <></>;
 }

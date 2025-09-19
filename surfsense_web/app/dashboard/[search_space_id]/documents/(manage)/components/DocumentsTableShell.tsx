@@ -76,8 +76,15 @@ export function DocumentsTableShell({
 
 	const toggleAll = (checked: boolean) => {
 		const next = new Set(selectedIds);
-		if (checked) sorted.forEach((d) => next.add(d.id));
-		else sorted.forEach((d) => next.delete(d.id));
+		if (checked) {
+			sorted.forEach((d) => {
+				next.add(d.id);
+			});
+		} else {
+			sorted.forEach((d) => {
+				next.delete(d.id);
+			});
+		}
 		setSelectedIds(next);
 	};
 

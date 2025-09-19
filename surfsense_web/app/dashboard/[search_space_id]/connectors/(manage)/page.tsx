@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { Calendar as CalendarIcon, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import {
 	AlertDialog,
@@ -63,6 +63,8 @@ export default function ConnectorsPage() {
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const today = new Date();
+	const startDateId = useId();
+	const endDateId = useId();
 
 	const { connectors, isLoading, error, deleteConnector, indexConnector } =
 		useSearchSourceConnectors();
@@ -346,11 +348,11 @@ export default function ConnectorsPage() {
 					<div className="grid gap-4 py-4">
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<Label htmlFor="start-date">Start Date</Label>
+								<Label htmlFor={startDateId}>Start Date</Label>
 								<Popover>
 									<PopoverTrigger asChild>
 										<Button
-											id="start-date"
+											id={startDateId}
 											variant="outline"
 											className={cn(
 												"w-full justify-start text-left font-normal",
@@ -373,11 +375,11 @@ export default function ConnectorsPage() {
 								</Popover>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="end-date">End Date</Label>
+								<Label htmlFor={endDateId}>End Date</Label>
 								<Popover>
 									<PopoverTrigger asChild>
 										<Button
-											id="end-date"
+											id={endDateId}
 											variant="outline"
 											className={cn(
 												"w-full justify-start text-left font-normal",

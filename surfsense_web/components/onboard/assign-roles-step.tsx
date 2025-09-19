@@ -65,7 +65,7 @@ export function AssignRolesStep({ onPreferencesUpdated }: AssignRolesStepProps) 
 	const handleRoleAssignment = async (role: string, configId: string) => {
 		const newAssignments = {
 			...assignments,
-			[role]: configId === "" ? "" : parseInt(configId),
+			[role]: configId === "" ? "" : parseInt(configId, 10),
 		};
 
 		setAssignments(newAssignments);
@@ -80,15 +80,15 @@ export function AssignRolesStep({ onPreferencesUpdated }: AssignRolesStepProps) 
 			const numericAssignments = {
 				long_context_llm_id:
 					typeof newAssignments.long_context_llm_id === "string"
-						? parseInt(newAssignments.long_context_llm_id)
+						? parseInt(newAssignments.long_context_llm_id, 10)
 						: newAssignments.long_context_llm_id,
 				fast_llm_id:
 					typeof newAssignments.fast_llm_id === "string"
-						? parseInt(newAssignments.fast_llm_id)
+						? parseInt(newAssignments.fast_llm_id, 10)
 						: newAssignments.fast_llm_id,
 				strategic_llm_id:
 					typeof newAssignments.strategic_llm_id === "string"
-						? parseInt(newAssignments.strategic_llm_id)
+						? parseInt(newAssignments.strategic_llm_id, 10)
 						: newAssignments.strategic_llm_id,
 			};
 

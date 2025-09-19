@@ -72,7 +72,7 @@ export default function WebpageCrawler() {
 					body: JSON.stringify({
 						document_type: "CRAWLED_URL",
 						content: urls,
-						search_space_id: parseInt(search_space_id),
+						search_space_id: parseInt(search_space_id, 10),
 					}),
 				}
 			);

@@ -41,7 +41,7 @@ export default function AirtableConnectorPage() {
 				setDoesConnectorExist(true);
 			}
 		});
-	}, []);
+	}, [fetchConnectors]);
 
 	const handleConnectAirtable = async () => {
 		setIsConnecting(true);

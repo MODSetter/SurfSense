@@ -101,7 +101,7 @@ export default function ResearcherPage() {
 
 	const customHandlerAppend = async (
 		message: Message | CreateMessage,
-		chatRequestOptions?: { data?: any }
+		_chatRequestOptions?: { data?: any }
 	) => {
 		const newChatId = await createChat(message.content, researchMode, selectedConnectors);
 		if (newChatId) {
@@ -122,7 +122,7 @@ export default function ResearcherPage() {
 			setIsLoading(true);
 			loadChatData(chatIdParam);
 		}
-	}, [token, isNewChat, chatIdParam]);
+	}, [token, isNewChat, chatIdParam, loadChatData, setIsLoading]);
 
 	// Restore chat state from localStorage on page load
 	useEffect(() => {
@@ -142,6 +142,7 @@ export default function ResearcherPage() {
 		setSelectedConnectors,
 		setSearchMode,
 		setResearchMode,
+		restoreChatState,
 	]);
 
 	const loadChatData = async (chatId: string) => {
@@ -187,7 +188,15 @@ export default function ResearcherPage() {
 		) {
 			updateChat(chatIdParam, handler.messages, researchMode, selectedConnectors);
 		}
-	}, [handler.messages, handler.status, chatIdParam, isNewChat]);
+	}, [
+		handler.messages,
+		handler.status,
+		chatIdParam,
+		isNewChat,
+		researchMode,
+		selectedConnectors,
+		updateChat,
+	]);
 
 	if (isLoading) {
 		return (
