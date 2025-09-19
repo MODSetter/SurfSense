@@ -146,6 +146,7 @@ function LoginContent() {
 									<p className="text-sm text-red-700 dark:text-red-300">{urlError.message}</p>
 								</div>
 								<button
+									type="button"
 									onClick={() => setUrlError(null)}
 									className="flex-shrink-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors"
 									aria-label="Dismiss error"
