@@ -30,6 +30,7 @@ dependencies = [
     "playwright>=1.50.0",
     "python-ffmpeg>=2.0.12",
     "rerankers[flashrank]>=0.7.1",
+    "requests>=2.31.0",
     "sentence-transformers>=3.4.1",
     "slack-sdk>=3.34.0",
     "soundfile>=0.13.1",
@@ -47,6 +48,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ruff>=0.12.5",
+    "pytest>=7.4.0",
+
 ]
 
 [tool.ruff]
@@ -137,3 +140,6 @@ line-ending = "auto"
 known-first-party = ["app"]
 force-single-line = false
 combine-as-imports = true
+
+[tool.setuptools]
+packages = ["app", "alembic"]
