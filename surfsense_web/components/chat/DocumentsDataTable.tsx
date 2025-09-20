@@ -41,6 +41,11 @@ interface DocumentsDataTableProps {
 	onSelectionChange: (documents: Document[]) => void;
 	onDone: () => void;
 	initialSelectedDocuments?: Document[];
+	pageIndex?: number;
+	pageSize?: number;
+	onPageIndexChange?: (pageIndex: number) => void;
+	onPageSizeChange?: (pageSize: number) => void;
+	canNext?: boolean;
 }
 
 // Combine EnumConnectorName with additional document types
@@ -181,6 +186,11 @@ export function DocumentsDataTable({
 	onSelectionChange,
 	onDone,
 	initialSelectedDocuments = [],
+	pageIndex = 0,
+	pageSize = 100,
+	onPageIndexChange,
+	onPageSizeChange,
+	canNext = false,
 }: DocumentsDataTableProps) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -400,35 +410,33 @@ export function DocumentsDataTable({
 			{/* Footer Pagination */}
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs sm:text-sm text-muted-foreground border-t pt-3 md:pt-4 flex-shrink-0">
 				<div className="text-center sm:text-left">
-					Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}{" "}
-					to{" "}
-					{Math.min(
-						(table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-						table.getFilteredRowModel().rows.length
-					)}{" "}
-					of {table.getFilteredRowModel().rows.length} documents
+					Showing {pageIndex * pageSize + 1} to{" "}
+					{Math.min((pageIndex + 1) * pageSize, pageIndex * pageSize + documents.length)} of{" "}
+					{canNext
+						? `${(pageIndex + 1) * pageSize}+`
+						: `${pageIndex * pageSize + documents.length}`}{" "}
+					documents
 				</div>
 				<div className="flex items-center justify-center sm:justify-end space-x-2">
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => table.previousPage()}
-						disabled={!table.getCanPreviousPage()}
+						onClick={() => onPageIndexChange?.(pageIndex - 1)}
+						disabled={pageIndex === 0}
 						className="text-xs sm:text-sm"
 					>
 						Previous
 					</Button>
 					<div className="flex items-center space-x-1 text-xs sm:text-sm">
 						<span>Page</span>
-						<strong>{table.getState().pagination.pageIndex + 1}</strong>
-						<span>of</span>
-						<strong>{table.getPageCount()}</strong>
+						<strong>{pageIndex + 1}</strong>
+						{canNext && <span>+</span>}
 					</div>
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => table.nextPage()}
-						disabled={!table.getCanNextPage()}
+						onClick={() => onPageIndexChange?.(pageIndex + 1)}
+						disabled={!canNext}
 						className="text-xs sm:text-sm"
 					>
 						Next

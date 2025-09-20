@@ -26,10 +26,8 @@ export default function DocumentsTable() {
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const { documents, loading, error, refreshDocuments, deleteDocument } =
-		useDocuments(searchSpaceId);
-
-	const [data, setData] = useState<Document[]>([]);
+	const [pageIndex, setPageIndex] = useState(0);
+	const [pageSize, setPageSize] = useState(100); // Increased page size for better performance
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 250);
 	const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -39,16 +37,28 @@ export default function DocumentsTable() {
 		content: true,
 		created_at: true,
 	});
-	const [pageIndex, setPageIndex] = useState(0);
-	const [pageSize, setPageSize] = useState(10);
 	const [sortKey, setSortKey] = useState<SortKey>("title");
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+	// Calculate skip value for pagination
+	const skip = pageIndex * pageSize;
+
+	const { documents, loading, error, refreshDocuments, deleteDocument } = useDocuments(
+		searchSpaceId,
+		false,
+		skip,
+		pageSize
+	);
+
+	const [data, setData] = useState<Document[]>([]);
 
 	useEffect(() => {
 		if (documents) setData(documents as Document[]);
 	}, [documents]);
 
+	// For server-side pagination, we apply client-side filtering to the current page data
+	// Note: This is a simplified approach. For production, you might want to implement server-side filtering
 	const filtered = useMemo(() => {
 		let result = data;
 		if (debouncedSearch.trim()) {
@@ -61,15 +71,20 @@ export default function DocumentsTable() {
 		return result;
 	}, [data, debouncedSearch, activeTypes]);
 
-	const total = filtered.length;
-	const pageStart = pageIndex * pageSize;
-	const pageEnd = Math.min(pageStart + pageSize, total);
-	const pageDocs = filtered.slice(pageStart, pageEnd);
+	// For server-side pagination, we show the filtered results from current page
+	// Total count is estimated based on current page size (this could be improved with a count endpoint)
+	const pageDocs = filtered;
+	const total = pageSize * (pageIndex + 1); // Estimated total, could be improved with actual count
 
 	const onToggleType = (type: string, checked: boolean) => {
 		setActiveTypes((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
 		setPageIndex(0);
 	};
+
+	// Reset to first page when search changes
+	useEffect(() => {
+		setPageIndex(0);
+	}, [debouncedSearch]);
 
 	const onToggleColumn = (id: keyof ColumnVisibility, checked: boolean) => {
 		setColumnVisibility((prev) => ({ ...prev, [id]: checked }));
@@ -157,10 +172,10 @@ export default function DocumentsTable() {
 				}}
 				onFirst={() => setPageIndex(0)}
 				onPrev={() => setPageIndex((i) => Math.max(0, i - 1))}
-				onNext={() => setPageIndex((i) => (pageEnd < total ? i + 1 : i))}
+				onNext={() => setPageIndex((i) => i + 1)}
 				onLast={() => setPageIndex(Math.max(0, Math.ceil(total / pageSize) - 1))}
 				canPrev={pageIndex > 0}
-				canNext={pageEnd < total}
+				canNext={pageDocs.length === pageSize} // Show next if current page is full
 				id={id}
 			/>
 		</motion.div>
