@@ -39,10 +39,17 @@ const DocumentSelector = React.memo(
 	}) => {
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
+		const [pageIndex, setPageIndex] = useState(0);
+		const [pageSize, setPageSize] = useState(100); // Larger page size for document selector
+
+		// Calculate skip value for pagination
+		const skip = pageIndex * pageSize;
 
 		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(
 			Number(search_space_id),
-			true
+			true,
+			skip,
+			pageSize
 		);
 
 		const handleOpenChange = useCallback(
@@ -104,6 +111,14 @@ const DocumentSelector = React.memo(
 									onSelectionChange={handleSelectionChange}
 									onDone={handleDone}
 									initialSelectedDocuments={selectedDocuments}
+									pageIndex={pageIndex}
+									pageSize={pageSize}
+									onPageIndexChange={setPageIndex}
+									onPageSizeChange={(newSize) => {
+										setPageSize(newSize);
+										setPageIndex(0);
+									}}
+									canNext={documents.length === pageSize}
 								/>
 							) : null}
 						</div>

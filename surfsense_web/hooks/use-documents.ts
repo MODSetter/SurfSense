@@ -29,7 +29,12 @@ export type DocumentType =
 	| "GOOGLE_GMAIL_CONNECTOR"
 	| "AIRTABLE_CONNECTOR";
 
-export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
+export function useDocuments(
+	searchSpaceId: number,
+	lazy: boolean = false,
+	skip: number = 0,
+	limit: number = 300
+) {
 	const [documents, setDocuments] = useState<Document[]>([]);
 	const [loading, setLoading] = useState(!lazy); // Don't show loading initially for lazy mode
 	const [error, setError] = useState<string | null>(null);
@@ -41,7 +46,7 @@ export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
 		try {
 			setLoading(true);
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}&skip=${skip}&limit=${limit}`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
@@ -65,13 +70,13 @@ export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
 		} finally {
 			setLoading(false);
 		}
-	}, [searchSpaceId, isLoaded, lazy]);
+	}, [searchSpaceId, skip, limit, isLoaded, lazy]);
 
 	useEffect(() => {
 		if (!lazy && searchSpaceId) {
 			fetchDocuments();
 		}
-	}, [searchSpaceId, lazy, fetchDocuments]);
+	}, [searchSpaceId, skip, limit, lazy, fetchDocuments]);
 
 	// Function to refresh the documents list
 	const refreshDocuments = useCallback(async () => {
