@@ -41,10 +41,10 @@ export function useDocuments(
 	const [isLoaded, setIsLoaded] = useState(false); // Memoization flag
 
 	const fetchDocuments = useCallback(async () => {
-		if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
-
 		try {
 			setLoading(true);
+			setError(null);
+			
 			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}&skip=${skip}&limit=${limit}`,
 				{
@@ -56,21 +56,22 @@ export function useDocuments(
 			);
 
 			if (!response.ok) {
+				const errorText = await response.text();
 				toast.error("Failed to fetch documents");
-				throw new Error("Failed to fetch documents");
+				throw new Error(`Failed to fetch documents: ${response.status} ${errorText}`);
 			}
 
 			const data = await response.json();
-			setDocuments(data);
-			setError(null);
+			setDocuments(data || []);
 			setIsLoaded(true);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch documents");
 			console.error("Error fetching documents:", err);
+			setDocuments([]);
 		} finally {
 			setLoading(false);
 		}
-	}, [searchSpaceId, skip, limit, isLoaded, lazy]);
+	}, [searchSpaceId, skip, limit]);
 
 	useEffect(() => {
 		if (!lazy && searchSpaceId) {

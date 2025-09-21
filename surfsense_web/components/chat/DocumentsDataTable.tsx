@@ -66,14 +66,18 @@ const columns: ColumnDef<Document>[] = [
 				checked={
 					table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")
 				}
-				onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+				onCheckedChange={(value) => {
+					table.toggleAllPageRowsSelected(!!value);
+				}}
 				aria-label="Select all"
 			/>
 		),
 		cell: ({ row }) => (
 			<Checkbox
 				checked={row.getIsSelected()}
-				onCheckedChange={(value) => row.toggleSelected(!!value)}
+				onCheckedChange={(value) => {
+					row.toggleSelected(!!value);
+				}}
 				aria-label="Select row"
 			/>
 		),
@@ -203,27 +207,21 @@ export function DocumentsDataTable({
 
 		const selection: Record<string, boolean> = {};
 		initialSelectedDocuments.forEach((selectedDoc) => {
-			selection[selectedDoc.id] = true;
+			// Find the document in the current documents array to get the correct row ID
+			const docInCurrentList = documents.find(doc => doc.id === selectedDoc.id);
+			if (docInCurrentList) {
+				selection[docInCurrentList.id.toString()] = true;
+			}
 		});
 		return selection;
 	}, [documents, initialSelectedDocuments]);
 
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>(() => initialRowSelection);
 
-	// Only update row selection when initialRowSelection actually changes and is not empty
+	// Update row selection when initial selection changes
 	useEffect(() => {
-		const hasChanges = JSON.stringify(rowSelection) !== JSON.stringify(initialRowSelection);
-		if (hasChanges && Object.keys(initialRowSelection).length > 0) {
-			setRowSelection(initialRowSelection);
-		}
+		setRowSelection(initialRowSelection);
 	}, [initialRowSelection]);
-
-	// Initialize row selection on mount
-	useEffect(() => {
-		if (Object.keys(rowSelection).length === 0 && Object.keys(initialRowSelection).length > 0) {
-			setRowSelection(initialRowSelection);
-		}
-	}, []);
 
 	const filteredDocuments = useMemo(() => {
 		if (documentTypeFilter === "ALL") return documents;
@@ -237,12 +235,14 @@ export function DocumentsDataTable({
 		onSortingChange: setSorting,
 		onColumnFiltersChange: setColumnFilters,
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
 		onColumnVisibilityChange: setColumnVisibility,
 		onRowSelectionChange: setRowSelection,
-		initialState: { pagination: { pageSize: 10 } },
+		// Disable internal pagination since we're handling it at the parent level
+		manualPagination: true,
+		pageCount: -1,
+		enableRowSelection: true,
 		state: { sorting, columnFilters, columnVisibility, rowSelection },
 	});
 
@@ -250,7 +250,7 @@ export function DocumentsDataTable({
 		const selectedRows = table.getFilteredSelectedRowModel().rows;
 		const selectedDocuments = selectedRows.map((row) => row.original);
 		onSelectionChange(selectedDocuments);
-	}, [rowSelection, onSelectionChange, table]);
+	}, [rowSelection, table]);
 
 	const handleClearAll = () => setRowSelection({});
 
@@ -274,6 +274,7 @@ export function DocumentsDataTable({
 
 	const selectedCount = table.getFilteredSelectedRowModel().rows.length;
 	const totalFiltered = table.getFilteredRowModel().rows.length;
+
 
 	return (
 		<div className="flex flex-col h-full space-y-3 md:space-y-4">
