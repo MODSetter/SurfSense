@@ -39,11 +39,25 @@ const DocumentSelector = React.memo(
 	}) => {
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
+		const [pageIndex, setPageIndex] = useState(0);
+		const [pageSize, setPageSize] = useState(100); // Larger page size for document selector
 
-		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(
-			Number(search_space_id),
-			true
-		);
+		// Calculate skip value for pagination
+		const skip = pageIndex * pageSize;
+
+	const { documents, loading, isLoaded, fetchDocuments, error } = useDocuments(
+		Number(search_space_id),
+		true,
+		skip,
+		pageSize
+	);
+
+	// Refetch documents when pagination changes
+	useEffect(() => {
+		if (isOpen) {
+			fetchDocuments();
+		}
+	}, [skip, pageSize, isOpen, fetchDocuments]);
 
 		const handleOpenChange = useCallback(
 			(open: boolean) => {
@@ -98,12 +112,29 @@ const DocumentSelector = React.memo(
 										<p className="text-sm text-muted-foreground">Loading documents...</p>
 									</div>
 								</div>
+							) : error ? (
+								<div className="flex items-center justify-center h-full">
+									<div className="text-center space-y-2">
+										<p className="text-sm text-destructive">Error loading documents: {error}</p>
+										<Button onClick={fetchDocuments} variant="outline" size="sm">
+											Retry
+										</Button>
+									</div>
+								</div>
 							) : isLoaded ? (
 								<DocumentsDataTable
 									documents={documents}
 									onSelectionChange={handleSelectionChange}
 									onDone={handleDone}
 									initialSelectedDocuments={selectedDocuments}
+									pageIndex={pageIndex}
+									pageSize={pageSize}
+									onPageIndexChange={setPageIndex}
+									onPageSizeChange={(newSize) => {
+										setPageSize(newSize);
+										setPageIndex(0);
+									}}
+									canNext={documents.length === pageSize}
 								/>
 							) : null}
 						</div>

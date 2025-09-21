@@ -29,19 +29,24 @@ export type DocumentType =
 	| "GOOGLE_GMAIL_CONNECTOR"
 	| "AIRTABLE_CONNECTOR";
 
-export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
+export function useDocuments(
+	searchSpaceId: number,
+	lazy: boolean = false,
+	skip: number = 0,
+	limit: number = 300
+) {
 	const [documents, setDocuments] = useState<Document[]>([]);
 	const [loading, setLoading] = useState(!lazy); // Don't show loading initially for lazy mode
 	const [error, setError] = useState<string | null>(null);
 	const [isLoaded, setIsLoaded] = useState(false); // Memoization flag
 
 	const fetchDocuments = useCallback(async () => {
-		if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
-
 		try {
 			setLoading(true);
+			setError(null);
+			
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?search_space_id=${searchSpaceId}&skip=${skip}&limit=${limit}`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
@@ -51,27 +56,28 @@ export function useDocuments(searchSpaceId: number, lazy: boolean = false) {
 			);
 
 			if (!response.ok) {
+				const errorText = await response.text();
 				toast.error("Failed to fetch documents");
-				throw new Error("Failed to fetch documents");
+				throw new Error(`Failed to fetch documents: ${response.status} ${errorText}`);
 			}
 
 			const data = await response.json();
-			setDocuments(data);
-			setError(null);
+			setDocuments(data || []);
 			setIsLoaded(true);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch documents");
 			console.error("Error fetching documents:", err);
+			setDocuments([]);
 		} finally {
 			setLoading(false);
 		}
-	}, [searchSpaceId, isLoaded, lazy]);
+	}, [searchSpaceId, skip, limit]);
 
 	useEffect(() => {
 		if (!lazy && searchSpaceId) {
 			fetchDocuments();
 		}
-	}, [searchSpaceId, lazy, fetchDocuments]);
+	}, [searchSpaceId, skip, limit, lazy, fetchDocuments]);
 
 	// Function to refresh the documents list
 	const refreshDocuments = useCallback(async () => {
