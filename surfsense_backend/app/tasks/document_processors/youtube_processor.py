@@ -136,7 +136,8 @@ async def add_youtube_video_document(
         )
 
         try:
-            captions = YouTubeTranscriptApi.get_transcript(video_id)
+            ytt_api = YouTubeTranscriptApi()
+            captions = ytt_api.fetch(video_id)
             # Include complete caption information with timestamps
             transcript_segments = []
             for line in captions:
