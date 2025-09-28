@@ -15,6 +15,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
 		GOOGLE_GMAIL_CONNECTOR: "Google Gmail",
 		AIRTABLE_CONNECTOR: "Airtable",
+		LUMA_CONNECTOR: "Luma"
 	};
 	return typeMap[type] || type;
 };

@@ -52,6 +52,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			JIRA_BASE_URL: "",
 			JIRA_EMAIL: "",
 			JIRA_API_TOKEN: "",
+			LUMA_API_KEY: ""
 		},
 	});
 
@@ -78,6 +79,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					JIRA_BASE_URL: config.JIRA_BASE_URL || "",
 					JIRA_EMAIL: config.JIRA_EMAIL || "",
 					JIRA_API_TOKEN: config.JIRA_API_TOKEN || "",
+					LUMA_API_KEY: config.LUMA_API_KEY || ""
 				});
 				if (currentConnector.connector_type === "GITHUB_CONNECTOR") {
 					const savedRepos = config.repo_full_names || [];
@@ -303,6 +305,16 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						};
 					}
 					break;
+				case "LUMA_CONNECTOR":
+					if (formData.LUMA_API_KEY !== originalConfig.LUMA_API_KEY) {
+						if (!formData.LUMA_API_KEY) {
+							toast.error("Luma API Key cannot be empty.");
+							setIsSaving(false);
+							return;
+						}
+						newConfig = { LUMA_API_KEY: formData.LUMA_API_KEY};
+					}
+					break;
 			}
 
 			if (newConfig !== null) {
@@ -365,6 +377,8 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						editForm.setValue("JIRA_BASE_URL", newlySavedConfig.JIRA_BASE_URL || "");
 						editForm.setValue("JIRA_EMAIL", newlySavedConfig.JIRA_EMAIL || "");
 						editForm.setValue("JIRA_API_TOKEN", newlySavedConfig.JIRA_API_TOKEN || "");
+					} else if (connector.connector_type == "LUMA_CONNECTOR") {
+						editForm.setValue("LUMA_API_KEY", newlySavedConfig.LUMA_API_KEY || "");
 					}
 				}
 				if (connector.connector_type === "GITHUB_CONNECTOR") {

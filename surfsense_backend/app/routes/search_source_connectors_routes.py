@@ -7,7 +7,7 @@ PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
 POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
 
-Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR, GITHUB_CONNECTOR, LINEAR_CONNECTOR, DISCORD_CONNECTOR).
+Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR, GITHUB_CONNECTOR, LINEAR_CONNECTOR, DISCORD_CONNECTOR, LUMA_CONNECTOR).
 """
 
 import logging
@@ -47,6 +47,7 @@ from app.tasks.connector_indexers import (
     index_linear_issues,
     index_notion_pages,
     index_slack_messages,
+    index_luma_events
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
@@ -344,6 +345,7 @@ async def index_connector_content(
     - LINEAR_CONNECTOR: Indexes issues and comments from Linear
     - JIRA_CONNECTOR: Indexes issues and comments from Jira
     - DISCORD_CONNECTOR: Indexes messages from all accessible Discord channels
+    - LUMA_CONNECTOR: Indexes events from Luma
 
     Args:
         connector_id: ID of the connector to use
@@ -554,6 +556,21 @@ async def index_connector_content(
                 indexing_to,
             )
             response_message = "Discord indexing started in the background."
+
+        elif connector.connector_type == SearchSourceConnectorType.LUMA_CONNECTOR:
+            # Run indexing in background
+            logger.info(
+                f"Triggering Luma indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            background_tasks.add_task(
+                run_luma_indexing_with_new_session,
+                connector_id,
+                search_space_id,
+                str(user.id),
+                indexing_from,
+                indexing_to,
+            )
+            response_message = "Luma indexing started in the background."
 
         else:
             raise HTTPException(
@@ -1262,3 +1279,63 @@ async def run_google_gmail_indexing(
             exc_info=True,
         )
         # Optionally update status in DB to indicate failure
+
+# Add new helper functions for luma indexing
+async def run_luma_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Create a new session and run the Luma indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    async with async_session_maker() as session:
+        await run_luma_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+async def run_luma_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Background task to run Luma indexing.
+    Args:
+        session: Database session
+        connector_id: ID of the Luma connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    try:
+        # Index Luma events without updating last_indexed_at (we'll do it separately)
+        documents_processed, error_or_warning = await index_luma_events(
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            update_last_indexed=False,  # Don't update timestamp in the indexing function
+        )
+
+        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
+        if documents_processed > 0:
+            await update_connector_last_indexed(session, connector_id)
+            logger.info(
+                f"Luma indexing completed successfully: {documents_processed} documents processed"
+            )
+        else:
+            logger.error(
+                f"Luma indexing failed or no documents processed: {error_or_warning}"
+            )
+    except Exception as e:
+        logger.error(f"Error in background Luma indexing task: {e!s}")
