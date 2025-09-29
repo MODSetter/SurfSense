@@ -87,7 +87,7 @@ export function DashboardBreadcrumb() {
 								"tavily-api": "Tavily API",
 								"serper-api": "Serper API",
 								"linkup-api": "LinkUp API",
-								"luma-connector": "Luma"
+								"luma-connector": "Luma",
 							};
 
 							const connectorLabel = connectorLabels[connectorType] || connectorType;
