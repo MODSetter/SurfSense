@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import config
 from app.connectors.airtable_connector import AirtableConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
+from app.routes.airtable_add_connector_route import refresh_airtable_token
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
@@ -102,7 +103,10 @@ async def index_airtable_records(
                 "Credentials expired",
                 {"error_type": "ExpiredCredentials"},
             )
-            return 0, "Airtable credentials have expired. Please re-authenticate."
+
+            connector = await refresh_airtable_token(session, connector)
+
+            # return 0, "Airtable credentials have expired. Please re-authenticate."
 
         # Calculate date range for indexing
         start_date_str, end_date_str = calculate_date_range(
