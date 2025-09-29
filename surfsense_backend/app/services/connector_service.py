@@ -1852,3 +1852,164 @@ class ConnectorService:
         }
 
         return result_object, discord_chunks
+
+    async def search_luma(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for Luma events and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            luma_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="LUMA_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            luma_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="LUMA_CONNECTOR",
+            )
+            # Transform document retriever results to match expected format
+            luma_chunks = self._transform_document_results(luma_chunks)
+
+        # Early return if no results
+        if not luma_chunks:
+            return {
+                "id": 33,
+                "name": "Luma Events",
+                "type": "LUMA_CONNECTOR",
+                "sources": [],
+            }, []
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(luma_chunks):
+                # Extract document metadata
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                # Extract Luma-specific metadata
+                event_id = metadata.get("event_id", "")
+                event_name = metadata.get("event_name", "Untitled Event")
+                event_url = metadata.get("event_url", "")
+                start_time = metadata.get("start_time", "")
+                end_time = metadata.get("end_time", "")
+                location_name = metadata.get("location_name", "")
+                location_address = metadata.get("location_address", "")
+                meeting_url = metadata.get("meeting_url", "")
+                timezone = metadata.get("timezone", "")
+                visibility = metadata.get("visibility", "")
+
+                # Create a more descriptive title for Luma events
+                title = f"Luma: {event_name}"
+                if start_time:
+                    # Format the start time for display
+                    try:
+                        if "T" in start_time:
+                            from datetime import datetime
+
+                            start_dt = datetime.fromisoformat(
+                                start_time.replace("Z", "+00:00")
+                            )
+                            formatted_time = start_dt.strftime("%Y-%m-%d %H:%M")
+                            title += f" ({formatted_time})"
+                        else:
+                            title += f" ({start_time})"
+                    except Exception:
+                        title += f" ({start_time})"
+
+                # Create a more descriptive description for Luma events
+                description = chunk.get("content", "")[:150]
+                if len(description) == 150:
+                    description += "..."
+
+                # Add event info to description
+                info_parts = []
+                if location_name:
+                    info_parts.append(f"Venue: {location_name}")
+                elif location_address:
+                    info_parts.append(f"Location: {location_address}")
+
+                if meeting_url:
+                    info_parts.append("Online Event")
+
+                if end_time:
+                    try:
+                        if "T" in end_time:
+                            from datetime import datetime
+
+                            end_dt = datetime.fromisoformat(
+                                end_time.replace("Z", "+00:00")
+                            )
+                            formatted_end = end_dt.strftime("%Y-%m-%d %H:%M")
+                            info_parts.append(f"Ends: {formatted_end}")
+                        else:
+                            info_parts.append(f"Ends: {end_time}")
+                    except Exception:
+                        info_parts.append(f"Ends: {end_time}")
+
+                if timezone:
+                    info_parts.append(f"TZ: {timezone}")
+
+                if visibility:
+                    info_parts.append(f"Visibility: {visibility.title()}")
+
+                if info_parts:
+                    if description:
+                        description += f" | {' | '.join(info_parts)}"
+                    else:
+                        description = " | ".join(info_parts)
+
+                # Use the Luma event URL if available
+                url = event_url if event_url else ""
+
+                source = {
+                    "id": chunk.get("chunk_id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                    "event_id": event_id,
+                    "event_name": event_name,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "location_name": location_name,
+                    "location_address": location_address,
+                    "meeting_url": meeting_url,
+                    "timezone": timezone,
+                    "visibility": visibility,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+
+        # Create result object
+        result_object = {
+            "id": 33,  # Assign a unique ID for the Luma connector
+            "name": "Luma Events",
+            "type": "LUMA_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, luma_chunks

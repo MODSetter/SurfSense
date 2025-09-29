@@ -140,6 +140,13 @@ const connectorCategories: ConnectorCategory[] = [
 				icon: getConnectorIcon(EnumConnectorName.AIRTABLE_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
+			{
+				id: "luma-connector",
+				title: "Luma",
+				description: "Connect to Luma to search events",
+				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
 		],
 	},
 	{

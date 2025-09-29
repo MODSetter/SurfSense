@@ -413,6 +413,42 @@ async def fetch_documents_by_ids(
                     else:
                         url = ""
 
+                elif doc_type == "LUMA_CONNECTOR":
+                    # Extract Luma-specific metadata
+                    event_id = metadata.get("event_id", "")
+                    event_name = metadata.get("event_name", "Untitled Event")
+                    event_url = metadata.get("event_url", "")
+                    start_time = metadata.get("start_time", "")
+                    location_name = metadata.get("location_name", "")
+                    meeting_url = metadata.get("meeting_url", "")
+
+                    title = f"Luma: {event_name}"
+                    if start_time:
+                        # Format the start time for display
+                        try:
+                            if "T" in start_time:
+                                from datetime import datetime
+
+                                start_dt = datetime.fromisoformat(
+                                    start_time.replace("Z", "+00:00")
+                                )
+                                formatted_time = start_dt.strftime("%Y-%m-%d %H:%M")
+                                title += f" ({formatted_time})"
+                        except Exception:
+                            pass
+
+                    description = (
+                        doc.content[:100] + "..."
+                        if len(doc.content) > 100
+                        else doc.content
+                    )
+                    if location_name:
+                        description += f" | Venue: {location_name}"
+                    elif meeting_url:
+                        description += " | Online Event"
+
+                    url = event_url if event_url else ""
+
                 elif doc_type == "EXTENSION":
                     # Extract Extension-specific metadata
                     webpage_title = metadata.get("VisitedWebPageTitle", doc.title)
@@ -487,6 +523,7 @@ async def fetch_documents_by_ids(
                 "CONFLUENCE_CONNECTOR": "Confluence (Selected)",
                 "CLICKUP_CONNECTOR": "ClickUp (Selected)",
                 "AIRTABLE_CONNECTOR": "Airtable (Selected)",
+                "LUMA_CONNECTOR": "Luma Events (Selected)",
             }
 
             source_object = {
@@ -1193,6 +1230,33 @@ async def fetch_relevant_documents(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
                                     f"📋 Found {len(clickup_chunks)} ClickUp tasks related to your query"
+                                )
+                            }
+                        )
+
+                elif connector == "LUMA_CONNECTOR":
+                    (
+                        source_object,
+                        luma_chunks,
+                    ) = await connector_service.search_luma(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode,
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(luma_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"🎯 Found {len(luma_chunks)} Luma events related to your query"
                                 )
                             }
                         )

@@ -260,6 +260,17 @@ export default function EditConnectorPage() {
 										placeholder="Bot token..."
 									/>
 								)}
+
+								{/* == Luma == */}
+								{connector.connector_type === "LUMA_CONNECTOR" && (
+									<EditSimpleTokenForm
+										control={editForm.control}
+										fieldName="LUMA_API_KEY"
+										fieldLabel="Luma API Key"
+										fieldDescription="Update the Luma API Key if needed."
+										placeholder="API Key..."
+									/>
+								)}
 							</CardContent>
 							<CardFooter className="border-t pt-6">
 								<Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
