@@ -782,7 +782,7 @@ async def run_github_indexing(
             user_id,
             start_date,
             end_date,
-            update_last_indexed=False,
+            update_last_indexed=False,  # Standard pattern: let route handle timestamp
         )
         if error_message:
             logger.error(
@@ -792,9 +792,8 @@ async def run_github_indexing(
             logger.info(
                 f"GitHub indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
-            # Update the last indexed timestamp only on success
             await update_connector_last_indexed(session, connector_id)
-            await session.commit()  # Commit timestamp update
+            await session.commit()
     except Exception as e:
         await session.rollback()
         logger.error(

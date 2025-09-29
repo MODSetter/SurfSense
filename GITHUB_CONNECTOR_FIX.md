@@ -20,25 +20,20 @@ The GitHub indexing route was trying to update the `last_indexed_at` timestamp i
 
 ## Fixes Applied
 
-### 1. Added Missing Import and Function Call
+### 1. Added Missing Import (for future use)
 **File:** `surfsense_backend/app/tasks/connector_indexers/github_indexer.py`
 
 ```python
-# Added import
+# Added import for consistency with other indexers
 from .base import (
     check_duplicate_document_by_hash,
     get_connector_by_id,
     logger,
-    update_connector_last_indexed,  # <- Added this
+    update_connector_last_indexed,  # <- Added this for future flexibility
 )
 
-# Added before commit (around line 305)
-# Update the last_indexed_at timestamp for the connector only if requested
-if update_last_indexed:
-    await update_connector_last_indexed(session, connector, update_last_indexed)
-
-# Commit all changes at the end
-await session.commit()
+# Note: The update_last_indexed logic is handled by the route layer
+# following the established pattern used by other connectors
 ```
 
 ### 2. Fixed Timezone-Aware Timestamps
@@ -62,11 +57,13 @@ from datetime import UTC, datetime, timedelta
 connector.last_indexed_at = datetime.now(UTC)  # <- Added UTC
 ```
 
-### 3. Fixed Session Management
+### 3. Proper Session Management Pattern
 **File:** `surfsense_backend/app/routes/search_source_connectors_routes.py`
 
+**Solution:** Follow the established pattern used by other connectors: let the route handle the timestamp update after successful indexing.
+
 ```python
-# Let the indexer handle timestamp updates within its own transaction
+# Follow the standard pattern used by other connectors
 indexed_count, error_message = await index_github_repos(
     session,
     connector_id,
@@ -74,10 +71,16 @@ indexed_count, error_message = await index_github_repos(
     user_id,
     start_date,
     end_date,
-    update_last_indexed=True,  # <- Changed from False to True
+    update_last_indexed=False,  # Standard pattern: let route handle timestamp
 )
 
-# Removed separate timestamp update logic since indexer handles it
+# Update timestamp only on success (like other connectors)
+if error_message:
+    logger.error(f"GitHub indexing failed for connector {connector_id}: {error_message}")
+else:
+    logger.info(f"GitHub indexing successful for connector {connector_id}. Indexed {indexed_count} documents.")
+    await update_connector_last_indexed(session, connector_id)
+    await session.commit()
 ```
 
 ## Testing the Fix
