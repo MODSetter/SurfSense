@@ -377,7 +377,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						editForm.setValue("JIRA_BASE_URL", newlySavedConfig.JIRA_BASE_URL || "");
 						editForm.setValue("JIRA_EMAIL", newlySavedConfig.JIRA_EMAIL || "");
 						editForm.setValue("JIRA_API_TOKEN", newlySavedConfig.JIRA_API_TOKEN || "");
-					} else if (connector.connector_type == "LUMA_CONNECTOR") {
+					} else if (connector.connector_type === "LUMA_CONNECTOR") {
 						editForm.setValue("LUMA_API_KEY", newlySavedConfig.LUMA_API_KEY || "");
 					}
 				}
