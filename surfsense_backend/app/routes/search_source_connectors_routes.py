@@ -11,7 +11,7 @@ Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -614,7 +614,7 @@ async def update_connector_last_indexed(session: AsyncSession, connector_id: int
         connector = result.scalars().first()
 
         if connector:
-            connector.last_indexed_at = datetime.now()
+            connector.last_indexed_at = datetime.now(UTC)
             await session.commit()
             logger.info(f"Updated last_indexed_at for connector {connector_id}")
     except Exception as e:
@@ -784,7 +784,7 @@ async def run_github_indexing(
             user_id,
             start_date,
             end_date,
-            update_last_indexed=False,
+            update_last_indexed=False,  # Don't update timestamp in the indexing function
         )
         if error_message:
             logger.error(

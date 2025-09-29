@@ -22,6 +22,7 @@ from .base import (
     check_duplicate_document_by_hash,
     get_connector_by_id,
     logger,
+    update_connector_last_indexed,
 )
 
 
@@ -300,6 +301,10 @@ async def index_github_repos(
                     f"Failed to process repository {repo_full_name}: {repo_err}"
                 )
                 errors.append(f"Failed processing {repo_full_name}: {repo_err}")
+
+        # Update the last_indexed_at timestamp for the connector only if requested
+        if update_last_indexed:
+            await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Commit all changes at the end
         await session.commit()

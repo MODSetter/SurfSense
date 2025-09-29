@@ -3,7 +3,7 @@ Base functionality and shared imports for connector indexers.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -135,7 +135,7 @@ async def update_connector_last_indexed(
         update_last_indexed: Whether to actually update the timestamp
     """
     if update_last_indexed:
-        connector.last_indexed_at = datetime.now()
+        connector.last_indexed_at = datetime.now(UTC)
         logger.info(f"Updated last_indexed_at to {connector.last_indexed_at}")
 
 
