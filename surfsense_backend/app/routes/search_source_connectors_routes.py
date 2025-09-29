@@ -230,13 +230,11 @@ async def update_search_source_connector(
         )
 
         try:
-            # We can reuse the base validator by creating a temporary base model instance
-            # Note: This assumes 'name' and 'is_indexable' are not crucial for config validation itself
             temp_data_for_validation = {
-                "name": db_connector.name,  # Use existing name
+                "name": db_connector.name,
                 "connector_type": current_connector_type,
-                "is_indexable": db_connector.is_indexable,  # Use existing value
-                "last_indexed_at": db_connector.last_indexed_at,  # Not used by validator
+                "is_indexable": db_connector.is_indexable,
+                "last_indexed_at": db_connector.last_indexed_at,
                 "config": merged_config,
             }
             SearchSourceConnectorBase.model_validate(temp_data_for_validation)
@@ -669,7 +667,7 @@ async def run_slack_indexing(
             user_id=user_id,
             start_date=start_date,
             end_date=end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
+            update_last_indexed=False,
         )
 
         # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
@@ -731,7 +729,7 @@ async def run_notion_indexing(
             user_id=user_id,
             start_date=start_date,
             end_date=end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
+            update_last_indexed=False,
         )
 
         # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
@@ -784,13 +782,12 @@ async def run_github_indexing(
             user_id,
             start_date,
             end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
+            update_last_indexed=False,
         )
         if error_message:
             logger.error(
                 f"GitHub indexing failed for connector {connector_id}: {error_message}"
             )
-            # Optionally update status in DB to indicate failure
         else:
             logger.info(
                 f"GitHub indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
@@ -804,7 +801,6 @@ async def run_github_indexing(
             f"Critical error in run_github_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
 
 
 # Add new helper functions for Linear indexing
@@ -849,7 +845,6 @@ async def run_linear_indexing(
             logger.error(
                 f"Linear indexing failed for connector {connector_id}: {error_message}"
             )
-            # Optionally update status in DB to indicate failure
         else:
             logger.info(
                 f"Linear indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
@@ -863,7 +858,7 @@ async def run_linear_indexing(
             f"Critical error in run_linear_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+
 
 
 # Add new helper functions for discord indexing
@@ -970,7 +965,7 @@ async def run_jira_indexing(
             logger.error(
                 f"Jira indexing failed for connector {connector_id}: {error_message}"
             )
-            # Optionally update status in DB to indicate failure
+
         else:
             logger.info(
                 f"Jira indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
@@ -983,7 +978,7 @@ async def run_jira_indexing(
             f"Critical error in run_jira_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+
 
 
 # Add new helper functions for Confluence indexing
@@ -1030,7 +1025,7 @@ async def run_confluence_indexing(
             logger.error(
                 f"Confluence indexing failed for connector {connector_id}: {error_message}"
             )
-            # Optionally update status in DB to indicate failure
+
         else:
             logger.info(
                 f"Confluence indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
@@ -1043,7 +1038,7 @@ async def run_confluence_indexing(
             f"Critical error in run_confluence_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+
 
 
 # Add new helper functions for ClickUp indexing
@@ -1088,7 +1083,7 @@ async def run_clickup_indexing(
             logger.error(
                 f"ClickUp indexing failed for connector {connector_id}: {error_message}"
             )
-            # Optionally update status in DB to indicate failure
+
         else:
             logger.info(
                 f"ClickUp indexing successful for connector {connector_id}. Indexed {indexed_count} tasks."
@@ -1101,7 +1096,7 @@ async def run_clickup_indexing(
             f"Critical error in run_clickup_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+
 
 
 # Add new helper functions for Airtable indexing
@@ -1146,7 +1141,7 @@ async def run_airtable_indexing(
             logger.error(
                 f"Airtable indexing failed for connector {connector_id}: {error_message}"
             )
-            # Optionally update status in DB to indicate failure
+
         else:
             logger.info(
                 f"Airtable indexing successful for connector {connector_id}. Indexed {indexed_count} records."
@@ -1159,7 +1154,7 @@ async def run_airtable_indexing(
             f"Critical error in run_airtable_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+
 
 
 # Add new helper functions for Google Calendar indexing
@@ -1206,7 +1201,7 @@ async def run_google_calendar_indexing(
             logger.error(
                 f"Google Calendar indexing failed for connector {connector_id}: {error_message}"
             )
-            # Optionally update status in DB to indicate failure
+
         else:
             logger.info(
                 f"Google Calendar indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
@@ -1219,7 +1214,7 @@ async def run_google_calendar_indexing(
             f"Critical error in run_google_calendar_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+
 
 
 async def run_google_gmail_indexing_with_new_session(
@@ -1265,7 +1260,7 @@ async def run_google_gmail_indexing(
             logger.error(
                 f"Google Gmail indexing failed for connector {connector_id}: {error_message}"
             )
-            # Optionally update status in DB to indicate failure
+
         else:
             logger.info(
                 f"Google Gmail indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
@@ -1278,7 +1273,7 @@ async def run_google_gmail_indexing(
             f"Critical error in run_google_gmail_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+
 
 
 # Add new helper functions for luma indexing

@@ -43,8 +43,8 @@ async def index_github_repos(
         connector_id: ID of the GitHub connector
         search_space_id: ID of the search space to store documents in
         user_id: ID of the user
-        start_date: Start date for filtering (YYYY-MM-DD format) - Note: GitHub indexing processes all files regardless of dates
-        end_date: End date for filtering (YYYY-MM-DD format) - Note: GitHub indexing processes all files regardless of dates
+        start_date: Start date for filtering (YYYY-MM-DD format)
+        end_date: End date for filtering (YYYY-MM-DD format)
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
 
     Returns:
@@ -302,17 +302,14 @@ async def index_github_repos(
                 )
                 errors.append(f"Failed processing {repo_full_name}: {repo_err}")
 
-        # Update the last_indexed_at timestamp for the connector only if requested
         if update_last_indexed:
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
-        # Commit all changes at the end
         await session.commit()
         logger.info(
             f"Finished GitHub indexing for connector {connector_id}. Processed {documents_processed} files."
         )
 
-        # Log success
         await task_logger.log_task_success(
             log_entry,
             f"Successfully completed GitHub indexing for connector {connector_id}",
