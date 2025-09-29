@@ -82,7 +82,9 @@ class LumaConnector:
             elif response.status_code == 401:
                 raise Exception("Unauthorized: Invalid Luma API key")
             elif response.status_code == 403:
-                raise Exception("Forbidden: Access denied or Luma Plus subscription required")
+                raise Exception(
+                    "Forbidden: Access denied or Luma Plus subscription required"
+                )
             elif response.status_code == 429:
                 raise Exception("Rate limit exceeded: Too many requests")
             else:
@@ -106,7 +108,9 @@ class LumaConnector:
         except Exception as e:
             return None, f"Error fetching user info: {e!s}"
 
-    def get_all_events(self, limit: int = 100) -> tuple[list[dict[str, Any]], str | None]:
+    def get_all_events(
+        self, limit: int = 100
+    ) -> tuple[list[dict[str, Any]], str | None]:
         """
         Fetch all events for the authenticated user.
 
@@ -119,32 +123,34 @@ class LumaConnector:
         try:
             all_events = []
             cursor = None
-            
+
             while True:
                 params = {"limit": limit}
                 if cursor:
                     params["cursor"] = cursor
 
                 response = self.make_request("calendar/list-events", params)
-                
+
                 if "entries" not in response:
                     break
-                
+
                 events = response["entries"]
                 all_events.extend(events)
-                
+
                 # Check for pagination
-                if "next_cursor" in response and response["next_cursor"]:
+                if response.get("next_cursor"):
                     cursor = response["next_cursor"]
                 else:
                     break
-            
+
             return all_events, None
 
         except Exception as e:
             return [], f"Error fetching events: {e!s}"
 
-    def get_event_details(self, event_id: str) -> tuple[dict[str, Any] | None, str | None]:
+    def get_event_details(
+        self, event_id: str
+    ) -> tuple[dict[str, Any] | None, str | None]:
         """
         Fetch detailed information about a specific event.
 
@@ -160,7 +166,9 @@ class LumaConnector:
         except Exception as e:
             return None, f"Error fetching event details for {event_id}: {e!s}"
 
-    def get_event_guests(self, event_id: str, limit: int = 100) -> tuple[list[dict[str, Any]], str | None]:
+    def get_event_guests(
+        self, event_id: str, limit: int = 100
+    ) -> tuple[list[dict[str, Any]], str | None]:
         """
         Fetch guests for a specific event.
 
@@ -174,26 +182,26 @@ class LumaConnector:
         try:
             all_guests = []
             cursor = None
-            
+
             while True:
                 params = {"limit": limit}
                 if cursor:
                     params["cursor"] = cursor
 
                 response = self.make_request(f"events/{event_id}/guests", params)
-                
+
                 if "entries" not in response:
                     break
-                
+
                 guests = response["entries"]
                 all_guests.extend(guests)
-                
+
                 # Check for pagination
-                if "next_cursor" in response and response["next_cursor"]:
+                if response.get("next_cursor"):
                     cursor = response["next_cursor"]
                 else:
                     break
-            
+
             return all_guests, None
 
         except Exception as e:
@@ -217,7 +225,7 @@ class LumaConnector:
             # Convert date strings to ISO format for comparison
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
             end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            
+
             # Get all events first
             all_events, error = self.get_all_events()
             if error:
@@ -230,19 +238,23 @@ class LumaConnector:
                 if event_start_time:
                     try:
                         # Parse the event start time (assuming ISO format)
-                        event_dt = datetime.fromisoformat(event_start_time.replace("Z", "+00:00"))
+                        event_dt = datetime.fromisoformat(
+                            event_start_time.replace("Z", "+00:00")
+                        )
                         event_date = event_dt.date()
-                        
+
                         # Check if event falls within the date range
                         if start_dt.date() <= event_date <= end_dt.date():
                             # Add guest information if requested
                             if include_guests:
                                 event_id = event.get("api_id")
                                 if event_id:
-                                    guests, guest_error = self.get_event_guests(event_id)
+                                    guests, guest_error = self.get_event_guests(
+                                        event_id
+                                    )
                                     if not guest_error:
                                         event["guests"] = guests
-                            
+
                             filtered_events.append(event)
                     except (ValueError, AttributeError):
                         # Skip events with invalid dates
@@ -270,45 +282,45 @@ class LumaConnector:
         """
         # Extract event details
         event_data = event.get("event", {})
-        
+
         title = event_data.get("name", "Untitled Event")
         description = event_data.get("description", "")
         event_id = event.get("api_id", "")
-        
+
         # Extract timing information
         start_at = event_data.get("start_at", "")
         end_at = event_data.get("end_at", "")
         timezone = event_data.get("timezone", "")
-        
+
         # Format dates
         start_formatted = self.format_date(start_at) if start_at else "Unknown"
         end_formatted = self.format_date(end_at) if end_at else "Unknown"
-        
+
         # Extract location information
         geo_info = event_data.get("geo_info", {})
         location_name = geo_info.get("name", "")
         address = geo_info.get("address", "")
-        
+
         # Extract other details
         url = event_data.get("url", "")
         visibility = event_data.get("visibility", "")
         meeting_url = event_data.get("meeting_url", "")
-        
+
         # Build markdown content
         markdown_content = f"# {title}\n\n"
-        
+
         if event_id:
             markdown_content += f"**Event ID:** {event_id}\n"
-        
+
         # Add timing information
         markdown_content += f"**Start:** {start_formatted}\n"
         markdown_content += f"**End:** {end_formatted}\n"
-        
+
         if timezone:
             markdown_content += f"**Timezone:** {timezone}\n"
-        
+
         markdown_content += "\n"
-        
+
         # Add location information
         if location_name or address:
             markdown_content += "## Location\n\n"
@@ -317,45 +329,45 @@ class LumaConnector:
             if address:
                 markdown_content += f"**Address:** {address}\n"
             markdown_content += "\n"
-        
+
         # Add online meeting info
         if meeting_url:
             markdown_content += f"**Meeting URL:** {meeting_url}\n\n"
-        
+
         # Add description if available
         if description:
             markdown_content += f"## Description\n\n{description}\n\n"
-        
+
         # Add event details
         markdown_content += "## Event Details\n\n"
-        
+
         if url:
             markdown_content += f"- **Event URL:** {url}\n"
-        
+
         if visibility:
             markdown_content += f"- **Visibility:** {visibility}\n"
-        
+
         # Add guest information if available
         if "guests" in event:
             guests = event["guests"]
             markdown_content += f"\n## Guests ({len(guests)})\n\n"
-            
+
             for guest in guests[:10]:  # Show first 10 guests
                 guest_data = guest.get("guest", {})
                 name = guest_data.get("name", "Unknown")
                 email = guest_data.get("email", "")
                 status = guest.get("registration_status", "unknown")
-                
+
                 markdown_content += f"- **{name}**"
                 if email:
                     markdown_content += f" ({email})"
                 markdown_content += f" - Status: {status}\n"
-            
+
             if len(guests) > 10:
                 markdown_content += f"- ... and {len(guests) - 10} more guests\n"
-            
+
             markdown_content += "\n"
-        
+
         return markdown_content
 
     @staticmethod

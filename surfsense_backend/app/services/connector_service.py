@@ -1951,14 +1951,15 @@ class ConnectorService:
                     info_parts.append(f"Venue: {location_name}")
                 elif location_address:
                     info_parts.append(f"Location: {location_address}")
-                
+
                 if meeting_url:
                     info_parts.append("Online Event")
-                
+
                 if end_time:
                     try:
                         if "T" in end_time:
                             from datetime import datetime
+
                             end_dt = datetime.fromisoformat(
                                 end_time.replace("Z", "+00:00")
                             )
@@ -1968,10 +1969,10 @@ class ConnectorService:
                             info_parts.append(f"Ends: {end_time}")
                     except Exception:
                         info_parts.append(f"Ends: {end_time}")
-                
+
                 if timezone:
                     info_parts.append(f"TZ: {timezone}")
-                
+
                 if visibility:
                     info_parts.append(f"Visibility: {visibility.title()}")
 

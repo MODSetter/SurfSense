@@ -52,7 +52,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			JIRA_BASE_URL: "",
 			JIRA_EMAIL: "",
 			JIRA_API_TOKEN: "",
-			LUMA_API_KEY: ""
+			LUMA_API_KEY: "",
 		},
 	});
 
@@ -79,7 +79,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					JIRA_BASE_URL: config.JIRA_BASE_URL || "",
 					JIRA_EMAIL: config.JIRA_EMAIL || "",
 					JIRA_API_TOKEN: config.JIRA_API_TOKEN || "",
-					LUMA_API_KEY: config.LUMA_API_KEY || ""
+					LUMA_API_KEY: config.LUMA_API_KEY || "",
 				});
 				if (currentConnector.connector_type === "GITHUB_CONNECTOR") {
 					const savedRepos = config.repo_full_names || [];
@@ -312,7 +312,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							setIsSaving(false);
 							return;
 						}
-						newConfig = { LUMA_API_KEY: formData.LUMA_API_KEY};
+						newConfig = { LUMA_API_KEY: formData.LUMA_API_KEY };
 					}
 					break;
 			}

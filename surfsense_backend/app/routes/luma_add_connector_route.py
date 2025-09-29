@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -22,7 +21,7 @@ router = APIRouter()
 
 class AddLumaConnectorRequest(BaseModel):
     """Request model for adding a Luma connector."""
-    
+
     api_key: str = Field(..., description="Luma API key")
     space_id: int = Field(..., description="Search space ID")
 
@@ -35,15 +34,15 @@ async def add_luma_connector(
 ):
     """
     Add a new Luma connector for the authenticated user.
-    
+
     Args:
         request: The request containing Luma API key and space_id
         user: Current authenticated user
         session: Database session
-        
+
     Returns:
         Success message and connector details
-        
+
     Raises:
         HTTPException: If connector already exists or validation fails
     """
@@ -52,26 +51,27 @@ async def add_luma_connector(
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.connector_type == SearchSourceConnectorType.LUMA_CONNECTOR,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.LUMA_CONNECTOR,
             )
         )
         existing_connector = result.scalars().first()
-        
+
         if existing_connector:
             # Update existing connector with new API key
             existing_connector.config = {"api_key": request.api_key}
             existing_connector.is_indexable = True
             await session.commit()
             await session.refresh(existing_connector)
-            
+
             logger.info(f"Updated existing Luma connector for user {user.id}")
-            
+
             return {
                 "message": "Luma connector updated successfully",
                 "connector_id": existing_connector.id,
                 "connector_type": "LUMA_CONNECTOR",
             }
-        
+
         # Create new Luma connector
         db_connector = SearchSourceConnector(
             name="Luma Event Connector",
@@ -80,21 +80,21 @@ async def add_luma_connector(
             user_id=user.id,
             is_indexable=True,
         )
-        
+
         session.add(db_connector)
         await session.commit()
         await session.refresh(db_connector)
-        
+
         logger.info(
             f"Successfully created Luma connector for user {user.id} with ID {db_connector.id}"
         )
-        
+
         return {
             "message": "Luma connector added successfully",
             "connector_id": db_connector.id,
             "connector_type": "LUMA_CONNECTOR",
         }
-        
+
     except IntegrityError as e:
         await session.rollback()
         logger.error(f"Database integrity error: {e!s}")
@@ -118,14 +118,14 @@ async def delete_luma_connector(
 ):
     """
     Delete the Luma connector for the authenticated user.
-    
+
     Args:
         user: Current authenticated user
         session: Database session
-        
+
     Returns:
         Success message
-        
+
     Raises:
         HTTPException: If connector doesn't exist
     """
@@ -133,24 +133,25 @@ async def delete_luma_connector(
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.connector_type == SearchSourceConnectorType.LUMA_CONNECTOR,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.LUMA_CONNECTOR,
             )
         )
         connector = result.scalars().first()
-        
+
         if not connector:
             raise HTTPException(
                 status_code=404,
                 detail="Luma connector not found for this user.",
             )
-        
+
         await session.delete(connector)
         await session.commit()
-        
+
         logger.info(f"Successfully deleted Luma connector for user {user.id}")
-        
+
         return {"message": "Luma connector deleted successfully"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -169,14 +170,14 @@ async def test_luma_connector(
 ):
     """
     Test the Luma connector for the authenticated user.
-    
+
     Args:
         user: Current authenticated user
         session: Database session
-        
+
     Returns:
         Test results including user info and event count
-        
+
     Raises:
         HTTPException: If connector doesn't exist or test fails
     """
@@ -185,20 +186,21 @@ async def test_luma_connector(
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.connector_type == SearchSourceConnectorType.LUMA_CONNECTOR,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.LUMA_CONNECTOR,
             )
         )
         connector = result.scalars().first()
-        
+
         if not connector:
             raise HTTPException(
                 status_code=404,
                 detail="Luma connector not found. Please add a connector first.",
             )
-        
+
         # Import LumaConnector
         from app.connectors.luma_connector import LumaConnector
-        
+
         # Initialize the connector
         api_key = connector.config.get("api_key")
         if not api_key:
@@ -206,9 +208,9 @@ async def test_luma_connector(
                 status_code=400,
                 detail="Invalid connector configuration: API key missing.",
             )
-        
+
         luma = LumaConnector(api_key=api_key)
-        
+
         # Test the connection by fetching user info
         user_info, error = luma.get_user_info()
         if error:
@@ -216,10 +218,10 @@ async def test_luma_connector(
                 status_code=400,
                 detail=f"Failed to connect to Luma: {error}",
             )
-        
+
         # Try to fetch events
         events, events_error = luma.get_all_events(limit=10)
-        
+
         return {
             "message": "Luma connector is working correctly",
             "user_info": {
@@ -229,7 +231,7 @@ async def test_luma_connector(
             "event_count": len(events) if not events_error else 0,
             "events_error": events_error,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:

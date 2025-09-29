@@ -45,9 +45,9 @@ from app.tasks.connector_indexers import (
     index_google_gmail_messages,
     index_jira_issues,
     index_linear_issues,
+    index_luma_events,
     index_notion_pages,
     index_slack_messages,
-    index_luma_events
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
@@ -1280,6 +1280,7 @@ async def run_google_gmail_indexing(
         )
         # Optionally update status in DB to indicate failure
 
+
 # Add new helper functions for luma indexing
 async def run_luma_indexing_with_new_session(
     connector_id: int,
@@ -1296,6 +1297,7 @@ async def run_luma_indexing_with_new_session(
         await run_luma_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
+
 
 async def run_luma_indexing(
     session: AsyncSession,

@@ -10,10 +10,10 @@ import {
 	IconLayoutKanban,
 	IconLinkPlus,
 	IconMail,
+	IconSparkles,
 	IconTable,
 	IconTicket,
 	IconWorldWww,
-	IconSparkles,
 } from "@tabler/icons-react";
 import { File, Globe, Link, Microscope, Search, Sparkles, Telescope, Webhook } from "lucide-react";
 import { EnumConnectorName } from "./connector";

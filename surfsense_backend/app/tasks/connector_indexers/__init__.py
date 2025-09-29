@@ -31,10 +31,10 @@ from .github_indexer import index_github_repos
 from .google_calendar_indexer import index_google_calendar_events
 from .google_gmail_indexer import index_google_gmail_messages
 from .jira_indexer import index_jira_issues
-from .luma_indexer import index_luma_events
 
 # Issue tracking and project management
 from .linear_indexer import index_linear_issues
+from .luma_indexer import index_luma_events
 
 # Documentation and knowledge management
 from .notion_indexer import index_notion_pages

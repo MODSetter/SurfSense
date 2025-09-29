@@ -421,13 +421,14 @@ async def fetch_documents_by_ids(
                     start_time = metadata.get("start_time", "")
                     location_name = metadata.get("location_name", "")
                     meeting_url = metadata.get("meeting_url", "")
-                    
+
                     title = f"Luma: {event_name}"
                     if start_time:
                         # Format the start time for display
                         try:
                             if "T" in start_time:
                                 from datetime import datetime
+
                                 start_dt = datetime.fromisoformat(
                                     start_time.replace("Z", "+00:00")
                                 )
@@ -435,7 +436,7 @@ async def fetch_documents_by_ids(
                                 title += f" ({formatted_time})"
                         except Exception:
                             pass
-                    
+
                     description = (
                         doc.content[:100] + "..."
                         if len(doc.content) > 100
@@ -444,8 +445,8 @@ async def fetch_documents_by_ids(
                     if location_name:
                         description += f" | Venue: {location_name}"
                     elif meeting_url:
-                        description += f" | Online Event"
-                    
+                        description += " | Online Event"
+
                     url = event_url if event_url else ""
 
                 elif doc_type == "EXTENSION":

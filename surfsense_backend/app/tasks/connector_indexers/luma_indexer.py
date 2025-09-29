@@ -84,11 +84,14 @@ async def index_luma_events(
                 "Connector not found",
                 {"error_type": "ConnectorNotFound"},
             )
-            return 0, f"Connector with ID {connector_id} not found or is not a Luma connector"
+            return (
+                0,
+                f"Connector with ID {connector_id} not found or is not a Luma connector",
+            )
 
         # Get the Luma API key from the connector config
         api_key = connector.config.get("LUMA_API_KEY")
-        
+
         if not api_key:
             await task_logger.log_task_failure(
                 log_entry,
@@ -97,7 +100,7 @@ async def index_luma_events(
                 {"error_type": "MissingCredentials"},
             )
             return 0, "Luma API key not found in connector config"
-        
+
         logger.info(f"Starting Luma indexing for connector {connector_id}")
 
         # Initialize Luma client
@@ -107,9 +110,7 @@ async def index_luma_events(
             {"stage": "client_initialization"},
         )
 
-        luma_client = LumaConnector(
-            api_key=api_key
-        )
+        luma_client = LumaConnector(api_key=api_key)
 
         # Calculate date range
         if start_date is None or end_date is None:
@@ -167,9 +168,7 @@ async def index_luma_events(
         # Get events within date range from Luma
         try:
             events, error = luma_client.get_events_by_date_range(
-                start_date_str, 
-                end_date_str,
-                include_guests=False
+                start_date_str, end_date_str, include_guests=False
             )
 
             if error:
@@ -221,7 +220,7 @@ async def index_luma_events(
                 event_id = event.get("api_id") or event_data.get("id")
                 event_name = event_data.get("name", "No Title")
                 event_url = event_data.get("url", "")
-                
+
                 if not event_id:
                     logger.warning(f"Skipping event with missing ID: {event_name}")
                     skipped_events.append(f"{event_name} (missing ID)")
@@ -240,19 +239,21 @@ async def index_luma_events(
                 start_at = event_data.get("start_at", "")
                 end_at = event_data.get("end_at", "")
                 timezone = event_data.get("timezone", "")
-                
+
                 # Location info from geo_info
                 geo_info = event_data.get("geo_info", {})
                 location = geo_info.get("address", "")
                 city = geo_info.get("city", "")
-                
+
                 # Host info
                 hosts = event_data.get("hosts", [])
-                host_names = ", ".join([host.get("name", "") for host in hosts if host.get("name")])
-                
+                host_names = ", ".join(
+                    [host.get("name", "") for host in hosts if host.get("name")]
+                )
+
                 description = event_data.get("description", "")
                 cover_url = event_data.get("cover_url", "")
-                
+
                 content_hash = generate_content_hash(event_markdown, search_space_id)
 
                 # Duplicate check via simple query using helper in base
@@ -311,11 +312,11 @@ async def index_luma_events(
                         if len(description) > 300:
                             desc_preview += "..."
                         summary_content += f"Description: {desc_preview}\n"
-                    
+
                     summary_embedding = config.embedding_model_instance.embed(
                         summary_content
                     )
-                    
+
                 chunks = await create_document_chunks(event_markdown)
 
                 document = Document(

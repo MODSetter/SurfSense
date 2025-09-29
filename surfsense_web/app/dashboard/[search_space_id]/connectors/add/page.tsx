@@ -146,7 +146,7 @@ const connectorCategories: ConnectorCategory[] = [
 				description: "Connect to Luma to search events",
 				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
 				status: "available",
-			}
+			},
 		],
 	},
 	{

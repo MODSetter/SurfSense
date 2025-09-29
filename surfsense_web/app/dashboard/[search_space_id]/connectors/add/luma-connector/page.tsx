@@ -54,7 +54,7 @@ export default function LumaConnectorPage() {
 	const searchSpaceId = params.search_space_id as string;
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
-	
+
 	const { fetchConnectors, createConnector } = useSearchSourceConnectors();
 
 	// Initialize the form
@@ -69,8 +69,7 @@ export default function LumaConnectorPage() {
 	useEffect(() => {
 		fetchConnectors().then((data) => {
 			const connector = data.find(
-				(c: SearchSourceConnector) =>
-					c.connector_type === EnumConnectorName.LUMA_CONNECTOR
+				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.LUMA_CONNECTOR
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
@@ -86,14 +85,14 @@ export default function LumaConnectorPage() {
 				name: values.name,
 				connector_type: EnumConnectorName.LUMA_CONNECTOR,
 				config: {
-					LUMA_API_KEY: values.api_key
+					LUMA_API_KEY: values.api_key,
 				},
 				is_indexable: true,
 				last_indexed_at: null,
 			});
 
 			toast.success("Luma connector created successfully!");
-			
+
 			// Navigate back to connectors page
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		} catch (error) {
@@ -126,9 +125,7 @@ export default function LumaConnectorPage() {
 						</div>
 						<div>
 							<h1 className="text-3xl font-bold tracking-tight">Connect Luma</h1>
-							<p className="text-muted-foreground">
-								Connect your Luma account to search events.
-							</p>
+							<p className="text-muted-foreground">Connect your Luma account to search events.</p>
 						</div>
 					</div>
 				</div>
@@ -170,11 +167,7 @@ export default function LumaConnectorPage() {
 											<FormItem>
 												<FormLabel>API Key</FormLabel>
 												<FormControl>
-													<Input 
-														type="password" 
-														placeholder="Enter your Luma API key" 
-														{...field} 
-													/>
+													<Input type="password" placeholder="Enter your Luma API key" {...field} />
 												</FormControl>
 												<FormDescription>
 													Your API key will be encrypted and stored securely.
