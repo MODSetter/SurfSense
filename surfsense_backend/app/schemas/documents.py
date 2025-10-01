@@ -1,10 +1,13 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
+from typing import Generic, TypeVar
 
 from app.db import DocumentType
 
 from .chunks import ChunkRead
+
+T = TypeVar("T")
 
 
 class ExtensionDocumentMetadata(BaseModel):
@@ -53,3 +56,8 @@ class DocumentWithChunksRead(DocumentRead):
     chunks: list[ChunkRead] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
