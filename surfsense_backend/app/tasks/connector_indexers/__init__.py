@@ -16,6 +16,7 @@ Available indexers:
 - ClickUp: Index tasks from ClickUp workspaces
 - Google Gmail: Index messages from Google Gmail
 - Google Calendar: Index events from Google Calendar
+- Luma: Index events from Luma
 """
 
 # Communication platforms
@@ -33,6 +34,7 @@ from .jira_indexer import index_jira_issues
 
 # Issue tracking and project management
 from .linear_indexer import index_linear_issues
+from .luma_indexer import index_luma_events
 
 # Documentation and knowledge management
 from .notion_indexer import index_notion_pages
@@ -47,6 +49,7 @@ __all__ = [  # noqa: RUF022
     "index_github_repos",
     # Calendar and scheduling
     "index_google_calendar_events",
+    "index_luma_events",
     "index_jira_issues",
     # Issue tracking and project management
     "index_linear_issues",

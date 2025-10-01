@@ -6,7 +6,7 @@ import {
 	IconChevronDown,
 	IconChevronRight,
 } from "@tabler/icons-react";
-import { AnimatePresence, motion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -138,6 +138,13 @@ const connectorCategories: ConnectorCategory[] = [
 				title: "Airtable",
 				description: "Connect to Airtable to search records, tables and database content.",
 				icon: getConnectorIcon(EnumConnectorName.AIRTABLE_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
+			{
+				id: "luma-connector",
+				title: "Luma",
+				description: "Connect to Luma to search events",
+				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 		],

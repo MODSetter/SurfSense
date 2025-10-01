@@ -10,6 +10,7 @@ import {
 	IconLayoutKanban,
 	IconLinkPlus,
 	IconMail,
+	IconSparkles,
 	IconTable,
 	IconTicket,
 	IconWorldWww,
@@ -49,6 +50,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconBook {...iconProps} />;
 		case EnumConnectorName.CLICKUP_CONNECTOR:
 			return <IconChecklist {...iconProps} />;
+		case EnumConnectorName.LUMA_CONNECTOR:
+			return <IconSparkles {...iconProps} />;
 		// Additional cases for non-enum connector types
 		case "YOUTUBE_VIDEO":
 			return <IconBrandYoutube {...iconProps} />;

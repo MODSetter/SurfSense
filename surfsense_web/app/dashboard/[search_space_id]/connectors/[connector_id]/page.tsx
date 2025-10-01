@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -53,6 +53,7 @@ const getConnectorTypeDisplay = (type: string): string => {
 		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar Connector",
 		GOOGLE_GMAIL_CONNECTOR: "Google Gmail Connector",
 		AIRTABLE_CONNECTOR: "Airtable Connector",
+		LUMA_CONNECTOR: "Luma Connector",
 		// Add other connector types here as needed
 	};
 	return typeMap[type] || type;
@@ -71,6 +72,7 @@ const getApiKeyFieldName = (connectorType: string): string => {
 		GITHUB_CONNECTOR: "GITHUB_PAT",
 		DISCORD_CONNECTOR: "DISCORD_BOT_TOKEN",
 		LINKUP_API: "LINKUP_API_KEY",
+		LUMA_CONNECTOR: "LUMA_API_KEY",
 	};
 	return fieldMap[connectorType] || "";
 };

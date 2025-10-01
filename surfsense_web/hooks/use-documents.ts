@@ -28,7 +28,8 @@ export type DocumentType =
 	| "CLICKUP_CONNECTOR"
 	| "GOOGLE_CALENDAR_CONNECTOR"
 	| "GOOGLE_GMAIL_CONNECTOR"
-	| "AIRTABLE_CONNECTOR";
+	| "AIRTABLE_CONNECTOR"
+	| "LUMA_CONNECTOR";
 
 export interface UseDocumentsOptions {
 	page?: number;

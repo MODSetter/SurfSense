@@ -136,13 +136,14 @@ async def add_youtube_video_document(
         )
 
         try:
-            captions = YouTubeTranscriptApi.get_transcript(video_id)
+            ytt_api = YouTubeTranscriptApi()
+            captions = ytt_api.fetch(video_id)
             # Include complete caption information with timestamps
             transcript_segments = []
             for line in captions:
-                start_time = line.get("start", 0)
-                duration = line.get("duration", 0)
-                text = line.get("text", "")
+                start_time = line.start
+                duration = line.duration
+                text = line.text
                 timestamp = f"[{start_time:.2f}s-{start_time + duration:.2f}s]"
                 transcript_segments.append(f"{timestamp} {text}")
             transcript_text = "\n".join(transcript_segments)

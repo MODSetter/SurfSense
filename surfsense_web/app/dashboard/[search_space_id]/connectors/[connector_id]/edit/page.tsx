@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -258,6 +258,17 @@ export default function EditConnectorPage() {
 										fieldLabel="Discord Bot Token"
 										fieldDescription="Update the Discord Bot Token if needed."
 										placeholder="Bot token..."
+									/>
+								)}
+
+								{/* == Luma == */}
+								{connector.connector_type === "LUMA_CONNECTOR" && (
+									<EditSimpleTokenForm
+										control={editForm.control}
+										fieldName="LUMA_API_KEY"
+										fieldLabel="Luma API Key"
+										fieldDescription="Update the Luma API Key if needed."
+										placeholder="API Key..."
 									/>
 								)}
 							</CardContent>

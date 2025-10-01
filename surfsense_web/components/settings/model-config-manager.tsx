@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import {
 	AlertCircle,
 	Bot,
@@ -15,6 +14,7 @@ import {
 	Settings2,
 	Trash2,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -112,12 +112,12 @@ const LLM_PROVIDERS = [
 		example: "meta/llama-2-70b-chat",
 		description: "Run models via API",
 	},
-    {
-        value: "OPENROUTER",
-        label: "OpenRouter",
-        example: "anthropic/claude-opus-4.1, openai/gpt-5",
-        description: "API gateway and LLM marketplace that provides unified access ",
-    },
+	{
+		value: "OPENROUTER",
+		label: "OpenRouter",
+		example: "anthropic/claude-opus-4.1, openai/gpt-5",
+		description: "API gateway and LLM marketplace that provides unified access ",
+	},
 	{
 		value: "CUSTOM",
 		label: "Custom Provider",

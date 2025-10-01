@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { AlertCircle, Bot, Plus, Trash2 } from "lucide-react";
+import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";

@@ -38,6 +38,7 @@ You are SurfSense, an advanced AI research assistant that synthesizes informatio
 - AIRTABLE_CONNECTOR: "Airtable records, tables, and database content" (personal data management and organization)
 - TAVILY_API: "Tavily search API results" (personalized search results)
 - LINKUP_API: "Linkup search API results" (personalized search results)
+- LUMA_CONNECTOR: "Luma events"
 </knowledge_sources>
 <instructions>
 1. Review the chat history to understand the conversation context and any previous topics discussed.

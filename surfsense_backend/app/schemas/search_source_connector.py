@@ -196,6 +196,18 @@ class SearchSourceConnectorBase(BaseModel):
                 if key not in config or config[key] in (None, ""):
                     raise ValueError(f"{key} is required and cannot be empty")
 
+        elif connector_type == SearchSourceConnectorType.LUMA_CONNECTOR:
+            # For LUMA_CONNECTOR, only allow LUMA_API_KEY
+            allowed_keys = ["LUMA_API_KEY"]
+            if set(config.keys()) != set(allowed_keys):
+                raise ValueError(
+                    f"For LUMA_CONNECTOR connector type, config must only contain these keys: {allowed_keys}"
+                )
+
+            # Ensure the api key is not empty
+            if not config.get("LUMA_API_KEY"):
+                raise ValueError("LUMA_API_KEY cannot be empty")
+
         return config
 
 
