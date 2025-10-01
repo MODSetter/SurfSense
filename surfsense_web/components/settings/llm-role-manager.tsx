@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import {
 	AlertCircle,
 	Bot,
@@ -13,6 +12,7 @@ import {
 	Settings2,
 	Zap,
 } from "lucide-react";
+import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";

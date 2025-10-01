@@ -85,7 +85,6 @@ const initialState: HighlightState = {
 export function AnimatedEmptyState() {
 	const ref = useRef<HTMLDivElement>(null);
 	const isInView = useInView(ref);
-	const { state: sidebarState } = useSidebar();
 	const [{ shouldShowHighlight, layoutStable }, dispatch] = useReducer(
 		highlightReducer,
 		initialState

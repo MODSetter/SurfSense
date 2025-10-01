@@ -1,5 +1,5 @@
 "use client";
-import { IconMenu2, IconUser, IconX } from "@tabler/icons-react";
+import { IconMail, IconMenu2, IconUser, IconX } from "@tabler/icons-react";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "motion/react";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -167,7 +167,17 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
 									duration: 0.2,
 								},
 							}}
+							className="flex items-center gap-2"
 						>
+							<Link href="/contact">
+								<Button
+									variant="outline"
+									className="hidden cursor-pointer md:flex items-center gap-2 rounded-full dark:bg-blue-900/40 dark:hover:bg-blue-800/50 dark:text-blue-100 dark:border-blue-700 bg-blue-100 hover:bg-blue-200 text-blue-900 border-blue-400"
+								>
+									<IconMail className="h-4 w-4" />
+									<span>Contact Us</span>
+								</Button>
+							</Link>
 							<Button
 								onClick={handleGoogleLogin}
 								variant="outline"
@@ -270,6 +280,15 @@ const MobileNav = ({ navItems, visible }: NavbarProps) => {
 								<motion.span className="block">{navItem.name}</motion.span>
 							</Link>
 						))}
+						<Link href="/contact" className="w-full" onClick={() => setOpen(false)}>
+							<Button
+								variant="outline"
+								className="flex cursor-pointer items-center gap-2 mt-4 w-full justify-center rounded-full dark:bg-blue-900/40 dark:hover:bg-blue-800/50 dark:text-blue-100 dark:border-blue-700 bg-blue-100 hover:bg-blue-200 text-blue-900 border-blue-400"
+							>
+								<IconMail className="h-4 w-4" />
+								<span>Contact Us</span>
+							</Button>
+						</Link>
 						<Button
 							onClick={handleGoogleLogin}
 							variant="outline"
