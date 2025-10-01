@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { ArrowLeft, Check, CircleAlert, Github, Info, ListChecks, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";

@@ -6,7 +6,7 @@ import {
 	IconChevronDown,
 	IconChevronRight,
 } from "@tabler/icons-react";
-import { AnimatePresence, motion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";

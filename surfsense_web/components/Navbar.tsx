@@ -1,6 +1,6 @@
 "use client";
 import { IconMenu2, IconUser, IconX } from "@tabler/icons-react";
-import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "motion/react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";

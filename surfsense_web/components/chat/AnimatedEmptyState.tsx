@@ -1,6 +1,6 @@
 "use client";
 
-import { useInView } from "framer-motion";
+import { useInView } from "motion/react";
 import { Manrope } from "next/font/google";
 import { useEffect, useMemo, useReducer, useRef } from "react";
 import { RoughNotation, RoughNotationGroup } from "react-rough-notation";
