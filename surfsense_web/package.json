@@ -54,7 +54,6 @@
 		"dotenv": "^17.2.3",
 		"drizzle-orm": "^0.44.5",
 		"emblor": "^1.4.8",
-		"framer-motion": "^12.23.22",
 		"fumadocs-core": "^15.6.6",
 		"fumadocs-mdx": "^11.7.1",
 		"fumadocs-ui": "^15.6.6",
