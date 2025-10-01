@@ -76,11 +76,10 @@ export function ContactFormGridWithDetails() {
 					</FeatureIconContainer>
 				</div>
 				<h2 className="mt-9 bg-gradient-to-b from-neutral-800 to-neutral-900 bg-clip-text text-left text-xl font-bold text-transparent md:text-3xl lg:text-5xl dark:from-neutral-200 dark:to-neutral-300">
-					Contact us
+					Contact
 				</h2>
 				<p className="mt-8 max-w-lg text-center text-base text-neutral-600 md:text-left dark:text-neutral-400">
-					We are always looking for ways to improve our products and services. Contact us and let us
-					know how we can help you.
+					We'd love to Hear From You.
 				</p>
 
 				<div className="mt-10 hidden flex-col items-center gap-4 md:flex-row lg:flex">
