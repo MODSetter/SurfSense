@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { CircleAlert, CircleX, Columns3, Filter, ListFilter, Trash } from "lucide-react";
 import React, { useMemo, useRef } from "react";
 import {

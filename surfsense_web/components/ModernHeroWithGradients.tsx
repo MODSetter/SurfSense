@@ -1,5 +1,5 @@
 "use client";
-import { IconBrandDiscord, IconBrandGithub, IconFileTypeDoc } from "@tabler/icons-react";
+import { IconBrandDiscord, IconBrandGithub, IconFileTypeDoc, IconMail } from "@tabler/icons-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
@@ -54,6 +54,13 @@ export function ModernHeroWithGradients() {
 							Notion, YouTube, GitHub, Discord and more.
 						</p>
 						<div className="flex flex-col items-center gap-6 py-6 sm:flex-row">
+							<Link
+								href="/contact"
+								className="w-48 gap-1 rounded-full border border-blue-400 bg-gradient-to-b from-blue-100 to-blue-300 px-5 py-3 text-center text-sm font-medium text-blue-900 shadow-sm dark:border-blue-700 dark:bg-gradient-to-b dark:from-blue-900 dark:to-blue-700 dark:text-blue-100 dark:shadow-inner dark:shadow-blue-500/20 flex items-center justify-center"
+							>
+								<IconMail className="h-5 w-5 mr-2 text-blue-700 dark:text-blue-300" />
+								<span>Contact Us</span>
+							</Link>
 							<Link
 								href="https://discord.gg/ejRNvftDp9"
 								className="w-48 gap-1 rounded-full border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 px-5 py-3 text-center text-sm font-medium text-gray-800 shadow-sm dark:border-[#404040] dark:bg-gradient-to-b dark:from-[#5B5B5D] dark:to-[#262627] dark:text-white dark:shadow-inner dark:shadow-purple-500/10 flex items-center justify-center"

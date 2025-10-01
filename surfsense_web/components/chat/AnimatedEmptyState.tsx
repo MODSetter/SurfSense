@@ -1,6 +1,6 @@
 "use client";
 
-import { useInView } from "framer-motion";
+import { useInView } from "motion/react";
 import { Manrope } from "next/font/google";
 import { useEffect, useMemo, useReducer, useRef } from "react";
 import { RoughNotation, RoughNotationGroup } from "react-rough-notation";
@@ -85,7 +85,6 @@ const initialState: HighlightState = {
 export function AnimatedEmptyState() {
 	const ref = useRef<HTMLDivElement>(null);
 	const isInView = useInView(ref);
-	const { state: sidebarState } = useSidebar();
 	const [{ shouldShowHighlight, layoutStable }, dispatch] = useReducer(
 		highlightReducer,
 		initialState
