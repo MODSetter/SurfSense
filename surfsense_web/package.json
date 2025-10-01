@@ -12,7 +12,11 @@
 		"debug": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:browser": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:server": "cross-env NODE_OPTIONS=--inspect=0.0.0.0:9229 next dev --turbopack",
-		"postinstall": "fumadocs-mdx"
+		"postinstall": "fumadocs-mdx",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:push": "drizzle-kit push",
+		"db:studio": "drizzle-kit studio"
 	},
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
@@ -47,6 +51,8 @@
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"date-fns": "^4.1.0",
+		"dotenv": "^17.2.3",
+		"drizzle-orm": "^0.44.5",
 		"emblor": "^1.4.8",
 		"framer-motion": "^12.23.22",
 		"fumadocs-core": "^15.6.6",
@@ -57,6 +63,8 @@
 		"motion": "^12.23.22",
 		"next": "^15.4.4",
 		"next-themes": "^0.4.6",
+		"pg": "^8.16.3",
+		"postgres": "^3.4.7",
 		"react": "^19.1.0",
 		"react-day-picker": "^9.8.1",
 		"react-dom": "^19.1.0",
@@ -82,12 +90,15 @@
 		"@tailwindcss/typography": "^0.5.16",
 		"@types/canvas-confetti": "^1.9.0",
 		"@types/node": "^20.19.9",
+		"@types/pg": "^8.15.5",
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
 		"cross-env": "^7.0.3",
+		"drizzle-kit": "^0.31.5",
 		"eslint": "^9.32.0",
 		"eslint-config-next": "15.2.0",
 		"tailwindcss": "^4.1.11",
+		"tsx": "^4.20.6",
 		"typescript": "^5.8.3"
 	}
 }
