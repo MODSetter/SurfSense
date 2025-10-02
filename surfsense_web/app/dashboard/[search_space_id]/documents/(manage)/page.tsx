@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import { useParams } from "next/navigation";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useDocuments } from "@/hooks/use-documents";
@@ -26,10 +26,6 @@ export default function DocumentsTable() {
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const { documents, loading, error, refreshDocuments, deleteDocument } =
-		useDocuments(searchSpaceId);
-
-	const [data, setData] = useState<Document[]>([]);
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 250);
 	const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -45,26 +41,48 @@ export default function DocumentsTable() {
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-	useEffect(() => {
-		if (documents) setData(documents as Document[]);
-	}, [documents]);
+	// Use server-side pagination and search
+	const {
+		documents,
+		total,
+		loading,
+		error,
+		fetchDocuments,
+		searchDocuments,
+		deleteDocument,
+	} = useDocuments(searchSpaceId, {
+		page: pageIndex,
+		pageSize: pageSize,
+	});
 
-	const filtered = useMemo(() => {
-		let result = data;
-		if (debouncedSearch.trim()) {
-			const q = debouncedSearch.toLowerCase();
-			result = result.filter((d) => d.title.toLowerCase().includes(q));
+	// Refetch when pagination changes or when search/filters change
+	useEffect(() => {
+		if (searchSpaceId) {
+			if (debouncedSearch.trim()) {
+				// Use search endpoint if there's a search query
+				searchDocuments?.(debouncedSearch, pageIndex, pageSize);
+			} else {
+				// Use regular fetch if no search
+				fetchDocuments?.(pageIndex, pageSize);
+			}
 		}
+	}, [pageIndex, pageSize, debouncedSearch, searchSpaceId, fetchDocuments, searchDocuments]);
+
+	// Client-side filtering for document types only
+	// Note: This could also be moved to the backend for better performance
+	const filtered = useMemo(() => {
+		let result = documents || [];
 		if (activeTypes.length > 0) {
 			result = result.filter((d) => activeTypes.includes(d.document_type));
 		}
 		return result;
-	}, [data, debouncedSearch, activeTypes]);
+	}, [documents, activeTypes]);
 
-	const total = filtered.length;
+	// Display filtered results
+	const displayDocs = filtered;
+	const displayTotal = activeTypes.length > 0 ? filtered.length : total;
 	const pageStart = pageIndex * pageSize;
-	const pageEnd = Math.min(pageStart + pageSize, total);
-	const pageDocs = filtered.slice(pageStart, pageEnd);
+	const pageEnd = Math.min(pageStart + pageSize, displayTotal);
 
 	const onToggleType = (type: string, checked: boolean) => {
 		setActiveTypes((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
@@ -74,6 +92,14 @@ export default function DocumentsTable() {
 	const onToggleColumn = (id: keyof ColumnVisibility, checked: boolean) => {
 		setColumnVisibility((prev) => ({ ...prev, [id]: checked }));
 	};
+
+	const refreshCurrentView = useCallback(async () => {
+		if (debouncedSearch.trim()) {
+			await searchDocuments?.(debouncedSearch, pageIndex, pageSize);
+		} else {
+			await fetchDocuments?.(pageIndex, pageSize);
+		}
+	}, [debouncedSearch, pageIndex, pageSize, searchDocuments, fetchDocuments]);
 
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
@@ -86,7 +112,8 @@ export default function DocumentsTable() {
 			if (okCount === selectedIds.size)
 				toast.success(`Successfully deleted ${okCount} document(s)`);
 			else toast.error("Some documents could not be deleted");
-			await refreshDocuments?.();
+			// Refetch the current page with appropriate method
+			await refreshCurrentView();
 			setSelectedIds(new Set());
 		} catch (e) {
 			console.error(e);
@@ -113,8 +140,8 @@ export default function DocumentsTable() {
 			className="w-full px-6 py-4"
 		>
 			<DocumentsFilters
-				allDocuments={data}
-				visibleDocuments={pageDocs}
+				allDocuments={documents || []}
+				visibleDocuments={displayDocs}
 				selectedIds={selectedIds}
 				onSearch={setSearch}
 				searchValue={search}
@@ -126,12 +153,10 @@ export default function DocumentsTable() {
 			/>
 
 			<DocumentsTableShell
-				documents={pageDocs}
+				documents={displayDocs}
 				loading={!!loading}
 				error={!!error}
-				onRefresh={async () => {
-					await (refreshDocuments?.() ?? Promise.resolve());
-				}}
+				onRefresh={refreshCurrentView}
 				selectedIds={selectedIds}
 				setSelectedIds={setSelectedIds}
 				columnVisibility={columnVisibility}
@@ -147,20 +172,22 @@ export default function DocumentsTable() {
 				}}
 			/>
 
+
+export { DocumentsTable };
 			<PaginationControls
 				pageIndex={pageIndex}
 				pageSize={pageSize}
-				total={total}
+				total={displayTotal}
 				onPageSizeChange={(s) => {
 					setPageSize(s);
 					setPageIndex(0);
 				}}
 				onFirst={() => setPageIndex(0)}
 				onPrev={() => setPageIndex((i) => Math.max(0, i - 1))}
-				onNext={() => setPageIndex((i) => (pageEnd < total ? i + 1 : i))}
-				onLast={() => setPageIndex(Math.max(0, Math.ceil(total / pageSize) - 1))}
+				onNext={() => setPageIndex((i) => (pageEnd < displayTotal ? i + 1 : i))}
+				onLast={() => setPageIndex(Math.max(0, Math.ceil(displayTotal / pageSize) - 1))}
 				canPrev={pageIndex > 0}
-				canNext={pageEnd < total}
+				canNext={pageEnd < displayTotal}
 				id={id}
 			/>
 		</motion.div>

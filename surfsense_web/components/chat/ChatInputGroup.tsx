@@ -42,7 +42,10 @@ const DocumentSelector = React.memo(
 
 		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(
 			Number(search_space_id),
-			true
+			{
+				lazy: true,
+				pageSize: -1, // Fetch all documents with large page size
+			}
 		);
 
 		const handleOpenChange = useCallback(

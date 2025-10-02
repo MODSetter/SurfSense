@@ -22,6 +22,7 @@ from app.schemas import (
     DocumentsCreate,
     DocumentUpdate,
     DocumentWithChunksRead,
+    PaginatedResponse,
 )
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.document_processors import (
@@ -154,15 +155,36 @@ async def create_documents_file_upload(
         ) from e
 
 
-@router.get("/documents/", response_model=list[DocumentRead])
+@router.get("/documents/", response_model=PaginatedResponse[DocumentRead])
 async def read_documents(
-    skip: int = 0,
-    limit: int = 300,
+    skip: int | None = None,
+    page: int | None = None,
+    page_size: int = 50,
     search_space_id: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    """
+    List documents owned by the current user, with optional filtering and pagination.
+
+    Args:
+        skip: Absolute number of items to skip from the beginning. If provided, it takes precedence over 'page'.
+        page: Zero-based page index used when 'skip' is not provided.
+        page_size: Number of items per page (default: 50). Use -1 to return all remaining items after the offset.
+        search_space_id: If provided, restrict results to a specific search space.
+        session: Database session (injected).
+        user: Current authenticated user (injected).
+
+    Returns:
+        PaginatedResponse[DocumentRead]: Paginated list of documents visible to the user.
+
+    Notes:
+        - If both 'skip' and 'page' are provided, 'skip' is used.
+        - Results are scoped to documents owned by the current user.
+    """
     try:
+        from sqlalchemy import func
+
         query = (
             select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
         )
@@ -171,7 +193,33 @@ async def read_documents(
         if search_space_id is not None:
             query = query.filter(Document.search_space_id == search_space_id)
 
-        result = await session.execute(query.offset(skip).limit(limit))
+        # Get total count
+        count_query = (
+            select(func.count())
+            .select_from(Document)
+            .join(SearchSpace)
+            .filter(SearchSpace.user_id == user.id)
+        )
+        if search_space_id is not None:
+            count_query = count_query.filter(
+                Document.search_space_id == search_space_id
+            )
+        total_result = await session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Calculate offset
+        offset = 0
+        if skip is not None:
+            offset = skip
+        elif page is not None:
+            offset = page * page_size
+
+        # Get paginated results
+        if page_size == -1:
+            result = await session.execute(query.offset(offset))
+        else:
+            result = await session.execute(query.offset(offset).limit(page_size))
+
         db_documents = result.scalars().all()
 
         # Convert database objects to API-friendly format
@@ -189,10 +237,103 @@ async def read_documents(
                 )
             )
 
-        return api_documents
+        return PaginatedResponse(items=api_documents, total=total)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch documents: {e!s}"
+        ) from e
+
+
+@router.get("/documents/search/", response_model=PaginatedResponse[DocumentRead])
+async def search_documents(
+    title: str,
+    skip: int | None = None,
+    page: int | None = None,
+    page_size: int = 50,
+    search_space_id: int | None = None,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Search documents by title substring, optionally filtered by search_space_id.
+
+    Args:
+        title: Case-insensitive substring to match against document titles. Required.
+        skip: Absolute number of items to skip from the beginning. If provided, it takes precedence over 'page'. Default: None.
+        page: Zero-based page index used when 'skip' is not provided. Default: None.
+        page_size: Number of items per page. Use -1 to return all remaining items after the offset. Default: 50.
+        search_space_id: Filter results to a specific search space. Default: None.
+        session: Database session (injected).
+        user: Current authenticated user (injected).
+
+    Returns:
+        PaginatedResponse[DocumentRead]: Paginated list of documents matching the query and filter.
+
+    Notes:
+        - Title matching uses ILIKE (case-insensitive).
+        - If both 'skip' and 'page' are provided, 'skip' is used.
+    """
+    try:
+        from sqlalchemy import func
+
+        query = (
+            select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
+        )
+        if search_space_id is not None:
+            query = query.filter(Document.search_space_id == search_space_id)
+
+        # Only search by title (case-insensitive)
+        query = query.filter(Document.title.ilike(f"%{title}%"))
+
+        # Get total count
+        count_query = (
+            select(func.count())
+            .select_from(Document)
+            .join(SearchSpace)
+            .filter(SearchSpace.user_id == user.id)
+        )
+        if search_space_id is not None:
+            count_query = count_query.filter(
+                Document.search_space_id == search_space_id
+            )
+        count_query = count_query.filter(Document.title.ilike(f"%{title}%"))
+        total_result = await session.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Calculate offset
+        offset = 0
+        if skip is not None:
+            offset = skip
+        elif page is not None:
+            offset = page * page_size
+
+        # Get paginated results
+        if page_size == -1:
+            result = await session.execute(query.offset(offset))
+        else:
+            result = await session.execute(query.offset(offset).limit(page_size))
+
+        db_documents = result.scalars().all()
+
+        # Convert database objects to API-friendly format
+        api_documents = []
+        for doc in db_documents:
+            api_documents.append(
+                DocumentRead(
+                    id=doc.id,
+                    title=doc.title,
+                    document_type=doc.document_type,
+                    document_metadata=doc.document_metadata,
+                    content=doc.content,
+                    created_at=doc.created_at,
+                    search_space_id=doc.search_space_id,
+                )
+            )
+
+        return PaginatedResponse(items=api_documents, total=total)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to search documents: {e!s}"
         ) from e
 
 
