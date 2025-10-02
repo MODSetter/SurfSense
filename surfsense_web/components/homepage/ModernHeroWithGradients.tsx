@@ -1,12 +1,14 @@
 "use client";
 import { IconBrandDiscord, IconBrandGithub, IconFileTypeDoc, IconMail } from "@tabler/icons-react";
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Logo } from "./Logo";
+import { Logo } from "../Logo";
+import { Features } from "./features-card";
 
 export function ModernHeroWithGradients() {
 	return (
-		<div className="relative h-full min-h-[50rem] w-full bg-gray-50 dark:bg-black">
+		<div className="relative h-full min-h-[50rem] w-full">
 			<div className="relative z-20 mx-auto w-full px-4 py-6 md:px-8 lg:px-4">
 				<div className="relative my-12 overflow-hidden rounded-3xl bg-white py-16 shadow-sm dark:bg-gray-900/80 dark:shadow-lg dark:shadow-purple-900/10 md:py-48 mx-auto w-full max-w-[95%] xl:max-w-[98%]">
 					<TopLines />
@@ -77,6 +79,7 @@ export function ModernHeroWithGradients() {
 							</Link>
 						</div>
 					</div>
+					<Features />
 				</div>
 			</div>
 		</div>
