@@ -1,6 +1,6 @@
 "use client";
 import { IconMail, IconMenu2, IconUser, IconX } from "@tabler/icons-react";
-import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "motion/react";
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ export const Navbar = () => {
 	});
 	const [visible, setVisible] = useState<boolean>(false);
 
-	useMotionValueEvent(scrollY, "change", (latest) => {
+	useMotionValueEvent(scrollY, "change", (latest: any) => {
 		if (latest > 100) {
 			setVisible(true);
 		} else {

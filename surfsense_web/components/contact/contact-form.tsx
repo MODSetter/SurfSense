@@ -1,7 +1,7 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { IconMailFilled } from "@tabler/icons-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";

@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, Bot, Brain, CheckCircle, Zap } from "lucide-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";

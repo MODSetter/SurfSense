@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { AnimatePresence, motion, type Variants } from "motion/react";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import {
 	Calendar,
 	CheckCircle,
