@@ -173,7 +173,6 @@ export default function DocumentsTable() {
 			/>
 
 
-export { DocumentsTable };
 			<PaginationControls
 				pageIndex={pageIndex}
 				pageSize={pageSize}

@@ -37,10 +37,7 @@ export interface UseDocumentsOptions {
 	lazy?: boolean;
 }
 
-export function useDocuments(
-	searchSpaceId: number,
-	options?: UseDocumentsOptions | boolean
-) {
+export function useDocuments(searchSpaceId: number, options?: UseDocumentsOptions | boolean) {
 	// Support both old boolean API and new options API for backward compatibility
 	const opts = typeof options === "boolean" ? { lazy: options } : options || {};
 	const { page, pageSize = 300, lazy = false } = opts;
