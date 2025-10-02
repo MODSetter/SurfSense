@@ -2,7 +2,7 @@
 
 import NumberFlow from "@number-flow/react";
 import confetti from "canvas-confetti";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Check, Star } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";

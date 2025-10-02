@@ -3,6 +3,7 @@ import { IconBrandDiscord, IconBrandGithub, IconFileTypeDoc, IconMail } from "@t
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
+import { motion, type Variants } from "framer-motion";
 
 export function ModernHeroWithGradients() {
 	return (

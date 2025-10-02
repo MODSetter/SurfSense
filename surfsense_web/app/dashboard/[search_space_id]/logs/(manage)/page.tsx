@@ -15,7 +15,7 @@ import {
 	useReactTable,
 	type VisibilityState,
 } from "@tanstack/react-table";
-import { AnimatePresence, motion, type Variants } from "motion/react";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import {
 	Activity,
 	AlertCircle,

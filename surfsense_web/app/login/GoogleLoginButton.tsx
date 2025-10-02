@@ -1,6 +1,6 @@
 "use client";
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Logo } from "@/components/Logo";
 import { AmbientBackground } from "./AmbientBackground";
 
