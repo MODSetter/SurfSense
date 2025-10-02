@@ -1,4 +1,4 @@
-import { IconFileBroken, IconSparkles, IconTableColumn, IconUsers } from "@tabler/icons-react";
+import { IconMessage, IconMicrophone, IconSearch, IconUsers } from "@tabler/icons-react";
 import Image from "next/image";
 import React from "react";
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
@@ -420,7 +420,7 @@ const items = [
 			"Get instant information, detailed updates, and cited answers across company and personal knowledge.",
 		header: <CitationIllustration />,
 		className: "md:col-span-2",
-		icon: <IconSparkles className="h-4 w-4 text-neutral-500" />,
+		icon: <IconSearch className="h-4 w-4 text-neutral-500" />,
 	},
 	{
 		title: "Work Together in Real Time",
@@ -436,13 +436,13 @@ const items = [
 			"Create podcasts and multimedia your team can comment on, share, and refine together.",
 		header: <AudioCommentIllustration />,
 		className: "md:col-span-1",
-		icon: <IconTableColumn className="h-4 w-4 text-neutral-500" />,
+		icon: <IconMicrophone className="h-4 w-4 text-neutral-500" />,
 	},
 	{
 		title: "Context Where It Counts",
 		description: "Add comments directly to your chats and docs for clear, in-the-moment feedback.",
 		header: <AnnotationIllustration />,
 		className: "md:col-span-2",
-		icon: <IconFileBroken className="h-4 w-4 text-neutral-500" />,
+		icon: <IconMessage className="h-4 w-4 text-neutral-500" />,
 	},
 ];
