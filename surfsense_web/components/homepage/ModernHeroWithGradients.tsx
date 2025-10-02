@@ -1,5 +1,5 @@
 "use client";
-import { IconBrandDiscord, IconBrandGithub, IconFileTypeDoc, IconMail } from "@tabler/icons-react";
+import { IconBrandDiscord, IconBrandGithub, IconFileTypeDoc, IconMail, IconUserPlus } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -36,13 +36,13 @@ export function ModernHeroWithGradients() {
 						</div>
 						<Link
 							href="/docs"
-							className="flex items-center gap-1 rounded-full border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 px-4 py-1 text-center text-sm text-gray-800 shadow-sm dark:border-[#404040] dark:bg-gradient-to-b dark:from-[#5B5B5D] dark:to-[#262627] dark:text-white dark:shadow-inner dark:shadow-purple-500/10"
+							className="flex items-center mt-8 gap-1 rounded-full border border-gray-200 bg-gradient-to-b from-gray-50 to-gray-100 px-4 py-1 text-center text-sm text-gray-800 shadow-sm dark:border-[#404040] dark:bg-gradient-to-b dark:from-[#5B5B5D] dark:to-[#262627] dark:text-white dark:shadow-inner dark:shadow-purple-500/10"
 						>
 							<IconFileTypeDoc className="h-4 w-4 text-gray-800 dark:text-white" />
 							<span>Documentation</span>
 						</Link>
 						{/* Import the Logo component or define it in this file */}
-						<div className="flex items-center justify-center gap-4 mt-10 mb-2">
+						<div className="flex items-center justify-center gap-4 mt-2">
 							<div className="h-16 w-16">
 								<Logo className="rounded-md" />
 							</div>
@@ -50,18 +50,16 @@ export function ModernHeroWithGradients() {
 								SurfSense
 							</h1>
 						</div>
-						<p className="mx-auto max-w-3xl py-6 text-center text-base text-gray-600 dark:text-neutral-300 md:text-lg lg:text-xl">
-							A Customizable AI Research Agent just like NotebookLM or Perplexity, but connected to
-							external sources such as Search Engines, Slack, Linear, Jira, ClickUp, Confluence,
-							Notion, YouTube, GitHub, Discord and more.
+						<p className="mx-auto max-w-3xl pb-10 text-center text-base text-gray-600 dark:text-neutral-300 md:text-lg lg:text-xl">
+							Your all-in-one AI research workspace.
 						</p>
 						<div className="flex flex-col items-center gap-6 py-6 sm:flex-row">
 							<Link
 								href="/contact"
-								className="w-48 gap-1 rounded-full border border-blue-400 bg-gradient-to-b from-blue-100 to-blue-300 px-5 py-3 text-center text-sm font-medium text-blue-900 shadow-sm dark:border-blue-700 dark:bg-gradient-to-b dark:from-blue-900 dark:to-blue-700 dark:text-blue-100 dark:shadow-inner dark:shadow-blue-500/20 flex items-center justify-center"
+								className="w-48 gap-1 rounded-full border border-white/30 bg-white/10 backdrop-blur-lg px-5 py-3 text-center text-sm font-medium text-gray-900 dark:text-white shadow-lg hover:bg-white/20 dark:hover:bg-white/20 transition-all flex items-center justify-center"
 							>
-								<IconMail className="h-5 w-5 mr-2 text-blue-700 dark:text-blue-300" />
-								<span>Contact Us</span>
+								<IconUserPlus className="h-5 w-5 mr-2" />
+								<span>Sign Up</span>
 							</Link>
 							<Link
 								href="https://discord.gg/ejRNvftDp9"

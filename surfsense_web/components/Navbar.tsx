@@ -1,5 +1,5 @@
 "use client";
-import { IconMail, IconMenu2, IconUser, IconX } from "@tabler/icons-react";
+import { IconMail, IconMenu2, IconUser, IconUserPlus, IconX } from "@tabler/icons-react";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "motion/react";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -172,10 +172,10 @@ const DesktopNav = ({ navItems, visible }: NavbarProps) => {
 							<Link href="/contact">
 								<Button
 									variant="outline"
-									className="hidden cursor-pointer md:flex items-center gap-2 rounded-full dark:bg-blue-900/40 dark:hover:bg-blue-800/50 dark:text-blue-100 dark:border-blue-700 bg-blue-100 hover:bg-blue-200 text-blue-900 border-blue-400"
+									className="hidden cursor-pointer md:flex items-center gap-2 rounded-full bg-white/10 dark:bg-white/10 backdrop-blur-lg hover:bg-white/20 dark:hover:bg-white/20 text-gray-900 dark:text-white border-white/30 transition-all"
 								>
-									<IconMail className="h-4 w-4" />
-									<span>Contact Us</span>
+									<IconUserPlus className="h-4 w-4" />
+									<span>Sign Up</span>
 								</Button>
 							</Link>
 							<Button
@@ -283,10 +283,10 @@ const MobileNav = ({ navItems, visible }: NavbarProps) => {
 						<Link href="/contact" className="w-full" onClick={() => setOpen(false)}>
 							<Button
 								variant="outline"
-								className="flex cursor-pointer items-center gap-2 mt-4 w-full justify-center rounded-full dark:bg-blue-900/40 dark:hover:bg-blue-800/50 dark:text-blue-100 dark:border-blue-700 bg-blue-100 hover:bg-blue-200 text-blue-900 border-blue-400"
+								className="flex cursor-pointer items-center gap-2 mt-4 w-full justify-center rounded-full bg-white/10 dark:bg-white/10 backdrop-blur-lg hover:bg-white/20 dark:hover:bg-white/20 text-gray-900 dark:text-white border-white/30 transition-all"
 							>
-								<IconMail className="h-4 w-4" />
-								<span>Contact Us</span>
+								<IconUserPlus className="h-4 w-4" />
+								<span>Sign Up</span>
 							</Button>
 						</Link>
 						<Button

@@ -282,7 +282,7 @@ const CollaborationIllustration = () => (
 						<span className="relative z-10 inline-flex items-stretch justify-start">
 							<span className="absolute h-full w-0.5 rounded-b-sm bg-blue-500"></span>
 							<span className="absolute inline-flex h-6 sm:h-7 -translate-y-full items-center rounded-t-sm rounded-r-sm px-2 py-0.5 text-xs sm:text-sm font-medium text-white bg-blue-500">
-								Rich
+								Sarah
 							</span>
 						</span>
 						<span>collabo</span>
@@ -290,7 +290,7 @@ const CollaborationIllustration = () => (
 						<span className="relative z-10 inline-flex items-stretch justify-start">
 							<span className="absolute h-full w-0.5 rounded-b-sm bg-purple-600 dark:bg-purple-500"></span>
 							<span className="absolute inline-flex h-6 sm:h-7 -translate-y-full items-center rounded-t-sm rounded-r-sm px-2 py-0.5 text-xs sm:text-sm font-medium text-white bg-purple-600 dark:bg-purple-500">
-								Alex
+								Josh
 							</span>
 						</span>
 						<span>ion</span>
