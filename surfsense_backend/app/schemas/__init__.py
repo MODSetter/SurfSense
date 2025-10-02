@@ -16,6 +16,7 @@ from .documents import (
     DocumentWithChunksRead,
     ExtensionDocumentContent,
     ExtensionDocumentMetadata,
+    PaginatedResponse,
 )
 from .llm_config import LLMConfigBase, LLMConfigCreate, LLMConfigRead, LLMConfigUpdate
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
@@ -68,6 +69,7 @@ __all__ = [
     "LogFilter",
     "LogRead",
     "LogUpdate",
+    "PaginatedResponse",
     "PodcastBase",
     "PodcastCreate",
     "PodcastGenerateRequest",
