@@ -147,7 +147,7 @@ export default function ExternalIntegrations() {
 			<div className="relative flex flex-col items-center text-center z-10">
 				<h1 className="my-6 text-4xl font-bold lg:text-7xl">Integrations</h1>
 				<p className="mb-12 max-w-2xl text-gray-600 dark:text-gray-400 lg:text-xl">
-					Connect your favourite apps to your workflow.
+					Integrate with your team's most important tools
 				</p>
 
 				<div

@@ -33,7 +33,7 @@ const demoPlans = [
 			"Everything in Community",
 			"Priority Support",
 			"Access Controls",
-			"Multicollaborative and multiplayer features",
+			"Collaboration and multiplayer features",
 			"Video generation",
 			"Advanced security features",
 		],
