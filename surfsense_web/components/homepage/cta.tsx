@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export function CTAHomepage() {
 	return (
-		<section className="w-full grid grid-cols-1 md:grid-cols-3 my-20 md:my-40 justify-start relative z-20 max-w-7xl mx-auto bg-gradient-to-br from-gray-100 to-white dark:from-neutral-900 dark:to-neutral-950">
+		<section className="w-full grid grid-cols-1 md:grid-cols-3 my-20 md:my-20 justify-start relative z-20 max-w-7xl mx-auto bg-gradient-to-br from-gray-100 to-white dark:from-neutral-900 dark:to-neutral-950">
 			<GridLineHorizontal className="top-0" offset="200px" />
 			<GridLineHorizontal className="bottom-0 top-auto" offset="200px" />
 			<GridLineVertical className="left-0" offset="80px" />
