@@ -2013,3 +2013,104 @@ class ConnectorService:
         }
 
         return result_object, luma_chunks
+
+    async def search_elasticsearch(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for Elasticsearch documents and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            elasticsearch_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="ELASTICSEARCH",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            elasticsearch_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="ELASTICSEARCH",
+            )
+            # Transform document retriever results to match expected format
+            elasticsearch_chunks = self._transform_document_results(
+                elasticsearch_chunks
+            )
+
+        # Early return if no results
+        if not elasticsearch_chunks:
+            return {
+                "id": 12,
+                "name": "Elasticsearch",
+                "type": "ELASTICSEARCH",
+                "sources": [],
+            }, []
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(elasticsearch_chunks):
+                # Extract document metadata
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                # Extract Elasticsearch-specific metadata
+                es_index = metadata.get("elasticsearch_index", "unknown")
+                es_id = metadata.get("elasticsearch_id", "")
+                es_score = metadata.get("elasticsearch_score", 0)
+
+                # Create title with Elasticsearch context
+                title = document.get("title", "Elasticsearch Document")
+                if es_index:
+                    title = f"[{es_index}] {title}"
+
+                # Create description from content
+                description = chunk.get("content", "")[:100]
+                if len(description) == 100:
+                    description += "..."
+
+                # Add score information to description
+                if es_score:
+                    description = f"Score: {es_score:.2f} | {description}"
+
+                source = {
+                    "id": chunk.get("chunk_id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": metadata.get("url", f"elasticsearch://{es_index}/{es_id}"),
+                    "elasticsearch_index": es_index,
+                    "elasticsearch_id": es_id,
+                    "elasticsearch_score": es_score,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+
+        # Create result object
+        result_object = {
+            "id": 12,
+            "name": "Elasticsearch",
+            "type": "ELASTICSEARCH",
+            "sources": sources_list,
+        }
+
+        return result_object, elasticsearch_chunks

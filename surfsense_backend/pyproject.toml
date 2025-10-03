@@ -42,6 +42,7 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "validators>=0.34.0",
     "youtube-transcript-api>=1.0.3",
+    "elasticsearch>=9.1.1",
 ]
 
 [dependency-groups]
