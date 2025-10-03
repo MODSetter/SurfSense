@@ -8,7 +8,7 @@ export function FeaturesCards() {
 			<div className="@container mx-auto max-w-7xl">
 				<div className="text-center">
 					<h2 className="text-balance text-4xl font-semibold lg:text-5xl">
-						Everything Your Team Needs to Succeed
+						Your Team's AI-Powered Knowledge Hub
 					</h2>
 					<p className="mt-4">
 						Powerful features designed to enhance collaboration, boost productivity, and streamline
