@@ -1,4 +1,3 @@
-# import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
@@ -7,18 +6,27 @@ from typing import Any
 from elasticsearch import AsyncElasticsearch
 from elasticsearch.exceptions import AuthenticationException, ConnectionError
 
-from app.schemas.connector import ConnectorConfig
-from app.schemas.documents import DocumentCreate, DocumentType
-from app.utils.document_converter import DocumentConverter
+from app.db import DocumentType
 
 logger = logging.getLogger(__name__)
 
 
+# Create a simple document structure for Elasticsearch results
+class ElasticsearchDocument:
+    def __init__(
+        self, title: str, content: str, url: str, metadata: dict | None = None
+    ):
+        self.title = title
+        self.content = content
+        self.url = url
+        self.metadata = metadata or {}
+        self.document_type = DocumentType.ELASTICSEARCH_CONNECTOR
+
+
 class ElasticsearchConnector:
-    def __init__(self, config: ConnectorConfig):
+    def __init__(self, config: dict):
         self.config = config
         self.client: AsyncElasticsearch | None = None
-        self.document_converter = DocumentConverter()
 
     async def connect(self) -> bool:
         """Establish connection to Elasticsearch"""
@@ -106,8 +114,8 @@ class ElasticsearchConnector:
         indices: list[str] | None = None,
         size: int = 100,
         fields: list[str] | None = None,
-    ) -> AsyncGenerator[DocumentCreate, None]:
-        """Search documents in Elasticsearch and yield them as DocumentCreate objects"""
+    ) -> AsyncGenerator[ElasticsearchDocument, None]:
+        """Search documents in Elasticsearch and yield them as ElasticsearchDocument objects"""
         try:
             if not self.client:
                 await self.connect()
@@ -137,7 +145,7 @@ class ElasticsearchConnector:
 
             for hit in response["hits"]["hits"]:
                 try:
-                    # Convert Elasticsearch document to SurfSense document
+                    # Convert Elasticsearch document to ElasticsearchDocument
                     document = await self._convert_es_document(hit)
                     if document:
                         yield document
@@ -150,7 +158,7 @@ class ElasticsearchConnector:
 
     async def get_document_by_id(
         self, index: str, doc_id: str
-    ) -> DocumentCreate | None:
+    ) -> ElasticsearchDocument | None:
         """Get a specific document by ID"""
         try:
             if not self.client:
@@ -164,8 +172,8 @@ class ElasticsearchConnector:
 
     async def _convert_es_document(
         self, es_doc: dict[str, Any]
-    ) -> DocumentCreate | None:
-        """Convert Elasticsearch document to SurfSense DocumentCreate"""
+    ) -> ElasticsearchDocument | None:
+        """Convert Elasticsearch document to ElasticsearchDocument"""
         try:
             source = es_doc.get("_source", {})
 
@@ -190,27 +198,25 @@ class ElasticsearchConnector:
             # Generate URL pointing back to Elasticsearch
             url = f"elasticsearch://{es_doc.get('_index')}/{es_doc.get('_id')}"
 
-            # Convert content to markdown if it's HTML
-            if content and isinstance(content, str):
-                content = await self.document_converter.convert_to_markdown(content)
+            # Create metadata
+            metadata = {
+                "elasticsearch_index": es_doc.get("_index"),
+                "elasticsearch_id": es_doc.get("_id"),
+                "elasticsearch_score": es_doc.get("_score"),
+                "source_fields": list(source.keys()),
+                **{
+                    k: v
+                    for k, v in source.items()
+                    if k not in ["content", "text", "body", "message"]
+                    and isinstance(v, str | int | float | bool)
+                },
+            }
 
-            return DocumentCreate(
+            return ElasticsearchDocument(
                 title=title[:500],  # Limit title length
                 content=content,
                 url=url,
-                document_type=DocumentType.ELASTICSEARCH,
-                metadata={
-                    "elasticsearch_index": es_doc.get("_index"),
-                    "elasticsearch_id": es_doc.get("_id"),
-                    "elasticsearch_score": es_doc.get("_score"),
-                    "source_fields": list(source.keys()),
-                    **{
-                        k: v
-                        for k, v in source.items()
-                        if k not in ["content", "text", "body", "message"]
-                        and isinstance(v, str | int | float | bool)
-                    },
-                },
+                metadata=metadata,
             )
         except Exception as e:
             logger.error(f"Error converting Elasticsearch document: {e}")

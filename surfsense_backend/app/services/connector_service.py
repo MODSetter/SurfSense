@@ -2041,7 +2041,7 @@ class ConnectorService:
                 top_k=top_k,
                 user_id=user_id,
                 search_space_id=search_space_id,
-                document_type="ELASTICSEARCH",
+                document_type="ELASTICSEARCH_CONNECTOR",
             )
         elif search_mode == SearchMode.DOCUMENTS:
             elasticsearch_chunks = await self.document_retriever.hybrid_search(
@@ -2049,7 +2049,7 @@ class ConnectorService:
                 top_k=top_k,
                 user_id=user_id,
                 search_space_id=search_space_id,
-                document_type="ELASTICSEARCH",
+                document_type="ELASTICSEARCH_CONNECTOR",
             )
             # Transform document retriever results to match expected format
             elasticsearch_chunks = self._transform_document_results(
@@ -2061,7 +2061,7 @@ class ConnectorService:
             return {
                 "id": 12,
                 "name": "Elasticsearch",
-                "type": "ELASTICSEARCH",
+                "type": "ELASTICSEARCH_CONNECTOR",
                 "sources": [],
             }, []
 
@@ -2109,7 +2109,7 @@ class ConnectorService:
         result_object = {
             "id": 12,
             "name": "Elasticsearch",
-            "type": "ELASTICSEARCH",
+            "type": "ELASTICSEARCH_CONNECTOR",
             "sources": sources_list,
         }
 

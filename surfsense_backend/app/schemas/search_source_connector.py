@@ -208,6 +208,42 @@ class SearchSourceConnectorBase(BaseModel):
             if not config.get("LUMA_API_KEY"):
                 raise ValueError("LUMA_API_KEY cannot be empty")
 
+        elif connector_type == SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR:
+            # For ELASTICSEARCH_CONNECTOR, allow various connection parameters
+            allowed_keys = [
+                "hostname",
+                "port",
+                "username",
+                "password",
+                "api_key",
+                "ssl_enabled",
+                "indices",
+                "query",
+                "search_fields",
+                "max_documents",
+            ]
+
+            # Check if hostname is present (required)
+            if not config.get("hostname"):
+                raise ValueError("Elasticsearch connector must have a hostname")
+
+            # Validate that all config keys are allowed
+            for key in config:
+                if key not in allowed_keys:
+                    raise ValueError(
+                        f"Invalid config key for Elasticsearch connector: {key}"
+                    )
+
+            # Validate port if provided
+            if "port" in config and not isinstance(config["port"], int):
+                raise ValueError("Elasticsearch port must be an integer")
+
+            # Validate max_documents if provided
+            if "max_documents" in config and not isinstance(
+                config["max_documents"], int
+            ):
+                raise ValueError("max_documents must be an integer")
+
         return config
 
 

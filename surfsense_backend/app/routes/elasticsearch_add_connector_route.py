@@ -1,25 +1,20 @@
-import hashlib
+import contextlib
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.elasticsearch_connector import ElasticsearchConnector
 from app.db import (
-    Chunk,
-    Document,
     SearchSourceConnector,
     SearchSourceConnectorType,
+    User,
     get_async_session,
 )
-from app.schemas.users import User
-from app.tasks.connector_indexers.elasticsearch_indexer import ElasticsearchIndexer
 from app.users import current_active_user
 
 logger = logging.getLogger(__name__)
@@ -48,10 +43,8 @@ async def add_elasticsearch_connector(
 ) -> dict[str, Any]:
     """Add a new Elasticsearch connector for the current user"""
 
-    # Test the connection before saving
-    elasticsearch_connector = ElasticsearchConnector(connector_data)
-
     try:
+        elasticsearch_connector = ElasticsearchConnector(connector_data)
         connection_test = await elasticsearch_connector.test_connection()
         if not connection_test.get("success"):
             raise HTTPException(
@@ -59,13 +52,14 @@ async def add_elasticsearch_connector(
                 detail=f"Failed to connect to Elasticsearch: {connection_test.get('error')}",
             )
     except Exception as e:
-        logger.error(f"Error testing Elasticsearch connection: {e}")
+        logger.error(f"Error initializing or testing Elasticsearch connector: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to test Elasticsearch connection: {e!s}",
+            detail=f"Failed to initialize or test Elasticsearch connector: {e!s}",
         ) from e
     finally:
-        await elasticsearch_connector.disconnect()
+        with contextlib.suppress(Exception):
+            await elasticsearch_connector.disconnect()
 
     try:
         # Check if connector already exists for this user
@@ -73,7 +67,7 @@ async def add_elasticsearch_connector(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.user_id == current_user.id,
                 SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.ELASTICSEARCH,
+                == SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR,
             )
         )
         existing_connector = existing_connector_result.scalars().first()
@@ -92,7 +86,7 @@ async def add_elasticsearch_connector(
             # Create new connector
             new_connector = SearchSourceConnector(
                 name=f"Elasticsearch - {connector_data.hostname}:{connector_data.port}",
-                connector_type=SearchSourceConnectorType.ELASTICSEARCH,
+                connector_type=SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR,
                 is_indexable=True,
                 config=connector_data.model_dump(),
                 user_id=current_user.id,
@@ -159,7 +153,7 @@ async def get_elasticsearch_connectors(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.user_id == current_user.id,
                 SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.ELASTICSEARCH,
+                == SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR,
             )
         )
         connectors = result.scalars().all()
@@ -213,7 +207,7 @@ async def update_elasticsearch_connector(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == current_user.id,
                 SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.ELASTICSEARCH,
+                == SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR,
             )
         )
         connector = result.scalar_one_or_none()
@@ -224,18 +218,24 @@ async def update_elasticsearch_connector(
                 detail="Elasticsearch connector not found",
             )
 
-        # Test the new connection
-        elasticsearch_connector = ElasticsearchConnector(connector_data)
-
+        # Test the new connection with robust error handling
         try:
+            elasticsearch_connector = ElasticsearchConnector(connector_data)
             connection_test = await elasticsearch_connector.test_connection()
             if not connection_test.get("success"):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Failed to connect to Elasticsearch: {connection_test.get('error')}",
                 )
+        except Exception as e:
+            logger.error(f"Error initializing or testing Elasticsearch connector: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to initialize or test Elasticsearch connector: {e!s}",
+            ) from e
         finally:
-            await elasticsearch_connector.disconnect()
+            with contextlib.suppress(Exception):
+                await elasticsearch_connector.disconnect()
 
         # Update the connector
         connector.config = connector_data.model_dump()
@@ -289,7 +289,7 @@ async def delete_elasticsearch_connector(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == current_user.id,
                 SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.ELASTICSEARCH,
+                == SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR,
             )
         )
         connector = result.scalar_one_or_none()
@@ -389,138 +389,4 @@ async def get_elasticsearch_indices(
         await elasticsearch_connector.disconnect()
 
 
-@router.post("/index-connector/{connector_id}")
-async def index_elasticsearch_connector(
-    connector_id: int,
-    search_space_id: int,
-    current_user: User = Depends(current_active_user),
-    session: AsyncSession = Depends(get_async_session),
-) -> dict[str, Any]:
-    """
-    Index documents from an Elasticsearch connector into a search space
-    """
-    try:
-        # Get the connector directly from database
-        stmt = select(SearchSourceConnector).where(
-            SearchSourceConnector.id == connector_id,
-            SearchSourceConnector.user_id == current_user.id,
-        )
-        result = await session.execute(stmt)
-        connector = result.scalar_one_or_none()
-
-        if not connector:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Connector {connector_id} not found",
-            )
-
-        if connector.connector_type != SearchSourceConnectorType.ELASTICSEARCH:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Connector is not an Elasticsearch connector",
-            )
-
-        # Initialize the indexer
-        indexer = ElasticsearchIndexer(connector.config)
-
-        # Test connection first
-        logger.info(f"Testing Elasticsearch connection for connector {connector_id}")
-        connection_test = await indexer.test_connection()
-        if not connection_test.get("success"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Connection test failed: {connection_test.get('error')}",
-            )
-
-        # Index documents
-        logger.info(f"Starting indexing for Elasticsearch connector {connector_id}")
-        indexed_count = 0
-        error_count = 0
-
-        async for document in indexer.get_documents():
-            try:
-                # Create content hash
-                content_hash = hashlib.sha256(document.content.encode()).hexdigest()
-
-                # Check if document already exists
-                existing_doc_stmt = select(Document).where(
-                    Document.content_hash == content_hash,
-                    Document.search_space_id == search_space_id,
-                )
-                existing_doc_result = await session.execute(existing_doc_stmt)
-                if existing_doc_result.scalar_one_or_none():
-                    logger.info(f"Document already exists, skipping: {document.title}")
-                    continue
-
-                # Generate embedding for document
-                embedding = await config.embedding_model_instance.encode(
-                    document.content
-                )
-
-                # Create document
-                db_document = Document(
-                    title=document.title,
-                    content=document.content,
-                    content_hash=content_hash,
-                    document_type=document.document_type,
-                    document_metadata=document.metadata,
-                    search_space_id=search_space_id,
-                    embedding=embedding,
-                )
-                session.add(db_document)
-                await session.flush()  # Get the document ID
-
-                # Create a single chunk with the entire document content
-                chunk_embedding = await config.embedding_model_instance.encode(
-                    document.content
-                )
-                db_chunk = Chunk(
-                    content=document.content,
-                    embedding=chunk_embedding,
-                    document_id=db_document.id,
-                )
-                session.add(db_chunk)
-
-                indexed_count += 1
-
-                if indexed_count % 10 == 0:
-                    logger.info(f"Indexed {indexed_count} Elasticsearch documents")
-                    await session.commit()  # Periodic commit
-
-            except Exception as e:
-                logger.error(f"Error indexing document: {e}")
-                error_count += 1
-
-        await session.commit()
-
-        # Update last_indexed_at timestamp
-        update_stmt = (
-            update(SearchSourceConnector)
-            .where(SearchSourceConnector.id == connector_id)
-            .values(last_indexed_at=datetime.now(UTC))
-        )
-        await session.execute(update_stmt)
-        await session.commit()
-
-        logger.info(
-            f"Elasticsearch indexing completed: {indexed_count} documents indexed, {error_count} errors"
-        )
-
-        return {
-            "success": True,
-            "indexed_documents": indexed_count,
-            "errors": error_count,
-            "connector_id": connector_id,
-            "search_space_id": search_space_id,
-            "message": f"Successfully indexed {indexed_count} documents from Elasticsearch",
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error during Elasticsearch indexing: {e}")
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error during indexing: {e!s}",
-        ) from e
+# Note: Removed the index_elasticsearch_connector endpoint - now handled by universal system
