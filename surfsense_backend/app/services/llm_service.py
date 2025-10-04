@@ -81,6 +81,7 @@ async def get_user_llm_instance(
                 "MISTRAL": "mistral",
                 "AZURE_OPENAI": "azure",
                 "OPENROUTER": "openrouter",
+                "COMETAPI": "openai",
                 # Add more mappings as needed
             }
             provider_prefix = provider_map.get(
