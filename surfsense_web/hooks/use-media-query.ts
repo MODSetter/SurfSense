@@ -6,34 +6,32 @@ import { useEffect, useState } from "react";
  * @returns boolean - True if the media query matches, false otherwise
  */
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
+	const [matches, setMatches] = useState(false);
 
-  useEffect(() => {
-    // Check if we're in the browser (handle SSR)
-    if (typeof window === "undefined") {
-      return;
-    }
+	useEffect(() => {
+		// Check if we're in the browser (handle SSR)
+		if (typeof window === "undefined") {
+			return;
+		}
 
-    const mediaQuery = window.matchMedia(query);
-    
-    // Set initial value
-    setMatches(mediaQuery.matches);
+		const mediaQuery = window.matchMedia(query);
 
-    // Create event listener
-    const handler = (event: MediaQueryListEvent) => {
-      setMatches(event.matches);
-    };
+		// Set initial value
+		setMatches(mediaQuery.matches);
 
-    // Add event listener
-    mediaQuery.addEventListener("change", handler);
+		// Create event listener
+		const handler = (event: MediaQueryListEvent) => {
+			setMatches(event.matches);
+		};
 
-    // Cleanup
-    return () => {
-      mediaQuery.removeEventListener("change", handler);
-    };
-  }, [query]);
+		// Add event listener
+		mediaQuery.addEventListener("change", handler);
 
-  return matches;
+		// Cleanup
+		return () => {
+			mediaQuery.removeEventListener("change", handler);
+		};
+	}, [query]);
+
+	return matches;
 }
-
-
