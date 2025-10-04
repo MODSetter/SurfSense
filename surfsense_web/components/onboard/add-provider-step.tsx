@@ -37,6 +37,7 @@ const LLM_PROVIDERS = [
 	{ value: "TOGETHER_AI", label: "Together AI", example: "togethercomputer/llama-2-70b-chat" },
 	{ value: "REPLICATE", label: "Replicate", example: "meta/llama-2-70b-chat" },
 	{ value: "OPENROUTER", label: "OpenRouter", example: "anthropic/claude-opus-4.1, openai/gpt-5" },
+	{ value: "COMETAPI", label: "CometAPI", example: "gpt-4o, claude-3-5-sonnet-20241022" },
 	{ value: "CUSTOM", label: "Custom Provider", example: "your-custom-model" },
 ];
 

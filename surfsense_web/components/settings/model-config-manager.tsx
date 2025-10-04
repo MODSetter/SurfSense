@@ -119,6 +119,12 @@ const LLM_PROVIDERS = [
 		description: "API gateway and LLM marketplace that provides unified access ",
 	},
 	{
+		value: "COMETAPI",
+		label: "CometAPI",
+		example: "gpt-5-mini, claude-sonnet-4-5",
+		description: "500+ AI models through one unified API",
+	},
+	{
 		value: "CUSTOM",
 		label: "Custom Provider",
 		example: "your-custom-model",
