@@ -21,7 +21,6 @@ dependencies = [
     "langchain-unstructured>=0.1.6",
     "langgraph>=0.3.29",
     "linkup-sdk>=0.2.4",
-    "litellm>=1.61.4,<1.70.0",
     "llama-cloud-services>=0.6.25",
     "markdownify>=0.14.1",
     "notion-client>=2.3.0",
@@ -42,6 +41,8 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "validators>=0.34.0",
     "youtube-transcript-api>=1.0.3",
+    "litellm>=1.77.5",
+    "langchain-litellm>=0.2.3",
 ]
 
 [dependency-groups]

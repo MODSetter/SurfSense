@@ -1,6 +1,6 @@
 import logging
 
-from langchain_community.chat_models import ChatLiteLLM
+from langchain_litellm import ChatLiteLLM
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -81,7 +81,7 @@ async def get_user_llm_instance(
                 "MISTRAL": "mistral",
                 "AZURE_OPENAI": "azure",
                 "OPENROUTER": "openrouter",
-                "COMETAPI": "openai",
+                "COMETAPI": "cometapi",
                 # Add more mappings as needed
             }
             provider_prefix = provider_map.get(
