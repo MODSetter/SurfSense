@@ -42,18 +42,11 @@ export default function DocumentsTable() {
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
 	// Use server-side pagination and search
-	const {
-		documents,
-		total,
-		loading,
-		error,
-		fetchDocuments,
-		searchDocuments,
-		deleteDocument,
-	} = useDocuments(searchSpaceId, {
-		page: pageIndex,
-		pageSize: pageSize,
-	});
+	const { documents, total, loading, error, fetchDocuments, searchDocuments, deleteDocument } =
+		useDocuments(searchSpaceId, {
+			page: pageIndex,
+			pageSize: pageSize,
+		});
 
 	// Refetch when pagination changes or when search/filters change
 	useEffect(() => {
@@ -171,7 +164,6 @@ export default function DocumentsTable() {
 					}
 				}}
 			/>
-
 
 			<PaginationControls
 				pageIndex={pageIndex}
