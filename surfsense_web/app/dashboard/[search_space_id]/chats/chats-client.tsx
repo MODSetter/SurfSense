@@ -1,7 +1,6 @@
 "use client";
 
 import { format } from "date-fns";
-import { AnimatePresence, motion, type Variants } from "motion/react";
 import {
 	Calendar,
 	CheckCircle,
@@ -14,6 +13,7 @@ import {
 	Tag,
 	Trash2,
 } from "lucide-react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

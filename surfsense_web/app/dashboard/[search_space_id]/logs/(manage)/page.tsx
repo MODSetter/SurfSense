@@ -15,7 +15,6 @@ import {
 	useReactTable,
 	type VisibilityState,
 } from "@tanstack/react-table";
-import { AnimatePresence, motion, type Variants } from "motion/react";
 import {
 	Activity,
 	AlertCircle,
@@ -42,6 +41,7 @@ import {
 	X,
 	Zap,
 } from "lucide-react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useParams } from "next/navigation";
 import React, { useContext, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";

@@ -2,8 +2,8 @@
 
 import { IconBrandYoutube } from "@tabler/icons-react";
 import { type Tag, TagInput } from "emblor";
-import { motion, type Variants } from "motion/react";
 import { Loader2 } from "lucide-react";
+import { motion, type Variants } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";

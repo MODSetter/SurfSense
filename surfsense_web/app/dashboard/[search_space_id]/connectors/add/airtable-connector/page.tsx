@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "motion/react";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
