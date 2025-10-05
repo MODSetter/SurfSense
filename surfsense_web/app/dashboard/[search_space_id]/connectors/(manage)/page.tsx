@@ -41,7 +41,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
 // Helper function to format date with time

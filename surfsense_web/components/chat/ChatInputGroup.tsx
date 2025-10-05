@@ -27,7 +27,7 @@ import {
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { type Document, useDocuments } from "@/hooks/use-documents";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 const DocumentSelector = React.memo(
 	({

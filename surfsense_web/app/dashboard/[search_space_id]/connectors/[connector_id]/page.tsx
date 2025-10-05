@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
-} from "@/hooks/useSearchSourceConnectors";
+} from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const apiConnectorFormSchema = z.object({

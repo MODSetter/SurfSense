@@ -33,7 +33,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
-} from "@/hooks/useSearchSourceConnectors";
+} from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const lumaConnectorFormSchema = z.object({

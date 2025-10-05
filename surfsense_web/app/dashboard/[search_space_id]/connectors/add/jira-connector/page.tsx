@@ -37,7 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const jiraConnectorFormSchema = z.object({
