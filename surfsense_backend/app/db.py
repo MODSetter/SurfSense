@@ -27,6 +27,8 @@ from app.config import config
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
 
+from sqlalchemy.ext.mutable import MutableDict
+
 if config.AUTH_TYPE == "GOOGLE":
     from fastapi_users.db import SQLAlchemyBaseOAuthAccountTableUUID
 
@@ -203,6 +205,14 @@ class SearchSpace(BaseModel, TimestampMixin):
 
     name = Column(String(100), nullable=False, index=True)
     description = Column(String(500), nullable=True)
+
+    inference_params = Column(
+        MutableDict.as_mutable(JSON),
+        nullable=True,
+        server_default=text(
+            '\'{"temperature":0.0,"max_tokens":0,"top_k":0,"top_p":0}\'::json'
+        )
+    )
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
