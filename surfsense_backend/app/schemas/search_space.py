@@ -9,7 +9,7 @@ class InferenceParams(BaseModel):
     temperature: float | None = Field(None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(None, ge=0)
     top_k: int | None = Field(None, ge=0)
-    top_p: int | None = Field(None, ge=0, le=1)
+    top_p: float | None = Field(None, ge=0.0, le=1.0)
 
 
 class SearchSpaceBase(BaseModel):
