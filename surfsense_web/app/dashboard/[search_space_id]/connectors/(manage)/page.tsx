@@ -141,28 +141,6 @@ export default function ConnectorsPage() {
 		}
 	};
 
-	const getDisabledEndDates = (date: Date) => {
-		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
-
-		switch (connector?.connector_type) {
-			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
-				return startDate ? date < startDate : false;
-			default:
-				return date > today || (startDate ? date < startDate : false);
-		}
-	};
-
-	const getDisabledStartDates = (date: Date) => {
-		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
-
-		switch (connector?.connector_type) {
-			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
-				return endDate ? date > endDate : false;
-			default:
-				return date > today || (endDate ? date > endDate : false);
-		}
-	};
-
 	return (
 		<div className="container mx-auto py-8 max-w-6xl">
 			<motion.div
@@ -366,7 +344,6 @@ export default function ConnectorsPage() {
 											mode="single"
 											selected={startDate}
 											onSelect={setStartDate}
-											disabled={getDisabledStartDates}
 											initialFocus
 										/>
 									</PopoverContent>
@@ -393,7 +370,6 @@ export default function ConnectorsPage() {
 											mode="single"
 											selected={endDate}
 											onSelect={setEndDate}
-											disabled={getDisabledEndDates}
 											initialFocus
 										/>
 									</PopoverContent>
