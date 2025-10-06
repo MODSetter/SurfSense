@@ -205,8 +205,6 @@ class SearchSpace(BaseModel, TimestampMixin):
     name = Column(String(100), nullable=False, index=True)
     description = Column(String(500), nullable=True)
 
-    inference_params = Column(JSON, nullable=True)
-
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
