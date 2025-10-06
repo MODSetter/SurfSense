@@ -1,8 +1,8 @@
 "use client";
 
 import { IconCheck, IconCopy, IconKey } from "@tabler/icons-react";
-import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

@@ -1,8 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -23,7 +23,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
-} from "@/hooks/useSearchSourceConnectors";
+} from "@/hooks/use-search-source-connectors";
 
 export default function GoogleCalendarConnectorPage() {
 	const router = useRouter();

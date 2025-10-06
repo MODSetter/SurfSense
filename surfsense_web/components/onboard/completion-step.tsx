@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { ArrowRight, Bot, Brain, CheckCircle, Sparkles, Zap } from "lucide-react";
+import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";

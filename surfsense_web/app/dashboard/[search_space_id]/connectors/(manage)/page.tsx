@@ -1,8 +1,8 @@
 "use client";
 
 import { format } from "date-fns";
-import { motion } from "framer-motion";
 import { Calendar as CalendarIcon, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -41,7 +41,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
 // Helper function to format date with time

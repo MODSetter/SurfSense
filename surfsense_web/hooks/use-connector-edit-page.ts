@@ -14,7 +14,7 @@ import {
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
-} from "@/hooks/useSearchSourceConnectors";
+} from "@/hooks/use-search-source-connectors";
 
 export function useConnectorEditPage(connectorId: number, searchSpaceId: string) {
 	const router = useRouter();

@@ -27,7 +27,7 @@ import {
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { type Document, useDocuments } from "@/hooks/use-documents";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 const DocumentSelector = React.memo(
 	({
@@ -40,10 +40,10 @@ const DocumentSelector = React.memo(
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
-		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(
-			Number(search_space_id),
-			true
-		);
+		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(Number(search_space_id), {
+			lazy: true,
+			pageSize: -1, // Fetch all documents with large page size
+		});
 
 		const handleOpenChange = useCallback(
 			(open: boolean) => {

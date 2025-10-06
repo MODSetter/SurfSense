@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, FileX } from "lucide-react";
+import { motion } from "motion/react";
 import React from "react";
 import { DocumentViewer } from "@/components/document-viewer";
 import { Button } from "@/components/ui/button";

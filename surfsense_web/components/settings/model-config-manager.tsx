@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import {
 	AlertCircle,
 	Bot,
@@ -15,6 +14,7 @@ import {
 	Settings2,
 	Trash2,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -37,94 +37,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
-
-const LLM_PROVIDERS = [
-	{
-		value: "OPENAI",
-		label: "OpenAI",
-		example: "gpt-4o, gpt-4, gpt-3.5-turbo",
-		description: "Most popular and versatile AI models",
-	},
-	{
-		value: "ANTHROPIC",
-		label: "Anthropic",
-		example: "claude-3-5-sonnet-20241022, claude-3-opus-20240229",
-		description: "Constitutional AI with strong reasoning",
-	},
-	{
-		value: "GROQ",
-		label: "Groq",
-		example: "llama3-70b-8192, mixtral-8x7b-32768",
-		description: "Ultra-fast inference speeds",
-	},
-	{
-		value: "COHERE",
-		label: "Cohere",
-		example: "command-r-plus, command-r",
-		description: "Enterprise-focused language models",
-	},
-	{
-		value: "HUGGINGFACE",
-		label: "HuggingFace",
-		example: "microsoft/DialoGPT-medium",
-		description: "Open source model hub",
-	},
-	{
-		value: "AZURE_OPENAI",
-		label: "Azure OpenAI",
-		example: "gpt-4, gpt-35-turbo",
-		description: "Enterprise OpenAI through Azure",
-	},
-	{
-		value: "GOOGLE",
-		label: "Google",
-		example: "gemini-pro, gemini-pro-vision",
-		description: "Google's Gemini AI models",
-	},
-	{
-		value: "AWS_BEDROCK",
-		label: "AWS Bedrock",
-		example: "anthropic.claude-v2",
-		description: "AWS managed AI service",
-	},
-	{
-		value: "OLLAMA",
-		label: "Ollama",
-		example: "llama2, codellama",
-		description: "Run models locally",
-	},
-	{
-		value: "MISTRAL",
-		label: "Mistral",
-		example: "mistral-large-latest, mistral-medium",
-		description: "European AI excellence",
-	},
-	{
-		value: "TOGETHER_AI",
-		label: "Together AI",
-		example: "togethercomputer/llama-2-70b-chat",
-		description: "Decentralized AI platform",
-	},
-	{
-		value: "REPLICATE",
-		label: "Replicate",
-		example: "meta/llama-2-70b-chat",
-		description: "Run models via API",
-	},
-	{
-		value: "OPENROUTER",
-		label: "OpenRouter",
-		example: "anthropic/claude-opus-4.1, openai/gpt-5",
-		description: "API gateway and LLM marketplace that provides unified access ",
-	},
-	{
-		value: "CUSTOM",
-		label: "Custom Provider",
-		example: "your-custom-model",
-		description: "Your own model endpoint",
-	},
-];
 
 export function ModelConfigManager() {
 	const {

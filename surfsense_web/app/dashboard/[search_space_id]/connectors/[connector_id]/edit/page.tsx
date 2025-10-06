@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useConnectorEditPage } from "@/hooks/useConnectorEditPage";
+import { useConnectorEditPage } from "@/hooks/use-connector-edit-page";
 // Import Utils, Types, Hook, and Components
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 

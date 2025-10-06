@@ -102,6 +102,7 @@ class LiteLLMProvider(str, Enum):
     NLPCLOUD = "NLPCLOUD"
     ALEPH_ALPHA = "ALEPH_ALPHA"
     PETALS = "PETALS"
+    COMETAPI = "COMETAPI"
     CUSTOM = "CUSTOM"
 
 
