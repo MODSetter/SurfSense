@@ -21,7 +21,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
-} from "@/hooks/useSearchSourceConnectors";
+} from "@/hooks/use-search-source-connectors";
 
 export default function AirtableConnectorPage() {
 	const router = useRouter();

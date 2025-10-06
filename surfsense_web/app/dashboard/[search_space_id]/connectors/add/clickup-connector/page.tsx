@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const clickupConnectorFormSchema = z.object({

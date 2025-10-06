@@ -39,7 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 // Assuming useSearchSourceConnectors hook exists and works similarly
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod for GitHub PAT entry step
 const githubPatFormSchema = z.object({
