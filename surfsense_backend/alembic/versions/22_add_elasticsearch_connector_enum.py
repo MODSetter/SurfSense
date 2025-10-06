@@ -1,30 +1,55 @@
-"""add elasticsearch connector enum
+"""Add ElasticSearch connector enums
 
 Revision ID: 22
 Revises: 21
-Create Date: 2025-09-30 12:00:00.000000
+Create Date: 2025-10-4 12:00:00.000000
 
 """
-# import sqlalchemy as sa
+
+from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers
-revision = "22_add_elasticsearch_connector_enums"
-down_revision = "21_add_luma_connector_enums"
-branch_labels = None
-depends_on = None
+revision: str = "22"
+down_revision: str | None = "21"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Add ELASTICSEARCH to SearchSourceType enum
-    op.execute("ALTER TYPE searchsourcetype ADD VALUE 'ELASTICSEARCH'")
-
-    # Add ELASTICSEARCH to DocumentType enum
-    op.execute("ALTER TYPE documenttype ADD VALUE 'ELASTICSEARCH'")
+    # Add enum values
+    op.execute(
+        """
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_type t
+            JOIN pg_enum e ON t.oid = e.enumtypid
+            WHERE t.typname = 'searchsourceconnectortype' AND e.enumlabel = 'ELASTICSEARCH_CONNECTOR'
+        ) THEN
+            ALTER TYPE searchsourceconnectortype ADD VALUE 'ELASTICSEARCH_CONNECTOR';
+        END IF;
+    END
+    $$;
+    """
+    )
+    op.execute(
+        """
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_type t
+            JOIN pg_enum e ON t.oid = e.enumtypid
+            WHERE t.typname = 'documenttype' AND e.enumlabel = 'ELASTICSEARCH_CONNECTOR'
+        ) THEN
+            ALTER TYPE documenttype ADD VALUE 'ELASTICSEARCH_CONNECTOR';
+        END IF;
+    END
+    $$;
+    """
+    )
 
 
 def downgrade() -> None:
-    # Note: PostgreSQL doesn't support removing enum values
-    # This would require recreating the enum types
     pass
