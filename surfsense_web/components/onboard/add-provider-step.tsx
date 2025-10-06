@@ -17,29 +17,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
-
-const LLM_PROVIDERS = [
-	{ value: "OPENAI", label: "OpenAI", example: "gpt-4o, gpt-4, gpt-3.5-turbo" },
-	{
-		value: "ANTHROPIC",
-		label: "Anthropic",
-		example: "claude-3-5-sonnet-20241022, claude-3-opus-20240229",
-	},
-	{ value: "GROQ", label: "Groq", example: "llama3-70b-8192, mixtral-8x7b-32768" },
-	{ value: "COHERE", label: "Cohere", example: "command-r-plus, command-r" },
-	{ value: "HUGGINGFACE", label: "HuggingFace", example: "microsoft/DialoGPT-medium" },
-	{ value: "AZURE_OPENAI", label: "Azure OpenAI", example: "gpt-4, gpt-35-turbo" },
-	{ value: "GOOGLE", label: "Google", example: "gemini-pro, gemini-pro-vision" },
-	{ value: "AWS_BEDROCK", label: "AWS Bedrock", example: "anthropic.claude-v2" },
-	{ value: "OLLAMA", label: "Ollama", example: "llama2, codellama" },
-	{ value: "MISTRAL", label: "Mistral", example: "mistral-large-latest, mistral-medium" },
-	{ value: "TOGETHER_AI", label: "Together AI", example: "togethercomputer/llama-2-70b-chat" },
-	{ value: "REPLICATE", label: "Replicate", example: "meta/llama-2-70b-chat" },
-	{ value: "OPENROUTER", label: "OpenRouter", example: "anthropic/claude-opus-4.1, openai/gpt-5" },
-	{ value: "COMETAPI", label: "CometAPI", example: "gpt-4o, claude-3-5-sonnet-20241022" },
-	{ value: "CUSTOM", label: "Custom Provider", example: "your-custom-model" },
-];
 
 interface AddProviderStepProps {
 	onConfigCreated?: () => void;
