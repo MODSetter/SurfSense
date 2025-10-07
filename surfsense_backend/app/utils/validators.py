@@ -222,15 +222,20 @@ def validate_research_mode(research_mode: Any) -> str:
             status_code=400,
             detail="research_mode must be a string"
         )
-    
+    normalized_mode = research_mode.strip().upper()
+    if not normalized_mode:
+        raise HTTPException(
+            status_code=400,
+            detail="research_mode cannot be empty"
+        )
+
     valid_modes = ["GENERAL", "DEEP", "DEEPER", "QNA"]
-    if research_mode.upper() not in valid_modes:
+    if normalized_mode not in valid_modes:
         raise HTTPException(
             status_code=400,
             detail=f"research_mode must be one of: {', '.join(valid_modes)}"
         )
-    
-    return research_mode.upper()
+    return normalized_mode
 
 
 def validate_search_mode(search_mode: Any) -> str:
@@ -254,15 +259,20 @@ def validate_search_mode(search_mode: Any) -> str:
             status_code=400,
             detail="search_mode must be a string"
         )
-    
+    normalized_mode = search_mode.strip().upper()
+    if not normalized_mode:
+        raise HTTPException(
+            status_code=400,
+            detail="search_mode cannot be empty"
+        )
+
     valid_modes = ["CHUNKS", "DOCUMENTS"]
-    if search_mode.upper() not in valid_modes:
+    if normalized_mode not in valid_modes:
         raise HTTPException(
             status_code=400,
             detail=f"search_mode must be one of: {', '.join(valid_modes)}"
         )
-    
-    return search_mode.upper()
+    return normalized_mode
 
 
 def validate_messages(messages: Any) -> list[dict]:
