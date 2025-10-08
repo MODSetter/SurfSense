@@ -129,6 +129,7 @@ export default function ElasticsearchConnectorPage() {
 				hostname,
 				port,
 				ssl_enabled,
+				auth_method: values.auth_method,
 			};
 
 			if (values.auth_method === "basic") {
@@ -523,7 +524,13 @@ export default function ElasticsearchConnectorPage() {
 																		min="1"
 																		max="10000"
 																		{...field}
-																		onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+																		onChange={(e) =>
+																			field.onChange(
+																				e.target.value === ""
+																					? undefined
+																					: parseInt(e.target.value, 10)
+																			)
+																		}
 																	/>
 																</FormControl>
 																<FormDescription>
