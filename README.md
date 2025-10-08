@@ -75,6 +75,7 @@ Open source and easy to deploy locally.
 - Airtable
 - Google Calendar
 - Luma
+- Elasticsearch
 - and more to come.....
 
 ## 📄 **Supported File Extensions**
