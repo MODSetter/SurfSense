@@ -58,8 +58,8 @@ const elasticsearchConnectorFormSchema = z
 		api_key: z.string().optional(),
 		indices: z.string().optional(),
 		query: z.string().default("*"),
-		search_fields: z.array(z.string()).optional(),
-		max_documents: z.number().min(1).max(10000),
+		search_fields: z.string().optional(),
+		max_documents: z.number().min(1).max(10000).optional(),
 	})
 	.refine(
 		(data) => {
@@ -104,6 +104,7 @@ export default function ElasticsearchConnectorPage() {
 			indices: "",
 			query: "*",
 			search_fields: "",
+			max_documents: undefined,
 		},
 	});
 
@@ -124,7 +125,7 @@ export default function ElasticsearchConnectorPage() {
 			const port = url.port ? parseInt(url.port, 10) : url.protocol === "https:" ? 443 : 80;
 			const ssl_enabled = url.protocol === "https:";
 
-			const config: any = {
+			const config: Record<string, string | number | boolean | string[]> = {
 				hostname,
 				port,
 				ssl_enabled,
