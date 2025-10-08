@@ -215,7 +215,7 @@ def validate_research_mode(research_mode: Any) -> str:
         HTTPException: If validation fails
     """
     if research_mode is None:
-        return "GENERAL"  # Default value
+        return "QNA"  # Default value
     
     if not isinstance(research_mode, str):
         raise HTTPException(
@@ -229,7 +229,7 @@ def validate_research_mode(research_mode: Any) -> str:
             detail="research_mode cannot be empty"
         )
 
-    valid_modes = ["GENERAL", "DEEP", "DEEPER", "QNA"]
+    valid_modes = ["REPORT_GENERAL", "REPORT_DEEP", "REPORT_DEEPER", "QNA"]
     if normalized_mode not in valid_modes:
         raise HTTPException(
             status_code=400,
