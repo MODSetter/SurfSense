@@ -64,10 +64,10 @@ const elasticsearchConnectorFormSchema = z
 	.refine(
 		(data) => {
 			if (data.auth_method === "basic") {
-				return data.username && data.password;
+				return Boolean(data.username?.trim() && data.password?.trim());
 			}
 			if (data.auth_method === "api_key") {
-				return data.api_key;
+				return Boolean(data.api_key?.trim());
 			}
 			return true;
 		},
@@ -109,10 +109,11 @@ export default function ElasticsearchConnectorPage() {
 	});
 
 	const stringToArray = (str: string): string[] => {
-		return str
+		const items = str
 			.split(",")
 			.map((item) => item.trim())
 			.filter((item) => item.length > 0);
+		return Array.from(new Set(items));
 	};
 
 	// Handle form submission
@@ -254,6 +255,8 @@ export default function ElasticsearchConnectorPage() {
 														<FormLabel>Elasticsearch Endpoint URL</FormLabel>
 														<FormControl>
 															<Input
+																type="url"
+																autoComplete="off"
 																placeholder="https://your-cluster.es.region.aws.com:443"
 																{...field}
 															/>
@@ -366,7 +369,7 @@ export default function ElasticsearchConnectorPage() {
 															<FormItem>
 																<FormLabel>Username</FormLabel>
 																<FormControl>
-																	<Input placeholder="elastic" {...field} />
+																	<Input placeholder="elastic" autoComplete="username" {...field} />
 																</FormControl>
 																<FormMessage />
 															</FormItem>
@@ -380,7 +383,12 @@ export default function ElasticsearchConnectorPage() {
 															<FormItem>
 																<FormLabel>Password</FormLabel>
 																<FormControl>
-																	<Input type="password" placeholder="Password" {...field} />
+																	<Input
+																		type="password"
+																		placeholder="Password"
+																		autoComplete="current-password"
+																		{...field}
+																	/>
 																</FormControl>
 																<FormMessage />
 															</FormItem>
@@ -398,7 +406,12 @@ export default function ElasticsearchConnectorPage() {
 														<FormItem>
 															<FormLabel>API Key</FormLabel>
 															<FormControl>
-																<Input type="password" placeholder="Your API Key Here" {...field} />
+																<Input
+																	type="password"
+																	placeholder="Your API Key Here"
+																	autoComplete="off"
+																	{...field}
+																/>
 															</FormControl>
 															<FormDescription>
 																Enter your Elasticsearch API key (base64 encoded). This will be

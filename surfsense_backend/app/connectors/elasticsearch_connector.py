@@ -4,7 +4,11 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from elasticsearch import AsyncElasticsearch
-from elasticsearch.exceptions import AuthenticationException, ConnectionError
+
+try:
+    from elasticsearch.exceptions import AuthenticationException
+except ImportError:
+    AuthenticationException = Exception
 
 try:
     from elastic_transport import (
@@ -87,12 +91,8 @@ class ElasticsearchConnector:
             )
             return True
 
-        # Updated exception handling for better version compatibility
         except (ConnectionError, TransportConnectionError, TlsError, ApiError) as e:
             logger.error(f"Failed to connect to Elasticsearch: {e}")
-            return False
-        except AuthenticationException as e:
-            logger.error(f"Authentication failed for Elasticsearch: {e}")
             return False
         except Exception as e:
             logger.error(f"Unexpected error connecting to Elasticsearch: {e}")
