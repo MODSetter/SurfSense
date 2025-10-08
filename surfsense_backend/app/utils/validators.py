@@ -460,6 +460,9 @@ def validate_connector_config(connector_type: str | Any, config: dict[str, Any])
     Raises:
         ValueError: If validation fails
     """
+    if not isinstance(config, dict) or isinstance(config, bool):
+        raise ValueError("config must be a dictionary of connector settings")
+
     # Convert enum to string if needed
     connector_type_str = str(connector_type).split('.')[-1] if hasattr(connector_type, 'value') else str(connector_type)
     
