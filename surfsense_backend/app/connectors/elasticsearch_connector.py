@@ -6,6 +6,19 @@ from typing import Any
 from elasticsearch import AsyncElasticsearch
 from elasticsearch.exceptions import AuthenticationException, ConnectionError
 
+try:
+    from elastic_transport import (
+        ApiError,
+        ConnectionError as TransportConnectionError,
+        TlsError,
+    )
+except ImportError:
+    # Fallback for older versions
+    TransportConnectionError = ConnectionError
+    TlsError = Exception
+    ApiError = Exception
+
+
 from app.db import DocumentType
 
 logger = logging.getLogger(__name__)
@@ -74,8 +87,12 @@ class ElasticsearchConnector:
             )
             return True
 
-        except (ConnectionError, AuthenticationException) as e:
+        # Updated exception handling for better version compatibility
+        except (ConnectionError, TransportConnectionError, TlsError, ApiError) as e:
             logger.error(f"Failed to connect to Elasticsearch: {e}")
+            return False
+        except AuthenticationException as e:
+            logger.error(f"Authentication failed for Elasticsearch: {e}")
             return False
         except Exception as e:
             logger.error(f"Unexpected error connecting to Elasticsearch: {e}")
@@ -140,23 +157,24 @@ class ElasticsearchConnector:
                 return
 
             # Build search query
-            search_body = {
-                "query": {
-                    "multi_match": {
-                        "query": query,
-                        "fields": fields or ["*"],
-                        "type": "best_fields",
-                        "fuzziness": "AUTO",
-                    }
-                },
-                "size": size,
-                "_source": True,
+            search_query = {
+                "multi_match": {
+                    "query": query,
+                    "fields": fields or ["*"],
+                    "type": "best_fields",
+                    "fuzziness": "AUTO",
+                }
             }
 
             # Search across specified indices or all indices
             index_pattern = ",".join(indices) if indices else "*"
 
-            response = await self.client.search(index=index_pattern, body=search_body)
+            response = await self.client.search(
+                index=index_pattern,
+                query=search_query,
+                size=size,
+                source=True,
+            )
 
             for hit in response["hits"]["hits"]:
                 try:
