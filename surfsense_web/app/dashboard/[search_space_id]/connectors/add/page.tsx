@@ -52,6 +52,13 @@ const connectorCategories: ConnectorCategory[] = [
 				icon: getConnectorIcon(EnumConnectorName.LINKUP_API, "h-6 w-6"),
 				status: "available",
 			},
+			{
+				id: "elasticsearch-connector",
+				title: "Elasticsearch",
+				description: "Connect to your Elasticsearch cluster to search and index data.",
+				icon: getConnectorIcon(EnumConnectorName.ELASTICSEARCH_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
 		],
 	},
 	{

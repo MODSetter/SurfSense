@@ -32,7 +32,7 @@ class ElasticsearchIndexer:
 
     def __init__(self, connector_config: dict):
         self.connector_config = connector_config
-        self.connector = ElasticsearchConnector(self.config)
+        self.connector = ElasticsearchConnector(self.connector_config)
 
     async def get_documents(self):
         """Get documents from Elasticsearch (kept for backward compatibility)"""

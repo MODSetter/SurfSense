@@ -216,6 +216,7 @@ class SearchSourceConnectorBase(BaseModel):
                 "username",
                 "password",
                 "api_key",
+                "auth_method",
                 "ssl_enabled",
                 "indices",
                 "query",
@@ -226,6 +227,18 @@ class SearchSourceConnectorBase(BaseModel):
             # Check if hostname is present (required)
             if not config.get("hostname"):
                 raise ValueError("Elasticsearch connector must have a hostname")
+
+            # Validate authentication method
+            auth_method = config.get("auth_method", "none")
+            if auth_method not in ["none", "basic", "api_key"]:
+                raise ValueError("auth_method must be one of: none, basic, api_key")
+
+            # Validate auth credentials based on method
+            if auth_method == "basic":
+                if not config.get("username") or not config.get("password"):
+                    raise ValueError("Username and password required for basic auth")
+            elif auth_method == "api_key" and not config.get("api_key"):
+                raise ValueError("API key required for api_key auth method")
 
             # Validate that all config keys are allowed
             for key in config:

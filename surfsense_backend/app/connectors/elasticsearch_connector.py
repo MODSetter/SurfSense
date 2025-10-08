@@ -31,35 +31,47 @@ class ElasticsearchConnector:
     async def connect(self) -> bool:
         """Establish connection to Elasticsearch"""
         try:
+            # Build the URL with proper scheme
+            scheme = "https" if self.config.get("ssl_enabled", True) else "http"
+            port = self.config.get("port", 443 if scheme == "https" else 9200)
+            hostname = self.config["hostname"]
+
+            # Construct the full URL
+            url = f"{scheme}://{hostname}:{port}"
+
             connection_params = {
-                "hosts": [f"{self.config.hostname}:{self.config.port}"],
-                "verify_certs": self.config.ssl_enabled
-                if hasattr(self.config, "ssl_enabled")
-                else True,
+                "hosts": [url],
+                "verify_certs": self.config.get("ssl_enabled", True),
                 "request_timeout": 30,
             }
 
-            # Add authentication if provided
+            # Handle different authentication methods
+            auth_method = self.config.get("auth_method", "none")
+
             if (
-                hasattr(self.config, "username")
-                and hasattr(self.config, "password")
-                and self.config.username
-                and self.config.password
+                auth_method == "basic"
+                and self.config.get("username")
+                and self.config.get("password")
             ):
                 connection_params["basic_auth"] = (
-                    self.config.username,
-                    self.config.password,
+                    self.config["username"],
+                    self.config["password"],
                 )
+            elif auth_method == "api_key" and self.config.get("api_key"):
+                api_key = self.config["api_key"]
+                if api_key.startswith("ApiKey "):
+                    connection_params["headers"] = {"Authorization": api_key}
+                else:
+                    connection_params["api_key"] = api_key
 
-            # Add API key authentication if provided
-            if hasattr(self.config, "api_key") and self.config.api_key:
-                connection_params["api_key"] = self.config.api_key
-
+            logger.info(f"Connecting to Elasticsearch at {url}")
             self.client = AsyncElasticsearch(**connection_params)
 
             # Test connection
-            await self.client.info()
-            logger.info("Successfully connected to Elasticsearch")
+            info = await self.client.info()
+            logger.info(
+                f"Successfully connected to Elasticsearch cluster: {info.get('cluster_name', 'Unknown')}"
+            )
             return True
 
         except (ConnectionError, AuthenticationException) as e:
@@ -92,6 +104,9 @@ class ElasticsearchConnector:
                 "cluster_name": info.get("cluster_name"),
                 "version": info.get("version", {}).get("number"),
                 "indices_count": len(indices) if indices else 0,
+                "indices": [
+                    idx["index"] for idx in indices if not idx["index"].startswith(".")
+                ],
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
