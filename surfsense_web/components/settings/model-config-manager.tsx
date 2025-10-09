@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
+import InferenceParamsEditor from "../inference-params-editor";
 
 export function ModelConfigManager() {
 	const {
@@ -540,6 +541,16 @@ export function ModelConfigManager() {
 								placeholder="e.g., https://api.openai.com/v1"
 								value={formData.api_base}
 								onChange={(e) => handleInputChange("api_base", e.target.value)}
+							/>
+						</div>
+
+						{/* Optional Inference Parameters */}
+						<div className="pt-4">
+							<InferenceParamsEditor
+								params={formData.litellm_params || {}}
+								setParams={(newParams) =>
+								setFormData((prev) => ({ ...prev, litellm_params: newParams }))
+								}
 							/>
 						</div>
 

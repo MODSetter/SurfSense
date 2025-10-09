@@ -20,6 +20,8 @@ import {
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 
+import InferenceParamsEditor from "../inference-params-editor";
+
 interface AddProviderStepProps {
 	onConfigCreated?: () => void;
 	onConfigDeleted?: () => void;
@@ -71,6 +73,10 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 	};
 
 	const selectedProvider = LLM_PROVIDERS.find((p) => p.value === formData.provider);
+
+	const handleParamsChange = (newParams: Record<string, number | string>) => {
+		setFormData((prev) => ({ ...prev, litellm_params: newParams }));
+	};
 
 	return (
 		<div className="space-y-6">
@@ -238,6 +244,15 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 									onChange={(e) => handleInputChange("api_base", e.target.value)}
 								/>
 							</div>
+
+							{/* Optional Inference Parameters */}
+							<div className="pt-4">
+								<InferenceParamsEditor
+									params={formData.litellm_params || {}}
+									setParams={handleParamsChange}
+								/>
+							</div>
+
 
 							<div className="flex gap-2 pt-4">
 								<Button type="submit" disabled={isSubmitting}>
