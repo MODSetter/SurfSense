@@ -65,15 +65,18 @@ export default function SerperApiPage() {
 	const onSubmit = async (values: SerperApiFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.SERPER_API,
-				config: {
-					SERPER_API_KEY: values.api_key,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.SERPER_API,
+					config: {
+						SERPER_API_KEY: values.api_key,
+					},
+					is_indexable: false,
+					last_indexed_at: null,
 				},
-				is_indexable: false,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Serper API connector created successfully!");
 

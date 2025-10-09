@@ -77,15 +77,18 @@ export default function LinearConnectorPage() {
 	const onSubmit = async (values: LinearConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.LINEAR_CONNECTOR,
-				config: {
-					LINEAR_API_KEY: values.api_key,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.LINEAR_CONNECTOR,
+					config: {
+						LINEAR_API_KEY: values.api_key,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Linear connector created successfully!");
 

@@ -148,16 +148,19 @@ export default function GithubConnectorPage() {
 
 		setIsCreatingConnector(true);
 		try {
-			await createConnector({
-				name: connectorName, // Use the stored name
-				connector_type: EnumConnectorName.GITHUB_CONNECTOR,
-				config: {
-					GITHUB_PAT: validatedPat, // Use the stored validated PAT
-					repo_full_names: selectedRepos, // Add the selected repo names
+			await createConnector(
+				{
+					name: connectorName, // Use the stored name
+					connector_type: EnumConnectorName.GITHUB_CONNECTOR,
+					config: {
+						GITHUB_PAT: validatedPat, // Use the stored validated PAT
+						repo_full_names: selectedRepos, // Add the selected repo names
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("GitHub connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);

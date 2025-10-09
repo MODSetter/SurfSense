@@ -65,15 +65,18 @@ export default function TavilyApiPage() {
 	const onSubmit = async (values: TavilyApiFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.TAVILY_API,
-				config: {
-					TAVILY_API_KEY: values.api_key,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.TAVILY_API,
+					config: {
+						TAVILY_API_KEY: values.api_key,
+					},
+					is_indexable: false,
+					last_indexed_at: null,
 				},
-				is_indexable: false,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Tavily API connector created successfully!");
 

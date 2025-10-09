@@ -73,15 +73,18 @@ export default function DiscordConnectorPage() {
 	const onSubmit = async (values: DiscordConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.DISCORD_CONNECTOR,
-				config: {
-					DISCORD_BOT_TOKEN: values.bot_token,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.DISCORD_CONNECTOR,
+					config: {
+						DISCORD_BOT_TOKEN: values.bot_token,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Discord connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);

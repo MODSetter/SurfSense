@@ -18,7 +18,11 @@ import {
 
 export function useConnectorEditPage(connectorId: number, searchSpaceId: string) {
 	const router = useRouter();
-	const { connectors, updateConnector, isLoading: connectorsLoading } = useSearchSourceConnectors();
+	const {
+		connectors,
+		updateConnector,
+		isLoading: connectorsLoading,
+	} = useSearchSourceConnectors(false, parseInt(searchSpaceId));
 
 	// State managed by the hook
 	const [connector, setConnector] = useState<SearchSourceConnector | null>(null);

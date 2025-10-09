@@ -65,7 +65,7 @@ export default function ConnectorsPage() {
 	const today = new Date();
 
 	const { connectors, isLoading, error, deleteConnector, indexConnector } =
-		useSearchSourceConnectors();
+		useSearchSourceConnectors(false, parseInt(searchSpaceId));
 	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(null);
 	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(null);
 	const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -366,12 +366,7 @@ export default function ConnectorsPage() {
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar
-											mode="single"
-											selected={endDate}
-											onSelect={setEndDate}
-											initialFocus
-										/>
+										<Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
 									</PopoverContent>
 								</Popover>
 							</div>

@@ -90,17 +90,20 @@ export default function JiraConnectorPage() {
 	const onSubmit = async (values: JiraConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.JIRA_CONNECTOR,
-				config: {
-					JIRA_BASE_URL: values.base_url,
-					JIRA_EMAIL: values.email,
-					JIRA_API_TOKEN: values.api_token,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.JIRA_CONNECTOR,
+					config: {
+						JIRA_BASE_URL: values.base_url,
+						JIRA_EMAIL: values.email,
+						JIRA_API_TOKEN: values.api_token,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Jira connector created successfully!");
 
