@@ -16,8 +16,18 @@ from app.schemas import (
 from app.tasks.stream_connector_search_results import stream_connector_search_results
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from app.utils.validators import (
+    validate_search_space_id,
+    validate_document_ids,
+    validate_connectors,
+    validate_research_mode,
+    validate_search_mode,
+    validate_messages,
+)
 
 router = APIRouter()
+
+
 
 
 @router.post("/chat")
@@ -26,30 +36,23 @@ async def handle_chat_data(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    messages = request.messages
+    # Validate and sanitize all input data
+    messages = validate_messages(request.messages)
+    
     if messages[-1]["role"] != "user":
         raise HTTPException(
             status_code=400, detail="Last message must be a user message"
         )
 
     user_query = messages[-1]["content"]
-    search_space_id = request.data.get("search_space_id")
-    research_mode: str = request.data.get("research_mode")
-    selected_connectors: list[str] = request.data.get("selected_connectors")
-    document_ids_to_add_in_context: list[int] = request.data.get(
-        "document_ids_to_add_in_context"
-    )
-
-    search_mode_str = request.data.get("search_mode", "CHUNKS")
-
-    # Convert search_space_id to integer if it's a string
-    if search_space_id and isinstance(search_space_id, str):
-        try:
-            search_space_id = int(search_space_id)
-        except ValueError:
-            raise HTTPException(
-                status_code=400, detail="Invalid search_space_id format"
-            ) from None
+    
+    # Extract and validate data from request
+    request_data = request.data or {}
+    search_space_id = validate_search_space_id(request_data.get("search_space_id"))
+    research_mode = validate_research_mode(request_data.get("research_mode"))
+    selected_connectors = validate_connectors(request_data.get("selected_connectors"))
+    document_ids_to_add_in_context = validate_document_ids(request_data.get("document_ids_to_add_in_context"))
+    search_mode_str = validate_search_mode(request_data.get("search_mode"))
 
     # Check if the search space belongs to the current user
     try:
@@ -126,6 +129,25 @@ async def read_chats(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    # Validate pagination parameters
+    if skip < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="skip must be a non-negative integer"
+        )
+    
+    if limit <= 0 or limit > 1000:  # Reasonable upper limit
+        raise HTTPException(
+            status_code=400,
+            detail="limit must be between 1 and 1000"
+        )
+    
+    # Validate search_space_id if provided
+    if search_space_id is not None and search_space_id <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="search_space_id must be a positive integer"
+        )
     try:
         # Select specific fields excluding messages
         query = (
