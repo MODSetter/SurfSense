@@ -118,6 +118,13 @@ class LogStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class ScheduleType(str, Enum):
+    HOURLY = "HOURLY"
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    CUSTOM = "CUSTOM"
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -234,6 +241,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="Log.id",
         cascade="all, delete-orphan",
     )
+    connector_schedules = relationship(
+        "ConnectorSchedule",
+        back_populates="search_space",
+        order_by="ConnectorSchedule.id",
+        cascade="all, delete-orphan",
+    )
 
 
 class SearchSourceConnector(BaseModel, TimestampMixin):
@@ -252,6 +265,40 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
     user = relationship("User", back_populates="search_source_connectors")
+    schedules = relationship(
+        "ConnectorSchedule",
+        back_populates="connector",
+        cascade="all, delete-orphan",
+    )
+
+
+class ConnectorSchedule(BaseModel, TimestampMixin):
+    __tablename__ = "connector_schedules"
+    __table_args__ = (
+        UniqueConstraint(
+            "connector_id", "search_space_id", name="uq_connector_search_space"
+        ),
+    )
+
+    connector_id = Column(
+        Integer,
+        ForeignKey("search_source_connectors.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    schedule_type = Column(SQLAlchemyEnum(ScheduleType), nullable=False)
+    cron_expression = Column(String(100), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    last_run_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    next_run_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
+
+    connector = relationship("SearchSourceConnector", back_populates="schedules")
+    search_space = relationship("SearchSpace", back_populates="connector_schedules")
 
 
 class LLMConfig(BaseModel, TimestampMixin):

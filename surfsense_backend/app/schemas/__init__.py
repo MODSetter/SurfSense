@@ -8,6 +8,12 @@ from .chats import (
     ChatUpdate,
 )
 from .chunks import ChunkBase, ChunkCreate, ChunkRead, ChunkUpdate
+from .connector_schedule import (
+    ConnectorScheduleBase,
+    ConnectorScheduleCreate,
+    ConnectorScheduleRead,
+    ConnectorScheduleUpdate,
+)
 from .documents import (
     DocumentBase,
     DocumentRead,
@@ -52,6 +58,10 @@ __all__ = [
     "ChunkCreate",
     "ChunkRead",
     "ChunkUpdate",
+    "ConnectorScheduleBase",
+    "ConnectorScheduleCreate",
+    "ConnectorScheduleRead",
+    "ConnectorScheduleUpdate",
     "DocumentBase",
     "DocumentRead",
     "DocumentUpdate",
