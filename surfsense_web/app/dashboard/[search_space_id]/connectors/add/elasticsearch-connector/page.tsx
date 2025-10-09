@@ -55,7 +55,7 @@ const elasticsearchConnectorFormSchema = z
 		auth_method: z.enum(["basic", "api_key"]).default("api_key"),
 		username: z.string().optional(),
 		password: z.string().optional(),
-		api_key: z.string().optional(),
+		ELASTICSEARCH_API_KEY: z.string().optional(),
 		indices: z.string().optional(),
 		query: z.string().default("*"),
 		search_fields: z.string().optional(),
@@ -67,7 +67,7 @@ const elasticsearchConnectorFormSchema = z
 				return Boolean(data.username?.trim() && data.password?.trim());
 			}
 			if (data.auth_method === "api_key") {
-				return Boolean(data.api_key?.trim());
+				return Boolean(data.ELASTICSEARCH_API_KEY?.trim());
 			}
 			return true;
 		},
@@ -100,7 +100,7 @@ export default function ElasticsearchConnectorPage() {
 			auth_method: "api_key",
 			username: "",
 			password: "",
-			api_key: "",
+			ELASTICSEARCH_API_KEY: "",
 			indices: "",
 			query: "*",
 			search_fields: "",
@@ -137,7 +137,7 @@ export default function ElasticsearchConnectorPage() {
 				config.username = values.username;
 				config.password = values.password;
 			} else if (values.auth_method === "api_key") {
-				config.api_key = values.api_key;
+				config.ELASTICSEARCH_API_KEY = values.ELASTICSEARCH_API_KEY;
 			}
 
 			if (values.indices?.trim()) {
@@ -156,7 +156,8 @@ export default function ElasticsearchConnectorPage() {
 			// Ensure the connector payload has the correct structure
 			const connectorPayload = {
 				name: values.name,
-				connector_type: "ELASTICSEARCH_CONNECTOR",
+				// connector_type: "ELASTICSEARCH_CONNECTOR",
+				connector_type: EnumConnectorName.ELASTICSEARCH_CONNECTOR,
 				is_indexable: true,
 				config,
 			};
@@ -401,7 +402,7 @@ export default function ElasticsearchConnectorPage() {
 											{form.watch("auth_method") === "api_key" && (
 												<FormField
 													control={form.control}
-													name="api_key"
+													name="ELASTICSEARCH_API_KEY"
 													render={({ field }) => (
 														<FormItem>
 															<FormLabel>API Key</FormLabel>

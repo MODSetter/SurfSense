@@ -16,6 +16,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		GOOGLE_GMAIL_CONNECTOR: "Google Gmail",
 		AIRTABLE_CONNECTOR: "Airtable",
 		LUMA_CONNECTOR: "Luma",
+		ELASTICSEARCH_CONNECTOR: "Elasticsearch",
 	};
 	return typeMap[type] || type;
 };

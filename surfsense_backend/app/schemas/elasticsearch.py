@@ -12,7 +12,9 @@ class ElasticsearchConnectorConfig(BaseModel):
     password: str | None = Field(
         default=None, description="Password for authentication"
     )
-    api_key: str | None = Field(default=None, description="API key for authentication")
+    ELASTICSEARCH_API_KEY: str | None = Field(
+        default=None, description="API key for authentication"
+    )
     ssl_enabled: bool = Field(default=True, description="Whether to use SSL/TLS")
     indices: list[str] | None = Field(
         default=None, description="Specific indices to search (optional)"
@@ -33,7 +35,7 @@ class ElasticsearchTestConnectionRequest(BaseModel):
     port: int = 9200
     username: str | None = None
     password: str | None = None
-    api_key: str | None = None
+    ELASTICSEARCH_API_KEY: str | None = None
     ssl_enabled: bool = True
 
 

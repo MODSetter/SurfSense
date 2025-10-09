@@ -35,7 +35,8 @@ export type DocumentType =
 	| "CLICKUP_CONNECTOR"
 	| "GOOGLE_CALENDAR_CONNECTOR"
 	| "GOOGLE_GMAIL_CONNECTOR"
-	| "LUMA_CONNECTOR";
+	| "LUMA_CONNECTOR"
+	| "ELASTICSEARCH_CONNECTOR";
 
 export function useDocumentByChunk() {
 	const [document, setDocument] = useState<DocumentWithChunks | null>(null);

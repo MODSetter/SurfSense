@@ -1,7 +1,7 @@
 """Add ElasticSearch connector enums
 
-Revision ID: 22
-Revises: 21
+Revision ID: 23
+Revises: 22
 Create Date: 2025-10-08 12:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers
-revision: str = "22"
-down_revision: str | None = "21"
+revision: str = "23"
+down_revision: str | None = "22"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -52,4 +52,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Remove 'ELASTICSEARCH_CONNECTOR' from enum types."""
     pass

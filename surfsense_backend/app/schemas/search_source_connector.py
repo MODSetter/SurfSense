@@ -215,7 +215,7 @@ class SearchSourceConnectorBase(BaseModel):
                 "port",
                 "username",
                 "password",
-                "api_key",
+                "ELASTICSEARCH_API_KEY",
                 "auth_method",
                 "ssl_enabled",
                 "indices",
@@ -237,7 +237,7 @@ class SearchSourceConnectorBase(BaseModel):
             if auth_method == "basic":
                 if not config.get("username") or not config.get("password"):
                     raise ValueError("Username and password required for basic auth")
-            elif auth_method == "api_key" and not config.get("api_key"):
+            elif auth_method == "api_key" and not config.get("ELASTICSEARCH_API_KEY"):
                 raise ValueError("API key required for api_key auth method")
 
             # Validate that all config keys are allowed
