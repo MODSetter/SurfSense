@@ -72,15 +72,18 @@ export default function NotionConnectorPage() {
 	const onSubmit = async (values: NotionConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.NOTION_CONNECTOR,
-				config: {
-					NOTION_INTEGRATION_TOKEN: values.integration_token,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.NOTION_CONNECTOR,
+					config: {
+						NOTION_INTEGRATION_TOKEN: values.integration_token,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Notion connector created successfully!");
 

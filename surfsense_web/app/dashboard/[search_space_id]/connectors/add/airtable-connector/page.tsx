@@ -30,10 +30,10 @@ export default function AirtableConnectorPage() {
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { fetchConnectors } = useSearchSourceConnectors();
+	const { fetchConnectors } = useSearchSourceConnectors(true, parseInt(searchSpaceId));
 
 	useEffect(() => {
-		fetchConnectors().then((data) => {
+		fetchConnectors(parseInt(searchSpaceId)).then((data) => {
 			const connector = data.find(
 				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.AIRTABLE_CONNECTOR
 			);

@@ -236,28 +236,37 @@ class ConnectorService:
         return transformed_results
 
     async def get_connector_by_type(
-        self, user_id: str, connector_type: SearchSourceConnectorType
+        self,
+        user_id: str,
+        connector_type: SearchSourceConnectorType,
+        search_space_id: int | None = None,
     ) -> SearchSourceConnector | None:
         """
-        Get a connector by type for a specific user
+        Get a connector by type for a specific user and optionally a search space
 
         Args:
             user_id: The user's ID
             connector_type: The connector type to retrieve
+            search_space_id: Optional search space ID to filter by
 
         Returns:
             Optional[SearchSourceConnector]: The connector if found, None otherwise
         """
-        result = await self.session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.user_id == user_id,
-                SearchSourceConnector.connector_type == connector_type,
-            )
+        query = select(SearchSourceConnector).filter(
+            SearchSourceConnector.user_id == user_id,
+            SearchSourceConnector.connector_type == connector_type,
         )
+
+        if search_space_id is not None:
+            query = query.filter(
+                SearchSourceConnector.search_space_id == search_space_id
+            )
+
+        result = await self.session.execute(query)
         return result.scalars().first()
 
     async def search_tavily(
-        self, user_query: str, user_id: str, top_k: int = 20
+        self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20
     ) -> tuple:
         """
         Search using Tavily API and return both the source information and documents
@@ -265,6 +274,7 @@ class ConnectorService:
         Args:
             user_query: The user's query
             user_id: The user's ID
+            search_space_id: The search space ID
             top_k: Maximum number of results to return
 
         Returns:
@@ -272,7 +282,7 @@ class ConnectorService:
         """
         # Get Tavily connector configuration
         tavily_connector = await self.get_connector_by_type(
-            user_id, SearchSourceConnectorType.TAVILY_API
+            user_id, SearchSourceConnectorType.TAVILY_API, search_space_id
         )
 
         if not tavily_connector:
@@ -1637,7 +1647,11 @@ class ConnectorService:
         return result_object, clickup_chunks
 
     async def search_linkup(
-        self, user_query: str, user_id: str, mode: str = "standard"
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        mode: str = "standard",
     ) -> tuple:
         """
         Search using Linkup API and return both the source information and documents
@@ -1645,6 +1659,7 @@ class ConnectorService:
         Args:
             user_query: The user's query
             user_id: The user's ID
+            search_space_id: The search space ID
             mode: Search depth mode, can be "standard" or "deep"
 
         Returns:
@@ -1652,7 +1667,7 @@ class ConnectorService:
         """
         # Get Linkup connector configuration
         linkup_connector = await self.get_connector_by_type(
-            user_id, SearchSourceConnectorType.LINKUP_API
+            user_id, SearchSourceConnectorType.LINKUP_API, search_space_id
         )
 
         if not linkup_connector:

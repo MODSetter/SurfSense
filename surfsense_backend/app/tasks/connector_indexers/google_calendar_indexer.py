@@ -113,7 +113,10 @@ async def index_google_calendar_events(
         )
 
         calendar_client = GoogleCalendarConnector(
-            credentials=credentials, session=session, user_id=user_id
+            credentials=credentials,
+            session=session,
+            user_id=user_id,
+            connector_id=connector_id,
         )
 
         # Calculate date range

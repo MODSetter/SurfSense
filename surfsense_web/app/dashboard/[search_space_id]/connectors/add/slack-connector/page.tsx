@@ -72,15 +72,18 @@ export default function SlackConnectorPage() {
 	const onSubmit = async (values: SlackConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.SLACK_CONNECTOR,
-				config: {
-					SLACK_BOT_TOKEN: values.bot_token,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.SLACK_CONNECTOR,
+					config: {
+						SLACK_BOT_TOKEN: values.bot_token,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Slack connector created successfully!");
 

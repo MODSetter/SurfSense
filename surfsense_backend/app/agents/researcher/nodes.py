@@ -1010,7 +1010,10 @@ async def fetch_relevant_documents(
                         source_object,
                         tavily_chunks,
                     ) = await connector_service.search_tavily(
-                        user_query=reformulated_query, user_id=user_id, top_k=top_k
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
                     )
 
                     # Add to sources and raw documents
@@ -1037,6 +1040,7 @@ async def fetch_relevant_documents(
                     ) = await connector_service.search_linkup(
                         user_query=reformulated_query,
                         user_id=user_id,
+                        search_space_id=search_space_id,
                         mode=linkup_mode,
                     )
 

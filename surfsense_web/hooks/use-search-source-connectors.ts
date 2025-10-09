@@ -7,6 +7,7 @@ export interface SearchSourceConnector {
 	is_indexable: boolean;
 	last_indexed_at: string | null;
 	config: Record<string, any>;
+	search_space_id: number;
 	user_id?: string;
 	created_at?: string;
 }
@@ -20,8 +21,10 @@ export interface ConnectorSourceItem {
 
 /**
  * Hook to fetch search source connectors from the API
+ * @param lazy - If true, connectors won't be fetched on mount
+ * @param searchSpaceId - Optional search space ID to filter connectors
  */
-export const useSearchSourceConnectors = (lazy: boolean = false) => {
+export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?: number) => {
 	const [connectors, setConnectors] = useState<SearchSourceConnector[]>([]);
 	const [isLoading, setIsLoading] = useState(!lazy); // Don't show loading initially for lazy mode
 	const [isLoaded, setIsLoaded] = useState(false); // Memoization flag
@@ -53,60 +56,71 @@ export const useSearchSourceConnectors = (lazy: boolean = false) => {
 		},
 	]);
 
-	const fetchConnectors = useCallback(async () => {
-		if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
+	const fetchConnectors = useCallback(
+		async (spaceId?: number) => {
+			if (isLoaded && lazy) return; // Avoid redundant calls in lazy mode
 
-		try {
-			setIsLoading(true);
-			setError(null);
-			const token = localStorage.getItem("surfsense_bearer_token");
+			try {
+				setIsLoading(true);
+				setError(null);
+				const token = localStorage.getItem("surfsense_bearer_token");
 
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
+				if (!token) {
+					throw new Error("No authentication token found");
+				}
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/`,
-				{
+				// Build URL with optional search_space_id query parameter
+				const url = new URL(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/`
+				);
+				if (spaceId !== undefined) {
+					url.searchParams.append("search_space_id", spaceId.toString());
+				}
+
+				const response = await fetch(url.toString(), {
 					method: "GET",
 					headers: {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${token}`,
 					},
+				});
+
+				if (!response.ok) {
+					throw new Error(`Failed to fetch connectors: ${response.statusText}`);
 				}
-			);
 
-			if (!response.ok) {
-				throw new Error(`Failed to fetch connectors: ${response.statusText}`);
+				const data = await response.json();
+				setConnectors(data);
+				setIsLoaded(true);
+
+				// Update connector source items when connectors change
+				updateConnectorSourceItems(data);
+
+				return data;
+			} catch (err) {
+				setError(err instanceof Error ? err : new Error("An unknown error occurred"));
+				console.error("Error fetching search source connectors:", err);
+			} finally {
+				setIsLoading(false);
 			}
-
-			const data = await response.json();
-			setConnectors(data);
-			setIsLoaded(true);
-
-			// Update connector source items when connectors change
-			updateConnectorSourceItems(data);
-
-			return data;
-		} catch (err) {
-			setError(err instanceof Error ? err : new Error("An unknown error occurred"));
-			console.error("Error fetching search source connectors:", err);
-		} finally {
-			setIsLoading(false);
-		}
-	}, [isLoaded, lazy]);
+		},
+		[isLoaded, lazy]
+	);
 
 	useEffect(() => {
 		if (!lazy) {
-			fetchConnectors();
+			fetchConnectors(searchSpaceId);
 		}
-	}, [lazy, fetchConnectors]);
+	}, [lazy, fetchConnectors, searchSpaceId]);
 
 	// Function to refresh the connectors list
-	const refreshConnectors = useCallback(async () => {
-		setIsLoaded(false); // Reset memoization flag to allow refetch
-		await fetchConnectors();
-	}, [fetchConnectors]);
+	const refreshConnectors = useCallback(
+		async (spaceId?: number) => {
+			setIsLoaded(false); // Reset memoization flag to allow refetch
+			await fetchConnectors(spaceId !== undefined ? spaceId : searchSpaceId);
+		},
+		[fetchConnectors, searchSpaceId]
+	);
 
 	// Update connector source items when connectors change
 	const updateConnectorSourceItems = (currentConnectors: SearchSourceConnector[]) => {
@@ -151,9 +165,12 @@ export const useSearchSourceConnectors = (lazy: boolean = false) => {
 
 	/**
 	 * Create a new search source connector
+	 * @param connectorData - The connector data (excluding search_space_id)
+	 * @param spaceId - The search space ID to associate the connector with
 	 */
 	const createConnector = async (
-		connectorData: Omit<SearchSourceConnector, "id" | "user_id" | "created_at">
+		connectorData: Omit<SearchSourceConnector, "id" | "user_id" | "created_at" | "search_space_id">,
+		spaceId: number
 	) => {
 		try {
 			const token = localStorage.getItem("surfsense_bearer_token");
@@ -162,17 +179,20 @@ export const useSearchSourceConnectors = (lazy: boolean = false) => {
 				throw new Error("No authentication token found");
 			}
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify(connectorData),
-				}
+			// Add search_space_id as a query parameter
+			const url = new URL(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/`
 			);
+			url.searchParams.append("search_space_id", spaceId.toString());
+
+			const response = await fetch(url.toString(), {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify(connectorData),
+			});
 
 			if (!response.ok) {
 				throw new Error(`Failed to create connector: ${response.statusText}`);
@@ -194,7 +214,9 @@ export const useSearchSourceConnectors = (lazy: boolean = false) => {
 	 */
 	const updateConnector = async (
 		connectorId: number,
-		connectorData: Partial<Omit<SearchSourceConnector, "id" | "user_id" | "created_at">>
+		connectorData: Partial<
+			Omit<SearchSourceConnector, "id" | "user_id" | "created_at" | "search_space_id">
+		>
 	) => {
 		try {
 			const token = localStorage.getItem("surfsense_bearer_token");

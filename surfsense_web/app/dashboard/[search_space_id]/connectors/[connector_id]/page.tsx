@@ -83,7 +83,7 @@ export default function EditConnectorPage() {
 	const searchSpaceId = params.search_space_id as string;
 	const connectorId = parseInt(params.connector_id as string, 10);
 
-	const { connectors, updateConnector } = useSearchSourceConnectors();
+	const { connectors, updateConnector } = useSearchSourceConnectors(false, parseInt(searchSpaceId));
 	const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);

@@ -1,13 +1,13 @@
 """
 SearchSourceConnector routes for CRUD operations:
 POST /search-source-connectors/ - Create a new connector
-GET /search-source-connectors/ - List all connectors for the current user
+GET /search-source-connectors/ - List all connectors for the current user (optionally filtered by search space)
 GET /search-source-connectors/{connector_id} - Get a specific connector
 PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
 POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
 
-Note: Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, NOTION_CONNECTOR, GITHUB_CONNECTOR, LINEAR_CONNECTOR, DISCORD_CONNECTOR, LUMA_CONNECTOR).
+Note: Each search space can have only one connector of each type per user (based on search_space_id, user_id, and connector_type).
 """
 
 import logging
@@ -93,19 +93,26 @@ async def list_github_repositories(
 @router.post("/search-source-connectors/", response_model=SearchSourceConnectorRead)
 async def create_search_source_connector(
     connector: SearchSourceConnectorCreate,
+    search_space_id: int = Query(
+        ..., description="ID of the search space to associate the connector with"
+    ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     """
     Create a new search source connector.
 
-    Each user can have only one connector of each type (SERPER_API, TAVILY_API, SLACK_CONNECTOR, etc.).
+    Each search space can have only one connector of each type per user (based on search_space_id, user_id, and connector_type).
     The config must contain the appropriate keys for the connector type.
     """
     try:
-        # Check if a connector with the same type already exists for this user
+        # Check if the search space belongs to the user
+        await check_ownership(session, SearchSpace, search_space_id, user)
+
+        # Check if a connector with the same type already exists for this search space and user
         result = await session.execute(
             select(SearchSourceConnector).filter(
+                SearchSourceConnector.search_space_id == search_space_id,
                 SearchSourceConnector.user_id == user.id,
                 SearchSourceConnector.connector_type == connector.connector_type,
             )
@@ -114,9 +121,11 @@ async def create_search_source_connector(
         if existing_connector:
             raise HTTPException(
                 status_code=409,
-                detail=f"A connector with type {connector.connector_type} already exists. Each user can have only one connector of each type.",
+                detail=f"A connector with type {connector.connector_type} already exists in this search space. Each search space can have only one connector of each type per user.",
             )
-        db_connector = SearchSourceConnector(**connector.model_dump(), user_id=user.id)
+        db_connector = SearchSourceConnector(
+            **connector.model_dump(), search_space_id=search_space_id, user_id=user.id
+        )
         session.add(db_connector)
         await session.commit()
         await session.refresh(db_connector)
@@ -128,7 +137,7 @@ async def create_search_source_connector(
         await session.rollback()
         raise HTTPException(
             status_code=409,
-            detail=f"Integrity error: A connector with this type already exists. {e!s}",
+            detail=f"Integrity error: A connector with this type already exists in this search space. {e!s}",
         ) from e
     except HTTPException:
         await session.rollback()
@@ -152,13 +161,19 @@ async def read_search_source_connectors(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """List all search source connectors for the current user."""
+    """List all search source connectors for the current user, optionally filtered by search space."""
     try:
         query = select(SearchSourceConnector).filter(
             SearchSourceConnector.user_id == user.id
         )
 
-        # No need to filter by search_space_id as connectors are user-owned, not search space specific
+        # Filter by search_space_id if provided
+        if search_space_id is not None:
+            # Verify the search space belongs to the user
+            await check_ownership(session, SearchSpace, search_space_id, user)
+            query = query.filter(
+                SearchSourceConnector.search_space_id == search_space_id
+            )
 
         result = await session.execute(query.offset(skip).limit(limit))
         return result.scalars().all()
@@ -255,6 +270,8 @@ async def update_search_source_connector(
         if key == "connector_type" and value != db_connector.connector_type:
             result = await session.execute(
                 select(SearchSourceConnector).filter(
+                    SearchSourceConnector.search_space_id
+                    == db_connector.search_space_id,
                     SearchSourceConnector.user_id == user.id,
                     SearchSourceConnector.connector_type == value,
                     SearchSourceConnector.id != connector_id,
@@ -264,7 +281,7 @@ async def update_search_source_connector(
             if existing_connector:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"A connector with type {value} already exists. Each user can have only one connector of each type.",
+                    detail=f"A connector with type {value} already exists in this search space. Each search space can have only one connector of each type per user.",
                 )
 
         setattr(db_connector, key, value)

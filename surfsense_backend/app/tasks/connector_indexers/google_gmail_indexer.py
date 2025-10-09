@@ -127,7 +127,9 @@ async def index_google_gmail_messages(
         )
 
         # Initialize Google gmail connector
-        gmail_connector = GoogleGmailConnector(credentials, session, user_id)
+        gmail_connector = GoogleGmailConnector(
+            credentials, session, user_id, connector_id
+        )
 
         # Fetch recent Google gmail messages
         logger.info(f"Fetching recent emails for connector {connector_id}")

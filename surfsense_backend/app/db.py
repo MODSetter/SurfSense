@@ -234,12 +234,23 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="Log.id",
         cascade="all, delete-orphan",
     )
+    search_source_connectors = relationship(
+        "SearchSourceConnector",
+        back_populates="search_space",
+        order_by="SearchSourceConnector.id",
+        cascade="all, delete-orphan",
+    )
 
 
 class SearchSourceConnector(BaseModel, TimestampMixin):
     __tablename__ = "search_source_connectors"
     __table_args__ = (
-        UniqueConstraint("user_id", "connector_type", name="uq_user_connector_type"),
+        UniqueConstraint(
+            "search_space_id",
+            "user_id",
+            "connector_type",
+            name="uq_searchspace_user_connector_type",
+        ),
     )
 
     name = Column(String(100), nullable=False, index=True)
@@ -248,10 +259,16 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     last_indexed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     config = Column(JSON, nullable=False)
 
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship(
+        "SearchSpace", back_populates="search_source_connectors"
+    )
+
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
-    user = relationship("User", back_populates="search_source_connectors")
 
 
 class LLMConfig(BaseModel, TimestampMixin):
@@ -304,9 +321,6 @@ if config.AUTH_TYPE == "GOOGLE":
             "OAuthAccount", lazy="joined"
         )
         search_spaces = relationship("SearchSpace", back_populates="user")
-        search_source_connectors = relationship(
-            "SearchSourceConnector", back_populates="user"
-        )
         llm_configs = relationship(
             "LLMConfig",
             back_populates="user",
@@ -338,9 +352,6 @@ else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
         search_spaces = relationship("SearchSpace", back_populates="user")
-        search_source_connectors = relationship(
-            "SearchSourceConnector", back_populates="user"
-        )
         llm_configs = relationship(
             "LLMConfig",
             back_populates="user",

@@ -124,19 +124,20 @@ const ConnectorSelector = React.memo(
 		onSelectionChange?: (connectorTypes: string[]) => void;
 		selectedConnectors?: string[];
 	}) => {
+		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
 		const { connectorSourceItems, isLoading, isLoaded, fetchConnectors } =
-			useSearchSourceConnectors(true);
+			useSearchSourceConnectors(true, Number(search_space_id));
 
 		const handleOpenChange = useCallback(
 			(open: boolean) => {
 				setIsOpen(open);
 				if (open && !isLoaded) {
-					fetchConnectors();
+					fetchConnectors(Number(search_space_id));
 				}
 			},
-			[fetchConnectors, isLoaded]
+			[fetchConnectors, isLoaded, search_space_id]
 		);
 
 		const handleConnectorToggle = useCallback(
