@@ -524,20 +524,20 @@ def validate_connector_config(connector_type: str | Any, config: dict[str, Any])
             "required": ["CLICKUP_API_TOKEN"],
             "validators": {}
         },
-        "GOOGLE_CALENDAR_CONNECTOR": {
-            "required": ["token", "refresh_token", "token_uri", "client_id", "expiry", "scopes", "client_secret"],
-            "validators": {},
-            "allow_none_or_empty": False  # Special flag for Google connectors
-        },
-        "GOOGLE_GMAIL_CONNECTOR": {
-            "required": ["token", "refresh_token", "token_uri", "client_id", "expiry", "scopes", "client_secret"],
-            "validators": {},
-            "allow_none_or_empty": False
-        },
-        "AIRTABLE_CONNECTOR": {
-            "required": ["AIRTABLE_API_KEY", "AIRTABLE_BASE_ID"],
-            "validators": {}
-        },
+        # "GOOGLE_CALENDAR_CONNECTOR": {
+        #     "required": ["token", "refresh_token", "token_uri", "client_id", "expiry", "scopes", "client_secret"],
+        #     "validators": {},
+        #     "allow_none_or_empty": False  # Special flag for Google connectors
+        # },
+        # "GOOGLE_GMAIL_CONNECTOR": {
+        #     "required": ["token", "refresh_token", "token_uri", "client_id", "expiry", "scopes", "client_secret"],
+        #     "validators": {},
+        #     "allow_none_or_empty": False
+        # },
+        # "AIRTABLE_CONNECTOR": {
+        #     "required": ["AIRTABLE_API_KEY", "AIRTABLE_BASE_ID"],
+        #     "validators": {}
+        # },
         "LUMA_CONNECTOR": {
             "required": ["LUMA_API_KEY"],
             "validators": {}
