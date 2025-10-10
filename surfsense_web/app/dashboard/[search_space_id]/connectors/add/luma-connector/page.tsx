@@ -70,15 +70,21 @@ export default function LumaConnectorPage() {
 	});
 
 	useEffect(() => {
-		fetchConnectors(parseInt(searchSpaceId)).then((data) => {
-			const connector = data.find(
-				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.LUMA_CONNECTOR
-			);
-			if (connector) {
-				setDoesConnectorExist(true);
-			}
-		});
-	}, [fetchConnectors]);
+		fetchConnectors(parseInt(searchSpaceId))
+			.then((data) => {
+				if (data && Array.isArray(data)) {
+					const connector = data.find(
+						(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.LUMA_CONNECTOR
+					);
+					if (connector) {
+						setDoesConnectorExist(true);
+					}
+				}
+			})
+			.catch((error) => {
+				console.error("Error fetching connectors:", error);
+			});
+	}, [fetchConnectors, searchSpaceId]);
 
 	// Handle form submission
 	const onSubmit = async (values: LumaConnectorFormValues) => {
