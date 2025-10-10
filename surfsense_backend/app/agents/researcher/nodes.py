@@ -577,6 +577,7 @@ async def write_answer_outline(
     user_query = configuration.user_query
     num_sections = configuration.num_sections
     user_id = configuration.user_id
+    search_space_id = configuration.search_space_id
 
     writer(
         {
@@ -587,9 +588,9 @@ async def write_answer_outline(
     )
 
     # Get user's strategic LLM
-    llm = await get_user_strategic_llm(state.db_session, user_id)
+    llm = await get_user_strategic_llm(state.db_session, user_id, search_space_id)
     if not llm:
-        error_message = f"No strategic LLM configured for user {user_id}"
+        error_message = f"No strategic LLM configured for user {user_id} in search space {search_space_id}"
         writer({"yield_value": streaming_service.format_error(error_message)})
         raise RuntimeError(error_message)
 
@@ -1854,6 +1855,7 @@ async def reformulate_user_query(
             user_query=user_query,
             session=state.db_session,
             user_id=configuration.user_id,
+            search_space_id=configuration.search_space_id,
             chat_history_str=chat_history_str,
         )
 
@@ -2093,6 +2095,7 @@ async def generate_further_questions(
     configuration = Configuration.from_runnable_config(config)
     chat_history = state.chat_history
     user_id = configuration.user_id
+    search_space_id = configuration.search_space_id
     streaming_service = state.streaming_service
 
     # Get reranked documents from the state (will be populated by sub-agents)
@@ -2107,9 +2110,9 @@ async def generate_further_questions(
     )
 
     # Get user's fast LLM
-    llm = await get_user_fast_llm(state.db_session, user_id)
+    llm = await get_user_fast_llm(state.db_session, user_id, search_space_id)
     if not llm:
-        error_message = f"No fast LLM configured for user {user_id}"
+        error_message = f"No fast LLM configured for user {user_id} in search space {search_space_id}"
         print(error_message)
         writer({"yield_value": streaming_service.format_error(error_message)})
 

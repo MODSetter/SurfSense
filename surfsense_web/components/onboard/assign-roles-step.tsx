@@ -41,12 +41,13 @@ const ROLE_DESCRIPTIONS = {
 };
 
 interface AssignRolesStepProps {
+	searchSpaceId: number;
 	onPreferencesUpdated?: () => Promise<void>;
 }
 
-export function AssignRolesStep({ onPreferencesUpdated }: AssignRolesStepProps) {
-	const { llmConfigs } = useLLMConfigs();
-	const { preferences, updatePreferences } = useLLMPreferences();
+export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignRolesStepProps) {
+	const { llmConfigs } = useLLMConfigs(searchSpaceId);
+	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
 
 	const [assignments, setAssignments] = useState({
 		long_context_llm_id: preferences.long_context_llm_id || "",

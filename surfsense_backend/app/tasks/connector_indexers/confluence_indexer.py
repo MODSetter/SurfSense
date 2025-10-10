@@ -233,7 +233,9 @@ async def index_confluence_pages(
                     continue
 
                 # Generate summary with metadata
-                user_llm = await get_user_long_context_llm(session, user_id)
+                user_llm = await get_user_long_context_llm(
+                    session, user_id, search_space_id
+                )
                 comment_count = len(comments)
 
                 if user_llm:

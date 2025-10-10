@@ -23,12 +23,17 @@ import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 import InferenceParamsEditor from "../inference-params-editor";
 
 interface AddProviderStepProps {
+	searchSpaceId: number;
 	onConfigCreated?: () => void;
 	onConfigDeleted?: () => void;
 }
 
-export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProviderStepProps) {
-	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs();
+export function AddProviderStep({
+	searchSpaceId,
+	onConfigCreated,
+	onConfigDeleted,
+}: AddProviderStepProps) {
+	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [formData, setFormData] = useState<CreateLLMConfig>({
 		name: "",
@@ -38,6 +43,7 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 		api_key: "",
 		api_base: "",
 		litellm_params: {},
+		search_space_id: searchSpaceId,
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,6 +71,7 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 				api_key: "",
 				api_base: "",
 				litellm_params: {},
+				search_space_id: searchSpaceId,
 			});
 			setIsAddingNew(false);
 			// Notify parent component that a config was created
@@ -252,7 +259,6 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 									setParams={handleParamsChange}
 								/>
 							</div>
-
 
 							<div className="flex gap-2 pt-4">
 								<Button type="submit" disabled={isSubmitting}>
