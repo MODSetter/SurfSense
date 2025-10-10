@@ -1,14 +1,16 @@
 "use client";
 
-import { ArrowLeft, Bot, Brain, Settings } from "lucide-react"; // Import ArrowLeft icon
-import { useRouter } from "next/navigation"; // Add this import
+import { ArrowLeft, Bot, Brain, Settings } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SettingsPage() {
-	const router = useRouter(); // Initialize router
+	const router = useRouter();
+	const params = useParams();
+	const searchSpaceId = Number(params.search_space_id);
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -19,7 +21,7 @@ export default function SettingsPage() {
 						<div className="flex items-center space-x-4">
 							{/* Back Button */}
 							<button
-								onClick={() => router.push("/dashboard")}
+								onClick={() => router.push(`/dashboard/${searchSpaceId}`)}
 								className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
 								aria-label="Back to Dashboard"
 								type="button"
@@ -32,7 +34,7 @@ export default function SettingsPage() {
 							<div className="space-y-1">
 								<h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 								<p className="text-lg text-muted-foreground">
-									Manage your LLM configurations and role assignments.
+									Manage your LLM configurations and role assignments for this search space.
 								</p>
 							</div>
 						</div>
@@ -57,11 +59,11 @@ export default function SettingsPage() {
 						</div>
 
 						<TabsContent value="models" className="space-y-6">
-							<ModelConfigManager />
+							<ModelConfigManager searchSpaceId={searchSpaceId} />
 						</TabsContent>
 
 						<TabsContent value="roles" className="space-y-6">
-							<LLMRoleManager />
+							<LLMRoleManager searchSpaceId={searchSpaceId} />
 						</TabsContent>
 					</Tabs>
 				</div>

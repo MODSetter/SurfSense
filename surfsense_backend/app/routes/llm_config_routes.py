@@ -2,13 +2,70 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
-from app.db import LLMConfig, User, get_async_session
+from app.db import (
+    LLMConfig,
+    SearchSpace,
+    User,
+    UserSearchSpacePreference,
+    get_async_session,
+)
 from app.schemas import LLMConfigCreate, LLMConfigRead, LLMConfigUpdate
 from app.users import current_active_user
-from app.utils.check_ownership import check_ownership
 
 router = APIRouter()
+
+
+# Helper function to check search space access
+async def check_search_space_access(
+    session: AsyncSession, search_space_id: int, user: User
+) -> SearchSpace:
+    """Verify that the user has access to the search space"""
+    result = await session.execute(
+        select(SearchSpace).filter(
+            SearchSpace.id == search_space_id, SearchSpace.user_id == user.id
+        )
+    )
+    search_space = result.scalars().first()
+    if not search_space:
+        raise HTTPException(
+            status_code=404,
+            detail="Search space not found or you don't have permission to access it",
+        )
+    return search_space
+
+
+# Helper function to get or create user search space preference
+async def get_or_create_user_preference(
+    session: AsyncSession, user_id, search_space_id: int
+) -> UserSearchSpacePreference:
+    """Get or create user preference for a search space"""
+    result = await session.execute(
+        select(UserSearchSpacePreference)
+        .filter(
+            UserSearchSpacePreference.user_id == user_id,
+            UserSearchSpacePreference.search_space_id == search_space_id,
+        )
+        .options(
+            selectinload(UserSearchSpacePreference.long_context_llm),
+            selectinload(UserSearchSpacePreference.fast_llm),
+            selectinload(UserSearchSpacePreference.strategic_llm),
+        )
+    )
+    preference = result.scalars().first()
+
+    if not preference:
+        # Create new preference entry
+        preference = UserSearchSpacePreference(
+            user_id=user_id,
+            search_space_id=search_space_id,
+        )
+        session.add(preference)
+        await session.commit()
+        await session.refresh(preference)
+
+    return preference
 
 
 class LLMPreferencesUpdate(BaseModel):
@@ -36,9 +93,12 @@ async def create_llm_config(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Create a new LLM configuration for the authenticated user"""
+    """Create a new LLM configuration for a search space"""
     try:
-        db_llm_config = LLMConfig(**llm_config.model_dump(), user_id=user.id)
+        # Verify user has access to the search space
+        await check_search_space_access(session, llm_config.search_space_id, user)
+
+        db_llm_config = LLMConfig(**llm_config.model_dump())
         session.add(db_llm_config)
         await session.commit()
         await session.refresh(db_llm_config)
@@ -54,20 +114,26 @@ async def create_llm_config(
 
 @router.get("/llm-configs/", response_model=list[LLMConfigRead])
 async def read_llm_configs(
+    search_space_id: int,
     skip: int = 0,
     limit: int = 200,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Get all LLM configurations for the authenticated user"""
+    """Get all LLM configurations for a search space"""
     try:
+        # Verify user has access to the search space
+        await check_search_space_access(session, search_space_id, user)
+
         result = await session.execute(
             select(LLMConfig)
-            .filter(LLMConfig.user_id == user.id)
+            .filter(LLMConfig.search_space_id == search_space_id)
             .offset(skip)
             .limit(limit)
         )
         return result.scalars().all()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch LLM configurations: {e!s}"
@@ -82,7 +148,18 @@ async def read_llm_config(
 ):
     """Get a specific LLM configuration by ID"""
     try:
-        llm_config = await check_ownership(session, LLMConfig, llm_config_id, user)
+        # Get the LLM config
+        result = await session.execute(
+            select(LLMConfig).filter(LLMConfig.id == llm_config_id)
+        )
+        llm_config = result.scalars().first()
+
+        if not llm_config:
+            raise HTTPException(status_code=404, detail="LLM configuration not found")
+
+        # Verify user has access to the search space
+        await check_search_space_access(session, llm_config.search_space_id, user)
+
         return llm_config
     except HTTPException:
         raise
@@ -101,7 +178,18 @@ async def update_llm_config(
 ):
     """Update an existing LLM configuration"""
     try:
-        db_llm_config = await check_ownership(session, LLMConfig, llm_config_id, user)
+        # Get the LLM config
+        result = await session.execute(
+            select(LLMConfig).filter(LLMConfig.id == llm_config_id)
+        )
+        db_llm_config = result.scalars().first()
+
+        if not db_llm_config:
+            raise HTTPException(status_code=404, detail="LLM configuration not found")
+
+        # Verify user has access to the search space
+        await check_search_space_access(session, db_llm_config.search_space_id, user)
+
         update_data = llm_config_update.model_dump(exclude_unset=True)
 
         for key, value in update_data.items():
@@ -127,7 +215,18 @@ async def delete_llm_config(
 ):
     """Delete an LLM configuration"""
     try:
-        db_llm_config = await check_ownership(session, LLMConfig, llm_config_id, user)
+        # Get the LLM config
+        result = await session.execute(
+            select(LLMConfig).filter(LLMConfig.id == llm_config_id)
+        )
+        db_llm_config = result.scalars().first()
+
+        if not db_llm_config:
+            raise HTTPException(status_code=404, detail="LLM configuration not found")
+
+        # Verify user has access to the search space
+        await check_search_space_access(session, db_llm_config.search_space_id, user)
+
         await session.delete(db_llm_config)
         await session.commit()
         return {"message": "LLM configuration deleted successfully"}
@@ -143,99 +242,101 @@ async def delete_llm_config(
 # User LLM Preferences endpoints
 
 
-@router.get("/users/me/llm-preferences", response_model=LLMPreferencesRead)
+@router.get(
+    "/search-spaces/{search_space_id}/llm-preferences",
+    response_model=LLMPreferencesRead,
+)
 async def get_user_llm_preferences(
+    search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Get the current user's LLM preferences"""
+    """Get the current user's LLM preferences for a specific search space"""
     try:
-        # Refresh user to get latest relationships
-        await session.refresh(user)
+        # Verify user has access to the search space
+        await check_search_space_access(session, search_space_id, user)
 
-        result = {
-            "long_context_llm_id": user.long_context_llm_id,
-            "fast_llm_id": user.fast_llm_id,
-            "strategic_llm_id": user.strategic_llm_id,
-            "long_context_llm": None,
-            "fast_llm": None,
-            "strategic_llm": None,
+        # Get or create user preference for this search space
+        preference = await get_or_create_user_preference(
+            session, user.id, search_space_id
+        )
+
+        return {
+            "long_context_llm_id": preference.long_context_llm_id,
+            "fast_llm_id": preference.fast_llm_id,
+            "strategic_llm_id": preference.strategic_llm_id,
+            "long_context_llm": preference.long_context_llm,
+            "fast_llm": preference.fast_llm,
+            "strategic_llm": preference.strategic_llm,
         }
-
-        # Fetch the actual LLM configs if they exist
-        if user.long_context_llm_id:
-            long_context_llm = await session.execute(
-                select(LLMConfig).filter(
-                    LLMConfig.id == user.long_context_llm_id,
-                    LLMConfig.user_id == user.id,
-                )
-            )
-            llm_config = long_context_llm.scalars().first()
-            if llm_config:
-                result["long_context_llm"] = llm_config
-
-        if user.fast_llm_id:
-            fast_llm = await session.execute(
-                select(LLMConfig).filter(
-                    LLMConfig.id == user.fast_llm_id, LLMConfig.user_id == user.id
-                )
-            )
-            llm_config = fast_llm.scalars().first()
-            if llm_config:
-                result["fast_llm"] = llm_config
-
-        if user.strategic_llm_id:
-            strategic_llm = await session.execute(
-                select(LLMConfig).filter(
-                    LLMConfig.id == user.strategic_llm_id, LLMConfig.user_id == user.id
-                )
-            )
-            llm_config = strategic_llm.scalars().first()
-            if llm_config:
-                result["strategic_llm"] = llm_config
-
-        return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch LLM preferences: {e!s}"
         ) from e
 
 
-@router.put("/users/me/llm-preferences", response_model=LLMPreferencesRead)
+@router.put(
+    "/search-spaces/{search_space_id}/llm-preferences",
+    response_model=LLMPreferencesRead,
+)
 async def update_user_llm_preferences(
+    search_space_id: int,
     preferences: LLMPreferencesUpdate,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Update the current user's LLM preferences"""
+    """Update the current user's LLM preferences for a specific search space"""
     try:
-        # Validate that all provided LLM config IDs belong to the user
+        # Verify user has access to the search space
+        await check_search_space_access(session, search_space_id, user)
+
+        # Get or create user preference for this search space
+        preference = await get_or_create_user_preference(
+            session, user.id, search_space_id
+        )
+
+        # Validate that all provided LLM config IDs belong to the search space
         update_data = preferences.model_dump(exclude_unset=True)
 
         for _key, llm_config_id in update_data.items():
             if llm_config_id is not None:
-                # Verify ownership of the LLM config
+                # Verify the LLM config belongs to the search space
                 result = await session.execute(
                     select(LLMConfig).filter(
-                        LLMConfig.id == llm_config_id, LLMConfig.user_id == user.id
+                        LLMConfig.id == llm_config_id,
+                        LLMConfig.search_space_id == search_space_id,
                     )
                 )
                 llm_config = result.scalars().first()
                 if not llm_config:
                     raise HTTPException(
                         status_code=404,
-                        detail=f"LLM configuration {llm_config_id} not found or you don't have permission to access it",
+                        detail=f"LLM configuration {llm_config_id} not found in this search space",
                     )
 
         # Update user preferences
         for key, value in update_data.items():
-            setattr(user, key, value)
+            setattr(preference, key, value)
 
         await session.commit()
-        await session.refresh(user)
+        await session.refresh(preference)
+
+        # Reload relationships
+        await session.refresh(
+            preference, ["long_context_llm", "fast_llm", "strategic_llm"]
+        )
 
         # Return updated preferences
-        return await get_user_llm_preferences(session, user)
+        return {
+            "long_context_llm_id": preference.long_context_llm_id,
+            "fast_llm_id": preference.fast_llm_id,
+            "strategic_llm_id": preference.strategic_llm_id,
+            "long_context_llm": preference.long_context_llm,
+            "fast_llm": preference.fast_llm,
+            "strategic_llm": preference.strategic_llm,
+        }
     except HTTPException:
         raise
     except Exception as e:

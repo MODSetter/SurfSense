@@ -299,7 +299,9 @@ async def index_notion_pages(
                     continue
 
                 # Get user's long context LLM
-                user_llm = await get_user_long_context_llm(session, user_id)
+                user_llm = await get_user_long_context_llm(
+                    session, user_id, search_space_id
+                )
                 if not user_llm:
                     logger.error(f"No long context LLM configured for user {user_id}")
                     skipped_pages.append(f"{page_title} (no LLM configured)")

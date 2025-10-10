@@ -33,6 +33,12 @@ export default function DashboardLayout({
 			icon: "SquareTerminal",
 			items: [],
 		},
+		{
+			title: "Manage LLMs",
+			url: `/dashboard/${search_space_id}/settings`,
+			icon: "Settings2",
+			items: [],
+		},
 
 		{
 			title: "Documents",

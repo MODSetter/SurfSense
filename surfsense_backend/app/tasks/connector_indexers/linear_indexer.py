@@ -228,7 +228,9 @@ async def index_linear_issues(
                     continue
 
                 # Generate summary with metadata
-                user_llm = await get_user_long_context_llm(session, user_id)
+                user_llm = await get_user_long_context_llm(
+                    session, user_id, search_space_id
+                )
                 state = formatted_issue.get("state", "Unknown")
                 description = formatted_issue.get("description", "")
                 comment_count = len(formatted_issue.get("comments", []))

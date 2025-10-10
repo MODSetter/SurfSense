@@ -107,11 +107,12 @@ async def write_sub_section(state: State, config: RunnableConfig) -> dict[str, A
     configuration = Configuration.from_runnable_config(config)
     documents = state.reranked_documents
     user_id = configuration.user_id
+    search_space_id = configuration.search_space_id
 
     # Get user's fast LLM
-    llm = await get_user_fast_llm(state.db_session, user_id)
+    llm = await get_user_fast_llm(state.db_session, user_id, search_space_id)
     if not llm:
-        error_message = f"No fast LLM configured for user {user_id}"
+        error_message = f"No fast LLM configured for user {user_id} in search space {search_space_id}"
         print(error_message)
         raise RuntimeError(error_message)
 

@@ -104,9 +104,11 @@ async def add_extension_received_document(
             return existing_document
 
         # Get user's long context LLM
-        user_llm = await get_user_long_context_llm(session, user_id)
+        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
         if not user_llm:
-            raise RuntimeError(f"No long context LLM configured for user {user_id}")
+            raise RuntimeError(
+                f"No long context LLM configured for user {user_id} in search space {search_space_id}"
+            )
 
         # Generate summary with metadata
         document_metadata = {

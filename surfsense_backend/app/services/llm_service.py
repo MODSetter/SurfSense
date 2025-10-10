@@ -1,10 +1,14 @@
 import logging
 
+import litellm
 from langchain_litellm import ChatLiteLLM
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db import LLMConfig, User
+from app.db import LLMConfig, UserSearchSpacePreference
+
+# Configure litellm to automatically drop unsupported parameters
+litellm.drop_params = True
 
 logger = logging.getLogger(__name__)
 
@@ -16,54 +20,67 @@ class LLMRole:
 
 
 async def get_user_llm_instance(
-    session: AsyncSession, user_id: str, role: str
+    session: AsyncSession, user_id: str, search_space_id: int, role: str
 ) -> ChatLiteLLM | None:
     """
-    Get a ChatLiteLLM instance for a specific user and role.
+    Get a ChatLiteLLM instance for a specific user, search space, and role.
 
     Args:
         session: Database session
         user_id: User ID
+        search_space_id: Search Space ID
         role: LLM role ('long_context', 'fast', or 'strategic')
 
     Returns:
         ChatLiteLLM instance or None if not found
     """
     try:
-        # Get user with their LLM preferences
-        result = await session.execute(select(User).where(User.id == user_id))
-        user = result.scalars().first()
+        # Get user's LLM preferences for this search space
+        result = await session.execute(
+            select(UserSearchSpacePreference).where(
+                UserSearchSpacePreference.user_id == user_id,
+                UserSearchSpacePreference.search_space_id == search_space_id,
+            )
+        )
+        preference = result.scalars().first()
 
-        if not user:
-            logger.error(f"User {user_id} not found")
+        if not preference:
+            logger.error(
+                f"No LLM preferences found for user {user_id} in search space {search_space_id}"
+            )
             return None
 
         # Get the appropriate LLM config ID based on role
         llm_config_id = None
         if role == LLMRole.LONG_CONTEXT:
-            llm_config_id = user.long_context_llm_id
+            llm_config_id = preference.long_context_llm_id
         elif role == LLMRole.FAST:
-            llm_config_id = user.fast_llm_id
+            llm_config_id = preference.fast_llm_id
         elif role == LLMRole.STRATEGIC:
-            llm_config_id = user.strategic_llm_id
+            llm_config_id = preference.strategic_llm_id
         else:
             logger.error(f"Invalid LLM role: {role}")
             return None
 
         if not llm_config_id:
-            logger.error(f"No {role} LLM configured for user {user_id}")
+            logger.error(
+                f"No {role} LLM configured for user {user_id} in search space {search_space_id}"
+            )
             return None
 
         # Get the LLM configuration
         result = await session.execute(
             select(LLMConfig).where(
-                LLMConfig.id == llm_config_id, LLMConfig.user_id == user_id
+                LLMConfig.id == llm_config_id,
+                LLMConfig.search_space_id == search_space_id,
             )
         )
         llm_config = result.scalars().first()
 
         if not llm_config:
-            logger.error(f"LLM config {llm_config_id} not found for user {user_id}")
+            logger.error(
+                f"LLM config {llm_config_id} not found in search space {search_space_id}"
+            )
             return None
 
         # Build the model string for litellm
@@ -113,19 +130,25 @@ async def get_user_llm_instance(
 
 
 async def get_user_long_context_llm(
-    session: AsyncSession, user_id: str
+    session: AsyncSession, user_id: str, search_space_id: int
 ) -> ChatLiteLLM | None:
-    """Get user's long context LLM instance."""
-    return await get_user_llm_instance(session, user_id, LLMRole.LONG_CONTEXT)
+    """Get user's long context LLM instance for a specific search space."""
+    return await get_user_llm_instance(
+        session, user_id, search_space_id, LLMRole.LONG_CONTEXT
+    )
 
 
-async def get_user_fast_llm(session: AsyncSession, user_id: str) -> ChatLiteLLM | None:
-    """Get user's fast LLM instance."""
-    return await get_user_llm_instance(session, user_id, LLMRole.FAST)
+async def get_user_fast_llm(
+    session: AsyncSession, user_id: str, search_space_id: int
+) -> ChatLiteLLM | None:
+    """Get user's fast LLM instance for a specific search space."""
+    return await get_user_llm_instance(session, user_id, search_space_id, LLMRole.FAST)
 
 
 async def get_user_strategic_llm(
-    session: AsyncSession, user_id: str
+    session: AsyncSession, user_id: str, search_space_id: int
 ) -> ChatLiteLLM | None:
-    """Get user's strategic LLM instance."""
-    return await get_user_llm_instance(session, user_id, LLMRole.STRATEGIC)
+    """Get user's strategic LLM instance for a specific search space."""
+    return await get_user_llm_instance(
+        session, user_id, search_space_id, LLMRole.STRATEGIC
+    )

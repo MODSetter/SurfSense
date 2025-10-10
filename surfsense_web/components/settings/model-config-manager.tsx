@@ -41,7 +41,11 @@ import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 import InferenceParamsEditor from "../inference-params-editor";
 
-export function ModelConfigManager() {
+interface ModelConfigManagerProps {
+	searchSpaceId: number;
+}
+
+export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const {
 		llmConfigs,
 		loading,
@@ -50,7 +54,7 @@ export function ModelConfigManager() {
 		updateLLMConfig,
 		deleteLLMConfig,
 		refreshConfigs,
-	} = useLLMConfigs();
+	} = useLLMConfigs(searchSpaceId);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null);
 	const [showApiKey, setShowApiKey] = useState<Record<number, boolean>>({});
@@ -62,6 +66,7 @@ export function ModelConfigManager() {
 		api_key: "",
 		api_base: "",
 		litellm_params: {},
+		search_space_id: searchSpaceId,
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -76,9 +81,10 @@ export function ModelConfigManager() {
 				api_key: editingConfig.api_key,
 				api_base: editingConfig.api_base || "",
 				litellm_params: editingConfig.litellm_params || {},
+				search_space_id: searchSpaceId,
 			});
 		}
-	}, [editingConfig]);
+	}, [editingConfig, searchSpaceId]);
 
 	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
@@ -113,6 +119,7 @@ export function ModelConfigManager() {
 				api_key: "",
 				api_base: "",
 				litellm_params: {},
+				search_space_id: searchSpaceId,
 			});
 			setIsAddingNew(false);
 			setEditingConfig(null);
@@ -426,6 +433,7 @@ export function ModelConfigManager() {
 							api_key: "",
 							api_base: "",
 							litellm_params: {},
+							search_space_id: searchSpaceId,
 						});
 					}
 				}}
@@ -462,18 +470,12 @@ export function ModelConfigManager() {
 									value={formData.provider}
 									onValueChange={(value) => handleInputChange("provider", value)}
 								>
-									<SelectTrigger className="h-auto min-h-[2.5rem] py-2">
+									<SelectTrigger>
 										<SelectValue placeholder="Select a provider">
 											{formData.provider && (
-												<div className="flex items-center space-x-2 py-1">
-													<div className="font-medium">
-														{LLM_PROVIDERS.find((p) => p.value === formData.provider)?.label}
-													</div>
-													<div className="text-xs text-muted-foreground">•</div>
-													<div className="text-xs text-muted-foreground">
-														{LLM_PROVIDERS.find((p) => p.value === formData.provider)?.description}
-													</div>
-												</div>
+												<span className="font-medium">
+													{LLM_PROVIDERS.find((p) => p.value === formData.provider)?.label}
+												</span>
 											)}
 										</SelectValue>
 									</SelectTrigger>
@@ -549,7 +551,7 @@ export function ModelConfigManager() {
 							<InferenceParamsEditor
 								params={formData.litellm_params || {}}
 								setParams={(newParams) =>
-								setFormData((prev) => ({ ...prev, litellm_params: newParams }))
+									setFormData((prev) => ({ ...prev, litellm_params: newParams }))
 								}
 							/>
 						</div>
@@ -578,6 +580,7 @@ export function ModelConfigManager() {
 										api_key: "",
 										api_base: "",
 										litellm_params: {},
+										search_space_id: searchSpaceId,
 									});
 								}}
 								disabled={isSubmitting}

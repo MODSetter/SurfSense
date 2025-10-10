@@ -28,11 +28,12 @@ async def create_podcast_transcript(
     # Get configuration from runnable config
     configuration = Configuration.from_runnable_config(config)
     user_id = configuration.user_id
+    search_space_id = configuration.search_space_id
 
     # Get user's long context LLM
-    llm = await get_user_long_context_llm(state.db_session, user_id)
+    llm = await get_user_long_context_llm(state.db_session, user_id, search_space_id)
     if not llm:
-        error_message = f"No long context LLM configured for user {user_id}"
+        error_message = f"No long context LLM configured for user {user_id} in search space {search_space_id}"
         print(error_message)
         raise RuntimeError(error_message)
 
