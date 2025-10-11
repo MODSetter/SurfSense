@@ -17,6 +17,7 @@ from .luma_add_connector_route import router as luma_add_connector_router
 from .podcasts_routes import router as podcasts_router
 from .search_source_connectors_routes import router as search_source_connectors_router
 from .search_spaces_routes import router as search_spaces_router
+from .stt_routes import router as stt_router
 
 router = APIRouter()
 
@@ -31,3 +32,4 @@ router.include_router(airtable_add_connector_router)
 router.include_router(luma_add_connector_router)
 router.include_router(llm_config_router)
 router.include_router(logs_router)
+router.include_router(stt_router)
