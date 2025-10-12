@@ -82,7 +82,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				model_name: editingConfig.model_name,
 				api_key: editingConfig.api_key,
 				api_base: editingConfig.api_base || "",
-				language: editingConfig.language || "Enlgish",
+				language: editingConfig.language || "English",
 				litellm_params: editingConfig.litellm_params || {},
 				search_space_id: searchSpaceId,
 			});
