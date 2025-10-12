@@ -296,6 +296,84 @@ class ConnectorService:
                 "sources": [],
             }, []
 
+        # Initialize Tavily client with API key from connector config
+        tavily_api_key = tavily_connector.config.get("TAVILY_API_KEY")
+        tavily_client = TavilyClient(api_key=tavily_api_key)
+
+        # Perform search with Tavily
+        try:
+            response = tavily_client.search(
+                query=user_query,
+                max_results=top_k,
+                search_depth="advanced",  # Use advanced search for better results
+            )
+
+            # Extract results from Tavily response
+            tavily_results = response.get("results", [])
+
+            # Early return if no results
+            if not tavily_results:
+                return {
+                    "id": 3,
+                    "name": "Tavily Search",
+                    "type": "TAVILY_API",
+                    "sources": [],
+                }, []
+
+            # Process each result and create sources directly without deduplication
+            sources_list = []
+            documents = []
+
+            async with self.counter_lock:
+                for _i, result in enumerate(tavily_results):
+                    # Create a source entry
+                    source = {
+                        "id": self.source_id_counter,
+                        "title": result.get("title", "Tavily Result"),
+                        "description": result.get("content", "")[:100],
+                        "url": result.get("url", ""),
+                    }
+                    sources_list.append(source)
+
+                    # Create a document entry
+                    document = {
+                        "chunk_id": self.source_id_counter,
+                        "content": result.get("content", ""),
+                        "score": result.get("score", 0.0),
+                        "document": {
+                            "id": self.source_id_counter,
+                            "title": result.get("title", "Tavily Result"),
+                            "document_type": "TAVILY_API",
+                            "metadata": {
+                                "url": result.get("url", ""),
+                                "published_date": result.get("published_date", ""),
+                                "source": "TAVILY_API",
+                            },
+                        },
+                    }
+                    documents.append(document)
+                    self.source_id_counter += 1
+
+            # Create result object
+            result_object = {
+                "id": 3,
+                "name": "Tavily Search",
+                "type": "TAVILY_API",
+                "sources": sources_list,
+            }
+
+            return result_object, documents
+
+        except Exception as e:
+            # Log the error and return empty results
+            print(f"Error searching with Tavily: {e!s}")
+            return {
+                "id": 3,
+                "name": "Tavily Search",
+                "type": "TAVILY_API",
+                "sources": [],
+            }, []
+
     async def search_searxng(
         self,
         user_query: str,
@@ -357,6 +435,9 @@ class ConnectorService:
         elif isinstance(safesearch, (int, float)):
             safesearch_value = int(safesearch)
 
+        if safesearch_value is not None and not (0 <= safesearch_value <= 2):
+            safesearch_value = None
+
         def _format_list(value: Any) -> str | None:
             if value is None:
                 return None
@@ -391,7 +472,7 @@ class ConnectorService:
 
         headers = {"Accept": "application/json"}
         if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
+            headers["X-API-KEY"] = api_key
 
         searx_endpoint = urljoin(host if host.endswith("/") else f"{host}/", "search")
 
@@ -478,84 +559,6 @@ class ConnectorService:
         }
 
         return result_object, documents
-
-        # Initialize Tavily client with API key from connector config
-        tavily_api_key = tavily_connector.config.get("TAVILY_API_KEY")
-        tavily_client = TavilyClient(api_key=tavily_api_key)
-
-        # Perform search with Tavily
-        try:
-            response = tavily_client.search(
-                query=user_query,
-                max_results=top_k,
-                search_depth="advanced",  # Use advanced search for better results
-            )
-
-            # Extract results from Tavily response
-            tavily_results = response.get("results", [])
-
-            # Early return if no results
-            if not tavily_results:
-                return {
-                    "id": 3,
-                    "name": "Tavily Search",
-                    "type": "TAVILY_API",
-                    "sources": [],
-                }, []
-
-            # Process each result and create sources directly without deduplication
-            sources_list = []
-            documents = []
-
-            async with self.counter_lock:
-                for _i, result in enumerate(tavily_results):
-                    # Create a source entry
-                    source = {
-                        "id": self.source_id_counter,
-                        "title": result.get("title", "Tavily Result"),
-                        "description": result.get("content", "")[:100],
-                        "url": result.get("url", ""),
-                    }
-                    sources_list.append(source)
-
-                    # Create a document entry
-                    document = {
-                        "chunk_id": self.source_id_counter,
-                        "content": result.get("content", ""),
-                        "score": result.get("score", 0.0),
-                        "document": {
-                            "id": self.source_id_counter,
-                            "title": result.get("title", "Tavily Result"),
-                            "document_type": "TAVILY_API",
-                            "metadata": {
-                                "url": result.get("url", ""),
-                                "published_date": result.get("published_date", ""),
-                                "source": "TAVILY_API",
-                            },
-                        },
-                    }
-                    documents.append(document)
-                    self.source_id_counter += 1
-
-            # Create result object
-            result_object = {
-                "id": 3,
-                "name": "Tavily Search",
-                "type": "TAVILY_API",
-                "sources": sources_list,
-            }
-
-            return result_object, documents
-
-        except Exception as e:
-            # Log the error and return empty results
-            print(f"Error searching with Tavily: {e!s}")
-            return {
-                "id": 3,
-                "name": "Tavily Search",
-                "type": "TAVILY_API",
-                "sources": [],
-            }, []
 
     async def search_slack(
         self,

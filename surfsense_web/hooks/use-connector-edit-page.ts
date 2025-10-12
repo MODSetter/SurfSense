@@ -337,8 +337,13 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					const originalSafesearch = originalConfig.SEARXNG_SAFESEARCH;
 					if (safesearchRaw) {
 						const parsed = Number(safesearchRaw);
-						if (Number.isNaN(parsed)) {
-							toast.error("SearxNG SafeSearch must be a number.");
+						if (
+							Number.isNaN(parsed) ||
+							!Number.isInteger(parsed) ||
+							parsed < 0 ||
+							parsed > 2
+						) {
+							toast.error("SearxNG SafeSearch must be 0, 1, or 2.");
 							setIsSaving(false);
 							return;
 						}
