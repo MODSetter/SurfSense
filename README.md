@@ -62,6 +62,7 @@ Open source and easy to deploy locally.
 
 ### ℹ️ **External Sources**
 - Search Engines (Tavily, LinkUp)
+- SearxNG (self-hosted instances)
 - Slack
 - Linear
 - Jira
@@ -303,4 +304,3 @@ For detailed contribution guidelines, please see our [CONTRIBUTING.md](CONTRIBUT
 
 ---
 ---
-
