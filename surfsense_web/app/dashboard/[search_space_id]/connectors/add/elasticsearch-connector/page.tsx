@@ -440,6 +440,53 @@ export default function ElasticsearchConnectorPage() {
 													)}
 												/>
 											)}
+
+											{/* Index Selection */}
+											<FormField
+												control={form.control}
+												name="indices"
+												render={({ field }) => (
+													<FormItem>
+														<FormLabel>Index Selection </FormLabel>
+														<FormControl>
+															<Input placeholder="logs-*, documents-*, app-logs" {...field} />
+														</FormControl>
+														<FormDescription>
+															Comma-separated indices to search (e.g., "logs-*, documents-*").
+														</FormDescription>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+
+											{/* Show parsed indices as badges */}
+											{form.watch("indices")?.trim() && (
+												<div className="rounded-lg border bg-muted/50 p-3">
+													<h4 className="text-sm font-medium mb-2">Selected Indices:</h4>
+													<div className="flex flex-wrap gap-2">
+														{stringToArray(form.watch("indices")).map((index) => (
+															<Badge key={index} variant="secondary" className="text-xs">
+																{index}
+															</Badge>
+														))}
+													</div>
+												</div>
+											)}
+
+											<Alert className="bg-muted">
+												<Info className="h-4 w-4" />
+												<AlertTitle>Index Selection Tips</AlertTitle>
+												<AlertDescription className="mt-2">
+													<ul className="list-disc pl-4 space-y-1 text-sm">
+														<li>Use wildcards like "logs-*" to match multiple indices</li>
+														<li>Separate multiple indices with commas</li>
+														<li>
+															Leave empty to search all accessible indices including internal ones
+														</li>
+														<li>Choosing specific indices improves search performance</li>
+													</ul>
+												</AlertDescription>
+											</Alert>
 										</div>
 
 										{/* Advanced Configuration */}
@@ -447,42 +494,7 @@ export default function ElasticsearchConnectorPage() {
 											<AccordionItem value="advanced">
 												<AccordionTrigger>Advanced Configuration</AccordionTrigger>
 												<AccordionContent className="space-y-4">
-													{/* Index Selection */}
-													<FormField
-														control={form.control}
-														name="indices"
-														render={({ field }) => (
-															<FormItem>
-																<FormLabel>
-																	Index Selection{" "}
-																	<span className="text-muted-foreground">(Optional)</span>
-																</FormLabel>
-																<FormControl>
-																	<Input placeholder="logs-*, documents-*, app-logs" {...field} />
-																</FormControl>
-																<FormDescription>
-																	Comma-separated indices to search (e.g., "logs-*, documents-*").
-																	Leave empty for all indices. Supports wildcards.
-																</FormDescription>
-																<FormMessage />
-															</FormItem>
-														)}
-													/>
-
-													{/* Show parsed indices as badges */}
-													{form.watch("indices")?.trim() && (
-														<div className="rounded-lg border bg-muted/50 p-3">
-															<h4 className="text-sm font-medium mb-2">Selected Indices:</h4>
-															<div className="flex flex-wrap gap-2">
-																{stringToArray(form.watch("indices")).map((index) => (
-																	<Badge key={index} variant="secondary" className="text-xs">
-																		{index}
-																	</Badge>
-																))}
-															</div>
-														</div>
-													)}
-
+													{/* Default Search Query */}
 													<FormField
 														control={form.control}
 														name="query"
@@ -504,6 +516,7 @@ export default function ElasticsearchConnectorPage() {
 														)}
 													/>
 
+													{/* Form Fields */}
 													<FormField
 														control={form.control}
 														name="search_fields"
@@ -572,19 +585,6 @@ export default function ElasticsearchConnectorPage() {
 															</FormItem>
 														)}
 													/>
-
-													<Alert className="bg-muted">
-														<Info className="h-4 w-4" />
-														<AlertTitle>Index Selection Tips</AlertTitle>
-														<AlertDescription className="mt-2">
-															<ul className="list-disc pl-4 space-y-1 text-sm">
-																<li>Use wildcards like "logs-*" to match multiple indices</li>
-																<li>Separate multiple indices with commas</li>
-																<li>Leave empty to search all accessible indices</li>
-																<li>Choosing specific indices improves search performance</li>
-															</ul>
-														</AlertDescription>
-													</Alert>
 												</AccordionContent>
 											</AccordionItem>
 										</Accordion>
