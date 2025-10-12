@@ -1,25 +1,15 @@
-const NO_TRAILING_SLASH_ENDPOINTS = [
-  'users/me',
-  'api/v1/chats',
-  'api/v1/search-spaces'
-];
-
-function shouldSkipTrailingSlash(url: string): boolean {
-  const basePath = url.includes('?') ? url.split('?')[0] : url;
-  
-  return NO_TRAILING_SLASH_ENDPOINTS.some(endpoint => 
-    basePath.includes(endpoint)
-  );
-}
-
 /**
- * API client with Next.js caching and trailing slash handling
+ * List of API endpoints that require specific trailing slash handling
  */
-export async function fetchWithCache(url: string, options: RequestInit & {
-    revalidate?: number | false,
-  } = {}) {
-  const { revalidate, ...fetchOptions } = options;
+const ENDPOINTS_CONFIG = {
+  'users/me': false,
+  'api/v1/chats': false,
+  'api/v1/documents': true,
+  'api/v1/searchspaces': true
+};
 
+
+function formatUrlPath(url: string): string {
   let basePath = url;
   let queryParams = '';
   
@@ -27,14 +17,34 @@ export async function fetchWithCache(url: string, options: RequestInit & {
     [basePath, queryParams] = url.split('?');
     queryParams = `?${queryParams}`;
   }
+
+  let needsTrailingSlash = true;
   
-  if (!shouldSkipTrailingSlash(basePath)) {
-    basePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
-  } else {
-    basePath = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+  for (const [endpoint, shouldHaveSlash] of Object.entries(ENDPOINTS_CONFIG)) {
+    if (basePath.includes(endpoint)) {
+      needsTrailingSlash = shouldHaveSlash;
+      break;
+    }
   }
-  
-  const formattedUrl = basePath + queryParams;
+
+  if (needsTrailingSlash && !basePath.endsWith('/')) {
+    basePath = `${basePath}/`;
+  } else if (!needsTrailingSlash && basePath.endsWith('/')) {
+    basePath = basePath.slice(0, -1);
+  }
+
+  return basePath + queryParams;
+}
+
+/**
+ * API client with Next.js caching and careful URL handling
+ */
+export async function fetchWithCache(url: string, options: RequestInit & {
+  revalidate?: number | false,
+} = {}) {
+  const { revalidate, ...fetchOptions } = options;
+
+  const formattedUrl = formatUrlPath(url);
 
   const response = await fetch(formattedUrl, {
     ...fetchOptions,
