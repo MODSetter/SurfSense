@@ -160,7 +160,7 @@ export default function ElasticsearchConnectorPage() {
 			}
 
 			if (values.search_fields?.trim()) {
-				config.ELASTICSEARCH_FIELDS = stringToArray(values.search_fields);
+				// config.ELASTICSEARCH_FIELDS = stringToArray(values.search_fields);
 				const fields = stringToArray(values.search_fields);
 				config.ELASTICSEARCH_FIELDS = fields;
 				config.ELASTICSEARCH_CONTENT_FIELDS = fields;
@@ -669,6 +669,10 @@ export default function ElasticsearchConnectorPage() {
 														</li>
 													</ul>
 												</li>
+												<li>
+													<strong>Index Selection:</strong> Specify which indices to search using
+													comma-separated patterns (e.g., "logs-*, documents-*")
+												</li>
 											</ol>
 										</AccordionContent>
 									</AccordionItem>
@@ -682,10 +686,6 @@ export default function ElasticsearchConnectorPage() {
 												Fine-tune your Elasticsearch connector with these optional settings:
 											</p>
 											<ul className="list-disc pl-5 space-y-2">
-												<li>
-													<strong>Index Selection:</strong> Specify which indices to search using
-													comma-separated patterns (e.g., "logs-*, documents-*")
-												</li>
 												<li>
 													<strong>Search Fields:</strong> Limit searches to specific fields (e.g.,
 													"title, content") for better relevance
