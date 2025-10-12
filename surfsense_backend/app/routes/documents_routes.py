@@ -784,25 +784,43 @@ async def process_file_in_background(
                 {"file_type": "audio", "processing_stage": "starting_transcription"},
             )
 
-            # Open the audio file for transcription
-            with open(file_path, "rb") as audio_file:
+            # Check if using local STT service
+            if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/"):
+                # Use local Faster-Whisper for transcription
+                from app.services.stt_service import stt_service
+                
+                result = stt_service.transcribe_file(file_path)
+                transcribed_text = result["text"]
+                
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Local STT transcription completed: {filename}",
+                    {
+                        "processing_stage": "local_transcription_complete",
+                        "language": result["language"],
+                        "confidence": result["language_probability"],
+                        "duration": result["duration"],
+                    },
+                )
+            else:
                 # Use LiteLLM for audio transcription
-                if app_config.STT_SERVICE_API_BASE:
-                    transcription_response = await atranscription(
-                        model=app_config.STT_SERVICE,
-                        file=audio_file,
-                        api_base=app_config.STT_SERVICE_API_BASE,
-                        api_key=app_config.STT_SERVICE_API_KEY,
-                    )
-                else:
-                    transcription_response = await atranscription(
-                        model=app_config.STT_SERVICE,
-                        api_key=app_config.STT_SERVICE_API_KEY,
-                        file=audio_file,
-                    )
+                with open(file_path, "rb") as audio_file:
+                    if app_config.STT_SERVICE_API_BASE:
+                        transcription_response = await atranscription(
+                            model=app_config.STT_SERVICE,
+                            file=audio_file,
+                            api_base=app_config.STT_SERVICE_API_BASE,
+                            api_key=app_config.STT_SERVICE_API_KEY,
+                        )
+                    else:
+                        transcription_response = await atranscription(
+                            model=app_config.STT_SERVICE,
+                            api_key=app_config.STT_SERVICE_API_KEY,
+                            file=audio_file,
+                        )
 
-                # Extract the transcribed text
-                transcribed_text = transcription_response.get("text", "")
+                    # Extract the transcribed text
+                    transcribed_text = transcription_response.get("text", "")
 
                 # Add metadata about the transcription
                 transcribed_text = (
@@ -831,6 +849,7 @@ async def process_file_in_background(
             )
 
             if result:
+                stt_service_type = "local" if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/") else "external"
                 await task_logger.log_task_success(
                     log_entry,
                     f"Successfully transcribed and processed audio file: {filename}",
@@ -839,6 +858,7 @@ async def process_file_in_background(
                         "content_hash": result.content_hash,
                         "file_type": "audio",
                         "transcript_length": len(transcribed_text),
+                        "stt_service": stt_service_type,
                     },
                 )
             else:

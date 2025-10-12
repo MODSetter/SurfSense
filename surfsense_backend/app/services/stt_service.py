@@ -12,13 +12,14 @@ from app.config import config
 class STTService:
     """Local Speech-to-Text service using Faster-Whisper."""
     
-    def __init__(self, model_size: Optional[str] = None):
-        """Initialize STT service with specified model size.
-        
-        Args:
-            model_size: Whisper model size ("tiny", "base", "small", "medium", "large-v3")
-        """
-        self.model_size = model_size or config.LOCAL_STT_MODEL
+    def __init__(self):
+        """Initialize STT service with model from STT_SERVICE config."""
+        # Parse model from STT_SERVICE (e.g., "local/base" or "local/tiny")
+        stt_service = config.STT_SERVICE or "local/base"
+        if stt_service.startswith("local/"):
+            self.model_size = stt_service.split("/", 1)[1]
+        else:
+            self.model_size = "base"  # fallback
         self._model: Optional[WhisperModel] = None
         
     def _get_model(self) -> WhisperModel:

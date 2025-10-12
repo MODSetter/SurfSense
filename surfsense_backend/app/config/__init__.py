@@ -106,9 +106,6 @@ class Config:
     STT_SERVICE = os.getenv("STT_SERVICE")
     STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
     STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")
-    
-    # Local STT Configuration
-    LOCAL_STT_MODEL = os.getenv("LOCAL_STT_MODEL", "base")
 
     # Validation Checks
     # Check embedding dimension
