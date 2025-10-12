@@ -13,6 +13,7 @@ const INTEGRATIONS: Integration[] = [
 		name: "LinkUp",
 		icon: "https://framerusercontent.com/images/7zeIm6t3f1HaSltkw8upEvsD80.png?scale-down-to=512",
 	},
+	{ name: "Elasticsearch", icon: "https://cdn.simpleicons.org/elastic/00A9E5" },
 
 	// Communication
 	{ name: "Slack", icon: "https://cdn.simpleicons.org/slack/4A154B" },

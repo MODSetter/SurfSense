@@ -29,7 +29,8 @@ export type DocumentType =
 	| "GOOGLE_CALENDAR_CONNECTOR"
 	| "GOOGLE_GMAIL_CONNECTOR"
 	| "AIRTABLE_CONNECTOR"
-	| "LUMA_CONNECTOR";
+	| "LUMA_CONNECTOR"
+	| "ELASTICSEARCH_CONNECTOR";
 
 export interface UseDocumentsOptions {
 	page?: number;

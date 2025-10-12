@@ -1,6 +1,7 @@
 import {
 	IconBook,
 	IconBrandDiscord,
+	IconBrandElastic,
 	IconBrandGithub,
 	IconBrandNotion,
 	IconBrandSlack,
@@ -52,6 +53,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconChecklist {...iconProps} />;
 		case EnumConnectorName.LUMA_CONNECTOR:
 			return <IconSparkles {...iconProps} />;
+		case EnumConnectorName.ELASTICSEARCH_CONNECTOR:
+			return <IconBrandElastic {...iconProps} />;
 		// Additional cases for non-enum connector types
 		case "YOUTUBE_VIDEO":
 			return <IconBrandYoutube {...iconProps} />;

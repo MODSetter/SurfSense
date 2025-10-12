@@ -40,6 +40,7 @@ from app.tasks.connector_indexers import (
     index_clickup_tasks,
     index_confluence_pages,
     index_discord_messages,
+    index_elasticsearch_documents,
     index_github_repos,
     index_google_calendar_events,
     index_google_gmail_messages,
@@ -363,6 +364,7 @@ async def index_connector_content(
     - JIRA_CONNECTOR: Indexes issues and comments from Jira
     - DISCORD_CONNECTOR: Indexes messages from all accessible Discord channels
     - LUMA_CONNECTOR: Indexes events from Luma
+    - ELASTICSEARCH_CONNECTOR: Indexes documents from Elasticsearch
 
     Args:
         connector_id: ID of the connector to use
@@ -588,6 +590,24 @@ async def index_connector_content(
                 indexing_to,
             )
             response_message = "Luma indexing started in the background."
+
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR
+        ):
+            # Run indexing in background
+            logger.info(
+                f"Triggering Elasticsearch indexing for connector {connector_id} into search space {search_space_id}"
+            )
+            background_tasks.add_task(
+                run_elasticsearch_indexing_with_new_session,
+                connector_id,
+                search_space_id,
+                str(user.id),
+                indexing_from,
+                indexing_to,
+            )
+            response_message = "Elasticsearch indexing started in the background."
 
         else:
             raise HTTPException(
@@ -1358,3 +1378,61 @@ async def run_luma_indexing(
             )
     except Exception as e:
         logger.error(f"Error in background Luma indexing task: {e!s}")
+
+
+async def run_elasticsearch_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Wrapper to run Elasticsearch indexing with its own database session."""
+    logger.info(
+        f"Background task started: Indexing Elasticsearch connector {connector_id} into space {search_space_id}"
+    )
+    async with async_session_maker() as session:
+        await run_elasticsearch_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+    logger.info(
+        f"Background task finished: Indexing Elasticsearch connector {connector_id}"
+    )
+
+
+async def run_elasticsearch_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Runs the Elasticsearch indexing task and updates the timestamp."""
+    try:
+        indexed_count, error_message = await index_elasticsearch_documents(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            start_date,
+            end_date,
+            update_last_indexed=False,
+        )
+        if error_message:
+            logger.error(
+                f"Elasticsearch indexing failed for connector {connector_id}: {error_message}"
+            )
+        else:
+            logger.info(
+                f"Elasticsearch indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+            )
+            # Update the last indexed timestamp only on success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()
+    except Exception as e:
+        await session.rollback()
+        logger.error(
+            f"Critical error in run_elasticsearch_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )

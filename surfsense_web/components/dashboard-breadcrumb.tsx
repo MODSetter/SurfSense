@@ -88,6 +88,7 @@ export function DashboardBreadcrumb() {
 								"serper-api": "Serper API",
 								"linkup-api": "LinkUp API",
 								"luma-connector": "Luma",
+								"elasticsearch-connector": "Elasticsearch",
 							};
 
 							const connectorLabel = connectorLabels[connectorType] || connectorType;
