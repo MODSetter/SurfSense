@@ -792,17 +792,26 @@ async def process_file_in_background(
                 # Use local Faster-Whisper for transcription
                 from app.services.stt_service import stt_service
                 
-                result = stt_service.transcribe_file(file_path)
-                transcribed_text = result["text"]
+                try:
+                    result = stt_service.transcribe_file(file_path)
+                    transcribed_text = result.get("text", "")
+                    
+                    if not transcribed_text:
+                        raise ValueError("Transcription returned empty text")
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Failed to transcribe audio file {filename}: {str(e)}"
+                    ) from e
                 
                 await task_logger.log_task_progress(
                     log_entry,
                     f"Local STT transcription completed: {filename}",
                     {
                         "processing_stage": "local_transcription_complete",
-                        "language": result["language"],
-                        "confidence": result["language_probability"],
-                        "duration": result["duration"],
+                        "language": result.get("language"),
+                        "confidence": result.get("language_probability"),
+                        "duration": result.get("duration"),
                     },
                 )
             else:
