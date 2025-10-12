@@ -784,8 +784,11 @@ async def process_file_in_background(
                 {"file_type": "audio", "processing_stage": "starting_transcription"},
             )
 
+            # Determine STT service type
+            stt_service_type = "local" if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/") else "external"
+            
             # Check if using local STT service
-            if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/"):
+            if stt_service_type == "local":
                 # Use local Faster-Whisper for transcription
                 from app.services.stt_service import stt_service
                 
@@ -849,7 +852,6 @@ async def process_file_in_background(
             )
 
             if result:
-                stt_service_type = "local" if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/") else "external"
                 await task_logger.log_task_success(
                     log_entry,
                     f"Successfully transcribed and processed audio file: {filename}",
