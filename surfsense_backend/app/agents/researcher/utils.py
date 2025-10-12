@@ -51,7 +51,7 @@ def get_connector_emoji(connector_name: str) -> str:
         "GOOGLE_CALENDAR_CONNECTOR": "📅",
         "AIRTABLE_CONNECTOR": "🗃️",
         "LUMA_CONNECTOR": "✨",
-        "ELASTICSEARCH_CONNECTOR": "🔎",
+        "ELASTICSEARCH_CONNECTOR": "⚡",
     }
     return connector_emojis.get(connector_name, "🔎")
 

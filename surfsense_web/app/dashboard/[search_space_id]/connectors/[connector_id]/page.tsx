@@ -74,6 +74,7 @@ const getApiKeyFieldName = (connectorType: string): string => {
 		DISCORD_CONNECTOR: "DISCORD_BOT_TOKEN",
 		LINKUP_API: "LINKUP_API_KEY",
 		LUMA_CONNECTOR: "LUMA_API_KEY",
+		ELASTICSEARCH_CONNECTOR: "ELASTICSEARCH_API_KEY",
 	};
 	return fieldMap[connectorType] || "";
 };
