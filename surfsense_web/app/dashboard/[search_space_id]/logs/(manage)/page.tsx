@@ -839,7 +839,7 @@ function LogsTable({
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.3 }}
 			>
-				<Table>
+				<Table className="table-fixed">
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup: any) => (
 							<TableRow key={headerGroup.id} className="hover:bg-transparent">
@@ -847,7 +847,11 @@ function LogsTable({
 									<TableHead
 										key={header.id}
 										style={{ width: `${header.getSize()}px` }}
-										className="h-12 px-4 py-3"
+										className={cn(
+											"h-12 px-4 py-3",
+											// keep Created At header from wrapping and align it
+											header.column.id === "created_at" ? "whitespace-nowrap text-right" : ""
+										)}
 									>
 										{header.isPlaceholder ? null : header.column.getCanSort() ? (
 											<Button
@@ -895,11 +899,25 @@ function LogsTable({
 											row.getIsSelected() ? "bg-muted/50" : ""
 										)}
 									>
-										{row.getVisibleCells().map((cell: any) => (
-											<TableCell key={cell.id} className="px-4 py-3">
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
-											</TableCell>
-										))}
+										{row.getVisibleCells().map((cell: any) => {
+											const isCreatedAt = cell.column.id === "created_at";
+											const isMessage = cell.column.id === "message";
+                                             return (
+												<TableCell
+													key={cell.id}
+													// overflow-hidden on cells prevents long content from pushing other columns when using table-fixed
+													className={cn(
+														"px-4 py-3 align-top overflow-hidden",
+														// keep Created At compact and prevent wrapping
+														isCreatedAt ? "whitespace-nowrap text-xs text-muted-foreground text-right" : "",
+														// ensure Message cell uses the cell-level clipping (Message markup still has its max-w)
+														isMessage ? "overflow-hidden" : ""
+													)}
+												>
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												</TableCell>
+											);
+                                         })}
 									</motion.tr>
 								))
 							) : (
