@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { fetchWithCache } from "@/lib/apiCache";
 import { toast } from "sonner";
 
 export interface LLMConfig {
@@ -60,21 +61,19 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+
+			const data = await fetchWithCache(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/?search_space_id=${searchSpaceId}`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
 					},
 					method: "GET",
+					revalidate: 60
 				}
-			);
-
-			if (!response.ok) {
+			).catch(err => {
 				throw new Error("Failed to fetch LLM configurations");
-			}
-
-			const data = await response.json();
+			});
 			setLlmConfigs(data);
 			setError(null);
 		} catch (err: any) {
@@ -202,21 +201,19 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const data = await fetchWithCache(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
 					},
 					method: "GET",
+					revalidate: 120
 				}
-			);
-
-			if (!response.ok) {
+			).catch(err => {
 				throw new Error("Failed to fetch LLM preferences");
-			}
+			});
 
-			const data = await response.json();
 			setPreferences(data);
 			setError(null);
 		} catch (err: any) {

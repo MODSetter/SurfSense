@@ -87,7 +87,9 @@ export function AppSidebarProvider({
 			if (typeof window === "undefined") return;
 
 			const chats: Chat[] = await apiClient.get<Chat[]>(
-				`api/v1/chats/?limit=5&skip=0&search_space_id=${searchSpaceId}`
+				`api/v1/chats/?limit=5&skip=0&search_space_id=${searchSpaceId}`,
+				{},
+				15
 			);
 
 			// Sort chats by created_at in descending order (newest first)
@@ -132,7 +134,9 @@ export function AppSidebarProvider({
 			if (typeof window === "undefined") return;
 
 			const data: SearchSpace = await apiClient.get<SearchSpace>(
-				`api/v1/searchspaces/${searchSpaceId}`
+				`api/v1/searchspaces/${searchSpaceId}`,
+				{},
+				30
 			);
 			setSearchSpace(data);
 			setSearchSpaceError(null);

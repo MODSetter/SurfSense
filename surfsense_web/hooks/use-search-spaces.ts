@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchWithCache } from "@/lib/apiCache";
 import { toast } from "sonner";
 
 interface SearchSpace {
@@ -20,24 +21,20 @@ export function useSearchSpaces() {
 		const fetchSearchSpaces = async () => {
 			try {
 				setLoading(true);
-				const response = await fetch(
+
+				const data = await fetchWithCache(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/`,
 					{
 						headers: {
 							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
 						},
 						method: "GET",
-						cache: 'force-cache',
-						next: { revalidate: 60 }
+						revalidate: 60
 					}
-				);
-
-				if (!response.ok) {
+				).catch(err => {
 					toast.error("Not authenticated");
 					throw new Error("Not authenticated");
-				}
-
-				const data = await response.json();
+				});
 				setSearchSpaces(data);
 				setError(null);
 			} catch (err: any) {

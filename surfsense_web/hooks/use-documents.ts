@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { fetchWithCache } from "@/lib/apiCache";
 import { toast } from "sonner";
 import { normalizeListResponse } from "@/lib/pagination";
 
@@ -71,22 +72,19 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					params.append("page_size", effectivePageSize.toString());
 				}
 
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?${params.toString()}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
-				);
-
-				if (!response.ok) {
+				const data = await fetchWithCache(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/?${params.toString()}`,
+				{
+					headers: {
+						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					},
+					method: "GET",
+					revalidate: 30
+				}
+				).catch(err => {
 					toast.error("Failed to fetch documents");
 					throw new Error("Failed to fetch documents");
-				}
-
-				const data = await response.json();
+				});
 				const normalized = normalizeListResponse<Document>(data);
 				setDocuments(normalized.items);
 				setTotal(normalized.total);
@@ -142,22 +140,19 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					params.append("page_size", effectivePageSize.toString());
 				}
 
-				const response = await fetch(
+				const data = await fetchWithCache(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/search/?${params.toString()}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
-				);
-
-				if (!response.ok) {
+				{
+					headers: {
+						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					},
+					method: "GET",
+					revalidate: 15
+				}
+				).catch(err => {
 					toast.error("Failed to search documents");
 					throw new Error("Failed to search documents");
-				}
-
-				const data = await response.json();
+				});
 				const normalized = normalizeListResponse<Document>(data);
 				setDocuments(normalized.items);
 				setTotal(normalized.total);

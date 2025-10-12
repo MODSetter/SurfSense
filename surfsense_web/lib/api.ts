@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { fetchWithCache } from "./apiCache";
 
 /**
  * Custom fetch wrapper that handles authentication and redirects to home page on 401 Unauthorized
@@ -79,18 +80,49 @@ export const apiClient = {
 	 * @param options - Additional fetch options
 	 * @returns The response data
 	 */
-	async get<T>(path: string, options: RequestInit = {}): Promise<T> {
-		const response = await fetchWithAuth(getApiUrl(path), {
+	async get<T>(
+		path: string, 
+		options: RequestInit = {}, 
+		revalidate: number | false = 30 // Default 30 second cache
+	): Promise<T> {
+		const url = getApiUrl(path);
+		
+		if (typeof window === "undefined") {
+		const response = await fetch(url, {
 			method: "GET",
 			...options,
 		});
-
+		
 		if (!response.ok) {
 			const errorData = await response.json().catch(() => null);
 			throw new Error(`API error: ${response.status} ${errorData?.detail || response.statusText}`);
 		}
-
+		
 		return response.json();
+		}
+		
+		try {
+			const token = localStorage.getItem("surfsense_bearer_token");
+			const headers = {
+				...options.headers,
+				...(token && { Authorization: `Bearer ${token}` }),
+			};
+			
+			return await fetchWithCache(url, {
+				method: "GET",
+				...options,
+				headers,
+				revalidate,
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message.includes('401')) {
+				toast.error("Session expired. Please log in again.");
+				localStorage.removeItem("surfsense_bearer_token");
+				window.location.href = "/";
+				throw new Error("Unauthorized: Redirecting to login page");
+			}
+			throw error;
+		}
 	},
 
 	/**
