@@ -151,6 +151,15 @@ SurfSense provides two installation methods:
 
 2. **[Manual Installation (Recommended)](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
 
+3. **Conda One-Click Installer (Experimental)** - Create a ready-to-use Conda environment and install backend/frontend dependencies automatically.
+   - Requires Miniconda/Anaconda plus Node.js 18+ (for the web UI).
+   - From the repository root run:
+     ```bash
+     chmod +x oneclick-conda-install.sh
+     ./oneclick-conda-install.sh
+     ```
+   - Use `SURFSENSE_ENV_NAME` and `SURFSENSE_PYTHON_VERSION` env vars to customise the Conda environment.
+
 Both installation guides include detailed OS-specific instructions for Windows, macOS, and Linux.
 
 Before installation, make sure to complete the [prerequisite setup steps](https://www.surfsense.net/docs/) including:
@@ -303,4 +312,3 @@ For detailed contribution guidelines, please see our [CONTRIBUTING.md](CONTRIBUT
 
 ---
 ---
-
