@@ -26,6 +26,9 @@ class LLMConfigBase(BaseModel):
     litellm_params: dict[str, Any] | None = Field(
         default=None, description="Additional LiteLLM parameters"
     )
+    language: str | None = Field(
+        default="English", max_length=50, description="Language for the LLM"
+    )
 
 
 class LLMConfigCreate(LLMConfigBase):
@@ -48,6 +51,9 @@ class LLMConfigUpdate(BaseModel):
     api_key: str | None = Field(None, description="API key for the provider")
     api_base: str | None = Field(
         None, max_length=500, description="Optional API base URL"
+    )
+    language: str | None = Field(
+        None, max_length=50, description="Language for the LLM"
     )
     litellm_params: dict[str, Any] | None = Field(
         None, description="Additional LiteLLM parameters"

@@ -37,6 +37,8 @@ class Configuration:
     search_mode: SearchMode
     research_mode: ResearchMode
     document_ids_to_add_in_context: list[int]
+    language: str | None = None  
+    
 
     @classmethod
     def from_runnable_config(

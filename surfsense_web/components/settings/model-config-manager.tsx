@@ -38,6 +38,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
+import { LANGUAGES } from "@/contracts/enums/languages";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 import InferenceParamsEditor from "../inference-params-editor";
 
@@ -65,6 +66,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		model_name: "",
 		api_key: "",
 		api_base: "",
+		language: "English",
 		litellm_params: {},
 		search_space_id: searchSpaceId,
 	});
@@ -80,6 +82,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				model_name: editingConfig.model_name,
 				api_key: editingConfig.api_key,
 				api_base: editingConfig.api_base || "",
+				language: editingConfig.language || "Enlgish",
 				litellm_params: editingConfig.litellm_params || {},
 				search_space_id: searchSpaceId,
 			});
@@ -118,6 +121,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				model_name: "",
 				api_key: "",
 				api_base: "",
+				language: "English",
 				litellm_params: {},
 				search_space_id: searchSpaceId,
 			});
@@ -323,6 +327,13 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																	<p className="text-sm text-muted-foreground font-mono">
 																		{config.model_name}
 																	</p>
+																	{config.language && (
+																		<div className="flex items-center gap-2">
+																			<Badge variant="outline" className="text-xs">
+																				{config.language}
+																			</Badge>
+																		</div>
+																	)}
 																</div>
 															</div>
 
@@ -432,6 +443,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							model_name: "",
 							api_key: "",
 							api_base: "",
+							language: "",
 							litellm_params: {},
 							search_space_id: searchSpaceId,
 						});
@@ -525,6 +537,25 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						</div>
 
 						<div className="space-y-2">
+									<Label htmlFor="language">Language (Optional)</Label>
+									<Select
+										value={formData.language || "English"}
+										onValueChange={(value) => handleInputChange("language", value)}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Select language" />
+										</SelectTrigger>
+										<SelectContent>
+											{LANGUAGES.map((language) => (
+												<SelectItem key={language.value} value={language.value}>
+													{language.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+
+						<div className="space-y-2">
 							<Label htmlFor="api_key">API Key *</Label>
 							<Input
 								id="api_key"
@@ -579,6 +610,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 										model_name: "",
 										api_key: "",
 										api_base: "",
+										language: "",
 										litellm_params: {},
 										search_space_id: searchSpaceId,
 									});
