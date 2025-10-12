@@ -1,10 +1,11 @@
 import datetime
 
-
-def get_answer_outline_system_prompt(language: str | None = None) -> str:
-    language_instruction = ""
+def _build_language_instruction(language: str | None = None):
     if language:
-        language_instruction = f"\n\nIMPORTANT: Please respond in {language} language. All your responses, explanations, and analysis should be written in {language}."
+        return f"\n\nIMPORTANT: Please respond in {language} language. All your responses, explanations, and analysis should be written in {language}."
+    return ""
+def get_answer_outline_system_prompt(language: str | None = None) -> str:
+    language_instruction = _build_language_instruction(language)
 
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}

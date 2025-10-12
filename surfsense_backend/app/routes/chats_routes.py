@@ -75,33 +75,29 @@ async def handle_chat_data(
             )
         )
         user_preference = language_result.scalars().first()
-        print("UserSearchSpacePreference:", user_preference)
+        # print("UserSearchSpacePreference:", user_preference)
         
         language = None
         if user_preference and user_preference.search_space and user_preference.search_space.llm_configs:
             llm_configs = user_preference.search_space.llm_configs
-            # print(f"Found {len(llm_configs)} LLM Configs")
-            # for i, config in enumerate(llm_configs):
-                # print(f"  Config {i+1}: name={config.name}, provider={config.provider}, language={getattr(config, 'language', None)}")
             
             
             for preferred_llm in [user_preference.fast_llm, user_preference.long_context_llm, user_preference.strategic_llm]:
                 if preferred_llm and getattr(preferred_llm, 'language', None):
                     language = preferred_llm.language
-                    # print(f"Using language from preferred LLM: {preferred_llm.name} -> {language}")
                     break
             
-            # no preferred llM has language use first available LLM config
-            if not language:
-                first_llm_config = llm_configs[0]
-                language = getattr(first_llm_config, 'language', None)
-                # print(f"Using language from first LLM config: {first_llm_config.name} -> {language}")
+            
+        if not language:
+            first_llm_config = llm_configs[0]
+            language = getattr(first_llm_config, 'language', None)
+            
             
     except HTTPException:
         raise HTTPException(
             status_code=403, detail="You don't have access to this search space"
         ) from None
-    # print("Language selected:", language)
+    
     langchain_chat_history = []
     for message in messages[:-1]:
         if message["role"] == "user":

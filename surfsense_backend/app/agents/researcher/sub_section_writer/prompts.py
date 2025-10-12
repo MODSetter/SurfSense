@@ -1,6 +1,5 @@
 import datetime
-
-
+from ..prompts import _build_language_instruction
 def get_citation_system_prompt(chat_history: str | None = None, language: str | None = None):
     chat_history_section = (
         f"""
@@ -17,9 +16,7 @@ NO CHAT HISTORY PROVIDED
     )
     
     # Add language instruction if specified
-    language_instruction = ""
-    if language:
-        language_instruction = f"\n\nIMPORTANT: Please respond in {language} language. All your responses, explanations, and analysis should be written in {language}."
+    language_instruction = _build_language_instruction(language)
 
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
@@ -177,9 +174,7 @@ NO CHAT HISTORY PROVIDED
     )
     
     # Add language instruction if specified
-    language_instruction = ""
-    if language:
-        language_instruction = f"\n\nIMPORTANT: Please respond in {language} language. All your responses, explanations, and analysis should be written in {language}."
+    language_instruction = _build_language_instruction(language)
 
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
