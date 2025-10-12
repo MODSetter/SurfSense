@@ -150,10 +150,10 @@ export default function ElasticsearchConnectorPage() {
 					config.ELASTICSEARCH_API_KEY = values.ELASTICSEARCH_API_KEY;
 			}
 
-			if (values.indices?.trim()) {
-				const indicesArr = stringToArray(values.indices);
-				config.ELASTICSEARCH_INDEX = indicesArr.length === 1 ? indicesArr[0] : indicesArr;
-			}
+			const indicesInput = values.indices?.trim() ?? "";
+			const indicesArr = stringToArray(indicesInput);
+			config.ELASTICSEARCH_INDEX =
+				indicesArr.length === 0 ? "*" : indicesArr.length === 1 ? indicesArr[0] : indicesArr;
 
 			if (values.query && values.query !== "*") {
 				config.ELASTICSEARCH_QUERY = values.query;

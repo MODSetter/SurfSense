@@ -111,12 +111,13 @@ async def index_elasticsearch_documents(
             logger.error(error_msg)
             return 0, error_msg
 
-        if "ELASTICSEARCH_INDEX" not in config:
-            error_msg = (
-                "Missing required field in connector config: ELASTICSEARCH_INDEX"
+        # Allow missing/empty index: default to searching all indices ("*" or "_all")
+        index_name = config.get("ELASTICSEARCH_INDEX")
+        if not index_name:
+            index_name = "*"
+            logger.info(
+                "ELASTICSEARCH_INDEX missing or empty in connector config; defaulting to '*' (search all indices)"
             )
-            logger.error(error_msg)
-            return 0, error_msg
 
         # Check authentication - must have either API key or username+password
         has_api_key = (
@@ -150,9 +151,6 @@ async def index_elasticsearch_documents(
 
         # Build query based on configuration
         query = _build_elasticsearch_query(config)
-
-        # Get the index name(s) - can be a string or list
-        index_name = config["ELASTICSEARCH_INDEX"]
 
         # Get max documents to index
         max_documents = config.get("ELASTICSEARCH_MAX_DOCUMENTS", 1000)
@@ -341,7 +339,7 @@ def _build_document_content(source: dict[str, Any], config: dict[str, Any]) -> s
                 field_value = source[field]
                 if isinstance(field_value, str | int | float):
                     content_parts.append(f"{field}: {field_value}")
-                if isinstance(field_value, str | int | float):
+                elif isinstance(field_value, list | dict):
                     content_parts.append(f"{field}: {json.dumps(field_value)}")
     else:
         # Use all fields if no specific content fields specified

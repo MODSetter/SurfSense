@@ -53,7 +53,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove 'ELASTICSEARCH_CONNECTOR' from enum types.
-    
+
     Note: PostgreSQL does not support removing enum values that may be in use.
     Manual intervention would be required if rollback is necessary:
     1. Delete all rows using ELASTICSEARCH_CONNECTOR
