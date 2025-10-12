@@ -78,6 +78,10 @@ class ChatType(str, Enum):
 
 
 class LiteLLMProvider(str, Enum):
+    """
+    Enum for LLM providers supported by LiteLLM.
+    LiteLLM 支持的 LLM 提供商枚举。
+    """
     OPENAI = "OPENAI"
     ANTHROPIC = "ANTHROPIC"
     GROQ = "GROQ"
@@ -101,6 +105,11 @@ class LiteLLMProvider(str, Enum):
     ALEPH_ALPHA = "ALEPH_ALPHA"
     PETALS = "PETALS"
     COMETAPI = "COMETAPI"
+    # Chinese LLM Providers (OpenAI-compatible) / 国产 LLM 提供商（OpenAI 兼容）
+    DEEPSEEK = "DEEPSEEK"                # DeepSeek
+    ALIBABA_QWEN = "ALIBABA_QWEN"        # 阿里通义千问
+    MOONSHOT = "MOONSHOT"                # 月之暗面 (Kimi)
+    ZHIPU = "ZHIPU"                      # 智谱 AI (GLM)
     CUSTOM = "CUSTOM"
 
 
