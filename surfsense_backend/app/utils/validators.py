@@ -435,9 +435,7 @@ def validate_connector_config(
                 "SEARXNG_VERIFY_SSL",
             ],
             "validators": {
-                "SEARXNG_HOST": lambda: validate_url_field(
-                    "SEARXNG_HOST", "SearxNG"
-                )
+                "SEARXNG_HOST": lambda: validate_url_field("SEARXNG_HOST", "SearxNG")
             },
         },
         "LINKUP_API": {"required": ["LINKUP_API_KEY"], "validators": {}},
