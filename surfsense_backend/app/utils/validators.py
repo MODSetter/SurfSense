@@ -412,7 +412,7 @@ def validate_connector_config(
             raise ValueError(f"Invalid email format for {connector_name} connector")
 
     def validate_url_field(key: str, connector_name: str) -> None:
-        if not validators.url(config.get(key, "")):
+        if not validators.url(config.get(key, "").strip(), simple_host=True):
             raise ValueError(f"Invalid base URL format for {connector_name} connector")
 
     def validate_list_field(key: str, field_name: str) -> None:
@@ -435,9 +435,7 @@ def validate_connector_config(
                 "SEARXNG_VERIFY_SSL",
             ],
             "validators": {
-                "SEARXNG_HOST": lambda: validate_url_field(
-                    "SEARXNG_HOST", "SearxNG"
-                )
+                "SEARXNG_HOST": lambda: validate_url_field("SEARXNG_HOST", "SearxNG")
             },
         },
         "LINKUP_API": {"required": ["LINKUP_API_KEY"], "validators": {}},

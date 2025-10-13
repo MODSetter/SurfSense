@@ -258,7 +258,9 @@ export default function SearxngConnectorPage() {
 												<FormControl>
 													<Input placeholder="google,bing,duckduckgo" {...field} />
 												</FormControl>
-												<FormDescription>Comma-separated list to target specific engines.</FormDescription>
+												<FormDescription>
+													Comma-separated list to target specific engines.
+												</FormDescription>
 												<FormMessage />
 											</FormItem>
 										)}
@@ -273,7 +275,9 @@ export default function SearxngConnectorPage() {
 												<FormControl>
 													<Input placeholder="general,it,science" {...field} />
 												</FormControl>
-												<FormDescription>Comma-separated list of SearxNG categories.</FormDescription>
+												<FormDescription>
+													Comma-separated list of SearxNG categories.
+												</FormDescription>
 												<FormMessage />
 											</FormItem>
 										)}
@@ -308,8 +312,8 @@ export default function SearxngConnectorPage() {
 													<Input placeholder="0 (off), 1 (moderate), 2 (strict)" {...field} />
 												</FormControl>
 												<FormDescription>
-													Set 0, 1, or 2 to adjust SafeSearch filtering. Leave blank to use the instance
-													default.
+													Set 0, 1, or 2 to adjust SafeSearch filtering. Leave blank to use the
+													instance default.
 												</FormDescription>
 												<FormMessage />
 											</FormItem>
