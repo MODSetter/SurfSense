@@ -798,6 +798,11 @@ async def process_file_in_background(
                     
                     if not transcribed_text:
                         raise ValueError("Transcription returned empty text")
+                    
+                    # Add metadata about the transcription
+                    transcribed_text = (
+                        f"# Transcription of {filename}\n\n{transcribed_text}"
+                    )
                 except Exception as e:
                     raise HTTPException(
                         status_code=422,
@@ -817,22 +822,21 @@ async def process_file_in_background(
             else:
                 # Use LiteLLM for audio transcription
                 with open(file_path, "rb") as audio_file:
+                    transcription_kwargs = {
+                        "model": app_config.STT_SERVICE,
+                        "file": audio_file,
+                        "api_key": app_config.STT_SERVICE_API_KEY,
+                    }
                     if app_config.STT_SERVICE_API_BASE:
-                        transcription_response = await atranscription(
-                            model=app_config.STT_SERVICE,
-                            file=audio_file,
-                            api_base=app_config.STT_SERVICE_API_BASE,
-                            api_key=app_config.STT_SERVICE_API_KEY,
-                        )
-                    else:
-                        transcription_response = await atranscription(
-                            model=app_config.STT_SERVICE,
-                            api_key=app_config.STT_SERVICE_API_KEY,
-                            file=audio_file,
-                        )
+                        transcription_kwargs["api_base"] = app_config.STT_SERVICE_API_BASE
+                    
+                    transcription_response = await atranscription(**transcription_kwargs)
 
                     # Extract the transcribed text
                     transcribed_text = transcription_response.get("text", "")
+                    
+                    if not transcribed_text:
+                        raise ValueError("Transcription returned empty text")
 
                 # Add metadata about the transcription
                 transcribed_text = (
