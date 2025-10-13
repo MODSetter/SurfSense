@@ -1,7 +1,7 @@
 import datetime
+from ..prompts import _build_language_instruction
 
-
-def get_qna_citation_system_prompt(chat_history: str | None = None):
+def get_qna_citation_system_prompt(chat_history: str | None = None, language: str | None = None):
     chat_history_section = (
         f"""
 <chat_history>
@@ -15,10 +15,12 @@ NO CHAT HISTORY PROVIDED
 </chat_history>
 """
     )
-
+    
+    # Add language instruction if specified
+    language_instruction = _build_language_instruction(language)
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-You are SurfSense, an advanced AI research assistant that provides detailed, well-researched answers to user questions by synthesizing information from multiple personal knowledge sources.
+You are SurfSense, an advanced AI research assistant that provides detailed, well-researched answers to user questions by synthesizing information from multiple personal knowledge sources.{language_instruction}
 {chat_history_section}
 <knowledge_sources>
 - EXTENSION: "Web content saved via SurfSense browser extension" (personal browsing history)
@@ -149,7 +151,7 @@ Make sure your response:
 """
 
 
-def get_qna_no_documents_system_prompt(chat_history: str | None = None):
+def get_qna_no_documents_system_prompt(chat_history: str | None = None, language: str | None = None):
     chat_history_section = (
         f"""
 <chat_history>
@@ -163,10 +165,13 @@ NO CHAT HISTORY PROVIDED
 </chat_history>
 """
     )
+    
+    # Add language instruction if specified
+    language_instruction = _build_language_instruction(language)
 
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-You are SurfSense, an advanced AI research assistant that provides helpful, detailed answers to user questions in a conversational manner.
+You are SurfSense, an advanced AI research assistant that provides helpful, detailed answers to user questions in a conversational manner.{language_instruction}
 {chat_history_section}
 <context>
 The user has asked a question but there are no specific documents from their personal knowledge base available to answer it. You should provide a helpful response based on:

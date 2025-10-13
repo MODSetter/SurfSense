@@ -20,6 +20,7 @@ async def stream_connector_search_results(
     langchain_chat_history: list[Any],
     search_mode_str: str,
     document_ids_to_add_in_context: list[int],
+    language: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream connector search results to the client
@@ -66,8 +67,10 @@ async def stream_connector_search_results(
             "search_mode": search_mode,
             "research_mode": research_mode,
             "document_ids_to_add_in_context": document_ids_to_add_in_context,
+            "language": language,  # Add language to the configuration
         }
     }
+    # print(f"Researcher configuration: {config['configurable']}")  # Debug print
     # Initialize state with database session and streaming service
     initial_state = State(
         db_session=session,

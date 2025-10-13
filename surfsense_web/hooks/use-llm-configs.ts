@@ -10,6 +10,7 @@ export interface LLMConfig {
 	model_name: string;
 	api_key: string;
 	api_base?: string;
+	language?: string;
 	litellm_params?: Record<string, any>;
 	created_at: string;
 	search_space_id: number;
@@ -31,6 +32,7 @@ export interface CreateLLMConfig {
 	model_name: string;
 	api_key: string;
 	api_base?: string;
+	language?: string;
 	litellm_params?: Record<string, any>;
 	search_space_id: number;
 }
