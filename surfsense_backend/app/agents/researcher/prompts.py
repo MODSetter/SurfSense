@@ -1,9 +1,18 @@
 import datetime
 
 
-def get_answer_outline_system_prompt():
+def _build_language_instruction(language: str | None = None):
+    if language:
+        return f"\n\nIMPORTANT: Please respond in {language} language. All your responses, explanations, and analysis should be written in {language}."
+    return ""
+
+
+def get_answer_outline_system_prompt(language: str | None = None) -> str:
+    language_instruction = _build_language_instruction(language)
+
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
+{language_instruction}
 <answer_outline_system>
 You are an expert research assistant specializing in structuring information. Your task is to create a detailed and logical research outline based on the user's query. This outline will serve as the blueprint for generating a comprehensive research report.
 

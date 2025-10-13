@@ -578,6 +578,7 @@ async def write_answer_outline(
     num_sections = configuration.num_sections
     user_id = configuration.user_id
     search_space_id = configuration.search_space_id
+    language = configuration.language  # Get language from configuration
 
     writer(
         {
@@ -628,7 +629,7 @@ async def write_answer_outline(
 
     # Create messages for the LLM
     messages = [
-        SystemMessage(content=get_answer_outline_system_prompt()),
+        SystemMessage(content=get_answer_outline_system_prompt(language=language)),
         HumanMessage(content=human_message_content),
     ]
 
@@ -2000,6 +2001,7 @@ async def handle_qna_workflow(
             "relevant_documents": all_documents,  # Use combined documents
             "user_id": configuration.user_id,
             "search_space_id": configuration.search_space_id,
+            "language": configuration.language,
         }
     }
 

@@ -296,6 +296,8 @@ class LLMConfig(BaseModel, TimestampMixin):
     api_key = Column(String, nullable=False)
     api_base = Column(String(500), nullable=True)
 
+    language = Column(String(50), nullable=True, default="English")
+
     # For any other parameters that litellm supports
     litellm_params = Column(JSON, nullable=True, default={})
 
