@@ -299,10 +299,10 @@ async def update_user_llm_preferences(
 
         # Validate that all provided LLM config IDs belong to the search space
         update_data = preferences.model_dump(exclude_unset=True)
-        
+
         # Store language from configs to validate consistency
         languages = set()
-        
+
         for _key, llm_config_id in update_data.items():
             if llm_config_id is not None:
                 # Verify the LLM config belongs to the search space
@@ -318,10 +318,10 @@ async def update_user_llm_preferences(
                         status_code=404,
                         detail=f"LLM configuration {llm_config_id} not found in this search space",
                     )
-                
+
                 # Collect language for consistency check
                 languages.add(llm_config.language)
-        
+
         # Check if all selected LLM configs have the same language
         if len(languages) > 1:
             raise HTTPException(

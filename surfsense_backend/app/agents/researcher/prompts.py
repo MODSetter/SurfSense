@@ -1,9 +1,12 @@
 import datetime
 
+
 def _build_language_instruction(language: str | None = None):
     if language:
         return f"\n\nIMPORTANT: Please respond in {language} language. All your responses, explanations, and analysis should be written in {language}."
     return ""
+
+
 def get_answer_outline_system_prompt(language: str | None = None) -> str:
     language_instruction = _build_language_instruction(language)
 

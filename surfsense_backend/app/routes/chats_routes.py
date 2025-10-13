@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-
 from app.db import Chat, SearchSpace, User, UserSearchSpacePreference, get_async_session
 from app.schemas import (
     AISDKChatRequest,
@@ -64,47 +63,53 @@ async def handle_chat_data(
         language_result = await session.execute(
             select(UserSearchSpacePreference)
             .options(
-                selectinload(UserSearchSpacePreference.search_space).selectinload(SearchSpace.llm_configs),
+                selectinload(UserSearchSpacePreference.search_space).selectinload(
+                    SearchSpace.llm_configs
+                ),
                 selectinload(UserSearchSpacePreference.long_context_llm),
                 selectinload(UserSearchSpacePreference.fast_llm),
-                selectinload(UserSearchSpacePreference.strategic_llm)
+                selectinload(UserSearchSpacePreference.strategic_llm),
             )
             .filter(
-                UserSearchSpacePreference.search_space_id == search_space_id, 
-                UserSearchSpacePreference.user_id == user.id
+                UserSearchSpacePreference.search_space_id == search_space_id,
+                UserSearchSpacePreference.user_id == user.id,
             )
         )
         user_preference = language_result.scalars().first()
         # print("UserSearchSpacePreference:", user_preference)
-        
+
         language = None
-        if user_preference and user_preference.search_space and user_preference.search_space.llm_configs:
+        if (
+            user_preference
+            and user_preference.search_space
+            and user_preference.search_space.llm_configs
+        ):
             llm_configs = user_preference.search_space.llm_configs
-            
-            
-            for preferred_llm in [user_preference.fast_llm, user_preference.long_context_llm, user_preference.strategic_llm]:
-                if preferred_llm and getattr(preferred_llm, 'language', None):
+
+            for preferred_llm in [
+                user_preference.fast_llm,
+                user_preference.long_context_llm,
+                user_preference.strategic_llm,
+            ]:
+                if preferred_llm and getattr(preferred_llm, "language", None):
                     language = preferred_llm.language
                     break
-            
-            
+
         if not language:
             first_llm_config = llm_configs[0]
-            language = getattr(first_llm_config, 'language', None)
-            
-            
+            language = getattr(first_llm_config, "language", None)
+
     except HTTPException:
         raise HTTPException(
             status_code=403, detail="You don't have access to this search space"
         ) from None
-    
+
     langchain_chat_history = []
     for message in messages[:-1]:
         if message["role"] == "user":
             langchain_chat_history.append(HumanMessage(content=message["content"]))
         elif message["role"] == "assistant":
             langchain_chat_history.append(AIMessage(content=message["content"]))
-    
 
     response = StreamingResponse(
         stream_connector_search_results(
@@ -117,7 +122,7 @@ async def handle_chat_data(
             langchain_chat_history,
             search_mode_str,
             document_ids_to_add_in_context,
-            language, 
+            language,
         )
     )
 
