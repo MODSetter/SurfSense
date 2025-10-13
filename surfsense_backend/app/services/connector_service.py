@@ -432,7 +432,7 @@ class ConnectorService:
             safesearch_clean = safesearch.strip()
             if safesearch_clean.isdigit():
                 safesearch_value = int(safesearch_clean)
-        elif isinstance(safesearch, (int, float)):
+        elif isinstance(safesearch, int | float):
             safesearch_value = int(safesearch)
 
         if safesearch_value is not None and not (0 <= safesearch_value <= 2):
@@ -444,7 +444,7 @@ class ConnectorService:
             if isinstance(value, str):
                 value = value.strip()
                 return value or None
-            if isinstance(value, (list, tuple, set)):
+            if isinstance(value, list | tuple | set):
                 cleaned = [str(item).strip() for item in value if str(item).strip()]
                 return ",".join(cleaned) if cleaned else None
             return str(value)
