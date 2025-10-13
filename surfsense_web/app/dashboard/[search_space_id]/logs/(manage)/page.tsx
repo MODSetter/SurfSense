@@ -122,6 +122,55 @@ const logStatusConfig = {
 	FAILED: { icon: X, color: "text-red-600", bgColor: "bg-red-50" },
 } as const;
 
+function MessageDetails({
+    message,
+    taskName,
+    metadata,
+    createdAt,
+    children,
+}: {
+    message: string;
+    taskName?: string;
+    metadata?: any;
+    createdAt?: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
+            <AlertDialogContent className="max-w-3xl w-full">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <AlertDialogTitle className="text-lg">Log details</AlertDialogTitle>
+                        {createdAt && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(createdAt).toLocaleString()}
+                            </p>
+                        )}
+                    </div>
+                    <div className="shrink-0">
+                        <AlertDialogCancel className="text-sm">Close</AlertDialogCancel>
+                    </div>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                    {taskName && (
+                        <div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded inline-block">
+                            {taskName}
+                        </div>
+                    )}
+
+                    <div className="bg-muted p-3 rounded max-h-[40vh] overflow-auto text-sm whitespace-pre-wrap">
+                        {message}
+                    </div>
+                </div>
+
+                <AlertDialogFooter />
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
 const columns: ColumnDef<Log>[] = [
 	{
 		id: "select",
@@ -219,19 +268,22 @@ const columns: ColumnDef<Log>[] = [
 		cell: ({ row }) => {
 			const message = row.getValue("message") as string;
 			const taskName = row.original.log_metadata?.task_name;
+			const createdAt = row.getValue("created_at") as string;
 
 			return (
-				<div className="flex flex-col gap-1 max-w-[400px]">
-					{taskName && (
-						<div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">
-							{taskName}
-						</div>
-					)}
-					<div className="text-sm">
-						{message.length > 100 ? `${message.substring(0, 100)}...` : message}
-					</div>
-				</div>
-			);
+                <MessageDetails message={message} taskName={taskName} metadata={row.original.log_metadata} createdAt={createdAt}>
+                    <div className="flex flex-col gap-1 max-w-[400px] cursor-pointer">
+                        {taskName && (
+                            <div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded truncate" title={taskName}>
+                                {taskName}
+                            </div>
+                        )}
+                        <div className="text-sm truncate" title={message}>
+                            {message.length > 100 ? `${message.substring(0, 100)}...` : message}
+                        </div>
+                    </div>
+                </MessageDetails>
+            );
 		},
 		size: 400,
 	},
@@ -777,12 +829,6 @@ function LogsTable({
 	onRefresh: () => void;
 	id: string;
 }) {
-	const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-
-    const toggleRowExpanded = (rowId: string) => {
-        setExpandedRows((prev) => ({ ...prev, [rowId]: !prev[rowId] }));
-    };
-
 	if (loading) {
 		return (
 			<motion.div
@@ -884,107 +930,53 @@ function LogsTable({
 					</TableHeader>
 					<TableBody>
 						<AnimatePresence mode="popLayout">
-                            {table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row: any, index: number) => (
-                                    <motion.tr
-                                        key={row.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{
-                                            opacity: 1,
-                                            y: 0,
-                                            transition: {
-                                                type: "spring",
-                                                stiffness: 300,
-                                                damping: 30,
-                                                delay: index * 0.03,
-                                            },
-                                        }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className={cn(
-                                            "border-b transition-colors hover:bg-muted/50",
-                                            row.getIsSelected() ? "bg-muted/50" : ""
-                                        )}
-                                    >
-                                        {row.getVisibleCells().map((cell: any) => {
-                                            const isCreatedAt = cell.column.id === "created_at";
-                                            const isMessage = cell.column.id === "message";
-                                            const isExpanded = Boolean(expandedRows[row.id]);
-
-                                            // If this is the Message column, render custom inline expandable content
-                                            if (isMessage) {
-                                                const message = row.getValue("message") as string;
-                                                const taskName = row.original.log_metadata?.task_name;
-                                                const createdAt = row.getValue("created_at") as string;
-
-                                                return (
-													<TableCell
-														key={cell.id}
-														className={cn(
-															"px-4 py-3 align-top",
-															// allow expanded message to wrap; when collapsed keep clipping so it doesn't push other columns
-															isExpanded ? "whitespace-normal" : "overflow-hidden",
-															// keep Created At behavior unaffected
-															isCreatedAt ? "whitespace-nowrap text-xs text-muted-foreground text-right" : ""
-														)}
-													>
-														{/* Click the preview to toggle expand/collapse */}
-														<button
-															type="button"
-															className={cn(
-																"flex flex-col gap-1 text-left bg-transparent p-0",
-																!isExpanded ? "max-w-[400px]" : ""
-															)}
-															onClick={() => toggleRowExpanded(row.id)}
-															aria-expanded={isExpanded}
-														>
-															{taskName && (
-																<div
-																	className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded inline-block max-w-[220px] truncate"
-																	title={taskName}
-																>
-																	{taskName}
-																</div>
-															)}
-
-															{isExpanded ? (
-																/* Expanded: show full message, wrapped, preserve whitespace */
-																<div className="text-sm whitespace-pre-wrap break-words">
-																	{message}
-																</div>
-															) : (
-																/* Collapsed: truncated preview (preserve existing behavior & max-w) */
-																<div className="text-sm truncate" title={message}>
-																	{message.length > 100 ? `${message.substring(0, 100)}...` : message}
-																</div>
-															)}
-														</button>
-													</TableCell>
-                                                );
-                                            }
-
-                                            // Default rendering for other columns
-                                            return (
-                                                <TableCell
-                                                    key={cell.id}
-                                                    className={cn(
-                                                        "px-4 py-3 align-middle overflow-hidden",
-                                                        isCreatedAt ? "whitespace-nowrap text-xs text-muted-foreground text-right" : ""
-                                                    )}
-                                                >
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </TableCell>
-                                            );
-                                        })}
-                                    </motion.tr>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                                        No logs found.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </AnimatePresence>
+							{table.getRowModel().rows?.length ? (
+								table.getRowModel().rows.map((row: any, index: number) => (
+									<motion.tr
+										key={row.id}
+										initial={{ opacity: 0, y: 10 }}
+										animate={{
+											opacity: 1,
+											y: 0,
+											transition: {
+												type: "spring",
+												stiffness: 300,
+												damping: 30,
+												delay: index * 0.03,
+											},
+										}}
+										exit={{ opacity: 0, y: -10 }}
+										className={cn(
+											"border-b transition-colors hover:bg-muted/50",
+											row.getIsSelected() ? "bg-muted/50" : ""
+										)}
+									>
+										{row.getVisibleCells().map((cell: any) => {
+											const isCreatedAt = cell.column.id === "created_at";
+											const isMessage = cell.column.id === "message";
+                                             return (
+												<TableCell
+													key={cell.id}
+													className={cn(
+														"px-4 py-3 align-middle overflow-hidden",
+														isCreatedAt ? "whitespace-nowrap text-xs text-muted-foreground text-right" : "",
+														isMessage ? "overflow-hidden" : ""
+													)}
+												>
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												</TableCell>
+											);
+                                         })}
+									</motion.tr>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={columns.length} className="h-24 text-center">
+										No logs found.
+									</TableCell>
+								</TableRow>
+							)}
+						</AnimatePresence>
 					</TableBody>
 				</Table>
 			</motion.div>
