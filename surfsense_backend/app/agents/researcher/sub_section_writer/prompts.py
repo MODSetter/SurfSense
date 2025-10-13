@@ -1,6 +1,11 @@
 import datetime
+
 from ..prompts import _build_language_instruction
-def get_citation_system_prompt(chat_history: str | None = None, language: str | None = None):
+
+
+def get_citation_system_prompt(
+    chat_history: str | None = None, language: str | None = None
+):
     chat_history_section = (
         f"""
 <chat_history>
@@ -14,7 +19,7 @@ NO CHAT HISTORY PROVIDED
 </chat_history>
 """
     )
-    
+
     # Add language instruction if specified
     language_instruction = _build_language_instruction(language)
 
@@ -158,7 +163,9 @@ Make sure your response:
 """
 
 
-def get_no_documents_system_prompt(chat_history: str | None = None, language: str | None = None):
+def get_no_documents_system_prompt(
+    chat_history: str | None = None, language: str | None = None
+):
     chat_history_section = (
         f"""
 <chat_history>
@@ -172,7 +179,7 @@ NO CHAT HISTORY PROVIDED
 </chat_history>
 """
     )
-    
+
     # Add language instruction if specified
     language_instruction = _build_language_instruction(language)
 
