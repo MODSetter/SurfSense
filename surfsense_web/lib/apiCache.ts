@@ -8,6 +8,9 @@ const ENDPOINTS_CONFIG = {
   'api/v1/searchspaces': true
 };
 
+function isDetailEndpoint(url: string): boolean {
+  return /\/\d+$/.test(url) || /\/[a-f0-9-]{8,}$/.test(url);
+}
 
 function formatUrlPath(url: string): string {
   let basePath = url;
@@ -18,6 +21,13 @@ function formatUrlPath(url: string): string {
     queryParams = `?${queryParams}`;
   }
 
+  if (isDetailEndpoint(basePath)) {
+    if (basePath.endsWith('/')) {
+      basePath = basePath.slice(0, -1);
+    }
+    return basePath + queryParams;
+  }
+  
   let needsTrailingSlash = true;
   
   for (const [endpoint, shouldHaveSlash] of Object.entries(ENDPOINTS_CONFIG)) {
