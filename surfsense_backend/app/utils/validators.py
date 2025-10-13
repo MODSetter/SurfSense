@@ -424,6 +424,22 @@ def validate_connector_config(
     connector_rules = {
         "SERPER_API": {"required": ["SERPER_API_KEY"], "validators": {}},
         "TAVILY_API": {"required": ["TAVILY_API_KEY"], "validators": {}},
+        "SEARXNG_API": {
+            "required": ["SEARXNG_HOST"],
+            "optional": [
+                "SEARXNG_API_KEY",
+                "SEARXNG_ENGINES",
+                "SEARXNG_CATEGORIES",
+                "SEARXNG_LANGUAGE",
+                "SEARXNG_SAFESEARCH",
+                "SEARXNG_VERIFY_SSL",
+            ],
+            "validators": {
+                "SEARXNG_HOST": lambda: validate_url_field(
+                    "SEARXNG_HOST", "SearxNG"
+                )
+            },
+        },
         "LINKUP_API": {"required": ["LINKUP_API_KEY"], "validators": {}},
         "SLACK_CONNECTOR": {"required": ["SLACK_BOT_TOKEN"], "validators": {}},
         "NOTION_CONNECTOR": {
@@ -484,10 +500,21 @@ def validate_connector_config(
     if not rules:
         return config  # Unknown connector type, pass through
 
-    # Validate required keys match exactly
-    if set(config.keys()) != set(rules["required"]):
+    required_keys = set(rules["required"])
+    optional_keys = set(rules.get("optional", []))
+    config_keys = set(config.keys())
+
+    # Validate that no unexpected keys are present
+    if not config_keys.issubset(required_keys | optional_keys):
+        allowed_keys = list(required_keys | optional_keys)
         raise ValueError(
-            f"For {connector_type_str} connector type, config must only contain these keys: {rules['required']}"
+            f"For {connector_type_str} connector type, config may only contain these keys: {allowed_keys}"
+        )
+
+    # Validate that all required keys are present
+    if not required_keys.issubset(config_keys):
+        raise ValueError(
+            f"For {connector_type_str} connector type, config must include these keys: {sorted(required_keys)}"
         )
 
     # Apply custom validators first (these check format before emptiness)

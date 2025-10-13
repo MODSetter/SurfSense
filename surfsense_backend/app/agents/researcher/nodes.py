@@ -1033,6 +1033,30 @@ async def fetch_relevant_documents(
                             }
                         )
 
+                elif connector == "SEARXNG_API":
+                    (
+                        source_object,
+                        searx_chunks,
+                    ) = await connector_service.search_searxng(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                    )
+
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(searx_chunks)
+
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"🌐 Found {len(searx_chunks)} SearxNG results related to your query"
+                                )
+                            }
+                        )
+
                 elif connector == "LINKUP_API":
                     linkup_mode = "standard"
 
