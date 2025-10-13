@@ -228,7 +228,7 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 ---
  ### **FrontEnd**
 
--  **Next.js 15.2.3**: React framework featuring App Router, server components, automatic code-splitting, and optimized rendering.
+-  **Next.js 15.5.4**: React framework featuring App Router, server components, automatic code-splitting, and optimized rendering.
 
 -  **React 19.0.0**: JavaScript library for building user interfaces.
 
