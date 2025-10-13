@@ -123,52 +123,52 @@ const logStatusConfig = {
 } as const;
 
 function MessageDetails({
-    message,
-    taskName,
-    metadata,
-    createdAt,
-    children,
+	message,
+	taskName,
+	metadata,
+	createdAt,
+	children,
 }: {
-    message: string;
-    taskName?: string;
-    metadata?: any;
-    createdAt?: string;
-    children: React.ReactNode;
+	message: string;
+	taskName?: string;
+	metadata?: any;
+	createdAt?: string;
+	children: React.ReactNode;
 }) {
-    return (
-        <AlertDialog>
-            <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
-            <AlertDialogContent className="max-w-3xl w-full">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <AlertDialogTitle className="text-lg">Log details</AlertDialogTitle>
-                        {createdAt && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {new Date(createdAt).toLocaleString()}
-                            </p>
-                        )}
-                    </div>
-                    <div className="shrink-0">
-                        <AlertDialogCancel className="text-sm">Close</AlertDialogCancel>
-                    </div>
-                </div>
+	return (
+		<AlertDialog>
+			<AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
+			<AlertDialogContent className="max-w-3xl w-full">
+				<div className="flex items-start justify-between gap-4">
+					<div>
+						<AlertDialogTitle className="text-lg">Log details</AlertDialogTitle>
+						{createdAt && (
+							<p className="text-xs text-muted-foreground mt-1">
+								{new Date(createdAt).toLocaleString()}
+							</p>
+						)}
+					</div>
+					<div className="shrink-0">
+						<AlertDialogCancel className="text-sm">Close</AlertDialogCancel>
+					</div>
+				</div>
 
-                <div className="mt-4 space-y-4">
-                    {taskName && (
-                        <div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded inline-block">
-                            {taskName}
-                        </div>
-                    )}
+				<div className="mt-4 space-y-4">
+					{taskName && (
+						<div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded inline-block">
+							{taskName}
+						</div>
+					)}
 
-                    <div className="bg-muted p-3 rounded max-h-[40vh] overflow-auto text-sm whitespace-pre-wrap">
-                        {message}
-                    </div>
-                </div>
+					<div className="bg-muted p-3 rounded max-h-[40vh] overflow-auto text-sm whitespace-pre-wrap">
+						{message}
+					</div>
+				</div>
 
-                <AlertDialogFooter />
-            </AlertDialogContent>
-        </AlertDialog>
-    );
+				<AlertDialogFooter />
+			</AlertDialogContent>
+		</AlertDialog>
+	);
 }
 
 const columns: ColumnDef<Log>[] = [
@@ -271,19 +271,27 @@ const columns: ColumnDef<Log>[] = [
 			const createdAt = row.getValue("created_at") as string;
 
 			return (
-                <MessageDetails message={message} taskName={taskName} metadata={row.original.log_metadata} createdAt={createdAt}>
-                    <div className="flex flex-col gap-1 max-w-[400px] cursor-pointer">
-                        {taskName && (
-                            <div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded truncate" title={taskName}>
-                                {taskName}
-                            </div>
-                        )}
-                        <div className="text-sm truncate" title={message}>
-                            {message.length > 100 ? `${message.substring(0, 100)}...` : message}
-                        </div>
-                    </div>
-                </MessageDetails>
-            );
+				<MessageDetails
+					message={message}
+					taskName={taskName}
+					metadata={row.original.log_metadata}
+					createdAt={createdAt}
+				>
+					<div className="flex flex-col gap-1 max-w-[400px] cursor-pointer">
+						{taskName && (
+							<div
+								className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded truncate"
+								title={taskName}
+							>
+								{taskName}
+							</div>
+						)}
+						<div className="text-sm truncate" title={message}>
+							{message.length > 100 ? `${message.substring(0, 100)}...` : message}
+						</div>
+					</div>
+				</MessageDetails>
+			);
 		},
 		size: 400,
 	},
@@ -954,19 +962,21 @@ function LogsTable({
 										{row.getVisibleCells().map((cell: any) => {
 											const isCreatedAt = cell.column.id === "created_at";
 											const isMessage = cell.column.id === "message";
-                                             return (
+											return (
 												<TableCell
 													key={cell.id}
 													className={cn(
 														"px-4 py-3 align-middle overflow-hidden",
-														isCreatedAt ? "whitespace-nowrap text-xs text-muted-foreground text-right" : "",
+														isCreatedAt
+															? "whitespace-nowrap text-xs text-muted-foreground text-right"
+															: "",
 														isMessage ? "overflow-hidden" : ""
 													)}
 												>
 													{flexRender(cell.column.columnDef.cell, cell.getContext())}
 												</TableCell>
 											);
-                                         })}
+										})}
 									</motion.tr>
 								))
 							) : (
