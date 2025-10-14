@@ -296,8 +296,8 @@ async def index_google_calendar_events(
                     if location:
                         summary_content += f"Location: {location}\n"
                     if description:
-                        desc_preview = description[:300]
-                        if len(description) > 300:
+                        desc_preview = description[:1000]
+                        if len(description) > 1000:
                             desc_preview += "..."
                         summary_content += f"Description: {desc_preview}\n"
                     summary_embedding = config.embedding_model_instance.embed(

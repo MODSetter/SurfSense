@@ -310,8 +310,8 @@ async def index_luma_events(
                     if host_names:
                         summary_content += f"Hosts: {host_names}\n"
                     if description:
-                        desc_preview = description[:300]
-                        if len(description) > 300:
+                        desc_preview = description[:1000]
+                        if len(description) > 1000:
                             desc_preview += "..."
                         summary_content += f"Description: {desc_preview}\n"
 

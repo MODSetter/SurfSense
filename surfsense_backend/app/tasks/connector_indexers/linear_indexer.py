@@ -254,8 +254,8 @@ async def index_linear_issues(
                 else:
                     # Fallback to simple summary if no LLM configured
                     # Truncate description if it's too long for the summary
-                    if description and len(description) > 500:
-                        description = description[:497] + "..."
+                    if description and len(description) > 1000:
+                        description = description[:997] + "..."
                     summary_content = f"Linear Issue {issue_identifier}: {issue_title}\n\nStatus: {state}\n\n"
                     if description:
                         summary_content += f"Description: {description}\n\n"

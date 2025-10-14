@@ -260,8 +260,8 @@ async def index_confluence_pages(
                     )
                     if page_content:
                         # Take first 500 characters of content for summary
-                        content_preview = page_content[:500]
-                        if len(page_content) > 500:
+                        content_preview = page_content[:1000]
+                        if len(page_content) > 1000:
                             content_preview += "..."
                         summary_content += f"Content Preview: {content_preview}\n\n"
                     summary_content += f"Comments: {comment_count}"
