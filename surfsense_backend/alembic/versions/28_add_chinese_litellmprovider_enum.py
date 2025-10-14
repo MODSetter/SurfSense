@@ -1,8 +1,7 @@
 """Add Chinese LLM providers to LiteLLMProvider enum
-添加国产 LLM 提供商到 LiteLLMProvider 枚举
 
-Revision ID: 26
-Revises: 25
+Revision ID: 28
+Revises: 27
 """
 
 from collections.abc import Sequence
@@ -10,8 +9,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "26"
-down_revision: str | None = "25"
+revision: str = "28"
+down_revision: str | None = "27"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -19,17 +18,15 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """
     Add Chinese LLM providers to LiteLLMProvider enum.
-    添加国产 LLM 提供商到 LiteLLMProvider 枚举。
-    
+
     Adds support for:
     - DEEPSEEK: DeepSeek AI models
-    - ALIBABA_QWEN: Alibaba Qwen (通义千问) models
-    - MOONSHOT: Moonshot AI (月之暗面 Kimi) models
-    - ZHIPU: Zhipu AI (智谱 GLM) models
+    - ALIBABA_QWEN: Alibaba Qwen models
+    - MOONSHOT: Moonshot AI models
+    - ZHIPU: Zhipu AI models
     """
-    
+
     # Add DEEPSEEK to the enum if it doesn't already exist
-    # 如果不存在则添加 DEEPSEEK 到枚举
     op.execute(
         """
         DO $$
@@ -44,9 +41,8 @@ def upgrade() -> None:
         END$$;
         """
     )
-    
+
     # Add ALIBABA_QWEN to the enum if it doesn't already exist
-    # 如果不存在则添加 ALIBABA_QWEN 到枚举
     op.execute(
         """
         DO $$
@@ -61,9 +57,8 @@ def upgrade() -> None:
         END$$;
         """
     )
-    
+
     # Add MOONSHOT to the enum if it doesn't already exist
-    # 如果不存在则添加 MOONSHOT 到枚举
     op.execute(
         """
         DO $$
@@ -78,9 +73,8 @@ def upgrade() -> None:
         END$$;
         """
     )
-    
+
     # Add ZHIPU to the enum if it doesn't already exist
-    # 如果不存在则添加 ZHIPU 到枚举
     op.execute(
         """
         DO $$
@@ -100,19 +94,14 @@ def upgrade() -> None:
 def downgrade() -> None:
     """
     Remove Chinese LLM providers from LiteLLMProvider enum.
-    从 LiteLLMProvider 枚举中移除国产 LLM 提供商。
-    
+
     Note: PostgreSQL doesn't support removing enum values directly.
     This would require recreating the enum type and updating all dependent objects.
     For safety, this downgrade is a no-op.
-    
-    注意：PostgreSQL 不支持直接删除枚举值。
-    这需要重建枚举类型并更新所有依赖对象。
-    为了安全起见，此降级操作为空操作。
+
     """
     # PostgreSQL doesn't support removing enum values directly
     # This would require a complex migration recreating the enum
     # PostgreSQL 不支持直接删除枚举值
     # 这需要复杂的迁移来重建枚举
     pass
-

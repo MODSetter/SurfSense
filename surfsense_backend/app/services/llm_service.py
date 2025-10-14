@@ -99,11 +99,11 @@ async def get_user_llm_instance(
                 "AZURE_OPENAI": "azure",
                 "OPENROUTER": "openrouter",
                 "COMETAPI": "cometapi",
-                # Chinese LLM providers (OpenAI-compatible) / 国产 LLM（OpenAI 兼容）
-                "DEEPSEEK": "openai",       # DeepSeek uses OpenAI-compatible API
-                "ALIBABA_QWEN": "openai",   # Qwen uses OpenAI-compatible API
-                "MOONSHOT": "openai",       # Moonshot (Kimi) uses OpenAI-compatible API
-                "ZHIPU": "openai",          # Zhipu (GLM) uses OpenAI-compatible API
+                # Chinese LLM providers (OpenAI-compatible)
+                "DEEPSEEK": "openai",  # DeepSeek uses OpenAI-compatible API
+                "ALIBABA_QWEN": "openai",  # Qwen uses OpenAI-compatible API
+                "MOONSHOT": "openai",  # Moonshot (Kimi) uses OpenAI-compatible API
+                "ZHIPU": "openai",  # Zhipu (GLM) uses OpenAI-compatible API
                 # Add more mappings as needed
             }
             provider_prefix = provider_map.get(

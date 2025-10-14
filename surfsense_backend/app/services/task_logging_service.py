@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from datetime import datetime
 from typing import Any
@@ -73,16 +74,14 @@ class TaskLoggingService:
         Returns:
             Log: The updated log entry
         """
-        # Ensure session is in a valid state / 确保 session 处于有效状态
+        # Ensure session is in a valid state
         if not self.session.is_active:
             await self.session.rollback()
-        
-        # Refresh log_entry to avoid expired state / 刷新 log_entry 避免过期状态
-        try:
+
+        # Refresh log_entry to avoid expired state
+        with contextlib.suppress(Exception):
             await self.session.refresh(log_entry)
-        except Exception:
-            pass
-        
+
         # Update the existing log entry
         log_entry.status = LogStatus.SUCCESS
         log_entry.message = message
@@ -124,17 +123,14 @@ class TaskLoggingService:
         Returns:
             Log: The updated log entry
         """
-        # Ensure session is in a valid state / 确保 session 处于有效状态
+        # Ensure session is in a valid state
         if not self.session.is_active:
             await self.session.rollback()
-        
-        # Refresh log_entry to avoid expired state / 刷新 log_entry 避免过期状态
-        try:
+
+        # Refresh log_entry to avoid expired state
+        with contextlib.suppress(Exception):
             await self.session.refresh(log_entry)
-        except Exception:
-            # If refresh fails, the object might be detached / 如果刷新失败，对象可能已分离
-            pass
-        
+
         # Update the existing log entry
         log_entry.status = LogStatus.FAILED
         log_entry.level = LogLevel.ERROR
@@ -182,16 +178,14 @@ class TaskLoggingService:
         Returns:
             Log: The updated log entry
         """
-        # Ensure session is in a valid state / 确保 session 处于有效状态
+        # Ensure session is in a valid state
         if not self.session.is_active:
             await self.session.rollback()
-        
-        # Refresh log_entry to avoid expired state / 刷新 log_entry 避免过期状态
-        try:
+
+        # Refresh log_entry to avoid expired state
+        with contextlib.suppress(Exception):
             await self.session.refresh(log_entry)
-        except Exception:
-            pass
-        
+
         log_entry.message = progress_message
 
         if progress_metadata:
