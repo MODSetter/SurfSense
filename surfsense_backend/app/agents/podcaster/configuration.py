@@ -17,6 +17,7 @@ class Configuration:
     # and when you invoke the graph
     podcast_title: str
     user_id: str
+    search_space_id: int
 
     @classmethod
     def from_runnable_config(

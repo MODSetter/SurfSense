@@ -217,9 +217,10 @@ async def airtable_callback(
             scope=token_json.get("scope"),
         )
 
-        # Check if connector already exists for this user
+        # Check if connector already exists for this search space and user
         existing_connector_result = await session.execute(
             select(SearchSourceConnector).filter(
+                SearchSourceConnector.search_space_id == space_id,
                 SearchSourceConnector.user_id == user_id,
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.AIRTABLE_CONNECTOR,
@@ -232,7 +233,9 @@ async def airtable_callback(
             existing_connector.config = credentials.to_dict()
             existing_connector.name = "Airtable Connector"
             existing_connector.is_indexable = True
-            logger.info(f"Updated existing Airtable connector for user {user_id}")
+            logger.info(
+                f"Updated existing Airtable connector for user {user_id} in space {space_id}"
+            )
         else:
             # Create new connector
             new_connector = SearchSourceConnector(
@@ -240,10 +243,13 @@ async def airtable_callback(
                 connector_type=SearchSourceConnectorType.AIRTABLE_CONNECTOR,
                 is_indexable=True,
                 config=credentials.to_dict(),
+                search_space_id=space_id,
                 user_id=user_id,
             )
             session.add(new_connector)
-            logger.info(f"Created new Airtable connector for user {user_id}")
+            logger.info(
+                f"Created new Airtable connector for user {user_id} in space {space_id}"
+            )
 
         try:
             await session.commit()

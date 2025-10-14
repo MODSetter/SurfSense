@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const linkupApiFormSchema = z.object({
@@ -65,15 +65,18 @@ export default function LinkupApiPage() {
 	const onSubmit = async (values: LinkupApiFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.LINKUP_API,
-				config: {
-					LINKUP_API_KEY: values.api_key,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.LINKUP_API,
+					config: {
+						LINKUP_API_KEY: values.api_key,
+					},
+					is_indexable: false,
+					last_indexed_at: null,
 				},
-				is_indexable: false,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Linkup API connector created successfully!");
 

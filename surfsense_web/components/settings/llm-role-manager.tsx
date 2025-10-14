@@ -56,20 +56,24 @@ const ROLE_DESCRIPTIONS = {
 	},
 };
 
-export function LLMRoleManager() {
+interface LLMRoleManagerProps {
+	searchSpaceId: number;
+}
+
+export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const {
 		llmConfigs,
 		loading: configsLoading,
 		error: configsError,
 		refreshConfigs,
-	} = useLLMConfigs();
+	} = useLLMConfigs(searchSpaceId);
 	const {
 		preferences,
 		loading: preferencesLoading,
 		error: preferencesError,
 		updatePreferences,
 		refreshPreferences,
-	} = useLLMPreferences();
+	} = useLLMPreferences(searchSpaceId);
 
 	const [assignments, setAssignments] = useState({
 		long_context_llm_id: preferences.long_context_llm_id || "",

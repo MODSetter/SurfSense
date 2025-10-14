@@ -101,11 +101,12 @@ async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any
     documents = state.reranked_documents
     user_query = configuration.user_query
     user_id = configuration.user_id
-
+    search_space_id = configuration.search_space_id
+    language = configuration.language
     # Get user's fast LLM
-    llm = await get_user_fast_llm(state.db_session, user_id)
+    llm = await get_user_fast_llm(state.db_session, user_id, search_space_id)
     if not llm:
-        error_message = f"No fast LLM configured for user {user_id}"
+        error_message = f"No fast LLM configured for user {user_id} in search space {search_space_id}"
         print(error_message)
         raise RuntimeError(error_message)
 
@@ -126,7 +127,9 @@ async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any
         """
 
         # Use initial system prompt for token calculation
-        initial_system_prompt = get_qna_citation_system_prompt(chat_history_str)
+        initial_system_prompt = get_qna_citation_system_prompt(
+            chat_history_str, language
+        )
         base_messages = [
             SystemMessage(content=initial_system_prompt),
             HumanMessage(content=base_human_message_template),
@@ -145,9 +148,9 @@ async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any
 
     # Choose system prompt based on final document availability
     system_prompt = (
-        get_qna_citation_system_prompt(chat_history_str)
+        get_qna_citation_system_prompt(chat_history_str, language)
         if has_documents
-        else get_qna_no_documents_system_prompt(chat_history_str)
+        else get_qna_no_documents_system_prompt(chat_history_str, language)
     )
 
     # Generate documents section

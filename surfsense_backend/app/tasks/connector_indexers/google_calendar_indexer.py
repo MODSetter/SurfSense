@@ -113,7 +113,10 @@ async def index_google_calendar_events(
         )
 
         calendar_client = GoogleCalendarConnector(
-            credentials=credentials, session=session, user_id=user_id
+            credentials=credentials,
+            session=session,
+            user_id=user_id,
+            connector_id=connector_id,
         )
 
         # Calculate date range
@@ -263,7 +266,9 @@ async def index_google_calendar_events(
                     continue
 
                 # Generate summary with metadata
-                user_llm = await get_user_long_context_llm(session, user_id)
+                user_llm = await get_user_long_context_llm(
+                    session, user_id, search_space_id
+                )
 
                 if user_llm:
                     document_metadata = {

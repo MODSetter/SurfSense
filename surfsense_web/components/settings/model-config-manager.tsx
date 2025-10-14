@@ -37,102 +37,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { LANGUAGES } from "@/contracts/enums/languages";
+import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
+import InferenceParamsEditor from "../inference-params-editor";
 
-const LLM_PROVIDERS = [
-	{
-		value: "OPENAI",
-		label: "OpenAI",
-		example: "gpt-4o, gpt-4, gpt-3.5-turbo",
-		description: "Most popular and versatile AI models",
-	},
-	{
-		value: "ANTHROPIC",
-		label: "Anthropic",
-		example: "claude-3-5-sonnet-20241022, claude-3-opus-20240229",
-		description: "Constitutional AI with strong reasoning",
-	},
-	{
-		value: "GROQ",
-		label: "Groq",
-		example: "llama3-70b-8192, mixtral-8x7b-32768",
-		description: "Ultra-fast inference speeds",
-	},
-	{
-		value: "COHERE",
-		label: "Cohere",
-		example: "command-r-plus, command-r",
-		description: "Enterprise-focused language models",
-	},
-	{
-		value: "HUGGINGFACE",
-		label: "HuggingFace",
-		example: "microsoft/DialoGPT-medium",
-		description: "Open source model hub",
-	},
-	{
-		value: "AZURE_OPENAI",
-		label: "Azure OpenAI",
-		example: "gpt-4, gpt-35-turbo",
-		description: "Enterprise OpenAI through Azure",
-	},
-	{
-		value: "GOOGLE",
-		label: "Google",
-		example: "gemini-pro, gemini-pro-vision",
-		description: "Google's Gemini AI models",
-	},
-	{
-		value: "AWS_BEDROCK",
-		label: "AWS Bedrock",
-		example: "anthropic.claude-v2",
-		description: "AWS managed AI service",
-	},
-	{
-		value: "OLLAMA",
-		label: "Ollama",
-		example: "llama2, codellama",
-		description: "Run models locally",
-	},
-	{
-		value: "MISTRAL",
-		label: "Mistral",
-		example: "mistral-large-latest, mistral-medium",
-		description: "European AI excellence",
-	},
-	{
-		value: "TOGETHER_AI",
-		label: "Together AI",
-		example: "togethercomputer/llama-2-70b-chat",
-		description: "Decentralized AI platform",
-	},
-	{
-		value: "REPLICATE",
-		label: "Replicate",
-		example: "meta/llama-2-70b-chat",
-		description: "Run models via API",
-	},
-	{
-		value: "OPENROUTER",
-		label: "OpenRouter",
-		example: "anthropic/claude-opus-4.1, openai/gpt-5",
-		description: "API gateway and LLM marketplace that provides unified access ",
-	},
-	{
-		value: "COMETAPI",
-		label: "CometAPI",
-		example: "gpt-5-mini, claude-sonnet-4-5",
-		description: "500+ AI models through one unified API",
-	},
-	{
-		value: "CUSTOM",
-		label: "Custom Provider",
-		example: "your-custom-model",
-		description: "Your own model endpoint",
-	},
-];
+interface ModelConfigManagerProps {
+	searchSpaceId: number;
+}
 
-export function ModelConfigManager() {
+export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const {
 		llmConfigs,
 		loading,
@@ -141,7 +55,7 @@ export function ModelConfigManager() {
 		updateLLMConfig,
 		deleteLLMConfig,
 		refreshConfigs,
-	} = useLLMConfigs();
+	} = useLLMConfigs(searchSpaceId);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null);
 	const [showApiKey, setShowApiKey] = useState<Record<number, boolean>>({});
@@ -152,7 +66,9 @@ export function ModelConfigManager() {
 		model_name: "",
 		api_key: "",
 		api_base: "",
+		language: "English",
 		litellm_params: {},
+		search_space_id: searchSpaceId,
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -166,13 +82,26 @@ export function ModelConfigManager() {
 				model_name: editingConfig.model_name,
 				api_key: editingConfig.api_key,
 				api_base: editingConfig.api_base || "",
+				language: editingConfig.language || "English",
 				litellm_params: editingConfig.litellm_params || {},
+				search_space_id: searchSpaceId,
 			});
 		}
-	}, [editingConfig]);
+	}, [editingConfig, searchSpaceId]);
 
 	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
+	};
+
+	// Handle provider change with auto-fill API Base URL / 处理 Provider 变更并自动填充 API Base URL
+	const handleProviderChange = (providerValue: string) => {
+		const provider = LLM_PROVIDERS.find((p) => p.value === providerValue);
+		setFormData((prev) => ({
+			...prev,
+			provider: providerValue,
+			// Auto-fill API Base URL if provider has a default / 如果提供商有默认值则自动填充
+			api_base: provider?.apiBase || prev.api_base,
+		}));
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -203,7 +132,9 @@ export function ModelConfigManager() {
 				model_name: "",
 				api_key: "",
 				api_base: "",
+				language: "English",
 				litellm_params: {},
+				search_space_id: searchSpaceId,
 			});
 			setIsAddingNew(false);
 			setEditingConfig(null);
@@ -407,6 +338,13 @@ export function ModelConfigManager() {
 																	<p className="text-sm text-muted-foreground font-mono">
 																		{config.model_name}
 																	</p>
+																	{config.language && (
+																		<div className="flex items-center gap-2">
+																			<Badge variant="outline" className="text-xs">
+																				{config.language}
+																			</Badge>
+																		</div>
+																	)}
 																</div>
 															</div>
 
@@ -516,7 +454,9 @@ export function ModelConfigManager() {
 							model_name: "",
 							api_key: "",
 							api_base: "",
+							language: "",
 							litellm_params: {},
+							search_space_id: searchSpaceId,
 						});
 					}
 				}}
@@ -549,22 +489,13 @@ export function ModelConfigManager() {
 
 							<div className="space-y-2">
 								<Label htmlFor="provider">Provider *</Label>
-								<Select
-									value={formData.provider}
-									onValueChange={(value) => handleInputChange("provider", value)}
-								>
-									<SelectTrigger className="h-auto min-h-[2.5rem] py-2">
+								<Select value={formData.provider} onValueChange={handleProviderChange}>
+									<SelectTrigger>
 										<SelectValue placeholder="Select a provider">
 											{formData.provider && (
-												<div className="flex items-center space-x-2 py-1">
-													<div className="font-medium">
-														{LLM_PROVIDERS.find((p) => p.value === formData.provider)?.label}
-													</div>
-													<div className="text-xs text-muted-foreground">•</div>
-													<div className="text-xs text-muted-foreground">
-														{LLM_PROVIDERS.find((p) => p.value === formData.provider)?.description}
-													</div>
-												</div>
+												<span className="font-medium">
+													{LLM_PROVIDERS.find((p) => p.value === formData.provider)?.label}
+												</span>
 											)}
 										</SelectValue>
 									</SelectTrigger>
@@ -614,6 +545,25 @@ export function ModelConfigManager() {
 						</div>
 
 						<div className="space-y-2">
+							<Label htmlFor="language">Language (Optional)</Label>
+							<Select
+								value={formData.language || "English"}
+								onValueChange={(value) => handleInputChange("language", value)}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Select language" />
+								</SelectTrigger>
+								<SelectContent>
+									{LANGUAGES.map((language) => (
+										<SelectItem key={language.value} value={language.value}>
+											{language.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-2">
 							<Label htmlFor="api_key">API Key *</Label>
 							<Input
 								id="api_key"
@@ -626,12 +576,48 @@ export function ModelConfigManager() {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="api_base">API Base URL (Optional)</Label>
+							<Label htmlFor="api_base">
+								API Base URL
+								{selectedProvider?.apiBase && (
+									<span className="text-xs font-normal text-muted-foreground ml-2">
+										(Auto-filled for {selectedProvider.label})
+									</span>
+								)}
+							</Label>
 							<Input
 								id="api_base"
-								placeholder="e.g., https://api.openai.com/v1"
+								placeholder={selectedProvider?.apiBase || "e.g., https://api.openai.com/v1"}
 								value={formData.api_base}
 								onChange={(e) => handleInputChange("api_base", e.target.value)}
+							/>
+							{selectedProvider?.apiBase && formData.api_base === selectedProvider.apiBase && (
+								<p className="text-xs text-green-600 flex items-center gap-1">
+									<CheckCircle className="h-3 w-3" />
+									Using recommended API endpoint for {selectedProvider.label}
+								</p>
+							)}
+							{selectedProvider?.apiBase && !formData.api_base && (
+								<p className="text-xs text-amber-600 flex items-center gap-1">
+									<AlertCircle className="h-3 w-3" />
+									⚠️ API Base URL is required for {selectedProvider.label}. Click to auto-fill:
+									<button
+										type="button"
+										className="underline font-medium"
+										onClick={() => handleInputChange("api_base", selectedProvider.apiBase || "")}
+									>
+										{selectedProvider.apiBase}
+									</button>
+								</p>
+							)}
+						</div>
+
+						{/* Optional Inference Parameters */}
+						<div className="pt-4">
+							<InferenceParamsEditor
+								params={formData.litellm_params || {}}
+								setParams={(newParams) =>
+									setFormData((prev) => ({ ...prev, litellm_params: newParams }))
+								}
 							/>
 						</div>
 
@@ -658,7 +644,9 @@ export function ModelConfigManager() {
 										model_name: "",
 										api_key: "",
 										api_base: "",
+										language: "",
 										litellm_params: {},
+										search_space_id: searchSpaceId,
 									});
 								}}
 								disabled={isSubmitting}

@@ -1,7 +1,6 @@
 "use client";
 
 import { format } from "date-fns";
-import { AnimatePresence, motion, type Variants } from "framer-motion";
 import {
 	Calendar,
 	MoreHorizontal,
@@ -16,6 +15,7 @@ import {
 	VolumeX,
 	X,
 } from "lucide-react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";

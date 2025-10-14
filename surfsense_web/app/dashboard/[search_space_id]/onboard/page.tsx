@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ArrowRight, Bot, CheckCircle, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { AddProviderStep } from "@/components/onboard/add-provider-step";
@@ -17,13 +17,16 @@ const TOTAL_STEPS = 3;
 
 const OnboardPage = () => {
 	const router = useRouter();
-	const { llmConfigs, loading: configsLoading, refreshConfigs } = useLLMConfigs();
+	const params = useParams();
+	const searchSpaceId = Number(params.search_space_id);
+
+	const { llmConfigs, loading: configsLoading, refreshConfigs } = useLLMConfigs(searchSpaceId);
 	const {
 		preferences,
 		loading: preferencesLoading,
 		isOnboardingComplete,
 		refreshPreferences,
-	} = useLLMPreferences();
+	} = useLLMPreferences(searchSpaceId);
 	const [currentStep, setCurrentStep] = useState(1);
 	const [hasUserProgressed, setHasUserProgressed] = useState(false);
 
@@ -44,11 +47,23 @@ const OnboardPage = () => {
 	}, [currentStep]);
 
 	// Redirect to dashboard if onboarding is already complete and user hasn't progressed (fresh page load)
+	// But only check once to avoid redirect loops
 	useEffect(() => {
-		if (!preferencesLoading && isOnboardingComplete() && !hasUserProgressed) {
-			router.push("/dashboard");
+		if (!preferencesLoading && !configsLoading && isOnboardingComplete() && !hasUserProgressed) {
+			// Small delay to ensure the check is stable
+			const timer = setTimeout(() => {
+				router.push(`/dashboard/${searchSpaceId}`);
+			}, 100);
+			return () => clearTimeout(timer);
 		}
-	}, [preferencesLoading, isOnboardingComplete, hasUserProgressed, router]);
+	}, [
+		preferencesLoading,
+		configsLoading,
+		isOnboardingComplete,
+		hasUserProgressed,
+		router,
+		searchSpaceId,
+	]);
 
 	const progress = (currentStep / TOTAL_STEPS) * 100;
 
@@ -80,7 +95,7 @@ const OnboardPage = () => {
 	};
 
 	const handleComplete = () => {
-		router.push("/dashboard");
+		router.push(`/dashboard/${searchSpaceId}/documents`);
 	};
 
 	if (configsLoading || preferencesLoading) {
@@ -184,12 +199,18 @@ const OnboardPage = () => {
 							>
 								{currentStep === 1 && (
 									<AddProviderStep
+										searchSpaceId={searchSpaceId}
 										onConfigCreated={refreshConfigs}
 										onConfigDeleted={refreshConfigs}
 									/>
 								)}
-								{currentStep === 2 && <AssignRolesStep onPreferencesUpdated={refreshPreferences} />}
-								{currentStep === 3 && <CompletionStep />}
+								{currentStep === 2 && (
+									<AssignRolesStep
+										searchSpaceId={searchSpaceId}
+										onPreferencesUpdated={refreshPreferences}
+									/>
+								)}
+								{currentStep === 3 && <CompletionStep searchSpaceId={searchSpaceId} />}
 							</motion.div>
 						</AnimatePresence>
 					</CardContent>

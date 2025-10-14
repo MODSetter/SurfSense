@@ -9,12 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { SourceDetailSheet } from "./SourceDetailSheet";
 
 interface Source {
 	id: string;
 	title: string;
 	description: string;
 	url: string;
+	sourceType: string;
 }
 
 interface SourceGroup {
@@ -48,6 +50,9 @@ function getSourceIcon(type: string) {
 
 function SourceCard({ source }: { source: Source }) {
 	const hasUrl = source.url && source.url.trim() !== "";
+	const chunkId = Number(source.id);
+	const sourceType = source.sourceType;
+	const [isOpen, setIsOpen] = useState(false);
 
 	// Clean up the description for better display
 	const cleanDescription = source.description
@@ -55,31 +60,54 @@ function SourceCard({ source }: { source: Source }) {
 		.replace(/\n+/g, " ")
 		.trim();
 
+	const handleUrlClick = (e: React.MouseEvent, url: string) => {
+		e.preventDefault();
+		e.stopPropagation();
+		window.open(url, "_blank", "noopener,noreferrer");
+	};
+
 	return (
-		<Card className="border-muted hover:border-muted-foreground/20 transition-colors">
-			<CardHeader className="pb-3 pt-3">
-				<div className="flex items-start justify-between gap-2">
-					<CardTitle className="text-sm font-medium leading-tight line-clamp-2">
-						{source.title}
-					</CardTitle>
-					{hasUrl && (
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-7 w-7 p-0 flex-shrink-0 hover:bg-muted"
-							onClick={() => window.open(source.url, "_blank")}
-						>
-							<ExternalLink className="h-3.5 w-3.5" />
-						</Button>
-					)}
-				</div>
-			</CardHeader>
-			<CardContent className="pt-0 pb-3">
-				<CardDescription className="text-xs line-clamp-3 leading-relaxed text-muted-foreground">
-					{cleanDescription}
-				</CardDescription>
-			</CardContent>
-		</Card>
+		<SourceDetailSheet
+			open={isOpen}
+			onOpenChange={setIsOpen}
+			chunkId={chunkId}
+			sourceType={sourceType}
+			title={source.title}
+			description={source.description}
+			url={source.url}
+		>
+			<SheetTrigger asChild>
+				<Card className="border-muted hover:border-muted-foreground/20 transition-colors cursor-pointer">
+					<CardHeader className="pb-3 pt-3">
+						<div className="flex items-start justify-between gap-2">
+							<CardTitle className="text-sm font-medium leading-tight line-clamp-2 flex-1">
+								{source.title}
+							</CardTitle>
+							<div className="flex items-center gap-1 flex-shrink-0">
+								<Badge variant="secondary" className="text-[10px] h-5 px-2 font-mono">
+									#{chunkId}
+								</Badge>
+								{hasUrl && (
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-7 w-7 p-0 flex-shrink-0 hover:bg-muted"
+										onClick={(e) => handleUrlClick(e, source.url)}
+									>
+										<ExternalLink className="h-3.5 w-3.5" />
+									</Button>
+								)}
+							</div>
+						</div>
+					</CardHeader>
+					<CardContent className="pt-0 pb-3">
+						<CardDescription className="text-xs line-clamp-3 leading-relaxed text-muted-foreground">
+							{cleanDescription}
+						</CardDescription>
+					</CardContent>
+				</Card>
+			</SheetTrigger>
+		</SourceDetailSheet>
 	);
 }
 
@@ -126,6 +154,7 @@ export default function ChatSourcesDisplay({ message }: { message: Message }) {
 						title: node.metadata.title,
 						description: node.text,
 						url: node.url || "",
+						sourceType: sourceType,
 					})),
 				});
 			}

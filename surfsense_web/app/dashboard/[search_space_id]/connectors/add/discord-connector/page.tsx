@@ -37,7 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const discordConnectorFormSchema = z.object({
@@ -73,15 +73,18 @@ export default function DiscordConnectorPage() {
 	const onSubmit = async (values: DiscordConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.DISCORD_CONNECTOR,
-				config: {
-					DISCORD_BOT_TOKEN: values.bot_token,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.DISCORD_CONNECTOR,
+					config: {
+						DISCORD_BOT_TOKEN: values.bot_token,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Discord connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);

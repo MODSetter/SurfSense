@@ -30,15 +30,20 @@ class GoogleGmailConnector:
         credentials: Credentials,
         session: AsyncSession,
         user_id: str,
+        connector_id: int | None = None,
     ):
         """
         Initialize the GoogleGmailConnector class.
         Args:
             credentials: Google OAuth Credentials object
+            session: Database session for updating connector
+            user_id: User ID (kept for backward compatibility)
+            connector_id: Optional connector ID for direct updates
         """
         self._credentials = credentials
         self._session = session
         self._user_id = user_id
+        self._connector_id = connector_id
         self.service = None
 
     async def _get_credentials(
@@ -83,17 +88,25 @@ class GoogleGmailConnector:
                 self._credentials.refresh(Request())
                 # Update the connector config in DB
                 if self._session:
-                    result = await self._session.execute(
-                        select(SearchSourceConnector).filter(
-                            SearchSourceConnector.user_id == self._user_id,
-                            SearchSourceConnector.connector_type
-                            == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+                    # Use connector_id if available, otherwise fall back to user_id query
+                    if self._connector_id:
+                        result = await self._session.execute(
+                            select(SearchSourceConnector).filter(
+                                SearchSourceConnector.id == self._connector_id
+                            )
                         )
-                    )
+                    else:
+                        result = await self._session.execute(
+                            select(SearchSourceConnector).filter(
+                                SearchSourceConnector.user_id == self._user_id,
+                                SearchSourceConnector.connector_type
+                                == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+                            )
+                        )
                     connector = result.scalars().first()
                     if connector is None:
                         raise RuntimeError(
-                            "GMAIL connector not found for current user; cannot persist refreshed token."
+                            "GMAIL connector not found; cannot persist refreshed token."
                         )
                     connector.config = json.loads(self._credentials.to_json())
                     flag_modified(connector, "config")

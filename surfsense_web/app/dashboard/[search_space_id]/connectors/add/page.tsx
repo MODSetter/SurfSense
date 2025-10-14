@@ -46,6 +46,13 @@ const connectorCategories: ConnectorCategory[] = [
 				status: "available",
 			},
 			{
+				id: "searxng",
+				title: "SearxNG",
+				description: "Use your own SearxNG meta-search instance for web results.",
+				icon: getConnectorIcon(EnumConnectorName.SEARXNG_API, "h-6 w-6"),
+				status: "available",
+			},
+			{
 				id: "linkup-api",
 				title: "Linkup API",
 				description: "Search the web using the Linkup API",

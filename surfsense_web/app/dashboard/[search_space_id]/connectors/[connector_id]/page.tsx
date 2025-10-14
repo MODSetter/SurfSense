@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
-} from "@/hooks/useSearchSourceConnectors";
+} from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const apiConnectorFormSchema = z.object({
@@ -83,7 +83,7 @@ export default function EditConnectorPage() {
 	const searchSpaceId = params.search_space_id as string;
 	const connectorId = parseInt(params.connector_id as string, 10);
 
-	const { connectors, updateConnector } = useSearchSourceConnectors();
+	const { connectors, updateConnector } = useSearchSourceConnectors(false, parseInt(searchSpaceId));
 	const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);

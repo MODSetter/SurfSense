@@ -98,6 +98,7 @@ async def generate_chat_podcast(
             "configurable": {
                 "podcast_title": "SurfSense",
                 "user_id": str(user_id),
+                "search_space_id": search_space_id,
             }
         }
         # Initialize state with database session and streaming service

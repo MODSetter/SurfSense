@@ -104,9 +104,10 @@ async def gmail_callback(
         creds_dict = json.loads(creds.to_json())
 
         try:
-            # Check if a connector with the same type already exists for this user
+            # Check if a connector with the same type already exists for this search space and user
             result = await session.execute(
                 select(SearchSourceConnector).filter(
+                    SearchSourceConnector.search_space_id == space_id,
                     SearchSourceConnector.user_id == user_id,
                     SearchSourceConnector.connector_type
                     == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
@@ -116,12 +117,13 @@ async def gmail_callback(
             if existing_connector:
                 raise HTTPException(
                     status_code=409,
-                    detail="A GOOGLE_GMAIL_CONNECTOR connector already exists. Each user can have only one connector of each type.",
+                    detail="A GOOGLE_GMAIL_CONNECTOR connector already exists in this search space. Each search space can have only one connector of each type per user.",
                 )
             db_connector = SearchSourceConnector(
                 name="Google Gmail Connector",
                 connector_type=SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
                 config=creds_dict,
+                search_space_id=space_id,
                 user_id=user_id,
                 is_indexable=True,
             )

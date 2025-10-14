@@ -37,7 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const linearConnectorFormSchema = z.object({
@@ -77,15 +77,18 @@ export default function LinearConnectorPage() {
 	const onSubmit = async (values: LinearConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.LINEAR_CONNECTOR,
-				config: {
-					LINEAR_API_KEY: values.api_key,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.LINEAR_CONNECTOR,
+					config: {
+						LINEAR_API_KEY: values.api_key,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Linear connector created successfully!");
 

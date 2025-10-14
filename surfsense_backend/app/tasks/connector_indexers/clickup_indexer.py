@@ -222,7 +222,9 @@ async def index_clickup_tasks(
                         continue
 
                     # Generate summary with metadata
-                    user_llm = await get_user_long_context_llm(session, user_id)
+                    user_llm = await get_user_long_context_llm(
+                        session, user_id, search_space_id
+                    )
 
                     if user_llm:
                         document_metadata = {

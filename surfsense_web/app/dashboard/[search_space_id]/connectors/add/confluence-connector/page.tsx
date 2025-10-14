@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const confluenceConnectorFormSchema = z.object({
@@ -77,17 +77,20 @@ export default function ConfluenceConnectorPage() {
 	const onSubmit = async (values: ConfluenceConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.CONFLUENCE_CONNECTOR,
-				config: {
-					CONFLUENCE_BASE_URL: values.base_url,
-					CONFLUENCE_EMAIL: values.email,
-					CONFLUENCE_API_TOKEN: values.api_token,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.CONFLUENCE_CONNECTOR,
+					config: {
+						CONFLUENCE_BASE_URL: values.base_url,
+						CONFLUENCE_EMAIL: values.email,
+						CONFLUENCE_API_TOKEN: values.api_token,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Confluence connector created successfully!");
 

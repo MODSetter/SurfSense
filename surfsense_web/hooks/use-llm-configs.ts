@@ -10,9 +10,10 @@ export interface LLMConfig {
 	model_name: string;
 	api_key: string;
 	api_base?: string;
+	language?: string;
 	litellm_params?: Record<string, any>;
 	created_at: string;
-	user_id: string;
+	search_space_id: number;
 }
 
 export interface LLMPreferences {
@@ -31,7 +32,9 @@ export interface CreateLLMConfig {
 	model_name: string;
 	api_key: string;
 	api_base?: string;
+	language?: string;
 	litellm_params?: Record<string, any>;
+	search_space_id: number;
 }
 
 export interface UpdateLLMConfig {
@@ -44,16 +47,21 @@ export interface UpdateLLMConfig {
 	litellm_params?: Record<string, any>;
 }
 
-export function useLLMConfigs() {
+export function useLLMConfigs(searchSpaceId: number | null) {
 	const [llmConfigs, setLlmConfigs] = useState<LLMConfig[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	const fetchLLMConfigs = async () => {
+		if (!searchSpaceId) {
+			setLoading(false);
+			return;
+		}
+
 		try {
 			setLoading(true);
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/?search_space_id=${searchSpaceId}`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
@@ -79,7 +87,7 @@ export function useLLMConfigs() {
 
 	useEffect(() => {
 		fetchLLMConfigs();
-	}, []);
+	}, [searchSpaceId]);
 
 	const createLLMConfig = async (config: CreateLLMConfig): Promise<LLMConfig | null> => {
 		try {
@@ -181,16 +189,21 @@ export function useLLMConfigs() {
 	};
 }
 
-export function useLLMPreferences() {
+export function useLLMPreferences(searchSpaceId: number | null) {
 	const [preferences, setPreferences] = useState<LLMPreferences>({});
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	const fetchPreferences = async () => {
+		if (!searchSpaceId) {
+			setLoading(false);
+			return;
+		}
+
 		try {
 			setLoading(true);
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/users/me/llm-preferences`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
@@ -216,12 +229,17 @@ export function useLLMPreferences() {
 
 	useEffect(() => {
 		fetchPreferences();
-	}, []);
+	}, [searchSpaceId]);
 
 	const updatePreferences = async (newPreferences: Partial<LLMPreferences>): Promise<boolean> => {
+		if (!searchSpaceId) {
+			toast.error("Search space ID is required");
+			return false;
+		}
+
 		try {
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/users/me/llm-preferences`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
 				{
 					method: "PUT",
 					headers: {

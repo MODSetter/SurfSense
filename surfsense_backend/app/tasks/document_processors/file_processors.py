@@ -60,9 +60,11 @@ async def add_received_file_document_using_unstructured(
         # TODO: Check if file_markdown exceeds token limit of embedding model
 
         # Get user's long context LLM
-        user_llm = await get_user_long_context_llm(session, user_id)
+        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
         if not user_llm:
-            raise RuntimeError(f"No long context LLM configured for user {user_id}")
+            raise RuntimeError(
+                f"No long context LLM configured for user {user_id} in search space {search_space_id}"
+            )
 
         # Generate summary with metadata
         document_metadata = {
@@ -140,9 +142,11 @@ async def add_received_file_document_using_llamacloud(
             return existing_document
 
         # Get user's long context LLM
-        user_llm = await get_user_long_context_llm(session, user_id)
+        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
         if not user_llm:
-            raise RuntimeError(f"No long context LLM configured for user {user_id}")
+            raise RuntimeError(
+                f"No long context LLM configured for user {user_id} in search space {search_space_id}"
+            )
 
         # Generate summary with metadata
         document_metadata = {
@@ -221,9 +225,11 @@ async def add_received_file_document_using_docling(
             return existing_document
 
         # Get user's long context LLM
-        user_llm = await get_user_long_context_llm(session, user_id)
+        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
         if not user_llm:
-            raise RuntimeError(f"No long context LLM configured for user {user_id}")
+            raise RuntimeError(
+                f"No long context LLM configured for user {user_id} in search space {search_space_id}"
+            )
 
         # Generate summary using chunked processing for large documents
         from app.services.docling_service import create_docling_service

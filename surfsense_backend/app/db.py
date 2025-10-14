@@ -55,6 +55,7 @@ class DocumentType(str, Enum):
 class SearchSourceConnectorType(str, Enum):
     SERPER_API = "SERPER_API"  # NOT IMPLEMENTED YET : DON'T REMEMBER WHY : MOST PROBABLY BECAUSE WE NEED TO CRAWL THE RESULTS RETURNED BY IT
     TAVILY_API = "TAVILY_API"
+    SEARXNG_API = "SEARXNG_API"
     LINKUP_API = "LINKUP_API"
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
@@ -78,6 +79,11 @@ class ChatType(str, Enum):
 
 
 class LiteLLMProvider(str, Enum):
+    """
+    Enum for LLM providers supported by LiteLLM.
+    LiteLLM 支持的 LLM 提供商枚举。
+    """
+
     OPENAI = "OPENAI"
     ANTHROPIC = "ANTHROPIC"
     GROQ = "GROQ"
@@ -101,6 +107,11 @@ class LiteLLMProvider(str, Enum):
     ALEPH_ALPHA = "ALEPH_ALPHA"
     PETALS = "PETALS"
     COMETAPI = "COMETAPI"
+    # Chinese LLM Providers (OpenAI-compatible)
+    DEEPSEEK = "DEEPSEEK"
+    ALIBABA_QWEN = "ALIBABA_QWEN"
+    MOONSHOT = "MOONSHOT"
+    ZHIPU = "ZHIPU"
     CUSTOM = "CUSTOM"
 
 
@@ -252,7 +263,12 @@ class SearchSpace(BaseModel, TimestampMixin):
 class SearchSourceConnector(BaseModel, TimestampMixin):
     __tablename__ = "search_source_connectors"
     __table_args__ = (
-        UniqueConstraint("user_id", "connector_type", name="uq_user_connector_type"),
+        UniqueConstraint(
+            "search_space_id",
+            "user_id",
+            "connector_type",
+            name="uq_searchspace_user_connector_type",
+        ),
     )
 
     name = Column(String(100), nullable=False, index=True)
@@ -260,6 +276,13 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     is_indexable = Column(Boolean, nullable=False, default=False)
     last_indexed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     config = Column(JSON, nullable=False)
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship(
+        "SearchSpace", back_populates="search_source_connectors"
+    )
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
@@ -315,13 +338,59 @@ class LLMConfig(BaseModel, TimestampMixin):
     api_key = Column(String, nullable=False)
     api_base = Column(String(500), nullable=True)
 
+    language = Column(String(50), nullable=True, default="English")
+
     # For any other parameters that litellm supports
     litellm_params = Column(JSON, nullable=True, default={})
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship("SearchSpace", back_populates="llm_configs")
+
+
+class UserSearchSpacePreference(BaseModel, TimestampMixin):
+    __tablename__ = "user_search_space_preferences"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "search_space_id",
+            name="uq_user_searchspace",
+        ),
+    )
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
-    user = relationship("User", back_populates="llm_configs", foreign_keys=[user_id])
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # User-specific LLM preferences for this search space
+    long_context_llm_id = Column(
+        Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
+    )
+    fast_llm_id = Column(
+        Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
+    )
+    strategic_llm_id = Column(
+        Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Future RBAC fields can be added here
+    # role = Column(String(50), nullable=True)  # e.g., 'owner', 'editor', 'viewer'
+    # permissions = Column(JSON, nullable=True)
+
+    user = relationship("User", back_populates="search_space_preferences")
+    search_space = relationship("SearchSpace", back_populates="user_preferences")
+
+    long_context_llm = relationship(
+        "LLMConfig", foreign_keys=[long_context_llm_id], post_update=True
+    )
+    fast_llm = relationship("LLMConfig", foreign_keys=[fast_llm_id], post_update=True)
+    strategic_llm = relationship(
+        "LLMConfig", foreign_keys=[strategic_llm_id], post_update=True
+    )
 
 
 class Log(BaseModel, TimestampMixin):
@@ -351,68 +420,20 @@ if config.AUTH_TYPE == "GOOGLE":
             "OAuthAccount", lazy="joined"
         )
         search_spaces = relationship("SearchSpace", back_populates="user")
-        search_source_connectors = relationship(
-            "SearchSourceConnector", back_populates="user"
-        )
-        llm_configs = relationship(
-            "LLMConfig",
+        search_space_preferences = relationship(
+            "UserSearchSpacePreference",
             back_populates="user",
-            foreign_keys="LLMConfig.user_id",
             cascade="all, delete-orphan",
-        )
-
-        long_context_llm_id = Column(
-            Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-        )
-        fast_llm_id = Column(
-            Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-        )
-        strategic_llm_id = Column(
-            Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-        )
-
-        long_context_llm = relationship(
-            "LLMConfig", foreign_keys=[long_context_llm_id], post_update=True
-        )
-        fast_llm = relationship(
-            "LLMConfig", foreign_keys=[fast_llm_id], post_update=True
-        )
-        strategic_llm = relationship(
-            "LLMConfig", foreign_keys=[strategic_llm_id], post_update=True
         )
 
 else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
         search_spaces = relationship("SearchSpace", back_populates="user")
-        search_source_connectors = relationship(
-            "SearchSourceConnector", back_populates="user"
-        )
-        llm_configs = relationship(
-            "LLMConfig",
+        search_space_preferences = relationship(
+            "UserSearchSpacePreference",
             back_populates="user",
-            foreign_keys="LLMConfig.user_id",
             cascade="all, delete-orphan",
-        )
-
-        long_context_llm_id = Column(
-            Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-        )
-        fast_llm_id = Column(
-            Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-        )
-        strategic_llm_id = Column(
-            Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-        )
-
-        long_context_llm = relationship(
-            "LLMConfig", foreign_keys=[long_context_llm_id], post_update=True
-        )
-        fast_llm = relationship(
-            "LLMConfig", foreign_keys=[fast_llm_id], post_update=True
-        )
-        strategic_llm = relationship(
-            "LLMConfig", foreign_keys=[strategic_llm_id], post_update=True
         )
 
 

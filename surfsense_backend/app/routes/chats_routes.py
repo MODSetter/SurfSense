@@ -4,8 +4,9 @@ from langchain.schema import AIMessage, HumanMessage
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
-from app.db import Chat, SearchSpace, User, get_async_session
+from app.db import Chat, SearchSpace, User, UserSearchSpacePreference, get_async_session
 from app.schemas import (
     AISDKChatRequest,
     ChatCreate,
@@ -17,17 +18,15 @@ from app.tasks.stream_connector_search_results import stream_connector_search_re
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 from app.utils.validators import (
-    validate_search_space_id,
-    validate_document_ids,
     validate_connectors,
+    validate_document_ids,
+    validate_messages,
     validate_research_mode,
     validate_search_mode,
-    validate_messages,
+    validate_search_space_id,
 )
 
 router = APIRouter()
-
-
 
 
 @router.post("/chat")
@@ -38,25 +37,68 @@ async def handle_chat_data(
 ):
     # Validate and sanitize all input data
     messages = validate_messages(request.messages)
-    
+
     if messages[-1]["role"] != "user":
         raise HTTPException(
             status_code=400, detail="Last message must be a user message"
         )
 
     user_query = messages[-1]["content"]
-    
+
     # Extract and validate data from request
     request_data = request.data or {}
     search_space_id = validate_search_space_id(request_data.get("search_space_id"))
     research_mode = validate_research_mode(request_data.get("research_mode"))
     selected_connectors = validate_connectors(request_data.get("selected_connectors"))
-    document_ids_to_add_in_context = validate_document_ids(request_data.get("document_ids_to_add_in_context"))
+    document_ids_to_add_in_context = validate_document_ids(
+        request_data.get("document_ids_to_add_in_context")
+    )
     search_mode_str = validate_search_mode(request_data.get("search_mode"))
+    # print("RESQUEST DATA:", request_data)
+    # print("SELECTED CONNECTORS:", selected_connectors)
 
     # Check if the search space belongs to the current user
     try:
         await check_ownership(session, SearchSpace, search_space_id, user)
+        language_result = await session.execute(
+            select(UserSearchSpacePreference)
+            .options(
+                selectinload(UserSearchSpacePreference.search_space).selectinload(
+                    SearchSpace.llm_configs
+                ),
+                selectinload(UserSearchSpacePreference.long_context_llm),
+                selectinload(UserSearchSpacePreference.fast_llm),
+                selectinload(UserSearchSpacePreference.strategic_llm),
+            )
+            .filter(
+                UserSearchSpacePreference.search_space_id == search_space_id,
+                UserSearchSpacePreference.user_id == user.id,
+            )
+        )
+        user_preference = language_result.scalars().first()
+        # print("UserSearchSpacePreference:", user_preference)
+
+        language = None
+        if (
+            user_preference
+            and user_preference.search_space
+            and user_preference.search_space.llm_configs
+        ):
+            llm_configs = user_preference.search_space.llm_configs
+
+            for preferred_llm in [
+                user_preference.fast_llm,
+                user_preference.long_context_llm,
+                user_preference.strategic_llm,
+            ]:
+                if preferred_llm and getattr(preferred_llm, "language", None):
+                    language = preferred_llm.language
+                    break
+
+        if not language:
+            first_llm_config = llm_configs[0]
+            language = getattr(first_llm_config, "language", None)
+
     except HTTPException:
         raise HTTPException(
             status_code=403, detail="You don't have access to this search space"
@@ -80,6 +122,7 @@ async def handle_chat_data(
             langchain_chat_history,
             search_mode_str,
             document_ids_to_add_in_context,
+            language,
         )
     )
 
@@ -132,21 +175,16 @@ async def read_chats(
     # Validate pagination parameters
     if skip < 0:
         raise HTTPException(
-            status_code=400,
-            detail="skip must be a non-negative integer"
+            status_code=400, detail="skip must be a non-negative integer"
         )
-    
+
     if limit <= 0 or limit > 1000:  # Reasonable upper limit
-        raise HTTPException(
-            status_code=400,
-            detail="limit must be between 1 and 1000"
-        )
-    
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
+
     # Validate search_space_id if provided
     if search_space_id is not None and search_space_id <= 0:
         raise HTTPException(
-            status_code=400,
-            detail="search_space_id must be a positive integer"
+            status_code=400, detail="search_space_id must be a positive integer"
         )
     try:
         # Select specific fields excluding messages

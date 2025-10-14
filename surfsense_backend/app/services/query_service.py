@@ -17,6 +17,7 @@ class QueryService:
         user_query: str,
         session: AsyncSession,
         user_id: str,
+        search_space_id: int,
         chat_history_str: str | None = None,
     ) -> str:
         """
@@ -27,6 +28,7 @@ class QueryService:
             user_query: The original user query
             session: Database session for accessing user LLM configs
             user_id: User ID to get their specific LLM configuration
+            search_space_id: Search Space ID to get user's LLM preferences
             chat_history_str: Optional chat history string
 
         Returns:
@@ -37,10 +39,10 @@ class QueryService:
 
         try:
             # Get the user's strategic LLM instance
-            llm = await get_user_strategic_llm(session, user_id)
+            llm = await get_user_strategic_llm(session, user_id, search_space_id)
             if not llm:
                 print(
-                    f"Warning: No strategic LLM configured for user {user_id}. Using original query."
+                    f"Warning: No strategic LLM configured for user {user_id} in search space {search_space_id}. Using original query."
                 )
                 return user_query
 

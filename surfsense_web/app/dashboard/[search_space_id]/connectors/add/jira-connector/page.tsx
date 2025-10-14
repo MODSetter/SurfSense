@@ -37,7 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const jiraConnectorFormSchema = z.object({
@@ -90,17 +90,20 @@ export default function JiraConnectorPage() {
 	const onSubmit = async (values: JiraConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.JIRA_CONNECTOR,
-				config: {
-					JIRA_BASE_URL: values.base_url,
-					JIRA_EMAIL: values.email,
-					JIRA_API_TOKEN: values.api_token,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.JIRA_CONNECTOR,
+					config: {
+						JIRA_BASE_URL: values.base_url,
+						JIRA_EMAIL: values.email,
+						JIRA_API_TOKEN: values.api_token,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Jira connector created successfully!");
 

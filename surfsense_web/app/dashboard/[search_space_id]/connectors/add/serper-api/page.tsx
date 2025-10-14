@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const serperApiFormSchema = z.object({
@@ -65,15 +65,18 @@ export default function SerperApiPage() {
 	const onSubmit = async (values: SerperApiFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.SERPER_API,
-				config: {
-					SERPER_API_KEY: values.api_key,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.SERPER_API,
+					config: {
+						SERPER_API_KEY: values.api_key,
+					},
+					is_indexable: false,
+					last_indexed_at: null,
 				},
-				is_indexable: false,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Serper API connector created successfully!");
 

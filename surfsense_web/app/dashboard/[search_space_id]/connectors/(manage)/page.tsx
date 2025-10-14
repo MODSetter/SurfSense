@@ -41,7 +41,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
 // Helper function to format date with time
@@ -65,7 +65,7 @@ export default function ConnectorsPage() {
 	const today = new Date();
 
 	const { connectors, isLoading, error, deleteConnector, indexConnector } =
-		useSearchSourceConnectors();
+		useSearchSourceConnectors(false, parseInt(searchSpaceId));
 	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(null);
 	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(null);
 	const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -138,28 +138,6 @@ export default function ConnectorsPage() {
 			toast.error(error instanceof Error ? error.message : "Failed to index connector content");
 		} finally {
 			setIndexingConnectorId(null);
-		}
-	};
-
-	const getDisabledEndDates = (date: Date) => {
-		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
-
-		switch (connector?.connector_type) {
-			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
-				return startDate ? date < startDate : false;
-			default:
-				return date > today || (startDate ? date < startDate : false);
-		}
-	};
-
-	const getDisabledStartDates = (date: Date) => {
-		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
-
-		switch (connector?.connector_type) {
-			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
-				return endDate ? date > endDate : false;
-			default:
-				return date > today || (endDate ? date > endDate : false);
 		}
 	};
 
@@ -366,7 +344,6 @@ export default function ConnectorsPage() {
 											mode="single"
 											selected={startDate}
 											onSelect={setStartDate}
-											disabled={getDisabledStartDates}
 											initialFocus
 										/>
 									</PopoverContent>
@@ -389,13 +366,7 @@ export default function ConnectorsPage() {
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar
-											mode="single"
-											selected={endDate}
-											onSelect={setEndDate}
-											disabled={getDisabledEndDates}
-											initialFocus
-										/>
+										<Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
 									</PopoverContent>
 								</Popover>
 							</div>

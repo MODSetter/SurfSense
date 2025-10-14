@@ -12,9 +12,13 @@ const ROLE_ICONS = {
 	strategic: Bot,
 };
 
-export function CompletionStep() {
-	const { llmConfigs } = useLLMConfigs();
-	const { preferences } = useLLMPreferences();
+interface CompletionStepProps {
+	searchSpaceId: number;
+}
+
+export function CompletionStep({ searchSpaceId }: CompletionStepProps) {
+	const { llmConfigs } = useLLMConfigs(searchSpaceId);
+	const { preferences } = useLLMPreferences(searchSpaceId);
 
 	const assignedConfigs = {
 		long_context: llmConfigs.find((c) => c.id === preferences.long_context_llm_id),

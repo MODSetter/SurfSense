@@ -17,37 +17,24 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
+import { LANGUAGES } from "@/contracts/enums/languages";
 import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 
-const LLM_PROVIDERS = [
-	{ value: "OPENAI", label: "OpenAI", example: "gpt-4o, gpt-4, gpt-3.5-turbo" },
-	{
-		value: "ANTHROPIC",
-		label: "Anthropic",
-		example: "claude-3-5-sonnet-20241022, claude-3-opus-20240229",
-	},
-	{ value: "GROQ", label: "Groq", example: "llama3-70b-8192, mixtral-8x7b-32768" },
-	{ value: "COHERE", label: "Cohere", example: "command-r-plus, command-r" },
-	{ value: "HUGGINGFACE", label: "HuggingFace", example: "microsoft/DialoGPT-medium" },
-	{ value: "AZURE_OPENAI", label: "Azure OpenAI", example: "gpt-4, gpt-35-turbo" },
-	{ value: "GOOGLE", label: "Google", example: "gemini-pro, gemini-pro-vision" },
-	{ value: "AWS_BEDROCK", label: "AWS Bedrock", example: "anthropic.claude-v2" },
-	{ value: "OLLAMA", label: "Ollama", example: "llama2, codellama" },
-	{ value: "MISTRAL", label: "Mistral", example: "mistral-large-latest, mistral-medium" },
-	{ value: "TOGETHER_AI", label: "Together AI", example: "togethercomputer/llama-2-70b-chat" },
-	{ value: "REPLICATE", label: "Replicate", example: "meta/llama-2-70b-chat" },
-	{ value: "OPENROUTER", label: "OpenRouter", example: "anthropic/claude-opus-4.1, openai/gpt-5" },
-	{ value: "COMETAPI", label: "CometAPI", example: "gpt-4o, claude-3-5-sonnet-20241022" },
-	{ value: "CUSTOM", label: "Custom Provider", example: "your-custom-model" },
-];
+import InferenceParamsEditor from "../inference-params-editor";
 
 interface AddProviderStepProps {
+	searchSpaceId: number;
 	onConfigCreated?: () => void;
 	onConfigDeleted?: () => void;
 }
 
-export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProviderStepProps) {
-	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs();
+export function AddProviderStep({
+	searchSpaceId,
+	onConfigCreated,
+	onConfigDeleted,
+}: AddProviderStepProps) {
+	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [formData, setFormData] = useState<CreateLLMConfig>({
 		name: "",
@@ -56,7 +43,9 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 		model_name: "",
 		api_key: "",
 		api_base: "",
+		language: "English",
 		litellm_params: {},
+		search_space_id: searchSpaceId,
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -83,7 +72,9 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 				model_name: "",
 				api_key: "",
 				api_base: "",
+				language: "English",
 				litellm_params: {},
+				search_space_id: searchSpaceId,
 			});
 			setIsAddingNew(false);
 			// Notify parent component that a config was created
@@ -92,6 +83,10 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 	};
 
 	const selectedProvider = LLM_PROVIDERS.find((p) => p.value === formData.provider);
+
+	const handleParamsChange = (newParams: Record<string, number | string>) => {
+		setFormData((prev) => ({ ...prev, litellm_params: newParams }));
+	};
 
 	return (
 		<div className="space-y-6">
@@ -127,6 +122,7 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 												</div>
 												<p className="text-sm text-muted-foreground">
 													Model: {config.model_name}
+													{config.language && ` • Language: ${config.language}`}
 													{config.api_base && ` • Base: ${config.api_base}`}
 												</p>
 											</div>
@@ -177,7 +173,7 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 					</CardHeader>
 					<CardContent>
 						<form onSubmit={handleSubmit} className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 								<div className="space-y-2">
 									<Label htmlFor="name">Configuration Name *</Label>
 									<Input
@@ -207,6 +203,27 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 										</SelectContent>
 									</Select>
 								</div>
+
+								{/* language */}
+								<div className="space-y-2">
+									<Label htmlFor="language">Language (Optional)</Label>
+									<Select
+										value={formData.language || "English"}
+										onValueChange={(value) => handleInputChange("language", value)}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Select language" />
+										</SelectTrigger>
+										<SelectContent>
+											{LANGUAGES.map((language) => (
+												<SelectItem key={language.value} value={language.value}>
+													{language.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+								
 							</div>
 
 							{formData.provider === "CUSTOM" && (
@@ -257,6 +274,14 @@ export function AddProviderStep({ onConfigCreated, onConfigDeleted }: AddProvide
 									placeholder="e.g., https://api.openai.com/v1"
 									value={formData.api_base}
 									onChange={(e) => handleInputChange("api_base", e.target.value)}
+								/>
+							</div>
+
+							{/* Optional Inference Parameters */}
+							<div className="pt-4">
+								<InferenceParamsEditor
+									params={formData.litellm_params || {}}
+									setParams={handleParamsChange}
 								/>
 							</div>
 

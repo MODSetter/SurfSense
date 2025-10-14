@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/useSearchSourceConnectors";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const clickupConnectorFormSchema = z.object({
@@ -69,7 +69,7 @@ export default function ClickUpConnectorPage() {
 				last_indexed_at: null,
 			};
 
-			await createConnector(connectorData);
+			await createConnector(connectorData, parseInt(searchSpaceId));
 
 			toast.success("ClickUp connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);

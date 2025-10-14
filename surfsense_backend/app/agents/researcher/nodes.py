@@ -577,6 +577,8 @@ async def write_answer_outline(
     user_query = configuration.user_query
     num_sections = configuration.num_sections
     user_id = configuration.user_id
+    search_space_id = configuration.search_space_id
+    language = configuration.language  # Get language from configuration
 
     writer(
         {
@@ -587,9 +589,9 @@ async def write_answer_outline(
     )
 
     # Get user's strategic LLM
-    llm = await get_user_strategic_llm(state.db_session, user_id)
+    llm = await get_user_strategic_llm(state.db_session, user_id, search_space_id)
     if not llm:
-        error_message = f"No strategic LLM configured for user {user_id}"
+        error_message = f"No strategic LLM configured for user {user_id} in search space {search_space_id}"
         writer({"yield_value": streaming_service.format_error(error_message)})
         raise RuntimeError(error_message)
 
@@ -627,7 +629,7 @@ async def write_answer_outline(
 
     # Create messages for the LLM
     messages = [
-        SystemMessage(content=get_answer_outline_system_prompt()),
+        SystemMessage(content=get_answer_outline_system_prompt(language=language)),
         HumanMessage(content=human_message_content),
     ]
 
@@ -1010,7 +1012,10 @@ async def fetch_relevant_documents(
                         source_object,
                         tavily_chunks,
                     ) = await connector_service.search_tavily(
-                        user_query=reformulated_query, user_id=user_id, top_k=top_k
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
                     )
 
                     # Add to sources and raw documents
@@ -1028,6 +1033,30 @@ async def fetch_relevant_documents(
                             }
                         )
 
+                elif connector == "SEARXNG_API":
+                    (
+                        source_object,
+                        searx_chunks,
+                    ) = await connector_service.search_searxng(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                    )
+
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(searx_chunks)
+
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"🌐 Found {len(searx_chunks)} SearxNG results related to your query"
+                                )
+                            }
+                        )
+
                 elif connector == "LINKUP_API":
                     linkup_mode = "standard"
 
@@ -1037,6 +1066,7 @@ async def fetch_relevant_documents(
                     ) = await connector_service.search_linkup(
                         user_query=reformulated_query,
                         user_id=user_id,
+                        search_space_id=search_space_id,
                         mode=linkup_mode,
                     )
 
@@ -1850,6 +1880,7 @@ async def reformulate_user_query(
             user_query=user_query,
             session=state.db_session,
             user_id=configuration.user_id,
+            search_space_id=configuration.search_space_id,
             chat_history_str=chat_history_str,
         )
 
@@ -1994,6 +2025,7 @@ async def handle_qna_workflow(
             "relevant_documents": all_documents,  # Use combined documents
             "user_id": configuration.user_id,
             "search_space_id": configuration.search_space_id,
+            "language": configuration.language,
         }
     }
 
@@ -2089,6 +2121,7 @@ async def generate_further_questions(
     configuration = Configuration.from_runnable_config(config)
     chat_history = state.chat_history
     user_id = configuration.user_id
+    search_space_id = configuration.search_space_id
     streaming_service = state.streaming_service
 
     # Get reranked documents from the state (will be populated by sub-agents)
@@ -2103,9 +2136,9 @@ async def generate_further_questions(
     )
 
     # Get user's fast LLM
-    llm = await get_user_fast_llm(state.db_session, user_id)
+    llm = await get_user_fast_llm(state.db_session, user_id, search_space_id)
     if not llm:
-        error_message = f"No fast LLM configured for user {user_id}"
+        error_message = f"No fast LLM configured for user {user_id} in search space {search_space_id}"
         print(error_message)
         writer({"yield_value": streaming_service.format_error(error_message)})
 

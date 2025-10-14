@@ -33,7 +33,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
-} from "@/hooks/useSearchSourceConnectors";
+} from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const lumaConnectorFormSchema = z.object({
@@ -55,7 +55,10 @@ export default function LumaConnectorPage() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { fetchConnectors, createConnector } = useSearchSourceConnectors();
+	const { fetchConnectors, createConnector } = useSearchSourceConnectors(
+		true,
+		parseInt(searchSpaceId)
+	);
 
 	// Initialize the form
 	const form = useForm<LumaConnectorFormValues>({
@@ -67,29 +70,38 @@ export default function LumaConnectorPage() {
 	});
 
 	useEffect(() => {
-		fetchConnectors().then((data) => {
-			const connector = data.find(
-				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.LUMA_CONNECTOR
-			);
-			if (connector) {
-				setDoesConnectorExist(true);
-			}
-		});
-	}, [fetchConnectors]);
+		fetchConnectors(parseInt(searchSpaceId))
+			.then((data) => {
+				if (data && Array.isArray(data)) {
+					const connector = data.find(
+						(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.LUMA_CONNECTOR
+					);
+					if (connector) {
+						setDoesConnectorExist(true);
+					}
+				}
+			})
+			.catch((error) => {
+				console.error("Error fetching connectors:", error);
+			});
+	}, [fetchConnectors, searchSpaceId]);
 
 	// Handle form submission
 	const onSubmit = async (values: LumaConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector({
-				name: values.name,
-				connector_type: EnumConnectorName.LUMA_CONNECTOR,
-				config: {
-					LUMA_API_KEY: values.api_key,
+			await createConnector(
+				{
+					name: values.name,
+					connector_type: EnumConnectorName.LUMA_CONNECTOR,
+					config: {
+						LUMA_API_KEY: values.api_key,
+					},
+					is_indexable: true,
+					last_indexed_at: null,
 				},
-				is_indexable: true,
-				last_indexed_at: null,
-			});
+				parseInt(searchSpaceId)
+			);
 
 			toast.success("Luma connector created successfully!");
 

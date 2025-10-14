@@ -39,6 +39,7 @@ class SearchSourceConnectorUpdate(BaseModel):
 
 
 class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampModel):
+    search_space_id: int
     user_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)

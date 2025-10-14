@@ -213,7 +213,9 @@ async def index_github_repos(
                         continue
 
                     # Generate summary with metadata
-                    user_llm = await get_user_long_context_llm(session, user_id)
+                    user_llm = await get_user_long_context_llm(
+                        session, user_id, search_space_id
+                    )
                     if user_llm:
                         # Extract file extension from file path
                         file_extension = (
