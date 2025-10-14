@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, time
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -13,6 +14,12 @@ class ConnectorScheduleBase(BaseModel):
     schedule_type: ScheduleType
     cron_expression: str | None = None
     is_active: bool = True
+    
+    # Enhanced time selection options
+    daily_time: Optional[time] = None  # For DAILY schedules (default: 02:00)
+    weekly_day: Optional[int] = None  # For WEEKLY schedules (0=Monday, 6=Sunday, default: 6)
+    weekly_time: Optional[time] = None  # For WEEKLY schedules (default: 02:00)
+    hourly_minute: Optional[int] = None  # For HOURLY schedules (0-59, default: 0)
 
     @field_validator("cron_expression")
     @classmethod
@@ -27,6 +34,54 @@ class ConnectorScheduleBase(BaseModel):
             raise ValueError(
                 f"cron_expression should only be provided for CUSTOM schedule_type, got {schedule_type}"
             )
+        return v
+    
+    @field_validator("daily_time")
+    @classmethod
+    def validate_daily_time(cls, v: time | None, values: dict) -> time | None:
+        """Validate daily_time is only provided for DAILY schedule type."""
+        schedule_type = values.data.get("schedule_type")
+        if v is not None and schedule_type != ScheduleType.DAILY:
+            raise ValueError(
+                "daily_time should only be provided for DAILY schedule_type"
+            )
+        return v
+    
+    @field_validator("weekly_day")
+    @classmethod
+    def validate_weekly_day(cls, v: int | None, values: dict) -> int | None:
+        """Validate weekly_day is only provided for WEEKLY schedule type."""
+        schedule_type = values.data.get("schedule_type")
+        if v is not None and schedule_type != ScheduleType.WEEKLY:
+            raise ValueError(
+                "weekly_day should only be provided for WEEKLY schedule_type"
+            )
+        if v is not None and not (0 <= v <= 6):
+            raise ValueError("weekly_day must be between 0 (Monday) and 6 (Sunday)")
+        return v
+    
+    @field_validator("weekly_time")
+    @classmethod
+    def validate_weekly_time(cls, v: time | None, values: dict) -> time | None:
+        """Validate weekly_time is only provided for WEEKLY schedule type."""
+        schedule_type = values.data.get("schedule_type")
+        if v is not None and schedule_type != ScheduleType.WEEKLY:
+            raise ValueError(
+                "weekly_time should only be provided for WEEKLY schedule_type"
+            )
+        return v
+    
+    @field_validator("hourly_minute")
+    @classmethod
+    def validate_hourly_minute(cls, v: int | None, values: dict) -> int | None:
+        """Validate hourly_minute is only provided for HOURLY schedule type."""
+        schedule_type = values.data.get("schedule_type")
+        if v is not None and schedule_type != ScheduleType.HOURLY:
+            raise ValueError(
+                "hourly_minute should only be provided for HOURLY schedule_type"
+            )
+        if v is not None and not (0 <= v <= 59):
+            raise ValueError("hourly_minute must be between 0 and 59")
         return v
 
 
