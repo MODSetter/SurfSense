@@ -93,6 +93,17 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
+	// Handle provider change with auto-fill API Base URL / 处理 Provider 变更并自动填充 API Base URL
+	const handleProviderChange = (providerValue: string) => {
+		const provider = LLM_PROVIDERS.find((p) => p.value === providerValue);
+		setFormData((prev) => ({
+			...prev,
+			provider: providerValue,
+			// Auto-fill API Base URL if provider has a default / 如果提供商有默认值则自动填充
+			api_base: provider?.apiBase || prev.api_base,
+		}));
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!formData.name || !formData.provider || !formData.model_name || !formData.api_key) {
@@ -480,7 +491,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 								<Label htmlFor="provider">Provider *</Label>
 								<Select
 									value={formData.provider}
-									onValueChange={(value) => handleInputChange("provider", value)}
+									onValueChange={handleProviderChange}
 								>
 									<SelectTrigger>
 										<SelectValue placeholder="Select a provider">
@@ -568,13 +579,39 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="api_base">API Base URL (Optional)</Label>
+							<Label htmlFor="api_base">
+								API Base URL 
+								{selectedProvider?.apiBase && (
+									<span className="text-xs font-normal text-muted-foreground ml-2">
+										(Auto-filled for {selectedProvider.label})
+									</span>
+								)}
+							</Label>
 							<Input
 								id="api_base"
-								placeholder="e.g., https://api.openai.com/v1"
+								placeholder={selectedProvider?.apiBase || "e.g., https://api.openai.com/v1"}
 								value={formData.api_base}
 								onChange={(e) => handleInputChange("api_base", e.target.value)}
 							/>
+							{selectedProvider?.apiBase && formData.api_base === selectedProvider.apiBase && (
+								<p className="text-xs text-green-600 flex items-center gap-1">
+									<CheckCircle className="h-3 w-3" />
+									Using recommended API endpoint for {selectedProvider.label}
+								</p>
+							)}
+							{selectedProvider?.apiBase && !formData.api_base && (
+								<p className="text-xs text-amber-600 flex items-center gap-1">
+									<AlertCircle className="h-3 w-3" />
+									⚠️ API Base URL is required for {selectedProvider.label}. Click to auto-fill: 
+									<button 
+										type="button"
+										className="underline font-medium"
+										onClick={() => handleInputChange("api_base", selectedProvider.apiBase || "")}
+									>
+										{selectedProvider.apiBase}
+									</button>
+								</p>
+							)}
 						</div>
 
 						{/* Optional Inference Parameters */}

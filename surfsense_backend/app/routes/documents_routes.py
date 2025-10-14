@@ -1070,6 +1070,7 @@ async def process_file_in_background(
                         },
                     )
     except Exception as e:
+        await session.rollback()
         await task_logger.log_task_failure(
             log_entry,
             f"Failed to process file: {filename}",
