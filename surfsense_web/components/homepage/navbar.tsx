@@ -86,7 +86,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					className="hidden rounded-full px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center gap-1.5"
 				>
 					<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-					<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">8.3k</span>
+					<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">9.5k</span>
 				</Link>
 				<ThemeTogglerComponent />
 				<Link

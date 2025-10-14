@@ -115,7 +115,7 @@ class ConnectorService:
                     "title": document.get("title", "Untitled Document"),
                     "description": metadata.get(
                         "og:description",
-                        metadata.get("ogDescription", chunk.get("content", "")[:100]),
+                        metadata.get("ogDescription", chunk.get("content", "")),
                     ),
                     "url": metadata.get("url", ""),
                 }
@@ -189,7 +189,7 @@ class ConnectorService:
                     "title": document.get("title", "Untitled Document"),
                     "description": metadata.get(
                         "og:description",
-                        metadata.get("ogDescription", chunk.get("content", "")[:100]),
+                        metadata.get("ogDescription", chunk.get("content", "")),
                     ),
                     "url": metadata.get("url", ""),
                 }
@@ -330,7 +330,7 @@ class ConnectorService:
                     source = {
                         "id": self.source_id_counter,
                         "title": result.get("title", "Tavily Result"),
-                        "description": result.get("content", "")[:100],
+                        "description": result.get("content", ""),
                         "url": result.get("url", ""),
                     }
                     sources_list.append(source)
@@ -520,7 +520,7 @@ class ConnectorService:
             for result in searx_results:
                 description = result.get("content") or result.get("snippet") or ""
                 if len(description) > 160:
-                    description = f"{description[:157]}..."
+                    description = f"{description}"
 
                 source = {
                     "id": self.source_id_counter,
@@ -621,9 +621,7 @@ class ConnectorService:
                     title += f" ({message_date})"
 
                 # Create a more descriptive description for Slack messages
-                description = chunk.get("content", "")[:100]
-                if len(description) == 100:
-                    description += "..."
+                description = chunk.get("content", "")
 
                 # For URL, we can use a placeholder or construct a URL to the Slack channel if available
                 url = ""
@@ -717,7 +715,7 @@ class ConnectorService:
                     title += f" (indexed: {indexed_at})"
 
                 # Create a more descriptive description for Notion pages
-                description = chunk.get("content", "")[:100]
+                description = chunk.get("content", "")
                 if len(description) == 100:
                     description += "..."
 
@@ -829,7 +827,7 @@ class ConnectorService:
                         title += f" (visited: {visit_date})"
 
                 # Create a more descriptive description for extension data
-                description = chunk.get("content", "")[:100]
+                description = chunk.get("content", "")
                 if len(description) == 100:
                     description += "..."
 
@@ -936,9 +934,7 @@ class ConnectorService:
                     title += f" - {channel_name}"
 
                 # Create a more descriptive description for YouTube videos
-                description = metadata.get(
-                    "description", chunk.get("content", "")[:100]
-                )
+                description = metadata.get("description", chunk.get("content", ""))
                 if len(description) == 100:
                     description += "..."
 
@@ -1024,7 +1020,7 @@ class ConnectorService:
                         "title", "GitHub Document"
                     ),  # Use specific title if available
                     "description": metadata.get(
-                        "description", chunk.get("content", "")[:100]
+                        "description", chunk.get("content", "")
                     ),  # Use description or content preview
                     "url": metadata.get("url", ""),  # Use URL if available in metadata
                 }
@@ -1110,7 +1106,7 @@ class ConnectorService:
                     title += f" ({issue_state})"
 
                 # Create a more descriptive description for Linear issues
-                description = chunk.get("content", "")[:100]
+                description = chunk.get("content", "")
                 if len(description) == 100:
                     description += "..."
 
@@ -1222,7 +1218,7 @@ class ConnectorService:
                     title += f" ({status})"
 
                 # Create a more descriptive description for Jira issues
-                description = chunk.get("content", "")[:100]
+                description = chunk.get("content", "")
                 if len(description) == 100:
                     description += "..."
 
@@ -1356,9 +1352,7 @@ class ConnectorService:
                         title += f" ({start_time})"
 
                 # Create a more descriptive description for calendar events
-                description = chunk.get("content", "")[:100]
-                if len(description) == 100:
-                    description += "..."
+                description = chunk.get("content", "")
 
                 # Add event info to description
                 info_parts = []
@@ -1573,9 +1567,7 @@ class ConnectorService:
                         title += f" (from {sender})"
 
                 # Create a more descriptive description for Gmail messages
-                description = chunk.get("content", "")[:150]
-                if len(description) == 150:
-                    description += "..."
+                description = chunk.get("content", "")
 
                 # Add message info to description
                 info_parts = []
@@ -1689,9 +1681,7 @@ class ConnectorService:
                     title += f" ({space_key})"
 
                 # Create a more descriptive description for Confluence pages
-                description = chunk.get("content", "")[:100]
-                if len(description) == 100:
-                    description += "..."
+                description = chunk.get("content", "")
 
                 # For URL, we can use a placeholder or construct a URL to the Confluence page if available
                 url = ""  # TODO: Add base_url to metadata
@@ -1908,7 +1898,7 @@ class ConnectorService:
                             result.name if hasattr(result, "name") else "Linkup Result"
                         ),
                         "description": (
-                            result.content[:100] if hasattr(result, "content") else ""
+                            result.content if hasattr(result, "content") else ""
                         ),
                         "url": result.url if hasattr(result, "url") else "",
                     }
@@ -2024,9 +2014,7 @@ class ConnectorService:
                     title += f" ({message_date})"
 
                 # Create a more descriptive description for Discord messages
-                description = chunk.get("content", "")[:100]
-                if len(description) == 100:
-                    description += "..."
+                description = chunk.get("content", "")
 
                 url = ""
                 guild_id = metadata.get("guild_id", "")
@@ -2143,10 +2131,7 @@ class ConnectorService:
                     except Exception:
                         title += f" ({start_time})"
 
-                # Create a more descriptive description for Luma events
-                description = chunk.get("content", "")[:150]
-                if len(description) == 150:
-                    description += "..."
+                description = chunk.get("content", "")
 
                 # Add event info to description
                 info_parts = []
