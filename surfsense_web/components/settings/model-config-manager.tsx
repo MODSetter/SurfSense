@@ -37,8 +37,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { LANGUAGES } from "@/contracts/enums/languages";
+import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 import InferenceParamsEditor from "../inference-params-editor";
 
@@ -489,10 +489,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 							<div className="space-y-2">
 								<Label htmlFor="provider">Provider *</Label>
-								<Select
-									value={formData.provider}
-									onValueChange={handleProviderChange}
-								>
+								<Select value={formData.provider} onValueChange={handleProviderChange}>
 									<SelectTrigger>
 										<SelectValue placeholder="Select a provider">
 											{formData.provider && (
@@ -548,23 +545,23 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						</div>
 
 						<div className="space-y-2">
-									<Label htmlFor="language">Language (Optional)</Label>
-									<Select
-										value={formData.language || "English"}
-										onValueChange={(value) => handleInputChange("language", value)}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select language" />
-										</SelectTrigger>
-										<SelectContent>
-											{LANGUAGES.map((language) => (
-												<SelectItem key={language.value} value={language.value}>
-													{language.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
+							<Label htmlFor="language">Language (Optional)</Label>
+							<Select
+								value={formData.language || "English"}
+								onValueChange={(value) => handleInputChange("language", value)}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Select language" />
+								</SelectTrigger>
+								<SelectContent>
+									{LANGUAGES.map((language) => (
+										<SelectItem key={language.value} value={language.value}>
+											{language.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
 
 						<div className="space-y-2">
 							<Label htmlFor="api_key">API Key *</Label>
@@ -580,7 +577,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 						<div className="space-y-2">
 							<Label htmlFor="api_base">
-								API Base URL 
+								API Base URL
 								{selectedProvider?.apiBase && (
 									<span className="text-xs font-normal text-muted-foreground ml-2">
 										(Auto-filled for {selectedProvider.label})
@@ -602,8 +599,8 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							{selectedProvider?.apiBase && !formData.api_base && (
 								<p className="text-xs text-amber-600 flex items-center gap-1">
 									<AlertCircle className="h-3 w-3" />
-									⚠️ API Base URL is required for {selectedProvider.label}. Click to auto-fill: 
-									<button 
+									⚠️ API Base URL is required for {selectedProvider.label}. Click to auto-fill:
+									<button
 										type="button"
 										className="underline font-medium"
 										onClick={() => handleInputChange("api_base", selectedProvider.apiBase || "")}
