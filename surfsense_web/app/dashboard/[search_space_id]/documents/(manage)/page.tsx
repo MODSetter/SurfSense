@@ -36,7 +36,7 @@ export default function DocumentsTable() {
 		created_at: true,
 	});
 	const [pageIndex, setPageIndex] = useState(0);
-	const [pageSize, setPageSize] = useState(10);
+	const [pageSize, setPageSize] = useState(50);
 	const [sortKey, setSortKey] = useState<SortKey>("title");
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());

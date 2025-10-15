@@ -17,8 +17,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { LANGUAGES } from "@/contracts/enums/languages";
+import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 
 import InferenceParamsEditor from "../inference-params-editor";
@@ -223,7 +223,6 @@ export function AddProviderStep({
 										</SelectContent>
 									</Select>
 								</div>
-								
 							</div>
 
 							{formData.provider === "CUSTOM" && (
