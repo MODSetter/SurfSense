@@ -161,7 +161,7 @@ async def get_recent_schedule_executions(
     Shows the execution history for monitoring and debugging.
     """
     try:
-        from app.db import ConnectorSchedule, SearchSourceConnector, Log
+        from app.db import ConnectorSchedule, SearchSourceConnector, logs
         
         # Get recent executions from the logs table
         query = (
