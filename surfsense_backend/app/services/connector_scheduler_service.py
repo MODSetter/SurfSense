@@ -126,7 +126,7 @@ class ConnectorSchedulerService:
 
     async def _get_due_schedules(self, session: AsyncSession) -> List[ConnectorSchedule]:
         """Get all schedules that are due for execution."""
-        now = datetime.now(datetime.utc)
+        now = datetime.now(timezone.utc)
 
         query = (
             select(ConnectorSchedule)
@@ -224,7 +224,7 @@ class ConnectorSchedulerService:
                     "%Y-%m-%d"
                 )
 
-            end_date = datetime.now(datetime.utc).strftime("%Y-%m-%d")
+            end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
             # Execute the indexer function
             documents_processed, error_message = await indexer_func(

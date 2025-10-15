@@ -242,10 +242,16 @@ async def update_connector_schedule(
         # Update fields that were provided
         update_data = schedule_update.model_dump(exclude_unset=True)
         
+        # Check if any time-related fields changed (requiring next_run recalc)
+        time_fields_changed = any(
+            field in update_data 
+            for field in ["daily_time", "weekly_day", "weekly_time", "hourly_minute"]
+        )
+        
         # If schedule_type is being updated, recalculate next_run_at
-        if "schedule_type" in update_data:
+        if "schedule_type" in update_data or time_fields_changed:
             # Use the new schedule_type and existing values for calculation
-            new_schedule_type = update_data["schedule_type"]
+            new_schedule_type = update_data.get("schedule_type", schedule.schedule_type)
             cron_expr = update_data.get("cron_expression", schedule.cron_expression)
             daily_time = update_data.get("daily_time", schedule.daily_time)
             weekly_day = update_data.get("weekly_day", schedule.weekly_day)

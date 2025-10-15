@@ -10,7 +10,7 @@ from sqlalchemy import select, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db import get_async_session
+from app.db import get_async_session, Log
 from app.schemas import ConnectorScheduleRead
 from app.services.connector_scheduler_service import get_scheduler
 from app.users import User, current_active_user
@@ -161,35 +161,37 @@ async def get_recent_schedule_executions(
     Shows the execution history for monitoring and debugging.
     """
     try:
-        from app.db import ConnectorSchedule, SearchSourceConnector, logs
+        from app.db import ConnectorSchedule, SearchSourceConnector
         
         # Get recent executions from the logs table
         query = (
             select(Log)
-            .join(SearchSourceConnector, Log.metadata["connector_id"].astext.cast(Integer) == SearchSourceConnector.id)
+            .join(SearchSourceConnector, Log.log_metadata["connector_id"].astext.cast(Integer) == SearchSourceConnector.id)
             .filter(
                 SearchSourceConnector.user_id == user.id,
-                Log.task_name.like("scheduled_sync_%"),
+                Log.message.like("Scheduled sync%"),
             )
             .order_by(Log.created_at.desc())
             .limit(limit)
         )
         
         result = await session.execute(query)
-        logs = result.scalars().all()
+        log_rows = result.scalars().all()
         
         executions = []
-        for log in logs:
+        for log in log_rows:
             executions.append({
                 "log_id": log.id,
-                "task_name": log.task_name,
-                "status": log.status,
+                "task_name": log.log_metadata.get("task_name") if log.log_metadata else None,
+                "status": log.status.value,
+                "level": log.level.value,
+                "message": log.message,
+                "source": log.source,
                 "created_at": log.created_at,
-                "completed_at": log.completed_at,
-                "connector_id": log.metadata.get("connector_id") if log.metadata else None,
-                "schedule_id": log.metadata.get("schedule_id") if log.metadata else None,
-                "error_message": log.error_message,
-                "documents_processed": log.metadata.get("documents_processed") if log.metadata else None,
+                "search_space_id": log.search_space_id,
+                "connector_id": log.log_metadata.get("connector_id") if log.log_metadata else None,
+                "schedule_id": log.log_metadata.get("schedule_id") if log.log_metadata else None,
+                "documents_processed": log.log_metadata.get("documents_processed") if log.log_metadata else None,
             })
             
         return executions
