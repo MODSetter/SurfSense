@@ -43,6 +43,7 @@ dependencies = [
     "youtube-transcript-api>=1.0.3",
     "litellm>=1.77.5",
     "langchain-litellm>=0.2.3",
+    "faster-whisper>=1.1.0",
 ]
 
 [dependency-groups]

@@ -784,25 +784,59 @@ async def process_file_in_background(
                 {"file_type": "audio", "processing_stage": "starting_transcription"},
             )
 
-            # Open the audio file for transcription
-            with open(file_path, "rb") as audio_file:
+            # Determine STT service type
+            stt_service_type = "local" if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/") else "external"
+            
+            # Check if using local STT service
+            if stt_service_type == "local":
+                # Use local Faster-Whisper for transcription
+                from app.services.stt_service import stt_service
+                
+                try:
+                    result = stt_service.transcribe_file(file_path)
+                    transcribed_text = result.get("text", "")
+                    
+                    if not transcribed_text:
+                        raise ValueError("Transcription returned empty text")
+                    
+                    # Add metadata about the transcription
+                    transcribed_text = (
+                        f"# Transcription of {filename}\n\n{transcribed_text}"
+                    )
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Failed to transcribe audio file {filename}: {str(e)}"
+                    ) from e
+                
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Local STT transcription completed: {filename}",
+                    {
+                        "processing_stage": "local_transcription_complete",
+                        "language": result.get("language"),
+                        "confidence": result.get("language_probability"),
+                        "duration": result.get("duration"),
+                    },
+                )
+            else:
                 # Use LiteLLM for audio transcription
-                if app_config.STT_SERVICE_API_BASE:
-                    transcription_response = await atranscription(
-                        model=app_config.STT_SERVICE,
-                        file=audio_file,
-                        api_base=app_config.STT_SERVICE_API_BASE,
-                        api_key=app_config.STT_SERVICE_API_KEY,
-                    )
-                else:
-                    transcription_response = await atranscription(
-                        model=app_config.STT_SERVICE,
-                        api_key=app_config.STT_SERVICE_API_KEY,
-                        file=audio_file,
-                    )
+                with open(file_path, "rb") as audio_file:
+                    transcription_kwargs = {
+                        "model": app_config.STT_SERVICE,
+                        "file": audio_file,
+                        "api_key": app_config.STT_SERVICE_API_KEY,
+                    }
+                    if app_config.STT_SERVICE_API_BASE:
+                        transcription_kwargs["api_base"] = app_config.STT_SERVICE_API_BASE
+                    
+                    transcription_response = await atranscription(**transcription_kwargs)
 
-                # Extract the transcribed text
-                transcribed_text = transcription_response.get("text", "")
+                    # Extract the transcribed text
+                    transcribed_text = transcription_response.get("text", "")
+                    
+                    if not transcribed_text:
+                        raise ValueError("Transcription returned empty text")
 
                 # Add metadata about the transcription
                 transcribed_text = (
@@ -839,6 +873,7 @@ async def process_file_in_background(
                         "content_hash": result.content_hash,
                         "file_type": "audio",
                         "transcript_length": len(transcribed_text),
+                        "stt_service": stt_service_type,
                     },
                 )
             else:
