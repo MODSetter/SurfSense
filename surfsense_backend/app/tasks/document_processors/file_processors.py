@@ -15,10 +15,11 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
-    check_duplicate_document,
+    check_document_by_unique_identifier,
 )
 
 
@@ -47,19 +48,31 @@ async def add_received_file_document_using_unstructured(
             unstructured_processed_elements
         )
 
+        # Generate unique identifier hash for this file
+        unique_identifier_hash = generate_unique_identifier_hash(
+            DocumentType.FILE, file_name, search_space_id
+        )
+
+        # Generate content hash
         content_hash = generate_content_hash(file_in_markdown, search_space_id)
 
-        # Check if document with this content hash already exists
-        existing_document = await check_duplicate_document(session, content_hash)
+        # Check if document with this unique identifier already exists
+        existing_document = await check_document_by_unique_identifier(
+            session, unique_identifier_hash
+        )
+
         if existing_document:
-            logging.info(
-                f"Document with content hash {content_hash} already exists. Skipping processing."
-            )
-            return existing_document
+            # Document exists - check if content has changed
+            if existing_document.content_hash == content_hash:
+                logging.info(f"Document for file {file_name} unchanged. Skipping.")
+                return existing_document
+            else:
+                # Content has changed - update the existing document
+                logging.info(
+                    f"Content changed for file {file_name}. Updating document."
+                )
 
-        # TODO: Check if file_markdown exceeds token limit of embedding model
-
-        # Get user's long context LLM
+        # Get user's long context LLM (needed for both create and update)
         user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
         if not user_llm:
             raise RuntimeError(
@@ -79,24 +92,42 @@ async def add_received_file_document_using_unstructured(
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
 
-        # Create and store document
-        document = Document(
-            search_space_id=search_space_id,
-            title=file_name,
-            document_type=DocumentType.FILE,
-            document_metadata={
+        # Update or create document
+        if existing_document:
+            # Update existing document
+            existing_document.title = file_name
+            existing_document.content = summary_content
+            existing_document.content_hash = content_hash
+            existing_document.embedding = summary_embedding
+            existing_document.document_metadata = {
                 "FILE_NAME": file_name,
                 "ETL_SERVICE": "UNSTRUCTURED",
-            },
-            content=summary_content,
-            embedding=summary_embedding,
-            chunks=chunks,
-            content_hash=content_hash,
-        )
+            }
+            existing_document.chunks = chunks
 
-        session.add(document)
-        await session.commit()
-        await session.refresh(document)
+            await session.commit()
+            await session.refresh(existing_document)
+            document = existing_document
+        else:
+            # Create new document
+            document = Document(
+                search_space_id=search_space_id,
+                title=file_name,
+                document_type=DocumentType.FILE,
+                document_metadata={
+                    "FILE_NAME": file_name,
+                    "ETL_SERVICE": "UNSTRUCTURED",
+                },
+                content=summary_content,
+                embedding=summary_embedding,
+                chunks=chunks,
+                content_hash=content_hash,
+                unique_identifier_hash=unique_identifier_hash,
+            )
+
+            session.add(document)
+            await session.commit()
+            await session.refresh(document)
 
         return document
     except SQLAlchemyError as db_error:
@@ -131,17 +162,31 @@ async def add_received_file_document_using_llamacloud(
         # Combine all markdown documents into one
         file_in_markdown = llamacloud_markdown_document
 
+        # Generate unique identifier hash for this file
+        unique_identifier_hash = generate_unique_identifier_hash(
+            DocumentType.FILE, file_name, search_space_id
+        )
+
+        # Generate content hash
         content_hash = generate_content_hash(file_in_markdown, search_space_id)
 
-        # Check if document with this content hash already exists
-        existing_document = await check_duplicate_document(session, content_hash)
-        if existing_document:
-            logging.info(
-                f"Document with content hash {content_hash} already exists. Skipping processing."
-            )
-            return existing_document
+        # Check if document with this unique identifier already exists
+        existing_document = await check_document_by_unique_identifier(
+            session, unique_identifier_hash
+        )
 
-        # Get user's long context LLM
+        if existing_document:
+            # Document exists - check if content has changed
+            if existing_document.content_hash == content_hash:
+                logging.info(f"Document for file {file_name} unchanged. Skipping.")
+                return existing_document
+            else:
+                # Content has changed - update the existing document
+                logging.info(
+                    f"Content changed for file {file_name}. Updating document."
+                )
+
+        # Get user's long context LLM (needed for both create and update)
         user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
         if not user_llm:
             raise RuntimeError(
@@ -161,24 +206,42 @@ async def add_received_file_document_using_llamacloud(
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
 
-        # Create and store document
-        document = Document(
-            search_space_id=search_space_id,
-            title=file_name,
-            document_type=DocumentType.FILE,
-            document_metadata={
+        # Update or create document
+        if existing_document:
+            # Update existing document
+            existing_document.title = file_name
+            existing_document.content = summary_content
+            existing_document.content_hash = content_hash
+            existing_document.embedding = summary_embedding
+            existing_document.document_metadata = {
                 "FILE_NAME": file_name,
                 "ETL_SERVICE": "LLAMACLOUD",
-            },
-            content=summary_content,
-            embedding=summary_embedding,
-            chunks=chunks,
-            content_hash=content_hash,
-        )
+            }
+            existing_document.chunks = chunks
 
-        session.add(document)
-        await session.commit()
-        await session.refresh(document)
+            await session.commit()
+            await session.refresh(existing_document)
+            document = existing_document
+        else:
+            # Create new document
+            document = Document(
+                search_space_id=search_space_id,
+                title=file_name,
+                document_type=DocumentType.FILE,
+                document_metadata={
+                    "FILE_NAME": file_name,
+                    "ETL_SERVICE": "LLAMACLOUD",
+                },
+                content=summary_content,
+                embedding=summary_embedding,
+                chunks=chunks,
+                content_hash=content_hash,
+                unique_identifier_hash=unique_identifier_hash,
+            )
+
+            session.add(document)
+            await session.commit()
+            await session.refresh(document)
 
         return document
     except SQLAlchemyError as db_error:
@@ -214,17 +277,31 @@ async def add_received_file_document_using_docling(
     try:
         file_in_markdown = docling_markdown_document
 
+        # Generate unique identifier hash for this file
+        unique_identifier_hash = generate_unique_identifier_hash(
+            DocumentType.FILE, file_name, search_space_id
+        )
+
+        # Generate content hash
         content_hash = generate_content_hash(file_in_markdown, search_space_id)
 
-        # Check if document with this content hash already exists
-        existing_document = await check_duplicate_document(session, content_hash)
-        if existing_document:
-            logging.info(
-                f"Document with content hash {content_hash} already exists. Skipping processing."
-            )
-            return existing_document
+        # Check if document with this unique identifier already exists
+        existing_document = await check_document_by_unique_identifier(
+            session, unique_identifier_hash
+        )
 
-        # Get user's long context LLM
+        if existing_document:
+            # Document exists - check if content has changed
+            if existing_document.content_hash == content_hash:
+                logging.info(f"Document for file {file_name} unchanged. Skipping.")
+                return existing_document
+            else:
+                # Content has changed - update the existing document
+                logging.info(
+                    f"Content changed for file {file_name}. Updating document."
+                )
+
+        # Get user's long context LLM (needed for both create and update)
         user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
         if not user_llm:
             raise RuntimeError(
@@ -268,20 +345,38 @@ async def add_received_file_document_using_docling(
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
 
-        # Create and store document
-        document = Document(
-            search_space_id=search_space_id,
-            title=file_name,
-            document_type=DocumentType.FILE,
-            document_metadata={
+        # Update or create document
+        if existing_document:
+            # Update existing document
+            existing_document.title = file_name
+            existing_document.content = enhanced_summary_content
+            existing_document.content_hash = content_hash
+            existing_document.embedding = summary_embedding
+            existing_document.document_metadata = {
                 "FILE_NAME": file_name,
                 "ETL_SERVICE": "DOCLING",
-            },
-            content=enhanced_summary_content,
-            embedding=summary_embedding,
-            chunks=chunks,
-            content_hash=content_hash,
-        )
+            }
+            existing_document.chunks = chunks
+
+            await session.commit()
+            await session.refresh(existing_document)
+            document = existing_document
+        else:
+            # Create new document
+            document = Document(
+                search_space_id=search_space_id,
+                title=file_name,
+                document_type=DocumentType.FILE,
+                document_metadata={
+                    "FILE_NAME": file_name,
+                    "ETL_SERVICE": "DOCLING",
+                },
+                content=enhanced_summary_content,
+                embedding=summary_embedding,
+                chunks=chunks,
+                content_hash=content_hash,
+                unique_identifier_hash=unique_identifier_hash,
+            )
 
         session.add(document)
         await session.commit()

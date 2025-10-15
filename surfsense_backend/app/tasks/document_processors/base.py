@@ -29,3 +29,27 @@ async def check_duplicate_document(
         select(Document).where(Document.content_hash == content_hash)
     )
     return existing_doc_result.scalars().first()
+
+
+async def check_document_by_unique_identifier(
+    session: AsyncSession, unique_identifier_hash: str
+) -> Document | None:
+    """
+    Check if a document with the given unique identifier hash already exists.
+    Eagerly loads chunks to avoid lazy loading issues during updates.
+
+    Args:
+        session: Database session
+        unique_identifier_hash: Hash of the unique identifier from the source
+
+    Returns:
+        Existing document if found, None otherwise
+    """
+    from sqlalchemy.orm import selectinload
+
+    existing_doc_result = await session.execute(
+        select(Document)
+        .options(selectinload(Document.chunks))
+        .where(Document.unique_identifier_hash == unique_identifier_hash)
+    )
+    return existing_doc_result.scalars().first()

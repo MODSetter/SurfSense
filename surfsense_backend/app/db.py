@@ -174,6 +174,7 @@ class Document(BaseModel, TimestampMixin):
 
     content = Column(Text, nullable=False)
     content_hash = Column(String, nullable=False, index=True, unique=True)
+    unique_identifier_hash = Column(String, nullable=True, index=True, unique=True)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
 
     search_space_id = Column(

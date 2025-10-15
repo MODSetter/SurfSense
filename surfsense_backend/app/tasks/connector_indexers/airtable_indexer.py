@@ -16,11 +16,12 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
     calculate_date_range,
-    check_duplicate_document_by_hash,
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -240,25 +241,100 @@ async def index_airtable_records(
                                 documents_skipped += 1
                                 continue
 
+                            record_id = record.get("id", "Unknown")
+
+                            # Generate unique identifier hash for this Airtable record
+                            unique_identifier_hash = generate_unique_identifier_hash(
+                                DocumentType.AIRTABLE_CONNECTOR,
+                                record_id,
+                                search_space_id,
+                            )
+
                             # Generate content hash
                             content_hash = generate_content_hash(
                                 markdown_content, search_space_id
                             )
 
-                            # Check if document already exists
-                            existing_document_by_hash = (
-                                await check_duplicate_document_by_hash(
-                                    session, content_hash
+                            # Check if document with this unique identifier already exists
+                            existing_document = (
+                                await check_document_by_unique_identifier(
+                                    session, unique_identifier_hash
                                 )
                             )
 
-                            if existing_document_by_hash:
-                                logger.info(
-                                    f"Document with content hash {content_hash} already exists for message {record.get('id')}. Skipping processing."
-                                )
-                                documents_skipped += 1
-                                continue
+                            if existing_document:
+                                # Document exists - check if content has changed
+                                if existing_document.content_hash == content_hash:
+                                    logger.info(
+                                        f"Document for Airtable record {record_id} unchanged. Skipping."
+                                    )
+                                    documents_skipped += 1
+                                    continue
+                                else:
+                                    # Content has changed - update the existing document
+                                    logger.info(
+                                        f"Content changed for Airtable record {record_id}. Updating document."
+                                    )
 
+                                    # Generate document summary
+                                    user_llm = await get_user_long_context_llm(
+                                        session, user_id, search_space_id
+                                    )
+
+                                    if user_llm:
+                                        document_metadata = {
+                                            "record_id": record_id,
+                                            "created_time": record.get(
+                                                "CREATED_TIME()", ""
+                                            ),
+                                            "document_type": "Airtable Record",
+                                            "connector_type": "Airtable",
+                                        }
+                                        (
+                                            summary_content,
+                                            summary_embedding,
+                                        ) = await generate_document_summary(
+                                            markdown_content,
+                                            user_llm,
+                                            document_metadata,
+                                        )
+                                    else:
+                                        summary_content = (
+                                            f"Airtable Record: {record_id}\n\n"
+                                        )
+                                        summary_embedding = (
+                                            config.embedding_model_instance.embed(
+                                                summary_content
+                                            )
+                                        )
+
+                                    # Process chunks
+                                    chunks = await create_document_chunks(
+                                        markdown_content
+                                    )
+
+                                    # Update existing document
+                                    existing_document.title = (
+                                        f"Airtable Record: {record_id}"
+                                    )
+                                    existing_document.content = summary_content
+                                    existing_document.content_hash = content_hash
+                                    existing_document.embedding = summary_embedding
+                                    existing_document.document_metadata = {
+                                        "record_id": record_id,
+                                        "created_time": record.get(
+                                            "CREATED_TIME()", ""
+                                        ),
+                                    }
+                                    existing_document.chunks = chunks
+
+                                    documents_indexed += 1
+                                    logger.info(
+                                        f"Successfully updated Airtable record {record_id}"
+                                    )
+                                    continue
+
+                            # Document doesn't exist - create new one
                             # Generate document summary
                             user_llm = await get_user_long_context_llm(
                                 session, user_id, search_space_id
@@ -266,7 +342,7 @@ async def index_airtable_records(
 
                             if user_llm:
                                 document_metadata = {
-                                    "record_id": record.get("id", "Unknown"),
+                                    "record_id": record_id,
                                     "created_time": record.get("CREATED_TIME()", ""),
                                     "document_type": "Airtable Record",
                                     "connector_type": "Airtable",
@@ -279,7 +355,7 @@ async def index_airtable_records(
                                 )
                             else:
                                 # Fallback to simple summary if no LLM configured
-                                summary_content = f"Airtable Record: {record.get('id', 'Unknown')}\n\n"
+                                summary_content = f"Airtable Record: {record_id}\n\n"
                                 summary_embedding = (
                                     config.embedding_model_instance.embed(
                                         summary_content
@@ -291,18 +367,19 @@ async def index_airtable_records(
 
                             # Create and store new document
                             logger.info(
-                                f"Creating new document for Airtable record: {record.get('id', 'Unknown')}"
+                                f"Creating new document for Airtable record: {record_id}"
                             )
                             document = Document(
                                 search_space_id=search_space_id,
-                                title=f"Airtable Record: {record.get('id', 'Unknown')}",
+                                title=f"Airtable Record: {record_id}",
                                 document_type=DocumentType.AIRTABLE_CONNECTOR,
                                 document_metadata={
-                                    "record_id": record.get("id", "Unknown"),
+                                    "record_id": record_id,
                                     "created_time": record.get("CREATED_TIME()", ""),
                                 },
                                 content=summary_content,
                                 content_hash=content_hash,
+                                unique_identifier_hash=unique_identifier_hash,
                                 embedding=summary_embedding,
                                 chunks=chunks,
                             )

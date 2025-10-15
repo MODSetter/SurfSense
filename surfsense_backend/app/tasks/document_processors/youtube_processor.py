@@ -17,10 +17,11 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
-    check_duplicate_document,
+    check_document_by_unique_identifier,
 )
 
 
@@ -201,32 +202,54 @@ async def add_youtube_video_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
-        content_hash = generate_content_hash(combined_document_string, search_space_id)
 
-        # Check for duplicates
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Checking for duplicate video content: {video_id}",
-            {"stage": "duplicate_check", "content_hash": content_hash},
+        # Generate unique identifier hash for this YouTube video
+        unique_identifier_hash = generate_unique_identifier_hash(
+            DocumentType.YOUTUBE_VIDEO, video_id, search_space_id
         )
 
-        existing_document = await check_duplicate_document(session, content_hash)
-        if existing_document:
-            await task_logger.log_task_success(
-                log_entry,
-                f"YouTube video document already exists: {video_data.get('title', 'YouTube Video')}",
-                {
-                    "duplicate_detected": True,
-                    "existing_document_id": existing_document.id,
-                    "video_id": video_id,
-                },
-            )
-            logging.info(
-                f"Document with content hash {content_hash} already exists. Skipping processing."
-            )
-            return existing_document
+        # Generate content hash
+        content_hash = generate_content_hash(combined_document_string, search_space_id)
 
-        # Get LLM for summary generation
+        # Check if document with this unique identifier already exists
+        await task_logger.log_task_progress(
+            log_entry,
+            f"Checking for existing video: {video_id}",
+            {"stage": "duplicate_check", "video_id": video_id},
+        )
+
+        existing_document = await check_document_by_unique_identifier(
+            session, unique_identifier_hash
+        )
+
+        if existing_document:
+            # Document exists - check if content has changed
+            if existing_document.content_hash == content_hash:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"YouTube video document unchanged: {video_data.get('title', 'YouTube Video')}",
+                    {
+                        "duplicate_detected": True,
+                        "existing_document_id": existing_document.id,
+                        "video_id": video_id,
+                    },
+                )
+                logging.info(
+                    f"Document for YouTube video {video_id} unchanged. Skipping."
+                )
+                return existing_document
+            else:
+                # Content has changed - update the existing document
+                logging.info(
+                    f"Content changed for YouTube video {video_id}. Updating document."
+                )
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Updating YouTube video document: {video_data.get('title', 'YouTube Video')}",
+                    {"stage": "document_update", "video_id": video_id},
+                )
+
+        # Get LLM for summary generation (needed for both create and update)
         await task_logger.log_task_progress(
             log_entry,
             f"Preparing for summary generation: {video_data.get('title', 'YouTube Video')}",
@@ -270,33 +293,60 @@ async def add_youtube_video_document(
 
         chunks = await create_document_chunks(combined_document_string)
 
-        # Create document
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Creating YouTube video document in database: {video_data.get('title', 'YouTube Video')}",
-            {"stage": "document_creation", "chunks_count": len(chunks)},
-        )
+        # Update or create document
+        if existing_document:
+            # Update existing document
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Updating YouTube video document in database: {video_data.get('title', 'YouTube Video')}",
+                {"stage": "document_update", "chunks_count": len(chunks)},
+            )
 
-        document = Document(
-            title=video_data.get("title", "YouTube Video"),
-            document_type=DocumentType.YOUTUBE_VIDEO,
-            document_metadata={
+            existing_document.title = video_data.get("title", "YouTube Video")
+            existing_document.content = summary_content
+            existing_document.content_hash = content_hash
+            existing_document.embedding = summary_embedding
+            existing_document.document_metadata = {
                 "url": url,
                 "video_id": video_id,
                 "video_title": video_data.get("title", "YouTube Video"),
                 "author": video_data.get("author_name", "Unknown"),
                 "thumbnail": video_data.get("thumbnail_url", ""),
-            },
-            content=summary_content,
-            embedding=summary_embedding,
-            chunks=chunks,
-            search_space_id=search_space_id,
-            content_hash=content_hash,
-        )
+            }
+            existing_document.chunks = chunks
 
-        session.add(document)
-        await session.commit()
-        await session.refresh(document)
+            await session.commit()
+            await session.refresh(existing_document)
+            document = existing_document
+        else:
+            # Create new document
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Creating YouTube video document in database: {video_data.get('title', 'YouTube Video')}",
+                {"stage": "document_creation", "chunks_count": len(chunks)},
+            )
+
+            document = Document(
+                title=video_data.get("title", "YouTube Video"),
+                document_type=DocumentType.YOUTUBE_VIDEO,
+                document_metadata={
+                    "url": url,
+                    "video_id": video_id,
+                    "video_title": video_data.get("title", "YouTube Video"),
+                    "author": video_data.get("author_name", "Unknown"),
+                    "thumbnail": video_data.get("thumbnail_url", ""),
+                },
+                content=summary_content,
+                embedding=summary_embedding,
+                chunks=chunks,
+                search_space_id=search_space_id,
+                content_hash=content_hash,
+                unique_identifier_hash=unique_identifier_hash,
+            )
+
+            session.add(document)
+            await session.commit()
+            await session.refresh(document)
 
         # Log success
         await task_logger.log_task_success(
