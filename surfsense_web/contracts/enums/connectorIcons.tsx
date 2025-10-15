@@ -34,6 +34,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconWorldWww {...iconProps} />;
 		case EnumConnectorName.SEARXNG_API:
 			return <Globe {...iconProps} />;
+		case EnumConnectorName.BAIDU_SEARCH_API:
+			return <Search {...iconProps} />;
 		case EnumConnectorName.SLACK_CONNECTOR:
 			return <IconBrandSlack {...iconProps} />;
 		case EnumConnectorName.NOTION_CONNECTOR:
