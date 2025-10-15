@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Time,
     UniqueConstraint,
     text,
 )
@@ -316,6 +317,11 @@ class ConnectorSchedule(BaseModel, TimestampMixin):
     )
     schedule_type = Column(SQLAlchemyEnum(ScheduleType), nullable=False)
     cron_expression = Column(String(100), nullable=True)
+    # Optional schedule config fields (persist user selections)
+    daily_time = Column(Time(timezone=False), nullable=True)
+    weekly_day = Column(Integer, nullable=True)  # 0=Mon .. 6=Sun
+    weekly_time = Column(Time(timezone=False), nullable=True)
+    hourly_minute = Column(Integer, nullable=True)  # 0..59
     is_active = Column(Boolean, nullable=False, default=True, index=True)
     last_run_at = Column(TIMESTAMP(timezone=True), nullable=True)
     next_run_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)

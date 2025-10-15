@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import config
 from app.db import User, create_db_and_tables, get_async_session
 from app.routes import router as crud_router
+from app.routes.connector_schedules_routes import router as connector_schedules_router
 from app.routes.scheduler_routes import router as scheduler_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.services.connector_scheduler_service import start_scheduler, stop_scheduler
@@ -43,10 +44,8 @@ async def lifespan(app: FastAPI):
     # Cancel the scheduler task
     if not scheduler_task.done():
         scheduler_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await scheduler_task
-        except asyncio.CancelledError:
-            pass
     
     logger.info("Application shutdown complete")
 
@@ -98,6 +97,7 @@ if config.AUTH_TYPE == "GOOGLE":
     )
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
+app.include_router(connector_schedules_router, prefix="/api/v1", tags=["connector-schedules"])
 app.include_router(scheduler_router, prefix="/api/v1", tags=["scheduler"])
 
 

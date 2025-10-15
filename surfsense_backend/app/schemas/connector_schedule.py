@@ -1,7 +1,7 @@
 from datetime import datetime, time
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, FieldValidationInfo, field_validator
 
 from app.db import ScheduleType
 
@@ -23,9 +23,9 @@ class ConnectorScheduleBase(BaseModel):
 
     @field_validator("cron_expression")
     @classmethod
-    def validate_cron_expression(cls, v: str | None, values: dict) -> str | None:
+    def validate_cron_expression(cls, v: str | None, info: FieldValidationInfo) -> str | None:
         """Validate cron expression is provided when schedule_type is CUSTOM."""
-        schedule_type = values.data.get("schedule_type")
+        schedule_type = info.data.get("schedule_type")
         if schedule_type == ScheduleType.CUSTOM and not v:
             raise ValueError(
                 "cron_expression is required when schedule_type is CUSTOM"
@@ -38,9 +38,9 @@ class ConnectorScheduleBase(BaseModel):
     
     @field_validator("daily_time")
     @classmethod
-    def validate_daily_time(cls, v: time | None, values: dict) -> time | None:
+    def validate_daily_time(cls, v: time | None, info: FieldValidationInfo) -> time | None:
         """Validate daily_time is only provided for DAILY schedule type."""
-        schedule_type = values.data.get("schedule_type")
+        schedule_type = info.data.get("schedule_type")
         if v is not None and schedule_type != ScheduleType.DAILY:
             raise ValueError(
                 "daily_time should only be provided for DAILY schedule_type"
@@ -49,9 +49,9 @@ class ConnectorScheduleBase(BaseModel):
     
     @field_validator("weekly_day")
     @classmethod
-    def validate_weekly_day(cls, v: int | None, values: dict) -> int | None:
+    def validate_weekly_day(cls, v: int | None, info: FieldValidationInfo) -> int | None:
         """Validate weekly_day is only provided for WEEKLY schedule type."""
-        schedule_type = values.data.get("schedule_type")
+        schedule_type = info.data.get("schedule_type")
         if v is not None and schedule_type != ScheduleType.WEEKLY:
             raise ValueError(
                 "weekly_day should only be provided for WEEKLY schedule_type"
@@ -62,9 +62,9 @@ class ConnectorScheduleBase(BaseModel):
     
     @field_validator("weekly_time")
     @classmethod
-    def validate_weekly_time(cls, v: time | None, values: dict) -> time | None:
+    def validate_weekly_time(cls, v: time | None, info: FieldValidationInfo) -> time | None:
         """Validate weekly_time is only provided for WEEKLY schedule type."""
-        schedule_type = values.data.get("schedule_type")
+        schedule_type = info.data.get("schedule_type")
         if v is not None and schedule_type != ScheduleType.WEEKLY:
             raise ValueError(
                 "weekly_time should only be provided for WEEKLY schedule_type"
@@ -73,9 +73,9 @@ class ConnectorScheduleBase(BaseModel):
     
     @field_validator("hourly_minute")
     @classmethod
-    def validate_hourly_minute(cls, v: int | None, values: dict) -> int | None:
+    def validate_hourly_minute(cls, v: int | None, info: FieldValidationInfo) -> int | None:
         """Validate hourly_minute is only provided for HOURLY schedule type."""
-        schedule_type = values.data.get("schedule_type")
+        schedule_type = info.data.get("schedule_type")
         if v is not None and schedule_type != ScheduleType.HOURLY:
             raise ValueError(
                 "hourly_minute should only be provided for HOURLY schedule_type"
@@ -100,9 +100,9 @@ class ConnectorScheduleUpdate(BaseModel):
 
     @field_validator("cron_expression")
     @classmethod
-    def validate_cron_expression_update(cls, v: str | None, values: dict) -> str | None:
+    def validate_cron_expression_update(cls, v: str | None, info: FieldValidationInfo) -> str | None:
         """Validate cron expression for updates."""
-        schedule_type = values.data.get("schedule_type")
+        schedule_type = info.data.get("schedule_type")
         if schedule_type == ScheduleType.CUSTOM and v is None:
             raise ValueError(
                 "cron_expression is required when schedule_type is CUSTOM"

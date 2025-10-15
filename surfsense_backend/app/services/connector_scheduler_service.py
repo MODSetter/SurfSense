@@ -7,7 +7,7 @@ It runs as a background service to check for due schedules and execute them.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from sqlalchemy import select, update
@@ -45,7 +45,6 @@ class ConnectorSchedulerService:
     """Service for managing automated connector scheduling and execution."""
 
     def __init__(self):
-        self.task_logger = TaskLoggingService()
         self.running = False
         self.check_interval = 60  # Check every 60 seconds
         self.max_concurrent_jobs = 5  # Maximum concurrent indexing jobs
@@ -127,7 +126,7 @@ class ConnectorSchedulerService:
 
     async def _get_due_schedules(self, session: AsyncSession) -> List[ConnectorSchedule]:
         """Get all schedules that are due for execution."""
-        now = datetime.utcnow()
+        now = datetime.now(datetime.utc)
 
         query = (
             select(ConnectorSchedule)
@@ -204,9 +203,10 @@ class ConnectorSchedulerService:
 
         try:
             # Create a task log entry
-            log_entry = await self.task_logger.log_task_start(
-                session,
+            task_logger = TaskLoggingService(session, schedule.search_space_id)
+            log_entry = await task_logger.log_task_start(
                 f"scheduled_sync_{connector.connector_type.value}",
+                "connector_scheduler",
                 f"Scheduled sync for {connector.name}",
                 {
                     "schedule_id": schedule_id,
@@ -224,7 +224,7 @@ class ConnectorSchedulerService:
                     "%Y-%m-%d"
                 )
 
-            end_date = datetime.utcnow().strftime("%Y-%m-%d")
+            end_date = datetime.now(datetime.utc).strftime("%Y-%m-%d")
 
             # Execute the indexer function
             documents_processed, error_message = await indexer_func(
@@ -238,7 +238,7 @@ class ConnectorSchedulerService:
             )
 
             if error_message:
-                await self.task_logger.log_task_failure(
+                await task_logger.log_task_failure(
                     log_entry,
                     f"Scheduled sync failed for {connector.name}",
                     error_message,
@@ -248,7 +248,7 @@ class ConnectorSchedulerService:
                     f"Scheduled sync failed for connector {connector.name}: {error_message}"
                 )
             else:
-                await self.task_logger.log_task_success(
+                await task_logger.log_task_success(
                     log_entry,
                     f"Scheduled sync completed for {connector.name}",
                     {"documents_processed": documents_processed},
@@ -279,7 +279,7 @@ class ConnectorSchedulerService:
         await session.execute(
             update(ConnectorSchedule)
             .filter(ConnectorSchedule.id == schedule_id)
-            .values(last_run_at=datetime.utcnow())
+            .values(last_run_at=datetime.now(timezone.utc))
         )
         await session.commit()
 
@@ -288,7 +288,12 @@ class ConnectorSchedulerService:
     ):
         """Update the next_run_at timestamp for a schedule."""
         next_run = calculate_next_run(
-            schedule.schedule_type, schedule.cron_expression
+            schedule.schedule_type, 
+            schedule.cron_expression,
+            schedule.daily_time,
+            schedule.weekly_day,
+            schedule.weekly_time,
+            schedule.hourly_minute
         )
 
         await session.execute(
@@ -302,7 +307,7 @@ class ConnectorSchedulerService:
             f"Updated next run time for schedule {schedule.id} to {next_run}"
         )
 
-    async def get_scheduler_status(self) -> Dict:
+    async def get_scheduler_status(self) -> dict:
         """Get the current status of the scheduler service."""
         return {
             "running": self.running,

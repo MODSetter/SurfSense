@@ -9,7 +9,6 @@ PATCH /connector-schedules/{schedule_id}/toggle - Activate/deactivate a schedule
 """
 
 import logging
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +17,7 @@ from sqlalchemy.future import select
 
 from app.db import (
     ConnectorSchedule,
+    ScheduleType,
     SearchSourceConnector,
     SearchSpace,
     User,
@@ -66,6 +66,13 @@ async def create_connector_schedule(
         # Verify search space belongs to user
         await check_ownership(session, SearchSpace, schedule.search_space_id, user)
 
+        # Ensure the connector belongs to the same search space
+        if connector.search_space_id != schedule.search_space_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Connector does not belong to the provided search space",
+            )
+
         # Check if schedule already exists for this connector-space pair
         result = await session.execute(
             select(ConnectorSchedule).filter(
@@ -82,13 +89,29 @@ async def create_connector_schedule(
 
         # Calculate next run time
         next_run_at = calculate_next_run(
-            schedule.schedule_type, schedule.cron_expression
+            schedule.schedule_type, 
+            schedule.cron_expression,
+            schedule.daily_time,
+            schedule.weekly_day,
+            schedule.weekly_time,
+            schedule.hourly_minute
         )
 
-        # Create schedule
-        db_schedule = ConnectorSchedule(
-            **schedule.model_dump(), next_run_at=next_run_at
+        # Create schedule (only DB columns)
+        db_data = schedule.model_dump(
+            include={
+                "connector_id", 
+                "search_space_id", 
+                "schedule_type", 
+                "cron_expression", 
+                "daily_time",
+                "weekly_day",
+                "weekly_time",
+                "hourly_minute",
+                "is_active"
+            }
         )
+        db_schedule = ConnectorSchedule(**db_data, next_run_at=next_run_at)
         session.add(db_schedule)
         await session.commit()
         await session.refresh(db_schedule)
@@ -203,4 +226,139 @@ async def update_connector_schedule(
     Can update schedule_type, cron_expression, and is_active.
     If schedule_type changes, next_run_at is recalculated automatically.
     """
+    try:
+        # Get the existing schedule
+        result = await session.execute(
+            select(ConnectorSchedule).filter(ConnectorSchedule.id == schedule_id)
+        )
+        schedule = result.scalars().first()
+
+        if not schedule:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+
+        # Verify schedule's connector belongs to user
+        await check_ownership(session, SearchSourceConnector, schedule.connector_id, user)
+
+        # Update fields that were provided
+        update_data = schedule_update.model_dump(exclude_unset=True)
+        
+        # If schedule_type is being updated, recalculate next_run_at
+        if "schedule_type" in update_data:
+            # Use the new schedule_type and existing values for calculation
+            new_schedule_type = update_data["schedule_type"]
+            cron_expr = update_data.get("cron_expression", schedule.cron_expression)
+            daily_time = update_data.get("daily_time", schedule.daily_time)
+            weekly_day = update_data.get("weekly_day", schedule.weekly_day)
+            weekly_time = update_data.get("weekly_time", schedule.weekly_time)
+            hourly_minute = update_data.get("hourly_minute", schedule.hourly_minute)
+            update_data["next_run_at"] = calculate_next_run(
+                new_schedule_type, cron_expr, daily_time, weekly_day, weekly_time, hourly_minute
+            )
+        elif "cron_expression" in update_data and schedule.schedule_type == ScheduleType.CUSTOM:
+            # If only cron_expression is updated for CUSTOM schedule, recalculate next_run_at
+            update_data["next_run_at"] = calculate_next_run(
+                schedule.schedule_type, 
+                update_data["cron_expression"],
+                schedule.daily_time,
+                schedule.weekly_day,
+                schedule.weekly_time,
+                schedule.hourly_minute
+            )
+
+        # Apply updates
+        for field, value in update_data.items():
+            setattr(schedule, field, value)
+
+        await session.commit()
+        await session.refresh(schedule)
+
+        logger.info(f"Updated schedule {schedule_id} with fields: {list(update_data.keys())}")
+        return schedule
+
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to update connector schedule: {e!s}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update connector schedule: {e!s}"
+        ) from e
+
+
+@router.delete("/connector-schedules/{schedule_id}")
+async def delete_connector_schedule(
+    schedule_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Delete a connector schedule."""
+    try:
+        # Get the existing schedule
+        result = await session.execute(
+            select(ConnectorSchedule).filter(ConnectorSchedule.id == schedule_id)
+        )
+        schedule = result.scalars().first()
+
+        if not schedule:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+
+        # Verify schedule's connector belongs to user
+        await check_ownership(session, SearchSourceConnector, schedule.connector_id, user)
+
+        # Delete the schedule
+        await session.delete(schedule)
+        await session.commit()
+
+        logger.info(f"Deleted schedule {schedule_id}")
+        return {"message": "Schedule deleted successfully"}
+
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to delete connector schedule: {e!s}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete connector schedule: {e!s}"
+        ) from e
+
+
+@router.patch("/connector-schedules/{schedule_id}/toggle", response_model=ConnectorScheduleRead)
+async def toggle_connector_schedule(
+    schedule_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Toggle the active status of a connector schedule."""
+    try:
+        # Get the existing schedule
+        result = await session.execute(
+            select(ConnectorSchedule).filter(ConnectorSchedule.id == schedule_id)
+        )
+        schedule = result.scalars().first()
+
+        if not schedule:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+
+        # Verify schedule's connector belongs to user
+        await check_ownership(session, SearchSourceConnector, schedule.connector_id, user)
+
+        # Toggle the active status
+        schedule.is_active = not schedule.is_active
+        await session.commit()
+        await session.refresh(schedule)
+
+        logger.info(f"Toggled schedule {schedule_id} to {'active' if schedule.is_active else 'inactive'}")
+        return schedule
+
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to toggle connector schedule: {e!s}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to toggle connector schedule: {e!s}"
+        ) from e
  
