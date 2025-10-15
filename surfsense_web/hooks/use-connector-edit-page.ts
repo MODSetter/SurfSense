@@ -337,12 +337,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					const originalSafesearch = originalConfig.SEARXNG_SAFESEARCH;
 					if (safesearchRaw) {
 						const parsed = Number(safesearchRaw);
-						if (
-							Number.isNaN(parsed) ||
-							!Number.isInteger(parsed) ||
-							parsed < 0 ||
-							parsed > 2
-						) {
+						if (Number.isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0 || parsed > 2) {
 							toast.error("SearxNG SafeSearch must be 0, 1, or 2.");
 							setIsSaving(false);
 							return;
@@ -521,10 +516,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							"SEARXNG_CATEGORIES",
 							normalizeListInput(newlySavedConfig.SEARXNG_CATEGORIES).join(", ")
 						);
-						editForm.setValue(
-							"SEARXNG_LANGUAGE",
-							newlySavedConfig.SEARXNG_LANGUAGE || ""
-						);
+						editForm.setValue("SEARXNG_LANGUAGE", newlySavedConfig.SEARXNG_LANGUAGE || "");
 						editForm.setValue(
 							"SEARXNG_SAFESEARCH",
 							newlySavedConfig.SEARXNG_SAFESEARCH === null ||

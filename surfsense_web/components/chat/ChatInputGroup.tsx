@@ -334,9 +334,13 @@ ResearchModeSelector.displayName = "ResearchModeSelector";
 const LLMSelector = React.memo(() => {
 	const { search_space_id } = useParams();
 	const searchSpaceId = Number(search_space_id);
-	
+
 	const { llmConfigs, loading: llmLoading, error } = useLLMConfigs(searchSpaceId);
-	const { preferences, updatePreferences, loading: preferencesLoading } = useLLMPreferences(searchSpaceId);
+	const {
+		preferences,
+		updatePreferences,
+		loading: preferencesLoading,
+	} = useLLMPreferences(searchSpaceId);
 
 	const isLoading = llmLoading || preferencesLoading;
 
