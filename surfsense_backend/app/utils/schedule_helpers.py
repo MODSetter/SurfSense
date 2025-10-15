@@ -1,6 +1,6 @@
 """Helper utilities for calculating schedule next run times."""
 
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, timezone
 
 from croniter import croniter
 
@@ -27,18 +27,18 @@ def calculate_next_run(
         hourly_minute: Optional minute for HOURLY schedules (0-59, default: 0)
 
     Returns:
-        datetime: The next scheduled run time
+        datetime: The next scheduled run time (timezone-aware in UTC)
 
     Raises:
         ValueError: If schedule_type is CUSTOM but no cron_expression provided
     """
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
 
     if schedule_type == ScheduleType.HOURLY:
         # Run at the specified minute of the next hour
         minute = hourly_minute if hourly_minute is not None else 0
         next_run = (now + timedelta(hours=1)).replace(minute=minute, second=0, microsecond=0)
-        return next_run
+        return next_run.replace(tzinfo=timezone.utc)
 
     elif schedule_type == ScheduleType.DAILY:
         # Run at the specified time next day
@@ -46,7 +46,7 @@ def calculate_next_run(
         next_run = now.replace(hour=target_time.hour, minute=target_time.minute, second=0, microsecond=0)
         if next_run <= now:
             next_run += timedelta(days=1)
-        return next_run
+        return next_run.replace(tzinfo=timezone.utc)
 
     elif schedule_type == ScheduleType.WEEKLY:
         # Run on the specified day at the specified time
@@ -61,14 +61,18 @@ def calculate_next_run(
             days_until_target = 7
         
         next_run += timedelta(days=days_until_target)
-        return next_run
+        return next_run.replace(tzinfo=timezone.utc)
 
     elif schedule_type == ScheduleType.CUSTOM:
         if not cron_expression:
             raise ValueError("cron_expression is required for CUSTOM schedule type")
         try:
             cron = croniter(cron_expression, now)
-            return cron.get_next(datetime)
+            next_run = cron.get_next(datetime)
+            # Ensure the returned datetime is timezone-aware in UTC
+            if next_run.tzinfo is None:
+                next_run = next_run.replace(tzinfo=timezone.utc)
+            return next_run
         except Exception as e:
             raise ValueError(f"Invalid cron expression: {cron_expression}") from e
 

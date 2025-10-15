@@ -9,6 +9,7 @@ PATCH /connector-schedules/{schedule_id}/toggle - Activate/deactivate a schedule
 """
 
 import logging
+from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -87,15 +88,17 @@ async def create_connector_schedule(
                 detail=f"A schedule already exists for connector {schedule.connector_id} and search space {schedule.search_space_id}",
             )
 
-        # Calculate next run time
-        next_run_at = calculate_next_run(
-            schedule.schedule_type, 
-            schedule.cron_expression,
-            schedule.daily_time,
-            schedule.weekly_day,
-            schedule.weekly_time,
-            schedule.hourly_minute
-        )
+        # Calculate next run time only if schedule is active
+        next_run_at = None
+        if schedule.is_active:
+            next_run_at = calculate_next_run(
+                schedule.schedule_type, 
+                schedule.cron_expression,
+                schedule.daily_time,
+                schedule.weekly_day,
+                schedule.weekly_time,
+                schedule.hourly_minute
+            )
 
         # Create schedule (only DB columns)
         db_data = schedule.model_dump(
@@ -242,34 +245,78 @@ async def update_connector_schedule(
         # Update fields that were provided
         update_data = schedule_update.model_dump(exclude_unset=True)
         
+        # Effective types/values after this update (for validation and next-run calc)
+        effective_type = update_data.get("schedule_type", schedule.schedule_type)
+        effective_cron = update_data.get("cron_expression", schedule.cron_expression)
+        effective_daily = update_data.get("daily_time", schedule.daily_time)
+        effective_weekly_day = update_data.get("weekly_day", schedule.weekly_day)
+        effective_weekly_time = update_data.get("weekly_time", schedule.weekly_time)
+        effective_hourly_minute = update_data.get("hourly_minute", schedule.hourly_minute)
+        will_be_active = update_data.get("is_active", schedule.is_active)
+
+        # Disallow cron for non-CUSTOM schedules
+        if "cron_expression" in update_data and effective_type != ScheduleType.CUSTOM:
+            raise HTTPException(
+                status_code=400,
+                detail="cron_expression is only valid when schedule_type is CUSTOM",
+            )
+        
         # Check if any time-related fields changed (requiring next_run recalc)
         time_fields_changed = any(
             field in update_data 
             for field in ["daily_time", "weekly_day", "weekly_time", "hourly_minute"]
         )
         
-        # If schedule_type is being updated, recalculate next_run_at
+        # If schedule_type is being updated or time fields changed, recalculate next_run_at
         if "schedule_type" in update_data or time_fields_changed:
-            # Use the new schedule_type and existing values for calculation
-            new_schedule_type = update_data.get("schedule_type", schedule.schedule_type)
-            cron_expr = update_data.get("cron_expression", schedule.cron_expression)
-            daily_time = update_data.get("daily_time", schedule.daily_time)
-            weekly_day = update_data.get("weekly_day", schedule.weekly_day)
-            weekly_time = update_data.get("weekly_time", schedule.weekly_time)
-            hourly_minute = update_data.get("hourly_minute", schedule.hourly_minute)
-            update_data["next_run_at"] = calculate_next_run(
-                new_schedule_type, cron_expr, daily_time, weekly_day, weekly_time, hourly_minute
-            )
+            if will_be_active:
+                update_data["next_run_at"] = calculate_next_run(
+                    effective_type,
+                    effective_cron,
+                    effective_daily,
+                    effective_weekly_day,
+                    effective_weekly_time,
+                    effective_hourly_minute,
+                )
+                # Ensure timezone-aware UTC
+                if update_data["next_run_at"].tzinfo is None:
+                    update_data["next_run_at"] = update_data["next_run_at"].replace(tzinfo=timezone.utc)
+            else:
+                update_data["next_run_at"] = None
         elif "cron_expression" in update_data and schedule.schedule_type == ScheduleType.CUSTOM:
             # If only cron_expression is updated for CUSTOM schedule, recalculate next_run_at
-            update_data["next_run_at"] = calculate_next_run(
-                schedule.schedule_type, 
-                update_data["cron_expression"],
-                schedule.daily_time,
-                schedule.weekly_day,
-                schedule.weekly_time,
-                schedule.hourly_minute
-            )
+            if will_be_active:
+                update_data["next_run_at"] = calculate_next_run(
+                    schedule.schedule_type,
+                    update_data["cron_expression"],
+                    schedule.daily_time,
+                    schedule.weekly_day,
+                    schedule.weekly_time,
+                    schedule.hourly_minute,
+                )
+                # Ensure timezone-aware UTC
+                if update_data["next_run_at"].tzinfo is None:
+                    update_data["next_run_at"] = update_data["next_run_at"].replace(tzinfo=timezone.utc)
+            else:
+                update_data["next_run_at"] = None
+
+        # Handle activation toggles
+        if "is_active" in update_data:
+            if update_data["is_active"] is False:
+                update_data["next_run_at"] = None
+            elif update_data["is_active"] is True and "next_run_at" not in update_data:
+                # Schedule is being activated and next_run_at wasn't already calculated above
+                next_run = calculate_next_run(
+                    effective_type,
+                    effective_cron,
+                    effective_daily,
+                    effective_weekly_day,
+                    effective_weekly_time,
+                    effective_hourly_minute,
+                )
+                if next_run.tzinfo is None:
+                    next_run = next_run.replace(tzinfo=timezone.utc)
+                update_data["next_run_at"] = next_run
 
         # Apply updates
         for field, value in update_data.items():
@@ -352,6 +399,23 @@ async def toggle_connector_schedule(
 
         # Toggle the active status
         schedule.is_active = not schedule.is_active
+        
+        # Update next_run_at based on new active status
+        if schedule.is_active:
+            # Schedule is being activated, calculate next_run_at if it's None
+            if schedule.next_run_at is None:
+                schedule.next_run_at = calculate_next_run(
+                    schedule.schedule_type,
+                    schedule.cron_expression,
+                    schedule.daily_time,
+                    schedule.weekly_day,
+                    schedule.weekly_time,
+                    schedule.hourly_minute
+                )
+        else:
+            # Schedule is being deactivated, set next_run_at to None
+            schedule.next_run_at = None
+        
         await session.commit()
         await session.refresh(schedule)
 
