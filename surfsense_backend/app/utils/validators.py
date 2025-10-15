@@ -295,13 +295,8 @@ def validate_messages(messages: Any) -> list[dict]:
                 status_code=400, detail=f"messages[{i}].content cannot be empty"
             )
 
-        # Trim content and enforce max length (10,000 chars)
+        # Trim content
         sanitized_content = content.strip()
-        if len(sanitized_content) > 10000:  # Reasonable limit
-            raise HTTPException(
-                status_code=400,
-                detail=f"messages[{i}].content is too long (max 10000 characters)",
-            )
 
         validated_messages.append({"role": role, "content": sanitized_content})
 
