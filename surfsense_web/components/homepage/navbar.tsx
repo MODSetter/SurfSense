@@ -161,7 +161,7 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 								>
 									<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
 									<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-										8.3k
+										9.5k
 									</span>
 								</Link>
 							</div>
