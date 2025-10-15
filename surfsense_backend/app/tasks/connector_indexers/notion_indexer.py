@@ -15,11 +15,12 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
     build_document_metadata_string,
-    check_duplicate_document_by_hash,
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -282,22 +283,82 @@ async def index_notion_pages(
                 combined_document_string = build_document_metadata_string(
                     metadata_sections
                 )
+
+                # Generate unique identifier hash for this Notion page
+                unique_identifier_hash = generate_unique_identifier_hash(
+                    DocumentType.NOTION_CONNECTOR, page_id, search_space_id
+                )
+
+                # Generate content hash
                 content_hash = generate_content_hash(
                     combined_document_string, search_space_id
                 )
 
-                # Check if document with this content hash already exists
-                existing_document_by_hash = await check_duplicate_document_by_hash(
-                    session, content_hash
+                # Check if document with this unique identifier already exists
+                existing_document = await check_document_by_unique_identifier(
+                    session, unique_identifier_hash
                 )
 
-                if existing_document_by_hash:
-                    logger.info(
-                        f"Document with content hash {content_hash} already exists for page {page_title}. Skipping processing."
-                    )
-                    documents_skipped += 1
-                    continue
+                if existing_document:
+                    # Document exists - check if content has changed
+                    if existing_document.content_hash == content_hash:
+                        logger.info(
+                            f"Document for Notion page {page_title} unchanged. Skipping."
+                        )
+                        documents_skipped += 1
+                        continue
+                    else:
+                        # Content has changed - update the existing document
+                        logger.info(
+                            f"Content changed for Notion page {page_title}. Updating document."
+                        )
 
+                        # Get user's long context LLM
+                        user_llm = await get_user_long_context_llm(
+                            session, user_id, search_space_id
+                        )
+                        if not user_llm:
+                            logger.error(
+                                f"No long context LLM configured for user {user_id}"
+                            )
+                            skipped_pages.append(f"{page_title} (no LLM configured)")
+                            documents_skipped += 1
+                            continue
+
+                        # Generate summary with metadata
+                        document_metadata = {
+                            "page_title": page_title,
+                            "page_id": page_id,
+                            "document_type": "Notion Page",
+                            "connector_type": "Notion",
+                        }
+                        (
+                            summary_content,
+                            summary_embedding,
+                        ) = await generate_document_summary(
+                            markdown_content, user_llm, document_metadata
+                        )
+
+                        # Process chunks
+                        chunks = await create_document_chunks(markdown_content)
+
+                        # Update existing document
+                        existing_document.title = f"Notion - {page_title}"
+                        existing_document.content = summary_content
+                        existing_document.content_hash = content_hash
+                        existing_document.embedding = summary_embedding
+                        existing_document.document_metadata = {
+                            "page_title": page_title,
+                            "page_id": page_id,
+                            "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        }
+                        existing_document.chunks = chunks
+
+                        documents_indexed += 1
+                        logger.info(f"Successfully updated Notion page: {page_title}")
+                        continue
+
+                # Document doesn't exist - create new one
                 # Get user's long context LLM
                 user_llm = await get_user_long_context_llm(
                     session, user_id, search_space_id
@@ -336,6 +397,7 @@ async def index_notion_pages(
                     },
                     content=summary_content,
                     content_hash=content_hash,
+                    unique_identifier_hash=unique_identifier_hash,
                     embedding=summary_embedding,
                     chunks=chunks,
                 )

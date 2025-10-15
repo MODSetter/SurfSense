@@ -16,11 +16,12 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
     calculate_date_range,
-    check_duplicate_document_by_hash,
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -217,26 +218,97 @@ async def index_confluence_pages(
                     documents_skipped += 1
                     continue
 
+                # Generate unique identifier hash for this Confluence page
+                unique_identifier_hash = generate_unique_identifier_hash(
+                    DocumentType.CONFLUENCE_CONNECTOR, page_id, search_space_id
+                )
+
                 # Generate content hash
                 content_hash = generate_content_hash(full_content, search_space_id)
 
-                # Check if document already exists
-                existing_document_by_hash = await check_duplicate_document_by_hash(
-                    session, content_hash
+                # Check if document with this unique identifier already exists
+                existing_document = await check_document_by_unique_identifier(
+                    session, unique_identifier_hash
                 )
 
-                if existing_document_by_hash:
-                    logger.info(
-                        f"Document with content hash {content_hash} already exists for page {page_title}. Skipping processing."
-                    )
-                    documents_skipped += 1
-                    continue
+                comment_count = len(comments)
 
+                if existing_document:
+                    # Document exists - check if content has changed
+                    if existing_document.content_hash == content_hash:
+                        logger.info(
+                            f"Document for Confluence page {page_title} unchanged. Skipping."
+                        )
+                        documents_skipped += 1
+                        continue
+                    else:
+                        # Content has changed - update the existing document
+                        logger.info(
+                            f"Content changed for Confluence page {page_title}. Updating document."
+                        )
+
+                        # Generate summary with metadata
+                        user_llm = await get_user_long_context_llm(
+                            session, user_id, search_space_id
+                        )
+
+                        if user_llm:
+                            document_metadata = {
+                                "page_title": page_title,
+                                "page_id": page_id,
+                                "space_id": space_id,
+                                "comment_count": comment_count,
+                                "document_type": "Confluence Page",
+                                "connector_type": "Confluence",
+                            }
+                            (
+                                summary_content,
+                                summary_embedding,
+                            ) = await generate_document_summary(
+                                full_content, user_llm, document_metadata
+                            )
+                        else:
+                            summary_content = f"Confluence Page: {page_title}\n\nSpace ID: {space_id}\n\n"
+                            if page_content:
+                                content_preview = page_content[:1000]
+                                if len(page_content) > 1000:
+                                    content_preview += "..."
+                                summary_content += (
+                                    f"Content Preview: {content_preview}\n\n"
+                                )
+                            summary_content += f"Comments: {comment_count}"
+                            summary_embedding = config.embedding_model_instance.embed(
+                                summary_content
+                            )
+
+                        # Process chunks
+                        chunks = await create_document_chunks(full_content)
+
+                        # Update existing document
+                        existing_document.title = f"Confluence - {page_title}"
+                        existing_document.content = summary_content
+                        existing_document.content_hash = content_hash
+                        existing_document.embedding = summary_embedding
+                        existing_document.document_metadata = {
+                            "page_id": page_id,
+                            "page_title": page_title,
+                            "space_id": space_id,
+                            "comment_count": comment_count,
+                            "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        }
+                        existing_document.chunks = chunks
+
+                        documents_indexed += 1
+                        logger.info(
+                            f"Successfully updated Confluence page {page_title}"
+                        )
+                        continue
+
+                # Document doesn't exist - create new one
                 # Generate summary with metadata
                 user_llm = await get_user_long_context_llm(
                     session, user_id, search_space_id
                 )
-                comment_count = len(comments)
 
                 if user_llm:
                     document_metadata = {
@@ -287,6 +359,7 @@ async def index_confluence_pages(
                     },
                     content=summary_content,
                     content_hash=content_hash,
+                    unique_identifier_hash=unique_identifier_hash,
                     embedding=summary_embedding,
                     chunks=chunks,
                 )

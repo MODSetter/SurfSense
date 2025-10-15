@@ -3,7 +3,7 @@ import hashlib
 from litellm import get_model_info, token_counter
 
 from app.config import config
-from app.db import Chunk
+from app.db import Chunk, DocumentType
 from app.prompts import SUMMARY_PROMPT_TEMPLATE
 
 
@@ -307,4 +307,41 @@ def convert_chunks_to_langchain_documents(chunks):
 def generate_content_hash(content: str, search_space_id: int) -> str:
     """Generate SHA-256 hash for the given content combined with search space ID."""
     combined_data = f"{search_space_id}:{content}"
+    return hashlib.sha256(combined_data.encode("utf-8")).hexdigest()
+
+
+def generate_unique_identifier_hash(
+    document_type: DocumentType,
+    unique_identifier: str | int | float,
+    search_space_id: int,
+) -> str:
+    """
+    Generate SHA-256 hash for a unique document identifier from connector sources.
+
+    This function creates a consistent hash based on the document type, its unique
+    identifier from the source system, and the search space ID. This helps prevent
+    duplicate documents when syncing from various connectors like Slack, Notion, Jira, etc.
+
+    Args:
+        document_type: The type of document (e.g., SLACK_CONNECTOR, NOTION_CONNECTOR)
+        unique_identifier: The unique ID from the source system (e.g., message ID, page ID)
+        search_space_id: The search space this document belongs to
+
+    Returns:
+        str: SHA-256 hash string representing the unique document identifier
+
+    Example:
+        >>> generate_unique_identifier_hash(
+        ...     DocumentType.SLACK_CONNECTOR,
+        ...     "1234567890.123456",
+        ...     42
+        ... )
+        'a1b2c3d4e5f6...'
+    """
+    # Convert unique_identifier to string to handle different types
+    identifier_str = str(unique_identifier)
+
+    # Combine document type value, unique identifier, and search space ID
+    combined_data = f"{document_type.value}:{identifier_str}:{search_space_id}"
+
     return hashlib.sha256(combined_data.encode("utf-8")).hexdigest()

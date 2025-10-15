@@ -15,10 +15,11 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
-    check_duplicate_document,
+    check_document_by_unique_identifier,
 )
 
 
@@ -85,25 +86,42 @@ async def add_extension_received_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
+
+        # Generate unique identifier hash for this extension document (using URL)
+        unique_identifier_hash = generate_unique_identifier_hash(
+            DocumentType.EXTENSION, content.metadata.VisitedWebPageURL, search_space_id
+        )
+
+        # Generate content hash
         content_hash = generate_content_hash(combined_document_string, search_space_id)
 
-        # Check if document with this content hash already exists
-        existing_document = await check_duplicate_document(session, content_hash)
-        if existing_document:
-            await task_logger.log_task_success(
-                log_entry,
-                f"Extension document already exists: {content.metadata.VisitedWebPageTitle}",
-                {
-                    "duplicate_detected": True,
-                    "existing_document_id": existing_document.id,
-                },
-            )
-            logging.info(
-                f"Document with content hash {content_hash} already exists. Skipping processing."
-            )
-            return existing_document
+        # Check if document with this unique identifier already exists
+        existing_document = await check_document_by_unique_identifier(
+            session, unique_identifier_hash
+        )
 
-        # Get user's long context LLM
+        if existing_document:
+            # Document exists - check if content has changed
+            if existing_document.content_hash == content_hash:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Extension document unchanged: {content.metadata.VisitedWebPageTitle}",
+                    {
+                        "duplicate_detected": True,
+                        "existing_document_id": existing_document.id,
+                    },
+                )
+                logging.info(
+                    f"Document for URL {content.metadata.VisitedWebPageURL} unchanged. Skipping."
+                )
+                return existing_document
+            else:
+                # Content has changed - update the existing document
+                logging.info(
+                    f"Content changed for URL {content.metadata.VisitedWebPageURL}. Updating document."
+                )
+
+        # Get user's long context LLM (needed for both create and update)
         user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
         if not user_llm:
             raise RuntimeError(
@@ -127,21 +145,36 @@ async def add_extension_received_document(
         # Process chunks
         chunks = await create_document_chunks(content.pageContent)
 
-        # Create and store document
-        document = Document(
-            search_space_id=search_space_id,
-            title=content.metadata.VisitedWebPageTitle,
-            document_type=DocumentType.EXTENSION,
-            document_metadata=content.metadata.model_dump(),
-            content=summary_content,
-            embedding=summary_embedding,
-            chunks=chunks,
-            content_hash=content_hash,
-        )
+        # Update or create document
+        if existing_document:
+            # Update existing document
+            existing_document.title = content.metadata.VisitedWebPageTitle
+            existing_document.content = summary_content
+            existing_document.content_hash = content_hash
+            existing_document.embedding = summary_embedding
+            existing_document.document_metadata = content.metadata.model_dump()
+            existing_document.chunks = chunks
 
-        session.add(document)
-        await session.commit()
-        await session.refresh(document)
+            await session.commit()
+            await session.refresh(existing_document)
+            document = existing_document
+        else:
+            # Create new document
+            document = Document(
+                search_space_id=search_space_id,
+                title=content.metadata.VisitedWebPageTitle,
+                document_type=DocumentType.EXTENSION,
+                document_metadata=content.metadata.model_dump(),
+                content=summary_content,
+                embedding=summary_embedding,
+                chunks=chunks,
+                content_hash=content_hash,
+                unique_identifier_hash=unique_identifier_hash,
+            )
+
+            session.add(document)
+            await session.commit()
+            await session.refresh(document)
 
         # Log success
         await task_logger.log_task_success(

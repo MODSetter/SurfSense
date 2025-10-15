@@ -16,10 +16,11 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
-    check_duplicate_document_by_hash,
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -209,18 +210,92 @@ async def index_clickup_tasks(
                         documents_skipped += 1
                         continue
 
-                    # Hash for duplicates
-                    content_hash = generate_content_hash(task_content, search_space_id)
-                    existing_document_by_hash = await check_duplicate_document_by_hash(
-                        session, content_hash
+                    # Generate unique identifier hash for this ClickUp task
+                    unique_identifier_hash = generate_unique_identifier_hash(
+                        DocumentType.CLICKUP_CONNECTOR, task_id, search_space_id
                     )
-                    if existing_document_by_hash:
-                        logger.info(
-                            f"Document with content hash {content_hash} already exists for task {task_name}. Skipping processing."
-                        )
-                        documents_skipped += 1
-                        continue
 
+                    # Generate content hash
+                    content_hash = generate_content_hash(task_content, search_space_id)
+
+                    # Check if document with this unique identifier already exists
+                    existing_document = await check_document_by_unique_identifier(
+                        session, unique_identifier_hash
+                    )
+
+                    if existing_document:
+                        # Document exists - check if content has changed
+                        if existing_document.content_hash == content_hash:
+                            logger.info(
+                                f"Document for ClickUp task {task_name} unchanged. Skipping."
+                            )
+                            documents_skipped += 1
+                            continue
+                        else:
+                            # Content has changed - update the existing document
+                            logger.info(
+                                f"Content changed for ClickUp task {task_name}. Updating document."
+                            )
+
+                            # Generate summary with metadata
+                            user_llm = await get_user_long_context_llm(
+                                session, user_id, search_space_id
+                            )
+
+                            if user_llm:
+                                document_metadata = {
+                                    "task_id": task_id,
+                                    "task_name": task_name,
+                                    "task_status": task_status,
+                                    "task_priority": task_priority,
+                                    "task_list": task_list_name,
+                                    "task_space": task_space_name,
+                                    "assignees": len(task_assignees),
+                                    "document_type": "ClickUp Task",
+                                    "connector_type": "ClickUp",
+                                }
+                                (
+                                    summary_content,
+                                    summary_embedding,
+                                ) = await generate_document_summary(
+                                    task_content, user_llm, document_metadata
+                                )
+                            else:
+                                summary_content = task_content
+                                summary_embedding = (
+                                    config.embedding_model_instance.embed(task_content)
+                                )
+
+                            # Process chunks
+                            chunks = await create_document_chunks(task_content)
+
+                            # Update existing document
+                            existing_document.title = f"Task - {task_name}"
+                            existing_document.content = summary_content
+                            existing_document.content_hash = content_hash
+                            existing_document.embedding = summary_embedding
+                            existing_document.document_metadata = {
+                                "task_id": task_id,
+                                "task_name": task_name,
+                                "task_status": task_status,
+                                "task_priority": task_priority,
+                                "task_assignees": task_assignees,
+                                "task_due_date": task_due_date,
+                                "task_created": task_created,
+                                "task_updated": task_updated,
+                                "indexed_at": datetime.now().strftime(
+                                    "%Y-%m-%d %H:%M:%S"
+                                ),
+                            }
+                            existing_document.chunks = chunks
+
+                            documents_indexed += 1
+                            logger.info(
+                                f"Successfully updated ClickUp task {task_name}"
+                            )
+                            continue
+
+                    # Document doesn't exist - create new one
                     # Generate summary with metadata
                     user_llm = await get_user_long_context_llm(
                         session, user_id, search_space_id
@@ -270,6 +345,7 @@ async def index_clickup_tasks(
                         },
                         content=summary_content,
                         content_hash=content_hash,
+                        unique_identifier_hash=unique_identifier_hash,
                         embedding=summary_embedding,
                         chunks=chunks,
                     )

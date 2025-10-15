@@ -17,10 +17,11 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
-    check_duplicate_document,
+    check_document_by_unique_identifier,
     md,
 )
 
@@ -129,31 +130,49 @@ async def add_crawled_url_document(
 
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
-        content_hash = generate_content_hash(combined_document_string, search_space_id)
 
-        # Check for duplicates
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Checking for duplicate content: {url}",
-            {"stage": "duplicate_check", "content_hash": content_hash},
+        # Generate unique identifier hash for this URL
+        unique_identifier_hash = generate_unique_identifier_hash(
+            DocumentType.CRAWLED_URL, url, search_space_id
         )
 
-        existing_document = await check_duplicate_document(session, content_hash)
-        if existing_document:
-            await task_logger.log_task_success(
-                log_entry,
-                f"Document already exists for URL: {url}",
-                {
-                    "duplicate_detected": True,
-                    "existing_document_id": existing_document.id,
-                },
-            )
-            logging.info(
-                f"Document with content hash {content_hash} already exists. Skipping processing."
-            )
-            return existing_document
+        # Generate content hash
+        content_hash = generate_content_hash(combined_document_string, search_space_id)
 
-        # Get LLM for summary generation
+        # Check if document with this unique identifier already exists
+        await task_logger.log_task_progress(
+            log_entry,
+            f"Checking for existing URL: {url}",
+            {"stage": "duplicate_check", "url": url},
+        )
+
+        existing_document = await check_document_by_unique_identifier(
+            session, unique_identifier_hash
+        )
+
+        if existing_document:
+            # Document exists - check if content has changed
+            if existing_document.content_hash == content_hash:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"URL document unchanged: {url}",
+                    {
+                        "duplicate_detected": True,
+                        "existing_document_id": existing_document.id,
+                    },
+                )
+                logging.info(f"Document for URL {url} unchanged. Skipping.")
+                return existing_document
+            else:
+                # Content has changed - update the existing document
+                logging.info(f"Content changed for URL {url}. Updating document.")
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Updating URL document: {url}",
+                    {"stage": "document_update", "url": url},
+                )
+
+        # Get LLM for summary generation (needed for both create and update)
         await task_logger.log_task_progress(
             log_entry,
             f"Preparing for summary generation: {url}",
@@ -194,27 +213,50 @@ async def add_crawled_url_document(
 
         chunks = await create_document_chunks(content_in_markdown)
 
-        # Create and store document
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Creating document in database for URL: {url}",
-            {"stage": "document_creation", "chunks_count": len(chunks)},
-        )
+        # Update or create document
+        if existing_document:
+            # Update existing document
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Updating document in database for URL: {url}",
+                {"stage": "document_update", "chunks_count": len(chunks)},
+            )
 
-        document = Document(
-            search_space_id=search_space_id,
-            title=url_crawled[0].metadata["title"]
-            if isinstance(crawl_loader, FireCrawlLoader)
-            else url_crawled[0].metadata["source"],
-            document_type=DocumentType.CRAWLED_URL,
-            document_metadata=url_crawled[0].metadata,
-            content=summary_content,
-            embedding=summary_embedding,
-            chunks=chunks,
-            content_hash=content_hash,
-        )
+            existing_document.title = (
+                url_crawled[0].metadata["title"]
+                if isinstance(crawl_loader, FireCrawlLoader)
+                else url_crawled[0].metadata["source"]
+            )
+            existing_document.content = summary_content
+            existing_document.content_hash = content_hash
+            existing_document.embedding = summary_embedding
+            existing_document.document_metadata = url_crawled[0].metadata
+            existing_document.chunks = chunks
 
-        session.add(document)
+            document = existing_document
+        else:
+            # Create new document
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Creating document in database for URL: {url}",
+                {"stage": "document_creation", "chunks_count": len(chunks)},
+            )
+
+            document = Document(
+                search_space_id=search_space_id,
+                title=url_crawled[0].metadata["title"]
+                if isinstance(crawl_loader, FireCrawlLoader)
+                else url_crawled[0].metadata["source"],
+                document_type=DocumentType.CRAWLED_URL,
+                document_metadata=url_crawled[0].metadata,
+                content=summary_content,
+                embedding=summary_embedding,
+                chunks=chunks,
+                content_hash=content_hash,
+                unique_identifier_hash=unique_identifier_hash,
+            )
+
+            session.add(document)
         await session.commit()
         await session.refresh(document)
 
