@@ -10,10 +10,11 @@ from sqlalchemy import select, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db import get_async_session, Log
+from app.db import get_async_session, Log, ConnectorSchedule, SearchSourceConnector
 from app.schemas import ConnectorScheduleRead
 from app.services.connector_scheduler_service import get_scheduler
 from app.users import User, current_active_user
+from app.utils.check_ownership import check_ownership
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ async def get_scheduler_status(
 async def force_execute_schedule(
     schedule_id: int,
     background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     """
@@ -58,6 +60,20 @@ async def force_execute_schedule(
     the connector sync for the specified schedule.
     """
     try:
+        # First, verify ownership of the schedule
+        # Load the schedule and verify the user owns the associated connector
+        result = await session.execute(
+            select(ConnectorSchedule).filter(ConnectorSchedule.id == schedule_id)
+        )
+        schedule = result.scalars().first()
+
+        if not schedule:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+
+        # Verify schedule's connector belongs to user
+        await check_ownership(session, SearchSourceConnector, schedule.connector_id, user)
+        
+        # Only after ownership is confirmed, proceed with scheduling
         scheduler = await get_scheduler()
         
         # Add the force execution to background tasks
@@ -72,6 +88,8 @@ async def force_execute_schedule(
             "schedule_id": schedule_id
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error force executing schedule {schedule_id}: {e}")
         raise HTTPException(

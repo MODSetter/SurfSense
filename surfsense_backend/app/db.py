@@ -336,6 +336,8 @@ class ConnectorSchedule(BaseModel, TimestampMixin):
     )
     schedule_type = Column(SQLAlchemyEnum(ScheduleType), nullable=False)
     cron_expression = Column(String(100), nullable=True)
+    # Timezone for interpreting daily_time and weekly_time (IANA zone name)
+    timezone = Column(String(50), nullable=False, default="UTC")
     # Optional schedule config fields (persist user selections)
     daily_time = Column(Time(timezone=False), nullable=True)
     weekly_day = Column(Integer, nullable=True)  # 0=Mon .. 6=Sun
@@ -445,6 +447,11 @@ if config.AUTH_TYPE == "GOOGLE":
             "OAuthAccount", lazy="joined"
         )
         search_spaces = relationship("SearchSpace", back_populates="user")
+        search_source_connectors = relationship(
+            "SearchSourceConnector",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
         search_space_preferences = relationship(
             "UserSearchSpacePreference",
             back_populates="user",

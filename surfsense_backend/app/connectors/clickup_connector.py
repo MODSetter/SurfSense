@@ -5,7 +5,7 @@ A module for retrieving data from ClickUp.
 Allows fetching tasks from workspaces and lists.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -180,40 +180,79 @@ class ClickUpConnector:
             start_timestamp = int(start_datetime.timestamp() * 1000)
             end_timestamp = int(end_datetime.timestamp() * 1000)
 
-            params = {
+            # Base parameters for both requests
+            base_params = {
                 "page": 0,
                 "order_by": "created",
                 "reverse": "true",
                 "subtasks": "true",
                 "include_closed": str(include_closed).lower(),
-                # Date filtering - filter by both created and updated dates
-                "date_created_gt": start_timestamp,
-                "date_created_lt": end_timestamp,
-                "date_updated_gt": start_timestamp,
-                "date_updated_lt": end_timestamp,
             }
 
-            all_tasks = []
-            page = 0
+            # Request 1: Filter by creation date
+            created_params = base_params.copy()
+            created_params.update({
+                "date_created_gt": start_timestamp,
+                "date_created_lt": end_timestamp,
+            })
 
-            while True:
-                params["page"] = page
-                result = self.make_api_request(f"team/{workspace_id}/task", params)
+            # Request 2: Filter by update date
+            updated_params = base_params.copy()
+            updated_params.update({
+                "date_updated_gt": start_timestamp,
+                "date_updated_lt": end_timestamp,
+            })
 
-                if not isinstance(result, dict) or "tasks" not in result:
-                    return [], "Invalid response from ClickUp API"
+            def fetch_tasks_with_params(params):
+                """Helper function to fetch all tasks for given parameters"""
+                all_tasks = []
+                page = 0
 
-                tasks = result["tasks"]
-                if not tasks:
-                    break
+                while True:
+                    params["page"] = page
+                    result = self.make_api_request(f"team/{workspace_id}/task", params)
 
-                all_tasks.extend(tasks)
+                    if not isinstance(result, dict) or "tasks" not in result:
+                        return [], "Invalid response from ClickUp API"
 
-                # Check if there are more pages
-                if len(tasks) < 100:  # ClickUp returns max 100 tasks per page
-                    break
+                    tasks = result["tasks"]
+                    if not tasks:
+                        break
 
-                page += 1
+                    all_tasks.extend(tasks)
+
+                    # Check if there are more pages
+                    if len(tasks) < 100:  # ClickUp returns max 100 tasks per page
+                        break
+
+                    page += 1
+
+                return all_tasks, None
+
+            # Fetch tasks created in date range
+            created_tasks, error = fetch_tasks_with_params(created_params)
+            if error:
+                return [], error
+
+            # Fetch tasks updated in date range
+            updated_tasks, error = fetch_tasks_with_params(updated_params)
+            if error:
+                return [], error
+
+            # Merge and deduplicate tasks by ID
+            # Use a dictionary to store unique tasks (ID as key)
+            unique_tasks = {}
+            
+            # Add created tasks
+            for task in created_tasks:
+                unique_tasks[task["id"]] = task
+            
+            # Add updated tasks (will overwrite duplicates, keeping the latest)
+            for task in updated_tasks:
+                unique_tasks[task["id"]] = task
+
+            # Convert back to list
+            all_tasks = list(unique_tasks.values())
 
             if not all_tasks:
                 return [], "No tasks found in the specified date range."

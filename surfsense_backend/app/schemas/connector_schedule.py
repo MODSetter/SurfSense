@@ -14,6 +14,7 @@ class ConnectorScheduleBase(BaseModel):
     schedule_type: ScheduleType
     cron_expression: str | None = None
     is_active: bool = True
+    timezone: str = "UTC"  # IANA timezone name for interpreting daily_time and weekly_time
     
     # Enhanced time selection options
     daily_time: Optional[time] = None  # For DAILY schedules (default: 02:00)
