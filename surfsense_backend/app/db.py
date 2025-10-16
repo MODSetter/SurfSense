@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Time,
     UniqueConstraint,
     text,
 )
@@ -127,6 +128,13 @@ class LogStatus(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+
+
+class ScheduleType(str, Enum):
+    HOURLY = "HOURLY"
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    CUSTOM = "CUSTOM"
 
 
 class Base(DeclarativeBase):
@@ -246,21 +254,10 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="Log.id",
         cascade="all, delete-orphan",
     )
-    search_source_connectors = relationship(
-        "SearchSourceConnector",
+    connector_schedules = relationship(
+        "ConnectorSchedule",
         back_populates="search_space",
-        order_by="SearchSourceConnector.id",
-        cascade="all, delete-orphan",
-    )
-    llm_configs = relationship(
-        "LLMConfig",
-        back_populates="search_space",
-        order_by="LLMConfig.id",
-        cascade="all, delete-orphan",
-    )
-    user_preferences = relationship(
-        "UserSearchSpacePreference",
-        back_populates="search_space",
+        order_by="ConnectorSchedule.id",
         cascade="all, delete-orphan",
     )
 
@@ -292,6 +289,46 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
+    user = relationship("User", back_populates="search_source_connectors")
+    schedules = relationship(
+        "ConnectorSchedule",
+        back_populates="connector",
+        cascade="all, delete-orphan",
+    )
+
+
+class ConnectorSchedule(BaseModel, TimestampMixin):
+    __tablename__ = "connector_schedules"
+    __table_args__ = (
+        UniqueConstraint(
+            "connector_id", "search_space_id", name="uq_connector_search_space"
+        ),
+    )
+
+    connector_id = Column(
+        Integer,
+        ForeignKey("search_source_connectors.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    schedule_type = Column(SQLAlchemyEnum(ScheduleType), nullable=False)
+    cron_expression = Column(String(100), nullable=True)
+    # Optional schedule config fields (persist user selections)
+    daily_time = Column(Time(timezone=False), nullable=True)
+    weekly_day = Column(Integer, nullable=True)  # 0=Mon .. 6=Sun
+    weekly_time = Column(Time(timezone=False), nullable=True)
+    hourly_minute = Column(Integer, nullable=True)  # 0..59
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    last_run_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    next_run_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
+
+    connector = relationship("SearchSourceConnector", back_populates="schedules")
+    search_space = relationship("SearchSpace", back_populates="connector_schedules")
 
 
 class LLMConfig(BaseModel, TimestampMixin):

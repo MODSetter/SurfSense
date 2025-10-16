@@ -229,7 +229,7 @@ class JiraConnector:
             _jql = f"{date_filter} ORDER BY created DESC"
             if project_key:
                 _jql = (
-                    f'project = "{project_key}" AND {date_filter} ORDER BY created DESC'
+                    f'project = "{project_key}" AND ({date_filter}) ORDER BY created DESC'
                 )
 
             # Define fields to retrieve

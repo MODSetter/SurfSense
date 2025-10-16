@@ -169,9 +169,16 @@ class ClickUpConnector:
             Tuple containing (tasks list, error message or None)
         """
         try:
-            # Convert dates to Unix timestamps (milliseconds)
-            start_timestamp = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
-            end_timestamp = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000)
+            # Convert date strings to Unix timestamps (milliseconds)
+            start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+            end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
+            
+            # Set time to start and end of day for complete coverage
+            start_datetime = start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            start_timestamp = int(start_datetime.timestamp() * 1000)
+            end_timestamp = int(end_datetime.timestamp() * 1000)
 
             params = {
                 "page": 0,
@@ -179,7 +186,7 @@ class ClickUpConnector:
                 "reverse": "true",
                 "subtasks": "true",
                 "include_closed": str(include_closed).lower(),
-                # Date filtering parameters
+                # Date filtering - filter by both created and updated dates
                 "date_created_gt": start_timestamp,
                 "date_created_lt": end_timestamp,
                 "date_updated_gt": start_timestamp,
