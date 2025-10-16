@@ -1,6 +1,9 @@
 import hashlib
+import logging
 
 from litellm import get_model_info, token_counter
+
+logger = logging.getLogger(__name__)
 
 from app.config import config
 from app.db import Chunk, DocumentType
@@ -14,8 +17,8 @@ def get_model_context_window(model_name: str) -> int:
         context_window = model_info.get("max_input_tokens", 4096)  # Default fallback
         return context_window
     except Exception as e:
-        print(
-            f"Warning: Could not get model info for {model_name}, using default 4096 tokens. Error: {e}"
+        logger.warning(
+            f"Could not get model info for {model_name}, using default 4096 tokens. Error: {e}"
         )
         return 4096  # Conservative fallback
 
@@ -41,9 +44,16 @@ def optimize_content_for_context_window(
     context_window = get_model_context_window(model_name)
 
     # Reserve tokens for: system prompt, metadata, template overhead, and output
-    # Conservative estimate: 2000 tokens for prompt + metadata + output buffer
-    # TODO: Calculate Summary System Prompt Token Count Here
-    reserved_tokens = 2000
+    # Calculate actual system prompt token count
+    try:
+        system_prompt_tokens = token_counter(
+            messages=[{"role": "system", "content": SUMMARY_PROMPT_TEMPLATE}], 
+            model=model_name
+        )
+        reserved_tokens = system_prompt_tokens + 1000  # 1000 tokens for output buffer and overhead
+    except Exception as e:
+        logger.warning(f"Could not calculate system prompt tokens, using default: {e}")
+        reserved_tokens = 2000  # Conservative fallback
 
     # Add metadata token cost if present
     if document_metadata:
@@ -58,7 +68,7 @@ def optimize_content_for_context_window(
     available_tokens = context_window - reserved_tokens
 
     if available_tokens <= 100:  # Minimum viable content
-        print(f"Warning: Very limited tokens available for content: {available_tokens}")
+        logger.warning(f"Very limited tokens available for content: {available_tokens}")
         return content[:500]  # Fallback to first 500 chars
 
     # Binary search to find optimal content length
@@ -86,7 +96,7 @@ def optimize_content_for_context_window(
     )
 
     if optimal_length < len(content):
-        print(
+        logger.info(
             f"Content optimized: {len(content)} -> {optimal_length} chars "
             f"to fit in {available_tokens} available tokens"
         )

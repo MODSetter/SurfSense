@@ -54,8 +54,6 @@ async def handle_chat_data(
         request_data.get("document_ids_to_add_in_context")
     )
     search_mode_str = validate_search_mode(request_data.get("search_mode"))
-    # print("RESQUEST DATA:", request_data)
-    # print("SELECTED CONNECTORS:", selected_connectors)
 
     # Check if the search space belongs to the current user
     try:
@@ -76,7 +74,6 @@ async def handle_chat_data(
             )
         )
         user_preference = language_result.scalars().first()
-        # print("UserSearchSpacePreference:", user_preference)
 
         language = None
         if (

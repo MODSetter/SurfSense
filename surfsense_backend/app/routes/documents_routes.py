@@ -1,5 +1,6 @@
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
+import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, UploadFile
 from litellm import atranscription
@@ -40,7 +41,7 @@ from app.utils.check_ownership import check_ownership
 try:
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 except RuntimeError as e:
-    print("Error setting event loop policy", e)
+    logging.warning(f"Error setting event loop policy: {e}")
     pass
 
 import os
@@ -48,6 +49,7 @@ import os
 os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -740,7 +742,7 @@ async def process_file_in_background(
             try:
                 os.unlink(file_path)
             except Exception as e:
-                print("Error deleting temp file", e)
+                logger.warning(f"Error deleting temp file {file_path}: {e}")
                 pass
 
             await task_logger.log_task_progress(
@@ -865,7 +867,7 @@ async def process_file_in_background(
             try:
                 os.unlink(file_path)
             except Exception as e:
-                print("Error deleting temp file", e)
+                logger.warning(f"Error deleting temp file {file_path}: {e}")
                 pass
 
             # Process transcription as markdown document
@@ -931,7 +933,7 @@ async def process_file_in_background(
                 try:
                     os.unlink(file_path)
                 except Exception as e:
-                    print("Error deleting temp file", e)
+                    logger.warning(f"Error deleting temp file {file_path}: {e}")
                     pass
 
                 # Pass the documents to the existing background task
@@ -993,7 +995,7 @@ async def process_file_in_background(
                 try:
                     os.unlink(file_path)
                 except Exception as e:
-                    print("Error deleting temp file", e)
+                    logger.warning(f"Error deleting temp file {file_path}: {e}")
                     pass
 
                 # Get markdown documents from the result
@@ -1071,7 +1073,7 @@ async def process_file_in_background(
                 try:
                     os.unlink(file_path)
                 except Exception as e:
-                    print("Error deleting temp file", e)
+                    logger.warning(f"Error deleting temp file {file_path}: {e}")
                     pass
 
                 await task_logger.log_task_progress(
@@ -1121,7 +1123,5 @@ async def process_file_in_background(
             str(e),
             {"error_type": type(e).__name__, "filename": filename},
         )
-        import logging
-
-        logging.error(f"Error processing file in background: {e!s}")
+        logger.error(f"Error processing file in background: {e!s}")
         raise  # Re-raise so the wrapper can also handle it

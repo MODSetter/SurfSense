@@ -11,8 +11,57 @@ from app.services.task_logging_service import TaskLoggingService
 async def generate_document_podcast(
     session: AsyncSession, document_id: int, search_space_id: int, user_id: int
 ):
-    # TODO: Need to fetch the document chunks, then concatenate them and pass them to the podcast generation model
-    pass
+    """
+    Generate a podcast from a document by fetching its chunks and concatenating them.
+    
+    Args:
+        session: Database session
+        document_id: ID of the document to convert to podcast
+        search_space_id: Search space ID
+        user_id: User ID
+        
+    Returns:
+        Podcast object or raises exception
+    """
+    task_logger = TaskLoggingService(session, search_space_id)
+    
+    # Log task start
+    log_entry = await task_logger.log_task_start(
+        task_name="generate_document_podcast",
+        source="podcast_task",
+        message=f"Starting podcast generation for document {document_id}",
+        metadata={
+            "document_id": document_id,
+            "search_space_id": search_space_id,
+            "user_id": str(user_id),
+        },
+    )
+    
+    try:
+        # TODO: Implement document chunk fetching and podcast generation
+        # This would involve:
+        # 1. Fetching the document and its chunks
+        # 2. Concatenating the chunks into readable content
+        # 3. Passing the content to the podcast generation model
+        # 4. Creating and saving the podcast
+        
+        await task_logger.log_task_failure(
+            log_entry,
+            "Document podcast generation not yet implemented",
+            "NotImplementedError",
+            {"error_type": "NotImplementedError"},
+        )
+        raise NotImplementedError("Document podcast generation is not yet implemented")
+        
+    except Exception as e:
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Error during document podcast generation for document {document_id}",
+            str(e),
+            {"error_type": type(e).__name__},
+        )
+        raise
 
 
 async def generate_chat_podcast(
