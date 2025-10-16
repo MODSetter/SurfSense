@@ -260,6 +260,24 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="ConnectorSchedule.id",
         cascade="all, delete-orphan",
     )
+    search_source_connectors = relationship(
+        "SearchSourceConnector",
+        back_populates="search_space",
+        order_by="SearchSourceConnector.id",
+        cascade="all, delete-orphan",
+    )
+    llm_configs = relationship(
+        "LLMConfig",
+        back_populates="search_space",
+        order_by="LLMConfig.id",
+        cascade="all, delete-orphan",
+    )
+    user_preferences = relationship(
+        "UserSearchSpacePreference",
+        back_populates="search_space",
+        order_by="UserSearchSpacePreference.id",
+        cascade="all, delete-orphan",
+    )
 
 
 class SearchSourceConnector(BaseModel, TimestampMixin):
