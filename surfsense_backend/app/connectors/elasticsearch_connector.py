@@ -119,7 +119,11 @@ class ElasticsearchConnector:
 
             total_hits = response.get("hits", {}).get("total", {})
             # normalize total value (could be dict or int depending on server)
-            total_val = total_hits.get("value", total_hits) if isinstance(total_hits, dict) else total_hits
+            total_val = (
+                total_hits.get("value", total_hits)
+                if isinstance(total_hits, dict)
+                else total_hits
+            )
             logger.info(
                 f"Successfully searched index '{index}', found {total_val} results"
             )
@@ -213,7 +217,9 @@ class ElasticsearchConnector:
 
                 # Continue scrolling
                 if scroll_id:
-                    response = await self.client.scroll(scroll_id=scroll_id, scroll=scroll_timeout)
+                    response = await self.client.scroll(
+                        scroll_id=scroll_id, scroll=scroll_timeout
+                    )
                     scroll_id = response.get("_scroll_id")
                     hits = response.get("hits", {}).get("hits", [])
 
