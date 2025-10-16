@@ -37,6 +37,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { LANGUAGES } from "@/contracts/enums/languages";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 import InferenceParamsEditor from "../inference-params-editor";
@@ -65,6 +66,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		model_name: "",
 		api_key: "",
 		api_base: "",
+		language: "English",
 		litellm_params: {},
 		search_space_id: searchSpaceId,
 	});
@@ -80,6 +82,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				model_name: editingConfig.model_name,
 				api_key: editingConfig.api_key,
 				api_base: editingConfig.api_base || "",
+				language: editingConfig.language || "English",
 				litellm_params: editingConfig.litellm_params || {},
 				search_space_id: searchSpaceId,
 			});
@@ -88,6 +91,17 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
+	};
+
+	// Handle provider change with auto-fill API Base URL / 处理 Provider 变更并自动填充 API Base URL
+	const handleProviderChange = (providerValue: string) => {
+		const provider = LLM_PROVIDERS.find((p) => p.value === providerValue);
+		setFormData((prev) => ({
+			...prev,
+			provider: providerValue,
+			// Auto-fill API Base URL if provider has a default / 如果提供商有默认值则自动填充
+			api_base: provider?.apiBase || prev.api_base,
+		}));
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -118,6 +132,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				model_name: "",
 				api_key: "",
 				api_base: "",
+				language: "English",
 				litellm_params: {},
 				search_space_id: searchSpaceId,
 			});
@@ -323,6 +338,13 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																	<p className="text-sm text-muted-foreground font-mono">
 																		{config.model_name}
 																	</p>
+																	{config.language && (
+																		<div className="flex items-center gap-2">
+																			<Badge variant="outline" className="text-xs">
+																				{config.language}
+																			</Badge>
+																		</div>
+																	)}
 																</div>
 															</div>
 
@@ -432,6 +454,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							model_name: "",
 							api_key: "",
 							api_base: "",
+							language: "",
 							litellm_params: {},
 							search_space_id: searchSpaceId,
 						});
@@ -466,10 +489,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 							<div className="space-y-2">
 								<Label htmlFor="provider">Provider *</Label>
-								<Select
-									value={formData.provider}
-									onValueChange={(value) => handleInputChange("provider", value)}
-								>
+								<Select value={formData.provider} onValueChange={handleProviderChange}>
 									<SelectTrigger>
 										<SelectValue placeholder="Select a provider">
 											{formData.provider && (
@@ -525,6 +545,25 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						</div>
 
 						<div className="space-y-2">
+							<Label htmlFor="language">Language (Optional)</Label>
+							<Select
+								value={formData.language || "English"}
+								onValueChange={(value) => handleInputChange("language", value)}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Select language" />
+								</SelectTrigger>
+								<SelectContent>
+									{LANGUAGES.map((language) => (
+										<SelectItem key={language.value} value={language.value}>
+											{language.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-2">
 							<Label htmlFor="api_key">API Key *</Label>
 							<Input
 								id="api_key"
@@ -537,13 +576,39 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="api_base">API Base URL (Optional)</Label>
+							<Label htmlFor="api_base">
+								API Base URL
+								{selectedProvider?.apiBase && (
+									<span className="text-xs font-normal text-muted-foreground ml-2">
+										(Auto-filled for {selectedProvider.label})
+									</span>
+								)}
+							</Label>
 							<Input
 								id="api_base"
-								placeholder="e.g., https://api.openai.com/v1"
+								placeholder={selectedProvider?.apiBase || "e.g., https://api.openai.com/v1"}
 								value={formData.api_base}
 								onChange={(e) => handleInputChange("api_base", e.target.value)}
 							/>
+							{selectedProvider?.apiBase && formData.api_base === selectedProvider.apiBase && (
+								<p className="text-xs text-green-600 flex items-center gap-1">
+									<CheckCircle className="h-3 w-3" />
+									Using recommended API endpoint for {selectedProvider.label}
+								</p>
+							)}
+							{selectedProvider?.apiBase && !formData.api_base && (
+								<p className="text-xs text-amber-600 flex items-center gap-1">
+									<AlertCircle className="h-3 w-3" />
+									⚠️ API Base URL is required for {selectedProvider.label}. Click to auto-fill:
+									<button
+										type="button"
+										className="underline font-medium"
+										onClick={() => handleInputChange("api_base", selectedProvider.apiBase || "")}
+									>
+										{selectedProvider.apiBase}
+									</button>
+								</p>
+							)}
 						</div>
 
 						{/* Optional Inference Parameters */}
@@ -579,6 +644,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 										model_name: "",
 										api_key: "",
 										api_base: "",
+										language: "",
 										litellm_params: {},
 										search_space_id: searchSpaceId,
 									});

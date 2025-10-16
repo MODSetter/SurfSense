@@ -44,6 +44,7 @@ dependencies = [
     "litellm>=1.77.5",
     "langchain-litellm>=0.2.3",
     "elasticsearch>=9.1.1",
+    "faster-whisper>=1.1.0",
 ]
 
 [dependency-groups]

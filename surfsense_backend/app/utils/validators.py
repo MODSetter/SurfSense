@@ -295,13 +295,8 @@ def validate_messages(messages: Any) -> list[dict]:
                 status_code=400, detail=f"messages[{i}].content cannot be empty"
             )
 
-        # Trim content and enforce max length (10,000 chars)
+        # Trim content
         sanitized_content = content.strip()
-        if len(sanitized_content) > 10000:  # Reasonable limit
-            raise HTTPException(
-                status_code=400,
-                detail=f"messages[{i}].content is too long (max 10000 characters)",
-            )
 
         validated_messages.append({"role": role, "content": sanitized_content})
 
@@ -412,7 +407,7 @@ def validate_connector_config(
             raise ValueError(f"Invalid email format for {connector_name} connector")
 
     def validate_url_field(key: str, connector_name: str) -> None:
-        if not validators.url(config.get(key, "")):
+        if not validators.url(config.get(key, "").strip(), simple_host=True):
             raise ValueError(f"Invalid base URL format for {connector_name} connector")
 
     def validate_list_field(key: str, field_name: str) -> None:
@@ -424,6 +419,20 @@ def validate_connector_config(
     connector_rules = {
         "SERPER_API": {"required": ["SERPER_API_KEY"], "validators": {}},
         "TAVILY_API": {"required": ["TAVILY_API_KEY"], "validators": {}},
+        "SEARXNG_API": {
+            "required": ["SEARXNG_HOST"],
+            "optional": [
+                "SEARXNG_API_KEY",
+                "SEARXNG_ENGINES",
+                "SEARXNG_CATEGORIES",
+                "SEARXNG_LANGUAGE",
+                "SEARXNG_SAFESEARCH",
+                "SEARXNG_VERIFY_SSL",
+            ],
+            "validators": {
+                "SEARXNG_HOST": lambda: validate_url_field("SEARXNG_HOST", "SearxNG")
+            },
+        },
         "LINKUP_API": {"required": ["LINKUP_API_KEY"], "validators": {}},
         "SLACK_CONNECTOR": {"required": ["SLACK_BOT_TOKEN"], "validators": {}},
         "NOTION_CONNECTOR": {
@@ -484,10 +493,21 @@ def validate_connector_config(
     if not rules:
         return config  # Unknown connector type, pass through
 
-    # Validate required keys match exactly
-    if set(config.keys()) != set(rules["required"]):
+    required_keys = set(rules["required"])
+    optional_keys = set(rules.get("optional", []))
+    config_keys = set(config.keys())
+
+    # Validate that no unexpected keys are present
+    if not config_keys.issubset(required_keys | optional_keys):
+        allowed_keys = list(required_keys | optional_keys)
         raise ValueError(
-            f"For {connector_type_str} connector type, config must only contain these keys: {rules['required']}"
+            f"For {connector_type_str} connector type, config may only contain these keys: {allowed_keys}"
+        )
+
+    # Validate that all required keys are present
+    if not required_keys.issubset(config_keys):
+        raise ValueError(
+            f"For {connector_type_str} connector type, config must include these keys: {sorted(required_keys)}"
         )
 
     # Apply custom validators first (these check format before emptiness)

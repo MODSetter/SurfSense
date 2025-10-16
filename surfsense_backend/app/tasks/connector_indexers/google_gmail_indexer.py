@@ -21,10 +21,11 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
-    check_duplicate_document_by_hash,
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -194,21 +195,85 @@ async def index_google_gmail_messages(
                     documents_skipped += 1
                     continue
 
+                # Generate unique identifier hash for this Gmail message
+                unique_identifier_hash = generate_unique_identifier_hash(
+                    DocumentType.GOOGLE_GMAIL_CONNECTOR, message_id, search_space_id
+                )
+
                 # Generate content hash
                 content_hash = generate_content_hash(markdown_content, search_space_id)
 
-                # Check if document already exists
-                existing_document_by_hash = await check_duplicate_document_by_hash(
-                    session, content_hash
+                # Check if document with this unique identifier already exists
+                existing_document = await check_document_by_unique_identifier(
+                    session, unique_identifier_hash
                 )
 
-                if existing_document_by_hash:
-                    logger.info(
-                        f"Document with content hash {content_hash} already exists for message {message_id}. Skipping processing."
-                    )
-                    documents_skipped += 1
-                    continue
+                if existing_document:
+                    # Document exists - check if content has changed
+                    if existing_document.content_hash == content_hash:
+                        logger.info(
+                            f"Document for Gmail message {subject} unchanged. Skipping."
+                        )
+                        documents_skipped += 1
+                        continue
+                    else:
+                        # Content has changed - update the existing document
+                        logger.info(
+                            f"Content changed for Gmail message {subject}. Updating document."
+                        )
 
+                        # Generate summary with metadata
+                        user_llm = await get_user_long_context_llm(
+                            session, user_id, search_space_id
+                        )
+
+                        if user_llm:
+                            document_metadata = {
+                                "message_id": message_id,
+                                "thread_id": thread_id,
+                                "subject": subject,
+                                "sender": sender,
+                                "date": date_str,
+                                "document_type": "Gmail Message",
+                                "connector_type": "Google Gmail",
+                            }
+                            (
+                                summary_content,
+                                summary_embedding,
+                            ) = await generate_document_summary(
+                                markdown_content, user_llm, document_metadata
+                            )
+                        else:
+                            summary_content = f"Google Gmail Message: {subject}\n\n"
+                            summary_content += f"Sender: {sender}\n"
+                            summary_content += f"Date: {date_str}\n"
+                            summary_embedding = config.embedding_model_instance.embed(
+                                summary_content
+                            )
+
+                        # Process chunks
+                        chunks = await create_document_chunks(markdown_content)
+
+                        # Update existing document
+                        existing_document.title = f"Gmail: {subject}"
+                        existing_document.content = summary_content
+                        existing_document.content_hash = content_hash
+                        existing_document.embedding = summary_embedding
+                        existing_document.document_metadata = {
+                            "message_id": message_id,
+                            "thread_id": thread_id,
+                            "subject": subject,
+                            "sender": sender,
+                            "date": date_str,
+                            "connector_id": connector_id,
+                        }
+                        existing_document.chunks = chunks
+
+                        documents_indexed += 1
+                        logger.info(f"Successfully updated Gmail message {subject}")
+                        continue
+
+                # Document doesn't exist - create new one
                 # Generate summary with metadata
                 user_llm = await get_user_long_context_llm(
                     session, user_id, search_space_id
@@ -258,6 +323,7 @@ async def index_google_gmail_messages(
                     },
                     content=summary_content,
                     content_hash=content_hash,
+                    unique_identifier_hash=unique_identifier_hash,
                     embedding=summary_embedding,
                     chunks=chunks,
                 )

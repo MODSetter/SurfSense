@@ -16,10 +16,11 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
-    check_duplicate_document_by_hash,
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
 )
@@ -199,19 +200,101 @@ async def index_github_repos(
                         )
                         continue  # Skip if content fetch failed
 
-                    content_hash = generate_content_hash(file_content, search_space_id)
-
-                    # Check if document with this content hash already exists
-                    existing_document_by_hash = await check_duplicate_document_by_hash(
-                        session, content_hash
+                    # Generate unique identifier hash for this GitHub file
+                    unique_identifier_hash = generate_unique_identifier_hash(
+                        DocumentType.GITHUB_CONNECTOR, file_sha, search_space_id
                     )
 
-                    if existing_document_by_hash:
-                        logger.info(
-                            f"Document with content hash {content_hash} already exists for file {full_path_key}. Skipping processing."
-                        )
-                        continue
+                    # Generate content hash
+                    content_hash = generate_content_hash(file_content, search_space_id)
 
+                    # Check if document with this unique identifier already exists
+                    existing_document = await check_document_by_unique_identifier(
+                        session, unique_identifier_hash
+                    )
+
+                    if existing_document:
+                        # Document exists - check if content has changed
+                        if existing_document.content_hash == content_hash:
+                            logger.info(
+                                f"Document for GitHub file {full_path_key} unchanged. Skipping."
+                            )
+                            continue
+                        else:
+                            # Content has changed - update the existing document
+                            logger.info(
+                                f"Content changed for GitHub file {full_path_key}. Updating document."
+                            )
+
+                            # Generate summary with metadata
+                            user_llm = await get_user_long_context_llm(
+                                session, user_id, search_space_id
+                            )
+                            if user_llm:
+                                file_extension = (
+                                    file_path.split(".")[-1]
+                                    if "." in file_path
+                                    else None
+                                )
+                                document_metadata = {
+                                    "file_path": full_path_key,
+                                    "repository": repo_full_name,
+                                    "file_type": file_extension or "unknown",
+                                    "document_type": "GitHub Repository File",
+                                    "connector_type": "GitHub",
+                                }
+                                (
+                                    summary_content,
+                                    summary_embedding,
+                                ) = await generate_document_summary(
+                                    file_content, user_llm, document_metadata
+                                )
+                            else:
+                                summary_content = f"GitHub file: {full_path_key}\n\n{file_content[:1000]}..."
+                                summary_embedding = (
+                                    config.embedding_model_instance.embed(
+                                        summary_content
+                                    )
+                                )
+
+                            # Chunk the content
+                            try:
+                                if hasattr(config, "code_chunker_instance"):
+                                    chunks_data = [
+                                        await create_document_chunks(file_content)
+                                    ][0]
+                                else:
+                                    chunks_data = await create_document_chunks(
+                                        file_content
+                                    )
+                            except Exception as chunk_err:
+                                logger.error(
+                                    f"Failed to chunk file {full_path_key}: {chunk_err}"
+                                )
+                                continue
+
+                            # Update existing document
+                            existing_document.title = f"GitHub - {full_path_key}"
+                            existing_document.content = summary_content
+                            existing_document.content_hash = content_hash
+                            existing_document.embedding = summary_embedding
+                            existing_document.document_metadata = {
+                                "file_path": file_path,
+                                "file_sha": file_sha,
+                                "file_url": file_url,
+                                "repository": repo_full_name,
+                                "indexed_at": datetime.now(UTC).strftime(
+                                    "%Y-%m-%d %H:%M:%S"
+                                ),
+                            }
+                            existing_document.chunks = chunks_data
+
+                            logger.info(
+                                f"Successfully updated GitHub file {full_path_key}"
+                            )
+                            continue
+
+                    # Document doesn't exist - create new one
                     # Generate summary with metadata
                     user_llm = await get_user_long_context_llm(
                         session, user_id, search_space_id
@@ -290,6 +373,7 @@ async def index_github_repos(
                         document_metadata=doc_metadata,
                         content=summary_content,  # Store summary
                         content_hash=content_hash,
+                        unique_identifier_hash=unique_identifier_hash,
                         embedding=summary_embedding,
                         search_space_id=search_space_id,
                         chunks=chunks_data,  # Associate chunks directly

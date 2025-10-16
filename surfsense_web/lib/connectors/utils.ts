@@ -3,6 +3,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 	const typeMap: Record<string, string> = {
 		SERPER_API: "Serper API",
 		TAVILY_API: "Tavily API",
+		SEARXNG_API: "SearxNG",
 		SLACK_CONNECTOR: "Slack",
 		NOTION_CONNECTOR: "Notion",
 		GITHUB_CONNECTOR: "GitHub",

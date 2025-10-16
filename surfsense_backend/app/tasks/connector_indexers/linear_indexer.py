@@ -16,11 +16,12 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
     calculate_date_range,
-    check_duplicate_document_by_hash,
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -213,27 +214,101 @@ async def index_linear_issues(
                     documents_skipped += 1
                     continue
 
-                content_hash = generate_content_hash(issue_content, search_space_id)
-
-                # Check if document with this content hash already exists
-                existing_document_by_hash = await check_duplicate_document_by_hash(
-                    session, content_hash
+                # Generate unique identifier hash for this Linear issue
+                unique_identifier_hash = generate_unique_identifier_hash(
+                    DocumentType.LINEAR_CONNECTOR, issue_id, search_space_id
                 )
 
-                if existing_document_by_hash:
-                    logger.info(
-                        f"Document with content hash {content_hash} already exists for issue {issue_identifier}. Skipping processing."
-                    )
-                    documents_skipped += 1
-                    continue
+                # Generate content hash
+                content_hash = generate_content_hash(issue_content, search_space_id)
 
+                # Check if document with this unique identifier already exists
+                existing_document = await check_document_by_unique_identifier(
+                    session, unique_identifier_hash
+                )
+
+                state = formatted_issue.get("state", "Unknown")
+                description = formatted_issue.get("description", "")
+                comment_count = len(formatted_issue.get("comments", []))
+
+                if existing_document:
+                    # Document exists - check if content has changed
+                    if existing_document.content_hash == content_hash:
+                        logger.info(
+                            f"Document for Linear issue {issue_identifier} unchanged. Skipping."
+                        )
+                        documents_skipped += 1
+                        continue
+                    else:
+                        # Content has changed - update the existing document
+                        logger.info(
+                            f"Content changed for Linear issue {issue_identifier}. Updating document."
+                        )
+
+                        # Generate summary with metadata
+                        user_llm = await get_user_long_context_llm(
+                            session, user_id, search_space_id
+                        )
+
+                        if user_llm:
+                            document_metadata = {
+                                "issue_id": issue_identifier,
+                                "issue_title": issue_title,
+                                "state": state,
+                                "priority": formatted_issue.get("priority", "Unknown"),
+                                "comment_count": comment_count,
+                                "document_type": "Linear Issue",
+                                "connector_type": "Linear",
+                            }
+                            (
+                                summary_content,
+                                summary_embedding,
+                            ) = await generate_document_summary(
+                                issue_content, user_llm, document_metadata
+                            )
+                        else:
+                            # Fallback to simple summary if no LLM configured
+                            if description and len(description) > 1000:
+                                description = description[:997] + "..."
+                            summary_content = f"Linear Issue {issue_identifier}: {issue_title}\n\nStatus: {state}\n\n"
+                            if description:
+                                summary_content += f"Description: {description}\n\n"
+                            summary_content += f"Comments: {comment_count}"
+                            summary_embedding = config.embedding_model_instance.embed(
+                                summary_content
+                            )
+
+                        # Process chunks
+                        chunks = await create_document_chunks(issue_content)
+
+                        # Update existing document
+                        existing_document.title = (
+                            f"Linear - {issue_identifier}: {issue_title}"
+                        )
+                        existing_document.content = summary_content
+                        existing_document.content_hash = content_hash
+                        existing_document.embedding = summary_embedding
+                        existing_document.document_metadata = {
+                            "issue_id": issue_id,
+                            "issue_identifier": issue_identifier,
+                            "issue_title": issue_title,
+                            "state": state,
+                            "comment_count": comment_count,
+                            "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        }
+                        existing_document.chunks = chunks
+
+                        documents_indexed += 1
+                        logger.info(
+                            f"Successfully updated Linear issue {issue_identifier}"
+                        )
+                        continue
+
+                # Document doesn't exist - create new one
                 # Generate summary with metadata
                 user_llm = await get_user_long_context_llm(
                     session, user_id, search_space_id
                 )
-                state = formatted_issue.get("state", "Unknown")
-                description = formatted_issue.get("description", "")
-                comment_count = len(formatted_issue.get("comments", []))
 
                 if user_llm:
                     document_metadata = {
@@ -254,8 +329,8 @@ async def index_linear_issues(
                 else:
                     # Fallback to simple summary if no LLM configured
                     # Truncate description if it's too long for the summary
-                    if description and len(description) > 500:
-                        description = description[:497] + "..."
+                    if description and len(description) > 1000:
+                        description = description[:997] + "..."
                     summary_content = f"Linear Issue {issue_identifier}: {issue_title}\n\nStatus: {state}\n\n"
                     if description:
                         summary_content += f"Description: {description}\n\n"
@@ -285,6 +360,7 @@ async def index_linear_issues(
                     },
                     content=summary_content,
                     content_hash=content_hash,
+                    unique_identifier_hash=unique_identifier_hash,
                     embedding=summary_embedding,
                     chunks=chunks,
                 )

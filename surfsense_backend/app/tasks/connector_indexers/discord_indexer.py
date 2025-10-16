@@ -16,11 +16,12 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
     build_document_metadata_string,
-    check_duplicate_document_by_hash,
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -307,23 +308,98 @@ async def index_discord_messages(
                         combined_document_string = build_document_metadata_string(
                             metadata_sections
                         )
+
+                        # Generate unique identifier hash for this Discord channel
+                        unique_identifier_hash = generate_unique_identifier_hash(
+                            DocumentType.DISCORD_CONNECTOR, channel_id, search_space_id
+                        )
+
+                        # Generate content hash
                         content_hash = generate_content_hash(
                             combined_document_string, search_space_id
                         )
 
-                        # Skip duplicates by hash
-                        existing_document_by_hash = (
-                            await check_duplicate_document_by_hash(
-                                session, content_hash
-                            )
+                        # Check if document with this unique identifier already exists
+                        existing_document = await check_document_by_unique_identifier(
+                            session, unique_identifier_hash
                         )
-                        if existing_document_by_hash:
-                            logger.info(
-                                f"Document with content hash {content_hash} already exists for channel {guild_name}#{channel_name}. Skipping processing."
-                            )
-                            documents_skipped += 1
-                            continue
 
+                        if existing_document:
+                            # Document exists - check if content has changed
+                            if existing_document.content_hash == content_hash:
+                                logger.info(
+                                    f"Document for Discord channel {guild_name}#{channel_name} unchanged. Skipping."
+                                )
+                                documents_skipped += 1
+                                continue
+                            else:
+                                # Content has changed - update the existing document
+                                logger.info(
+                                    f"Content changed for Discord channel {guild_name}#{channel_name}. Updating document."
+                                )
+
+                                # Get user's long context LLM
+                                user_llm = await get_user_long_context_llm(
+                                    session, user_id, search_space_id
+                                )
+                                if not user_llm:
+                                    logger.error(
+                                        f"No long context LLM configured for user {user_id}"
+                                    )
+                                    skipped_channels.append(
+                                        f"{guild_name}#{channel_name} (no LLM configured)"
+                                    )
+                                    documents_skipped += 1
+                                    continue
+
+                                # Generate summary with metadata
+                                document_metadata = {
+                                    "guild_name": guild_name,
+                                    "channel_name": channel_name,
+                                    "message_count": len(formatted_messages),
+                                    "document_type": "Discord Channel Messages",
+                                    "connector_type": "Discord",
+                                }
+                                (
+                                    summary_content,
+                                    summary_embedding,
+                                ) = await generate_document_summary(
+                                    combined_document_string,
+                                    user_llm,
+                                    document_metadata,
+                                )
+
+                                # Chunks from channel content
+                                chunks = await create_document_chunks(channel_content)
+
+                                # Update existing document
+                                existing_document.title = (
+                                    f"Discord - {guild_name}#{channel_name}"
+                                )
+                                existing_document.content = summary_content
+                                existing_document.content_hash = content_hash
+                                existing_document.embedding = summary_embedding
+                                existing_document.document_metadata = {
+                                    "guild_name": guild_name,
+                                    "guild_id": guild_id,
+                                    "channel_name": channel_name,
+                                    "channel_id": channel_id,
+                                    "message_count": len(formatted_messages),
+                                    "start_date": start_date_iso,
+                                    "end_date": end_date_iso,
+                                    "indexed_at": datetime.now(UTC).strftime(
+                                        "%Y-%m-%d %H:%M:%S"
+                                    ),
+                                }
+                                existing_document.chunks = chunks
+
+                                documents_indexed += 1
+                                logger.info(
+                                    f"Successfully updated Discord channel {guild_name}#{channel_name}"
+                                )
+                                continue
+
+                        # Document doesn't exist - create new one
                         # Get user's long context LLM
                         user_llm = await get_user_long_context_llm(
                             session, user_id, search_space_id
@@ -375,6 +451,7 @@ async def index_discord_messages(
                             },
                             content=summary_content,
                             content_hash=content_hash,
+                            unique_identifier_hash=unique_identifier_hash,
                             embedding=summary_embedding,
                             chunks=chunks,
                         )

@@ -17,6 +17,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { LANGUAGES } from "@/contracts/enums/languages";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 
@@ -42,6 +43,7 @@ export function AddProviderStep({
 		model_name: "",
 		api_key: "",
 		api_base: "",
+		language: "English",
 		litellm_params: {},
 		search_space_id: searchSpaceId,
 	});
@@ -70,6 +72,7 @@ export function AddProviderStep({
 				model_name: "",
 				api_key: "",
 				api_base: "",
+				language: "English",
 				litellm_params: {},
 				search_space_id: searchSpaceId,
 			});
@@ -119,6 +122,7 @@ export function AddProviderStep({
 												</div>
 												<p className="text-sm text-muted-foreground">
 													Model: {config.model_name}
+													{config.language && ` • Language: ${config.language}`}
 													{config.api_base && ` • Base: ${config.api_base}`}
 												</p>
 											</div>
@@ -169,7 +173,7 @@ export function AddProviderStep({
 					</CardHeader>
 					<CardContent>
 						<form onSubmit={handleSubmit} className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 								<div className="space-y-2">
 									<Label htmlFor="name">Configuration Name *</Label>
 									<Input
@@ -194,6 +198,26 @@ export function AddProviderStep({
 											{LLM_PROVIDERS.map((provider) => (
 												<SelectItem key={provider.value} value={provider.value}>
 													{provider.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+
+								{/* language */}
+								<div className="space-y-2">
+									<Label htmlFor="language">Language (Optional)</Label>
+									<Select
+										value={formData.language || "English"}
+										onValueChange={(value) => handleInputChange("language", value)}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Select language" />
+										</SelectTrigger>
+										<SelectContent>
+											{LANGUAGES.map((language) => (
+												<SelectItem key={language.value} value={language.value}>
+													{language.label}
 												</SelectItem>
 											))}
 										</SelectContent>

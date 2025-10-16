@@ -23,7 +23,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 	const typeMap: Record<string, string> = {
 		SERPER_API: "Serper API",
 		TAVILY_API: "Tavily API",
-		// Add other connector types here as needed
+		SEARXNG_API: "SearxNG",
 	};
 	return typeMap[type] || type;
 };

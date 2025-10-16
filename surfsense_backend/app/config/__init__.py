@@ -102,7 +102,7 @@ class Config:
     TTS_SERVICE_API_BASE = os.getenv("TTS_SERVICE_API_BASE")
     TTS_SERVICE_API_KEY = os.getenv("TTS_SERVICE_API_KEY")
 
-    # Litellm STT Configuration
+    # STT Configuration
     STT_SERVICE = os.getenv("STT_SERVICE")
     STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
     STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")

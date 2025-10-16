@@ -122,6 +122,55 @@ const logStatusConfig = {
 	FAILED: { icon: X, color: "text-red-600", bgColor: "bg-red-50" },
 } as const;
 
+function MessageDetails({
+	message,
+	taskName,
+	metadata,
+	createdAt,
+	children,
+}: {
+	message: string;
+	taskName?: string;
+	metadata?: any;
+	createdAt?: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<AlertDialog>
+			<AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
+			<AlertDialogContent className="max-w-3xl w-full">
+				<div className="flex items-start justify-between gap-4">
+					<div>
+						<AlertDialogTitle className="text-lg">Log details</AlertDialogTitle>
+						{createdAt && (
+							<p className="text-xs text-muted-foreground mt-1">
+								{new Date(createdAt).toLocaleString()}
+							</p>
+						)}
+					</div>
+					<div className="shrink-0">
+						<AlertDialogCancel className="text-sm">Close</AlertDialogCancel>
+					</div>
+				</div>
+
+				<div className="mt-4 space-y-4">
+					{taskName && (
+						<div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded inline-block">
+							{taskName}
+						</div>
+					)}
+
+					<div className="bg-muted p-3 rounded max-h-[40vh] overflow-auto text-sm whitespace-pre-wrap">
+						{message}
+					</div>
+				</div>
+
+				<AlertDialogFooter />
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
 const columns: ColumnDef<Log>[] = [
 	{
 		id: "select",
@@ -219,18 +268,29 @@ const columns: ColumnDef<Log>[] = [
 		cell: ({ row }) => {
 			const message = row.getValue("message") as string;
 			const taskName = row.original.log_metadata?.task_name;
+			const createdAt = row.getValue("created_at") as string;
 
 			return (
-				<div className="flex flex-col gap-1 max-w-[400px]">
-					{taskName && (
-						<div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">
-							{taskName}
+				<MessageDetails
+					message={message}
+					taskName={taskName}
+					metadata={row.original.log_metadata}
+					createdAt={createdAt}
+				>
+					<div className="flex flex-col gap-1 max-w-[400px] cursor-pointer">
+						{taskName && (
+							<div
+								className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded truncate"
+								title={taskName}
+							>
+								{taskName}
+							</div>
+						)}
+						<div className="text-sm truncate" title={message}>
+							{message.length > 100 ? `${message.substring(0, 100)}...` : message}
 						</div>
-					)}
-					<div className="text-sm">
-						{message.length > 100 ? `${message.substring(0, 100)}...` : message}
 					</div>
-				</div>
+				</MessageDetails>
 			);
 		},
 		size: 400,
@@ -839,7 +899,7 @@ function LogsTable({
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.3 }}
 			>
-				<Table>
+				<Table className="table-fixed">
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup: any) => (
 							<TableRow key={headerGroup.id} className="hover:bg-transparent">
@@ -847,7 +907,11 @@ function LogsTable({
 									<TableHead
 										key={header.id}
 										style={{ width: `${header.getSize()}px` }}
-										className="h-12 px-4 py-3"
+										className={cn(
+											"h-12 px-4 py-3",
+											// keep Created At header from wrapping and align it
+											header.column.id === "created_at" ? "whitespace-nowrap text-right" : ""
+										)}
 									>
 										{header.isPlaceholder ? null : header.column.getCanSort() ? (
 											<Button
@@ -895,11 +959,24 @@ function LogsTable({
 											row.getIsSelected() ? "bg-muted/50" : ""
 										)}
 									>
-										{row.getVisibleCells().map((cell: any) => (
-											<TableCell key={cell.id} className="px-4 py-3">
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
-											</TableCell>
-										))}
+										{row.getVisibleCells().map((cell: any) => {
+											const isCreatedAt = cell.column.id === "created_at";
+											const isMessage = cell.column.id === "message";
+											return (
+												<TableCell
+													key={cell.id}
+													className={cn(
+														"px-4 py-3 align-middle overflow-hidden",
+														isCreatedAt
+															? "whitespace-nowrap text-xs text-muted-foreground text-right"
+															: "",
+														isMessage ? "overflow-hidden" : ""
+													)}
+												>
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												</TableCell>
+											);
+										})}
 									</motion.tr>
 								))
 							) : (

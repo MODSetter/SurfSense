@@ -56,6 +56,7 @@ class DocumentType(str, Enum):
 class SearchSourceConnectorType(str, Enum):
     SERPER_API = "SERPER_API"  # NOT IMPLEMENTED YET : DON'T REMEMBER WHY : MOST PROBABLY BECAUSE WE NEED TO CRAWL THE RESULTS RETURNED BY IT
     TAVILY_API = "TAVILY_API"
+    SEARXNG_API = "SEARXNG_API"
     LINKUP_API = "LINKUP_API"
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
@@ -80,6 +81,11 @@ class ChatType(str, Enum):
 
 
 class LiteLLMProvider(str, Enum):
+    """
+    Enum for LLM providers supported by LiteLLM.
+    LiteLLM 支持的 LLM 提供商枚举。
+    """
+
     OPENAI = "OPENAI"
     ANTHROPIC = "ANTHROPIC"
     GROQ = "GROQ"
@@ -103,6 +109,11 @@ class LiteLLMProvider(str, Enum):
     ALEPH_ALPHA = "ALEPH_ALPHA"
     PETALS = "PETALS"
     COMETAPI = "COMETAPI"
+    # Chinese LLM Providers (OpenAI-compatible)
+    DEEPSEEK = "DEEPSEEK"
+    ALIBABA_QWEN = "ALIBABA_QWEN"
+    MOONSHOT = "MOONSHOT"
+    ZHIPU = "ZHIPU"
     CUSTOM = "CUSTOM"
 
 
@@ -165,6 +176,7 @@ class Document(BaseModel, TimestampMixin):
 
     content = Column(Text, nullable=False)
     content_hash = Column(String, nullable=False, index=True, unique=True)
+    unique_identifier_hash = Column(String, nullable=True, index=True, unique=True)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
 
     search_space_id = Column(
@@ -297,6 +309,8 @@ class LLMConfig(BaseModel, TimestampMixin):
     # API Key should be encrypted before storing
     api_key = Column(String, nullable=False)
     api_base = Column(String(500), nullable=True)
+
+    language = Column(String(50), nullable=True, default="English")
 
     # For any other parameters that litellm supports
     litellm_params = Column(JSON, nullable=True, default={})

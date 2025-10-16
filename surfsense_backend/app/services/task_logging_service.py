@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from datetime import datetime
 from typing import Any
@@ -73,6 +74,14 @@ class TaskLoggingService:
         Returns:
             Log: The updated log entry
         """
+        # Ensure session is in a valid state
+        if not self.session.is_active:
+            await self.session.rollback()
+
+        # Refresh log_entry to avoid expired state
+        with contextlib.suppress(Exception):
+            await self.session.refresh(log_entry)
+
         # Update the existing log entry
         log_entry.status = LogStatus.SUCCESS
         log_entry.message = message
@@ -114,6 +123,14 @@ class TaskLoggingService:
         Returns:
             Log: The updated log entry
         """
+        # Ensure session is in a valid state
+        if not self.session.is_active:
+            await self.session.rollback()
+
+        # Refresh log_entry to avoid expired state
+        with contextlib.suppress(Exception):
+            await self.session.refresh(log_entry)
+
         # Update the existing log entry
         log_entry.status = LogStatus.FAILED
         log_entry.level = LogLevel.ERROR
@@ -161,6 +178,14 @@ class TaskLoggingService:
         Returns:
             Log: The updated log entry
         """
+        # Ensure session is in a valid state
+        if not self.session.is_active:
+            await self.session.rollback()
+
+        # Refresh log_entry to avoid expired state
+        with contextlib.suppress(Exception):
+            await self.session.refresh(log_entry)
+
         log_entry.message = progress_message
 
         if progress_metadata:

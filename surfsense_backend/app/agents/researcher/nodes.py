@@ -71,9 +71,7 @@ def extract_sources_from_documents(
             source = {
                 "id": doc.get("chunk_id", source_id_counter),
                 "title": document_info.get("title", "Untitled Document"),
-                "description": doc.get("content", "")[:100] + "..."
-                if len(doc.get("content", "")) > 100
-                else doc.get("content", ""),
+                "description": doc.get("content", "").strip(),
                 "url": metadata.get("url", metadata.get("page_url", "")),
             }
 
@@ -204,11 +202,7 @@ async def fetch_documents_by_ids(
                         title += f" ({issue_state})"
 
                     # Create description
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
                     if comment_count:
                         description += f" | Comments: {comment_count}"
 
@@ -229,11 +223,7 @@ async def fetch_documents_by_ids(
                     if message_date:
                         title += f" ({message_date})"
 
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
                     url = (
                         f"https://slack.com/app_redirect?channel={channel_id}"
                         if channel_id
@@ -246,11 +236,7 @@ async def fetch_documents_by_ids(
                     page_id = metadata.get("page_id", "")
 
                     title = f"Notion: {page_title}"
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
                     url = (
                         f"https://notion.so/{page_id.replace('-', '')}"
                         if page_id
@@ -261,11 +247,7 @@ async def fetch_documents_by_ids(
                     title = f"GitHub: {doc.title}"
                     description = metadata.get(
                         "description",
-                        (
-                            doc.content[:100] + "..."
-                            if len(doc.content) > 100
-                            else doc.content
-                        ),
+                        (doc.content),
                     )
                     url = metadata.get("url", "")
 
@@ -281,11 +263,7 @@ async def fetch_documents_by_ids(
 
                     description = metadata.get(
                         "description",
-                        (
-                            doc.content[:100] + "..."
-                            if len(doc.content) > 100
-                            else doc.content
-                        ),
+                        (doc.content),
                     )
                     url = (
                         f"https://www.youtube.com/watch?v={video_id}"
@@ -304,11 +282,7 @@ async def fetch_documents_by_ids(
                     if message_date:
                         title += f" ({message_date})"
 
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
 
                     if guild_id and channel_id:
                         url = f"https://discord.com/channels/{guild_id}/{channel_id}"
@@ -329,11 +303,7 @@ async def fetch_documents_by_ids(
                     if status:
                         title += f" ({status})"
 
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
                     if priority:
                         description += f" | Priority: {priority}"
                     if issue_type:
@@ -395,11 +365,7 @@ async def fetch_documents_by_ids(
                         except Exception:
                             pass
 
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
                     if location:
                         description += f" | Location: {location}"
                     if calendar_id and calendar_id != "primary":
@@ -437,11 +403,8 @@ async def fetch_documents_by_ids(
                         except Exception:
                             pass
 
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
+
                     if location_name:
                         description += f" | Venue: {location_name}"
                     elif meeting_url:
@@ -466,11 +429,7 @@ async def fetch_documents_by_ids(
                         )
                         title += f" (visited: {formatted_date})"
 
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
                     url = webpage_url
 
                 elif doc_type == "CRAWLED_URL":
@@ -479,11 +438,7 @@ async def fetch_documents_by_ids(
                         "og:description",
                         metadata.get(
                             "ogDescription",
-                            (
-                                doc.content[:100] + "..."
-                                if len(doc.content) > 100
-                                else doc.content
-                            ),
+                            (doc.content),
                         ),
                     )
                     url = metadata.get("url", "")
@@ -509,11 +464,8 @@ async def fetch_documents_by_ids(
 
                 else:  # FILE and other types
                     title = doc.title
-                    description = (
-                        doc.content[:100] + "..."
-                        if len(doc.content) > 100
-                        else doc.content
-                    )
+                    description = doc.content
+
                     url = metadata.get("url", "")
 
                 # Create source entry
@@ -598,6 +550,7 @@ async def write_answer_outline(
     num_sections = configuration.num_sections
     user_id = configuration.user_id
     search_space_id = configuration.search_space_id
+    language = configuration.language  # Get language from configuration
 
     writer(
         {
@@ -648,7 +601,7 @@ async def write_answer_outline(
 
     # Create messages for the LLM
     messages = [
-        SystemMessage(content=get_answer_outline_system_prompt()),
+        SystemMessage(content=get_answer_outline_system_prompt(language=language)),
         HumanMessage(content=human_message_content),
     ]
 
@@ -1048,6 +1001,30 @@ async def fetch_relevant_documents(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
                                     f"🔍 Found {len(tavily_chunks)} Web Search results related to your query"
+                                )
+                            }
+                        )
+
+                elif connector == "SEARXNG_API":
+                    (
+                        source_object,
+                        searx_chunks,
+                    ) = await connector_service.search_searxng(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                    )
+
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(searx_chunks)
+
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"🌐 Found {len(searx_chunks)} SearxNG results related to your query"
                                 )
                             }
                         )
@@ -2047,6 +2024,7 @@ async def handle_qna_workflow(
             "relevant_documents": all_documents,  # Use combined documents
             "user_id": configuration.user_id,
             "search_space_id": configuration.search_space_id,
+            "language": configuration.language,
         }
     }
 

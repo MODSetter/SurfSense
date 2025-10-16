@@ -83,11 +83,11 @@ async def get_user_llm_instance(
             )
             return None
 
-        # Build the model string for litellm
+        # Build the model string for litellm / 构建 LiteLLM 的模型字符串
         if llm_config.custom_provider:
             model_string = f"{llm_config.custom_provider}/{llm_config.model_name}"
         else:
-            # Map provider enum to litellm format
+            # Map provider enum to litellm format / 将提供商枚举映射为 LiteLLM 格式
             provider_map = {
                 "OPENAI": "openai",
                 "ANTHROPIC": "anthropic",
@@ -99,6 +99,11 @@ async def get_user_llm_instance(
                 "AZURE_OPENAI": "azure",
                 "OPENROUTER": "openrouter",
                 "COMETAPI": "cometapi",
+                # Chinese LLM providers (OpenAI-compatible)
+                "DEEPSEEK": "openai",  # DeepSeek uses OpenAI-compatible API
+                "ALIBABA_QWEN": "openai",  # Qwen uses OpenAI-compatible API
+                "MOONSHOT": "openai",  # Moonshot (Kimi) uses OpenAI-compatible API
+                "ZHIPU": "openai",  # Zhipu (GLM) uses OpenAI-compatible API
                 # Add more mappings as needed
             }
             provider_prefix = provider_map.get(

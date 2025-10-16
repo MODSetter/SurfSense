@@ -17,9 +17,11 @@ from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
     generate_document_summary,
+    generate_unique_identifier_hash,
 )
 
 from .base import (
+    check_document_by_unique_identifier,
     get_connector_by_id,
     logger,
     update_connector_last_indexed,
@@ -248,23 +250,99 @@ async def index_google_calendar_events(
                 location = event.get("location", "")
                 description = event.get("description", "")
 
+                # Generate unique identifier hash for this Google Calendar event
+                unique_identifier_hash = generate_unique_identifier_hash(
+                    DocumentType.GOOGLE_CALENDAR_CONNECTOR, event_id, search_space_id
+                )
+
+                # Generate content hash
                 content_hash = generate_content_hash(event_markdown, search_space_id)
 
-                # Duplicate check via simple query using helper in base
-                from .base import (
-                    check_duplicate_document_by_hash,  # local import to avoid circular at module import
+                # Check if document with this unique identifier already exists
+                existing_document = await check_document_by_unique_identifier(
+                    session, unique_identifier_hash
                 )
 
-                existing_document_by_hash = await check_duplicate_document_by_hash(
-                    session, content_hash
-                )
-                if existing_document_by_hash:
-                    logger.info(
-                        f"Document with content hash {content_hash} already exists for event {event_summary}. Skipping processing."
-                    )
-                    documents_skipped += 1
-                    continue
+                if existing_document:
+                    # Document exists - check if content has changed
+                    if existing_document.content_hash == content_hash:
+                        logger.info(
+                            f"Document for Google Calendar event {event_summary} unchanged. Skipping."
+                        )
+                        documents_skipped += 1
+                        continue
+                    else:
+                        # Content has changed - update the existing document
+                        logger.info(
+                            f"Content changed for Google Calendar event {event_summary}. Updating document."
+                        )
 
+                        # Generate summary with metadata
+                        user_llm = await get_user_long_context_llm(
+                            session, user_id, search_space_id
+                        )
+
+                        if user_llm:
+                            document_metadata = {
+                                "event_id": event_id,
+                                "event_summary": event_summary,
+                                "calendar_id": calendar_id,
+                                "start_time": start_time,
+                                "end_time": end_time,
+                                "location": location or "No location",
+                                "document_type": "Google Calendar Event",
+                                "connector_type": "Google Calendar",
+                            }
+                            (
+                                summary_content,
+                                summary_embedding,
+                            ) = await generate_document_summary(
+                                event_markdown, user_llm, document_metadata
+                            )
+                        else:
+                            summary_content = (
+                                f"Google Calendar Event: {event_summary}\n\n"
+                            )
+                            summary_content += f"Calendar: {calendar_id}\n"
+                            summary_content += f"Start: {start_time}\n"
+                            summary_content += f"End: {end_time}\n"
+                            if location:
+                                summary_content += f"Location: {location}\n"
+                            if description:
+                                desc_preview = description[:1000]
+                                if len(description) > 1000:
+                                    desc_preview += "..."
+                                summary_content += f"Description: {desc_preview}\n"
+                            summary_embedding = config.embedding_model_instance.embed(
+                                summary_content
+                            )
+
+                        # Process chunks
+                        chunks = await create_document_chunks(event_markdown)
+
+                        # Update existing document
+                        existing_document.title = f"Calendar Event - {event_summary}"
+                        existing_document.content = summary_content
+                        existing_document.content_hash = content_hash
+                        existing_document.embedding = summary_embedding
+                        existing_document.document_metadata = {
+                            "event_id": event_id,
+                            "event_summary": event_summary,
+                            "calendar_id": calendar_id,
+                            "start_time": start_time,
+                            "end_time": end_time,
+                            "location": location,
+                            "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        }
+                        existing_document.chunks = chunks
+
+                        documents_indexed += 1
+                        logger.info(
+                            f"Successfully updated Google Calendar event {event_summary}"
+                        )
+                        continue
+
+                # Document doesn't exist - create new one
                 # Generate summary with metadata
                 user_llm = await get_user_long_context_llm(
                     session, user_id, search_space_id
@@ -296,8 +374,8 @@ async def index_google_calendar_events(
                     if location:
                         summary_content += f"Location: {location}\n"
                     if description:
-                        desc_preview = description[:300]
-                        if len(description) > 300:
+                        desc_preview = description[:1000]
+                        if len(description) > 1000:
                             desc_preview += "..."
                         summary_content += f"Description: {desc_preview}\n"
                     summary_embedding = config.embedding_model_instance.embed(
@@ -320,6 +398,7 @@ async def index_google_calendar_events(
                     },
                     content=summary_content,
                     content_hash=content_hash,
+                    unique_identifier_hash=unique_identifier_hash,
                     embedding=summary_embedding,
                     chunks=chunks,
                 )

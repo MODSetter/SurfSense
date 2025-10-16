@@ -2,7 +2,6 @@
 
 Revision ID: 25
 Revises: 24
-Create Date: 2025-01-10 14:00:00.000000
 
 Changes:
 1. Migrate llm_configs from user association to search_space association

@@ -2,7 +2,6 @@
 
 Revision ID: '23'
 Revises: '22'
-Create Date: 2025-01-10 12:00:00.000000
 
 """
 

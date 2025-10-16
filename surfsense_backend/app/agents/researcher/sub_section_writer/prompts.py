@@ -1,7 +1,11 @@
 import datetime
 
+from ..prompts import _build_language_instruction
 
-def get_citation_system_prompt(chat_history: str | None = None):
+
+def get_citation_system_prompt(
+    chat_history: str | None = None, language: str | None = None
+):
     chat_history_section = (
         f"""
 <chat_history>
@@ -16,9 +20,12 @@ NO CHAT HISTORY PROVIDED
 """
     )
 
+    # Add language instruction if specified
+    language_instruction = _build_language_instruction(language)
+
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-You are SurfSense, an advanced AI research assistant that synthesizes information from multiple knowledge sources to provide comprehensive, well-cited answers to user queries.
+You are SurfSense, an advanced AI research assistant that synthesizes information from multiple knowledge sources to provide comprehensive, well-cited answers to user queries.{language_instruction}
 {chat_history_section}
 <knowledge_sources>
 - EXTENSION: "Web content saved via SurfSense browser extension" (personal browsing history)
@@ -156,7 +163,9 @@ Make sure your response:
 """
 
 
-def get_no_documents_system_prompt(chat_history: str | None = None):
+def get_no_documents_system_prompt(
+    chat_history: str | None = None, language: str | None = None
+):
     chat_history_section = (
         f"""
 <chat_history>
@@ -171,9 +180,12 @@ NO CHAT HISTORY PROVIDED
 """
     )
 
+    # Add language instruction if specified
+    language_instruction = _build_language_instruction(language)
+
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-You are SurfSense, an advanced AI research assistant that helps users create well-structured content for their documents and research.
+You are SurfSense, an advanced AI research assistant that helps users create well-structured content for their documents and research.{language_instruction}
 {chat_history_section}
 <context>
 You are writing content for a specific sub-section of a document. No specific documents from the user's personal knowledge base are available, so you should create content based on:

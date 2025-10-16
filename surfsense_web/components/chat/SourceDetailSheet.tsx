@@ -52,7 +52,8 @@ export function SourceDetailSheet({
 	const [summaryOpen, setSummaryOpen] = useState(false);
 
 	// Check if this is a source type that should render directly from node
-	const isDirectRenderSource = sourceType === "TAVILY_API" || sourceType === "LINKUP_API";
+	const isDirectRenderSource =
+		sourceType === "TAVILY_API" || sourceType === "LINKUP_API" || sourceType === "SEARXNG_API";
 
 	useEffect(() => {
 		if (open && chunkId && !isDirectRenderSource) {
@@ -108,7 +109,7 @@ export function SourceDetailSheet({
 					</div>
 				)}
 
-				{/* Direct render for TAVILY_API and LINKUP_API */}
+				{/* Direct render for web search providers */}
 				{isDirectRenderSource && (
 					<ScrollArea className="h-[calc(100vh-10rem)]">
 						<div className="px-6 py-4">

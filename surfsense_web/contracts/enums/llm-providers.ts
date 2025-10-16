@@ -3,6 +3,7 @@ export interface LLMProvider {
 	label: string;
 	example: string;
 	description: string;
+	apiBase?: string; // Default API Base URL for the provider / 提供商的默认 API Base URL
 }
 
 export const LLM_PROVIDERS: LLMProvider[] = [
@@ -89,6 +90,35 @@ export const LLM_PROVIDERS: LLMProvider[] = [
 		label: "CometAPI",
 		example: "gpt-5-mini, claude-sonnet-4-5",
 		description: "Access 500+ AI models through one unified API",
+	},
+	// Chinese LLM Providers / 国产 LLM 提供商
+	{
+		value: "DEEPSEEK",
+		label: "DeepSeek",
+		example: "deepseek-chat, deepseek-coder",
+		description: "Chinese high-performance AI models",
+		apiBase: "https://api.deepseek.com",
+	},
+	{
+		value: "ALIBABA_QWEN",
+		label: "Qwen",
+		example: "qwen-max, qwen-plus, qwen-turbo",
+		description: "Alibaba Cloud Qwen LLM",
+		apiBase: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+	},
+	{
+		value: "MOONSHOT",
+		label: "Kimi",
+		example: "moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k",
+		description: "Moonshot AI Kimi models",
+		apiBase: "https://api.moonshot.cn/v1",
+	},
+	{
+		value: "ZHIPU",
+		label: "GLM",
+		example: "glm-4, glm-4-flash, glm-3-turbo",
+		description: "Zhipu AI GLM series models",
+		apiBase: "https://open.bigmodel.cn/api/paas/v4",
 	},
 	{
 		value: "CUSTOM",

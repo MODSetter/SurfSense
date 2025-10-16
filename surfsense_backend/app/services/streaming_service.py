@@ -66,7 +66,7 @@ class StreamingService:
             for source in group.get("sources", []):
                 node = {
                     "id": str(source.get("id", "")),
-                    "text": source.get("description", ""),
+                    "text": source.get("description", "").strip(),
                     "url": source.get("url", ""),
                     "metadata": {
                         "title": source.get("title", ""),
