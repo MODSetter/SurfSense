@@ -607,8 +607,6 @@ class ConnectorService:
                 "type": "BAIDU_SEARCH_API",
                 "sources": [],
             }, []
-        
-        print(f"DEBUG: Using Baidu API Key: {api_key[:20]}... (length: {len(api_key)})")
 
         # Optional configuration parameters
         model = config.get("BAIDU_MODEL", "ernie-3.5-8k")
@@ -707,8 +705,6 @@ class ConnectorService:
 
         # Extract references (search results) from the response
         baidu_references = data.get("references", [])
-        
-        print(f"DEBUG: Baidu API returned {len(baidu_references)} references")
         
         if "code" in data or "message" in data:
             print(f"WARNING: Baidu API returned error - Code: {data.get('code')}, Message: {data.get('message')}")
