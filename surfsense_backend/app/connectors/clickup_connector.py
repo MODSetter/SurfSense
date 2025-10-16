@@ -5,6 +5,7 @@ A module for retrieving data from ClickUp.
 Allows fetching tasks from workspaces and lists.
 """
 
+from datetime import datetime
 from typing import Any
 
 import requests
@@ -168,13 +169,21 @@ class ClickUpConnector:
             Tuple containing (tasks list, error message or None)
         """
         try:
-            # TODO : Include date range in api request
+            # Convert dates to Unix timestamps (milliseconds)
+            start_timestamp = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
+            end_timestamp = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000)
 
             params = {
                 "page": 0,
                 "order_by": "created",
                 "reverse": "true",
                 "subtasks": "true",
+                "include_closed": str(include_closed).lower(),
+                # Date filtering parameters
+                "date_created_gt": start_timestamp,
+                "date_created_lt": end_timestamp,
+                "date_updated_gt": start_timestamp,
+                "date_updated_lt": end_timestamp,
             }
 
             all_tasks = []

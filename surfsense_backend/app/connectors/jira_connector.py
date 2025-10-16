@@ -222,11 +222,11 @@ class JiraConnector:
             # Build JQL query for date range
             # Query issues that were either created OR updated within the date range
             date_filter = (
-                f"(createdDate >= '{start_date}' AND createdDate <= '{end_date}')"
+                f"(createdDate >= '{start_date}' AND createdDate <= '{end_date}') "
+                f"OR (updatedDate >= '{start_date}' AND updatedDate <= '{end_date}')"
             )
-            # TODO : This JQL needs some improvement to work as expected
 
-            _jql = f"{date_filter}"
+            _jql = f"{date_filter} ORDER BY created DESC"
             if project_key:
                 _jql = (
                     f'project = "{project_key}" AND {date_filter} ORDER BY created DESC'
@@ -250,7 +250,7 @@ class JiraConnector:
                 fields.append("comment")
 
             params = {
-                # "jql": "",   TODO : Add a JQL query to filter from a date range
+                "jql": _jql,
                 "fields": ",".join(fields),
                 "maxResults": 100,
                 "startAt": 0,
