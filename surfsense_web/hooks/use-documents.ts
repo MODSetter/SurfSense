@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { fetchWithCache } from "@/lib/apiCache";
+import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import { toast } from "sonner";
 import { normalizeListResponse } from "@/lib/pagination";
 
@@ -77,9 +77,12 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  						'Pragma': 'no-cache'
 					},
 					method: "GET",
-					revalidate: 30
+					revalidate: 30,
+					tag: 'documents'
 				}
 				).catch(err => {
 					toast.error("Failed to fetch documents");
@@ -145,9 +148,12 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  						'Pragma': 'no-cache'
 					},
 					method: "GET",
-					revalidate: 15
+					revalidate: 15,
+					tag: 'documents'
 				}
 				).catch(err => {
 					toast.error("Failed to search documents");
@@ -185,6 +191,8 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					toast.error("Failed to delete document");
 					throw new Error("Failed to delete document");
 				}
+
+				invalidateCache('documents');
 
 				toast.success("Document deleted successfully");
 				// Update the local state after successful deletion

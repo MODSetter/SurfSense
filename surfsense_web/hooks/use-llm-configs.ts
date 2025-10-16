@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fetchWithCache } from "@/lib/apiCache";
+import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import { toast } from "sonner";
 
 export interface LLMConfig {
@@ -67,9 +67,12 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  						'Pragma': 'no-cache'
 					},
 					method: "GET",
-					revalidate: 60
+					revalidate: 60,
+					tag: 'llmconfigs'
 				}
 			).catch(err => {
 				throw new Error("Failed to fetch LLM configurations");
@@ -107,6 +110,8 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 				throw new Error(errorData.detail || "Failed to create LLM configuration");
 			}
 
+			invalidateCache('llmconfigs');
+
 			const newConfig = await response.json();
 			setLlmConfigs((prev) => [...prev, newConfig]);
 			toast.success("LLM configuration created successfully");
@@ -133,6 +138,8 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 			if (!response.ok) {
 				throw new Error("Failed to delete LLM configuration");
 			}
+
+			invalidateCache('llmconfigs');
 
 			setLlmConfigs((prev) => prev.filter((config) => config.id !== id));
 			toast.success("LLM configuration deleted successfully");
@@ -165,6 +172,8 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 				const errorData = await response.json();
 				throw new Error(errorData.detail || "Failed to update LLM configuration");
 			}
+
+			invalidateCache('llmconfigs');
 
 			const updatedConfig = await response.json();
 			setLlmConfigs((prev) => prev.map((c) => (c.id === id ? updatedConfig : c)));
@@ -206,9 +215,12 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  						'Pragma': 'no-cache'
 					},
 					method: "GET",
-					revalidate: 120
+					revalidate: 120,
+					tag: 'searchspaces'
 				}
 			).catch(err => {
 				throw new Error("Failed to fetch LLM preferences");
@@ -251,6 +263,8 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 				const errorData = await response.json();
 				throw new Error(errorData.detail || "Failed to update LLM preferences");
 			}
+
+			invalidateCache('searchspaces');
 
 			const updatedPreferences = await response.json();
 			setPreferences(updatedPreferences);

@@ -1,5 +1,27 @@
 import { toast } from "sonner";
-import { fetchWithCache } from "./apiCache";
+import { fetchWithCache, invalidateCache, cacheKeys } from "./apiCache";
+
+type CacheTag = keyof typeof cacheKeys;
+
+// Define a mapping of endpoints to cache tags
+const ENDPOINT_CACHE_TAGS: Record<string, CacheTag> = {
+  'api/v1/documents': 'documents',
+  'api/v1/chats': 'chats',
+  'api/v1/searchspaces': 'searchspaces',
+  'api/v1/search-source-connectors': 'connectors',
+  'api/v1/llm-configs': 'llmconfigs',
+  'users/me': 'user'
+};
+
+// Helper to determine which cache tag to invalidate
+function getCacheTagForEndpoint(path: string): CacheTag | undefined {
+  for (const [endpoint, tag] of Object.entries(ENDPOINT_CACHE_TAGS)) {
+    if (path.includes(endpoint)) {
+      return tag as CacheTag; // Explicit cast to ensure type safety
+    }
+  }
+  return undefined;
+}
 
 /**
  * Custom fetch wrapper that handles authentication and redirects to home page on 401 Unauthorized
@@ -108,11 +130,15 @@ export const apiClient = {
 				...(token && { Authorization: `Bearer ${token}` }),
 			};
 			
+			// Determine the appropriate cache tag
+			const tag = getCacheTagForEndpoint(path);
+			
 			return await fetchWithCache(url, {
 				method: "GET",
 				...options,
 				headers,
 				revalidate,
+				tag
 			});
 		} catch (error) {
 			if (error instanceof Error && error.message.includes('401')) {
@@ -149,6 +175,10 @@ export const apiClient = {
 			throw new Error(`API error: ${response.status} ${errorData?.detail || response.statusText}`);
 		}
 
+		// Invalidate cache after successful mutation
+		const tag = getCacheTagForEndpoint(path);
+		if (tag) invalidateCache(tag);
+
 		return response.json();
 	},
 
@@ -176,6 +206,10 @@ export const apiClient = {
 			throw new Error(`API error: ${response.status} ${errorData?.detail || response.statusText}`);
 		}
 
+		// Invalidate cache after successful mutation
+		const tag = getCacheTagForEndpoint(path);
+		if (tag) invalidateCache(tag);
+
 		return response.json();
 	},
 
@@ -196,6 +230,10 @@ export const apiClient = {
 			const errorData = await response.json().catch(() => null);
 			throw new Error(`API error: ${response.status} ${errorData?.detail || response.statusText}`);
 		}
+
+		// Invalidate cache after successful mutation
+		const tag = getCacheTagForEndpoint(path);
+		if (tag) invalidateCache(tag);
 
 		return response.json();
 	},

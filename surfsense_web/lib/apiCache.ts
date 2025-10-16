@@ -1,11 +1,21 @@
-/**
- * List of API endpoints that require specific trailing slash handling
- */
+export const cacheKeys = {
+  documents: 0,
+  chats: 0,
+  searchspaces: 0,
+  user: 0,
+  connectors: 0,
+  llmconfigs: 0,
+  config: 0
+};
+
 const ENDPOINTS_CONFIG = {
   'users/me': false,
-  'api/v1/chats': false,
+  'api/v1/chats': true,
   'api/v1/documents': true,
-  'api/v1/searchspaces': true
+  'api/v1/searchspaces': true,
+  'api/v1/search-source-connectors': false,
+  'api/v1/llm-configs': true,
+  'api/v1/search-spaces': false
 };
 
 function isDetailEndpoint(url: string): boolean {
@@ -47,18 +57,35 @@ function formatUrlPath(url: string): string {
 }
 
 /**
- * API client with Next.js caching and careful URL handling
+ * API client with Next.js caching, URL handling, and cache invalidation
  */
 export async function fetchWithCache(url: string, options: RequestInit & {
   revalidate?: number | false,
+  tag?: keyof typeof cacheKeys
 } = {}) {
-  const { revalidate, ...fetchOptions } = options;
+  const { revalidate, tag, ...fetchOptions } = options;
 
-  const formattedUrl = formatUrlPath(url);
+  let formattedUrl = formatUrlPath(url);
+  
+  if (tag) {
+    const separator = formattedUrl.includes('?') ? '&' : '?';
+    formattedUrl += `${separator}v=${cacheKeys[tag]}`;
+  }
+
+  if (formattedUrl.includes('documents') && formattedUrl.includes('page_size=')) {
+    const separator = formattedUrl.includes('?') ? '&' : '?';
+    formattedUrl += `${separator}t=${Date.now()}`;
+  }
+
+  const headers = new Headers(fetchOptions.headers || {});
+  headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  headers.set('Pragma', 'no-cache');
+  headers.set('Expires', '0');
 
   const response = await fetch(formattedUrl, {
     ...fetchOptions,
-    cache: 'force-cache',
+    headers,
+    cache: 'force-cache', // Next.js internal cache still works
     next: revalidate !== undefined ? { revalidate } : undefined,
   });
   
@@ -67,4 +94,8 @@ export async function fetchWithCache(url: string, options: RequestInit & {
   }
   
   return response.json();
+}
+
+export function invalidateCache(tag: keyof typeof cacheKeys) {
+  cacheKeys[tag]++;
 }

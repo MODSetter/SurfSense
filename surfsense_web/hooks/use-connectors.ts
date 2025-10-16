@@ -1,3 +1,5 @@
+import { invalidateCache, fetchWithCache } from "@/lib/apiCache";
+
 // Types for connector API
 export interface ConnectorConfig {
 	[key: string]: string;
@@ -49,45 +51,41 @@ export const ConnectorService = {
 			throw new Error(errorData.detail || "Failed to create connector");
 		}
 
+		invalidateCache('connectors');
+		
 		return response.json();
 	},
 
 	// Get all connectors
 	async getConnectors(skip = 0, limit = 100): Promise<Connector[]> {
-		const response = await fetch(
+		return fetchWithCache(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/?skip=${skip}&limit=${limit}`,
 			{
 				headers: {
 					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  					'Pragma': 'no-cache'
 				},
+				revalidate: 60,
+				tag: 'connectors',
 			}
 		);
-
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.detail || "Failed to fetch connectors");
-		}
-
-		return response.json();
 	},
 
 	// Get a specific connector
 	async getConnector(connectorId: number): Promise<Connector> {
-		const response = await fetch(
+		return fetchWithCache(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 			{
 				headers: {
 					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  					'Pragma': 'no-cache'
 				},
+				revalidate: 60,
+				tag: 'connectors'
 			}
 		);
-
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.detail || "Failed to fetch connector");
-		}
-
-		return response.json();
 	},
 
 	// Update a connector
@@ -109,6 +107,8 @@ export const ConnectorService = {
 			throw new Error(errorData.detail || "Failed to update connector");
 		}
 
+		invalidateCache('connectors');
+		
 		return response.json();
 	},
 
@@ -128,5 +128,7 @@ export const ConnectorService = {
 			const errorData = await response.json();
 			throw new Error(errorData.detail || "Failed to delete connector");
 		}
+		
+		invalidateCache('connectors');
 	},
 };
