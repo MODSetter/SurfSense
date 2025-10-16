@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import { toast } from "sonner";
 import { normalizeListResponse } from "@/lib/pagination";
 
@@ -71,22 +72,22 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					params.append("page_size", effectivePageSize.toString());
 				}
 
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?${params.toString()}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
-				);
-
-				if (!response.ok) {
+				const data = await fetchWithCache(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/?${params.toString()}`,
+				{
+					headers: {
+						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  						'Pragma': 'no-cache'
+					},
+					method: "GET",
+					revalidate: 30,
+					tag: 'documents'
+				}
+				).catch(err => {
 					toast.error("Failed to fetch documents");
 					throw new Error("Failed to fetch documents");
-				}
-
-				const data = await response.json();
+				});
 				const normalized = normalizeListResponse<Document>(data);
 				setDocuments(normalized.items);
 				setTotal(normalized.total);
@@ -142,22 +143,22 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					params.append("page_size", effectivePageSize.toString());
 				}
 
-				const response = await fetch(
+				const data = await fetchWithCache(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/search/?${params.toString()}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
-				);
-
-				if (!response.ok) {
+				{
+					headers: {
+						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  						'Pragma': 'no-cache'
+					},
+					method: "GET",
+					revalidate: 15,
+					tag: 'documents'
+				}
+				).catch(err => {
 					toast.error("Failed to search documents");
 					throw new Error("Failed to search documents");
-				}
-
-				const data = await response.json();
+				});
 				const normalized = normalizeListResponse<Document>(data);
 				setDocuments(normalized.items);
 				setTotal(normalized.total);
@@ -190,6 +191,8 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					toast.error("Failed to delete document");
 					throw new Error("Failed to delete document");
 				}
+
+				invalidateCache('documents');
 
 				toast.success("Document deleted successfully");
 				// Update the local state after successful deletion

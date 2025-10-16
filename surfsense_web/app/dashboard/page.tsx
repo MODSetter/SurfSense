@@ -169,7 +169,7 @@ const DashboardPage = () => {
 				if (typeof window === "undefined") return;
 
 				try {
-					const userData = await apiClient.get<User>("users/me");
+					const userData = await apiClient.get<User>('users/me', {}, 120);
 					setUser(userData);
 					setUserError(null);
 				} catch (error) {

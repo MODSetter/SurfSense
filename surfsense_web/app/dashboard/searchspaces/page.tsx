@@ -9,7 +9,7 @@ export default function SearchSpacesPage() {
 	const handleCreateSearchSpace = async (data: { name: string; description: string }) => {
 		try {
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/`,
 				{
 					method: "POST",
 					headers: {

@@ -2,6 +2,7 @@ import type { Message } from "@ai-sdk/react";
 import { useCallback, useEffect, useState } from "react";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/hooks/use-documents";
+import { fetchWithCache,invalidateCache } from "@/lib/apiCache";
 
 interface UseChatStateProps {
 	search_space_id: string;
@@ -53,22 +54,23 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 			if (!token) return null;
 
 			try {
-				const response = await fetch(
+				const data = await fetchWithCache(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${Number(chatId)}`,
 					{
 						method: "GET",
 						headers: {
 							"Content-Type": "application/json",
 							Authorization: `Bearer ${token}`,
+							'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  							'Pragma': 'no-cache'
 						},
+						revalidate: 30
 					}
-				);
+				).catch(err => {
+					throw new Error(`Failed to fetch chat details: ${err}`);
+				});
 
-				if (!response.ok) {
-					throw new Error(`Failed to fetch chat details: ${response.statusText}`);
-				}
-
-				return await response.json();
+				return await data;
 			} catch (err) {
 				console.error("Error fetching chat details:", err);
 				return null;
@@ -116,6 +118,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 					throw new Error(`Failed to create chat: ${response.statusText}`);
 				}
 
+				invalidateCache('chats');
 				const data = await response.json();
 				return data.id;
 			} catch (err) {
@@ -162,6 +165,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 				if (!response.ok) {
 					throw new Error(`Failed to update chat: ${response.statusText}`);
 				}
+				invalidateCache('chats');
 			} catch (err) {
 				console.error("Error updating chat:", err);
 			}

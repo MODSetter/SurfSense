@@ -1,4 +1,27 @@
 import { toast } from "sonner";
+import { fetchWithCache, invalidateCache, cacheKeys } from "./apiCache";
+
+type CacheTag = keyof typeof cacheKeys;
+
+// Define a mapping of endpoints to cache tags
+const ENDPOINT_CACHE_TAGS: Record<string, CacheTag> = {
+  'api/v1/documents': 'documents',
+  'api/v1/chats': 'chats',
+  'api/v1/searchspaces': 'searchspaces',
+  'api/v1/search-source-connectors': 'connectors',
+  'api/v1/llm-configs': 'llmconfigs',
+  'users/me': 'user'
+};
+
+// Helper to determine which cache tag to invalidate
+function getCacheTagForEndpoint(path: string): CacheTag | undefined {
+  for (const [endpoint, tag] of Object.entries(ENDPOINT_CACHE_TAGS)) {
+    if (path.includes(endpoint)) {
+      return tag as CacheTag; // Explicit cast to ensure type safety
+    }
+  }
+  return undefined;
+}
 
 /**
  * Custom fetch wrapper that handles authentication and redirects to home page on 401 Unauthorized
@@ -79,18 +102,53 @@ export const apiClient = {
 	 * @param options - Additional fetch options
 	 * @returns The response data
 	 */
-	async get<T>(path: string, options: RequestInit = {}): Promise<T> {
-		const response = await fetchWithAuth(getApiUrl(path), {
+	async get<T>(
+		path: string, 
+		options: RequestInit = {}, 
+		revalidate: number | false = 30 // Default 30 second cache
+	): Promise<T> {
+		const url = getApiUrl(path);
+		
+		if (typeof window === "undefined") {
+		const response = await fetch(url, {
 			method: "GET",
 			...options,
 		});
-
+		
 		if (!response.ok) {
 			const errorData = await response.json().catch(() => null);
 			throw new Error(`API error: ${response.status} ${errorData?.detail || response.statusText}`);
 		}
-
+		
 		return response.json();
+		}
+		
+		try {
+			const token = localStorage.getItem("surfsense_bearer_token");
+			const headers = {
+				...options.headers,
+				...(token && { Authorization: `Bearer ${token}` }),
+			};
+			
+			// Determine the appropriate cache tag
+			const tag = getCacheTagForEndpoint(path);
+			
+			return await fetchWithCache(url, {
+				method: "GET",
+				...options,
+				headers,
+				revalidate,
+				tag
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message.includes('401')) {
+				toast.error("Session expired. Please log in again.");
+				localStorage.removeItem("surfsense_bearer_token");
+				window.location.href = "/";
+				throw new Error("Unauthorized: Redirecting to login page");
+			}
+			throw error;
+		}
 	},
 
 	/**
@@ -116,6 +174,10 @@ export const apiClient = {
 			const errorData = await response.json().catch(() => null);
 			throw new Error(`API error: ${response.status} ${errorData?.detail || response.statusText}`);
 		}
+
+		// Invalidate cache after successful mutation
+		const tag = getCacheTagForEndpoint(path);
+		if (tag) invalidateCache(tag);
 
 		return response.json();
 	},
@@ -144,6 +206,10 @@ export const apiClient = {
 			throw new Error(`API error: ${response.status} ${errorData?.detail || response.statusText}`);
 		}
 
+		// Invalidate cache after successful mutation
+		const tag = getCacheTagForEndpoint(path);
+		if (tag) invalidateCache(tag);
+
 		return response.json();
 	},
 
@@ -164,6 +230,10 @@ export const apiClient = {
 			const errorData = await response.json().catch(() => null);
 			throw new Error(`API error: ${response.status} ${errorData?.detail || response.statusText}`);
 		}
+
+		// Invalidate cache after successful mutation
+		const tag = getCacheTagForEndpoint(path);
+		if (tag) invalidateCache(tag);
 
 		return response.json();
 	},

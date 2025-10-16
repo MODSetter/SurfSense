@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import { toast } from "sonner";
 
 export interface LLMConfig {
@@ -60,21 +61,22 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+
+			const data = await fetchWithCache(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/?search_space_id=${searchSpaceId}`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  						'Pragma': 'no-cache'
 					},
 					method: "GET",
+					revalidate: 60,
+					tag: 'llmconfigs'
 				}
-			);
-
-			if (!response.ok) {
+			).catch(err => {
 				throw new Error("Failed to fetch LLM configurations");
-			}
-
-			const data = await response.json();
+			});
 			setLlmConfigs(data);
 			setError(null);
 		} catch (err: any) {
@@ -108,6 +110,8 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 				throw new Error(errorData.detail || "Failed to create LLM configuration");
 			}
 
+			invalidateCache('llmconfigs');
+
 			const newConfig = await response.json();
 			setLlmConfigs((prev) => [...prev, newConfig]);
 			toast.success("LLM configuration created successfully");
@@ -134,6 +138,8 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 			if (!response.ok) {
 				throw new Error("Failed to delete LLM configuration");
 			}
+
+			invalidateCache('llmconfigs');
 
 			setLlmConfigs((prev) => prev.filter((config) => config.id !== id));
 			toast.success("LLM configuration deleted successfully");
@@ -166,6 +172,8 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 				const errorData = await response.json();
 				throw new Error(errorData.detail || "Failed to update LLM configuration");
 			}
+
+			invalidateCache('llmconfigs');
 
 			const updatedConfig = await response.json();
 			setLlmConfigs((prev) => prev.map((c) => (c.id === id ? updatedConfig : c)));
@@ -202,21 +210,22 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const data = await fetchWithCache(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
 				{
 					headers: {
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  						'Pragma': 'no-cache'
 					},
 					method: "GET",
+					revalidate: 120,
+					tag: 'searchspaces'
 				}
-			);
-
-			if (!response.ok) {
+			).catch(err => {
 				throw new Error("Failed to fetch LLM preferences");
-			}
+			});
 
-			const data = await response.json();
 			setPreferences(data);
 			setError(null);
 		} catch (err: any) {
@@ -254,6 +263,8 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 				const errorData = await response.json();
 				throw new Error(errorData.detail || "Failed to update LLM preferences");
 			}
+
+			invalidateCache('searchspaces');
 
 			const updatedPreferences = await response.json();
 			setPreferences(updatedPreferences);
