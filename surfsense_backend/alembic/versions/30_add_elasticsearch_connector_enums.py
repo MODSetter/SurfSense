@@ -1,9 +1,7 @@
 """Add ElasticSearch connector enums
 
-Revision ID: 26
-Revises: 25
-Create Date: 2025-10-12 12:00:00.000000
-
+Revision ID: 30
+Revises: 29
 """
 
 from collections.abc import Sequence
@@ -11,8 +9,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers
-revision: str = "26"
-down_revision: str | None = "25"
+revision: str = "30"
+down_revision: str | None = "29"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
