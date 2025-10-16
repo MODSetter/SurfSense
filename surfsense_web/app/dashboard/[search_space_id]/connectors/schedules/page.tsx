@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +77,7 @@ export default function ConnectorSchedulesPage({
 }: {
   params: Promise<{ search_space_id: string }>;
 }) {
+  const isActiveSwitchId = useId();
   const [searchSpaceId, setSearchSpaceId] = useState<string>("");
   const [schedules, setSchedules] = useState<ConnectorSchedule[]>([]);
   const [connectors, setConnectors] = useState<Connector[]>([]);
@@ -104,9 +105,14 @@ export default function ConnectorSchedulesPage({
 
   useEffect(() => {
     if (searchSpaceId) {
-      fetchSchedules();
-      fetchConnectors();
-      fetchSchedulerStatus();
+      setLoading(true);
+      Promise.all([
+        fetchSchedules(),
+        fetchConnectors(),
+        fetchSchedulerStatus()
+      ]).finally(() => {
+        setLoading(false);
+      });
     }
   }, [searchSpaceId]);
 
@@ -410,11 +416,11 @@ export default function ConnectorSchedulesPage({
 
               <div className="flex items-center space-x-2">
                 <Switch
-                  id="is_active"
+                  id={isActiveSwitchId}
                   checked={newSchedule.is_active}
                   onCheckedChange={(checked) => setNewSchedule({ ...newSchedule, is_active: checked })}
                 />
-                <Label htmlFor="is_active">Active</Label>
+                <Label htmlFor={isActiveSwitchId}>Active</Label>
               </div>
 
               <div className="flex justify-end space-x-2">
