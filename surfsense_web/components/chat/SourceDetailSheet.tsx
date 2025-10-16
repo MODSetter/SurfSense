@@ -53,7 +53,10 @@ export function SourceDetailSheet({
 
 	// Check if this is a source type that should render directly from node
 	const isDirectRenderSource =
-		sourceType === "TAVILY_API" || sourceType === "LINKUP_API" || sourceType === "SEARXNG_API";
+		sourceType === "TAVILY_API" || 
+		sourceType === "LINKUP_API" || 
+		sourceType === "SEARXNG_API" || 
+		sourceType === "BAIDU_SEARCH_API";
 
 	useEffect(() => {
 		if (open && chunkId && !isDirectRenderSource) {

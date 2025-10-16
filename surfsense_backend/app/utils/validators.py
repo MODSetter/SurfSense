@@ -434,6 +434,15 @@ def validate_connector_config(
             },
         },
         "LINKUP_API": {"required": ["LINKUP_API_KEY"], "validators": {}},
+        "BAIDU_SEARCH_API": {
+            "required": ["BAIDU_API_KEY"],
+            "optional": [
+                "BAIDU_MODEL",
+                "BAIDU_SEARCH_SOURCE",
+                "BAIDU_ENABLE_DEEP_SEARCH",
+            ],
+            "validators": {},
+        },
         "SLACK_CONNECTOR": {"required": ["SLACK_BOT_TOKEN"], "validators": {}},
         "NOTION_CONNECTOR": {
             "required": ["NOTION_INTEGRATION_TOKEN"],
