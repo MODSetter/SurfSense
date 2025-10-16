@@ -59,6 +59,13 @@ const connectorCategories: ConnectorCategory[] = [
 				icon: getConnectorIcon(EnumConnectorName.LINKUP_API, "h-6 w-6"),
 				status: "available",
 			},
+			{
+				id: "baidu-search-api",
+				title: "Baidu Search",
+				description: "Search the Chinese web using Baidu AI Search API",
+				icon: getConnectorIcon(EnumConnectorName.BAIDU_SEARCH_API, "h-6 w-6"),
+				status: "available",
+			},
 		],
 	},
 	{

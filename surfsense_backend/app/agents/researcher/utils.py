@@ -48,6 +48,7 @@ def get_connector_emoji(connector_name: str) -> str:
         "DISCORD_CONNECTOR": "🗨️",
         "TAVILY_API": "🔍",
         "LINKUP_API": "🔗",
+        "BAIDU_SEARCH_API": "🇨🇳",
         "GOOGLE_CALENDAR_CONNECTOR": "📅",
         "AIRTABLE_CONNECTOR": "🗃️",
         "LUMA_CONNECTOR": "✨",
@@ -72,6 +73,7 @@ def get_connector_friendly_name(connector_name: str) -> str:
         "DISCORD_CONNECTOR": "Discord",
         "TAVILY_API": "Tavily Search",
         "LINKUP_API": "Linkup Search",
+        "BAIDU_SEARCH_API": "Baidu Search",
         "AIRTABLE_CONNECTOR": "Airtable",
         "LUMA_CONNECTOR": "Luma",
     }
