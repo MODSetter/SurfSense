@@ -443,6 +443,25 @@ async def fetch_documents_by_ids(
                     )
                     url = metadata.get("url", "")
 
+                elif doc_type == "ELASTICSEARCH_CONNECTOR":
+                    # Prefer explicit title in metadata/source, otherwise fallback to doc.title
+                    es_title = (
+                        metadata.get("title")
+                        or metadata.get("es_title")
+                        or doc.title
+                        or f"Elasticsearch: {metadata.get('elasticsearch_index', '')}"
+                    )
+                    title = es_title
+                    description = metadata.get("description") or (
+                        doc.content[:100] + "..."
+                        if len(doc.content) > 100
+                        else doc.content
+                    )
+                    # If a link or index info is stored, surface it
+                    url = metadata.get("url", "") or metadata.get(
+                        "elasticsearch_index", ""
+                    )
+
                 else:  # FILE and other types
                     title = doc.title
                     description = doc.content
@@ -464,6 +483,7 @@ async def fetch_documents_by_ids(
                 "SLACK_CONNECTOR": "Slack (Selected)",
                 "NOTION_CONNECTOR": "Notion (Selected)",
                 "GITHUB_CONNECTOR": "GitHub (Selected)",
+                "ELASTICSEARCH_CONNECTOR": "Elasticsearch (Selected)",
                 "YOUTUBE_VIDEO": "YouTube Videos (Selected)",
                 "DISCORD_CONNECTOR": "Discord (Selected)",
                 "JIRA_CONNECTOR": "Jira Issues (Selected)",
@@ -1265,6 +1285,33 @@ async def fetch_relevant_documents(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
                                     f"🎯 Found {len(luma_chunks)} Luma events related to your query"
+                                )
+                            }
+                        )
+
+                elif connector == "ELASTICSEARCH_CONNECTOR":
+                    (
+                        source_object,
+                        elasticsearch_chunks,
+                    ) = await connector_service.search_elasticsearch(
+                        user_query=reformulated_query,
+                        user_id=user_id,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        search_mode=search_mode,
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(elasticsearch_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"🔎 Found {len(elasticsearch_chunks)} Elasticsearch chunks related to your query"
                                 )
                             }
                         )

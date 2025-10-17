@@ -60,6 +60,13 @@ const connectorCategories: ConnectorCategory[] = [
 				status: "available",
 			},
 			{
+				id: "elasticsearch-connector",
+				title: "Elasticsearch",
+				description: "Connect to Elasticsearch to index and search documents, logs and metrics.",
+				icon: getConnectorIcon(EnumConnectorName.ELASTICSEARCH_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},	
+			{
 				id: "baidu-search-api",
 				title: "Baidu Search",
 				description: "Search the Chinese web using Baidu AI Search API",

@@ -271,6 +271,17 @@ export default function EditConnectorPage() {
 										placeholder="API Key..."
 									/>
 								)}
+
+								{/* == Elasticsearch == */}
+								{connector.connector_type === "ELASTICSEARCH_CONNECTOR" && (
+									<EditSimpleTokenForm
+										control={editForm.control}
+										fieldName="ELASTICSEARCH_API_KEY"
+										fieldLabel="Elasticsearch API Key"
+										fieldDescription="Update your Elasticsearch API Key if needed."
+										placeholder="Your Elasticsearch API Key"
+									/>
+								)}
 							</CardContent>
 							<CardFooter className="border-t pt-6">
 								<Button type="submit" disabled={isSaving} className="w-full sm:w-auto">

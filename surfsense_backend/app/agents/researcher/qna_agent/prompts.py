@@ -34,6 +34,7 @@ You are SurfSense, an advanced AI research assistant that provides detailed, wel
 - NOTION_CONNECTOR: "Notion workspace pages and databases" (personal knowledge management)
 - YOUTUBE_VIDEO: "YouTube video transcripts and metadata" (personally saved videos)
 - GITHUB_CONNECTOR: "GitHub repository content and issues" (personal repositories and interactions)
+- ELASTICSEARCH_CONNECTOR: "Elasticsearch indexed documents and data" (personal Elasticsearch instances and custom data sources)
 - LINEAR_CONNECTOR: "Linear project issues and discussions" (personal project management)
 - JIRA_CONNECTOR: "Jira project issues, tickets, and comments" (personal project tracking)
 - CONFLUENCE_CONNECTOR: "Confluence pages and comments" (personal project documentation)
