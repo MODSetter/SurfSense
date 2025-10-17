@@ -2,7 +2,6 @@
 Elasticsearch indexer for SurfSense
 """
 
-import hashlib
 import json
 import logging
 from datetime import UTC, datetime
