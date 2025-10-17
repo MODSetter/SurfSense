@@ -37,7 +37,7 @@ export const Navbar = () => {
 
 const DesktopNav = ({ navItems, isScrolled }: any) => {
 	const [hovered, setHovered] = useState<number | null>(null);
-	const {starts : githubStarts} = useGithubStarts();
+	const { compactFormat: githubStarts, loading: loadingGithubStarts } = useGithubStarts();
 	return (
 		<motion.div
 			onMouseLeave={() => {
@@ -88,7 +88,13 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					className="hidden rounded-full px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center gap-1.5"
 				>
 					<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-					<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">9.5k</span>
+					{loadingGithubStarts ? (
+						<div className="w-6 h-5 dark:bg-neutral-800 animate-pulse"></div>
+					) : (
+						<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+							{githubStarts}
+						</span>
+					)}
 				</Link>
 				<ThemeTogglerComponent />
 				<Link
@@ -104,6 +110,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 
 const MobileNav = ({ navItems, isScrolled }: any) => {
 	const [open, setOpen] = useState(false);
+	const { compactFormat: githubStarts, loading: loadingGithubStarts } = useGithubStarts();
 
 	return (
 		<>
@@ -162,9 +169,13 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 									className="flex items-center gap-1.5 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
 								>
 									<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-									<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-										9.5k
-									</span>
+									{loadingGithubStarts ? (
+										<div className="w-6 h-5 dark:bg-neutral-800 animate-pulse"></div>
+									) : (
+										<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+											{githubStarts}
+										</span>
+									)}
 								</Link>
 							</div>
 							<button className="w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black">

@@ -1,42 +1,44 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiClient } from "@/lib/api";
 
 export const useGithubStarts = () => {
-  const repo = process.env.NEXT_PUBLIC_GITHUB_REPO;
-  const owner = process.env.NEXT_PUBLIC_GITHUB_OWNER;
-  const token = process.env.NEXT_PUBLIC_GITHUB_TOKEN;
+	const repo = process.env.NEXT_PUBLIC_GITHUB_REPO;
+	const owner = process.env.NEXT_PUBLIC_GITHUB_OWNER;
 
-  const [starts, setStarts] = useState<number | null>(null);
+	const [starts, setStarts] = useState<number | null>(null);
+	const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const getStarts = async () => {
-      try {
-        if (!repo || !owner || !token) {
-          throw new Error("Missing GitHub credentials");
-        }
-        const response = await apiClient.get<{ stargazers_count: number }>(
-          `https://api.github.com/repos/${owner}/${repo}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+	useEffect(() => {
+		const getStarts = async () => {
+			try {
+				if (!repo || !owner) {
+					throw new Error("Missing GitHub credentials");
+				}
 
-        setStarts(response.stargazers_count);
-      } catch (err) {
-        console.error("Error fetching starts:", err);
-        throw err;
-      }
-    };
+				const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
 
-    getStarts();
-  }, []);
+				if (!response.ok) {
+					throw new Error(`Failed to fetch starts: ${response.statusText}`);
+				}
 
-  return {
-    starts,
-    compactFormat: Intl.NumberFormat("en-US", {
-      notation: "compact",
-    }).format(starts || 0),
-  };
+				const data = await response.json();
+
+				setStarts(data?.stargazers_count);
+			} catch (err) {
+				console.error("Error fetching starts:", err);
+				throw err;
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		getStarts();
+	}, []);
+
+	return {
+		starts,
+		loading,
+		compactFormat: Intl.NumberFormat("en-US", {
+			notation: "compact",
+		}).format(starts || 0),
+	};
 };
