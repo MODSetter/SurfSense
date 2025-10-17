@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
+import { useGithubStarts } from "@/hooks/use-github-starts";
 
 export const Navbar = () => {
 	const [isScrolled, setIsScrolled] = useState(false);
@@ -36,6 +37,7 @@ export const Navbar = () => {
 
 const DesktopNav = ({ navItems, isScrolled }: any) => {
 	const [hovered, setHovered] = useState<number | null>(null);
+	const {starts : githubStarts} = useGithubStarts();
 	return (
 		<motion.div
 			onMouseLeave={() => {
