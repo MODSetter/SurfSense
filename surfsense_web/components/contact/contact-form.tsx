@@ -339,7 +339,7 @@ export function GridPattern({ width, height, x, y, squares, ...props }: any) {
 			</defs>
 			<rect width="100%" height="100%" strokeWidth={0} fill={`url(#${patternId})`} />
 			{squares && (
-				<svg x={x} y={y} className="overflow-visible">
+				<svg aria-hidden="true" x={x} y={y} className="overflow-visible">
 					{squares.map(([x, y]: any, idx: number) => (
 						<rect
 							strokeWidth="0"

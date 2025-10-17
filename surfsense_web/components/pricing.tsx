@@ -76,7 +76,10 @@ export function Pricing({
 			</div>
 
 			<div className="flex justify-center mb-10">
-				<label className="relative inline-flex items-center cursor-pointer">
+				<label
+					htmlFor="billing-toggle"
+					className="relative inline-flex items-center cursor-pointer"
+				>
 					<Label>
 						<Switch
 							ref={switchRef as any}
