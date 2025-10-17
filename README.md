@@ -141,9 +141,18 @@ Check out our public roadmap and contribute your ideas or feedback:
 
 ### Installation Options
 
-SurfSense provides two installation methods:
+SurfSense provides multiple installation methods:
 
-1. **[Docker Installation](https://www.surfsense.net/docs/docker-installation)** - The easiest way to get SurfSense up and running with all dependencies containerized.
+1. **Conda One-Click Installer (Recommended for most users)** - Create a ready-to-use Conda environment and install backend/frontend dependencies automatically.
+   - Requires Miniconda/Anaconda plus Node.js 18+ (for the web UI).
+   - From the repository root run:
+     ```bash
+     chmod +x oneclick-conda-install.sh
+     ./oneclick-conda-install.sh
+     ```
+   - Use `SURFSENSE_ENV_NAME` and `SURFSENSE_PYTHON_VERSION` env vars to customise the Conda environment.
+
+2. **[Docker Installation](https://www.surfsense.net/docs/docker-installation)** - The easiest way to get SurfSense up and running with all dependencies containerized.
    - Includes pgAdmin for database management through a web UI
    - Supports environment variable customization via `.env` file
    - Flexible deployment options (full stack or core services only)
@@ -151,7 +160,7 @@ SurfSense provides two installation methods:
    - See [Docker Setup Guide](DOCKER_SETUP.md) for detailed instructions
    - For deployment scenarios and options, see [Deployment Guide](DEPLOYMENT_GUIDE.md)
 
-2. **[Manual Installation (Recommended)](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
+3. **[Manual Installation](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
 
 Both installation guides include detailed OS-specific instructions for Windows, macOS, and Linux.
 
