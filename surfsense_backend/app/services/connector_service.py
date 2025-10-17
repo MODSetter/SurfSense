@@ -569,16 +569,16 @@ class ConnectorService:
     ) -> tuple:
         """
         Search using Baidu AI Search API and return both sources and documents.
-        
+
         Baidu AI Search provides intelligent search with automatic summarization.
         We extract the raw search results (references) from the API response.
-        
+
         Args:
             user_query: User's search query
             user_id: User ID
             search_space_id: Search space ID
             top_k: Maximum number of results to return
-            
+
         Returns:
             tuple: (sources_info_dict, documents_list)
         """
@@ -680,7 +680,9 @@ class ConnectorService:
                 "sources": [],
             }, []
         except Exception as exc:
-            print(f"ERROR: Unexpected error calling Baidu API: {type(exc).__name__}: {exc!r}")
+            print(
+                f"ERROR: Unexpected error calling Baidu API: {type(exc).__name__}: {exc!r}"
+            )
             print(f"Endpoint: {baidu_endpoint}")
             print(f"Payload: {payload}")
             return {
@@ -705,9 +707,11 @@ class ConnectorService:
 
         # Extract references (search results) from the response
         baidu_references = data.get("references", [])
-        
+
         if "code" in data or "message" in data:
-            print(f"WARNING: Baidu API returned error - Code: {data.get('code')}, Message: {data.get('message')}")
+            print(
+                f"WARNING: Baidu API returned error - Code: {data.get('code')}, Message: {data.get('message')}"
+            )
 
         if not baidu_references:
             print("WARNING: No references found in Baidu API response")
@@ -735,7 +739,9 @@ class ConnectorService:
                 source = {
                     "id": self.source_id_counter,
                     "title": title,
-                    "description": content[:300] if content else "",  # Limit description length
+                    "description": content[:300]
+                    if content
+                    else "",  # Limit description length
                     "url": url,
                 }
                 sources_list.append(source)

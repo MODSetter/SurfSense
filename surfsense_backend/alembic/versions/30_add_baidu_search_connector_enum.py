@@ -60,14 +60,13 @@ def upgrade() -> None:
 def downgrade() -> None:
     """
     Downgrade is not supported for enum values in PostgreSQL.
-    
+
     Removing enum values can break existing data and is generally not safe.
     To remove these values, you would need to:
     1. Remove all references to BAIDU_SEARCH_API in the database
     2. Recreate the enum type without BAIDU_SEARCH_API
     3. Reapply all other enum values
-    
+
     This is intentionally left as a no-op for safety.
     """
     pass
-
