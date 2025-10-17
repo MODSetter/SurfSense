@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 
 export const useGithubStars = () => {
@@ -9,6 +11,7 @@ export const useGithubStars = () => {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
+		const abortController = new AbortController();
 		const getStars = async () => {
 			try {
 				if (!repo || !owner) {
@@ -17,7 +20,9 @@ export const useGithubStars = () => {
 
 				setError(null);
 
-				const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+				const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+					signal: abortController.signal,
+				});
 
 				if (!response.ok) {
 					throw new Error(`Failed to fetch stars: ${response.statusText}`);
@@ -27,16 +32,21 @@ export const useGithubStars = () => {
 
 				setStars(data?.stargazers_count);
 			} catch (err) {
-				console.error("Error fetching stars:", err);
-				setError(err instanceof Error ? err.message : `Failed to fetch stars ${err}`);
-				throw err;
+				if (err instanceof Error) {
+					console.error("Error fetching stars:", err);
+					setError(err.message);
+				}
 			} finally {
 				setLoading(false);
 			}
 		};
 
 		getStars();
-	}, []);
+
+		return () => {
+			abortController.abort();
+		};
+	}, [repo, owner]);
 
 	return {
 		stars,
