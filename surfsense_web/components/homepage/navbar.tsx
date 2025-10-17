@@ -5,8 +5,8 @@ import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
+import { useGithubStars } from "@/hooks/use-github-stars";
 import { cn } from "@/lib/utils";
-import { useGithubStarts } from "@/hooks/use-github-starts";
 
 export const Navbar = () => {
 	const [isScrolled, setIsScrolled] = useState(false);
@@ -37,7 +37,7 @@ export const Navbar = () => {
 
 const DesktopNav = ({ navItems, isScrolled }: any) => {
 	const [hovered, setHovered] = useState<number | null>(null);
-	const { compactFormat: githubStarts, loading: loadingGithubStarts } = useGithubStarts();
+	const { compactFormat: githubStars, loading: loadingGithubStars } = useGithubStars();
 	return (
 		<motion.div
 			onMouseLeave={() => {
@@ -88,11 +88,11 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					className="hidden rounded-full px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center gap-1.5"
 				>
 					<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-					{loadingGithubStarts ? (
+					{loadingGithubStars ? (
 						<div className="w-6 h-5 dark:bg-neutral-800 animate-pulse"></div>
 					) : (
 						<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-							{githubStarts}
+							{githubStars}
 						</span>
 					)}
 				</Link>
@@ -110,7 +110,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 
 const MobileNav = ({ navItems, isScrolled }: any) => {
 	const [open, setOpen] = useState(false);
-	const { compactFormat: githubStarts, loading: loadingGithubStarts } = useGithubStarts();
+	const { compactFormat: githubStars, loading: loadingGithubStars } = useGithubStars();
 
 	return (
 		<>
@@ -169,16 +169,19 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 									className="flex items-center gap-1.5 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
 								>
 									<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-									{loadingGithubStarts ? (
+									{loadingGithubStars ? (
 										<div className="w-6 h-5 dark:bg-neutral-800 animate-pulse"></div>
 									) : (
 										<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-											{githubStarts}
+											{githubStars}
 										</span>
 									)}
 								</Link>
 							</div>
-							<button className="w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black">
+							<button
+								type="button"
+								className="w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black"
+							>
 								Book a call
 							</button>
 						</motion.div>
