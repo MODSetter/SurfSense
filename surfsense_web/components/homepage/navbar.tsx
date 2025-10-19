@@ -177,6 +177,7 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 										</span>
 									)}
 								</Link>
+								<ThemeTogglerComponent />
 							</div>
 							<button
 								type="button"
