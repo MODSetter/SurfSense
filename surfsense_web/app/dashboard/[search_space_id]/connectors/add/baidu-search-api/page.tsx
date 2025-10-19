@@ -153,8 +153,8 @@ export default function BaiduSearchApiPage() {
 					<CardHeader>
 						<CardTitle className="text-2xl font-bold">Connect Baidu Search</CardTitle>
 						<CardDescription>
-							Integrate with Baidu AI Search to enhance your search capabilities with
-							intelligent Chinese web search results.
+							Integrate with Baidu AI Search to enhance your search capabilities with intelligent
+							Chinese web search results.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -224,13 +224,9 @@ export default function BaiduSearchApiPage() {
 												<SelectContent>
 													<SelectItem value="ernie-3.5-8k">ERNIE 3.5 8K</SelectItem>
 													<SelectItem value="ernie-4.5-turbo-32k">ERNIE 4.5 Turbo 32K</SelectItem>
-													<SelectItem value="ernie-4.5-turbo-128k">
-														ERNIE 4.5 Turbo 128K
-													</SelectItem>
+													<SelectItem value="ernie-4.5-turbo-128k">ERNIE 4.5 Turbo 128K</SelectItem>
 													<SelectItem value="deepseek-v3">DeepSeek V3</SelectItem>
-													<SelectItem value="qwen3-235b-a22b-instruct-2507">
-														Qwen3 235B
-													</SelectItem>
+													<SelectItem value="qwen3-235b-a22b-instruct-2507">Qwen3 235B</SelectItem>
 												</SelectContent>
 											</Select>
 											<FormDescription>
@@ -255,7 +251,9 @@ export default function BaiduSearchApiPage() {
 												</FormControl>
 												<SelectContent>
 													<SelectItem value="baidu_search_v1">Baidu Search V1</SelectItem>
-													<SelectItem value="baidu_search_v2">Baidu Search V2 (Recommended)</SelectItem>
+													<SelectItem value="baidu_search_v2">
+														Baidu Search V2 (Recommended)
+													</SelectItem>
 												</SelectContent>
 											</Select>
 											<FormDescription>
