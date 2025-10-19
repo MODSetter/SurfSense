@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 
 export const useGithubStars = () => {
-	const repo = process.env.NEXT_PUBLIC_GITHUB_REPO;
-	const owner = process.env.NEXT_PUBLIC_GITHUB_OWNER;
-
 	const [stars, setStars] = useState<number | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -14,13 +11,9 @@ export const useGithubStars = () => {
 		const abortController = new AbortController();
 		const getStars = async () => {
 			try {
-				if (!repo || !owner) {
-					throw new Error("Missing GitHub credentials");
-				}
-
 				setError(null);
 
-				const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+				const response = await fetch(`https://api.github.com/repos/MODSetter/SurfSense`, {
 					signal: abortController.signal,
 				});
 
@@ -46,7 +39,7 @@ export const useGithubStars = () => {
 		return () => {
 			abortController.abort();
 		};
-	}, [repo, owner]);
+	}, []);
 
 	return {
 		stars,
