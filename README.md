@@ -58,7 +58,6 @@ Open source and easy to deploy locally.
 - Supports all major Rerankers (Pinecode, Cohere, Flashrank etc)
 - Uses Hierarchical Indices (2 tiered RAG setup).
 - Utilizes Hybrid Search (Semantic + Full Text Search combined with Reciprocal Rank Fusion).
-- RAG as a Service API Backend.
 
 ### ℹ️ **External Sources**
 - Search Engines (Tavily, LinkUp)
@@ -148,8 +147,6 @@ SurfSense provides two installation methods:
    - Supports environment variable customization via `.env` file
    - Flexible deployment options (full stack or core services only)
    - No need to manually edit configuration files between environments
-   - See [Docker Setup Guide](DOCKER_SETUP.md) for detailed instructions
-   - For deployment scenarios and options, see [Deployment Guide](DEPLOYMENT_GUIDE.md)
 
 2. **[Manual Installation (Recommended)](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
 
@@ -220,6 +217,12 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 
 -  **pgvector**: PostgreSQL extension for efficient vector similarity operations
 
+-  **Redis**: In-memory data structure store used as message broker and result backend for Celery
+
+-  **Celery**: Distributed task queue for handling asynchronous background jobs (document processing, podcast generation, etc.)
+
+-  **Flower**: Real-time monitoring and administration tool for Celery task queues
+
 -  **Chonkie**: Advanced document chunking and embedding library
  - Uses `AutoEmbeddings` for flexible embedding model selection
  -  `LateChunker` for optimized document chunking based on embedding model's max sequence length
@@ -268,12 +271,6 @@ Before installation, make sure to complete the [prerequisite setup steps](https:
 
 ### **Extension** 
  Manifest v3 on Plasmo
-
-## Future Work
-- Add More Connectors.
-- Patch minor bugs.
-- Document Podcasts
-
 
 
 ## Contribute 
