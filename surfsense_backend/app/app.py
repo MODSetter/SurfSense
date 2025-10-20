@@ -17,10 +17,14 @@ async def lifespan(app: FastAPI):
     await create_db_and_tables()
     yield
 
+
 def registration_allowed():
     if not config.REGISTRATION_ENABLED:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Registration is disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Registration is disabled"
+        )
     return True
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -67,7 +71,9 @@ if config.AUTH_TYPE == "GOOGLE":
         ),
         prefix="/auth/google",
         tags=["auth"],
-        dependencies=[Depends(registration_allowed)],  # blocks OAuth registration when disabled
+        dependencies=[
+            Depends(registration_allowed)
+        ],  # blocks OAuth registration when disabled
     )
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])

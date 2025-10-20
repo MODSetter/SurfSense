@@ -65,18 +65,18 @@ export default function RegisterPage() {
 			const data = await response.json();
 
 			if (!response.ok && response.status === 403) {
-                const friendlyMessage =
-                    "Registrations are currently closed. If you need access, contact your administrator.";
-                setErrorTitle("Registration is disabled");
-                setError(friendlyMessage);
-                toast.error("Registration is disabled", {
-                    id: loadingToast,
-                    description: friendlyMessage,
-                    duration: 6000,
-                });
-                setIsLoading(false);
-                return;
-            }
+				const friendlyMessage =
+					"Registrations are currently closed. If you need access, contact your administrator.";
+				setErrorTitle("Registration is disabled");
+				setError(friendlyMessage);
+				toast.error("Registration is disabled", {
+					id: loadingToast,
+					description: friendlyMessage,
+					duration: 6000,
+				});
+				setIsLoading(false);
+				return;
+			}
 
 			if (!response.ok) {
 				throw new Error(data.detail || `HTTP ${response.status}`);
