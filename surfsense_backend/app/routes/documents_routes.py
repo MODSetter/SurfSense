@@ -1,7 +1,7 @@
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from litellm import atranscription
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -56,35 +56,41 @@ async def create_documents(
     request: DocumentsCreate,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
-    fastapi_background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     try:
         # Check if the user owns the search space
         await check_ownership(session, SearchSpace, request.search_space_id, user)
 
         if request.document_type == DocumentType.EXTENSION:
+            from app.tasks.celery_tasks.document_tasks import (
+                process_extension_document_task,
+            )
+
             for individual_document in request.content:
-                fastapi_background_tasks.add_task(
-                    process_extension_document_with_new_session,
-                    individual_document,
-                    request.search_space_id,
-                    str(user.id),
+                # Convert document to dict for Celery serialization
+                document_dict = {
+                    "metadata": {
+                        "VisitedWebPageTitle": individual_document.metadata.VisitedWebPageTitle,
+                        "VisitedWebPageURL": individual_document.metadata.VisitedWebPageURL,
+                    },
+                    "content": individual_document.content,
+                }
+                process_extension_document_task.delay(
+                    document_dict, request.search_space_id, str(user.id)
                 )
         elif request.document_type == DocumentType.CRAWLED_URL:
+            from app.tasks.celery_tasks.document_tasks import process_crawled_url_task
+
             for url in request.content:
-                fastapi_background_tasks.add_task(
-                    process_crawled_url_with_new_session,
-                    url,
-                    request.search_space_id,
-                    str(user.id),
+                process_crawled_url_task.delay(
+                    url, request.search_space_id, str(user.id)
                 )
         elif request.document_type == DocumentType.YOUTUBE_VIDEO:
+            from app.tasks.celery_tasks.document_tasks import process_youtube_video_task
+
             for url in request.content:
-                fastapi_background_tasks.add_task(
-                    process_youtube_video_with_new_session,
-                    url,
-                    request.search_space_id,
-                    str(user.id),
+                process_youtube_video_task.delay(
+                    url, request.search_space_id, str(user.id)
                 )
         else:
             raise HTTPException(status_code=400, detail="Invalid document type")
@@ -106,7 +112,6 @@ async def create_documents_file_upload(
     search_space_id: int = Form(...),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
-    fastapi_background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     try:
         await check_ownership(session, SearchSpace, search_space_id, user)
@@ -131,12 +136,12 @@ async def create_documents_file_upload(
                 with open(temp_path, "wb") as f:
                     f.write(content)
 
-                fastapi_background_tasks.add_task(
-                    process_file_in_background_with_new_session,
-                    temp_path,
-                    file.filename,
-                    search_space_id,
-                    str(user.id),
+                from app.tasks.celery_tasks.document_tasks import (
+                    process_file_upload_task,
+                )
+
+                process_file_upload_task.delay(
+                    temp_path, file.filename, search_space_id, str(user.id)
                 )
             except Exception as e:
                 raise HTTPException(

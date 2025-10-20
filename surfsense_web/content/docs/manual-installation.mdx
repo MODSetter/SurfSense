@@ -10,14 +10,28 @@ This guide provides step-by-step instructions for setting up SurfSense without D
 
 ## Prerequisites
 
-Before beginning the manual installation, ensure you have completed all the [prerequisite setup steps](/docs), including:
+Before beginning the manual installation, ensure you have the following installed and configured:
 
-- PGVector setup
+### Required Software
+- **Python 3.12+** - Backend runtime environment
+- **Node.js 20+** - Frontend runtime environment  
+- **PostgreSQL 14+** - Database server
+- **PGVector** - PostgreSQL extension for vector similarity search
+- **Redis** - Message broker for Celery task queue
+- **Git** - Version control (to clone the repository)
+
+### Required Services & API Keys
+
+Complete all the [setup steps](/docs), including:
+
+- **Authentication Setup** (choose one):
+  - Google OAuth credentials (for `AUTH_TYPE=GOOGLE`)
+  - Local authentication setup (for `AUTH_TYPE=LOCAL`)
 - **File Processing ETL Service** (choose one):
-    - Unstructured.io API key (Supports 34+ formats)
-    - LlamaIndex API key (enhanced parsing, supports 50+ formats)
-    - Docling (local processing, no API key required, supports PDF, Office docs, images, HTML, CSV)
-- Other required API keys
+  - Unstructured.io API key (Supports 34+ formats)
+  - LlamaCloud API key (enhanced parsing, supports 50+ formats)
+  - Docling (local processing, no API key required, supports PDF, Office docs, images, HTML, CSV)
+- **Other API keys** as needed for your use case
 
 ## Backend Setup
 
@@ -58,7 +72,7 @@ Edit the `.env` file and set the following variables:
 | AUTH_TYPE                  | Authentication method: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication                                                                                          |
 | GOOGLE_OAUTH_CLIENT_ID     | (Optional) Client ID from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                        |
 | GOOGLE_OAUTH_CLIENT_SECRET | (Optional) Client secret from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                    |
-| EMBEDDING_MODEL            | Name of the embedding model (e.g., `mixedbread-ai/mxbai-embed-large-v1`)                                                                                                                 |
+| EMBEDDING_MODEL            | Name of the embedding model (e.g., `sentence-transformers/all-MiniLM-L6-v2`, `openai://text-embedding-ada-002`)                                                                                                                 |
 | RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`)                                                                                                                              |
 | RERANKERS_MODEL_TYPE       | Type of reranker model (e.g., `flashrank`)                                                                                                                                                |
 | TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `local/kokoro`, `openai/tts-1`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers)                            |
@@ -70,9 +84,11 @@ Edit the `.env` file and set the following variables:
 | ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats), `LLAMACLOUD` (supports 50+ formats including legacy document types), or `DOCLING` (local processing, supports PDF, Office docs, images, HTML, CSV)                                                  |
 | UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
 | LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
+| CELERY_BROKER_URL          | Redis connection URL for Celery broker (e.g., `redis://localhost:6379/0`)                                                                                                                |
+| CELERY_RESULT_BACKEND      | Redis connection URL for Celery result backend (e.g., `redis://localhost:6379/0`)                                                                                                        |
 
 
-**Optional Backend LangSmith Observability:**
+**(Optional) Backend LangSmith Observability:**
 | ENV VARIABLE | DESCRIPTION |
 |--------------|-------------|
 | LANGSMITH_TRACING | Enable LangSmith tracing (e.g., `true`) |
@@ -80,7 +96,7 @@ Edit the `.env` file and set the following variables:
 | LANGSMITH_API_KEY | Your LangSmith API key |
 | LANGSMITH_PROJECT | LangSmith project name (e.g., `surfsense`) |
 
-**Uvicorn Server Configuration**
+**(Optional) Uvicorn Server Configuration**
 | ENV VARIABLE | DESCRIPTION | DEFAULT VALUE |
 |------------------------------|---------------------------------------------|---------------|
 | UVICORN_HOST                 | Host address to bind the server             | 0.0.0.0       |
@@ -149,7 +165,91 @@ uv sync
 uv sync
 ```
 
-### 3. Run the Backend
+### 3. Start Redis Server
+
+Redis is required for Celery task queue. Start the Redis server:
+
+**Linux:**
+
+```bash
+# Start Redis server
+sudo systemctl start redis
+
+# Or if using Redis installed via package manager
+redis-server
+```
+
+**macOS:**
+
+```bash
+# If installed via Homebrew
+brew services start redis
+
+# Or run directly
+redis-server
+```
+
+**Windows:**
+
+```powershell
+# Option 1: If using Redis on Windows (via WSL or Windows port)
+redis-server
+
+# Option 2: If installed as a Windows service
+net start Redis
+```
+
+**Alternative for Windows - Run Redis in Docker:**
+
+If you have Docker Desktop installed, you can run Redis in a container:
+
+```powershell
+# Pull and run Redis container
+docker run -d --name redis -p 6379:6379 redis:latest
+
+# To stop Redis
+docker stop redis
+
+# To start Redis again
+docker start redis
+
+# To remove Redis container
+docker rm -f redis
+```
+
+Verify Redis is running by connecting to it:
+
+```bash
+redis-cli ping
+# Should return: PONG
+```
+
+### 4. Start Celery Worker
+
+In a new terminal window, start the Celery worker to handle background tasks:
+
+**Linux/macOS/Windows:**
+
+```bash
+# Make sure you're in the surfsense_backend directory
+cd surfsense_backend
+
+# Start Celery worker
+uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo
+```
+
+**Optional: Start Flower for monitoring Celery tasks:**
+
+In another terminal window:
+
+```bash
+# Start Flower (Celery monitoring tool)
+uv run celery -A celery_worker.celery_app flower --port=5555
+```
+
+Access Flower at [http://localhost:5555](http://localhost:5555) to monitor your Celery tasks.
+
+### 5. Run the Backend
 
 Start the backend server:
 
@@ -303,9 +403,11 @@ To verify your installation:
 ## Troubleshooting
 
 - **Database Connection Issues**: Verify your PostgreSQL server is running and pgvector is properly installed
+- **Redis Connection Issues**: Ensure Redis server is running (`redis-cli ping` should return `PONG`). Check that `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` are correctly set in your `.env` file
+- **Celery Worker Issues**: Make sure the Celery worker is running in a separate terminal. Check worker logs for any errors
 - **Authentication Problems**: Check your Google OAuth configuration and ensure redirect URIs are set correctly
 - **LLM Errors**: Confirm your LLM API keys are valid and the selected models are accessible
-- **File Upload Failures**: Validate your Unstructured.io API key
+- **File Upload Failures**: Validate your ETL service API key (Unstructured.io or LlamaCloud) or ensure Docling is properly configured
 - **Windows-specific**: If you encounter path issues, ensure you're using the correct path separator (`\` instead of `/`)
 - **macOS-specific**: If you encounter permission issues, you may need to use `sudo` for some installation commands
 

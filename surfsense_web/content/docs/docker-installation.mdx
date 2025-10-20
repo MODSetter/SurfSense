@@ -17,7 +17,7 @@ Before you begin, ensure you have:
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your machine
 - [Git](https://git-scm.com/downloads) (to clone the repository)
 - Completed all the [prerequisite setup steps](/docs) including:
-  - PGVector setup
+  - Auth setup
   - **File Processing ETL Service** (choose one):
     - Unstructured.io API key (Supports 34+ formats)
     - LlamaIndex API key (enhanced parsing, supports 50+ formats)
@@ -56,7 +56,7 @@ Before you begin, ensure you have:
 
     Edit all `.env` files and fill in the required values:
 
-### Docker-Specific Environment Variables
+### Docker-Specific Environment Variables (Optional)
 
 | ENV VARIABLE               | DESCRIPTION                                                                 | DEFAULT VALUE       |
 |----------------------------|-----------------------------------------------------------------------------|---------------------|
@@ -64,6 +64,8 @@ Before you begin, ensure you have:
 | BACKEND_PORT               | Port for the backend API service                                            | 8000                |
 | POSTGRES_PORT              | Port for the PostgreSQL database                                            | 5432                |
 | PGADMIN_PORT               | Port for pgAdmin web interface                                              | 5050                |
+| REDIS_PORT                 | Port for Redis (used by Celery)                                             | 6379                |
+| FLOWER_PORT                | Port for Flower (Celery monitoring tool)                                    | 5555                |
 | POSTGRES_USER              | PostgreSQL username                                                         | postgres            |
 | POSTGRES_PASSWORD          | PostgreSQL password                                                         | postgres            |
 | POSTGRES_DB                | PostgreSQL database name                                                    | surfsense           |
@@ -81,7 +83,7 @@ Before you begin, ensure you have:
 | AUTH_TYPE                  | Authentication method: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication                                                                                          |
 | GOOGLE_OAUTH_CLIENT_ID     | (Optional) Client ID from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                        |
 | GOOGLE_OAUTH_CLIENT_SECRET | (Optional) Client secret from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                    |
-| EMBEDDING_MODEL            | Name of the embedding model (e.g., `mixedbread-ai/mxbai-embed-large-v1`)                                                                                                                 |
+| EMBEDDING_MODEL            | Name of the embedding model (e.g., `sentence-transformers/all-MiniLM-L6-v2`, `openai://text-embedding-ada-002`)                                                                                                                 |
 | RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`)                                                                                                                              |
 | RERANKERS_MODEL_TYPE       | Type of reranker model (e.g., `flashrank`)                                                                                                                                                |
 | TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `local/kokoro`, `openai/tts-1`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers)                            |
@@ -94,6 +96,8 @@ Before you begin, ensure you have:
 | ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats), `LLAMACLOUD` (supports 50+ formats including legacy document types), or `DOCLING` (local processing, supports PDF, Office docs, images, HTML, CSV)                                                  |
 | UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
 | LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
+| CELERY_BROKER_URL          | Redis connection URL for Celery broker (e.g., `redis://localhost:6379/0`)                                                                                                                |
+| CELERY_RESULT_BACKEND      | Redis connection URL for Celery result backend (e.g., `redis://localhost:6379/0`)                                                                                                        |
 
 
 **Optional Backend LangSmith Observability:**

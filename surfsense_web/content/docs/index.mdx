@@ -4,50 +4,8 @@ description: Required setup's before setting up SurfSense
 full: true
 ---
 
-## PGVector installation Guide 
 
-SurfSense requires the pgvector extension for PostgreSQL:
-
-### Linux and Mac
-
-Compile and install the extension (supports Postgres 13+)
-
-```sh
-cd /tmp
-git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
-cd pgvector
-make
-make install # may need sudo
-```
-
-See the [installation notes](https://github.com/pgvector/pgvector/tree/master#installation-notes---linux-and-mac) if you run into issues
-
-### Windows
-
-Ensure [C++ support in Visual Studio](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-170#download-and-install-the-tools) is installed, and run:
-
-```cmd
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-```
-
-Note: The exact path will vary depending on your Visual Studio version and edition
-
-Then use `nmake` to build:
-
-```cmd
-set "PGROOT=C:\Program Files\PostgreSQL\16"
-cd %TEMP%
-git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
-cd pgvector
-nmake /F Makefile.win
-nmake /F Makefile.win install
-```
-
-See the [installation notes](https://github.com/pgvector/pgvector/tree/master#installation-notes---windows) if you run into issues
-
----
-
-## Google OAuth Setup (Optional)
+## Auth Setup 
 
 SurfSense supports both Google OAuth and local email/password authentication. Google OAuth is optional - if you prefer local authentication, you can skip this section.
 

@@ -14,7 +14,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -351,7 +351,6 @@ async def index_connector_content(
     ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
-    background_tasks: BackgroundTasks = None,
 ):
     """
     Index content from a connector to a search space.
@@ -409,107 +408,83 @@ async def index_connector_content(
         indexing_to = end_date if end_date else today_str
 
         if connector.connector_type == SearchSourceConnectorType.SLACK_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_slack_messages_task,
+            )
+
             logger.info(
                 f"Triggering Slack indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_slack_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_slack_messages_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Slack indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.NOTION_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import index_notion_pages_task
+
             logger.info(
                 f"Triggering Notion indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_notion_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_notion_pages_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Notion indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.GITHUB_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import index_github_repos_task
+
             logger.info(
                 f"Triggering GitHub indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_github_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_github_repos_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "GitHub indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.LINEAR_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import index_linear_issues_task
+
             logger.info(
                 f"Triggering Linear indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_linear_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_linear_issues_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Linear indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import index_jira_issues_task
+
             logger.info(
                 f"Triggering Jira indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_jira_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_jira_issues_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Jira indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.CONFLUENCE_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_confluence_pages_task,
+            )
+
             logger.info(
                 f"Triggering Confluence indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_confluence_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_confluence_pages_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Confluence indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.CLICKUP_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import index_clickup_tasks_task
+
             logger.info(
                 f"Triggering ClickUp indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_clickup_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_clickup_tasks_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "ClickUp indexing started in the background."
 
@@ -517,77 +492,65 @@ async def index_connector_content(
             connector.connector_type
             == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR
         ):
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_google_calendar_events_task,
+            )
+
             logger.info(
                 f"Triggering Google Calendar indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_google_calendar_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_google_calendar_events_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Google Calendar indexing started in the background."
         elif connector.connector_type == SearchSourceConnectorType.AIRTABLE_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_airtable_records_task,
+            )
+
             logger.info(
                 f"Triggering Airtable indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_airtable_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_airtable_records_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Airtable indexing started in the background."
         elif (
             connector.connector_type == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR
         ):
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_google_gmail_messages_task,
+            )
+
             logger.info(
                 f"Triggering Google Gmail indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_google_gmail_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_google_gmail_messages_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Google Gmail indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_discord_messages_task,
+            )
+
             logger.info(
                 f"Triggering Discord indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_discord_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_discord_messages_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Discord indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.LUMA_CONNECTOR:
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import index_luma_events_task
+
             logger.info(
                 f"Triggering Luma indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            background_tasks.add_task(
-                run_luma_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_luma_events_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Luma indexing started in the background."
 
@@ -595,17 +558,15 @@ async def index_connector_content(
             connector.connector_type
             == SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR
         ):
-            # Run indexing in background
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_elasticsearch_documents_task,
+            )
+
             logger.info(
                 f"Triggering Elasticsearch indexing for connector {connector_id} into search space {search_space_id}"
             )
-            background_tasks.add_task(
-                run_elasticsearch_indexing_with_new_session,
-                connector_id,
-                search_space_id,
-                str(user.id),
-                indexing_from,
-                indexing_to,
+            index_elasticsearch_documents_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Elasticsearch indexing started in the background."
 

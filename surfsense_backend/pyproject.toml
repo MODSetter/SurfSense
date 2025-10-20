@@ -45,6 +45,9 @@ dependencies = [
     "langchain-litellm>=0.2.3",
     "elasticsearch>=9.1.1",
     "faster-whisper>=1.1.0",
+    "celery[redis]>=5.5.3",
+    "flower>=2.0.1",
+    "redis>=5.2.1",
 ]
 
 [dependency-groups]
