@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -176,7 +176,6 @@ async def generate_podcast(
     request: PodcastGenerateRequest,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
-    fastapi_background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     try:
         # Check if the user owns the search space
@@ -205,14 +204,14 @@ async def generate_podcast(
                     detail="One or more chat IDs do not belong to this user or search space",
                 )
 
-            # Only add a single task with the first chat ID
+            from app.tasks.celery_tasks.podcast_tasks import (
+                generate_chat_podcast_task,
+            )
+
+            # Add Celery tasks for each chat ID
             for chat_id in valid_chat_ids:
-                fastapi_background_tasks.add_task(
-                    generate_chat_podcast_with_new_session,
-                    chat_id,
-                    request.search_space_id,
-                    request.podcast_title,
-                    user.id,
+                generate_chat_podcast_task.delay(
+                    chat_id, request.search_space_id, request.podcast_title, user.id
                 )
 
         return {

@@ -156,7 +156,7 @@ SurfSense provides two installation methods:
 Both installation guides include detailed OS-specific instructions for Windows, macOS, and Linux.
 
 Before installation, make sure to complete the [prerequisite setup steps](https://www.surfsense.net/docs/) including:
-- PGVector setup
+- Auth setup
 - **File Processing ETL Service** (choose one):
   - Unstructured.io API key (supports 34+ formats)
   - LlamaIndex API key (enhanced parsing, supports 50+ formats)
