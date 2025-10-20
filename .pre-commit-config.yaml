@@ -1,0 +1,96 @@
+# Pre-commit configuration for SurfSense
+# See https://pre-commit.com for more information
+
+repos:
+  # General file quality hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args: [--multi, --unsafe]
+      - id: check-json
+        exclude: '(tsconfig\.json|\.vscode/.*\.json)$'
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=10240]  # 10MB limit
+      - id: debug-statements
+      - id: check-case-conflict
+
+  # Security - detect secrets across all file types
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+            .*\.env\.example|
+            .*\.env\.template|
+            .*/tests/.*|
+            .*test.*\.py|
+            test_.*\.py|
+            .github/workflows/.*\.yml|
+            .github/workflows/.*\.yaml|
+            .*pnpm-lock\.yaml|
+            .*alembic\.ini|
+            .*alembic/versions/.*\.py|
+            .*\.mdx$
+          )$
+
+  # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.5
+    hooks:
+      - id: ruff
+        name: ruff-check
+        files: ^surfsense_backend/
+        exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
+        args: [--fix]
+      - id: ruff-format
+        name: ruff-format
+        files: ^surfsense_backend/
+        exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.6
+    hooks:
+      - id: bandit
+        files: ^surfsense_backend/
+        args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
+        exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
+
+  # Biome hooks for TypeScript/JavaScript projects
+  - repo: local
+    hooks:
+      # Biome check for surfsense_web
+      - id: biome-check-web
+        name: biome-check-web
+        entry: bash -c 'cd surfsense_web && npx @biomejs/biome check --diagnostic-level=error .'
+        language: system
+        files: ^surfsense_web/
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # Biome check for surfsense_browser_extension
+      # - id: biome-check-extension
+      #   name: biome-check-extension
+      #   entry: bash -c 'cd surfsense_browser_extension && npx @biomejs/biome check --diagnostic-level=error .'
+      #   language: system
+      #   files: ^surfsense_browser_extension/
+      #   pass_filenames: false
+      #   always_run: true
+      #   stages: [pre-commit]
+
+  # Commit message linting
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.8.3
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+# Global configuration
+default_stages: [pre-commit]
+fail_fast: false
+
