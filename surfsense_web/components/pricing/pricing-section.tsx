@@ -32,9 +32,8 @@ const demoPlans = [
 		features: [
 			"Everything in Community",
 			"Priority Support",
-			"Access Controls",
+			"Role-based access permissions",
 			"Collaboration and multiplayer features",
-			"Video generation",
 			"Advanced security features",
 		],
 		description: "For large organizations with specific needs",
