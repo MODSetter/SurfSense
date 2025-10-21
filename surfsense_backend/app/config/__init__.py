@@ -43,6 +43,7 @@ class Config:
 
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")
+    REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
 
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")

@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,14 @@ async def lifespan(app: FastAPI):
     # Not needed if you setup a migration system like Alembic
     await create_db_and_tables()
     yield
+
+
+def registration_allowed():
+    if not config.REGISTRATION_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Registration is disabled"
+        )
+    return True
 
 
 app = FastAPI(lifespan=lifespan)
@@ -36,6 +44,7 @@ app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
     prefix="/auth",
     tags=["auth"],
+    dependencies=[Depends(registration_allowed)],  # blocks registration when disabled
 )
 app.include_router(
     fastapi_users.get_reset_password_router(),
@@ -62,6 +71,9 @@ if config.AUTH_TYPE == "GOOGLE":
         ),
         prefix="/auth/google",
         tags=["auth"],
+        dependencies=[
+            Depends(registration_allowed)
+        ],  # blocks OAuth registration when disabled
     )
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
