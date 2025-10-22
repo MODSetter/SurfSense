@@ -48,13 +48,13 @@ export default function ChatInterface({
 				</div>
 				<div
 					className={cn(
-						"border rounded-2xl shrink-0 flex flex-col h-full",
+						"border rounded-2xl shrink-0 flex flex-col h-full transition-all",
 						isChatPannelOpen ? "w-72" : "w-14"
 					)}
 				>
 					<div
 						className={cn(
-							"w-full border-b p-2 flex items-center ",
+							"w-full border-b p-2 flex items-center transition-all ",
 							isChatPannelOpen ? "justify-end" : " justify-center "
 						)}
 					>
