@@ -1,3 +1,5 @@
+import ChatPanelView from "./ChatPanelView";
+
 export function ChatPanelContainer() {
-	return <div>Chat Panel container</div>;
+	return <ChatPanelView />;
 }
