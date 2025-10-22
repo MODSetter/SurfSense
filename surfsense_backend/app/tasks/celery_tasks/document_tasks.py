@@ -280,7 +280,7 @@ async def _process_file_upload(
     file_path: str, filename: str, search_space_id: int, user_id: str
 ):
     """Process file upload with new session."""
-    from app.routes.documents_routes import process_file_in_background
+    from app.tasks.document_processors.file_processors import process_file_in_background
 
     async with get_celery_session_maker()() as session:
         task_logger = TaskLoggingService(session, search_space_id)

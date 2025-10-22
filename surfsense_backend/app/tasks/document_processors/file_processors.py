@@ -4,12 +4,16 @@ File document processors for different ETL services (Unstructured, LlamaCloud, D
 
 import logging
 
+from fastapi import HTTPException
 from langchain_core.documents import Document as LangChainDocument
+from litellm import atranscription
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, DocumentType
+from app.config import config as app_config
+from app.db import Document, DocumentType, Log
 from app.services.llm_service import get_user_long_context_llm
+from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     convert_document_to_markdown,
     create_document_chunks,
@@ -21,6 +25,7 @@ from app.utils.document_converters import (
 from .base import (
     check_document_by_unique_identifier,
 )
+from .markdown_processor import add_received_markdown_file_document
 
 
 async def add_received_file_document_using_unstructured(
@@ -391,3 +396,418 @@ async def add_received_file_document_using_docling(
         raise RuntimeError(
             f"Failed to process file document using Docling: {e!s}"
         ) from e
+
+
+async def process_file_in_background(
+    file_path: str,
+    filename: str,
+    search_space_id: int,
+    user_id: str,
+    session: AsyncSession,
+    task_logger: TaskLoggingService,
+    log_entry: Log,
+):
+    try:
+        # Check if the file is a markdown or text file
+        if filename.lower().endswith((".md", ".markdown", ".txt")):
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Processing markdown/text file: {filename}",
+                {"file_type": "markdown", "processing_stage": "reading_file"},
+            )
+
+            # For markdown files, read the content directly
+            with open(file_path, encoding="utf-8") as f:
+                markdown_content = f.read()
+
+            # Clean up the temp file
+            import os
+
+            try:
+                os.unlink(file_path)
+            except Exception as e:
+                print("Error deleting temp file", e)
+                pass
+
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Creating document from markdown content: {filename}",
+                {
+                    "processing_stage": "creating_document",
+                    "content_length": len(markdown_content),
+                },
+            )
+
+            # Process markdown directly through specialized function
+            result = await add_received_markdown_file_document(
+                session, filename, markdown_content, search_space_id, user_id
+            )
+
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully processed markdown file: {filename}",
+                    {
+                        "document_id": result.id,
+                        "content_hash": result.content_hash,
+                        "file_type": "markdown",
+                    },
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Markdown file already exists (duplicate): {filename}",
+                    {"duplicate_detected": True, "file_type": "markdown"},
+                )
+
+        # Check if the file is an audio file
+        elif filename.lower().endswith(
+            (".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")
+        ):
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Processing audio file for transcription: {filename}",
+                {"file_type": "audio", "processing_stage": "starting_transcription"},
+            )
+
+            # Determine STT service type
+            stt_service_type = (
+                "local"
+                if app_config.STT_SERVICE
+                and app_config.STT_SERVICE.startswith("local/")
+                else "external"
+            )
+
+            # Check if using local STT service
+            if stt_service_type == "local":
+                # Use local Faster-Whisper for transcription
+                from app.services.stt_service import stt_service
+
+                try:
+                    result = stt_service.transcribe_file(file_path)
+                    transcribed_text = result.get("text", "")
+
+                    if not transcribed_text:
+                        raise ValueError("Transcription returned empty text")
+
+                    # Add metadata about the transcription
+                    transcribed_text = (
+                        f"# Transcription of {filename}\n\n{transcribed_text}"
+                    )
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Failed to transcribe audio file {filename}: {e!s}",
+                    ) from e
+
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Local STT transcription completed: {filename}",
+                    {
+                        "processing_stage": "local_transcription_complete",
+                        "language": result.get("language"),
+                        "confidence": result.get("language_probability"),
+                        "duration": result.get("duration"),
+                    },
+                )
+            else:
+                # Use LiteLLM for audio transcription
+                with open(file_path, "rb") as audio_file:
+                    transcription_kwargs = {
+                        "model": app_config.STT_SERVICE,
+                        "file": audio_file,
+                        "api_key": app_config.STT_SERVICE_API_KEY,
+                    }
+                    if app_config.STT_SERVICE_API_BASE:
+                        transcription_kwargs["api_base"] = (
+                            app_config.STT_SERVICE_API_BASE
+                        )
+
+                    transcription_response = await atranscription(
+                        **transcription_kwargs
+                    )
+
+                    # Extract the transcribed text
+                    transcribed_text = transcription_response.get("text", "")
+
+                    if not transcribed_text:
+                        raise ValueError("Transcription returned empty text")
+
+                # Add metadata about the transcription
+                transcribed_text = (
+                    f"# Transcription of {filename}\n\n{transcribed_text}"
+                )
+
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Transcription completed, creating document: {filename}",
+                {
+                    "processing_stage": "transcription_complete",
+                    "transcript_length": len(transcribed_text),
+                },
+            )
+
+            # Clean up the temp file
+            try:
+                os.unlink(file_path)
+            except Exception as e:
+                print("Error deleting temp file", e)
+                pass
+
+            # Process transcription as markdown document
+            result = await add_received_markdown_file_document(
+                session, filename, transcribed_text, search_space_id, user_id
+            )
+
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully transcribed and processed audio file: {filename}",
+                    {
+                        "document_id": result.id,
+                        "content_hash": result.content_hash,
+                        "file_type": "audio",
+                        "transcript_length": len(transcribed_text),
+                        "stt_service": stt_service_type,
+                    },
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Audio file transcript already exists (duplicate): {filename}",
+                    {"duplicate_detected": True, "file_type": "audio"},
+                )
+
+        else:
+            if app_config.ETL_SERVICE == "UNSTRUCTURED":
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Processing file with Unstructured ETL: {filename}",
+                    {
+                        "file_type": "document",
+                        "etl_service": "UNSTRUCTURED",
+                        "processing_stage": "loading",
+                    },
+                )
+
+                from langchain_unstructured import UnstructuredLoader
+
+                # Process the file
+                loader = UnstructuredLoader(
+                    file_path,
+                    mode="elements",
+                    post_processors=[],
+                    languages=["eng"],
+                    include_orig_elements=False,
+                    include_metadata=False,
+                    strategy="auto",
+                )
+
+                docs = await loader.aload()
+
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Unstructured ETL completed, creating document: {filename}",
+                    {"processing_stage": "etl_complete", "elements_count": len(docs)},
+                )
+
+                # Clean up the temp file
+                import os
+
+                try:
+                    os.unlink(file_path)
+                except Exception as e:
+                    print("Error deleting temp file", e)
+                    pass
+
+                # Pass the documents to the existing background task
+                result = await add_received_file_document_using_unstructured(
+                    session, filename, docs, search_space_id, user_id
+                )
+
+                if result:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Successfully processed file with Unstructured: {filename}",
+                        {
+                            "document_id": result.id,
+                            "content_hash": result.content_hash,
+                            "file_type": "document",
+                            "etl_service": "UNSTRUCTURED",
+                        },
+                    )
+                else:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Document already exists (duplicate): {filename}",
+                        {
+                            "duplicate_detected": True,
+                            "file_type": "document",
+                            "etl_service": "UNSTRUCTURED",
+                        },
+                    )
+
+            elif app_config.ETL_SERVICE == "LLAMACLOUD":
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Processing file with LlamaCloud ETL: {filename}",
+                    {
+                        "file_type": "document",
+                        "etl_service": "LLAMACLOUD",
+                        "processing_stage": "parsing",
+                    },
+                )
+
+                from llama_cloud_services import LlamaParse
+                from llama_cloud_services.parse.utils import ResultType
+
+                # Create LlamaParse parser instance
+                parser = LlamaParse(
+                    api_key=app_config.LLAMA_CLOUD_API_KEY,
+                    num_workers=1,  # Use single worker for file processing
+                    verbose=True,
+                    language="en",
+                    result_type=ResultType.MD,
+                )
+
+                # Parse the file asynchronously
+                result = await parser.aparse(file_path)
+
+                # Clean up the temp file
+                import os
+
+                try:
+                    os.unlink(file_path)
+                except Exception as e:
+                    print("Error deleting temp file", e)
+                    pass
+
+                # Get markdown documents from the result
+                markdown_documents = await result.aget_markdown_documents(
+                    split_by_page=False
+                )
+
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"LlamaCloud parsing completed, creating documents: {filename}",
+                    {
+                        "processing_stage": "parsing_complete",
+                        "documents_count": len(markdown_documents),
+                    },
+                )
+
+                for doc in markdown_documents:
+                    # Extract text content from the markdown documents
+                    markdown_content = doc.text
+
+                    # Process the documents using our LlamaCloud background task
+                    doc_result = await add_received_file_document_using_llamacloud(
+                        session,
+                        filename,
+                        llamacloud_markdown_document=markdown_content,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                    )
+
+                if doc_result:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Successfully processed file with LlamaCloud: {filename}",
+                        {
+                            "document_id": doc_result.id,
+                            "content_hash": doc_result.content_hash,
+                            "file_type": "document",
+                            "etl_service": "LLAMACLOUD",
+                        },
+                    )
+                else:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Document already exists (duplicate): {filename}",
+                        {
+                            "duplicate_detected": True,
+                            "file_type": "document",
+                            "etl_service": "LLAMACLOUD",
+                        },
+                    )
+
+            elif app_config.ETL_SERVICE == "DOCLING":
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Processing file with Docling ETL: {filename}",
+                    {
+                        "file_type": "document",
+                        "etl_service": "DOCLING",
+                        "processing_stage": "parsing",
+                    },
+                )
+
+                # Use Docling service for document processing
+                from app.services.docling_service import create_docling_service
+
+                # Create Docling service
+                docling_service = create_docling_service()
+
+                # Process the document
+                result = await docling_service.process_document(file_path, filename)
+
+                # Clean up the temp file
+                import os
+
+                try:
+                    os.unlink(file_path)
+                except Exception as e:
+                    print("Error deleting temp file", e)
+                    pass
+
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Docling parsing completed, creating document: {filename}",
+                    {
+                        "processing_stage": "parsing_complete",
+                        "content_length": len(result["content"]),
+                    },
+                )
+
+                # Process the document using our Docling background task
+                doc_result = await add_received_file_document_using_docling(
+                    session,
+                    filename,
+                    docling_markdown_document=result["content"],
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                )
+
+                if doc_result:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Successfully processed file with Docling: {filename}",
+                        {
+                            "document_id": doc_result.id,
+                            "content_hash": doc_result.content_hash,
+                            "file_type": "document",
+                            "etl_service": "DOCLING",
+                        },
+                    )
+                else:
+                    await task_logger.log_task_success(
+                        log_entry,
+                        f"Document already exists (duplicate): {filename}",
+                        {
+                            "duplicate_detected": True,
+                            "file_type": "document",
+                            "etl_service": "DOCLING",
+                        },
+                    )
+    except Exception as e:
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Failed to process file: {filename}",
+            str(e),
+            {"error_type": type(e).__name__, "filename": filename},
+        )
+        import logging
+
+        logging.error(f"Error processing file in background: {e!s}")
+        raise  # Re-raise so the wrapper can also handle it
