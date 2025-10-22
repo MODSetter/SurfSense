@@ -8,6 +8,7 @@ import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 import type { Document } from "@/hooks/use-documents";
 import { cn } from "@/lib/utils";
+import { ChatPanelContainer } from "./ChatPannel/ChatPannelContainer";
 
 interface ChatInterfaceProps {
 	handler: ChatHandler;
@@ -67,7 +68,9 @@ export default function ChatInterface({
 						</button>
 					</div>
 
-					<div className="border-b rounded-lg p-2  grow-1">Chat pannel</div>
+					<div className="border-b rounded-lg grow-1">
+						<ChatPanelContainer />
+					</div>
 				</div>
 			</div>
 		</LlamaIndexChatSection>
