@@ -16,7 +16,8 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
-		"db:studio": "drizzle-kit studio"
+		"db:studio": "drizzle-kit studio",
+		"format:fix": "npx @biomejs/biome check --fix"
 	},
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
