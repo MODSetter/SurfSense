@@ -8,8 +8,7 @@ import type { ResearchMode } from "@/components/chat";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 import type { Document } from "@/hooks/use-documents";
-import { cn } from "@/lib/utils";
-import { ChatPanelContainer } from "./ChatPannel/ChatPannelContainer";
+import { ChatPanelContainer } from "./ChatPannel/ChatPanelContainer";
 
 interface ChatInterfaceProps {
 	handler: ChatHandler;
@@ -24,6 +23,7 @@ interface ChatInterfaceProps {
 interface ChatInterfaceContext {
 	isChatPannelOpen: boolean;
 	setIsChatPannelOpen: (value: boolean) => void;
+	chat_id: string;
 }
 
 export const chatInterfaceContext = createContext<ChatInterfaceContext | null>(null);
@@ -37,13 +37,13 @@ export default function ChatInterface({
 	searchMode,
 	onSearchModeChange,
 }: ChatInterfaceProps) {
+	const { chat_id } = useParams();
 	const [isChatPannelOpen, setIsChatPannelOpen] = useState(false);
 	const contextValue = {
 		isChatPannelOpen,
 		setIsChatPannelOpen,
+		chat_id: typeof chat_id === "string" ? chat_id : chat_id ? chat_id[0] : "",
 	};
-
-	const { chat_id: chatId } = useParams();
 
 	return (
 		<chatInterfaceContext.Provider value={contextValue}>
@@ -63,33 +63,7 @@ export default function ChatInterface({
 							/>
 						</div>
 					</div>
-					{chatId ? (
-						<div
-							className={cn(
-								"border rounded-2xl shrink-0 bg-sidebar flex flex-col h-full transition-all",
-								isChatPannelOpen ? "w-72" : "w-14"
-							)}
-						>
-							<div
-								className={cn(
-									"w-full border-b p-2 flex items-center transition-all ",
-									isChatPannelOpen ? "justify-end" : " justify-center "
-								)}
-							>
-								<button
-									type="button"
-									onClick={() => setIsChatPannelOpen(!isChatPannelOpen)}
-									className={cn(" shrink-0 rounded-full p-2 w-fit hover:bg-muted")}
-								>
-									<PanelRight className="h-5 w-5" strokeWidth={1.5} />
-								</button>
-							</div>
-
-							<div className="border-b rounded-lg grow-1">
-								<ChatPanelContainer chatId={typeof chatId === "string" ? chatId : chatId[0]} />
-							</div>
-						</div>
-					) : null}
+					<ChatPanelContainer />
 				</div>
 			</LlamaIndexChatSection>
 		</chatInterfaceContext.Provider>
