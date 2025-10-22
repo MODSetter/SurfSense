@@ -1,9 +1,13 @@
 "use client";
 
 import { type ChatHandler, ChatSection as LlamaIndexChatSection } from "@llamaindex/chat-ui";
+import { PanelRight } from "lucide-react";
+import { useState } from "react";
+import type { ResearchMode } from "@/components/chat";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 import type { Document } from "@/hooks/use-documents";
+import { cn } from "@/lib/utils";
 
 interface ChatInterfaceProps {
 	handler: ChatHandler;
@@ -24,19 +28,46 @@ export default function ChatInterface({
 	searchMode,
 	onSearchModeChange,
 }: ChatInterfaceProps) {
+	const [isChatPannelOpen, setIsChatPannelOpen] = useState(false);
+
 	return (
 		<LlamaIndexChatSection handler={handler} className="flex h-full">
-			<div className="flex flex-1 flex-col">
-				<ChatMessagesUI />
-				<div className="border-t p-4">
-					<ChatInputUI
-						onDocumentSelectionChange={onDocumentSelectionChange}
-						selectedDocuments={selectedDocuments}
-						onConnectorSelectionChange={onConnectorSelectionChange}
-						selectedConnectors={selectedConnectors}
-						searchMode={searchMode}
-						onSearchModeChange={onSearchModeChange}
-					/>
+			<div className="flex gap-4 flex-1 w-full">
+				<div className="flex grow-1 flex-col">
+					<ChatMessagesUI />
+					<div className="border-t p-4">
+						<ChatInputUI
+							onDocumentSelectionChange={onDocumentSelectionChange}
+							selectedDocuments={selectedDocuments}
+							onConnectorSelectionChange={onConnectorSelectionChange}
+							selectedConnectors={selectedConnectors}
+							searchMode={searchMode}
+							onSearchModeChange={onSearchModeChange}
+						/>
+					</div>
+				</div>
+				<div
+					className={cn(
+						"border rounded-2xl shrink-0 flex flex-col h-full",
+						isChatPannelOpen ? "w-72" : "w-14"
+					)}
+				>
+					<div
+						className={cn(
+							"w-full border-b p-2 flex items-center ",
+							isChatPannelOpen ? "justify-end" : " justify-center "
+						)}
+					>
+						<button
+							type="button"
+							onClick={() => setIsChatPannelOpen(!isChatPannelOpen)}
+							className={cn(" shrink-0 rounded-full p-2 w-fit hover:bg-muted")}
+						>
+							<PanelRight className="h-5 w-5" strokeWidth={1.5} />
+						</button>
+					</div>
+
+					<div className="border-b rounded-lg p-2  grow-1">Chat pannel</div>
 				</div>
 			</div>
 		</LlamaIndexChatSection>
