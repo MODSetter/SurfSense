@@ -1250,14 +1250,22 @@ async def run_google_gmail_indexing(
 ):
     """Runs the Google Gmail indexing task and updates the timestamp."""
     try:
+        # Convert days_back to start_date string in YYYY-MM-DD format
+        from datetime import datetime, timedelta
+
+        start_date_obj = datetime.now() - timedelta(days=days_back)
+        start_date = start_date_obj.strftime("%Y-%m-%d")
+        end_date = None  # No end date, index up to current time
+
         indexed_count, error_message = await index_google_gmail_messages(
             session,
             connector_id,
             search_space_id,
             user_id,
-            max_messages,
-            days_back,
+            start_date=start_date,
+            end_date=end_date,
             update_last_indexed=False,
+            max_messages=max_messages,
         )
         if error_message:
             logger.error(

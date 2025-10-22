@@ -122,11 +122,11 @@ const OnboardPage = () => {
 				{/* Header */}
 				<div className="text-center mb-8">
 					<div className="flex items-center justify-center mb-4">
-						<Logo className="w-12 h-12 mr-3" />
+						<Logo className="w-12 h-12 mr-3 rounded-full" />
 						<h1 className="text-3xl font-bold">Welcome to SurfSense</h1>
 					</div>
 					<p className="text-muted-foreground text-lg">
-						Let's configure your SurfSense to get started
+						Let's configure your LLM configurations to get started
 					</p>
 				</div>
 

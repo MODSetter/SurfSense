@@ -181,7 +181,7 @@ export default function PrivacyPolicy() {
 						contact us at:
 					</p>
 					<p className="mt-2">
-						<strong>Email:</strong> vermarohanfinal@gmail.com
+						<strong>Email:</strong> rohan@surfsense.com
 					</p>
 				</section>
 			</div>

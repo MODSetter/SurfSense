@@ -40,7 +40,7 @@ async def index_google_gmail_messages(
     start_date: str | None = None,
     end_date: str | None = None,
     update_last_indexed: bool = True,
-    max_messages: int = 100,
+    max_messages: int = 1000,
 ) -> tuple[int, str]:
     """
     Index Gmail messages for a specific connector.
@@ -60,14 +60,6 @@ async def index_google_gmail_messages(
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
-    # Calculate days back based on start_date
-    if start_date:
-        try:
-            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
-            days_back = (datetime.now() - start_date_obj).days
-        except ValueError:
-            days_back = 30  # Default to 30 days if start_date is invalid
-
     # Log task start
     log_entry = await task_logger.log_task_start(
         task_name="google_gmail_messages_indexing",
@@ -77,7 +69,8 @@ async def index_google_gmail_messages(
             "connector_id": connector_id,
             "user_id": str(user_id),
             "max_messages": max_messages,
-            "days_back": days_back,
+            "start_date": start_date,
+            "end_date": end_date,
         },
     )
 
@@ -135,7 +128,7 @@ async def index_google_gmail_messages(
         # Fetch recent Google gmail messages
         logger.info(f"Fetching recent emails for connector {connector_id}")
         messages, error = await gmail_connector.get_recent_messages(
-            max_results=max_messages, days_back=days_back
+            max_results=max_messages, start_date=start_date, end_date=end_date
         )
 
         if error:
