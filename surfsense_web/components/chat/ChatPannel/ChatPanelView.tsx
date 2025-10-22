@@ -22,7 +22,7 @@ export default function ChatPanelView() {
 				)}
 			>
 				{isChatPannelOpen ? (
-					<div className=" space-y-3 rounded-xl p-3 bg-gradient-to-r dark:from-slate-400/30 dark:to-slate-800/60">
+					<div className=" space-y-3 rounded-xl p-3 bg-gradient-to-r from-slate-400/50 to-slate-200/30 dark:from-slate-400/30 dark:to-slate-800/60">
 						<div className="w-full flex items-center justify-between">
 							<Podcast strokeWidth={1} />
 							<button
