@@ -2,6 +2,7 @@
 
 import { type ChatHandler, ChatSection as LlamaIndexChatSection } from "@llamaindex/chat-ui";
 import { PanelRight } from "lucide-react";
+import { useParams } from "next/navigation";
 import { createContext, useState } from "react";
 import type { ResearchMode } from "@/components/chat";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
@@ -42,6 +43,8 @@ export default function ChatInterface({
 		setIsChatPannelOpen,
 	};
 
+	const { chat_id: chatId } = useParams();
+
 	return (
 		<chatInterfaceContext.Provider value={contextValue}>
 			<LlamaIndexChatSection handler={handler} className="flex h-full">
@@ -60,31 +63,33 @@ export default function ChatInterface({
 							/>
 						</div>
 					</div>
-					<div
-						className={cn(
-							"border rounded-2xl shrink-0 flex flex-col h-full transition-all",
-							isChatPannelOpen ? "w-72" : "w-14"
-						)}
-					>
+					{chatId ? (
 						<div
 							className={cn(
-								"w-full border-b p-2 flex items-center transition-all ",
-								isChatPannelOpen ? "justify-end" : " justify-center "
+								"border rounded-2xl shrink-0 bg-sidebar flex flex-col h-full transition-all",
+								isChatPannelOpen ? "w-72" : "w-14"
 							)}
 						>
-							<button
-								type="button"
-								onClick={() => setIsChatPannelOpen(!isChatPannelOpen)}
-								className={cn(" shrink-0 rounded-full p-2 w-fit hover:bg-muted")}
+							<div
+								className={cn(
+									"w-full border-b p-2 flex items-center transition-all ",
+									isChatPannelOpen ? "justify-end" : " justify-center "
+								)}
 							>
-								<PanelRight className="h-5 w-5" strokeWidth={1.5} />
-							</button>
-						</div>
+								<button
+									type="button"
+									onClick={() => setIsChatPannelOpen(!isChatPannelOpen)}
+									className={cn(" shrink-0 rounded-full p-2 w-fit hover:bg-muted")}
+								>
+									<PanelRight className="h-5 w-5" strokeWidth={1.5} />
+								</button>
+							</div>
 
-						<div className="border-b rounded-lg grow-1">
-							<ChatPanelContainer />
+							<div className="border-b rounded-lg grow-1">
+								<ChatPanelContainer chatId={typeof chatId === "string" ? chatId : chatId[0]} />
+							</div>
 						</div>
-					</div>
+					) : null}
 				</div>
 			</LlamaIndexChatSection>
 		</chatInterfaceContext.Provider>
