@@ -445,14 +445,27 @@ async def _index_google_gmail_messages(
     end_date: str,
 ):
     """Index Google Gmail messages with new session."""
+    from datetime import datetime
+
     from app.routes.search_source_connectors_routes import (
         run_google_gmail_indexing,
     )
 
-    # Parse dates to get max_messages and days_back
-    # For now, we'll use default values
+    # Parse dates to calculate days_back
     max_messages = 100
-    days_back = 30
+    days_back = 30  # Default
+
+    if start_date:
+        try:
+            # Parse start_date (format: YYYY-MM-DD)
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            # Calculate days back from now
+            days_back = (datetime.now() - start_dt).days
+            # Ensure at least 1 day
+            days_back = max(1, days_back)
+        except ValueError:
+            # If parsing fails, use default
+            days_back = 30
 
     async with get_celery_session_maker()() as session:
         await run_google_gmail_indexing(

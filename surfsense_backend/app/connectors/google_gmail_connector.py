@@ -227,23 +227,42 @@ class GoogleGmailConnector:
     async def get_recent_messages(
         self,
         max_results: int = 50,
-        days_back: int = 30,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
         """
-        Fetch recent messages from Gmail within specified days.
+        Fetch recent messages from Gmail within specified date range.
         Args:
             max_results: Maximum number of messages to fetch (default: 50)
-            days_back: Number of days to look back (default: 30)
+            start_date: Start date in YYYY-MM-DD format (default: 30 days ago)
+            end_date: End date in YYYY-MM-DD format (default: today)
         Returns:
             Tuple containing (messages list with details, error message or None)
         """
         try:
-            # Calculate date query
             from datetime import datetime, timedelta
 
-            cutoff_date = datetime.now() - timedelta(days=days_back)
-            date_query = cutoff_date.strftime("%Y/%m/%d")
-            query = f"after:{date_query}"
+            # Build date query
+            query_parts = []
+
+            if start_date:
+                # Parse start_date from YYYY-MM-DD to Gmail query format YYYY/MM/DD
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                start_query = start_dt.strftime("%Y/%m/%d")
+                query_parts.append(f"after:{start_query}")
+            else:
+                # Default to 30 days ago
+                cutoff_date = datetime.now() - timedelta(days=30)
+                date_query = cutoff_date.strftime("%Y/%m/%d")
+                query_parts.append(f"after:{date_query}")
+
+            if end_date:
+                # Parse end_date from YYYY-MM-DD to Gmail query format YYYY/MM/DD
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                end_query = end_dt.strftime("%Y/%m/%d")
+                query_parts.append(f"before:{end_query}")
+
+            query = " ".join(query_parts)
 
             # Get messages list
             messages_list, error = await self.get_messages_list(
