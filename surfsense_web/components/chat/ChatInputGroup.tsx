@@ -25,7 +25,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { type Document, useDocuments } from "@/hooks/use-documents";
+import type { Document } from "@/hooks/use-documents";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
@@ -40,20 +40,9 @@ const DocumentSelector = React.memo(
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
-		const { documents, loading, isLoaded, fetchDocuments } = useDocuments(Number(search_space_id), {
-			lazy: true,
-			pageSize: -1, // Fetch all documents with large page size
-		});
-
-		const handleOpenChange = useCallback(
-			(open: boolean) => {
-				setIsOpen(open);
-				if (open && !isLoaded) {
-					fetchDocuments();
-				}
-			},
-			[fetchDocuments, isLoaded]
-		);
+		const handleOpenChange = useCallback((open: boolean) => {
+			setIsOpen(open);
+		}, []);
 
 		const handleSelectionChange = useCallback(
 			(documents: Document[]) => {
@@ -91,21 +80,12 @@ const DocumentSelector = React.memo(
 						</div>
 
 						<div className="flex-1 min-h-0 p-4 md:p-6">
-							{loading ? (
-								<div className="flex items-center justify-center h-full">
-									<div className="text-center space-y-2">
-										<div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-										<p className="text-sm text-muted-foreground">Loading documents...</p>
-									</div>
-								</div>
-							) : isLoaded ? (
-								<DocumentsDataTable
-									documents={documents}
-									onSelectionChange={handleSelectionChange}
-									onDone={handleDone}
-									initialSelectedDocuments={selectedDocuments}
-								/>
-							) : null}
+							<DocumentsDataTable
+								searchSpaceId={Number(search_space_id)}
+								onSelectionChange={handleSelectionChange}
+								onDone={handleDone}
+								initialSelectedDocuments={selectedDocuments}
+							/>
 						</div>
 					</div>
 				</DialogContent>

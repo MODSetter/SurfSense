@@ -2,21 +2,18 @@
 
 import {
 	type ColumnDef,
-	type ColumnFiltersState,
 	flexRender,
 	getCoreRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
 	type SortingState,
 	useReactTable,
-	type VisibilityState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Calendar, FileText, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowUpDown, Calendar, FileText, Filter, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -32,26 +29,24 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { Document, DocumentType } from "@/hooks/use-documents";
+import { type Document, type DocumentType, useDocuments } from "@/hooks/use-documents";
 
 interface DocumentsDataTableProps {
-	documents: Document[];
+	searchSpaceId: number;
 	onSelectionChange: (documents: Document[]) => void;
 	onDone: () => void;
 	initialSelectedDocuments?: Document[];
 }
 
-// Combine EnumConnectorName with additional document types
-const DOCUMENT_TYPES: (string | "ALL")[] = [
-	"ALL",
-	"FILE",
-	"EXTENSION",
-	"CRAWLED_URL",
-	"YOUTUBE_VIDEO",
-	...Object.values(EnumConnectorName),
-];
+function useDebounced<T>(value: T, delay = 300) {
+	const [debounced, setDebounced] = useState(value);
+	useEffect(() => {
+		const t = setTimeout(() => setDebounced(value), delay);
+		return () => clearTimeout(t);
+	}, [value, delay]);
+	return debounced;
+}
 
 const columns: ColumnDef<Document>[] = [
 	{
@@ -177,93 +172,193 @@ const columns: ColumnDef<Document>[] = [
 ];
 
 export function DocumentsDataTable({
-	documents,
+	searchSpaceId,
 	onSelectionChange,
 	onDone,
 	initialSelectedDocuments = [],
 }: DocumentsDataTableProps) {
 	const [sorting, setSorting] = useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-	const [documentTypeFilter, setDocumentTypeFilter] = useState<string | "ALL">("ALL");
+	const [search, setSearch] = useState("");
+	const debouncedSearch = useDebounced(search, 300);
+	const [documentTypeFilter, setDocumentTypeFilter] = useState<string[]>([]);
+	const [pageIndex, setPageIndex] = useState(0);
+	const [pageSize, setPageSize] = useState(10);
+	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
+
+	// Use server-side pagination, search, and filtering
+	const { documents, total, loading, fetchDocuments, searchDocuments, getDocumentTypeCounts } =
+		useDocuments(searchSpaceId, {
+			page: pageIndex,
+			pageSize: pageSize,
+		});
+
+	// Fetch document type counts on mount
+	useEffect(() => {
+		if (searchSpaceId && getDocumentTypeCounts) {
+			getDocumentTypeCounts().then(setTypeCounts);
+		}
+	}, [searchSpaceId, getDocumentTypeCounts]);
+
+	// Refetch when pagination changes or when search/filters change
+	useEffect(() => {
+		if (searchSpaceId) {
+			if (debouncedSearch.trim()) {
+				searchDocuments?.(
+					debouncedSearch,
+					pageIndex,
+					pageSize,
+					documentTypeFilter.length > 0 ? documentTypeFilter : undefined
+				);
+			} else {
+				fetchDocuments?.(
+					pageIndex,
+					pageSize,
+					documentTypeFilter.length > 0 ? documentTypeFilter : undefined
+				);
+			}
+		}
+	}, [
+		pageIndex,
+		pageSize,
+		debouncedSearch,
+		documentTypeFilter,
+		searchSpaceId,
+		fetchDocuments,
+		searchDocuments,
+	]);
 
 	// Memoize initial row selection to prevent infinite loops
 	const initialRowSelection = useMemo(() => {
-		if (!documents.length || !initialSelectedDocuments.length) return {};
+		if (!initialSelectedDocuments.length) return {};
 
 		const selection: Record<string, boolean> = {};
 		initialSelectedDocuments.forEach((selectedDoc) => {
 			selection[selectedDoc.id] = true;
 		});
 		return selection;
-	}, [documents, initialSelectedDocuments]);
+	}, [initialSelectedDocuments]);
 
-	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+	const [rowSelection, setRowSelection] = useState<Record<string, boolean>>(
+		() => initialRowSelection
+	);
 
-	// Only update row selection when initialRowSelection actually changes and is not empty
+	// Maintain a separate state for actually selected documents (across all pages)
+	const [selectedDocumentsMap, setSelectedDocumentsMap] = useState<Map<number, Document>>(() => {
+		const map = new Map<number, Document>();
+		initialSelectedDocuments.forEach((doc) => map.set(doc.id, doc));
+		return map;
+	});
+
+	// Track the last notified selection to avoid redundant parent calls
+	const lastNotifiedSelection = useRef<string>("");
+
+	// Update row selection only when initialSelectedDocuments changes (not rowSelection itself)
 	useEffect(() => {
-		const hasChanges = JSON.stringify(rowSelection) !== JSON.stringify(initialRowSelection);
-		if (hasChanges && Object.keys(initialRowSelection).length > 0) {
-			setRowSelection(initialRowSelection);
-		}
-	}, [initialRowSelection]);
+		const initialKeys = Object.keys(initialRowSelection);
+		if (initialKeys.length === 0) return;
 
-	// Initialize row selection on mount
+		const currentKeys = Object.keys(rowSelection);
+		// Quick length check before expensive comparison
+		if (currentKeys.length === initialKeys.length) {
+			// Check if all keys match (order doesn't matter for Sets)
+			const hasAllKeys = initialKeys.every((key) => rowSelection[key]);
+			if (hasAllKeys) return;
+		}
+
+		setRowSelection(initialRowSelection);
+	}, [initialRowSelection]); // Remove rowSelection from dependencies to prevent loop
+
+	// Update the selected documents map when row selection changes
 	useEffect(() => {
-		if (Object.keys(rowSelection).length === 0 && Object.keys(initialRowSelection).length > 0) {
-			setRowSelection(initialRowSelection);
-		}
-	}, []);
+		if (!documents || documents.length === 0) return;
 
-	const filteredDocuments = useMemo(() => {
-		if (documentTypeFilter === "ALL") return documents;
-		return documents.filter((doc) => doc.document_type === documentTypeFilter);
-	}, [documents, documentTypeFilter]);
+		setSelectedDocumentsMap((prev) => {
+			const newMap = new Map(prev);
+			let hasChanges = false;
+
+			// Process only current page documents
+			for (const doc of documents) {
+				const docId = doc.id;
+				const isSelected = rowSelection[docId.toString()];
+				const wasInMap = newMap.has(docId);
+
+				if (isSelected && !wasInMap) {
+					newMap.set(docId, doc);
+					hasChanges = true;
+				} else if (!isSelected && wasInMap) {
+					newMap.delete(docId);
+					hasChanges = true;
+				}
+			}
+
+			// Return same reference if no changes to avoid unnecessary re-renders
+			return hasChanges ? newMap : prev;
+		});
+	}, [rowSelection, documents]);
+
+	// Memoize selected documents array
+	const selectedDocumentsArray = useMemo(() => {
+		return Array.from(selectedDocumentsMap.values());
+	}, [selectedDocumentsMap]);
+
+	// Notify parent of selection changes only when content actually changes
+	useEffect(() => {
+		// Create a stable string representation for comparison
+		const selectionKey = selectedDocumentsArray
+			.map((d) => d.id)
+			.sort()
+			.join(",");
+
+		// Skip if selection hasn't actually changed
+		if (selectionKey === lastNotifiedSelection.current) return;
+
+		lastNotifiedSelection.current = selectionKey;
+		onSelectionChange(selectedDocumentsArray);
+	}, [selectedDocumentsArray, onSelectionChange]);
 
 	const table = useReactTable({
-		data: filteredDocuments,
+		data: documents || [],
 		columns,
 		getRowId: (row) => row.id.toString(),
 		onSortingChange: setSorting,
-		onColumnFiltersChange: setColumnFilters,
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		onColumnVisibilityChange: setColumnVisibility,
 		onRowSelectionChange: setRowSelection,
-		initialState: { pagination: { pageSize: 10 } },
-		state: { sorting, columnFilters, columnVisibility, rowSelection },
+		manualPagination: true,
+		pageCount: Math.ceil(total / pageSize),
+		state: { sorting, rowSelection, pagination: { pageIndex, pageSize } },
 	});
 
-	useEffect(() => {
-		const selectedRows = table.getFilteredSelectedRowModel().rows;
-		const selectedDocuments = selectedRows.map((row) => row.original);
-		onSelectionChange(selectedDocuments);
-	}, [rowSelection, onSelectionChange, table]);
+	const handleClearAll = useCallback(() => {
+		setRowSelection({});
+		setSelectedDocumentsMap(new Map());
+	}, []);
 
-	const handleClearAll = () => setRowSelection({});
-
-	const handleSelectPage = () => {
+	const handleSelectPage = useCallback(() => {
 		const currentPageRows = table.getRowModel().rows;
 		const newSelection = { ...rowSelection };
 		currentPageRows.forEach((row) => {
 			newSelection[row.id] = true;
 		});
 		setRowSelection(newSelection);
-	};
+	}, [table, rowSelection]);
 
-	const handleSelectAllFiltered = () => {
-		const allFilteredRows = table.getFilteredRowModel().rows;
-		const newSelection: Record<string, boolean> = {};
-		allFilteredRows.forEach((row) => {
-			newSelection[row.id] = true;
+	const handleToggleType = useCallback((type: string, checked: boolean) => {
+		setDocumentTypeFilter((prev) => {
+			if (checked) {
+				return [...prev, type];
+			}
+			return prev.filter((t) => t !== type);
 		});
-		setRowSelection(newSelection);
-	};
+		setPageIndex(0); // Reset to first page when filter changes
+	}, []);
 
-	const selectedCount = table.getFilteredSelectedRowModel().rows.length;
-	const totalFiltered = table.getFilteredRowModel().rows.length;
+	const selectedCount = selectedDocumentsMap.size;
+
+	// Get available document types from type counts (memoized)
+	const availableTypes = useMemo(() => {
+		const types = Object.keys(typeCounts);
+		return types.length > 0 ? types.sort() : [];
+	}, [typeCounts]);
 
 	return (
 		<div className="flex flex-col h-full space-y-3 md:space-y-4">
@@ -275,33 +370,70 @@ export function DocumentsDataTable({
 						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 						<Input
 							placeholder="Search documents..."
-							value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
-							onChange={(event) => table.getColumn("title")?.setFilterValue(event.target.value)}
+							value={search}
+							onChange={(event) => {
+								setSearch(event.target.value);
+								setPageIndex(0); // Reset to first page on search
+							}}
 							className="pl-10 text-sm"
 						/>
 					</div>
-					<Select
-						value={documentTypeFilter}
-						onValueChange={(value) => setDocumentTypeFilter(value as string | "ALL")}
-					>
-						<SelectTrigger className="w-full sm:w-[180px]">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{DOCUMENT_TYPES.map((type) => (
-								<SelectItem key={type} value={type}>
-									{type === "ALL" ? "All Types" : type.replace(/_/g, " ")}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button variant="outline" className="w-full sm:w-auto">
+								<Filter className="mr-2 h-4 w-4 opacity-60" />
+								Type
+								{documentTypeFilter.length > 0 && (
+									<span className="ml-2 inline-flex h-5 items-center rounded border border-border bg-background px-1.5 text-[0.625rem] font-medium text-muted-foreground/70">
+										{documentTypeFilter.length}
+									</span>
+								)}
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className="w-64 p-3" align="start">
+							<div className="space-y-3">
+								<div className="text-xs font-medium text-muted-foreground">Filter by Type</div>
+								<div className="space-y-2 max-h-[300px] overflow-y-auto">
+									{availableTypes.map((type) => (
+										<div key={type} className="flex items-center gap-2">
+											<Checkbox
+												id={`type-${type}`}
+												checked={documentTypeFilter.includes(type)}
+												onCheckedChange={(checked) => handleToggleType(type, !!checked)}
+											/>
+											<Label
+												htmlFor={`type-${type}`}
+												className="flex grow justify-between gap-2 font-normal text-sm cursor-pointer"
+											>
+												<span>{type.replace(/_/g, " ")}</span>
+												<span className="text-xs text-muted-foreground">{typeCounts[type]}</span>
+											</Label>
+										</div>
+									))}
+								</div>
+								{documentTypeFilter.length > 0 && (
+									<Button
+										variant="ghost"
+										size="sm"
+										className="w-full text-xs"
+										onClick={() => {
+											setDocumentTypeFilter([]);
+											setPageIndex(0);
+										}}
+									>
+										Clear Filters
+									</Button>
+								)}
+							</div>
+						</PopoverContent>
+					</Popover>
 				</div>
 
 				{/* Action Controls Row */}
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 					<div className="flex flex-col sm:flex-row sm:items-center gap-2">
 						<span className="text-sm text-muted-foreground whitespace-nowrap">
-							{selectedCount} of {totalFiltered} selected
+							{selectedCount} selected {loading && "· Loading..."}
 						</span>
 						<div className="hidden sm:block h-4 w-px bg-border mx-2" />
 						<div className="flex items-center gap-2 flex-wrap">
@@ -319,25 +451,28 @@ export function DocumentsDataTable({
 								size="sm"
 								onClick={handleSelectPage}
 								className="text-xs sm:text-sm"
+								disabled={loading}
 							>
 								Select Page
 							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={handleSelectAllFiltered}
-								className="text-xs sm:text-sm hidden sm:inline-flex"
+							<Select
+								value={pageSize.toString()}
+								onValueChange={(v) => {
+									setPageSize(Number(v));
+									setPageIndex(0);
+								}}
 							>
-								Select All Filtered
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={handleSelectAllFiltered}
-								className="text-xs sm:hidden"
-							>
-								Select All
-							</Button>
+								<SelectTrigger className="w-[100px] h-8 text-xs">
+									<SelectValue>{pageSize} per page</SelectValue>
+								</SelectTrigger>
+								<SelectContent>
+									{[10, 25, 50, 100].map((size) => (
+										<SelectItem key={size} value={size.toString()}>
+											{size} per page
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 					</div>
 					<Button
@@ -353,82 +488,86 @@ export function DocumentsDataTable({
 			{/* Table Container */}
 			<div className="border rounded-lg flex-1 min-h-0 overflow-hidden bg-background">
 				<div className="overflow-auto h-full">
-					<Table>
-						<TableHeader className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-							{table.getHeaderGroups().map((headerGroup) => (
-								<TableRow key={headerGroup.id} className="border-b">
-									{headerGroup.headers.map((header) => (
-										<TableHead key={header.id} className="h-12 text-xs sm:text-sm">
-											{header.isPlaceholder
-												? null
-												: flexRender(header.column.columnDef.header, header.getContext())}
-										</TableHead>
-									))}
-								</TableRow>
-							))}
-						</TableHeader>
-						<TableBody>
-							{table.getRowModel().rows?.length ? (
-								table.getRowModel().rows.map((row) => (
-									<TableRow
-										key={row.id}
-										data-state={row.getIsSelected() && "selected"}
-										className="hover:bg-muted/30"
-									>
-										{row.getVisibleCells().map((cell) => (
-											<TableCell key={cell.id} className="py-3 text-xs sm:text-sm">
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
-											</TableCell>
+					{loading ? (
+						<div className="flex items-center justify-center h-full">
+							<div className="text-center space-y-2">
+								<div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+								<p className="text-sm text-muted-foreground">Loading documents...</p>
+							</div>
+						</div>
+					) : (
+						<Table>
+							<TableHeader className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
+								{table.getHeaderGroups().map((headerGroup) => (
+									<TableRow key={headerGroup.id} className="border-b">
+										{headerGroup.headers.map((header) => (
+											<TableHead key={header.id} className="h-12 text-xs sm:text-sm">
+												{header.isPlaceholder
+													? null
+													: flexRender(header.column.columnDef.header, header.getContext())}
+											</TableHead>
 										))}
 									</TableRow>
-								))
-							) : (
-								<TableRow>
-									<TableCell
-										colSpan={columns.length}
-										className="h-32 text-center text-muted-foreground text-sm"
-									>
-										No documents found.
-									</TableCell>
-								</TableRow>
-							)}
-						</TableBody>
-					</Table>
+								))}
+							</TableHeader>
+							<TableBody>
+								{table.getRowModel().rows?.length ? (
+									table.getRowModel().rows.map((row) => (
+										<TableRow
+											key={row.id}
+											data-state={row.getIsSelected() && "selected"}
+											className="hover:bg-muted/30"
+										>
+											{row.getVisibleCells().map((cell) => (
+												<TableCell key={cell.id} className="py-3 text-xs sm:text-sm">
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												</TableCell>
+											))}
+										</TableRow>
+									))
+								) : (
+									<TableRow>
+										<TableCell
+											colSpan={columns.length}
+											className="h-32 text-center text-muted-foreground text-sm"
+										>
+											No documents found.
+										</TableCell>
+									</TableRow>
+								)}
+							</TableBody>
+						</Table>
+					)}
 				</div>
 			</div>
 
 			{/* Footer Pagination */}
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs sm:text-sm text-muted-foreground border-t pt-3 md:pt-4 flex-shrink-0">
 				<div className="text-center sm:text-left">
-					Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}{" "}
-					to{" "}
-					{Math.min(
-						(table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-						table.getFilteredRowModel().rows.length
-					)}{" "}
-					of {table.getFilteredRowModel().rows.length} documents
+					Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, total)} of{" "}
+					{total} documents
 				</div>
 				<div className="flex items-center justify-center sm:justify-end space-x-2">
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => table.previousPage()}
-						disabled={!table.getCanPreviousPage()}
+						onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+						disabled={pageIndex === 0 || loading}
 						className="text-xs sm:text-sm"
 					>
 						Previous
 					</Button>
 					<div className="flex items-center space-x-1 text-xs sm:text-sm">
 						<span>Page</span>
-						<strong>{table.getState().pagination.pageIndex + 1}</strong>
+						<strong>{pageIndex + 1}</strong>
 						<span>of</span>
-						<strong>{table.getPageCount()}</strong>
+						<strong>{Math.ceil(total / pageSize)}</strong>
 					</div>
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => table.nextPage()}
-						disabled={!table.getCanNextPage()}
+						onClick={() => setPageIndex((p) => p + 1)}
+						disabled={pageIndex >= Math.ceil(total / pageSize) - 1 || loading}
 						className="text-xs sm:text-sm"
 					>
 						Next
