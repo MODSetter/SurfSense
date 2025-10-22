@@ -1,5 +1,9 @@
 import ChatPanelView from "./ChatPanelView";
 
-export function ChatPanelContainer() {
-	return <ChatPanelView />;
+interface ChatPanelContainerProps {
+	chatId: string;
+}
+
+export function ChatPanelContainer({ chatId }: ChatPanelContainerProps) {
+	return <ChatPanelView chatId={chatId} />;
 }
