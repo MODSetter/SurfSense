@@ -4,8 +4,13 @@ import { Pencil, Podcast } from "lucide-react";
 import { useContext } from "react";
 import { cn } from "@/lib/utils";
 import { chatInterfaceContext } from "../ChatInterface";
+import { ConfigModal } from "./ConfigModal";
 
-export default function ChatPanelView() {
+interface ChatPanelViewProps {
+	chatId: string;
+}
+
+export default function ChatPanelView({ chatId }: ChatPanelViewProps) {
 	const context = useContext(chatInterfaceContext);
 	if (!context) {
 		throw new Error("chatInterfaceContext must be used within a ChatProvider");
@@ -22,16 +27,10 @@ export default function ChatPanelView() {
 				)}
 			>
 				{isChatPannelOpen ? (
-					<div className=" space-y-3 rounded-xl p-3 bg-gradient-to-r from-slate-400/50 to-slate-200/30 dark:from-slate-400/30 dark:to-slate-800/60">
+					<div className=" space-y-3 rounded-xl p-3 bg-gradient-to-r from-slate-400/50 to-slate-200/50 dark:from-slate-400/30 dark:to-slate-800/60">
 						<div className="w-full flex items-center justify-between">
 							<Podcast strokeWidth={1} />
-							<button
-								type="button"
-								title="Edit the prompt"
-								className="rounded-full p-2 bg-slate-400/30 hover:bg-slate-400/40"
-							>
-								<Pencil strokeWidth={1} className="h-4 w-4" />
-							</button>
+							<ConfigModal />
 						</div>
 						<p>Generate Podcast</p>
 					</div>
