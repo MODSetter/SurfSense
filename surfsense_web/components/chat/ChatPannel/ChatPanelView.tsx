@@ -7,10 +7,10 @@ import { chatInterfaceContext } from "../ChatInterface";
 import { ConfigModal } from "./ConfigModal";
 
 interface ChatPanelViewProps {
-	chatId: string;
+	chat_id: string;
 }
 
-export default function ChatPanelView({ chatId }: ChatPanelViewProps) {
+export function ChatPanelView({ chat_id: chatId }: ChatPanelViewProps) {
 	const context = useContext(chatInterfaceContext);
 	if (!context) {
 		throw new Error("chatInterfaceContext must be used within a ChatProvider");
