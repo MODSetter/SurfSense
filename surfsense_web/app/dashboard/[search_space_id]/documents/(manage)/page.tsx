@@ -40,40 +40,59 @@ export default function DocumentsTable() {
 	const [sortKey, setSortKey] = useState<SortKey>("title");
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
 
-	// Use server-side pagination and search
-	const { documents, total, loading, error, fetchDocuments, searchDocuments, deleteDocument } =
-		useDocuments(searchSpaceId, {
-			page: pageIndex,
-			pageSize: pageSize,
-		});
+	// Use server-side pagination, search, and filtering
+	const {
+		documents,
+		total,
+		loading,
+		error,
+		fetchDocuments,
+		searchDocuments,
+		deleteDocument,
+		getDocumentTypeCounts,
+	} = useDocuments(searchSpaceId, {
+		page: pageIndex,
+		pageSize: pageSize,
+	});
+
+	// Fetch document type counts on mount and when search space changes
+	useEffect(() => {
+		if (searchSpaceId && getDocumentTypeCounts) {
+			getDocumentTypeCounts().then(setTypeCounts);
+		}
+	}, [searchSpaceId, getDocumentTypeCounts]);
 
 	// Refetch when pagination changes or when search/filters change
 	useEffect(() => {
 		if (searchSpaceId) {
 			if (debouncedSearch.trim()) {
 				// Use search endpoint if there's a search query
-				searchDocuments?.(debouncedSearch, pageIndex, pageSize);
+				searchDocuments?.(
+					debouncedSearch,
+					pageIndex,
+					pageSize,
+					activeTypes.length > 0 ? activeTypes : undefined
+				);
 			} else {
 				// Use regular fetch if no search
-				fetchDocuments?.(pageIndex, pageSize);
+				fetchDocuments?.(pageIndex, pageSize, activeTypes.length > 0 ? activeTypes : undefined);
 			}
 		}
-	}, [pageIndex, pageSize, debouncedSearch, searchSpaceId, fetchDocuments, searchDocuments]);
+	}, [
+		pageIndex,
+		pageSize,
+		debouncedSearch,
+		activeTypes,
+		searchSpaceId,
+		fetchDocuments,
+		searchDocuments,
+	]);
 
-	// Client-side filtering for document types only
-	// Note: This could also be moved to the backend for better performance
-	const filtered = useMemo(() => {
-		let result = documents || [];
-		if (activeTypes.length > 0) {
-			result = result.filter((d) => activeTypes.includes(d.document_type));
-		}
-		return result;
-	}, [documents, activeTypes]);
-
-	// Display filtered results
-	const displayDocs = filtered;
-	const displayTotal = activeTypes.length > 0 ? filtered.length : total;
+	// Display server-filtered results directly
+	const displayDocs = documents || [];
+	const displayTotal = total;
 	const pageStart = pageIndex * pageSize;
 	const pageEnd = Math.min(pageStart + pageSize, displayTotal);
 
@@ -88,11 +107,16 @@ export default function DocumentsTable() {
 
 	const refreshCurrentView = useCallback(async () => {
 		if (debouncedSearch.trim()) {
-			await searchDocuments?.(debouncedSearch, pageIndex, pageSize);
+			await searchDocuments?.(
+				debouncedSearch,
+				pageIndex,
+				pageSize,
+				activeTypes.length > 0 ? activeTypes : undefined
+			);
 		} else {
-			await fetchDocuments?.(pageIndex, pageSize);
+			await fetchDocuments?.(pageIndex, pageSize, activeTypes.length > 0 ? activeTypes : undefined);
 		}
-	}, [debouncedSearch, pageIndex, pageSize, searchDocuments, fetchDocuments]);
+	}, [debouncedSearch, pageIndex, pageSize, activeTypes, searchDocuments, fetchDocuments]);
 
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
@@ -133,8 +157,7 @@ export default function DocumentsTable() {
 			className="w-full px-6 py-4"
 		>
 			<DocumentsFilters
-				allDocuments={documents || []}
-				visibleDocuments={displayDocs}
+				typeCounts={typeCounts}
 				selectedIds={selectedIds}
 				onSearch={setSearch}
 				searchValue={search}
