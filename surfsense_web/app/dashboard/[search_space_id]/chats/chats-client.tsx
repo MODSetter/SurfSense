@@ -62,6 +62,7 @@ export interface Chat {
 	type: "DOCUMENT" | "CHAT";
 	title: string;
 	search_space_id: number;
+	state_version: number;
 }
 
 export interface ChatDetails {
@@ -72,6 +73,7 @@ export interface ChatDetails {
 	created_at: string;
 	id: number;
 	search_space_id: number;
+	state_version: number;
 }
 
 interface ChatsPageClientProps {
