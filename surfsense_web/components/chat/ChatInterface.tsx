@@ -10,6 +10,7 @@ import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 import { useChatAPI } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
+import { usePodcast } from "@/hooks/use-podcast";
 import { ChatPanelContainer } from "./ChatPanel/ChatPanelContainer";
 
 interface ChatInterfaceProps {
@@ -55,10 +56,20 @@ export default function ChatInterface({
 		chatDetails,
 	};
 
+	const { getPodcastByChatId } = usePodcast();
+
 	const { fetchChatDetails } = useChatAPI({
 		token: localStorage.getItem("surfsense_bearer_token"),
 		search_space_id: search_space_id as string,
 	});
+
+	const getPodcast = useCallback(
+		async (id: string) => {
+			const podcast = await getPodcastByChatId(Number(id));
+			setPodcast(podcast);
+		},
+		[getPodcastByChatId]
+	);
 
 	const getChat = useCallback(
 		async (id: string) => {
@@ -72,6 +83,7 @@ export default function ChatInterface({
 		const id = typeof chat_id === "string" ? chat_id : chat_id ? chat_id[0] : "";
 		if (!id) return;
 		getChat(id);
+		getPodcast(id);
 	}, [chat_id, search_space_id]);
 
 	return (
