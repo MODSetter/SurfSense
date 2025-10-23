@@ -139,35 +139,51 @@ async def generate_chat_podcast(
             },
         )
 
-        podcast = Podcast(
-            title=f"{podcast_title}",
-            podcast_transcript=serializable_transcript,
-            file_location=result["final_podcast_file_path"],
-            search_space_id=search_space_id,
-            chat_state_version=chat.state_version,
-            chat_id=chat.id,
+        # check if podcast already exists for this chat with the same title (re-generation)
+        existing_podcast = await session.execute(
+            select(Podcast).filter(
+                Podcast.chat_id == chat_id, Podcast.title == podcast_title
+            )
         )
+        existing_podcast = existing_podcast.scalars().first()
 
-        # Add to session and commit
-        session.add(podcast)
-        await session.commit()
-        await session.refresh(podcast)
+        if existing_podcast:
+            existing_podcast.podcast_transcript = serializable_transcript
+            existing_podcast.file_location = result["final_podcast_file_path"]
+            existing_podcast.chat_state_version = chat.state_version
+            await session.commit()
+            await session.refresh(existing_podcast)
+            return existing_podcast
+        else:
+            podcast = Podcast(
+                title=f"{podcast_title}",
+                podcast_transcript=serializable_transcript,
+                file_location=result["final_podcast_file_path"],
+                search_space_id=search_space_id,
+                chat_state_version=chat.state_version,
+                chat_id=chat.id,
+            )
 
-        # Log success
-        await task_logger.log_task_success(
-            log_entry,
-            f"Successfully generated podcast for chat {chat_id}",
-            {
-                "podcast_id": podcast.id,
-                "podcast_title": podcast_title,
-                "transcript_entries": len(serializable_transcript),
-                "file_location": result.get("final_podcast_file_path"),
-                "processed_messages": processed_messages,
-                "content_length": len(chat_history_str),
-            },
-        )
+            # Add to session and commit
+            session.add(podcast)
+            await session.commit()
+            await session.refresh(podcast)
 
-        return podcast
+            # Log success
+            await task_logger.log_task_success(
+                log_entry,
+                f"Successfully generated podcast for chat {chat_id}",
+                {
+                    "podcast_id": podcast.id,
+                    "podcast_title": podcast_title,
+                    "transcript_entries": len(serializable_transcript),
+                    "file_location": result.get("final_podcast_file_path"),
+                    "processed_messages": processed_messages,
+                    "content_length": len(chat_history_str),
+                },
+            )
+
+            return podcast
 
     except ValueError as ve:
         # ValueError is already logged above for chat not found
