@@ -86,6 +86,8 @@ Edit the `.env` file and set the following variables:
 | LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
 | CELERY_BROKER_URL          | Redis connection URL for Celery broker (e.g., `redis://localhost:6379/0`)                                                                                                                |
 | CELERY_RESULT_BACKEND      | Redis connection URL for Celery result backend (e.g., `redis://localhost:6379/0`)                                                                                                        |
+| SCHEDULE_CHECKER_INTERVAL  | (Optional) How often to check for scheduled connector tasks. Format: `<number><unit>` where unit is `m` (minutes) or `h` (hours). Examples: `1m`, `5m`, `1h`, `2h` (default: `1m`)                  |
+| REGISTRATION_ENABLED       | (Optional) Enable or disable new user registration (e.g., `TRUE` or `FALSE`, default: `TRUE`)                                                                                                       |
 
 
 **(Optional) Backend LangSmith Observability:**
@@ -249,7 +251,23 @@ uv run celery -A celery_worker.celery_app flower --port=5555
 
 Access Flower at [http://localhost:5555](http://localhost:5555) to monitor your Celery tasks.
 
-### 5. Run the Backend
+### 5. Start Celery Beat (Scheduler)
+
+In another new terminal window, start Celery Beat to enable periodic tasks (like scheduled connector indexing):
+
+**Linux/macOS/Windows:**
+
+```bash
+# Make sure you're in the surfsense_backend directory
+cd surfsense_backend
+
+# Start Celery Beat
+uv run celery -A celery_worker.celery_app beat --loglevel=info
+```
+
+**Important**: Celery Beat is required for the periodic indexing functionality to work. Without it, scheduled connector tasks won't run automatically. The schedule interval can be configured using the `SCHEDULE_CHECKER_INTERVAL` environment variable.
+
+### 6. Run the Backend
 
 Start the backend server:
 

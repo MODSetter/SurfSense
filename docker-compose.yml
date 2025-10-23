@@ -74,6 +74,25 @@ services:
       - redis
       - backend
 
+  celery_beat:
+    build: ./surfsense_backend
+    # image: ghcr.io/modsetter/surfsense_backend:latest
+    command: celery -A app.celery_app beat --loglevel=info
+    volumes:
+      - ./surfsense_backend:/app
+      - shared_temp:/tmp
+    env_file:
+      - ./surfsense_backend/.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-surfsense}
+      - CELERY_BROKER_URL=redis://redis:${REDIS_PORT:-6379}/0
+      - CELERY_RESULT_BACKEND=redis://redis:${REDIS_PORT:-6379}/0
+      - PYTHONPATH=/app
+    depends_on:
+      - db
+      - redis
+      - celery_worker
+
   # flower:
   #   build: ./surfsense_backend
   #   # image: ghcr.io/modsetter/surfsense_backend:latest

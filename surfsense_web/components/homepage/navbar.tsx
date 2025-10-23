@@ -129,11 +129,18 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 						<Logo className="h-8 w-8 rounded-md" />
 						<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 					</div>
-					{open ? (
-						<IconX className="text-black dark:text-white" onClick={() => setOpen(!open)} />
-					) : (
-						<IconMenu2 className="text-black dark:text-white" onClick={() => setOpen(!open)} />
-					)}
+					<button
+						type="button"
+						onClick={() => setOpen(!open)}
+						className="relative z-50 flex items-center justify-center p-2 -mr-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
+						aria-label={open ? "Close menu" : "Open menu"}
+					>
+						{open ? (
+							<IconX className="h-6 w-6 text-black dark:text-white" />
+						) : (
+							<IconMenu2 className="h-6 w-6 text-black dark:text-white" />
+						)}
+					</button>
 				</div>
 
 				<AnimatePresence>
@@ -155,10 +162,10 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 							))}
 							<div className="flex w-full items-center gap-2 pt-2">
 								<Link
-									href="https://discord.gg/your-server"
+									href="https://discord.gg/ejRNvftDp9"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+									className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
 								>
 									<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
 								</Link>
@@ -166,7 +173,7 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 									href="https://github.com/MODSetter/SurfSense"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="flex items-center gap-1.5 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
+									className="flex items-center gap-1.5 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
 								>
 									<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
 									{loadingGithubStars ? (
@@ -179,12 +186,12 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 								</Link>
 								<ThemeTogglerComponent />
 							</div>
-							<button
-								type="button"
-								className="w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black"
+							<Link
+								href="/contact"
+								className="w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black text-center touch-manipulation"
 							>
 								Book a call
-							</button>
+							</Link>
 						</motion.div>
 					)}
 				</AnimatePresence>

@@ -98,6 +98,8 @@ Before you begin, ensure you have:
 | LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
 | CELERY_BROKER_URL          | Redis connection URL for Celery broker (e.g., `redis://localhost:6379/0`)                                                                                                                |
 | CELERY_RESULT_BACKEND      | Redis connection URL for Celery result backend (e.g., `redis://localhost:6379/0`)                                                                                                        |
+| SCHEDULE_CHECKER_INTERVAL  | (Optional) How often to check for scheduled connector tasks. Format: `<number><unit>` where unit is `m` (minutes) or `h` (hours). Examples: `1m`, `5m`, `1h`, `2h` (default: `1m`)                  |
+| REGISTRATION_ENABLED       | (Optional) Enable or disable new user registration (e.g., `TRUE` or `FALSE`, default: `TRUE`)                                                                                                       |
 
 
 **Optional Backend LangSmith Observability:**
@@ -180,6 +182,22 @@ For more details, see the [Uvicorn documentation](https://www.uvicorn.org/#comma
    - Backend API: [http://localhost:8000](http://localhost:8000)
    - API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
    - pgAdmin: [http://localhost:5050](http://localhost:5050)
+
+## Docker Services Overview
+
+The Docker setup includes several services that work together:
+
+- **Backend**: FastAPI application server
+- **Frontend**: Next.js web application
+- **PostgreSQL (db)**: Database with pgvector extension
+- **Redis**: Message broker for Celery
+- **Celery Worker**: Handles background tasks (document processing, indexing, etc.)
+- **Celery Beat**: Scheduler for periodic tasks (enables scheduled connector indexing)
+  - The schedule interval can be configured using the `SCHEDULE_CHECKER_INTERVAL` environment variable in your backend `.env` file
+  - Default: checks every minute for connectors that need indexing
+- **pgAdmin**: Database management interface
+
+All services start automatically with `docker compose up`. The Celery Beat service ensures that periodic indexing functionality works out of the box.
 
 ## Using pgAdmin
 

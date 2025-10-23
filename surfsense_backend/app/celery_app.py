@@ -13,6 +13,46 @@ load_dotenv()
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 
+# Get schedule checker interval from environment
+# Format: "<number><unit>" where unit is 'm' (minutes) or 'h' (hours)
+# Examples: "1m" (every minute), "5m" (every 5 minutes), "1h" (every hour)
+SCHEDULE_CHECKER_INTERVAL = os.getenv("SCHEDULE_CHECKER_INTERVAL", "2m")
+
+
+def parse_schedule_interval(interval: str) -> dict:
+    """Parse interval string into crontab parameters.
+
+    Args:
+        interval: String like "1m", "5m", "1h", etc.
+
+    Returns:
+        Dict with crontab parameters (minute, hour)
+    """
+    interval = interval.strip().lower()
+
+    # Extract number and unit
+    if interval.endswith("m") or interval.endswith("min"):
+        # Minutes
+        num = int(interval.rstrip("min"))
+        if num == 1:
+            return {"minute": "*", "hour": "*"}
+        else:
+            return {"minute": f"*/{num}", "hour": "*"}
+    elif interval.endswith("h") or interval.endswith("hour"):
+        # Hours
+        num = int(interval.rstrip("hour"))
+        if num == 1:
+            return {"minute": "0", "hour": "*"}
+        else:
+            return {"minute": "0", "hour": f"*/{num}"}
+    else:
+        # Default to every minute if parsing fails
+        return {"minute": "*", "hour": "*"}
+
+
+# Parse the schedule interval
+schedule_params = parse_schedule_interval(SCHEDULE_CHECKER_INTERVAL)
+
 # Create Celery app
 celery_app = Celery(
     "surfsense",
@@ -55,12 +95,12 @@ celery_app.conf.update(
 
 # Configure Celery Beat schedule
 # This uses a meta-scheduler pattern: instead of creating individual Beat schedules
-# for each connector, we have ONE schedule that checks the database every minute
+# for each connector, we have ONE schedule that checks the database at the configured interval
 # for connectors that need indexing. This provides dynamic scheduling without restarts.
 celery_app.conf.beat_schedule = {
     "check-periodic-connector-schedules": {
         "task": "check_periodic_schedules",
-        "schedule": crontab(minute="*"),  # Run every minute
+        "schedule": crontab(**schedule_params),
         "options": {
             "expires": 30,  # Task expires after 30 seconds if not picked up
         },
