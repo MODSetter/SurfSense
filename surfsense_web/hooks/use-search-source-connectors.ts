@@ -10,6 +10,9 @@ export interface SearchSourceConnector {
 	search_space_id: number;
 	user_id?: string;
 	created_at?: string;
+	periodic_indexing_enabled: boolean;
+	indexing_frequency_minutes: number | null;
+	next_scheduled_at: string | null;
 }
 
 export interface ConnectorSourceItem {

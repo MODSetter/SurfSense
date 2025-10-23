@@ -55,30 +55,45 @@ def upgrade() -> None:
 
     # ===== STEP 2: Populate search_space_id with user's first search space =====
     # This ensures existing LLM configs are assigned to a valid search space
-    op.execute(
-        """
-        UPDATE llm_configs lc
-        SET search_space_id = (
-            SELECT id 
-            FROM searchspaces ss 
-            WHERE ss.user_id = lc.user_id 
-            ORDER BY ss.created_at ASC 
-            LIMIT 1
+    # Only run this if user_id column exists on llm_configs
+    if "user_id" in llm_config_columns:
+        op.execute(
+            """
+            UPDATE llm_configs lc
+            SET search_space_id = (
+                SELECT id 
+                FROM searchspaces ss 
+                WHERE ss.user_id = lc.user_id 
+                ORDER BY ss.created_at ASC 
+                LIMIT 1
+            )
+            WHERE search_space_id IS NULL AND user_id IS NOT NULL
+            """
         )
-        WHERE search_space_id IS NULL AND user_id IS NOT NULL
-        """
-    )
 
     # ===== STEP 3: Make search_space_id NOT NULL and add FK constraint =====
-    op.alter_column(
-        "llm_configs",
-        "search_space_id",
-        nullable=False,
+    # Check if there are any rows with NULL search_space_id
+    # If llm_configs table is empty or all rows have search_space_id, we can proceed
+    result = conn.execute(
+        sa.text("SELECT COUNT(*) FROM llm_configs WHERE search_space_id IS NULL")
     )
+    null_count = result.scalar()
 
-    # Add foreign key constraint
+    if null_count == 0 or "user_id" in llm_config_columns:
+        # Safe to make NOT NULL
+        op.alter_column(
+            "llm_configs",
+            "search_space_id",
+            nullable=False,
+        )
+    else:
+        # If there are NULL values and no user_id to migrate from, skip making it NOT NULL
+        # This would happen if llm_configs already exists without user_id
+        pass
+
+    # Add foreign key constraint only if search_space_id is NOT NULL
     foreign_keys = [fk["name"] for fk in inspector.get_foreign_keys("llm_configs")]
-    if "fk_llm_configs_search_space_id" not in foreign_keys:
+    if "fk_llm_configs_search_space_id" not in foreign_keys and null_count == 0:
         op.create_foreign_key(
             "fk_llm_configs_search_space_id",
             "llm_configs",

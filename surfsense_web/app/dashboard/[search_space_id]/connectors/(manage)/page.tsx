@@ -1,7 +1,15 @@
 "use client";
 
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import {
+	Calendar as CalendarIcon,
+	Clock,
+	Edit,
+	Loader2,
+	Plus,
+	RefreshCw,
+	Trash2,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -28,8 +36,17 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
 	Table,
 	TableBody,
@@ -64,7 +81,7 @@ export default function ConnectorsPage() {
 	const searchSpaceId = params.search_space_id as string;
 	const today = new Date();
 
-	const { connectors, isLoading, error, deleteConnector, indexConnector } =
+	const { connectors, isLoading, error, deleteConnector, indexConnector, updateConnector } =
 		useSearchSourceConnectors(false, parseInt(searchSpaceId));
 	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(null);
 	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(null);
@@ -74,6 +91,16 @@ export default function ConnectorsPage() {
 	);
 	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+
+	// Periodic indexing state
+	const [periodicDialogOpen, setPeriodicDialogOpen] = useState(false);
+	const [selectedConnectorForPeriodic, setSelectedConnectorForPeriodic] = useState<number | null>(
+		null
+	);
+	const [periodicEnabled, setPeriodicEnabled] = useState(false);
+	const [frequencyMinutes, setFrequencyMinutes] = useState<string>("1440");
+	const [customFrequency, setCustomFrequency] = useState<string>("");
+	const [isSavingPeriodic, setIsSavingPeriodic] = useState(false);
 
 	useEffect(() => {
 		if (error) {
@@ -141,6 +168,84 @@ export default function ConnectorsPage() {
 		}
 	};
 
+	// Handle opening periodic indexing dialog
+	const handleOpenPeriodicDialog = (connectorId: number) => {
+		const connector = connectors.find((c) => c.id === connectorId);
+		if (!connector) return;
+
+		setSelectedConnectorForPeriodic(connectorId);
+		setPeriodicEnabled(connector.periodic_indexing_enabled);
+
+		if (connector.indexing_frequency_minutes) {
+			// Check if it's a preset value
+			const presetValues = ["15", "60", "360", "720", "1440", "10080"];
+			if (presetValues.includes(connector.indexing_frequency_minutes.toString())) {
+				setFrequencyMinutes(connector.indexing_frequency_minutes.toString());
+				setCustomFrequency("");
+			} else {
+				setFrequencyMinutes("custom");
+				setCustomFrequency(connector.indexing_frequency_minutes.toString());
+			}
+		} else {
+			setFrequencyMinutes("1440");
+			setCustomFrequency("");
+		}
+
+		setPeriodicDialogOpen(true);
+	};
+
+	// Handle saving periodic indexing configuration
+	const handleSavePeriodicIndexing = async () => {
+		if (selectedConnectorForPeriodic === null) return;
+
+		const connector = connectors.find((c) => c.id === selectedConnectorForPeriodic);
+		if (!connector) return;
+
+		setIsSavingPeriodic(true);
+		try {
+			// Determine the frequency value
+			let frequency: number | null = null;
+			if (periodicEnabled) {
+				if (frequencyMinutes === "custom") {
+					frequency = parseInt(customFrequency, 10);
+					if (isNaN(frequency) || frequency <= 0) {
+						toast.error("Please enter a valid frequency in minutes");
+						setIsSavingPeriodic(false);
+						return;
+					}
+				} else {
+					frequency = parseInt(frequencyMinutes, 10);
+				}
+			}
+
+			await updateConnector(selectedConnectorForPeriodic, {
+				periodic_indexing_enabled: periodicEnabled,
+				indexing_frequency_minutes: frequency,
+			});
+
+			toast.success(
+				periodicEnabled
+					? "Periodic indexing enabled successfully"
+					: "Periodic indexing disabled successfully"
+			);
+			setPeriodicDialogOpen(false);
+		} catch (error) {
+			console.error("Error updating periodic indexing:", error);
+			toast.error(error instanceof Error ? error.message : "Failed to update periodic indexing");
+		} finally {
+			setIsSavingPeriodic(false);
+			setSelectedConnectorForPeriodic(null);
+		}
+	};
+
+	// Format frequency for display
+	const formatFrequency = (minutes: number): string => {
+		if (minutes < 60) return `${minutes}m`;
+		if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
+		if (minutes < 10080) return `${Math.floor(minutes / 1440)}d`;
+		return `${Math.floor(minutes / 10080)}w`;
+	};
+
 	return (
 		<div className="container mx-auto py-8 max-w-6xl">
 			<motion.div
@@ -193,6 +298,7 @@ export default function ConnectorsPage() {
 										<TableHead>Name</TableHead>
 										<TableHead>Type</TableHead>
 										<TableHead>Last Indexed</TableHead>
+										<TableHead>Periodic</TableHead>
 										<TableHead className="text-right">Actions</TableHead>
 									</TableRow>
 								</TableHeader>
@@ -205,6 +311,41 @@ export default function ConnectorsPage() {
 												{connector.is_indexable
 													? formatDateTime(connector.last_indexed_at)
 													: "Not indexable"}
+											</TableCell>
+											<TableCell>
+												{connector.is_indexable ? (
+													connector.periodic_indexing_enabled ? (
+														<TooltipProvider>
+															<Tooltip>
+																<TooltipTrigger asChild>
+																	<div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+																		<Clock className="h-4 w-4" />
+																		<span className="text-sm font-medium">
+																			{connector.indexing_frequency_minutes
+																				? formatFrequency(connector.indexing_frequency_minutes)
+																				: "Enabled"}
+																		</span>
+																	</div>
+																</TooltipTrigger>
+																<TooltipContent>
+																	<p>
+																		Runs every {connector.indexing_frequency_minutes} minutes
+																		{connector.next_scheduled_at && (
+																			<>
+																				<br />
+																				Next: {formatDateTime(connector.next_scheduled_at)}
+																			</>
+																		)}
+																	</p>
+																</TooltipContent>
+															</Tooltip>
+														</TooltipProvider>
+													) : (
+														<span className="text-sm text-muted-foreground">Disabled</span>
+													)
+												) : (
+													<span className="text-sm text-muted-foreground">-</span>
+												)}
 											</TableCell>
 											<TableCell className="text-right">
 												<div className="flex justify-end gap-2">
@@ -255,6 +396,25 @@ export default function ConnectorsPage() {
 																</Tooltip>
 															</TooltipProvider>
 														</div>
+													)}
+													{connector.is_indexable && (
+														<TooltipProvider>
+															<Tooltip>
+																<TooltipTrigger asChild>
+																	<Button
+																		variant="outline"
+																		size="sm"
+																		onClick={() => handleOpenPeriodicDialog(connector.id)}
+																	>
+																		<Clock className="h-4 w-4" />
+																		<span className="sr-only">Configure Periodic Indexing</span>
+																	</Button>
+																</TooltipTrigger>
+																<TooltipContent>
+																	<p>Configure Periodic Indexing</p>
+																</TooltipContent>
+															</Tooltip>
+														</TooltipProvider>
 													)}
 													<Button
 														variant="outline"
@@ -421,6 +581,110 @@ export default function ConnectorsPage() {
 							Cancel
 						</Button>
 						<Button onClick={handleIndexConnector}>Start Indexing</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Periodic Indexing Configuration Dialog */}
+			<Dialog open={periodicDialogOpen} onOpenChange={setPeriodicDialogOpen}>
+				<DialogContent className="sm:max-w-[500px]">
+					<DialogHeader>
+						<DialogTitle>Configure Periodic Indexing</DialogTitle>
+						<DialogDescription>
+							Set up automatic indexing at regular intervals for this connector.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="grid gap-6 py-4">
+						<div className="flex items-center justify-between space-x-2">
+							<div className="space-y-0.5">
+								<Label htmlFor="periodic-enabled" className="text-base">
+									Enable Periodic Indexing
+								</Label>
+								<p className="text-sm text-muted-foreground">
+									Automatically index this connector at regular intervals
+								</p>
+							</div>
+							<Switch
+								id="periodic-enabled"
+								checked={periodicEnabled}
+								onCheckedChange={setPeriodicEnabled}
+							/>
+						</div>
+
+						{periodicEnabled && (
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="frequency">Indexing Frequency</Label>
+									<Select value={frequencyMinutes} onValueChange={setFrequencyMinutes}>
+										<SelectTrigger id="frequency">
+											<SelectValue placeholder="Select frequency" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="15">Every 15 minutes</SelectItem>
+											<SelectItem value="60">Every hour</SelectItem>
+											<SelectItem value="360">Every 6 hours</SelectItem>
+											<SelectItem value="720">Every 12 hours</SelectItem>
+											<SelectItem value="1440">Daily (24 hours)</SelectItem>
+											<SelectItem value="10080">Weekly (7 days)</SelectItem>
+											<SelectItem value="custom">Custom</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+
+								{frequencyMinutes === "custom" && (
+									<div className="space-y-2">
+										<Label htmlFor="custom-frequency">Custom Frequency (minutes)</Label>
+										<Input
+											id="custom-frequency"
+											type="number"
+											min="1"
+											placeholder="Enter minutes"
+											value={customFrequency}
+											onChange={(e) => setCustomFrequency(e.target.value)}
+										/>
+										<p className="text-xs text-muted-foreground">
+											Enter the number of minutes between each indexing run
+										</p>
+									</div>
+								)}
+
+								<div className="rounded-lg bg-muted p-3 text-sm">
+									<p className="font-medium mb-1">Preview:</p>
+									<p className="text-muted-foreground">
+										{frequencyMinutes === "custom" && customFrequency
+											? `Will run every ${customFrequency} minutes`
+											: frequencyMinutes === "15"
+												? "Will run every 15 minutes"
+												: frequencyMinutes === "60"
+													? "Will run every hour"
+													: frequencyMinutes === "360"
+														? "Will run every 6 hours"
+														: frequencyMinutes === "720"
+															? "Will run every 12 hours"
+															: frequencyMinutes === "1440"
+																? "Will run daily (every 24 hours)"
+																: frequencyMinutes === "10080"
+																	? "Will run weekly (every 7 days)"
+																	: "Select a frequency above"}
+									</p>
+								</div>
+							</div>
+						)}
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setPeriodicDialogOpen(false);
+								setSelectedConnectorForPeriodic(null);
+							}}
+						>
+							Cancel
+						</Button>
+						<Button onClick={handleSavePeriodicIndexing} disabled={isSavingPeriodic}>
+							{isSavingPeriodic && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							Save Configuration
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

@@ -136,14 +136,6 @@ Check out our public roadmap and contribute your ideas or feedback:
 
 **View the Roadmap:** [SurfSense Roadmap on GitHub Projects](https://github.com/users/MODSetter/projects/2)
 
-## ⚠️ Important Announcement
-
-**AWS and Vercel are currently experiencing outages.** We deployed a major update to SurfSense last night and have updated our documentation accordingly with important setup and configuration changes. Unfortunately, these documentation updates cannot be deployed to our main site (surfsense.com) due to the ongoing outages.
-
-**Please view our documentation directly on GitHub:**  
-📚 [SurfSense Documentation](https://github.com/MODSetter/SurfSense/tree/main/surfsense_web/content/docs)
-
-We apologize for any inconvenience and appreciate your patience!
 
 ## How to get started?
 

@@ -11,7 +11,7 @@ Note: Each search space can have only one connector of each type per user (based
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -52,6 +52,11 @@ from app.tasks.connector_indexers import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from app.utils.periodic_scheduler import (
+    create_periodic_schedule,
+    delete_periodic_schedule,
+    update_periodic_schedule,
+)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -124,12 +129,44 @@ async def create_search_source_connector(
                 status_code=409,
                 detail=f"A connector with type {connector.connector_type} already exists in this search space. Each search space can have only one connector of each type per user.",
             )
+
+        # Prepare connector data
+        connector_data = connector.model_dump()
+
+        # Automatically set next_scheduled_at if periodic indexing is enabled
+        if (
+            connector.periodic_indexing_enabled
+            and connector.indexing_frequency_minutes
+            and connector.next_scheduled_at is None
+        ):
+            connector_data["next_scheduled_at"] = datetime.now(UTC) + timedelta(
+                minutes=connector.indexing_frequency_minutes
+            )
+
         db_connector = SearchSourceConnector(
-            **connector.model_dump(), search_space_id=search_space_id, user_id=user.id
+            **connector_data, search_space_id=search_space_id, user_id=user.id
         )
         session.add(db_connector)
         await session.commit()
         await session.refresh(db_connector)
+
+        # Create periodic schedule if periodic indexing is enabled
+        if (
+            db_connector.periodic_indexing_enabled
+            and db_connector.indexing_frequency_minutes
+        ):
+            success = create_periodic_schedule(
+                connector_id=db_connector.id,
+                search_space_id=search_space_id,
+                user_id=str(user.id),
+                connector_type=db_connector.connector_type,
+                frequency_minutes=db_connector.indexing_frequency_minutes,
+            )
+            if not success:
+                logger.warning(
+                    f"Failed to create periodic schedule for connector {db_connector.id}"
+                )
+
         return db_connector
     except ValidationError as e:
         await session.rollback()
@@ -224,6 +261,50 @@ async def update_search_source_connector(
     # Convert the sparse update data (only fields present in request) to a dict
     update_data = connector_update.model_dump(exclude_unset=True)
 
+    # Validate periodic indexing fields
+    # Get the effective values after update
+    effective_is_indexable = update_data.get("is_indexable", db_connector.is_indexable)
+    effective_periodic_enabled = update_data.get(
+        "periodic_indexing_enabled", db_connector.periodic_indexing_enabled
+    )
+    effective_frequency = update_data.get(
+        "indexing_frequency_minutes", db_connector.indexing_frequency_minutes
+    )
+
+    # Validate periodic indexing configuration
+    if effective_periodic_enabled:
+        if not effective_is_indexable:
+            raise HTTPException(
+                status_code=422,
+                detail="periodic_indexing_enabled can only be True for indexable connectors",
+            )
+        if effective_frequency is None:
+            raise HTTPException(
+                status_code=422,
+                detail="indexing_frequency_minutes is required when periodic_indexing_enabled is True",
+            )
+        if effective_frequency <= 0:
+            raise HTTPException(
+                status_code=422,
+                detail="indexing_frequency_minutes must be greater than 0",
+            )
+
+        # Automatically set next_scheduled_at if not provided and periodic indexing is being enabled
+        if (
+            "periodic_indexing_enabled" in update_data
+            or "indexing_frequency_minutes" in update_data
+        ) and "next_scheduled_at" not in update_data:
+            # Schedule the next indexing based on the frequency
+            update_data["next_scheduled_at"] = datetime.now(UTC) + timedelta(
+                minutes=effective_frequency
+            )
+    elif (
+        effective_periodic_enabled is False
+        and "periodic_indexing_enabled" in update_data
+    ):
+        # If disabling periodic indexing, clear the next_scheduled_at
+        update_data["next_scheduled_at"] = None
+
     # Special handling for 'config' field
     if "config" in update_data:
         incoming_config = update_data["config"]  # Config data from the request
@@ -290,6 +371,36 @@ async def update_search_source_connector(
     try:
         await session.commit()
         await session.refresh(db_connector)
+
+        # Handle periodic schedule updates
+        if (
+            "periodic_indexing_enabled" in update_data
+            or "indexing_frequency_minutes" in update_data
+        ):
+            if (
+                db_connector.periodic_indexing_enabled
+                and db_connector.indexing_frequency_minutes
+            ):
+                # Create or update the periodic schedule
+                success = update_periodic_schedule(
+                    connector_id=db_connector.id,
+                    search_space_id=db_connector.search_space_id,
+                    user_id=str(user.id),
+                    connector_type=db_connector.connector_type,
+                    frequency_minutes=db_connector.indexing_frequency_minutes,
+                )
+                if not success:
+                    logger.warning(
+                        f"Failed to update periodic schedule for connector {db_connector.id}"
+                    )
+            else:
+                # Delete the periodic schedule if disabled
+                success = delete_periodic_schedule(db_connector.id)
+                if not success:
+                    logger.warning(
+                        f"Failed to delete periodic schedule for connector {db_connector.id}"
+                    )
+
         return db_connector
     except IntegrityError as e:
         await session.rollback()
@@ -320,6 +431,15 @@ async def delete_search_source_connector(
         db_connector = await check_ownership(
             session, SearchSourceConnector, connector_id, user
         )
+
+        # Delete any periodic schedule associated with this connector
+        if db_connector.periodic_indexing_enabled:
+            success = delete_periodic_schedule(connector_id)
+            if not success:
+                logger.warning(
+                    f"Failed to delete periodic schedule for connector {connector_id}"
+                )
+
         await session.delete(db_connector)
         await session.commit()
         return {"message": "Search source connector deleted successfully"}

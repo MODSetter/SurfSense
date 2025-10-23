@@ -285,6 +285,11 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     last_indexed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     config = Column(JSON, nullable=False)
 
+    # Periodic indexing fields
+    periodic_indexing_enabled = Column(Boolean, nullable=False, default=False)
+    indexing_frequency_minutes = Column(Integer, nullable=True)
+    next_scheduled_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
