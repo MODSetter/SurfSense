@@ -26,8 +26,6 @@ interface ChatInterfaceContext {
 	isChatPannelOpen: boolean;
 	setIsChatPannelOpen: (value: boolean) => void;
 	chat_id: string;
-	podcast: PodcastItem | null;
-	setPodcast: (value: PodcastItem) => void;
 	chatDetails: ChatDetails | null;
 }
 

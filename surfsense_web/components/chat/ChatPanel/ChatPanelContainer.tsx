@@ -19,7 +19,7 @@ export function ChatPanelContainer() {
 		throw new Error("chatInterfaceContext must be used within a ChatProvider");
 	}
 
-	const { isChatPannelOpen, setIsChatPannelOpen, chat_id: chatId, setPodcast } = context;
+	const { isChatPannelOpen, setIsChatPannelOpen, chat_id: chatId } = context;
 
 	const generatePodcast = async (request: GeneratePodcastRequest) => {
 		try {
@@ -41,10 +41,6 @@ export function ChatPanelContainer() {
 				const errorData = await response.json().catch(() => ({}));
 				throw new Error(errorData.detail || "Failed to generate podcast");
 			}
-
-			const result = await response.json();
-
-			setPodcast(result);
 
 			toast.success(`Podcast generation started!`);
 		} catch (error) {
