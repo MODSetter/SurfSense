@@ -9,6 +9,7 @@ from sqlalchemy import (
     ARRAY,
     JSON,
     TIMESTAMP,
+    BigInteger,
     Boolean,
     Column,
     Enum as SQLAlchemyEnum,
@@ -157,6 +158,7 @@ class Chat(BaseModel, TimestampMixin):
     title = Column(String, nullable=False, index=True)
     initial_connectors = Column(ARRAY(String), nullable=True)
     messages = Column(JSON, nullable=False)
+    state_version = Column(BigInteger, nullable=False, default=1)
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
@@ -203,6 +205,7 @@ class Podcast(BaseModel, TimestampMixin):
     title = Column(String, nullable=False, index=True)
     podcast_transcript = Column(JSON, nullable=False, default={})
     file_location = Column(String(500), nullable=False, default="")
+    chat_state_version = Column(BigInteger, nullable=True)
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False

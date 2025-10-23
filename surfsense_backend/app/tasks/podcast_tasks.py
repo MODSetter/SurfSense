@@ -144,6 +144,7 @@ async def generate_chat_podcast(
             podcast_transcript=serializable_transcript,
             file_location=result["final_podcast_file_path"],
             search_space_id=search_space_id,
+            chat_state_version=chat.state_version,
         )
 
         # Add to session and commit

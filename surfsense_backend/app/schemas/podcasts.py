@@ -10,6 +10,7 @@ class PodcastBase(BaseModel):
     podcast_transcript: list[Any]
     file_location: str = ""
     search_space_id: int
+    chat_state_version: int | None = None
 
 
 class PodcastCreate(PodcastBase):
