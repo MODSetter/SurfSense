@@ -3,8 +3,14 @@ import { useActionState, useContext, useTransition } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { chatInterfaceContext } from "../ChatInterface";
-import type { GeneratePodcastRequest } from "./actions";
 import { ChatPanelView } from "./ChatPanelView";
+
+export interface GeneratePodcastRequest {
+	type: "CHAT" | "DOCUMENT";
+	ids: number[];
+	search_space_id: number;
+	podcast_title?: string;
+}
 
 export function ChatPanelContainer() {
 	const context = useContext(chatInterfaceContext);

@@ -56,11 +56,21 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-interface Chat {
+export interface Chat {
 	created_at: string;
 	id: number;
-	type: string;
+	type: "DOCUMENT" | "CHAT";
 	title: string;
+	search_space_id: number;
+}
+
+export interface ChatDetails {
+	type: "DOCUMENT" | "CHAT";
+	title: string;
+	initial_connectors: string[];
+	messages: any[];
+	created_at: string;
+	id: number;
 	search_space_id: number;
 }
 
