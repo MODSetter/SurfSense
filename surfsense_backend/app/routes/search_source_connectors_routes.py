@@ -151,7 +151,10 @@ async def create_search_source_connector(
         await session.refresh(db_connector)
 
         # Create periodic schedule if periodic indexing is enabled
-        if db_connector.periodic_indexing_enabled and db_connector.indexing_frequency_minutes:
+        if (
+            db_connector.periodic_indexing_enabled
+            and db_connector.indexing_frequency_minutes
+        ):
             success = create_periodic_schedule(
                 connector_id=db_connector.id,
                 search_space_id=search_space_id,
@@ -370,8 +373,14 @@ async def update_search_source_connector(
         await session.refresh(db_connector)
 
         # Handle periodic schedule updates
-        if "periodic_indexing_enabled" in update_data or "indexing_frequency_minutes" in update_data:
-            if db_connector.periodic_indexing_enabled and db_connector.indexing_frequency_minutes:
+        if (
+            "periodic_indexing_enabled" in update_data
+            or "indexing_frequency_minutes" in update_data
+        ):
+            if (
+                db_connector.periodic_indexing_enabled
+                and db_connector.indexing_frequency_minutes
+            ):
                 # Create or update the periodic schedule
                 success = update_periodic_schedule(
                     connector_id=db_connector.id,
@@ -422,7 +431,7 @@ async def delete_search_source_connector(
         db_connector = await check_ownership(
             session, SearchSourceConnector, connector_id, user
         )
-        
+
         # Delete any periodic schedule associated with this connector
         if db_connector.periodic_indexing_enabled:
             success = delete_periodic_schedule(connector_id)
@@ -430,7 +439,7 @@ async def delete_search_source_connector(
                 logger.warning(
                     f"Failed to delete periodic schedule for connector {connector_id}"
                 )
-        
+
         await session.delete(db_connector)
         await session.commit()
         return {"message": "Search source connector deleted successfully"}

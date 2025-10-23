@@ -43,7 +43,7 @@ def create_periodic_schedule(
 ) -> bool:
     """
     Trigger the first indexing run immediately when periodic indexing is enabled.
-    
+
     Note: The periodic schedule is managed by the database (next_scheduled_at field)
     and checked by the meta-scheduler task that runs every minute.
     This function just triggers the first run for immediate feedback.
@@ -63,7 +63,7 @@ def create_periodic_schedule(
             f"Periodic indexing enabled for connector {connector_id} "
             f"(frequency: {frequency_minutes} minutes). Triggering first run..."
         )
-        
+
         # Import all indexing tasks
         from app.tasks.celery_tasks.connector_tasks import (
             index_airtable_records_task,
@@ -80,7 +80,7 @@ def create_periodic_schedule(
             index_notion_pages_task,
             index_slack_messages_task,
         )
-        
+
         # Map connector type to task
         task_map = {
             SearchSourceConnectorType.SLACK_CONNECTOR: index_slack_messages_task,
@@ -97,7 +97,7 @@ def create_periodic_schedule(
             SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
             SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
         }
-        
+
         # Trigger the first run immediately
         task = task_map.get(connector_type)
         if task:
@@ -123,7 +123,7 @@ def create_periodic_schedule(
 def delete_periodic_schedule(connector_id: int) -> bool:
     """
     Handle deletion of periodic schedule for a connector.
-    
+
     Note: With the meta-scheduler pattern, the schedule is managed in the database.
     The next_scheduled_at field being set to None effectively disables it.
     This function just logs the action.
@@ -147,7 +147,7 @@ def update_periodic_schedule(
 ) -> bool:
     """
     Update an existing periodic schedule for a connector.
-    
+
     Note: With the meta-scheduler pattern, updates are handled by the database.
     This function logs the update and optionally triggers an immediate run.
 
@@ -169,4 +169,3 @@ def update_periodic_schedule(
     # Uncomment the line below if you want immediate execution on schedule update
     # return create_periodic_schedule(connector_id, search_space_id, user_id, connector_type, frequency_minutes)
     return True
-
