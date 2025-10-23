@@ -27,6 +27,8 @@ interface ChatInterfaceContext {
 	setIsChatPannelOpen: (value: boolean) => void;
 	chat_id: string;
 	chatDetails: ChatDetails | null;
+	podcast: PodcastItem | null;
+	setPodcast: (podcast: PodcastItem | null) => void;
 }
 
 export const chatInterfaceContext = createContext<ChatInterfaceContext | null>(null);

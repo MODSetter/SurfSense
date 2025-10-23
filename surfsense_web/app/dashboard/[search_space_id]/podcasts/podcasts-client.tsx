@@ -54,6 +54,7 @@ export interface PodcastItem {
 	file_location: string;
 	podcast_transcript: any[];
 	search_space_id: number;
+	chat_state_version: number | null;
 }
 
 interface PodcastsPageClientProps {
