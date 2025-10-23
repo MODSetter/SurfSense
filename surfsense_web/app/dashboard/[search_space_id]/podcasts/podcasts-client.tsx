@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 
-interface PodcastItem {
+export interface PodcastItem {
 	id: number;
 	title: string;
 	created_at: string;
