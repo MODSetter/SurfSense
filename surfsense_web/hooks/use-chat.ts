@@ -1,6 +1,6 @@
 import type { Message } from "@ai-sdk/react";
 import { useCallback, useEffect, useState } from "react";
-import { Chat, type ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
+import { type ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/hooks/use-documents";
 
