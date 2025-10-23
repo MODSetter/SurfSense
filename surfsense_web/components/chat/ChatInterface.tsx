@@ -3,10 +3,13 @@
 import { type ChatHandler, ChatSection as LlamaIndexChatSection } from "@llamaindex/chat-ui";
 import { PanelRight } from "lucide-react";
 import { useParams } from "next/navigation";
-import { createContext, useState } from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
+import { Chat, type ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
+import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/podcasts-client";
 import type { ResearchMode } from "@/components/chat";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
+import { useChatAPI } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
 import { ChatPanelContainer } from "./ChatPannel/ChatPanelContainer";
 
@@ -24,6 +27,9 @@ interface ChatInterfaceContext {
 	isChatPannelOpen: boolean;
 	setIsChatPannelOpen: (value: boolean) => void;
 	chat_id: string;
+	podcast: PodcastItem | null;
+	setPodcast: (value: PodcastItem) => void;
+	chatDetails: ChatDetails | null;
 }
 
 export const chatInterfaceContext = createContext<ChatInterfaceContext | null>(null);
@@ -37,13 +43,37 @@ export default function ChatInterface({
 	searchMode,
 	onSearchModeChange,
 }: ChatInterfaceProps) {
-	const { chat_id } = useParams();
+	const { chat_id, search_space_id } = useParams();
+	const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
 	const [isChatPannelOpen, setIsChatPannelOpen] = useState(false);
+	const [podcast, setPodcast] = useState<PodcastItem | null>(null);
 	const contextValue = {
 		isChatPannelOpen,
 		setIsChatPannelOpen,
 		chat_id: typeof chat_id === "string" ? chat_id : chat_id ? chat_id[0] : "",
+		podcast,
+		setPodcast,
+		chatDetails,
 	};
+
+	const { fetchChatDetails } = useChatAPI({
+		token: localStorage.getItem("surfsense_bearer_token"),
+		search_space_id: search_space_id as string,
+	});
+
+	const getChat = useCallback(
+		async (id: string) => {
+			const chat = await fetchChatDetails(id);
+			setChatDetails(chat);
+		},
+		[fetchChatDetails]
+	);
+
+	useEffect(() => {
+		const id = typeof chat_id === "string" ? chat_id : chat_id ? chat_id[0] : "";
+		if (!id) return;
+		getChat(id);
+	}, [chat_id, search_space_id]);
 
 	return (
 		<chatInterfaceContext.Provider value={contextValue}>
