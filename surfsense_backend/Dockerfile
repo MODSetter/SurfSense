@@ -63,10 +63,14 @@ RUN pip install playwright && \
 # Copy source code
 COPY . .
 
+# Copy and set permissions for entrypoint script
+COPY scripts/docker/entrypoint.sh /app/scripts/docker/entrypoint.sh
+RUN chmod +x /app/scripts/docker/entrypoint.sh
+
 # Prevent uvloop compatibility issues
 ENV PYTHONPATH=/app
 ENV UVICORN_LOOP=asyncio
 
 # Run
 EXPOSE 8000
-CMD ["python", "main.py", "--reload"] 
+CMD ["/app/scripts/docker/entrypoint.sh"] 
