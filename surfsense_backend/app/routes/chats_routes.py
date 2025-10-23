@@ -259,9 +259,10 @@ async def update_chat(
         db_chat = await read_chat(chat_id, session, user)
         update_data = chat_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
+            if key == "messages":
+                db_chat.state_version = len(update_data["messages"])
             setattr(db_chat, key, value)
-        # Increment state_version when chat is modified
-        db_chat.state_version = (db_chat.state_version or 0) + 1
+
         await session.commit()
         await session.refresh(db_chat)
         return db_chat
