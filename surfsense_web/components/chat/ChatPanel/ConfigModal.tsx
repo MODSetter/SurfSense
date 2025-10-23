@@ -39,7 +39,7 @@ export function ConfigModal(props: ConfigModalProps) {
 			>
 				<Pencil strokeWidth={1} className="h-4 w-4" />
 			</PopoverTrigger>
-			<PopoverContent align="end" className="bg-sidebar w-96 ">
+			<PopoverContent onClick={(e) => e.stopPropagation()} align="end" className="bg-sidebar w-96 ">
 				<form className="flex flex-col gap-3 w-full">
 					<label className="text-sm font-medium" htmlFor="prompt">
 						What subjects should the AI cover in this podcast ?
