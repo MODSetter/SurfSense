@@ -1,17 +1,16 @@
 "use client";
 
 import { type ChatHandler, ChatSection as LlamaIndexChatSection } from "@llamaindex/chat-ui";
-import { PanelRight } from "lucide-react";
 import { useParams } from "next/navigation";
 import { createContext, useCallback, useEffect, useState } from "react";
-import { Chat, type ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
+import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/podcasts-client";
 import type { ResearchMode } from "@/components/chat";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 import { useChatAPI } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
-import { ChatPanelContainer } from "./ChatPannel/ChatPanelContainer";
+import { ChatPanelContainer } from "./ChatPanel/ChatPanelContainer";
 
 interface ChatInterfaceProps {
 	handler: ChatHandler;
