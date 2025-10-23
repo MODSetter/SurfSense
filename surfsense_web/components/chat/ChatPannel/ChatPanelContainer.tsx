@@ -1,5 +1,5 @@
 import { PanelRight } from "lucide-react";
-import { useContext } from "react";
+import { useActionState, useContext } from "react";
 import { cn } from "@/lib/utils";
 import { chatInterfaceContext } from "../ChatInterface";
 import { generatePodCastAction, getChatPodcastPromise } from "./actions";
@@ -11,6 +11,15 @@ export interface PodCastInterface {
 	search_space_id: string;
 }
 
+export type PodcastGenerationState = Partial<{
+	title: string;
+	podcast_transcript: string;
+	search_space_id: string;
+	chat_id: string;
+	prompt: string;
+	error: unknown;
+}>;
+
 export function ChatPanelContainer() {
 	const context = useContext(chatInterfaceContext);
 
@@ -19,6 +28,13 @@ export function ChatPanelContainer() {
 	}
 
 	const { isChatPannelOpen, setIsChatPannelOpen, chat_id: chatId } = context;
+
+	const [state, generatePodcastAction, isGeneratingPodcast] =
+		useActionState<PodcastGenerationState>(generatePodCastAction, {
+			chat_id: chatId,
+			prompt: "Test",
+		});
+
 	return chatId && chatId !== "" ? (
 		<div
 			className={cn(
