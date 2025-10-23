@@ -3,6 +3,7 @@
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -21,6 +22,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.document_tasks",
         "app.tasks.celery_tasks.podcast_tasks",
         "app.tasks.celery_tasks.connector_tasks",
+        "app.tasks.celery_tasks.schedule_checker_task",
     ],
 )
 
@@ -47,13 +49,20 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     # Broker settings
     broker_connection_retry_on_startup=True,
+    # Beat scheduler settings
+    beat_max_loop_interval=60,  # Check every minute
 )
 
-# Optional: Configure Celery Beat for periodic tasks
+# Configure Celery Beat schedule
+# This uses a meta-scheduler pattern: instead of creating individual Beat schedules
+# for each connector, we have ONE schedule that checks the database every minute
+# for connectors that need indexing. This provides dynamic scheduling without restarts.
 celery_app.conf.beat_schedule = {
-    # Example: Add periodic tasks here if needed
-    # "periodic-task-name": {
-    #     "task": "app.tasks.celery_tasks.some_task",
-    #     "schedule": crontab(minute=0, hour=0),  # Run daily at midnight
-    # },
+    "check-periodic-connector-schedules": {
+        "task": "check_periodic_schedules",
+        "schedule": crontab(minute="*"),  # Run every minute
+        "options": {
+            "expires": 30,  # Task expires after 30 seconds if not picked up
+        },
+    },
 }
