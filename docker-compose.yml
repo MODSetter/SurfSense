@@ -113,8 +113,8 @@ services:
 
   frontend:
     build:
-      # context: ./surfsense_web
-      image: ghcr.io/modsetter/surfsense_ui:latest
+      context: ./surfsense_web
+      # image: ghcr.io/modsetter/surfsense_ui:latest
       args:
         NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-http://localhost:8000}
         NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE:-LOCAL}
