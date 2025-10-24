@@ -13,12 +13,14 @@ class ChatBase(BaseModel):
     initial_connectors: list[str] | None = None
     messages: list[Any]
     search_space_id: int
+    state_version: int = 1
 
 
 class ChatBaseWithoutMessages(BaseModel):
     type: ChatType
     title: str
     search_space_id: int
+    state_version: int = 1
 
 
 class ClientAttachment(BaseModel):
