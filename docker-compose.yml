@@ -38,7 +38,8 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - ./surfsense_backend:/app
+      - ./surfsense_backend/app:/app/app
+      - ./surfsense_backend/scripts:/app/scripts:ro
       - shared_temp:/tmp
     env_file:
       - ./surfsense_backend/.env
@@ -111,17 +112,17 @@ services:
   #     - celery_worker
 
   frontend:
-    # build: ./surfsense_web
-    image: ghcr.io/modsetter/surfsense_ui:latest
+    build:
+      # context: ./surfsense_web
+      image: ghcr.io/modsetter/surfsense_ui:latest
+      args:
+        NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-http://localhost:8000}
+        NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE:-LOCAL}
+        NEXT_PUBLIC_ETL_SERVICE: ${NEXT_PUBLIC_ETL_SERVICE:-DOCLING}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    volumes:
-      - ./surfsense_web:/app
-      - /app/node_modules
     env_file:
       - ./surfsense_web/.env
-    environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:8000}
     depends_on:
       - backend
 

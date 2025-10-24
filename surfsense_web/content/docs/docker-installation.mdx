@@ -71,7 +71,11 @@ Before you begin, ensure you have:
 | POSTGRES_DB                | PostgreSQL database name                                                    | surfsense           |
 | PGADMIN_DEFAULT_EMAIL      | Email for pgAdmin login                                                     | admin@surfsense.com |
 | PGADMIN_DEFAULT_PASSWORD   | Password for pgAdmin login                                                  | surfsense           |
-| NEXT_PUBLIC_API_URL        | URL of the backend API (used by frontend)                                   | http://backend:8000 |
+| NEXT_PUBLIC_FASTAPI_BACKEND_URL | URL of the backend API (used by frontend during build and runtime)     | http://localhost:8000 |
+| NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Authentication method for frontend: `LOCAL` or `GOOGLE`           | LOCAL               |
+| NEXT_PUBLIC_ETL_SERVICE    | Document parsing service for frontend UI: `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING` | DOCLING |
+
+**Note:** Frontend environment variables with the `NEXT_PUBLIC_` prefix are embedded into the Next.js production build at build time. Since the frontend now runs as a production build in Docker, these variables must be set in the root `.env` file (Docker-specific configuration) and will be passed as build arguments during the Docker build process.
 
 **Backend Environment Variables:**
 
@@ -148,11 +152,13 @@ For more details, see the [Uvicorn documentation](https://www.uvicorn.org/#comma
 
 ### Frontend Environment Variables
 
-| ENV VARIABLE                    | DESCRIPTION                                                |
-| ------------------------------- | ---------------------------------------------------------- |
-| NEXT_PUBLIC_FASTAPI_BACKEND_URL | URL of the backend service (e.g., `http://localhost:8000`) |
-| NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Same value as set in backend AUTH_TYPE i.e `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication  |
-| NEXT_PUBLIC_ETL_SERVICE         | Document parsing service (should match backend ETL_SERVICE): `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING` - affects supported file formats in upload interface |
+**Important:** Frontend environment variables are now configured in the **Docker-Specific Environment Variables** section above since the Next.js application runs as a production build in Docker. The following `NEXT_PUBLIC_*` variables should be set in your root `.env` file:
+
+- `NEXT_PUBLIC_FASTAPI_BACKEND_URL` - URL of the backend service
+- `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` - Authentication method (`LOCAL` or `GOOGLE`)
+- `NEXT_PUBLIC_ETL_SERVICE` - Document parsing service (should match backend `ETL_SERVICE`)
+
+These variables are embedded into the application during the Docker build process and affect the frontend's behavior and available features.
 
 2. **Build and Start Containers**
 
