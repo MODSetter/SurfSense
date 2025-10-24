@@ -43,12 +43,6 @@ export default function ChatInterface({
 	searchMode,
 	onSearchModeChange,
 }: ChatInterfaceProps) {
-	const [token, setToken] = useState<string | null>(null);
-	useEffect(() => {
-		const bearerToken = localStorage.getItem("surfsense_bearer_token");
-		setToken(bearerToken);
-	}, []);
-
 	const { chat_id, search_space_id } = useParams();
 	const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
 	const [isChatPannelOpen, setIsChatPannelOpen] = useState(false);
@@ -65,7 +59,7 @@ export default function ChatInterface({
 	const { getPodcastByChatId } = usePodcast();
 
 	const { fetchChatDetails } = useChatAPI({
-		token,
+		token: localStorage?.getItem("surfsense_bearer_token"),
 		search_space_id: search_space_id as string,
 	});
 

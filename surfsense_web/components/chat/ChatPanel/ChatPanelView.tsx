@@ -35,8 +35,6 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 		});
 	}, [chatDetails, generatePodcast]);
 
-	console.log("podcastIsStale", podcastIsStale);
-
 	return (
 		<div className="w-full">
 			<div
