@@ -1,5 +1,6 @@
 import { ChevronDown, FileText, MessageCircle, Plus } from "lucide-react";
 import type React from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Connector, ResearchMode } from "./types";
@@ -66,6 +67,7 @@ export const ConnectorButton = ({
 	onClick,
 	connectorSources,
 }: ConnectorButtonProps) => {
+	const t = useTranslations('researcher');
 	const totalConnectors = connectorSources.length;
 	const selectedCount = selectedConnectors.length;
 	const progressPercentage = (selectedCount / totalConnectors) * 100;
@@ -78,16 +80,16 @@ export const ConnectorButton = ({
 
 	// Get display text based on selection count
 	const getDisplayText = () => {
-		if (selectedCount === totalConnectors) return "All Connectors";
+		if (selectedCount === totalConnectors) return t('all_connectors');
 		if (selectedCount === 1) return getSingleConnectorName();
-		return `${selectedCount} Connectors`;
+		return t('connectors_selected', { count: selectedCount });
 	};
 
 	// Render the empty state (no connectors selected)
 	const renderEmptyState = () => (
 		<>
 			<Plus className="h-3 w-3 text-muted-foreground" />
-			<span className="text-muted-foreground">Select Connectors</span>
+			<span className="text-muted-foreground">{t('select_connectors')}</span>
 		</>
 	);
 
@@ -115,7 +117,7 @@ export const ConnectorButton = ({
 			className="h-8 px-2 text-xs font-medium rounded-md border-border relative overflow-hidden group"
 			onClick={onClick}
 			aria-label={
-				selectedCount === 0 ? "Select Connectors" : `${selectedCount} connectors selected`
+				selectedCount === 0 ? t('select_connectors') : t('connectors_selected', { count: selectedCount })
 			}
 		>
 			{/* Progress indicator */}

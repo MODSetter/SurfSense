@@ -1,10 +1,13 @@
 "use client";
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
 import { AmbientBackground } from "./AmbientBackground";
 
 export function GoogleLoginButton() {
+	const t = useTranslations('auth');
+	
 	const handleGoogleLogin = () => {
 		// Redirect to Google OAuth authorization URL
 		fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize`)
@@ -31,7 +34,7 @@ export function GoogleLoginButton() {
 			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
 				<Logo className="rounded-md" />
 				<h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
-					Welcome Back
+					{t('welcome_back')}
 				</h1>
 
 				<motion.div
@@ -65,14 +68,14 @@ export function GoogleLoginButton() {
 						</svg>
 						<div className="ml-1">
 							<p className="text-sm font-medium">
-								SurfSense Cloud is currently in development. Check{" "}
+								{t('cloud_dev_notice')}{" "}
 								<a
 									href="/docs"
 									className="text-blue-600 underline dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
 								>
-									Docs
+									{t('docs')}
 								</a>{" "}
-								for more information on Self-Hosted version.
+								{t('cloud_dev_self_hosted')}
 							</p>
 						</div>
 					</motion.div>
@@ -91,7 +94,7 @@ export function GoogleLoginButton() {
 						<div className="absolute -bottom-px -right-px h-4 w-4 rounded-br-lg border-b-2 border-r-2 border-blue-500 bg-transparent transition-all duration-200 group-hover/btn:-bottom-2 group-hover/btn:-right-2"></div>
 					</div>
 					<IconBrandGoogleFilled className="h-5 w-5 text-neutral-700 dark:text-neutral-200" />
-					<span className="text-base font-medium">Continue with Google</span>
+					<span className="text-base font-medium">{t('continue_with_google')}</span>
 				</motion.button>
 			</div>
 		</div>

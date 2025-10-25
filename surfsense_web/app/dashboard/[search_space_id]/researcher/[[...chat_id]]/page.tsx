@@ -3,12 +3,14 @@
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { ResearchMode } from "@/components/chat";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
 
 export default function ResearcherPage() {
+	const t = useTranslations('researcher');
 	const { search_space_id, chat_id } = useParams();
 	const router = useRouter();
 
@@ -192,7 +194,7 @@ export default function ResearcherPage() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-full">
-				<div>Loading...</div>
+				<div>{t('loading')}</div>
 			</div>
 		);
 	}

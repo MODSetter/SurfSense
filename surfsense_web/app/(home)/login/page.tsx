@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { AmbientBackground } from "./AmbientBackground";
@@ -12,6 +13,8 @@ import { GoogleLoginButton } from "./GoogleLoginButton";
 import { LocalLoginForm } from "./LocalLoginForm";
 
 function LoginContent() {
+	const t = useTranslations('auth');
+	const tCommon = useTranslations('common');
 	const [authType, setAuthType] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [urlError, setUrlError] = useState<{ title: string; message: string } | null>(null);
@@ -26,15 +29,15 @@ function LoginContent() {
 
 		// Show registration success message
 		if (registered === "true") {
-			toast.success("Registration successful!", {
-				description: "You can now sign in with your credentials",
+			toast.success(t('register_success'), {
+				description: t('login_subtitle'),
 				duration: 5000,
 			});
 		}
 
 		// Show logout confirmation
 		if (logout === "true") {
-			toast.success("Logged out successfully", {
+			toast.success(tCommon('success'), {
 				description: "You have been securely logged out",
 				duration: 3000,
 			});
@@ -93,7 +96,7 @@ function LoginContent() {
 					<Logo className="rounded-md" />
 					<div className="mt-8 flex items-center space-x-2">
 						<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-						<span className="text-muted-foreground">Loading...</span>
+						<span className="text-muted-foreground">{tCommon('loading')}</span>
 					</div>
 				</div>
 			</div>
@@ -110,7 +113,7 @@ function LoginContent() {
 			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
 				<Logo className="rounded-md" />
 				<h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
-					Sign In
+					{t('sign_in')}
 				</h1>
 
 				{/* URL Error Display */}

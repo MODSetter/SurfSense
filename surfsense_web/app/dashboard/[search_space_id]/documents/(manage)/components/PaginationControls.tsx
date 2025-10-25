@@ -2,6 +2,7 @@
 
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
@@ -38,6 +39,7 @@ export function PaginationControls({
 	canNext: boolean;
 	id: string;
 }) {
+	const t = useTranslations('documents');
 	const start = total === 0 ? 0 : pageIndex * pageSize + 1;
 	const end = Math.min((pageIndex + 1) * pageSize, total);
 
@@ -50,7 +52,7 @@ export function PaginationControls({
 				transition={{ type: "spring", stiffness: 300, damping: 30 }}
 			>
 				<Label htmlFor={id} className="max-sm:sr-only">
-					Rows per page
+					{t('rows_per_page')}
 				</Label>
 				<Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(Number(v))}>
 					<SelectTrigger id={id} className="w-fit whitespace-nowrap">

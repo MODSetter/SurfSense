@@ -4,9 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 export function HeroSection() {
+	const t = useTranslations('homepage');
 	const containerRef = useRef<HTMLDivElement>(null);
 	const parentRef = useRef<HTMLDivElement>(null);
 
@@ -57,34 +59,32 @@ export function HeroSection() {
 				}}
 			/>
 
-			<h2 className="relative z-50 mx-auto mb-4 mt-4 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
-				<Balancer>
-					The AI Workspace{" "}
-					<div className="relative mx-auto inline-block w-max [filter:drop-shadow(0px_1px_3px_rgba(27,_37,_80,_0.14))]">
-						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-							<span className="">Built for Teams</span>
-						</div>
+		<h2 className="relative z-50 mx-auto mb-4 mt-4 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
+			<Balancer>
+				{t('hero_title_part1')}{" "}
+				<div className="relative mx-auto inline-block w-max [filter:drop-shadow(0px_1px_3px_rgba(27,_37,_80,_0.14))]">
+					<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
+						<span className="">{t('hero_title_part2')}</span>
 					</div>
-				</Balancer>
-			</h2>
-			{/* // TODO:aCTUAL DESCRITION */}
-			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
-				your team.
-			</p>
+				</div>
+			</Balancer>
+		</h2>
+		<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
+			{t('hero_description')}
+		</p>
 			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
-				<Link
-					href="/contact"
-					className="group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-black p-px px-4 py-2 text-center text-sm font-semibold leading-6 text-white no-underline transition duration-200 sm:w-52 dark:bg-white dark:text-black"
-				>
-					Start Free Trial
-				</Link>
-				<Link
-					href="/pricing"
-					className="shadow-input group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-white p-px px-4 py-2 text-sm font-semibold leading-6 text-black no-underline transition duration-200 hover:-translate-y-0.5 sm:w-52 dark:bg-neutral-800 dark:text-white"
-				>
-					Explore
-				</Link>
+			<Link
+				href="/contact"
+				className="group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-black p-px px-4 py-2 text-center text-sm font-semibold leading-6 text-white no-underline transition duration-200 sm:w-52 dark:bg-white dark:text-black"
+			>
+				{t('cta_start_trial')}
+			</Link>
+			<Link
+				href="/pricing"
+				className="shadow-input group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-white p-px px-4 py-2 text-sm font-semibold leading-6 text-black no-underline transition duration-200 hover:-translate-y-0.5 sm:w-52 dark:bg-neutral-800 dark:text-white"
+			>
+				{t('cta_explore')}
+			</Link>
 			</div>
 			<div
 				ref={containerRef}

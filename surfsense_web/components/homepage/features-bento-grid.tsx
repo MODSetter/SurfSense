@@ -1,9 +1,45 @@
+"use client";
+
 import { IconMessage, IconMicrophone, IconSearch, IconUsers } from "@tabler/icons-react";
 import Image from "next/image";
 import React from "react";
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
+import { useTranslations } from "next-intl";
 
 export function FeaturesBentoGrid() {
+	const t = useTranslations('homepage.features');
+	
+	const items = [
+		{
+			title: t('find_ask_act.title'),
+			description: t('find_ask_act.description'),
+			header: <CitationIllustration t={t} />,
+			className: "md:col-span-2",
+			icon: <IconSearch className="h-4 w-4 text-neutral-500" />,
+		},
+		{
+			title: t('real_time_collab.title'),
+			description: t('real_time_collab.description'),
+			header: <CollaborationIllustration t={t} />,
+			className: "md:col-span-1",
+			icon: <IconUsers className="h-4 w-4 text-neutral-500" />,
+		},
+		{
+			title: t('beyond_text.title'),
+			description: t('beyond_text.description'),
+			header: <AudioCommentIllustration />,
+			className: "md:col-span-1",
+			icon: <IconMicrophone className="h-4 w-4 text-neutral-500" />,
+		},
+		{
+			title: t('context_counts.title'),
+			description: t('context_counts.description'),
+			header: <AnnotationIllustration t={t} />,
+			className: "md:col-span-2",
+			icon: <IconMessage className="h-4 w-4 text-neutral-500" />,
+		},
+	];
+	
 	return (
 		<BentoGrid className="max-w-7xl my-8 mx-auto md:auto-rows-[20rem]">
 			{items.map((item, i) => (
@@ -20,10 +56,10 @@ export function FeaturesBentoGrid() {
 	);
 }
 
-const CitationIllustration = () => (
+const CitationIllustration = ({ t }: { t: (key: string) => string }) => (
 	<div className="relative flex w-full h-full min-h-[6rem] items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-blue-950/20 dark:via-purple-950/20 dark:to-pink-950/20 p-4">
 		<svg viewBox="0 0 400 200" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-			<title>Citation feature illustration showing clickable source reference</title>
+			<title>{t('citation_illustration_title')}</title>
 			{/* Background chat message */}
 			<g>
 				{/* Chat bubble */}
@@ -169,7 +205,7 @@ const CitationIllustration = () => (
 					className="fill-blue-700 dark:fill-blue-300"
 					textAnchor="middle"
 				>
-					Referenced Chunk
+					{t('referenced_chunk')}
 				</text>
 
 				{/* Content lines */}
@@ -265,11 +301,11 @@ const CitationIllustration = () => (
 	</div>
 );
 
-const CollaborationIllustration = () => (
+const CollaborationIllustration = ({ t }: { t: (key: string) => string }) => (
 	<div className="relative flex w-full h-full min-h-44 flex-1 flex-col items-center justify-center overflow-hidden pointer-events-none select-none">
 		<div
 			role="img"
-			aria-label="Illustration of a realtime collaboration in a text editor."
+			aria-label={t('collab_illustration_label')}
 			className="pointer-events-none absolute inset-0 flex flex-col items-start justify-center pl-4 select-none"
 		>
 			<div className="relative flex h-fit w-fit flex-col items-start">
@@ -277,7 +313,7 @@ const CollaborationIllustration = () => (
 					<span className="flex items-stretch flex-wrap">
 						{/* <span>Real-time </span> */}
 						<span className="relative bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-1">
-							Real-time
+							{t('real_time')}
 						</span>
 						<span className="relative z-10 inline-flex items-stretch justify-start">
 							<span className="absolute h-full w-0.5 rounded-b-sm bg-blue-500"></span>
@@ -285,15 +321,15 @@ const CollaborationIllustration = () => (
 								Sarah
 							</span>
 						</span>
-						<span>collabo</span>
-						<span>orat</span>
+						<span>{t('collab_part1')}</span>
+						<span>{t('collab_part2')}</span>
 						<span className="relative z-10 inline-flex items-stretch justify-start">
 							<span className="absolute h-full w-0.5 rounded-b-sm bg-purple-600 dark:bg-purple-500"></span>
 							<span className="absolute inline-flex h-6 sm:h-7 -translate-y-full items-center rounded-t-sm rounded-r-sm px-2 py-0.5 text-xs sm:text-sm font-medium text-white bg-purple-600 dark:bg-purple-500">
 								Josh
 							</span>
 						</span>
-						<span>ion</span>
+						<span>{t('collab_part3')}</span>
 					</span>
 				</div>
 			</div>
@@ -305,29 +341,29 @@ const CollaborationIllustration = () => (
 	</div>
 );
 
-const AnnotationIllustration = () => (
+const AnnotationIllustration = ({ t }: { t: (key: string) => string }) => (
 	<div className="relative flex w-full h-full min-h-44 flex-1 flex-col items-center justify-center overflow-hidden pointer-events-none select-none">
 		<div
 			role="img"
-			aria-label="Illustration of a text editor with annotation comments."
+			aria-label={t('annotation_illustration_label')}
 			className="pointer-events-none absolute inset-0 flex flex-col items-start justify-center pl-4 select-none md:left-1/2"
 		>
 			<div className="relative flex h-fit w-fit flex-col items-start justify-center gap-3.5">
 				{/* Text above the comment box */}
 				<div className="absolute left-0 h-fit -translate-x-full pr-7 text-3xl sm:text-4xl lg:text-5xl tracking-tight whitespace-nowrap text-neutral-400 dark:text-neutral-600">
 					<span className="relative">
-						Add context with
+						{t('add_context_with')}
 						<div className="absolute inset-0 bg-gradient-to-r from-white dark:from-black via-white dark:via-black to-transparent"></div>
 					</span>{" "}
 					<span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-						comments
+						{t('comments')}
 					</span>
 				</div>
 
 				{/* Comment card */}
 				<div className="flex flex-col items-start gap-4 rounded-xl bg-neutral-100 dark:bg-neutral-900/50 px-6 py-5 text-xl sm:text-2xl lg:text-3xl max-w-md">
 					<div className="truncate leading-normal text-neutral-600 dark:text-neutral-400">
-						<span>Let's discuss this tomorrow!</span>
+						<span>{t('example_comment')}</span>
 					</div>
 
 					{/* Reaction icons */}
@@ -413,36 +449,3 @@ const AudioCommentIllustration = () => (
 	</div>
 );
 
-const items = [
-	{
-		title: "Find, Ask, Act",
-		description:
-			"Get instant information, detailed updates, and cited answers across company and personal knowledge.",
-		header: <CitationIllustration />,
-		className: "md:col-span-2",
-		icon: <IconSearch className="h-4 w-4 text-neutral-500" />,
-	},
-	{
-		title: "Work Together in Real Time",
-		description:
-			"Transform your company docs into multiplayer spaces with live edits, synced content, and presence.",
-		header: <CollaborationIllustration />,
-		className: "md:col-span-1",
-		icon: <IconUsers className="h-4 w-4 text-neutral-500" />,
-	},
-	{
-		title: "Collaborate Beyond Text",
-		description:
-			"Create podcasts and multimedia your team can comment on, share, and refine together.",
-		header: <AudioCommentIllustration />,
-		className: "md:col-span-1",
-		icon: <IconMicrophone className="h-4 w-4 text-neutral-500" />,
-	},
-	{
-		title: "Context Where It Counts",
-		description: "Add comments directly to your chats and docs for clear, in-the-moment feedback.",
-		header: <AnnotationIllustration />,
-		className: "md:col-span-2",
-		icon: <IconMessage className="h-4 w-4 text-neutral-500" />,
-	},
-];

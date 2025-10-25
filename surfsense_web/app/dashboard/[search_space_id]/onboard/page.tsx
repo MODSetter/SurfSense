@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Bot, CheckCircle, Sparkles } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
 import { AddProviderStep } from "@/components/onboard/add-provider-step";
 import { AssignRolesStep } from "@/components/onboard/assign-roles-step";
@@ -16,6 +17,7 @@ import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 const TOTAL_STEPS = 3;
 
 const OnboardPage = () => {
+	const t = useTranslations('onboard');
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
@@ -67,12 +69,12 @@ const OnboardPage = () => {
 
 	const progress = (currentStep / TOTAL_STEPS) * 100;
 
-	const stepTitles = ["Add LLM Provider", "Assign LLM Roles", "Setup Complete"];
+	const stepTitles = [t('add_llm_provider'), t('assign_llm_roles'), t('setup_complete')];
 
 	const stepDescriptions = [
-		"Configure your first model provider",
-		"Assign specific roles to your LLM configurations",
-		"You're all set to start using SurfSense!",
+		t('configure_first_provider'),
+		t('assign_specific_roles'),
+		t('all_set'),
 	];
 
 	const canProceedToStep2 = !configsLoading && llmConfigs.length > 0;
@@ -104,7 +106,7 @@ const OnboardPage = () => {
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardContent className="flex flex-col items-center justify-center py-12">
 						<Bot className="h-12 w-12 text-primary animate-pulse mb-4" />
-						<p className="text-sm text-muted-foreground">Loading your configuration...</p>
+						<p className="text-sm text-muted-foreground">{t('loading_config')}</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -123,10 +125,10 @@ const OnboardPage = () => {
 				<div className="text-center mb-8">
 					<div className="flex items-center justify-center mb-4">
 						<Logo className="w-12 h-12 mr-3 rounded-full" />
-						<h1 className="text-3xl font-bold">Welcome to SurfSense</h1>
+						<h1 className="text-3xl font-bold">{t('welcome_title')}</h1>
 					</div>
 					<p className="text-muted-foreground text-lg">
-						Let's configure your LLM configurations to get started
+						{t('welcome_subtitle')}
 					</p>
 				</div>
 
@@ -135,9 +137,9 @@ const OnboardPage = () => {
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between mb-4">
 							<div className="text-sm font-medium">
-								Step {currentStep} of {TOTAL_STEPS}
+								{t('step_of', { current: currentStep, total: TOTAL_STEPS })}
 							</div>
-							<div className="text-sm text-muted-foreground">{Math.round(progress)}% Complete</div>
+							<div className="text-sm text-muted-foreground">{t('percent_complete', { percent: Math.round(progress) })}</div>
 						</div>
 						<Progress value={progress} className="mb-4" />
 						<div className="grid grid-cols-3 gap-4">
@@ -225,7 +227,7 @@ const OnboardPage = () => {
 						className="flex items-center gap-2"
 					>
 						<ArrowLeft className="w-4 h-4" />
-						Previous
+						{t('previous')}
 					</Button>
 
 					<div className="flex gap-2">
@@ -238,14 +240,14 @@ const OnboardPage = () => {
 								}
 								className="flex items-center gap-2"
 							>
-								Next
+								{t('next')}
 								<ArrowRight className="w-4 h-4" />
 							</Button>
 						)}
 
 						{currentStep === TOTAL_STEPS && (
 							<Button onClick={handleComplete} className="flex items-center gap-2">
-								Complete Setup
+								{t('complete_setup')}
 								<CheckCircle className="w-4 h-4" />
 							</Button>
 						)}

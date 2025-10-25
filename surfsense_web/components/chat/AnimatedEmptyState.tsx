@@ -4,6 +4,7 @@ import { useInView } from "motion/react";
 import { Manrope } from "next/font/google";
 import { useEffect, useMemo, useReducer, useRef } from "react";
 import { RoughNotation, RoughNotationGroup } from "react-rough-notation";
+import { useTranslations } from "next-intl";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
@@ -83,6 +84,7 @@ const initialState: HighlightState = {
 };
 
 export function AnimatedEmptyState() {
+	const t = useTranslations('researcher');
 	const ref = useRef<HTMLDivElement>(null);
 	const isInView = useInView(ref);
 	const [{ shouldShowHighlight, layoutStable }, dispatch] = useReducer(
@@ -141,8 +143,8 @@ export function AnimatedEmptyState() {
 					</h1>
 
 					<p className={paragraphClassName}>
-						<RoughNotation {...ANIMATION_CONFIG.UNDERLINE}>Let's Start Surfing</RoughNotation>{" "}
-						through your knowledge base.
+						<RoughNotation {...ANIMATION_CONFIG.UNDERLINE}>{t('start_surfing')}</RoughNotation>{" "}
+						{t('through_knowledge_base')}
 					</p>
 				</RoughNotationGroup>
 			</div>

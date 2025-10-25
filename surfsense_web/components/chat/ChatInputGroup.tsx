@@ -4,6 +4,7 @@ import { ChatInput } from "@llamaindex/chat-ui";
 import { Brain, Check, FolderOpen, Zap } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { Suspense, useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { ResearchMode } from "@/components/chat";
 import { ConnectorButton as ConnectorButtonComponent } from "@/components/chat/ConnectorComponents";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
@@ -37,6 +38,7 @@ const DocumentSelector = React.memo(
 		onSelectionChange?: (documents: Document[]) => void;
 		selectedDocuments?: Document[];
 	}) => {
+		const t = useTranslations('researcher');
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
@@ -73,20 +75,20 @@ const DocumentSelector = React.memo(
 				<DialogContent className="max-w-[95vw] md:max-w-5xl h-[90vh] md:h-[85vh] p-0 flex flex-col">
 					<div className="flex flex-col h-full">
 						<div className="px-4 md:px-6 py-4 border-b flex-shrink-0">
-							<DialogTitle className="text-lg md:text-xl">Select Documents</DialogTitle>
+							<DialogTitle className="text-lg md:text-xl">{t('select_documents')}</DialogTitle>
 							<DialogDescription className="mt-1 text-sm">
-								Choose documents to include in your research context
+								{t('select_documents_desc')}
 							</DialogDescription>
 						</div>
 
-						<div className="flex-1 min-h-0 p-4 md:p-6">
-							<DocumentsDataTable
-								searchSpaceId={Number(search_space_id)}
-								onSelectionChange={handleSelectionChange}
-								onDone={handleDone}
-								initialSelectedDocuments={selectedDocuments}
-							/>
-						</div>
+					<div className="flex-1 min-h-0 p-4 md:p-6">
+						<DocumentsDataTable
+							searchSpaceId={Number(search_space_id)}
+							onSelectionChange={handleSelectionChange}
+							onDone={handleDone}
+							initialSelectedDocuments={selectedDocuments}
+						/>
+					</div>
 					</div>
 				</DialogContent>
 			</Dialog>
@@ -104,6 +106,7 @@ const ConnectorSelector = React.memo(
 		onSelectionChange?: (connectorTypes: string[]) => void;
 		selectedConnectors?: string[];
 	}) => {
+		const t = useTranslations('researcher');
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
@@ -150,9 +153,9 @@ const ConnectorSelector = React.memo(
 				</DialogTrigger>
 
 				<DialogContent className="sm:max-w-md">
-					<DialogTitle>Select Connectors</DialogTitle>
+					<DialogTitle>{t('select_connectors')}</DialogTitle>
 					<DialogDescription>
-						Choose which data sources to include in your research
+						{t('select_connectors_desc')}
 					</DialogDescription>
 
 					{/* Connector selection grid */}
@@ -185,9 +188,9 @@ const ConnectorSelector = React.memo(
 					<DialogFooter className="flex justify-between items-center">
 						<div className="flex gap-2">
 							<Button variant="outline" onClick={handleClearAll}>
-								Clear All
+								{t('clear_all')}
 							</Button>
-							<Button onClick={handleSelectAll}>Select All</Button>
+							<Button onClick={handleSelectAll}>{t('select_all')}</Button>
 						</div>
 					</DialogFooter>
 				</DialogContent>
@@ -206,6 +209,7 @@ const SearchModeSelector = React.memo(
 		searchMode?: "DOCUMENTS" | "CHUNKS";
 		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	}) => {
+		const t = useTranslations('researcher');
 		const handleDocumentsClick = React.useCallback(() => {
 			onSearchModeChange?.("DOCUMENTS");
 		}, [onSearchModeChange]);
@@ -216,7 +220,7 @@ const SearchModeSelector = React.memo(
 
 		return (
 			<div className="flex items-center gap-1 sm:gap-2">
-				<span className="text-xs text-muted-foreground hidden sm:block">Scope:</span>
+				<span className="text-xs text-muted-foreground hidden sm:block">{t('scope')}:</span>
 				<div className="flex rounded-md border border-border overflow-hidden">
 					<Button
 						variant={searchMode === "DOCUMENTS" ? "default" : "ghost"}
@@ -224,8 +228,8 @@ const SearchModeSelector = React.memo(
 						className="rounded-none border-r h-8 px-2 sm:px-3 text-xs transition-all duration-200 hover:bg-muted/80"
 						onClick={handleDocumentsClick}
 					>
-						<span className="hidden sm:inline">Documents</span>
-						<span className="sm:hidden">Docs</span>
+						<span className="hidden sm:inline">{t('documents')}</span>
+						<span className="sm:hidden">{t('docs')}</span>
 					</Button>
 					<Button
 						variant={searchMode === "CHUNKS" ? "default" : "ghost"}
@@ -233,7 +237,7 @@ const SearchModeSelector = React.memo(
 						className="rounded-none h-8 px-2 sm:px-3 text-xs transition-all duration-200 hover:bg-muted/80"
 						onClick={handleChunksClick}
 					>
-						Chunks
+						{t('chunks')}
 					</Button>
 				</div>
 			</div>
@@ -251,6 +255,7 @@ const ResearchModeSelector = React.memo(
 		researchMode?: ResearchMode;
 		onResearchModeChange?: (mode: ResearchMode) => void;
 	}) => {
+		const t = useTranslations('researcher');
 		const handleValueChange = React.useCallback(
 			(value: string) => {
 				onResearchModeChange?.(value as ResearchMode);
@@ -261,36 +266,36 @@ const ResearchModeSelector = React.memo(
 		// Memoize mode options to prevent recreation
 		const modeOptions = React.useMemo(
 			() => [
-				{ value: "QNA", label: "Q&A", shortLabel: "Q&A" },
+				{ value: "QNA", label: t('mode_qna'), shortLabel: t('mode_qna') },
 				{
 					value: "REPORT_GENERAL",
-					label: "General Report",
-					shortLabel: "General",
+					label: t('mode_general'),
+					shortLabel: t('mode_general_short'),
 				},
 				{
 					value: "REPORT_DEEP",
-					label: "Deep Report",
-					shortLabel: "Deep",
+					label: t('mode_deep'),
+					shortLabel: t('mode_deep_short'),
 				},
 				{
 					value: "REPORT_DEEPER",
-					label: "Deeper Report",
-					shortLabel: "Deeper",
+					label: t('mode_deeper'),
+					shortLabel: t('mode_deeper_short'),
 				},
 			],
-			[]
+			[t]
 		);
 
 		return (
 			<div className="flex items-center gap-1 sm:gap-2">
-				<span className="text-xs text-muted-foreground hidden sm:block">Mode:</span>
+				<span className="text-xs text-muted-foreground hidden sm:block">{t('mode')}:</span>
 				<Select value={researchMode} onValueChange={handleValueChange}>
 					<SelectTrigger className="w-auto min-w-[80px] sm:min-w-[120px] h-8 text-xs border-border bg-background hover:bg-muted/50 transition-colors duration-200 focus:ring-2 focus:ring-primary/20">
-						<SelectValue placeholder="Mode" className="text-xs" />
+						<SelectValue placeholder={t('mode')} className="text-xs" />
 					</SelectTrigger>
 					<SelectContent align="end" className="min-w-[140px]">
 						<div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b bg-muted/30">
-							Research Mode
+							{t('research_mode')}
 						</div>
 						{modeOptions.map((option) => (
 							<SelectItem
@@ -312,6 +317,8 @@ const ResearchModeSelector = React.memo(
 ResearchModeSelector.displayName = "ResearchModeSelector";
 
 const LLMSelector = React.memo(() => {
+	const t = useTranslations('researcher');
+	const tCommon = useTranslations('common');
 	const { search_space_id } = useParams();
 	const searchSpaceId = Number(search_space_id);
 
@@ -374,7 +381,7 @@ const LLMSelector = React.memo(() => {
 					className="h-8 px-3 text-xs text-destructive border-destructive/50 hover:bg-destructive/10"
 					disabled
 				>
-					<span className="text-xs">Error</span>
+					<span className="text-xs">{tCommon('error')}</span>
 				</Button>
 			</div>
 		);
@@ -390,8 +397,8 @@ const LLMSelector = React.memo(() => {
 				<SelectTrigger className="h-8 w-auto min-w-[100px] sm:min-w-[120px] px-3 text-xs border-border bg-background hover:bg-muted/50 transition-colors duration-200 focus:ring-2 focus:ring-primary/20">
 					<div className="flex items-center gap-2 min-w-0">
 						<Zap className="h-3 w-3 text-primary flex-shrink-0" />
-						<SelectValue placeholder="Fast LLM" className="text-xs">
-							{displayValue || <span className="text-muted-foreground">Select LLM</span>}
+						<SelectValue placeholder={t('fast_llm')} className="text-xs">
+							{displayValue || <span className="text-muted-foreground">{t('select_llm')}</span>}
 						</SelectValue>
 					</div>
 				</SelectTrigger>
@@ -400,7 +407,7 @@ const LLMSelector = React.memo(() => {
 					<div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b bg-muted/30">
 						<div className="flex items-center gap-2">
 							<Zap className="h-3 w-3" />
-							Fast LLM Selection
+							{t('fast_llm_selection')}
 						</div>
 					</div>
 
@@ -409,9 +416,9 @@ const LLMSelector = React.memo(() => {
 							<div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
 								<Brain className="h-5 w-5 text-muted-foreground" />
 							</div>
-							<h4 className="text-sm font-medium mb-1">No LLM configurations</h4>
+							<h4 className="text-sm font-medium mb-1">{t('no_llm_configs')}</h4>
 							<p className="text-xs text-muted-foreground mb-3">
-								Configure AI models to get started
+								{t('configure_llm_to_start')}
 							</p>
 							<Button
 								variant="outline"
@@ -419,7 +426,7 @@ const LLMSelector = React.memo(() => {
 								className="text-xs"
 								onClick={() => window.open("/settings", "_blank")}
 							>
-								Open Settings
+								{t('open_settings')}
 							</Button>
 						</div>
 					) : (
@@ -538,10 +545,12 @@ export const ChatInputUI = React.memo(
 		researchMode?: ResearchMode;
 		onResearchModeChange?: (mode: ResearchMode) => void;
 	}) => {
+		const t = useTranslations('researcher');
+		
 		return (
 			<ChatInput>
 				<ChatInput.Form className="flex gap-2">
-					<ChatInput.Field className="flex-1" />
+					<ChatInput.Field className="flex-1" placeholder={t('placeholder')} />
 					<ChatInput.Submit />
 				</ChatInput.Form>
 				<CustomChatInputOptions

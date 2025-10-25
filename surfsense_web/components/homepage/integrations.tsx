@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface Integration {
 	name: string;
@@ -123,6 +124,7 @@ function SemiCircleOrbit({ radius, centerX, centerY, count, iconSize, startIndex
 }
 
 export default function ExternalIntegrations() {
+	const t = useTranslations('homepage');
 	const [size, setSize] = useState({ width: 0, height: 0 });
 
 	useEffect(() => {
@@ -146,9 +148,9 @@ export default function ExternalIntegrations() {
 	return (
 		<section className="py-12 relative min-h-screen w-full overflow-visible">
 			<div className="relative flex flex-col items-center text-center z-10">
-				<h1 className="my-6 text-4xl font-bold lg:text-7xl">Integrations</h1>
+				<h1 className="my-6 text-4xl font-bold lg:text-7xl">{t('integrations_title')}</h1>
 				<p className="mb-12 max-w-2xl text-gray-600 dark:text-gray-400 lg:text-xl">
-					Integrate with your team's most important tools
+					{t('integrations_subtitle')}
 				</p>
 
 				<div

@@ -17,6 +17,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ interface ModelConfigManagerProps {
 }
 
 export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
+	const t = useTranslations('model_config');
 	const {
 		llmConfigs,
 		loading,
@@ -179,9 +181,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							<Settings2 className="h-5 w-5 text-blue-600" />
 						</div>
 						<div>
-							<h2 className="text-2xl font-bold tracking-tight">Model Configurations</h2>
+							<h2 className="text-2xl font-bold tracking-tight">{t('title')}</h2>
 							<p className="text-muted-foreground">
-								Manage your LLM provider configurations and API settings.
+								{t('subtitle')}
 							</p>
 						</div>
 					</div>
@@ -195,7 +197,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						className="flex items-center gap-2"
 					>
 						<RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-						Refresh
+						{t('refresh')}
 					</Button>
 				</div>
 			</div>
@@ -214,7 +216,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					<CardContent className="flex items-center justify-center py-12">
 						<div className="flex items-center gap-2 text-muted-foreground">
 							<Loader2 className="w-5 h-5 animate-spin" />
-							<span>Loading configurations...</span>
+							<span>{t('loading')}</span>
 						</div>
 					</CardContent>
 				</Card>
@@ -228,7 +230,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							<div className="flex items-center justify-between space-x-4">
 								<div className="space-y-1">
 									<p className="text-3xl font-bold tracking-tight">{llmConfigs.length}</p>
-									<p className="text-sm font-medium text-muted-foreground">Total Configurations</p>
+									<p className="text-sm font-medium text-muted-foreground">{t('total_configs')}</p>
 								</div>
 								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10">
 									<Bot className="h-6 w-6 text-blue-600" />
@@ -244,7 +246,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 									<p className="text-3xl font-bold tracking-tight">
 										{new Set(llmConfigs.map((c) => c.provider)).size}
 									</p>
-									<p className="text-sm font-medium text-muted-foreground">Unique Providers</p>
+									<p className="text-sm font-medium text-muted-foreground">{t('unique_providers')}</p>
 								</div>
 								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10">
 									<CheckCircle className="h-6 w-6 text-green-600" />
@@ -257,8 +259,8 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						<CardContent className="p-6">
 							<div className="flex items-center justify-between space-x-4">
 								<div className="space-y-1">
-									<p className="text-3xl font-bold tracking-tight text-emerald-600">Active</p>
-									<p className="text-sm font-medium text-muted-foreground">System Status</p>
+									<p className="text-3xl font-bold tracking-tight text-emerald-600">{t('active')}</p>
+									<p className="text-sm font-medium text-muted-foreground">{t('system_status')}</p>
 								</div>
 								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
 									<CheckCircle className="h-6 w-6 text-emerald-600" />
@@ -274,14 +276,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				<div className="space-y-6">
 					<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
 						<div>
-							<h3 className="text-xl font-semibold tracking-tight">Your Configurations</h3>
+							<h3 className="text-xl font-semibold tracking-tight">{t('your_configs')}</h3>
 							<p className="text-sm text-muted-foreground">
-								Manage and configure your LLM providers
+								{t('manage_configs')}
 							</p>
 						</div>
 						<Button onClick={() => setIsAddingNew(true)} className="flex items-center gap-2">
 							<Plus className="h-4 w-4" />
-							Add Configuration
+							{t('add_config')}
 						</Button>
 					</div>
 
@@ -292,15 +294,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 									<Bot className="h-10 w-10 text-muted-foreground" />
 								</div>
 								<div className="space-y-2 mb-6">
-									<h3 className="text-xl font-semibold">No Configurations Yet</h3>
+									<h3 className="text-xl font-semibold">{t('no_configs')}</h3>
 									<p className="text-muted-foreground max-w-sm">
-										Get started by adding your first LLM provider configuration to begin using the
-										system.
+										{t('no_configs_desc')}
 									</p>
 								</div>
 								<Button onClick={() => setIsAddingNew(true)} size="lg">
 									<Plus className="h-4 w-4 mr-2" />
-									Add First Configuration
+									{t('add_first_config')}
 								</Button>
 							</CardContent>
 						</Card>
@@ -399,12 +400,12 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																<div className="flex items-center gap-2 text-xs text-muted-foreground">
 																	<Clock className="h-3 w-3" />
 																	<span>
-																		Created {new Date(config.created_at).toLocaleDateString()}
+																		{t('created')} {new Date(config.created_at).toLocaleDateString()}
 																	</span>
 																</div>
 																<div className="flex items-center gap-2 text-xs">
 																	<div className="h-2 w-2 rounded-full bg-green-500"></div>
-																	<span className="text-green-600 font-medium">Active</span>
+																	<span className="text-green-600 font-medium">{t('active')}</span>
 																</div>
 															</div>
 														</div>
