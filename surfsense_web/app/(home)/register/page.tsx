@@ -5,11 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { AmbientBackground } from "../login/AmbientBackground";
 
 export default function RegisterPage() {
+	const t = useTranslations('auth');
+	const tCommon = useTranslations('common');
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,10 +34,10 @@ export default function RegisterPage() {
 
 		// Form validation
 		if (password !== confirmPassword) {
-			setError("Passwords do not match");
-			setErrorTitle("Password Mismatch");
-			toast.error("Password Mismatch", {
-				description: "The passwords you entered do not match",
+			setError(t('passwords_no_match'));
+			setErrorTitle(t('password_mismatch'));
+			toast.error(t('password_mismatch'), {
+				description: t('passwords_no_match_desc'),
 				duration: 4000,
 			});
 			return;
@@ -45,7 +48,7 @@ export default function RegisterPage() {
 		setErrorTitle(null);
 
 		// Show loading toast
-		const loadingToast = toast.loading("Creating your account...");
+		const loadingToast = toast.loading(t('creating_account'));
 
 		try {
 			const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/register`, {
@@ -83,9 +86,9 @@ export default function RegisterPage() {
 			}
 
 			// Success toast
-			toast.success("Account created successfully!", {
+			toast.success(t('register_success'), {
 				id: loadingToast,
-				description: "Redirecting to login page...",
+				description: t('redirecting_login'),
 				duration: 2000,
 			});
 
@@ -120,7 +123,7 @@ export default function RegisterPage() {
 			// Add retry action if the error is retryable
 			if (shouldRetry(errorCode)) {
 				toastOptions.action = {
-					label: "Retry",
+					label: tCommon('retry'),
 					onClick: () => handleSubmit(e),
 				};
 			}
@@ -137,7 +140,7 @@ export default function RegisterPage() {
 			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
 				<Logo className="rounded-md" />
 				<h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
-					Create an Account
+					{t('create_account')}
 				</h1>
 
 				<div className="w-full max-w-md">
@@ -209,7 +212,7 @@ export default function RegisterPage() {
 								htmlFor="email"
 								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
 							>
-								Email
+								{t('email')}
 							</label>
 							<input
 								id="email"
@@ -231,7 +234,7 @@ export default function RegisterPage() {
 								htmlFor="password"
 								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
 							>
-								Password
+								{t('password')}
 							</label>
 							<input
 								id="password"
@@ -253,7 +256,7 @@ export default function RegisterPage() {
 								htmlFor="confirmPassword"
 								className="block text-sm font-medium text-gray-700 dark:text-gray-300"
 							>
-								Confirm Password
+								{t('confirm_password')}
 							</label>
 							<input
 								id="confirmPassword"
@@ -275,18 +278,18 @@ export default function RegisterPage() {
 							disabled={isLoading}
 							className="w-full rounded-md bg-blue-600 px-4 py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
 						>
-							{isLoading ? "Creating account..." : "Register"}
+							{isLoading ? t('creating_account_btn') : t('register')}
 						</button>
 					</form>
 
 					<div className="mt-4 text-center text-sm">
 						<p className="text-gray-600 dark:text-gray-400">
-							Already have an account?{" "}
+							{t('already_have_account')}{" "}
 							<Link
 								href="/login"
 								className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
 							>
-								Sign in
+								{t('sign_in')}
 							</Link>
 						</p>
 					</div>

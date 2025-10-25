@@ -3,19 +3,22 @@ import { IconBrandDiscord, IconBrandGithub, IconMenu2, IconX } from "@tabler/ico
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { useGithubStars } from "@/hooks/use-github-stars";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
 export const Navbar = () => {
+	const t = useTranslations('navigation');
 	const [isScrolled, setIsScrolled] = useState(false);
 
 	const navItems = [
-		{ name: "Home", link: "/" },
-		{ name: "Pricing", link: "/pricing" },
-		{ name: "Sign In", link: "/login" },
-		{ name: "Docs", link: "/docs" },
+		{ name: t('home'), link: "/" },
+		{ name: t('pricing'), link: "/pricing" },
+		{ name: t('sign_in'), link: "/login" },
+		{ name: t('docs'), link: "/docs" },
 	];
 
 	useEffect(() => {
@@ -36,6 +39,7 @@ export const Navbar = () => {
 };
 
 const DesktopNav = ({ navItems, isScrolled }: any) => {
+	const t = useTranslations('navigation');
 	const [hovered, setHovered] = useState<number | null>(null);
 	const { compactFormat: githubStars, loading: loadingGithubStars } = useGithubStars();
 	return (
@@ -96,12 +100,13 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 						</span>
 					)}
 				</Link>
+				<LanguageSwitcher />
 				<ThemeTogglerComponent />
 				<Link
 					href="/contact"
 					className="hidden rounded-full bg-black px-8 py-2 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] md:block dark:bg-white dark:text-black"
 				>
-					Book a call
+					{t('book_a_call')}
 				</Link>
 			</div>
 		</motion.div>
@@ -109,6 +114,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 };
 
 const MobileNav = ({ navItems, isScrolled }: any) => {
+	const t = useTranslations('navigation');
 	const [open, setOpen] = useState(false);
 	const { compactFormat: githubStars, loading: loadingGithubStars } = useGithubStars();
 
@@ -159,39 +165,42 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 								>
 									<motion.span className="block">{navItem.name} </motion.span>
 								</Link>
-							))}
-							<div className="flex w-full items-center gap-2 pt-2">
-								<Link
-									href="https://discord.gg/ejRNvftDp9"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
-								>
-									<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-								</Link>
-								<Link
-									href="https://github.com/MODSetter/SurfSense"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex items-center gap-1.5 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
-								>
-									<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-									{loadingGithubStars ? (
-										<div className="w-6 h-5 dark:bg-neutral-800 animate-pulse"></div>
-									) : (
-										<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-											{githubStars}
-										</span>
-									)}
-								</Link>
-								<ThemeTogglerComponent />
-							</div>
+					))}
+					<div className="flex w-full flex-col gap-3 pt-2">
+						<div className="flex items-center gap-2">
 							<Link
-								href="/contact"
-								className="w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black text-center touch-manipulation"
+								href="https://discord.gg/ejRNvftDp9"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
 							>
-								Book a call
+								<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
 							</Link>
+							<Link
+								href="https://github.com/MODSetter/SurfSense"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="flex items-center gap-1.5 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
+							>
+								<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+								{loadingGithubStars ? (
+									<div className="w-6 h-5 dark:bg-neutral-800 animate-pulse"></div>
+								) : (
+									<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+										{githubStars}
+									</span>
+								)}
+							</Link>
+							<ThemeTogglerComponent />
+						</div>
+						<LanguageSwitcher />
+					</div>
+					<Link
+						href="/contact"
+						className="w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black text-center touch-manipulation"
+					>
+						{t('book_a_call')}
+					</Link>
 						</motion.div>
 					)}
 				</AnimatePresence>

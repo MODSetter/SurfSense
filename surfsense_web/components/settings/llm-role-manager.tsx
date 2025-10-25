@@ -15,6 +15,7 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,38 +30,41 @@ import {
 } from "@/components/ui/select";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
-const ROLE_DESCRIPTIONS = {
+const createRoleDescriptions = (t: (key: string) => string) => ({
 	long_context: {
 		icon: Brain,
-		title: "Long Context LLM",
-		description: "Handles complex tasks requiring extensive context understanding and reasoning",
+		title: t('long_context_llm'),
+		description: t('long_context_desc'),
 		color: "bg-blue-100 text-blue-800 border-blue-200",
-		examples: "Document analysis, research synthesis, complex Q&A",
-		characteristics: ["Large context window", "Deep reasoning", "Complex analysis"],
+		examples: t('long_context_examples'),
+		characteristics: [t('large_context_window'), t('deep_reasoning'), t('complex_analysis')],
 	},
 	fast: {
 		icon: Zap,
-		title: "Fast LLM",
-		description: "Optimized for quick responses and real-time interactions",
+		title: t('fast_llm'),
+		description: t('fast_llm_desc'),
 		color: "bg-green-100 text-green-800 border-green-200",
-		examples: "Quick searches, simple questions, instant responses",
-		characteristics: ["Low latency", "Quick responses", "Real-time chat"],
+		examples: t('fast_llm_examples'),
+		characteristics: [t('low_latency'), t('quick_responses'), t('real_time_chat')],
 	},
 	strategic: {
 		icon: Bot,
-		title: "Strategic LLM",
-		description: "Advanced reasoning for planning and strategic decision making",
+		title: t('strategic_llm'),
+		description: t('strategic_llm_desc'),
 		color: "bg-purple-100 text-purple-800 border-purple-200",
-		examples: "Planning workflows, strategic analysis, complex problem solving",
-		characteristics: ["Strategic thinking", "Long-term planning", "Complex reasoning"],
+		examples: t('strategic_llm_examples'),
+		characteristics: [t('strategic_thinking'), t('long_term_planning'), t('complex_reasoning')],
 	},
-};
+});
 
 interface LLMRoleManagerProps {
 	searchSpaceId: number;
 }
 
 export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
+	const t = useTranslations('settings');
+	const ROLE_DESCRIPTIONS = createRoleDescriptions(t);
+	
 	const {
 		llmConfigs,
 		loading: configsLoading,
@@ -181,9 +185,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 							<Settings2 className="h-5 w-5 text-purple-600" />
 						</div>
 						<div>
-							<h2 className="text-2xl font-bold tracking-tight">LLM Role Management</h2>
+							<h2 className="text-2xl font-bold tracking-tight">{t('llm_role_management')}</h2>
 							<p className="text-muted-foreground">
-								Assign your LLM configurations to specific roles for different purposes.
+								{t('llm_role_desc')}
 							</p>
 						</div>
 					</div>
@@ -312,9 +316,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 											isAssignmentComplete ? "text-emerald-600" : "text-orange-600"
 										}`}
 									>
-										{isAssignmentComplete ? "Ready" : "Setup"}
+										{isAssignmentComplete ? t('status_ready') : t('status_setup')}
 									</p>
-									<p className="text-sm font-medium text-muted-foreground">Status</p>
+									<p className="text-sm font-medium text-muted-foreground">{t('status')}</p>
 								</div>
 								<div
 									className={`flex h-12 w-12 items-center justify-center rounded-lg ${
@@ -340,23 +344,21 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						<Alert variant="destructive">
 							<AlertCircle className="h-4 w-4" />
 							<AlertDescription>
-								No LLM configurations found. Please add at least one LLM provider in the Model
-								Configs tab before assigning roles.
+								{t('no_llm_configs_found')}
 							</AlertDescription>
 						</Alert>
 					) : !isAssignmentComplete ? (
 						<Alert>
 							<AlertCircle className="h-4 w-4" />
 							<AlertDescription>
-								Complete all role assignments to enable full functionality. Each role serves
-								different purposes in your workflow.
+								{t('complete_role_assignments')}
 							</AlertDescription>
 						</Alert>
 					) : (
 						<Alert>
 							<CheckCircle className="h-4 w-4" />
 							<AlertDescription>
-								All roles are assigned and ready to use! Your LLM configuration is complete.
+								{t('all_roles_assigned')}
 							</AlertDescription>
 						</Alert>
 					)}
@@ -398,7 +400,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 											<CardContent className="space-y-4">
 												<div className="space-y-2">
 													<div className="text-sm text-muted-foreground">
-														<strong>Use cases:</strong> {role.examples}
+														<strong>{t('use_cases')}:</strong> {role.examples}
 													</div>
 													<div className="flex flex-wrap gap-1">
 														{role.characteristics.map((char, idx) => (
@@ -410,17 +412,17 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 												</div>
 
 												<div className="space-y-2">
-													<Label className="text-sm font-medium">Assign LLM Configuration:</Label>
+													<Label className="text-sm font-medium">{t('assign_llm_config')}:</Label>
 													<Select
 														value={currentAssignment?.toString() || "unassigned"}
 														onValueChange={(value) => handleRoleAssignment(`${key}_llm_id`, value)}
 													>
 														<SelectTrigger>
-															<SelectValue placeholder="Select an LLM configuration" />
+															<SelectValue placeholder={t('select_llm_config')} />
 														</SelectTrigger>
 														<SelectContent>
 															<SelectItem value="unassigned">
-																<span className="text-muted-foreground">Unassigned</span>
+																<span className="text-muted-foreground">{t('unassigned')}</span>
 															</SelectItem>
 															{availableConfigs.map((config) => (
 																<SelectItem key={config.id} value={config.id.toString()}>
@@ -443,16 +445,16 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 													<div className="mt-3 p-3 bg-muted/50 rounded-lg">
 														<div className="flex items-center gap-2 text-sm">
 															<Bot className="w-4 h-4" />
-															<span className="font-medium">Assigned:</span>
+															<span className="font-medium">{t('assigned')}:</span>
 															<Badge variant="secondary">{assignedConfig.provider}</Badge>
 															<span>{assignedConfig.name}</span>
 														</div>
 														<div className="text-xs text-muted-foreground mt-1">
-															Model: {assignedConfig.model_name}
+															{t('model')}: {assignedConfig.model_name}
 														</div>
 														{assignedConfig.api_base && (
 															<div className="text-xs text-muted-foreground">
-																Base: {assignedConfig.api_base}
+																{t('base')}: {assignedConfig.api_base}
 															</div>
 														)}
 													</div>
@@ -470,7 +472,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						<div className="flex justify-center gap-3 pt-4">
 							<Button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2">
 								<Save className="w-4 h-4" />
-								{isSaving ? "Saving..." : "Save Changes"}
+								{isSaving ? t('saving') : t('save_changes')}
 							</Button>
 							<Button
 								variant="outline"
@@ -479,7 +481,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 								className="flex items-center gap-2"
 							>
 								<RotateCcw className="w-4 h-4" />
-								Reset
+								{t('reset')}
 							</Button>
 						</div>
 					)}
@@ -489,7 +491,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						<div className="flex justify-center pt-4">
 							<div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200">
 								<CheckCircle className="w-4 h-4" />
-								<span className="text-sm font-medium">All roles assigned and saved!</span>
+								<span className="text-sm font-medium">{t('all_roles_saved')}</span>
 							</div>
 						</div>
 					)}
@@ -497,7 +499,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					{/* Progress Indicator */}
 					<div className="flex justify-center">
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							<span>Progress:</span>
+							<span>{t('progress')}:</span>
 							<div className="flex gap-1">
 								{Object.keys(ROLE_DESCRIPTIONS).map((key) => (
 									<div
@@ -511,7 +513,10 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 								))}
 							</div>
 							<span>
-								{assignedConfigIds.length} of {Object.keys(ROLE_DESCRIPTIONS).length} roles assigned
+								{t('roles_assigned_count', { 
+									assigned: assignedConfigIds.length, 
+									total: Object.keys(ROLE_DESCRIPTIONS).length 
+								})}
 							</span>
 						</div>
 					</div>

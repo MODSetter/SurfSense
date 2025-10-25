@@ -1,51 +1,55 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Pricing } from "@/components/pricing";
 
-const demoPlans = [
-	{
-		name: "COMMUNITY",
-		price: "0",
-		yearlyPrice: "0",
-		period: "forever",
-		features: [
-			"Supports 100+ LLMs",
-			"Supports local Ollama or vLLM setups",
-			"6000+ Embedding Models",
-			"50+ File extensions supported.",
-			"Podcasts support with local TTS providers.",
-			"Connects with 15+ external sources.",
-			"Cross-Browser Extension for dynamic webpages including authenticated content",
-			"Upcoming: Mergeable MindMaps",
-			"Upcoming: Note Management",
-		],
-		description: "Open source version with powerful features",
-		buttonText: "Get Started",
-		href: "/docs",
-		isPopular: true,
-	},
-	{
-		name: "ENTERPRISE",
-		price: "Contact Us",
-		yearlyPrice: "Contact Us",
-		period: "",
-		features: [
-			"Everything in Community",
-			"Priority Support",
-			"Role-based access permissions",
-			"Collaboration and multiplayer features",
-			"Advanced security features",
-		],
-		description: "For large organizations with specific needs",
-		buttonText: "Contact Sales",
-		href: "/contact",
-		isPopular: false,
-	},
-];
-
 function PricingBasic() {
+	const t = useTranslations('pricing');
+	
+	const demoPlans = [
+		{
+			name: t('community_name'),
+			price: "0",
+			yearlyPrice: "0",
+			period: t('forever'),
+			features: [
+				t('feature_llms'),
+				t('feature_ollama'),
+				t('feature_embeddings'),
+				t('feature_files'),
+				t('feature_podcasts'),
+				t('feature_sources'),
+				t('feature_extension'),
+				t('upcoming_mindmaps'),
+				t('upcoming_notes'),
+			],
+			description: t('community_desc'),
+			buttonText: t('get_started'),
+			href: "/docs",
+			isPopular: true,
+		},
+		{
+			name: t('enterprise_name'),
+			price: t('contact_us'),
+			yearlyPrice: t('contact_us'),
+			period: "",
+			features: [
+				t('everything_community'),
+				t('priority_support'),
+				t('access_controls'),
+				t('collaboration'),
+				t('video_gen'),
+				t('advanced_security'),
+			],
+			description: t('enterprise_desc'),
+			buttonText: t('contact_sales'),
+			href: "/contact",
+			isPopular: false,
+		},
+	];
+
 	return (
-		<Pricing plans={demoPlans} title="SurfSense Pricing" description="Choose that works for you" />
+		<Pricing plans={demoPlans} title={t('title')} description={t('subtitle')} />
 	);
 }
 

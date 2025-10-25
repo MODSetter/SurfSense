@@ -9,19 +9,21 @@ import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-// Define validation schema matching the database schema
-const contactFormSchema = z.object({
-	name: z.string().min(1, "Name is required").max(255, "Name is too long"),
-	email: z.string().email("Invalid email address").max(255, "Email is too long"),
-	company: z.string().min(1, "Company is required").max(255, "Company name is too long"),
-	message: z.string().optional().default(""),
-});
-
-type ContactFormData = z.infer<typeof contactFormSchema>;
-
 export function ContactFormGridWithDetails() {
+	const t = useTranslations('contact');
+	
+	// Define validation schema matching the database schema
+	const contactFormSchema = z.object({
+		name: z.string().min(1, t('name_required')).max(255, t('name_too_long')),
+		email: z.string().email(t('invalid_email')).max(255, t('email_too_long')),
+		company: z.string().min(1, t('company_required')).max(255, t('company_too_long')),
+		message: z.string().optional().default(""),
+	});
+
+	type ContactFormData = z.infer<typeof contactFormSchema>;
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const {
@@ -48,19 +50,19 @@ export function ContactFormGridWithDetails() {
 			const result = await response.json();
 
 			if (response.ok) {
-				toast.success("Message sent successfully!", {
-					description: "We will get back to you as soon as possible.",
+				toast.success(t('message_sent'), {
+					description: t('we_will_contact'),
 				});
 				reset();
 			} else {
-				toast.error("Failed to send message", {
-					description: result.message || "Please try again later.",
+				toast.error(t('send_failed'), {
+					description: result.message || t('try_again_later'),
 				});
 			}
 		} catch (error) {
 			console.error("Error submitting form:", error);
-			toast.error("Something went wrong", {
-				description: "Please try again later.",
+			toast.error(t('something_wrong'), {
+				description: t('try_again_later'),
 			});
 		} finally {
 			setIsSubmitting(false);
@@ -76,10 +78,10 @@ export function ContactFormGridWithDetails() {
 					</FeatureIconContainer>
 				</div>
 				<h2 className="mt-9 bg-gradient-to-b from-neutral-800 to-neutral-900 bg-clip-text text-left text-xl font-bold text-transparent md:text-3xl lg:text-5xl dark:from-neutral-200 dark:to-neutral-300">
-					Contact
+					{t('title')}
 				</h2>
 				<p className="mt-8 max-w-lg text-center text-base text-neutral-600 md:text-left dark:text-neutral-400">
-					We'd love to Hear From You.
+					{t('subtitle')}
 				</p>
 
 				<div className="mt-10 hidden flex-col items-center gap-4 md:flex-row lg:flex">
@@ -99,7 +101,7 @@ export function ContactFormGridWithDetails() {
 					</Link>
 				</div>
 				<div className="div relative mt-20 flex w-[600px] flex-shrink-0 -translate-x-10 items-center justify-center [perspective:800px] [transform-style:preserve-3d] sm:-translate-x-0 lg:-translate-x-32">
-					<Pin className="h-30 w-85 top-0 left-0" />
+					<Pin className="h-30 w-85 top-0 left-0" text={t('we_are_here')} />
 
 					<Image
 						src="/contact/world.svg"
@@ -120,12 +122,12 @@ export function ContactFormGridWithDetails() {
 						className="mb-2 inline-block text-sm font-medium text-neutral-600 dark:text-neutral-300"
 						htmlFor="name"
 					>
-						Full name
+						{t('full_name')}
 					</label>
 					<input
 						id="name"
 						type="text"
-						placeholder="John Doe"
+						placeholder={t('name_placeholder')}
 						{...register("name")}
 						className={cn(
 							"shadow-input h-10 w-full rounded-md border bg-white pl-4 text-sm text-neutral-700 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-neutral-800 focus:outline-none active:outline-none dark:border-neutral-800 dark:bg-neutral-800 dark:text-white",
@@ -139,12 +141,12 @@ export function ContactFormGridWithDetails() {
 						className="mb-2 inline-block text-sm font-medium text-neutral-600 dark:text-neutral-300"
 						htmlFor="email"
 					>
-						Email Address
+						{t('email_address')}
 					</label>
 					<input
 						id="email"
 						type="email"
-						placeholder="john.doe@example.com"
+						placeholder={t('email_placeholder')}
 						{...register("email")}
 						className={cn(
 							"shadow-input h-10 w-full rounded-md border bg-white pl-4 text-sm text-neutral-700 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-neutral-800 focus:outline-none active:outline-none dark:border-neutral-800 dark:bg-neutral-800 dark:text-white",
@@ -158,12 +160,12 @@ export function ContactFormGridWithDetails() {
 						className="mb-2 inline-block text-sm font-medium text-neutral-600 dark:text-neutral-300"
 						htmlFor="company"
 					>
-						Company
+						{t('company')}
 					</label>
 					<input
 						id="company"
 						type="text"
-						placeholder="Example Inc."
+						placeholder={t('company_placeholder')}
 						{...register("company")}
 						className={cn(
 							"shadow-input h-10 w-full rounded-md border bg-white pl-4 text-sm text-neutral-700 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-neutral-800 focus:outline-none active:outline-none dark:border-neutral-800 dark:bg-neutral-800 dark:text-white",
@@ -177,12 +179,12 @@ export function ContactFormGridWithDetails() {
 						className="mb-2 inline-block text-sm font-medium text-neutral-600 dark:text-neutral-300"
 						htmlFor="message"
 					>
-						Message <span className="text-neutral-400 text-xs font-normal">(optional)</span>
+						{t('message')} <span className="text-neutral-400 text-xs font-normal">({t('optional')})</span>
 					</label>
 					<textarea
 						id="message"
 						rows={5}
-						placeholder="Type your message here"
+						placeholder={t('message_placeholder')}
 						{...register("message")}
 						className={cn(
 							"shadow-input w-full rounded-md border bg-white pt-4 pl-4 text-sm text-neutral-700 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-neutral-800 focus:outline-none active:outline-none dark:border-neutral-800 dark:bg-neutral-800 dark:text-white",
@@ -196,14 +198,14 @@ export function ContactFormGridWithDetails() {
 					disabled={isSubmitting}
 					className="relative z-10 flex items-center justify-center rounded-md border border-transparent bg-neutral-800 px-4 py-2 text-sm font-medium text-white shadow-[0px_1px_0px_0px_#FFFFFF20_inset] transition duration-200 hover:bg-neutral-900 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
 				>
-					{isSubmitting ? "Submitting..." : "Submit"}
+					{isSubmitting ? t('submitting') : t('submit')}
 				</button>
 			</form>
 		</div>
 	);
 }
 
-const Pin = ({ className }: { className?: string }) => {
+const Pin = ({ className, text }: { className?: string; text?: string }) => {
 	return (
 		<motion.div
 			style={{ transform: "translateZ(1px)" }}
@@ -214,7 +216,7 @@ const Pin = ({ className }: { className?: string }) => {
 		>
 			<div className="h-full w-full">
 				<div className="absolute inset-x-0 top-0 z-20 mx-auto inline-block w-fit rounded-lg bg-neutral-200 px-2 py-1 text-xs font-normal text-neutral-700 dark:bg-neutral-800 dark:text-white">
-					We are here
+					{text || "We are here"}
 					<span className="absolute -bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-blue-400/0 via-blue-400/90 to-blue-400/0 transition-opacity duration-500"></span>
 				</div>
 

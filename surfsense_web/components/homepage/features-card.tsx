@@ -1,18 +1,20 @@
+"use client";
 import { Sliders, Users, Workflow } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export function FeaturesCards() {
+	const t = useTranslations('homepage');
 	return (
 		<section className="py-2 md:py-8 dark:bg-transparent">
 			<div className="@container mx-auto max-w-7xl">
 				<div className="text-center">
 					<h2 className="text-balance text-4xl font-semibold lg:text-5xl">
-						Your Team's AI-Powered Knowledge Hub
+						{t('features_title')}
 					</h2>
 					<p className="mt-4">
-						Powerful features designed to enhance collaboration, boost productivity, and streamline
-						your workflow.
+						{t('features_subtitle')}
 					</p>
 				</div>
 				<div className="@min-4xl:max-w-full @min-4xl:grid-cols-3 mx-auto mt-8 grid max-w-sm gap-6 *:text-center md:mt-16">
@@ -22,13 +24,12 @@ export function FeaturesCards() {
 								<Workflow className="size-6" aria-hidden />
 							</CardDecorator>
 
-							<h3 className="mt-6 font-medium">Streamlined Workflow</h3>
+							<h3 className="mt-6 font-medium">{t('feature_workflow_title')}</h3>
 						</CardHeader>
 
 						<CardContent>
 							<p className="text-sm">
-								Centralize all your knowledge and resources in one intelligent workspace. Find what
-								you need instantly and accelerate decision-making.
+								{t('feature_workflow_desc')}
 							</p>
 						</CardContent>
 					</Card>
@@ -39,13 +40,12 @@ export function FeaturesCards() {
 								<Users className="size-6" aria-hidden />
 							</CardDecorator>
 
-							<h3 className="mt-6 font-medium">Seamless Collaboration</h3>
+							<h3 className="mt-6 font-medium">{t('feature_collaboration_title')}</h3>
 						</CardHeader>
 
 						<CardContent>
 							<p className="text-sm">
-								Work together effortlessly with real-time collaboration tools that keep your entire
-								team aligned.
+								{t('feature_collaboration_desc')}
 							</p>
 						</CardContent>
 					</Card>
@@ -56,12 +56,12 @@ export function FeaturesCards() {
 								<Sliders className="size-6" aria-hidden />
 							</CardDecorator>
 
-							<h3 className="mt-6 font-medium">Fully Customizable</h3>
+							<h3 className="mt-6 font-medium">{t('feature_customizable_title')}</h3>
 						</CardHeader>
 
 						<CardContent>
 							<p className="text-sm">
-								Choose from 100+ leading LLMs and seamlessly call any model on demand.
+								{t('feature_customizable_desc')}
 							</p>
 						</CardContent>
 					</Card>

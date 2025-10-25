@@ -19,6 +19,7 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -84,6 +85,7 @@ const podcastCardVariants: Variants = {
 const MotionCard = motion(Card);
 
 export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClientProps) {
+	const t = useTranslations('podcasts');
 	const [podcasts, setPodcasts] = useState<PodcastItem[]>([]);
 	const [filteredPodcasts, setFilteredPodcasts] = useState<PodcastItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -447,8 +449,8 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 		>
 			<div className="flex flex-col space-y-4 md:space-y-6">
 				<div className="flex flex-col space-y-2">
-					<h1 className="text-3xl font-bold tracking-tight">Podcasts</h1>
-					<p className="text-muted-foreground">Listen to generated podcasts.</p>
+					<h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
+					<p className="text-muted-foreground">{t('subtitle')}</p>
 				</div>
 
 				{/* Filter and Search Bar */}
@@ -458,7 +460,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 							<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 							<Input
 								type="text"
-								placeholder="Search podcasts..."
+								placeholder={t('search_placeholder')}
 								className="pl-8"
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
@@ -469,12 +471,12 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 					<div>
 						<Select value={sortOrder} onValueChange={setSortOrder}>
 							<SelectTrigger className="w-40">
-								<SelectValue placeholder="Sort order" />
+								<SelectValue placeholder={t('sort_order')} />
 							</SelectTrigger>
 							<SelectContent>
 								<SelectGroup>
-									<SelectItem value="newest">Newest First</SelectItem>
-									<SelectItem value="oldest">Oldest First</SelectItem>
+									<SelectItem value="newest">{t('newest_first')}</SelectItem>
+									<SelectItem value="oldest">{t('oldest_first')}</SelectItem>
 								</SelectGroup>
 							</SelectContent>
 						</Select>
@@ -486,14 +488,14 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 					<div className="flex items-center justify-center h-40">
 						<div className="flex flex-col items-center gap-2">
 							<div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-							<p className="text-sm text-muted-foreground">Loading podcasts...</p>
+							<p className="text-sm text-muted-foreground">{t('loading')}</p>
 						</div>
 					</div>
 				)}
 
 				{error && !isLoading && (
 					<div className="border border-destructive/50 text-destructive p-4 rounded-md">
-						<h3 className="font-medium">Error loading podcasts</h3>
+						<h3 className="font-medium">{t('error_loading')}</h3>
 						<p className="text-sm">{error}</p>
 					</div>
 				)}
@@ -501,11 +503,11 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				{!isLoading && !error && filteredPodcasts.length === 0 && (
 					<div className="flex flex-col items-center justify-center h-40 gap-2 text-center">
 						<Podcast className="h-8 w-8 text-muted-foreground" />
-						<h3 className="font-medium">No podcasts found</h3>
+						<h3 className="font-medium">{t('no_podcasts')}</h3>
 						<p className="text-sm text-muted-foreground">
 							{searchQuery
-								? "Try adjusting your search filters"
-								: "Generate podcasts from your chats to get started"}
+								? t('adjust_filters')
+								: t('generate_hint')}
 						</p>
 					</div>
 				)}
@@ -568,7 +570,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 													transition={{ type: "spring", damping: 20 }}
 												>
 													<div className="h-14 w-14 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
-													<p className="text-sm text-foreground font-medium">Loading podcast...</p>
+													<p className="text-sm text-foreground font-medium">{t('loading_podcast')}</p>
 												</motion.div>
 											</motion.div>
 										)}
@@ -652,7 +654,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 													<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-foreground opacity-75"></span>
 													<span className="relative inline-flex rounded-full h-2 w-2 bg-primary-foreground"></span>
 												</span>
-												Now Playing
+												{t('now_playing')}
 											</div>
 										)}
 									</div>
@@ -797,7 +799,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 													}}
 												>
 													<Trash2 className="mr-2 h-4 w-4" />
-													<span>Delete Podcast</span>
+													<span>{t('delete_podcast')}</span>
 												</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
@@ -944,12 +946,11 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<Trash2 className="h-5 w-5 text-destructive" />
-							<span>Delete Podcast</span>
+							<span>{t('delete_podcast')}</span>
 						</DialogTitle>
 						<DialogDescription>
-							Are you sure you want to delete{" "}
-							<span className="font-medium">{podcastToDelete?.title}</span>? This action cannot be
-							undone.
+							{t('delete_confirm_1')}{" "}
+							<span className="font-medium">{podcastToDelete?.title}</span>? {t('delete_confirm_2')}
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="flex gap-2 sm:justify-end">
@@ -958,7 +959,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 							onClick={() => setDeleteDialogOpen(false)}
 							disabled={isDeleting}
 						>
-							Cancel
+							{t('cancel')}
 						</Button>
 						<Button
 							variant="destructive"
@@ -969,12 +970,12 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 							{isDeleting ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									Deleting...
+									{t('deleting')}
 								</>
 							) : (
 								<>
 									<Trash2 className="h-4 w-4" />
-									Delete
+									{t('delete')}
 								</>
 							)}
 						</Button>

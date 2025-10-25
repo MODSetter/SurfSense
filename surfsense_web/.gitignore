@@ -47,3 +47,6 @@ next-env.d.ts
 
 # source
 /.source/
+
+.pnpm-store/
+

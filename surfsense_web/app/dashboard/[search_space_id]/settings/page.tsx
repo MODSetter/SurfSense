@@ -2,12 +2,14 @@
 
 import { ArrowLeft, Bot, Brain, Settings } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SettingsPage() {
+	const t = useTranslations('settings');
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
@@ -23,7 +25,7 @@ export default function SettingsPage() {
 							<button
 								onClick={() => router.push(`/dashboard/${searchSpaceId}`)}
 								className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
-								aria-label="Back to Dashboard"
+								aria-label={t('back_to_dashboard')}
 								type="button"
 							>
 								<ArrowLeft className="h-5 w-5 text-primary" />
@@ -32,9 +34,9 @@ export default function SettingsPage() {
 								<Settings className="h-6 w-6 text-primary" />
 							</div>
 							<div className="space-y-1">
-								<h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+								<h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
 								<p className="text-lg text-muted-foreground">
-									Manage your LLM configurations and role assignments for this search space.
+									{t('subtitle')}
 								</p>
 							</div>
 						</div>
@@ -47,13 +49,13 @@ export default function SettingsPage() {
 							<TabsList className="grid w-full min-w-fit grid-cols-2 lg:w-auto lg:inline-grid">
 								<TabsTrigger value="models" className="flex items-center gap-2 text-sm">
 									<Bot className="h-4 w-4" />
-									<span className="hidden sm:inline">Model Configs</span>
-									<span className="sm:hidden">Models</span>
+									<span className="hidden sm:inline">{t('model_configs')}</span>
+									<span className="sm:hidden">{t('models')}</span>
 								</TabsTrigger>
 								<TabsTrigger value="roles" className="flex items-center gap-2 text-sm">
 									<Brain className="h-4 w-4" />
-									<span className="hidden sm:inline">LLM Roles</span>
-									<span className="sm:hidden">Roles</span>
+									<span className="hidden sm:inline">{t('llm_roles')}</span>
+									<span className="sm:hidden">{t('roles')}</span>
 								</TabsTrigger>
 							</TabsList>
 						</div>

@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import type * as React from "react";
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 
 import {
 	SidebarGroup,
@@ -24,12 +25,14 @@ export function NavSecondary({
 }: {
 	items: NavSecondaryItem[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+	const t = useTranslations('sidebar');
+	
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);
 
 	return (
 		<SidebarGroup {...props}>
-			<SidebarGroupLabel>SearchSpace</SidebarGroupLabel>
+			<SidebarGroupLabel>{t('search_space')}</SidebarGroupLabel>
 			<SidebarMenu>
 				{memoizedItems.map((item, index) => (
 					<SidebarMenuItem key={`${item.title}-${index}`}>

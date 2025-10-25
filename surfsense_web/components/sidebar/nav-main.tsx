@@ -2,6 +2,7 @@
 
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -28,57 +29,87 @@ interface NavItem {
 }
 
 export function NavMain({ items }: { items: NavItem[] }) {
+	const t = useTranslations('nav_menu');
+	
+	// Translation function that handles both exact matches and fallback to original
+	const translateTitle = (title: string): string => {
+		const titleMap: Record<string, string> = {
+			'Researcher': 'researcher',
+			'Manage LLMs': 'manage_llms',
+			'Documents': 'documents',
+			'Upload Documents': 'upload_documents',
+			'Add Webpages': 'add_webpages',
+			'Add Youtube Videos': 'add_youtube',
+			'Manage Documents': 'manage_documents',
+			'Connectors': 'connectors',
+			'Add Connector': 'add_connector',
+			'Manage Connectors': 'manage_connectors',
+			'Podcasts': 'podcasts',
+			'Logs': 'logs',
+			'Platform': 'platform',
+		};
+		
+		const key = titleMap[title];
+		return key ? t(key) : title;
+	};
+	
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);
 
 	return (
 		<SidebarGroup>
-			<SidebarGroupLabel>Platform</SidebarGroupLabel>
+			<SidebarGroupLabel>{translateTitle('Platform')}</SidebarGroupLabel>
 			<SidebarMenu>
-				{memoizedItems.map((item, index) => (
-					<Collapsible key={`${item.title}-${index}`} asChild defaultOpen={item.isActive}>
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								asChild
-								tooltip={item.title}
-								isActive={item.isActive}
-								aria-label={`${item.title}${item.items?.length ? " with submenu" : ""}`}
-							>
-								<a href={item.url}>
-									<item.icon />
-									<span>{item.title}</span>
-								</a>
-							</SidebarMenuButton>
+				{memoizedItems.map((item, index) => {
+					const translatedTitle = translateTitle(item.title);
+					return (
+						<Collapsible key={`${item.title}-${index}`} asChild defaultOpen={item.isActive}>
+							<SidebarMenuItem>
+								<SidebarMenuButton
+									asChild
+									tooltip={translatedTitle}
+									isActive={item.isActive}
+									aria-label={`${translatedTitle}${item.items?.length ? " with submenu" : ""}`}
+								>
+									<a href={item.url}>
+										<item.icon />
+										<span>{translatedTitle}</span>
+									</a>
+								</SidebarMenuButton>
 
-							{item.items?.length ? (
-								<>
-									<CollapsibleTrigger asChild>
-										<SidebarMenuAction
-											className="data-[state=open]:rotate-90 transition-transform duration-200"
-											aria-label={`Toggle ${item.title} submenu`}
-										>
-											<ChevronRight />
-											<span className="sr-only">Toggle submenu</span>
-										</SidebarMenuAction>
-									</CollapsibleTrigger>
-									<CollapsibleContent className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 duration-200">
-										<SidebarMenuSub>
-											{item.items?.map((subItem, subIndex) => (
-												<SidebarMenuSubItem key={`${subItem.title}-${subIndex}`}>
-													<SidebarMenuSubButton asChild aria-label={subItem.title}>
-														<a href={subItem.url}>
-															<span>{subItem.title}</span>
-														</a>
-													</SidebarMenuSubButton>
-												</SidebarMenuSubItem>
-											))}
-										</SidebarMenuSub>
-									</CollapsibleContent>
-								</>
-							) : null}
-						</SidebarMenuItem>
-					</Collapsible>
-				))}
+								{item.items?.length ? (
+									<>
+										<CollapsibleTrigger asChild>
+											<SidebarMenuAction
+												className="data-[state=open]:rotate-90 transition-transform duration-200"
+												aria-label={`Toggle ${translatedTitle} submenu`}
+											>
+												<ChevronRight />
+												<span className="sr-only">Toggle submenu</span>
+											</SidebarMenuAction>
+										</CollapsibleTrigger>
+										<CollapsibleContent className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 duration-200">
+											<SidebarMenuSub>
+												{item.items?.map((subItem, subIndex) => {
+													const translatedSubTitle = translateTitle(subItem.title);
+													return (
+														<SidebarMenuSubItem key={`${subItem.title}-${subIndex}`}>
+															<SidebarMenuSubButton asChild aria-label={translatedSubTitle}>
+																<a href={subItem.url}>
+																	<span>{translatedSubTitle}</span>
+																</a>
+															</SidebarMenuSubButton>
+														</SidebarMenuSubItem>
+													);
+												})}
+											</SidebarMenuSub>
+										</CollapsibleContent>
+									</>
+								) : null}
+							</SidebarMenuItem>
+						</Collapsible>
+					);
+				})}
 			</SidebarMenu>
 		</SidebarGroup>
 	);

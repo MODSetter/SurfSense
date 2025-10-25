@@ -3,6 +3,7 @@
 import { AlertCircle, Bot, Brain, CheckCircle, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,38 +17,39 @@ import {
 } from "@/components/ui/select";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
-const ROLE_DESCRIPTIONS = {
-	long_context: {
-		icon: Brain,
-		title: "Long Context LLM",
-		description: "Handles complex tasks requiring extensive context understanding and reasoning",
-		color: "bg-blue-100 text-blue-800 border-blue-200",
-		examples: "Document analysis, research synthesis, complex Q&A",
-	},
-	fast: {
-		icon: Zap,
-		title: "Fast LLM",
-		description: "Optimized for quick responses and real-time interactions",
-		color: "bg-green-100 text-green-800 border-green-200",
-		examples: "Quick searches, simple questions, instant responses",
-	},
-	strategic: {
-		icon: Bot,
-		title: "Strategic LLM",
-		description: "Advanced reasoning for planning and strategic decision making",
-		color: "bg-purple-100 text-purple-800 border-purple-200",
-		examples: "Planning workflows, strategic analysis, complex problem solving",
-	},
-};
-
 interface AssignRolesStepProps {
 	searchSpaceId: number;
 	onPreferencesUpdated?: () => Promise<void>;
 }
 
 export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignRolesStepProps) {
+	const t = useTranslations('onboard');
 	const { llmConfigs } = useLLMConfigs(searchSpaceId);
 	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
+
+	const ROLE_DESCRIPTIONS = {
+		long_context: {
+			icon: Brain,
+			title: t('long_context_llm_title'),
+			description: t('long_context_llm_desc'),
+			color: "bg-blue-100 text-blue-800 border-blue-200",
+			examples: t('long_context_llm_examples'),
+		},
+		fast: {
+			icon: Zap,
+			title: t('fast_llm_title'),
+			description: t('fast_llm_desc'),
+			color: "bg-green-100 text-green-800 border-green-200",
+			examples: t('fast_llm_examples'),
+		},
+		strategic: {
+			icon: Bot,
+			title: t('strategic_llm_title'),
+			description: t('strategic_llm_desc'),
+			color: "bg-purple-100 text-purple-800 border-purple-200",
+			examples: t('strategic_llm_examples'),
+		},
+	};
 
 	const [assignments, setAssignments] = useState({
 		long_context_llm_id: preferences.long_context_llm_id || "",
@@ -109,9 +111,9 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
 				<AlertCircle className="w-16 h-16 text-muted-foreground mb-4" />
-				<h3 className="text-lg font-semibold mb-2">No LLM Configurations Found</h3>
+				<h3 className="text-lg font-semibold mb-2">{t('no_llm_configs_found')}</h3>
 				<p className="text-muted-foreground text-center">
-					Please add at least one LLM provider in the previous step before assigning roles.
+					{t('add_provider_before_roles')}
 				</p>
 			</div>
 		);
@@ -123,8 +125,7 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 			<Alert>
 				<AlertCircle className="h-4 w-4" />
 				<AlertDescription>
-					Assign your LLM configurations to specific roles. Each role serves different purposes in
-					your workflow.
+					{t('assign_roles_instruction')}
 				</AlertDescription>
 			</Alert>
 
@@ -161,17 +162,17 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 								</CardHeader>
 								<CardContent className="space-y-4">
 									<div className="text-sm text-muted-foreground">
-										<strong>Use cases:</strong> {role.examples}
+										<strong>{t('use_cases')}:</strong> {role.examples}
 									</div>
 
 									<div className="space-y-2">
-										<Label className="text-sm font-medium">Assign LLM Configuration:</Label>
+										<Label className="text-sm font-medium">{t('assign_llm_config')}:</Label>
 										<Select
 											value={currentAssignment?.toString() || ""}
 											onValueChange={(value) => handleRoleAssignment(`${key}_llm_id`, value)}
 										>
 											<SelectTrigger>
-												<SelectValue placeholder="Select an LLM configuration" />
+												<SelectValue placeholder={t('select_llm_config')} />
 											</SelectTrigger>
 											<SelectContent>
 												{llmConfigs
@@ -195,12 +196,12 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 										<div className="mt-3 p-3 bg-muted/50 rounded-lg">
 											<div className="flex items-center gap-2 text-sm">
 												<Bot className="w-4 h-4" />
-												<span className="font-medium">Assigned:</span>
+												<span className="font-medium">{t('assigned')}:</span>
 												<Badge variant="secondary">{assignedConfig.provider}</Badge>
 												<span>{assignedConfig.name}</span>
 											</div>
 											<div className="text-xs text-muted-foreground mt-1">
-												Model: {assignedConfig.model_name}
+												{t('model')}: {assignedConfig.model_name}
 											</div>
 										</div>
 									)}
@@ -216,7 +217,7 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 				<div className="flex justify-center pt-4">
 					<div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200">
 						<CheckCircle className="w-4 h-4" />
-						<span className="text-sm font-medium">All roles assigned and saved!</span>
+						<span className="text-sm font-medium">{t('all_roles_assigned_saved')}</span>
 					</div>
 				</div>
 			)}
@@ -224,7 +225,7 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 			{/* Progress Indicator */}
 			<div className="flex justify-center">
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
-					<span>Progress:</span>
+					<span>{t('progress')}:</span>
 					<div className="flex gap-1">
 						{Object.keys(ROLE_DESCRIPTIONS).map((key, _index) => (
 							<div
@@ -238,8 +239,10 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 						))}
 					</div>
 					<span>
-						{Object.values(assignments).filter(Boolean).length} of{" "}
-						{Object.keys(ROLE_DESCRIPTIONS).length} roles assigned
+						{t('roles_assigned', {
+							assigned: Object.values(assignments).filter(Boolean).length,
+							total: Object.keys(ROLE_DESCRIPTIONS).length
+						})}
 					</span>
 				</div>
 			</div>
