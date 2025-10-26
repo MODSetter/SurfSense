@@ -58,6 +58,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 				{navItems.map((navItem: any, idx: number) => (
 					<Link
 						onMouseEnter={() => setHovered(idx)}
+						onMouseLeave={() => setHovered(null)}
 						className="relative px-4 py-2 text-neutral-600 dark:text-neutral-300"
 						key={`link=${idx}`}
 						href={navItem.link}
