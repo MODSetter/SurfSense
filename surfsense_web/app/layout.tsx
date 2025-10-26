@@ -5,6 +5,8 @@ import { Roboto } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { LocaleProvider } from "@/contexts/LocaleContext";
+import { I18nProvider } from "@/components/providers/I18nProvider";
 
 const roboto = Roboto({
 	subsets: ["latin"],
@@ -77,25 +79,32 @@ export const metadata: Metadata = {
 	},
 };
 
-export default async function RootLayout({
+export default function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	// Using client-side i18n
+	// Language can be switched dynamically through LanguageSwitcher component
+	// Locale state is managed by LocaleContext and persisted in localStorage
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<body className={cn(roboto.className, "bg-white dark:bg-black antialiased h-full w-full")}>
-				<ThemeProvider
-					attribute="class"
-					enableSystem
-					disableTransitionOnChange
-					defaultTheme="light"
-				>
-					<RootProvider>
-						{children}
-						<Toaster />
-					</RootProvider>
-				</ThemeProvider>
+				<LocaleProvider>
+					<I18nProvider>
+						<ThemeProvider
+							attribute="class"
+							enableSystem
+							disableTransitionOnChange
+							defaultTheme="light"
+						>
+							<RootProvider>
+								{children}
+								<Toaster />
+							</RootProvider>
+						</ThemeProvider>
+					</I18nProvider>
+				</LocaleProvider>
 			</body>
 		</html>
 	);

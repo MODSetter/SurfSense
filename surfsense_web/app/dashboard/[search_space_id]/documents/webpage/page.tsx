@@ -5,6 +5,7 @@ import { Globe, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -20,6 +21,7 @@ import { Label } from "@/components/ui/label";
 const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
 
 export default function WebpageCrawler() {
+	const t = useTranslations('add_webpage');
 	const params = useParams();
 	const router = useRouter();
 	const search_space_id = params.search_space_id as string;
@@ -38,14 +40,14 @@ export default function WebpageCrawler() {
 	const handleSubmit = async () => {
 		// Validate that we have at least one URL
 		if (urlTags.length === 0) {
-			setError("Please add at least one URL");
+			setError(t('error_no_url'));
 			return;
 		}
 
 		// Validate all URLs
 		const invalidUrls = urlTags.filter((tag) => !isValidUrl(tag.text));
 		if (invalidUrls.length > 0) {
-			setError(`Invalid URLs detected: ${invalidUrls.map((tag) => tag.text).join(", ")}`);
+			setError(t('error_invalid_urls', { urls: invalidUrls.map((tag) => tag.text).join(", ") }));
 			return;
 		}
 
@@ -53,8 +55,8 @@ export default function WebpageCrawler() {
 		setIsSubmitting(true);
 
 		try {
-			toast("URL Crawling", {
-				description: "Starting URL crawling process...",
+			toast(t('crawling_toast'), {
+				description: t('crawling_toast_desc'),
 			});
 
 			// Extract URLs from tags
@@ -83,16 +85,16 @@ export default function WebpageCrawler() {
 
 			await response.json();
 
-			toast("Crawling Successful", {
-				description: "URLs have been submitted for crawling",
+			toast(t('success_toast'), {
+				description: t('success_toast_desc'),
 			});
 
 			// Redirect to documents page
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
-			setError(error.message || "An error occurred while crawling URLs");
-			toast("Crawling Error", {
-				description: `Error crawling URLs: ${error.message}`,
+			setError(error.message || t('error_generic'));
+			toast(t('error_toast'), {
+				description: `${t('error_toast_desc')}: ${error.message}`,
 			});
 		} finally {
 			setIsSubmitting(false);
@@ -103,16 +105,16 @@ export default function WebpageCrawler() {
 	const handleAddTag = (text: string) => {
 		// Basic URL validation
 		if (!isValidUrl(text)) {
-			toast("Invalid URL", {
-				description: "Please enter a valid URL",
+			toast(t('invalid_url_toast'), {
+				description: t('invalid_url_toast_desc'),
 			});
 			return;
 		}
 
 		// Check for duplicates
 		if (urlTags.some((tag) => tag.text === text)) {
-			toast("Duplicate URL", {
-				description: "This URL has already been added",
+			toast(t('duplicate_url_toast'), {
+				description: t('duplicate_url_toast_desc'),
 			});
 			return;
 		}
@@ -132,19 +134,19 @@ export default function WebpageCrawler() {
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
 						<Globe className="h-5 w-5" />
-						Add Webpages for Crawling
+						{t('title')}
 					</CardTitle>
-					<CardDescription>Enter URLs to crawl and add to your document collection</CardDescription>
+					<CardDescription>{t('subtitle')}</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="url-input">Enter URLs to crawl</Label>
+							<Label htmlFor="url-input">{t('label')}</Label>
 							<TagInput
 								id="url-input"
 								tags={urlTags}
 								setTags={setUrlTags}
-								placeholder="Enter a URL and press Enter"
+								placeholder={t('placeholder')}
 								onAddTag={handleAddTag}
 								styleClasses={{
 									inlineTagsContainer:
@@ -160,19 +162,19 @@ export default function WebpageCrawler() {
 								setActiveTagIndex={setActiveTagIndex}
 							/>
 							<p className="text-xs text-muted-foreground mt-1">
-								Add multiple URLs by pressing Enter after each one
+								{t('hint')}
 							</p>
 						</div>
 
 						{error && <div className="text-sm text-red-500 mt-2">{error}</div>}
 
 						<div className="bg-muted/50 rounded-lg p-4 text-sm">
-							<h4 className="font-medium mb-2">Tips for URL crawling:</h4>
+							<h4 className="font-medium mb-2">{t('tips_title')}</h4>
 							<ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-								<li>Enter complete URLs including http:// or https://</li>
-								<li>Make sure the websites allow crawling</li>
-								<li>Public webpages work best</li>
-								<li>Crawling may take some time depending on the website size</li>
+								<li>{t('tip_1')}</li>
+								<li>{t('tip_2')}</li>
+								<li>{t('tip_3')}</li>
+								<li>{t('tip_4')}</li>
 							</ul>
 						</div>
 					</div>
@@ -182,16 +184,16 @@ export default function WebpageCrawler() {
 						variant="outline"
 						onClick={() => router.push(`/dashboard/${search_space_id}/documents`)}
 					>
-						Cancel
+						{t('cancel')}
 					</Button>
 					<Button onClick={handleSubmit} disabled={isSubmitting || urlTags.length === 0}>
 						{isSubmitting ? (
 							<>
 								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								Submitting...
+								{t('submitting')}
 							</>
 						) : (
-							"Submit URLs for Crawling"
+							t('submit')
 						)}
 					</Button>
 				</CardFooter>

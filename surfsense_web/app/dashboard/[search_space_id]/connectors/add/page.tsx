@@ -10,6 +10,7 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -36,40 +37,40 @@ interface ConnectorCategory {
 const connectorCategories: ConnectorCategory[] = [
 	{
 		id: "search-engines",
-		title: "Search Engines",
+		title: "search_engines",
 		connectors: [
 			{
 				id: "tavily-api",
 				title: "Tavily API",
-				description: "Search the web using the Tavily API",
+				description: "tavily_desc",
 				icon: getConnectorIcon(EnumConnectorName.TAVILY_API, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "searxng",
 				title: "SearxNG",
-				description: "Use your own SearxNG meta-search instance for web results.",
+				description: "searxng_desc",
 				icon: getConnectorIcon(EnumConnectorName.SEARXNG_API, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "linkup-api",
 				title: "Linkup API",
-				description: "Search the web using the Linkup API",
+				description: "linkup_desc",
 				icon: getConnectorIcon(EnumConnectorName.LINKUP_API, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "elasticsearch-connector",
 				title: "Elasticsearch",
-				description: "Connect to Elasticsearch to index and search documents, logs and metrics.",
+				description: "elasticsearch_desc",
 				icon: getConnectorIcon(EnumConnectorName.ELASTICSEARCH_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "baidu-search-api",
 				title: "Baidu Search",
-				description: "Search the Chinese web using Baidu AI Search API",
+				description: "baidu_desc",
 				icon: getConnectorIcon(EnumConnectorName.BAIDU_SEARCH_API, "h-6 w-6"),
 				status: "available",
 			},
@@ -77,26 +78,26 @@ const connectorCategories: ConnectorCategory[] = [
 	},
 	{
 		id: "team-chats",
-		title: "Team Chats",
+		title: "team_chats",
 		connectors: [
 			{
 				id: "slack-connector",
 				title: "Slack",
-				description: "Connect to your Slack workspace to access messages and channels.",
+				description: "slack_desc",
 				icon: getConnectorIcon(EnumConnectorName.SLACK_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "ms-teams",
 				title: "Microsoft Teams",
-				description: "Connect to Microsoft Teams to access your team's conversations.",
+				description: "teams_desc",
 				icon: <IconBrandWindows className="h-6 w-6" />,
 				status: "coming-soon",
 			},
 			{
 				id: "discord-connector",
 				title: "Discord",
-				description: "Connect to Discord servers to access messages and channels.",
+				description: "discord_desc",
 				icon: getConnectorIcon(EnumConnectorName.DISCORD_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
@@ -104,26 +105,26 @@ const connectorCategories: ConnectorCategory[] = [
 	},
 	{
 		id: "project-management",
-		title: "Project Management",
+		title: "project_management",
 		connectors: [
 			{
 				id: "linear-connector",
 				title: "Linear",
-				description: "Connect to Linear to search issues, comments and project data.",
+				description: "linear_desc",
 				icon: getConnectorIcon(EnumConnectorName.LINEAR_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "jira-connector",
 				title: "Jira",
-				description: "Connect to Jira to search issues, tickets and project data.",
+				description: "jira_desc",
 				icon: getConnectorIcon(EnumConnectorName.JIRA_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "clickup-connector",
 				title: "ClickUp",
-				description: "Connect to ClickUp to search tasks, comments and project data.",
+				description: "clickup_desc",
 				icon: getConnectorIcon(EnumConnectorName.CLICKUP_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
@@ -131,40 +132,40 @@ const connectorCategories: ConnectorCategory[] = [
 	},
 	{
 		id: "knowledge-bases",
-		title: "Knowledge Bases",
+		title: "knowledge_bases",
 		connectors: [
 			{
 				id: "notion-connector",
 				title: "Notion",
-				description: "Connect to your Notion workspace to access pages and databases.",
+				description: "notion_desc",
 				icon: getConnectorIcon(EnumConnectorName.NOTION_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "github-connector",
 				title: "GitHub",
-				description: "Connect a GitHub PAT to index code and docs from accessible repositories.",
+				description: "github_desc",
 				icon: getConnectorIcon(EnumConnectorName.GITHUB_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "confluence-connector",
 				title: "Confluence",
-				description: "Connect to Confluence to search pages, comments and documentation.",
+				description: "confluence_desc",
 				icon: getConnectorIcon(EnumConnectorName.CONFLUENCE_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "airtable-connector",
 				title: "Airtable",
-				description: "Connect to Airtable to search records, tables and database content.",
+				description: "airtable_desc",
 				icon: getConnectorIcon(EnumConnectorName.AIRTABLE_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "luma-connector",
 				title: "Luma",
-				description: "Connect to Luma to search events",
+				description: "luma_desc",
 				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
@@ -172,26 +173,26 @@ const connectorCategories: ConnectorCategory[] = [
 	},
 	{
 		id: "communication",
-		title: "Communication",
+		title: "communication",
 		connectors: [
 			{
 				id: "google-calendar-connector",
 				title: "Google Calendar",
-				description: "Connect to Google Calendar to search events, meetings and schedules.",
+				description: "calendar_desc",
 				icon: getConnectorIcon(EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "google-gmail-connector",
 				title: "Gmail",
-				description: "Connect to your Gmail account to search through your emails.",
+				description: "gmail_desc",
 				icon: getConnectorIcon(EnumConnectorName.GOOGLE_GMAIL_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
 				id: "zoom",
 				title: "Zoom",
-				description: "Connect to Zoom to access meeting recordings and transcripts.",
+				description: "zoom_desc",
 				icon: <IconBrandZoom className="h-6 w-6" />,
 				status: "coming-soon",
 			},
@@ -238,6 +239,7 @@ const cardVariants: Variants = {
 };
 
 export default function ConnectorsPage() {
+	const t = useTranslations('add_connector');
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const [expandedCategories, setExpandedCategories] = useState<string[]>([
@@ -266,10 +268,10 @@ export default function ConnectorsPage() {
 				className="mb-12 text-center"
 			>
 				<h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
-					Connect Your Tools
+					{t('title')}
 				</h1>
 				<p className="text-muted-foreground mt-3 text-lg max-w-2xl mx-auto">
-					Integrate with your favorite services to enhance your research capabilities.
+					{t('subtitle')}
 				</p>
 			</motion.div>
 
@@ -291,7 +293,7 @@ export default function ConnectorsPage() {
 							className="w-full"
 						>
 							<div className="flex items-center justify-between space-x-4 p-4">
-								<h3 className="text-xl font-semibold">{category.title}</h3>
+								<h3 className="text-xl font-semibold">{t(category.title)}</h3>
 								<CollapsibleTrigger asChild>
 									<Button variant="ghost" size="sm" className="w-9 p-0 hover:bg-muted">
 										<motion.div
@@ -341,7 +343,7 @@ export default function ConnectorsPage() {
 																		variant="outline"
 																		className="text-xs bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800"
 																	>
-																		Coming soon
+																		{t('coming_soon')}
 																	</Badge>
 																)}
 																{connector.status === "connected" && (
@@ -349,7 +351,7 @@ export default function ConnectorsPage() {
 																		variant="outline"
 																		className="text-xs bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
 																	>
-																		Connected
+																		{t('connected')}
 																	</Badge>
 																)}
 															</div>
@@ -357,7 +359,7 @@ export default function ConnectorsPage() {
 													</CardHeader>
 
 													<CardContent className="pb-4">
-														<p className="text-sm text-muted-foreground">{connector.description}</p>
+														<p className="text-sm text-muted-foreground">{t(connector.description)}</p>
 													</CardContent>
 
 													<CardFooter className="mt-auto pt-2">
@@ -367,7 +369,7 @@ export default function ConnectorsPage() {
 																className="w-full"
 															>
 																<Button variant="default" className="w-full group">
-																	<span>Connect</span>
+																	<span>{t('connect')}</span>
 																	<motion.div
 																		className="ml-1"
 																		initial={{ x: 0 }}
@@ -385,7 +387,7 @@ export default function ConnectorsPage() {
 														)}
 														{connector.status === "coming-soon" && (
 															<Button variant="outline" disabled className="w-full opacity-70">
-																Coming Soon
+																{t('coming_soon')}
 															</Button>
 														)}
 														{connector.status === "connected" && (
@@ -393,7 +395,7 @@ export default function ConnectorsPage() {
 																variant="outline"
 																className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
 															>
-																Manage
+																{t('manage')}
 															</Button>
 														)}
 													</CardFooter>

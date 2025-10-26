@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { useDocuments } from "@/hooks/use-documents";
 
@@ -22,6 +23,7 @@ function useDebounced<T>(value: T, delay = 250) {
 }
 
 export default function DocumentsTable() {
+	const t = useTranslations('documents');
 	const id = useId();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
@@ -120,21 +122,21 @@ export default function DocumentsTable() {
 
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
-			toast.error("No rows selected");
+			toast.error(t('no_rows_selected'));
 			return;
 		}
 		try {
 			const results = await Promise.all(Array.from(selectedIds).map((id) => deleteDocument?.(id)));
 			const okCount = results.filter((r) => r === true).length;
 			if (okCount === selectedIds.size)
-				toast.success(`Successfully deleted ${okCount} document(s)`);
-			else toast.error("Some documents could not be deleted");
+				toast.success(t('delete_success_count', { count: okCount }));
+			else toast.error(t('delete_partial_failed'));
 			// Refetch the current page with appropriate method
 			await refreshCurrentView();
 			setSelectedIds(new Set());
 		} catch (e) {
 			console.error(e);
-			toast.error("Error deleting documents");
+			toast.error(t('delete_error'));
 		}
 	};
 
