@@ -45,6 +45,7 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useParams } from "next/navigation";
 import React, { useContext, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import {
 	AlertDialog,
@@ -171,7 +172,7 @@ function MessageDetails({
 	);
 }
 
-const columns: ColumnDef<Log>[] = [
+const createColumns = (t: (key: string) => string): ColumnDef<Log>[] => [
 	{
 		id: "select",
 		header: ({ table }) => (
@@ -195,7 +196,7 @@ const columns: ColumnDef<Log>[] = [
 		enableHiding: false,
 	},
 	{
-		header: "Level",
+		header: t('level'),
 		accessorKey: "level",
 		cell: ({ row }) => {
 			const level = row.getValue("level") as LogLevel;
@@ -219,7 +220,7 @@ const columns: ColumnDef<Log>[] = [
 		size: 120,
 	},
 	{
-		header: "Status",
+		header: t('status'),
 		accessorKey: "status",
 		cell: ({ row }) => {
 			const status = row.getValue("status") as LogStatus;
@@ -245,7 +246,7 @@ const columns: ColumnDef<Log>[] = [
 		size: 140,
 	},
 	{
-		header: "Source",
+		header: t('source'),
 		accessorKey: "source",
 		cell: ({ row }) => {
 			const source = row.getValue("source") as string;
@@ -256,14 +257,14 @@ const columns: ColumnDef<Log>[] = [
 					transition={{ type: "spring", stiffness: 300 }}
 				>
 					<Terminal size={14} className="text-muted-foreground" />
-					<span className="text-sm font-mono">{source || "System"}</span>
+					<span className="text-sm font-mono">{source || t('system')}</span>
 				</motion.div>
 			);
 		},
 		size: 150,
 	},
 	{
-		header: "Message",
+		header: t('message'),
 		accessorKey: "message",
 		cell: ({ row }) => {
 			const message = row.getValue("message") as string;
@@ -296,7 +297,7 @@ const columns: ColumnDef<Log>[] = [
 		size: 400,
 	},
 	{
-		header: "Created At",
+		header: t('created_at'),
 		accessorKey: "created_at",
 		cell: ({ row }) => {
 			const date = new Date(row.getValue("created_at"));
@@ -311,12 +312,15 @@ const columns: ColumnDef<Log>[] = [
 	},
 	{
 		id: "actions",
-		header: () => <span className="sr-only">Actions</span>,
-		cell: ({ row }) => <LogRowActions row={row} />,
+		header: () => <span className="sr-only">{t('actions')}</span>,
+		cell: ({ row }) => <LogRowActions row={row} t={t} />,
 		size: 60,
 		enableHiding: false,
 	},
 ];
+
+// Default columns for backward compatibility
+const columns: ColumnDef<Log>[] = createColumns((key) => key);
 
 // Create a context to share functions
 const LogsContext = React.createContext<{
@@ -325,6 +329,7 @@ const LogsContext = React.createContext<{
 } | null>(null);
 
 export default function LogsManagePage() {
+	const t = useTranslations('logs');
 	const id = useId();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
@@ -358,9 +363,12 @@ export default function LogsManagePage() {
 
 	const inputRef = useRef<HTMLInputElement>(null);
 
+	// Create translated columns
+	const translatedColumns = useMemo(() => createColumns(t), [t]);
+
 	const table = useReactTable({
 		data: logs,
-		columns,
+		columns: translatedColumns,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		onSortingChange: setSorting,
@@ -454,12 +462,12 @@ export default function LogsManagePage() {
 					transition={{ delay: 0.1 }}
 				>
 					<div>
-						<h2 className="text-2xl font-bold tracking-tight">Task Logs</h2>
-						<p className="text-muted-foreground">Monitor and analyze all task execution logs</p>
+						<h2 className="text-2xl font-bold tracking-tight">{t('title')}</h2>
+						<p className="text-muted-foreground">{t('subtitle')}</p>
 					</div>
 					<Button onClick={handleRefresh} variant="outline" size="sm">
 						<RefreshCw className="w-4 h-4 mr-2" />
-						Refresh
+						{t('refresh')}
 					</Button>
 				</motion.div>
 
@@ -484,7 +492,7 @@ export default function LogsManagePage() {
 							<AlertDialogTrigger asChild>
 								<Button variant="outline">
 									<Trash className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} />
-									Delete Selected
+									{t('delete_selected')}
 									<span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
 										{table.getSelectedRowModel().rows.length}
 									</span>
@@ -496,16 +504,15 @@ export default function LogsManagePage() {
 										<CircleAlert className="opacity-80" size={16} strokeWidth={2} />
 									</div>
 									<AlertDialogHeader>
-										<AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-										<AlertDialogDescription>
-											This action cannot be undone. This will permanently delete{" "}
-											{table.getSelectedRowModel().rows.length} selected log(s).
-										</AlertDialogDescription>
+										<AlertDialogTitle>{t('confirm_title')}</AlertDialogTitle>
+									<AlertDialogDescription>
+										{t('confirm_delete_desc', { count: table.getSelectedRowModel().rows.length })}
+									</AlertDialogDescription>
 									</AlertDialogHeader>
 								</div>
 								<AlertDialogFooter>
-									<AlertDialogCancel>Cancel</AlertDialogCancel>
-									<AlertDialogAction onClick={handleDeleteRows}>Delete</AlertDialogAction>
+									<AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+									<AlertDialogAction onClick={handleDeleteRows}>{t('delete')}</AlertDialogAction>
 								</AlertDialogFooter>
 							</AlertDialogContent>
 						</AlertDialog>
@@ -520,6 +527,7 @@ export default function LogsManagePage() {
 					error={logsError}
 					onRefresh={refreshLogs}
 					id={id}
+					t={t}
 				/>
 			</motion.div>
 		</LogsContext.Provider>
@@ -538,6 +546,7 @@ function LogsSummaryDashboard({
 	error: string | null;
 	onRefresh: () => void;
 }) {
+	const t = useTranslations('logs');
 	if (loading) {
 		return (
 			<motion.div
@@ -565,9 +574,9 @@ function LogsSummaryDashboard({
 				<CardContent className="flex items-center justify-center h-32">
 					<div className="flex flex-col items-center gap-2">
 						<AlertCircle className="h-8 w-8 text-destructive" />
-						<p className="text-sm text-destructive">Failed to load summary</p>
+						<p className="text-sm text-destructive">{t('failed_load_summary')}</p>
 						<Button variant="outline" size="sm" onClick={onRefresh}>
-							Retry
+							{t('retry')}
 						</Button>
 					</div>
 				</CardContent>
@@ -586,12 +595,12 @@ function LogsSummaryDashboard({
 			<motion.div variants={fadeInScale}>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Total Logs</CardTitle>
+						<CardTitle className="text-sm font-medium">{t('total_logs')}</CardTitle>
 						<Activity className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">{summary.total_logs}</div>
-						<p className="text-xs text-muted-foreground">Last {summary.time_window_hours} hours</p>
+						<p className="text-xs text-muted-foreground">{t('last_hours', { hours: summary.time_window_hours })}</p>
 					</CardContent>
 				</Card>
 			</motion.div>
@@ -600,14 +609,14 @@ function LogsSummaryDashboard({
 			<motion.div variants={fadeInScale}>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
+						<CardTitle className="text-sm font-medium">{t('active_tasks')}</CardTitle>
 						<Clock className="h-4 w-4 text-blue-600" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold text-blue-600">
 							{summary.active_tasks?.length || 0}
 						</div>
-						<p className="text-xs text-muted-foreground">Currently running</p>
+						<p className="text-xs text-muted-foreground">{t('currently_running')}</p>
 					</CardContent>
 				</Card>
 			</motion.div>
@@ -616,7 +625,7 @@ function LogsSummaryDashboard({
 			<motion.div variants={fadeInScale}>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+						<CardTitle className="text-sm font-medium">{t('success_rate')}</CardTitle>
 						<CheckCircle2 className="h-4 w-4 text-green-600" />
 					</CardHeader>
 					<CardContent>
@@ -627,7 +636,7 @@ function LogsSummaryDashboard({
 							%
 						</div>
 						<p className="text-xs text-muted-foreground">
-							{summary.by_status?.SUCCESS || 0} successful
+							{summary.by_status?.SUCCESS || 0} {t('successful')}
 						</p>
 					</CardContent>
 				</Card>
@@ -637,14 +646,14 @@ function LogsSummaryDashboard({
 			<motion.div variants={fadeInScale}>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Recent Failures</CardTitle>
+						<CardTitle className="text-sm font-medium">{t('recent_failures')}</CardTitle>
 						<AlertCircle className="h-4 w-4 text-red-600" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold text-red-600">
 							{summary.recent_failures?.length || 0}
 						</div>
-						<p className="text-xs text-muted-foreground">Need attention</p>
+						<p className="text-xs text-muted-foreground">{t('need_attention')}</p>
 					</CardContent>
 				</Card>
 			</motion.div>
@@ -666,6 +675,7 @@ function LogsFilters({
 	inputRef: React.RefObject<HTMLInputElement | null>;
 	id: string;
 }) {
+	const t = useTranslations('logs');
 	return (
 		<motion.div
 			className="flex flex-wrap items-center justify-between gap-3"
@@ -684,7 +694,7 @@ function LogsFilters({
 						)}
 						value={(table.getColumn("message")?.getFilterValue() ?? "") as string}
 						onChange={(e) => table.getColumn("message")?.setFilterValue(e.target.value)}
-						placeholder="Filter by message..."
+						placeholder={t('filter_by_message')}
 						type="text"
 					/>
 					<div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80">
@@ -707,18 +717,20 @@ function LogsFilters({
 
 				{/* Level Filter */}
 				<FilterDropdown
-					title="Level"
+					title={t('level')}
 					column={table.getColumn("level")}
 					options={uniqueLevels}
 					id={`${id}-level`}
+					t={t}
 				/>
 
 				{/* Status Filter */}
 				<FilterDropdown
-					title="Status"
+					title={t('status')}
 					column={table.getColumn("status")}
 					options={uniqueStatuses}
 					id={`${id}-status`}
+					t={t}
 				/>
 
 				{/* Column Visibility */}
@@ -726,11 +738,11 @@ function LogsFilters({
 					<DropdownMenuTrigger asChild>
 						<Button variant="outline">
 							<Columns3 className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} />
-							View
+							{t('view')}
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+						<DropdownMenuLabel>{t('toggle_columns')}</DropdownMenuLabel>
 						{table
 							.getAllColumns()
 							.filter((column: any) => column.getCanHide())
@@ -758,11 +770,13 @@ function FilterDropdown({
 	column,
 	options,
 	id,
+	t,
 }: {
 	title: string;
 	column: any;
 	options: string[];
 	id: string;
+	t: (key: string) => string;
 }) {
 	const selectedValues = useMemo(() => {
 		const filterValue = column?.getFilterValue() as string[];
@@ -800,7 +814,7 @@ function FilterDropdown({
 			</PopoverTrigger>
 			<PopoverContent className="min-w-36 p-3" align="start">
 				<div className="space-y-3">
-					<div className="text-xs font-medium text-muted-foreground">Filter by {title}</div>
+					<div className="text-xs font-medium text-muted-foreground">{t('filter_by')} {title}</div>
 					<div className="space-y-2">
 						{options.map((value, i) => (
 							<div key={value} className="flex items-center gap-2">
@@ -829,6 +843,7 @@ function LogsTable({
 	error,
 	onRefresh,
 	id,
+	t,
 }: {
 	table: any;
 	logs: Log[];
@@ -836,6 +851,7 @@ function LogsTable({
 	error: string | null;
 	onRefresh: () => void;
 	id: string;
+	t: (key: string, params?: any) => string;
 }) {
 	if (loading) {
 		return (
@@ -881,12 +897,12 @@ function LogsTable({
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
 			>
-				<div className="flex h-[400px] w-full items-center justify-center">
-					<div className="flex flex-col items-center gap-2">
-						<Terminal className="h-8 w-8 text-muted-foreground" />
-						<p className="text-sm text-muted-foreground">No logs found</p>
-					</div>
+			<div className="flex h-[400px] w-full items-center justify-center">
+				<div className="flex flex-col items-center gap-2">
+					<Terminal className="h-8 w-8 text-muted-foreground" />
+					<p className="text-sm text-muted-foreground">{t('no_logs')}</p>
 				</div>
+			</div>
 			</motion.div>
 		);
 	}
@@ -979,26 +995,26 @@ function LogsTable({
 										})}
 									</motion.tr>
 								))
-							) : (
-								<TableRow>
-									<TableCell colSpan={columns.length} className="h-24 text-center">
-										No logs found.
-									</TableCell>
-								</TableRow>
-							)}
+						) : (
+							<TableRow>
+								<TableCell colSpan={columns.length} className="h-24 text-center">
+									{t('no_logs')}
+								</TableCell>
+							</TableRow>
+						)}
 						</AnimatePresence>
 					</TableBody>
 				</Table>
 			</motion.div>
 
 			{/* Pagination */}
-			<LogsPagination table={table} id={id} />
+			<LogsPagination table={table} id={id} t={t} />
 		</>
 	);
 }
 
 // Pagination Component
-function LogsPagination({ table, id }: { table: any; id: string }) {
+function LogsPagination({ table, id, t }: { table: any; id: string; t: (key: string) => string }) {
 	return (
 		<div className="flex items-center justify-between gap-8 mt-6">
 			<motion.div
@@ -1007,7 +1023,7 @@ function LogsPagination({ table, id }: { table: any; id: string }) {
 				animate={{ opacity: 1, x: 0 }}
 			>
 				<Label htmlFor={id} className="max-sm:sr-only">
-					Rows per page
+					{t('rows_per_page')}
 				</Label>
 				<Select
 					value={table.getState().pagination.pageSize.toString()}
@@ -1096,7 +1112,7 @@ function LogsPagination({ table, id }: { table: any; id: string }) {
 }
 
 // Row Actions Component
-function LogRowActions({ row }: { row: Row<Log> }) {
+function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const { deleteLog, refreshLogs } = useContext(LogsContext)!;
@@ -1106,11 +1122,11 @@ function LogRowActions({ row }: { row: Row<Log> }) {
 		setIsDeleting(true);
 		try {
 			await deleteLog(log.id);
-			toast.success("Log deleted successfully");
+			toast.success(t('log_deleted_success'));
 			await refreshLogs();
 		} catch (error) {
 			console.error("Error deleting log:", error);
-			toast.error("Failed to delete log");
+			toast.error(t('log_deleted_error'));
 		} finally {
 			setIsDeleting(false);
 			setIsOpen(false);
@@ -1131,7 +1147,7 @@ function LogRowActions({ row }: { row: Row<Log> }) {
 						metadata={log.log_metadata}
 						trigger={
 							<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-								View Metadata
+								{t('view_metadata')}
 							</DropdownMenuItem>
 						}
 					/>
@@ -1145,20 +1161,20 @@ function LogRowActions({ row }: { row: Row<Log> }) {
 									setIsOpen(true);
 								}}
 							>
-								Delete
+								{t('delete')}
 							</DropdownMenuItem>
 						</AlertDialogTrigger>
 						<AlertDialogContent>
 							<AlertDialogHeader>
-								<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+								<AlertDialogTitle>{t('confirm_delete_log_title')}</AlertDialogTitle>
 								<AlertDialogDescription>
-									This action cannot be undone. This will permanently delete the log entry.
+									{t('confirm_delete_log_desc')}
 								</AlertDialogDescription>
 							</AlertDialogHeader>
 							<AlertDialogFooter>
-								<AlertDialogCancel>Cancel</AlertDialogCancel>
+								<AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
 								<AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-									{isDeleting ? "Deleting..." : "Delete"}
+									{isDeleting ? t('deleting') : t('delete')}
 								</AlertDialogAction>
 							</AlertDialogFooter>
 						</AlertDialogContent>

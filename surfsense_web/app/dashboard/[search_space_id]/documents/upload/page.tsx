@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ function GridPattern() {
 }
 
 export default function FileUploader() {
+	const t = useTranslations('upload_documents');
 	const params = useParams();
 	const search_space_id = params.search_space_id as string;
 
@@ -274,16 +276,16 @@ export default function FileUploader() {
 
 			await response.json();
 
-			toast("Upload Task Initiated", {
-				description: "Files Uploading Initiated",
+			toast(t('upload_initiated'), {
+				description: t('upload_initiated_desc'),
 			});
 
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
 			setIsUploading(false);
 			setUploadProgress(0);
-			toast("Upload Error", {
-				description: `Error uploading files: ${error.message}`,
+			toast(t('upload_error'), {
+				description: `${t('upload_error_desc')}: ${error.message}`,
 			});
 		}
 	};
@@ -330,19 +332,17 @@ export default function FileUploader() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<Upload className="h-5 w-5" />
-								Upload Documents
+								{t('title')}
 							</CardTitle>
 							<CardDescription>
-								Upload your files to make them searchable and accessible through AI-powered
-								conversations.
+								{t('subtitle')}
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Alert>
 								<Info className="h-4 w-4" />
 								<AlertDescription>
-									Maximum file size: 50MB per file. Supported formats vary based on your ETL service
-									configuration.
+									{t('file_size_limit')}
 								</AlertDescription>
 							</Alert>
 						</CardContent>
@@ -371,7 +371,7 @@ export default function FileUploader() {
 										className="flex flex-col items-center gap-4"
 									>
 										<Upload className="h-12 w-12 text-primary" />
-										<p className="text-lg font-medium text-primary">Drop files here</p>
+										<p className="text-lg font-medium text-primary">{t('drop_files')}</p>
 									</motion.div>
 								) : (
 									<motion.div
@@ -381,8 +381,8 @@ export default function FileUploader() {
 									>
 										<Upload className="h-12 w-12 text-muted-foreground" />
 										<div className="text-center">
-											<p className="text-lg font-medium">Drag & drop files here</p>
-											<p className="text-sm text-muted-foreground mt-1">or click to browse</p>
+											<p className="text-lg font-medium">{t('drag_drop')}</p>
+											<p className="text-sm text-muted-foreground mt-1">{t('or_browse')}</p>
 										</div>
 									</motion.div>
 								)}
@@ -400,7 +400,7 @@ export default function FileUploader() {
 											if (input) input.click();
 										}}
 									>
-										Browse Files
+										{t('browse_files')}
 									</Button>
 								</div>
 							</div>
@@ -422,9 +422,9 @@ export default function FileUploader() {
 								<CardHeader>
 									<div className="flex items-center justify-between">
 										<div>
-											<CardTitle>Selected Files ({files.length})</CardTitle>
+											<CardTitle>{t('selected_files', { count: files.length })}</CardTitle>
 											<CardDescription>
-												Total size: {formatFileSize(getTotalFileSize())}
+												{t('total_size')}: {formatFileSize(getTotalFileSize())}
 											</CardDescription>
 										</div>
 										<Button
@@ -433,7 +433,7 @@ export default function FileUploader() {
 											onClick={() => setFiles([])}
 											disabled={isUploading}
 										>
-											Clear all
+											{t('clear_all')}
 										</Button>
 									</div>
 								</CardHeader>
@@ -490,7 +490,7 @@ export default function FileUploader() {
 											<Separator />
 											<div className="space-y-2">
 												<div className="flex items-center justify-between text-sm">
-													<span>Uploading files...</span>
+													<span>{t('uploading_files')}</span>
 													<span>{Math.round(uploadProgress)}%</span>
 												</div>
 												<Progress value={uploadProgress} className="h-2" />
@@ -521,7 +521,7 @@ export default function FileUploader() {
 													>
 														<Upload className="h-5 w-5" />
 													</motion.div>
-													<span>Uploading...</span>
+													<span>{t('uploading')}</span>
 												</motion.div>
 											) : (
 												<motion.div
@@ -531,7 +531,7 @@ export default function FileUploader() {
 												>
 													<CheckCircle2 className="h-5 w-5" />
 													<span>
-														Upload {files.length} {files.length === 1 ? "file" : "files"}
+														{t('upload_button', { count: files.length })}
 													</span>
 												</motion.div>
 											)}
@@ -549,10 +549,10 @@ export default function FileUploader() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<Tag className="h-5 w-5" />
-								Supported File Types
+								{t('supported_file_types')}
 							</CardTitle>
 							<CardDescription>
-								These file types are supported based on your current ETL service configuration.
+								{t('file_types_desc')}
 							</CardDescription>
 						</CardHeader>
 						<CardContent>

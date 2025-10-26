@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -61,6 +62,7 @@ const formatDate = (dateString: string): string => {
  * Loading screen component with animation
  */
 const LoadingScreen = () => {
+	const t = useTranslations('dashboard');
 	return (
 		<div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
 			<motion.div
@@ -70,8 +72,8 @@ const LoadingScreen = () => {
 			>
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">Loading</CardTitle>
-						<CardDescription>Fetching your search spaces...</CardDescription>
+						<CardTitle className="text-xl font-medium">{t('loading')}</CardTitle>
+						<CardDescription>{t('fetching_spaces')}</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center py-6">
 						<motion.div
@@ -82,7 +84,7 @@ const LoadingScreen = () => {
 						</motion.div>
 					</CardContent>
 					<CardFooter className="border-t pt-4 text-sm text-muted-foreground">
-						This may take a moment
+						{t('may_take_moment')}
 					</CardFooter>
 				</Card>
 			</motion.div>
@@ -94,6 +96,7 @@ const LoadingScreen = () => {
  * Error screen component with animation
  */
 const ErrorScreen = ({ message }: { message: string }) => {
+	const t = useTranslations('dashboard');
 	const router = useRouter();
 
 	return (
@@ -107,22 +110,22 @@ const ErrorScreen = ({ message }: { message: string }) => {
 					<CardHeader className="pb-2">
 						<div className="flex items-center gap-2">
 							<AlertCircle className="h-5 w-5 text-destructive" />
-							<CardTitle className="text-xl font-medium">Error</CardTitle>
+							<CardTitle className="text-xl font-medium">{t('error')}</CardTitle>
 						</div>
-						<CardDescription>Something went wrong</CardDescription>
+						<CardDescription>{t('something_wrong')}</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<Alert variant="destructive" className="bg-destructive/10 border-destructive/30">
 							<AlertCircle className="h-4 w-4" />
-							<AlertTitle>Error Details</AlertTitle>
+							<AlertTitle>{t('error_details')}</AlertTitle>
 							<AlertDescription className="mt-2">{message}</AlertDescription>
 						</Alert>
 					</CardContent>
 					<CardFooter className="flex justify-end gap-2 border-t pt-4">
 						<Button variant="outline" onClick={() => router.refresh()}>
-							Try Again
+							{t('try_again')}
 						</Button>
-						<Button onClick={() => router.push("/")}>Go Home</Button>
+						<Button onClick={() => router.push("/")}>{t('go_home')}</Button>
 					</CardFooter>
 				</Card>
 			</motion.div>
@@ -131,6 +134,9 @@ const ErrorScreen = ({ message }: { message: string }) => {
 };
 
 const DashboardPage = () => {
+	const t = useTranslations('dashboard');
+	const tCommon = useTranslations('common');
+	
 	// Animation variants
 	const containerVariants: Variants = {
 		hidden: { opacity: 0 },
@@ -239,8 +245,8 @@ const DashboardPage = () => {
 					<div className="flex flex-row space-x-4">
 						<Logo className="w-10 h-10 rounded-md" />
 						<div className="flex flex-col space-y-2">
-							<h1 className="text-4xl font-bold">SurfSense Dashboard</h1>
-							<p className="text-muted-foreground">Welcome to your SurfSense dashboard.</p>
+							<h1 className="text-4xl font-bold">{t('surfsense_dashboard')}</h1>
+							<p className="text-muted-foreground">{t('welcome_message')}</p>
 						</div>
 					</div>
 					<div className="flex items-center space-x-3">
@@ -251,12 +257,12 @@ const DashboardPage = () => {
 
 				<div className="flex flex-col space-y-6 mt-6">
 					<div className="flex justify-between items-center">
-						<h2 className="text-2xl font-semibold">Your Search Spaces</h2>
+						<h2 className="text-2xl font-semibold">{t('your_search_spaces')}</h2>
 						<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
 							<Link href="/dashboard/searchspaces">
 								<Button className="h-10">
 									<Plus className="mr-2 h-4 w-4" />
-									Create Search Space
+									{t('create_search_space')}
 								</Button>
 							</Link>
 						</motion.div>
@@ -312,20 +318,18 @@ const DashboardPage = () => {
 															</AlertDialogTrigger>
 															<AlertDialogContent>
 																<AlertDialogHeader>
-																	<AlertDialogTitle>Delete Search Space</AlertDialogTitle>
+																	<AlertDialogTitle>{t('delete_search_space')}</AlertDialogTitle>
 																	<AlertDialogDescription>
-																		Are you sure you want to delete &quot;{space.name}&quot;? This
-																		action cannot be undone. All documents, chats, and podcasts in
-																		this search space will be permanently deleted.
+																		{t('delete_space_confirm', { name: space.name })}
 																	</AlertDialogDescription>
 																</AlertDialogHeader>
 																<AlertDialogFooter>
-																	<AlertDialogCancel>Cancel</AlertDialogCancel>
+																	<AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
 																	<AlertDialogAction
 																		onClick={() => handleDeleteSearchSpace(space.id)}
 																		className="bg-destructive hover:bg-destructive/90"
 																	>
-																		Delete
+																		{tCommon('delete')}
 																	</AlertDialogAction>
 																</AlertDialogFooter>
 															</AlertDialogContent>
@@ -343,7 +347,7 @@ const DashboardPage = () => {
 													</div>
 													<div className="mt-4 flex justify-between text-xs text-muted-foreground">
 														{/* <span>{space.title}</span> */}
-														<span>Created {formatDate(space.created_at)}</span>
+														<span>{t('created')} {formatDate(space.created_at)}</span>
 													</div>
 												</div>
 											</Link>
@@ -360,14 +364,14 @@ const DashboardPage = () => {
 								<div className="rounded-full bg-muted/50 p-4 mb-4">
 									<Search className="h-8 w-8 text-muted-foreground" />
 								</div>
-								<h3 className="text-lg font-medium mb-2">No search spaces found</h3>
+								<h3 className="text-lg font-medium mb-2">{t('no_spaces_found')}</h3>
 								<p className="text-muted-foreground mb-6">
-									Create your first search space to get started
+									{t('create_first_space')}
 								</p>
 								<Link href="/dashboard/searchspaces">
 									<Button>
 										<Plus className="mr-2 h-4 w-4" />
-										Create Search Space
+										{t('create_search_space')}
 									</Button>
 								</Link>
 							</motion.div>
@@ -388,7 +392,7 @@ const DashboardPage = () => {
 									<Link href="/dashboard/searchspaces" className="flex h-full">
 										<div className="flex flex-col items-center justify-center h-full w-full rounded-xl border border-dashed bg-muted/10 hover:border-primary/50 transition-colors">
 											<Plus className="h-10 w-10 mb-3 text-muted-foreground" />
-											<span className="text-sm font-medium">Add New Search Space</span>
+											<span className="text-sm font-medium">{t('add_new_search_space')}</span>
 										</div>
 									</Link>
 								</Tilt>

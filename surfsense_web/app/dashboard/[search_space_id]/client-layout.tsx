@@ -3,7 +3,8 @@
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
@@ -11,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function DashboardClientLayout({
 	children,
@@ -23,6 +25,7 @@ export function DashboardClientLayout({
 	navSecondary: any[];
 	navMain: any[];
 }) {
+	const t = useTranslations('dashboard');
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchSpaceIdNum = Number(searchSpaceId);
@@ -32,6 +35,26 @@ export function DashboardClientLayout({
 
 	// Skip onboarding check if we're already on the onboarding page
 	const isOnboardingPage = pathname?.includes("/onboard");
+
+	// Translate navigation items
+	const tNavMenu = useTranslations('nav_menu');
+	const translatedNavMain = useMemo(() => {
+		return navMain.map((item) => ({
+			...item,
+			title: tNavMenu(item.title.toLowerCase().replace(/ /g, '_')),
+			items: item.items?.map((subItem: any) => ({
+				...subItem,
+				title: tNavMenu(subItem.title.toLowerCase().replace(/ /g, '_')),
+			})),
+		}));
+	}, [navMain, tNavMenu]);
+
+	const translatedNavSecondary = useMemo(() => {
+		return navSecondary.map((item) => ({
+			...item,
+			title: item.title === 'All Search Spaces' ? tNavMenu('all_search_spaces') : item.title,
+		}));
+	}, [navSecondary, tNavMenu]);
 
 	const [open, setOpen] = useState<boolean>(() => {
 		try {
@@ -75,8 +98,8 @@ export function DashboardClientLayout({
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">Loading Configuration</CardTitle>
-						<CardDescription>Checking your LLM preferences...</CardDescription>
+						<CardTitle className="text-xl font-medium">{t('loading_config')}</CardTitle>
+						<CardDescription>{t('checking_llm_prefs')}</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center py-6">
 						<Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -93,9 +116,9 @@ export function DashboardClientLayout({
 				<Card className="w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-xl font-medium text-destructive">
-							Configuration Error
+							{t('config_error')}
 						</CardTitle>
-						<CardDescription>Failed to load your LLM configuration</CardDescription>
+						<CardDescription>{t('failed_load_llm_config')}</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<p className="text-sm text-muted-foreground">{error}</p>
@@ -110,8 +133,8 @@ export function DashboardClientLayout({
 			{/* Use AppSidebarProvider which fetches user, search space, and recent chats */}
 			<AppSidebarProvider
 				searchSpaceId={searchSpaceId}
-				navSecondary={navSecondary}
-				navMain={navMain}
+				navSecondary={translatedNavSecondary}
+				navMain={translatedNavMain}
 			/>
 			<SidebarInset>
 				<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
@@ -121,7 +144,10 @@ export function DashboardClientLayout({
 							<Separator orientation="vertical" className="h-6" />
 							<DashboardBreadcrumb />
 						</div>
-						<ThemeTogglerComponent />
+						<div className="flex items-center gap-2">
+							<LanguageSwitcher />
+							<ThemeTogglerComponent />
+						</div>
 					</div>
 				</header>
 				{children}
