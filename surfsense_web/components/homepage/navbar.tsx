@@ -12,9 +12,9 @@ export const Navbar = () => {
 	const [isScrolled, setIsScrolled] = useState(false);
 
 	const navItems = [
-		{ name: "Home", link: "/" },
+		// { name: "Home", link: "/" },
 		{ name: "Pricing", link: "/pricing" },
-		{ name: "Sign In", link: "/login" },
+		// { name: "Sign In", link: "/login" },
 		{ name: "Docs", link: "/docs" },
 	];
 
@@ -99,10 +99,10 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 				</Link>
 				<ThemeTogglerComponent />
 				<Link
-					href="/contact"
+					href="/login"
 					className="hidden rounded-full bg-black px-8 py-2 text-sm font-bold text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] md:block dark:bg-white dark:text-black"
 				>
-					Book a call
+					Sign In
 				</Link>
 			</div>
 		</motion.div>
@@ -188,10 +188,10 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 								<ThemeTogglerComponent />
 							</div>
 							<Link
-								href="/contact"
+								href="/login"
 								className="w-full rounded-lg bg-black px-8 py-2 font-medium text-white shadow-[0px_-2px_0px_0px_rgba(255,255,255,0.4)_inset] dark:bg-white dark:text-black text-center touch-manipulation"
 							>
-								Book a call
+								Sign In
 							</Link>
 						</motion.div>
 					)}
