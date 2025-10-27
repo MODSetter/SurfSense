@@ -75,7 +75,7 @@ export function Pricing({
 				<p className="text-muted-foreground text-lg whitespace-pre-line">{description}</p>
 			</div>
 
-			<div className="flex justify-center mb-10">
+			{/* <div className="flex justify-center mb-10">
 				<label
 					htmlFor="billing-toggle"
 					className="relative inline-flex items-center cursor-pointer"
@@ -92,7 +92,7 @@ export function Pricing({
 				<span className="ml-2 font-semibold">
 					Annual billing <span className="text-primary">(Save 20%)</span>
 				</span>
-			</div>
+			</div> */}
 
 			<div
 				className={cn(
