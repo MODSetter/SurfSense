@@ -19,7 +19,7 @@ export function usePodcast() {
 				throw new Error(errorData.detail || "Failed to fetch podcast");
 			}
 
-			return (await response.json()) as PodcastItem;
+			return (await response.json()) as PodcastItem | null;
 		} catch (err: any) {
 			console.error("Error fetching podcast:", err);
 			throw err;

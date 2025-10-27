@@ -289,7 +289,7 @@ async def stream_podcast(
         ) from e
 
 
-@router.get("/podcasts/by-chat/{chat_id}", response_model=PodcastRead)
+@router.get("/podcasts/by-chat/{chat_id}", response_model=PodcastRead | None)
 async def get_podcast_by_chat_id(
     chat_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -303,12 +303,6 @@ async def get_podcast_by_chat_id(
             .filter(Podcast.chat_id == chat_id, SearchSpace.user_id == user.id)
         )
         podcast = result.scalars().first()
-
-        if not podcast:
-            raise HTTPException(
-                status_code=404,
-                detail="Podcast not found or you don't have permission to access it",
-            )
 
         return podcast
     except HTTPException as he:
