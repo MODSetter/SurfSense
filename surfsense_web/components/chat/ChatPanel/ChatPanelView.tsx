@@ -64,10 +64,16 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 							</div>
 						)}
 
-						{/* Generate/Regenerate button */}
-						<button
-							type="button"
+						<div
+							role="button"
+							tabIndex={0}
 							onClick={handleGeneratePost}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									handleGeneratePost();
+								}
+							}}
 							className={cn(
 								"w-full space-y-3 rounded-xl p-3 transition-colors",
 								podcastIsStale
@@ -86,7 +92,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 							<p className="text-sm font-medium text-left">
 								{podcastIsStale ? "Regenerate Podcast" : "Generate Podcast"}
 							</p>
-						</button>
+						</div>
 					</div>
 				) : (
 					<button
