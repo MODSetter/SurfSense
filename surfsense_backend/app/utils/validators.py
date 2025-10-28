@@ -201,7 +201,7 @@ def validate_research_mode(research_mode: Any) -> str:
     if not normalized_mode:
         raise HTTPException(status_code=400, detail="research_mode cannot be empty")
 
-    valid_modes = ["REPORT_GENERAL", "REPORT_DEEP", "REPORT_DEEPER", "QNA"]
+    valid_modes = ["QNA"]
     if normalized_mode not in valid_modes:
         raise HTTPException(
             status_code=400,

@@ -2,17 +2,17 @@
 
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import type React from "react";
-import { useEffect, useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import type React from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function DashboardClientLayout({
 	children,
@@ -25,7 +25,7 @@ export function DashboardClientLayout({
 	navSecondary: any[];
 	navMain: any[];
 }) {
-	const t = useTranslations('dashboard');
+	const t = useTranslations("dashboard");
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchSpaceIdNum = Number(searchSpaceId);
@@ -37,14 +37,14 @@ export function DashboardClientLayout({
 	const isOnboardingPage = pathname?.includes("/onboard");
 
 	// Translate navigation items
-	const tNavMenu = useTranslations('nav_menu');
+	const tNavMenu = useTranslations("nav_menu");
 	const translatedNavMain = useMemo(() => {
 		return navMain.map((item) => ({
 			...item,
-			title: tNavMenu(item.title.toLowerCase().replace(/ /g, '_')),
+			title: tNavMenu(item.title.toLowerCase().replace(/ /g, "_")),
 			items: item.items?.map((subItem: any) => ({
 				...subItem,
-				title: tNavMenu(subItem.title.toLowerCase().replace(/ /g, '_')),
+				title: tNavMenu(subItem.title.toLowerCase().replace(/ /g, "_")),
 			})),
 		}));
 	}, [navMain, tNavMenu]);
@@ -52,7 +52,7 @@ export function DashboardClientLayout({
 	const translatedNavSecondary = useMemo(() => {
 		return navSecondary.map((item) => ({
 			...item,
-			title: item.title === 'All Search Spaces' ? tNavMenu('all_search_spaces') : item.title,
+			title: item.title === "All Search Spaces" ? tNavMenu("all_search_spaces") : item.title,
 		}));
 	}, [navSecondary, tNavMenu]);
 
@@ -98,8 +98,8 @@ export function DashboardClientLayout({
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">{t('loading_config')}</CardTitle>
-						<CardDescription>{t('checking_llm_prefs')}</CardDescription>
+						<CardTitle className="text-xl font-medium">{t("loading_config")}</CardTitle>
+						<CardDescription>{t("checking_llm_prefs")}</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center py-6">
 						<Loader2 className="h-12 w-12 text-primary animate-spin" />
@@ -116,9 +116,9 @@ export function DashboardClientLayout({
 				<Card className="w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-xl font-medium text-destructive">
-							{t('config_error')}
+							{t("config_error")}
 						</CardTitle>
-						<CardDescription>{t('failed_load_llm_config')}</CardDescription>
+						<CardDescription>{t("failed_load_llm_config")}</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<p className="text-sm text-muted-foreground">{error}</p>

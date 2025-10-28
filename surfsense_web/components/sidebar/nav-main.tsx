@@ -1,8 +1,8 @@
 "use client";
 
 import { ChevronRight, type LucideIcon } from "lucide-react";
-import { useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -29,36 +29,36 @@ interface NavItem {
 }
 
 export function NavMain({ items }: { items: NavItem[] }) {
-	const t = useTranslations('nav_menu');
-	
+	const t = useTranslations("nav_menu");
+
 	// Translation function that handles both exact matches and fallback to original
 	const translateTitle = (title: string): string => {
 		const titleMap: Record<string, string> = {
-			'Researcher': 'researcher',
-			'Manage LLMs': 'manage_llms',
-			'Documents': 'documents',
-			'Upload Documents': 'upload_documents',
-			'Add Webpages': 'add_webpages',
-			'Add Youtube Videos': 'add_youtube',
-			'Manage Documents': 'manage_documents',
-			'Connectors': 'connectors',
-			'Add Connector': 'add_connector',
-			'Manage Connectors': 'manage_connectors',
-			'Podcasts': 'podcasts',
-			'Logs': 'logs',
-			'Platform': 'platform',
+			Researcher: "researcher",
+			"Manage LLMs": "manage_llms",
+			Documents: "documents",
+			"Upload Documents": "upload_documents",
+			"Add Webpages": "add_webpages",
+			"Add Youtube Videos": "add_youtube",
+			"Manage Documents": "manage_documents",
+			Connectors: "connectors",
+			"Add Connector": "add_connector",
+			"Manage Connectors": "manage_connectors",
+			Podcasts: "podcasts",
+			Logs: "logs",
+			Platform: "platform",
 		};
-		
+
 		const key = titleMap[title];
 		return key ? t(key) : title;
 	};
-	
+
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);
 
 	return (
 		<SidebarGroup>
-			<SidebarGroupLabel>{translateTitle('Platform')}</SidebarGroupLabel>
+			<SidebarGroupLabel>{translateTitle("Platform")}</SidebarGroupLabel>
 			<SidebarMenu>
 				{memoizedItems.map((item, index) => {
 					const translatedTitle = translateTitle(item.title);

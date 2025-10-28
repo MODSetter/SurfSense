@@ -28,8 +28,6 @@ class State:
     chat_history: list[Any] | None = field(default_factory=list)
 
     reformulated_query: str | None = field(default=None)
-    # Using field to explicitly mark as part of state
-    answer_outline: Any | None = field(default=None)
     further_questions: Any | None = field(default=None)
 
     # Temporary field to hold reranked documents from sub-agents for further question generation

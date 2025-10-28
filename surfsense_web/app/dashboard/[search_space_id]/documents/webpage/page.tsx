@@ -3,9 +3,9 @@
 import { type Tag, TagInput } from "emblor";
 import { Globe, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
 
 export default function WebpageCrawler() {
-	const t = useTranslations('add_webpage');
+	const t = useTranslations("add_webpage");
 	const params = useParams();
 	const router = useRouter();
 	const search_space_id = params.search_space_id as string;
@@ -40,14 +40,14 @@ export default function WebpageCrawler() {
 	const handleSubmit = async () => {
 		// Validate that we have at least one URL
 		if (urlTags.length === 0) {
-			setError(t('error_no_url'));
+			setError(t("error_no_url"));
 			return;
 		}
 
 		// Validate all URLs
 		const invalidUrls = urlTags.filter((tag) => !isValidUrl(tag.text));
 		if (invalidUrls.length > 0) {
-			setError(t('error_invalid_urls', { urls: invalidUrls.map((tag) => tag.text).join(", ") }));
+			setError(t("error_invalid_urls", { urls: invalidUrls.map((tag) => tag.text).join(", ") }));
 			return;
 		}
 
@@ -55,8 +55,8 @@ export default function WebpageCrawler() {
 		setIsSubmitting(true);
 
 		try {
-			toast(t('crawling_toast'), {
-				description: t('crawling_toast_desc'),
+			toast(t("crawling_toast"), {
+				description: t("crawling_toast_desc"),
 			});
 
 			// Extract URLs from tags
@@ -85,16 +85,16 @@ export default function WebpageCrawler() {
 
 			await response.json();
 
-			toast(t('success_toast'), {
-				description: t('success_toast_desc'),
+			toast(t("success_toast"), {
+				description: t("success_toast_desc"),
 			});
 
 			// Redirect to documents page
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
-			setError(error.message || t('error_generic'));
-			toast(t('error_toast'), {
-				description: `${t('error_toast_desc')}: ${error.message}`,
+			setError(error.message || t("error_generic"));
+			toast(t("error_toast"), {
+				description: `${t("error_toast_desc")}: ${error.message}`,
 			});
 		} finally {
 			setIsSubmitting(false);
@@ -105,16 +105,16 @@ export default function WebpageCrawler() {
 	const handleAddTag = (text: string) => {
 		// Basic URL validation
 		if (!isValidUrl(text)) {
-			toast(t('invalid_url_toast'), {
-				description: t('invalid_url_toast_desc'),
+			toast(t("invalid_url_toast"), {
+				description: t("invalid_url_toast_desc"),
 			});
 			return;
 		}
 
 		// Check for duplicates
 		if (urlTags.some((tag) => tag.text === text)) {
-			toast(t('duplicate_url_toast'), {
-				description: t('duplicate_url_toast_desc'),
+			toast(t("duplicate_url_toast"), {
+				description: t("duplicate_url_toast_desc"),
 			});
 			return;
 		}
@@ -134,19 +134,19 @@ export default function WebpageCrawler() {
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
 						<Globe className="h-5 w-5" />
-						{t('title')}
+						{t("title")}
 					</CardTitle>
-					<CardDescription>{t('subtitle')}</CardDescription>
+					<CardDescription>{t("subtitle")}</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="url-input">{t('label')}</Label>
+							<Label htmlFor="url-input">{t("label")}</Label>
 							<TagInput
 								id="url-input"
 								tags={urlTags}
 								setTags={setUrlTags}
-								placeholder={t('placeholder')}
+								placeholder={t("placeholder")}
 								onAddTag={handleAddTag}
 								styleClasses={{
 									inlineTagsContainer:
@@ -161,20 +161,18 @@ export default function WebpageCrawler() {
 								activeTagIndex={activeTagIndex}
 								setActiveTagIndex={setActiveTagIndex}
 							/>
-							<p className="text-xs text-muted-foreground mt-1">
-								{t('hint')}
-							</p>
+							<p className="text-xs text-muted-foreground mt-1">{t("hint")}</p>
 						</div>
 
 						{error && <div className="text-sm text-red-500 mt-2">{error}</div>}
 
 						<div className="bg-muted/50 rounded-lg p-4 text-sm">
-							<h4 className="font-medium mb-2">{t('tips_title')}</h4>
+							<h4 className="font-medium mb-2">{t("tips_title")}</h4>
 							<ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-								<li>{t('tip_1')}</li>
-								<li>{t('tip_2')}</li>
-								<li>{t('tip_3')}</li>
-								<li>{t('tip_4')}</li>
+								<li>{t("tip_1")}</li>
+								<li>{t("tip_2")}</li>
+								<li>{t("tip_3")}</li>
+								<li>{t("tip_4")}</li>
 							</ul>
 						</div>
 					</div>
@@ -184,16 +182,16 @@ export default function WebpageCrawler() {
 						variant="outline"
 						onClick={() => router.push(`/dashboard/${search_space_id}/documents`)}
 					>
-						{t('cancel')}
+						{t("cancel")}
 					</Button>
 					<Button onClick={handleSubmit} disabled={isSubmitting || urlTags.length === 0}>
 						{isSubmitting ? (
 							<>
 								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								{t('submitting')}
+								{t("submitting")}
 							</>
 						) : (
-							t('submit')
+							t("submit")
 						)}
 					</Button>
 				</CardFooter>

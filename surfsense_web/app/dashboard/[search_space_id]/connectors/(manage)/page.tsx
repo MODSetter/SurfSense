@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -63,12 +63,12 @@ import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors"
 import { cn } from "@/lib/utils";
 
 export default function ConnectorsPage() {
-	const t = useTranslations('connectors');
-	const tCommon = useTranslations('common');
-	
+	const t = useTranslations("connectors");
+	const tCommon = useTranslations("common");
+
 	// Helper function to format date with time
 	const formatDateTime = (dateString: string | null): string => {
-		if (!dateString) return t('never');
+		if (!dateString) return t("never");
 
 		const date = new Date(dateString);
 		return new Intl.DateTimeFormat("en-US", {
@@ -107,7 +107,7 @@ export default function ConnectorsPage() {
 
 	useEffect(() => {
 		if (error) {
-			toast.error(t('failed_load'));
+			toast.error(t("failed_load"));
 			console.error("Error fetching connectors:", error);
 		}
 	}, [error, t]);
@@ -118,10 +118,10 @@ export default function ConnectorsPage() {
 
 		try {
 			await deleteConnector(connectorToDelete);
-			toast.success(t('delete_success'));
+			toast.success(t("delete_success"));
 		} catch (error) {
 			console.error("Error deleting connector:", error);
-			toast.error(t('delete_failed'));
+			toast.error(t("delete_failed"));
 		} finally {
 			setConnectorToDelete(null);
 		}
@@ -145,10 +145,10 @@ export default function ConnectorsPage() {
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 			await indexConnector(selectedConnectorForIndexing, searchSpaceId, startDateStr, endDateStr);
-			toast.success(t('indexing_started'));
+			toast.success(t("indexing_started"));
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
-			toast.error(error instanceof Error ? error.message : t('indexing_failed'));
+			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
 		} finally {
 			setIndexingConnectorId(null);
 			setSelectedConnectorForIndexing(null);
@@ -162,10 +162,10 @@ export default function ConnectorsPage() {
 		setIndexingConnectorId(connectorId);
 		try {
 			await indexConnector(connectorId, searchSpaceId);
-			toast.success(t('indexing_started'));
+			toast.success(t("indexing_started"));
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
-			toast.error(error instanceof Error ? error.message : t('indexing_failed'));
+			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
 		} finally {
 			setIndexingConnectorId(null);
 		}
@@ -258,21 +258,19 @@ export default function ConnectorsPage() {
 				className="mb-8 flex items-center justify-between"
 			>
 				<div>
-					<h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
-					<p className="text-muted-foreground mt-2">
-						{t('subtitle')}
-					</p>
+					<h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+					<p className="text-muted-foreground mt-2">{t("subtitle")}</p>
 				</div>
 				<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}>
 					<Plus className="mr-2 h-4 w-4" />
-					{t('add_connector')}
+					{t("add_connector")}
 				</Button>
 			</motion.div>
 
 			<Card>
 				<CardHeader className="pb-3">
-					<CardTitle>{t('your_connectors')}</CardTitle>
-					<CardDescription>{t('view_manage')}</CardDescription>
+					<CardTitle>{t("your_connectors")}</CardTitle>
+					<CardDescription>{t("view_manage")}</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
@@ -284,13 +282,11 @@ export default function ConnectorsPage() {
 						</div>
 					) : connectors.length === 0 ? (
 						<div className="text-center py-12">
-							<h3 className="text-lg font-medium mb-2">{t('no_connectors')}</h3>
-							<p className="text-muted-foreground mb-6">
-								{t('no_connectors_desc')}
-							</p>
+							<h3 className="text-lg font-medium mb-2">{t("no_connectors")}</h3>
+							<p className="text-muted-foreground mb-6">{t("no_connectors_desc")}</p>
 							<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}>
 								<Plus className="mr-2 h-4 w-4" />
-								{t('add_first')}
+								{t("add_first")}
 							</Button>
 						</div>
 					) : (
@@ -298,11 +294,11 @@ export default function ConnectorsPage() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>{t('name')}</TableHead>
-										<TableHead>{t('type')}</TableHead>
-										<TableHead>{t('last_indexed')}</TableHead>
-										<TableHead>{t('periodic')}</TableHead>
-										<TableHead className="text-right">{t('actions')}</TableHead>
+										<TableHead>{t("name")}</TableHead>
+										<TableHead>{t("type")}</TableHead>
+										<TableHead>{t("last_indexed")}</TableHead>
+										<TableHead>{t("periodic")}</TableHead>
+										<TableHead className="text-right">{t("actions")}</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -313,7 +309,7 @@ export default function ConnectorsPage() {
 											<TableCell>
 												{connector.is_indexable
 													? formatDateTime(connector.last_indexed_at)
-													: t('not_indexable')}
+													: t("not_indexable")}
 											</TableCell>
 											<TableCell>
 												{connector.is_indexable ? (
@@ -368,11 +364,11 @@ export default function ConnectorsPage() {
 																			) : (
 																				<CalendarIcon className="h-4 w-4" />
 																			)}
-																			<span className="sr-only">{t('index_date_range')}</span>
+																			<span className="sr-only">{t("index_date_range")}</span>
 																		</Button>
 																	</TooltipTrigger>
 																	<TooltipContent>
-																		<p>{t('index_date_range')}</p>
+																		<p>{t("index_date_range")}</p>
 																	</TooltipContent>
 																</Tooltip>
 															</TooltipProvider>
@@ -390,11 +386,11 @@ export default function ConnectorsPage() {
 																			) : (
 																				<RefreshCw className="h-4 w-4" />
 																			)}
-																			<span className="sr-only">{t('quick_index')}</span>
+																			<span className="sr-only">{t("quick_index")}</span>
 																		</Button>
 																	</TooltipTrigger>
 																	<TooltipContent>
-																		<p>{t('quick_index_auto')}</p>
+																		<p>{t("quick_index_auto")}</p>
 																	</TooltipContent>
 																</Tooltip>
 															</TooltipProvider>
@@ -429,7 +425,7 @@ export default function ConnectorsPage() {
 														}
 													>
 														<Edit className="h-4 w-4" />
-														<span className="sr-only">{tCommon('edit')}</span>
+														<span className="sr-only">{tCommon("edit")}</span>
 													</Button>
 													<AlertDialog>
 														<AlertDialogTrigger asChild>
@@ -440,25 +436,25 @@ export default function ConnectorsPage() {
 																onClick={() => setConnectorToDelete(connector.id)}
 															>
 																<Trash2 className="h-4 w-4" />
-																<span className="sr-only">{tCommon('delete')}</span>
+																<span className="sr-only">{tCommon("delete")}</span>
 															</Button>
 														</AlertDialogTrigger>
 														<AlertDialogContent>
 															<AlertDialogHeader>
-																<AlertDialogTitle>{t('delete_connector')}</AlertDialogTitle>
+																<AlertDialogTitle>{t("delete_connector")}</AlertDialogTitle>
 																<AlertDialogDescription>
-																	{t('delete_confirm')}
+																	{t("delete_confirm")}
 																</AlertDialogDescription>
 															</AlertDialogHeader>
 															<AlertDialogFooter>
 																<AlertDialogCancel onClick={() => setConnectorToDelete(null)}>
-																	{tCommon('cancel')}
+																	{tCommon("cancel")}
 																</AlertDialogCancel>
 																<AlertDialogAction
 																	className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 																	onClick={handleDeleteConnector}
 																>
-																	{tCommon('delete')}
+																	{tCommon("delete")}
 																</AlertDialogAction>
 															</AlertDialogFooter>
 														</AlertDialogContent>
@@ -478,15 +474,13 @@ export default function ConnectorsPage() {
 			<Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
 				<DialogContent className="sm:max-w-[500px]">
 					<DialogHeader>
-						<DialogTitle>{t('select_date_range')}</DialogTitle>
-						<DialogDescription>
-							{t('select_date_range_desc')}
-						</DialogDescription>
+						<DialogTitle>{t("select_date_range")}</DialogTitle>
+						<DialogDescription>{t("select_date_range_desc")}</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<Label htmlFor="start-date">{t('start_date')}</Label>
+								<Label htmlFor="start-date">{t("start_date")}</Label>
 								<Popover>
 									<PopoverTrigger asChild>
 										<Button
@@ -498,7 +492,7 @@ export default function ConnectorsPage() {
 											)}
 										>
 											<CalendarIcon className="mr-2 h-4 w-4" />
-											{startDate ? format(startDate, "PPP") : t('pick_date')}
+											{startDate ? format(startDate, "PPP") : t("pick_date")}
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-auto p-0" align="start">
@@ -512,7 +506,7 @@ export default function ConnectorsPage() {
 								</Popover>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="end-date">{t('end_date')}</Label>
+								<Label htmlFor="end-date">{t("end_date")}</Label>
 								<Popover>
 									<PopoverTrigger asChild>
 										<Button
@@ -524,7 +518,7 @@ export default function ConnectorsPage() {
 											)}
 										>
 											<CalendarIcon className="mr-2 h-4 w-4" />
-											{endDate ? format(endDate, "PPP") : t('pick_date')}
+											{endDate ? format(endDate, "PPP") : t("pick_date")}
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-auto p-0" align="start">
@@ -542,7 +536,7 @@ export default function ConnectorsPage() {
 									setEndDate(undefined);
 								}}
 							>
-								{t('clear_dates')}
+								{t("clear_dates")}
 							</Button>
 							<Button
 								variant="outline"
@@ -554,7 +548,7 @@ export default function ConnectorsPage() {
 									setEndDate(today);
 								}}
 							>
-								{t('last_30_days')}
+								{t("last_30_days")}
 							</Button>
 							<Button
 								variant="outline"
@@ -566,7 +560,7 @@ export default function ConnectorsPage() {
 									setEndDate(today);
 								}}
 							>
-								{t('last_year')}
+								{t("last_year")}
 							</Button>
 						</div>
 					</div>
@@ -580,9 +574,9 @@ export default function ConnectorsPage() {
 								setEndDate(undefined);
 							}}
 						>
-							{tCommon('cancel')}
+							{tCommon("cancel")}
 						</Button>
-						<Button onClick={handleIndexConnector}>{t('start_indexing')}</Button>
+						<Button onClick={handleIndexConnector}>{t("start_indexing")}</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

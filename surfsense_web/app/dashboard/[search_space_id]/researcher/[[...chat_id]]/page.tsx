@@ -3,7 +3,6 @@
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import type { ResearchMode } from "@/components/chat";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import type { Document } from "@/hooks/use-documents";
@@ -22,7 +21,6 @@ export default function ResearcherPage() {
 		searchMode,
 		setSearchMode,
 		researchMode,
-		setResearchMode,
 		selectedConnectors,
 		setSelectedConnectors,
 		selectedDocuments,
@@ -52,7 +50,7 @@ export default function ResearcherPage() {
 		selectedDocuments: Document[];
 		selectedConnectors: string[];
 		searchMode: "DOCUMENTS" | "CHUNKS";
-		researchMode: ResearchMode;
+		researchMode: "QNA"; // Always QNA mode
 	}
 
 	const getChatStateStorageKey = (searchSpaceId: string, chatId: string) =>
@@ -132,17 +130,10 @@ export default function ResearcherPage() {
 				setSelectedDocuments(restoredState.selectedDocuments);
 				setSelectedConnectors(restoredState.selectedConnectors);
 				setSearchMode(restoredState.searchMode);
-				setResearchMode(restoredState.researchMode);
+				// researchMode is always "QNA", no need to restore
 			}
 		}
-	}, [
-		chatIdParam,
-		search_space_id,
-		setSelectedDocuments,
-		setSelectedConnectors,
-		setSearchMode,
-		setResearchMode,
-	]);
+	}, [chatIdParam, search_space_id, setSelectedDocuments, setSelectedConnectors, setSearchMode]);
 
 	const loadChatData = async (chatId: string) => {
 		try {
@@ -150,9 +141,7 @@ export default function ResearcherPage() {
 			if (!chatData) return;
 
 			// Update configuration from chat data
-			if (chatData.type) {
-				setResearchMode(chatData.type as ResearchMode);
-			}
+			// researchMode is always "QNA", no need to set from chat data
 
 			if (chatData.initial_connectors && Array.isArray(chatData.initial_connectors)) {
 				setSelectedConnectors(chatData.initial_connectors);
@@ -209,8 +198,6 @@ export default function ResearcherPage() {
 			selectedConnectors={selectedConnectors}
 			searchMode={searchMode}
 			onSearchModeChange={setSearchMode}
-			researchMode={researchMode}
-			onResearchModeChange={setResearchMode}
 		/>
 	);
 }

@@ -2,9 +2,9 @@
 
 import { AlertCircle, Bot, Plus, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ export function AddProviderStep({
 	onConfigCreated,
 	onConfigDeleted,
 }: AddProviderStepProps) {
-	const t = useTranslations('onboard');
+	const t = useTranslations("onboard");
 	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [formData, setFormData] = useState<CreateLLMConfig>({
@@ -95,15 +95,13 @@ export function AddProviderStep({
 			{/* Info Alert */}
 			<Alert>
 				<AlertCircle className="h-4 w-4" />
-				<AlertDescription>
-					{t('add_provider_instruction')}
-				</AlertDescription>
+				<AlertDescription>{t("add_provider_instruction")}</AlertDescription>
 			</Alert>
 
 			{/* Existing Configurations */}
 			{llmConfigs.length > 0 && (
 				<div className="space-y-4">
-					<h3 className="text-lg font-semibold">{t('your_llm_configs')}</h3>
+					<h3 className="text-lg font-semibold">{t("your_llm_configs")}</h3>
 					<div className="grid gap-4">
 						{llmConfigs.map((config) => (
 							<motion.div
@@ -122,9 +120,9 @@ export function AddProviderStep({
 													<Badge variant="secondary">{config.provider}</Badge>
 												</div>
 												<p className="text-sm text-muted-foreground">
-													{t('model')}: {config.model_name}
-													{config.language && ` • ${t('language')}: ${config.language}`}
-													{config.api_base && ` • ${t('base')}: ${config.api_base}`}
+													{t("model")}: {config.model_name}
+													{config.language && ` • ${t("language")}: ${config.language}`}
+													{config.api_base && ` • ${t("base")}: ${config.api_base}`}
 												</p>
 											</div>
 											<Button
@@ -154,32 +152,28 @@ export function AddProviderStep({
 				<Card className="border-dashed border-2 hover:border-primary/50 transition-colors">
 					<CardContent className="flex flex-col items-center justify-center py-12">
 						<Plus className="w-12 h-12 text-muted-foreground mb-4" />
-						<h3 className="text-lg font-semibold mb-2">{t('add_provider_title')}</h3>
-						<p className="text-muted-foreground text-center mb-4">
-							{t('add_provider_subtitle')}
-						</p>
+						<h3 className="text-lg font-semibold mb-2">{t("add_provider_title")}</h3>
+						<p className="text-muted-foreground text-center mb-4">{t("add_provider_subtitle")}</p>
 						<Button onClick={() => setIsAddingNew(true)}>
 							<Plus className="w-4 h-4 mr-2" />
-							{t('add_provider_button')}
+							{t("add_provider_button")}
 						</Button>
 					</CardContent>
 				</Card>
 			) : (
 				<Card>
 					<CardHeader>
-						<CardTitle>{t('add_new_llm_provider')}</CardTitle>
-						<CardDescription>
-							{t('configure_new_provider')}
-						</CardDescription>
+						<CardTitle>{t("add_new_llm_provider")}</CardTitle>
+						<CardDescription>{t("configure_new_provider")}</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<form onSubmit={handleSubmit} className="space-y-4">
 							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 								<div className="space-y-2">
-									<Label htmlFor="name">{t('config_name_required')}</Label>
+									<Label htmlFor="name">{t("config_name_required")}</Label>
 									<Input
 										id="name"
-										placeholder={t('config_name_placeholder')}
+										placeholder={t("config_name_placeholder")}
 										value={formData.name}
 										onChange={(e) => handleInputChange("name", e.target.value)}
 										required
@@ -187,13 +181,13 @@ export function AddProviderStep({
 								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="provider">{t('provider_required')}</Label>
+									<Label htmlFor="provider">{t("provider_required")}</Label>
 									<Select
 										value={formData.provider}
 										onValueChange={(value) => handleInputChange("provider", value)}
 									>
 										<SelectTrigger>
-											<SelectValue placeholder={t('provider_placeholder')} />
+											<SelectValue placeholder={t("provider_placeholder")} />
 										</SelectTrigger>
 										<SelectContent>
 											{LLM_PROVIDERS.map((provider) => (
@@ -207,13 +201,13 @@ export function AddProviderStep({
 
 								{/* language */}
 								<div className="space-y-2">
-									<Label htmlFor="language">{t('language_optional')}</Label>
+									<Label htmlFor="language">{t("language_optional")}</Label>
 									<Select
 										value={formData.language || "English"}
 										onValueChange={(value) => handleInputChange("language", value)}
 									>
 										<SelectTrigger>
-											<SelectValue placeholder={t('language_placeholder')} />
+											<SelectValue placeholder={t("language_placeholder")} />
 										</SelectTrigger>
 										<SelectContent>
 											{LANGUAGES.map((language) => (
@@ -228,10 +222,10 @@ export function AddProviderStep({
 
 							{formData.provider === "CUSTOM" && (
 								<div className="space-y-2">
-									<Label htmlFor="custom_provider">{t('custom_provider_name')}</Label>
+									<Label htmlFor="custom_provider">{t("custom_provider_name")}</Label>
 									<Input
 										id="custom_provider"
-										placeholder={t('custom_provider_placeholder')}
+										placeholder={t("custom_provider_placeholder")}
 										value={formData.custom_provider}
 										onChange={(e) => handleInputChange("custom_provider", e.target.value)}
 										required
@@ -240,27 +234,27 @@ export function AddProviderStep({
 							)}
 
 							<div className="space-y-2">
-								<Label htmlFor="model_name">{t('model_name_required')}</Label>
+								<Label htmlFor="model_name">{t("model_name_required")}</Label>
 								<Input
 									id="model_name"
-									placeholder={selectedProvider?.example || t('model_name_placeholder')}
+									placeholder={selectedProvider?.example || t("model_name_placeholder")}
 									value={formData.model_name}
 									onChange={(e) => handleInputChange("model_name", e.target.value)}
 									required
 								/>
 								{selectedProvider && (
 									<p className="text-xs text-muted-foreground">
-										{t('examples')}: {selectedProvider.example}
+										{t("examples")}: {selectedProvider.example}
 									</p>
 								)}
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="api_key">{t('api_key_required')}</Label>
+								<Label htmlFor="api_key">{t("api_key_required")}</Label>
 								<Input
 									id="api_key"
 									type="password"
-									placeholder={t('api_key_placeholder')}
+									placeholder={t("api_key_placeholder")}
 									value={formData.api_key}
 									onChange={(e) => handleInputChange("api_key", e.target.value)}
 									required
@@ -268,10 +262,10 @@ export function AddProviderStep({
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="api_base">{t('api_base_optional')}</Label>
+								<Label htmlFor="api_base">{t("api_base_optional")}</Label>
 								<Input
 									id="api_base"
-									placeholder={t('api_base_placeholder')}
+									placeholder={t("api_base_placeholder")}
 									value={formData.api_base}
 									onChange={(e) => handleInputChange("api_base", e.target.value)}
 								/>
@@ -287,7 +281,7 @@ export function AddProviderStep({
 
 							<div className="flex gap-2 pt-4">
 								<Button type="submit" disabled={isSubmitting}>
-									{isSubmitting ? t('adding') : t('add_provider')}
+									{isSubmitting ? t("adding") : t("add_provider")}
 								</Button>
 								<Button
 									type="button"
@@ -295,7 +289,7 @@ export function AddProviderStep({
 									onClick={() => setIsAddingNew(false)}
 									disabled={isSubmitting}
 								>
-									{t('cancel')}
+									{t("cancel")}
 								</Button>
 							</div>
 						</form>

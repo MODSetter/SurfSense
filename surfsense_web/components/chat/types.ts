@@ -47,4 +47,4 @@ export interface ToolInvocationUIPart {
 	toolInvocation: ToolInvocation;
 }
 
-export type ResearchMode = "QNA" | "REPORT_GENERAL" | "REPORT_DEEP" | "REPORT_DEEPER";
+export type ResearchMode = "QNA";

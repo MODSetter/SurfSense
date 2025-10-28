@@ -9,8 +9,8 @@ import {
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -239,7 +239,7 @@ const cardVariants: Variants = {
 };
 
 export default function ConnectorsPage() {
-	const t = useTranslations('add_connector');
+	const t = useTranslations("add_connector");
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const [expandedCategories, setExpandedCategories] = useState<string[]>([
@@ -268,11 +268,9 @@ export default function ConnectorsPage() {
 				className="mb-12 text-center"
 			>
 				<h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
-					{t('title')}
+					{t("title")}
 				</h1>
-				<p className="text-muted-foreground mt-3 text-lg max-w-2xl mx-auto">
-					{t('subtitle')}
-				</p>
+				<p className="text-muted-foreground mt-3 text-lg max-w-2xl mx-auto">{t("subtitle")}</p>
 			</motion.div>
 
 			<motion.div
@@ -343,7 +341,7 @@ export default function ConnectorsPage() {
 																		variant="outline"
 																		className="text-xs bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800"
 																	>
-																		{t('coming_soon')}
+																		{t("coming_soon")}
 																	</Badge>
 																)}
 																{connector.status === "connected" && (
@@ -351,7 +349,7 @@ export default function ConnectorsPage() {
 																		variant="outline"
 																		className="text-xs bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
 																	>
-																		{t('connected')}
+																		{t("connected")}
 																	</Badge>
 																)}
 															</div>
@@ -359,7 +357,9 @@ export default function ConnectorsPage() {
 													</CardHeader>
 
 													<CardContent className="pb-4">
-														<p className="text-sm text-muted-foreground">{t(connector.description)}</p>
+														<p className="text-sm text-muted-foreground">
+															{t(connector.description)}
+														</p>
 													</CardContent>
 
 													<CardFooter className="mt-auto pt-2">
@@ -369,7 +369,7 @@ export default function ConnectorsPage() {
 																className="w-full"
 															>
 																<Button variant="default" className="w-full group">
-																	<span>{t('connect')}</span>
+																	<span>{t("connect")}</span>
 																	<motion.div
 																		className="ml-1"
 																		initial={{ x: 0 }}
@@ -387,7 +387,7 @@ export default function ConnectorsPage() {
 														)}
 														{connector.status === "coming-soon" && (
 															<Button variant="outline" disabled className="w-full opacity-70">
-																{t('coming_soon')}
+																{t("coming_soon")}
 															</Button>
 														)}
 														{connector.status === "connected" && (
@@ -395,7 +395,7 @@ export default function ConnectorsPage() {
 																variant="outline"
 																className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
 															>
-																{t('manage')}
+																{t("manage")}
 															</Button>
 														)}
 													</CardFooter>

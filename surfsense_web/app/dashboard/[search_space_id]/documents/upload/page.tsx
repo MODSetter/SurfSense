@@ -3,10 +3,10 @@
 import { CheckCircle2, FileType, Info, Tag, Upload, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ function GridPattern() {
 }
 
 export default function FileUploader() {
-	const t = useTranslations('upload_documents');
+	const t = useTranslations("upload_documents");
 	const params = useParams();
 	const search_space_id = params.search_space_id as string;
 
@@ -276,16 +276,16 @@ export default function FileUploader() {
 
 			await response.json();
 
-			toast(t('upload_initiated'), {
-				description: t('upload_initiated_desc'),
+			toast(t("upload_initiated"), {
+				description: t("upload_initiated_desc"),
 			});
 
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
 			setIsUploading(false);
 			setUploadProgress(0);
-			toast(t('upload_error'), {
-				description: `${t('upload_error_desc')}: ${error.message}`,
+			toast(t("upload_error"), {
+				description: `${t("upload_error_desc")}: ${error.message}`,
 			});
 		}
 	};
@@ -332,18 +332,14 @@ export default function FileUploader() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<Upload className="h-5 w-5" />
-								{t('title')}
+								{t("title")}
 							</CardTitle>
-							<CardDescription>
-								{t('subtitle')}
-							</CardDescription>
+							<CardDescription>{t("subtitle")}</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Alert>
 								<Info className="h-4 w-4" />
-								<AlertDescription>
-									{t('file_size_limit')}
-								</AlertDescription>
+								<AlertDescription>{t("file_size_limit")}</AlertDescription>
 							</Alert>
 						</CardContent>
 					</Card>
@@ -371,7 +367,7 @@ export default function FileUploader() {
 										className="flex flex-col items-center gap-4"
 									>
 										<Upload className="h-12 w-12 text-primary" />
-										<p className="text-lg font-medium text-primary">{t('drop_files')}</p>
+										<p className="text-lg font-medium text-primary">{t("drop_files")}</p>
 									</motion.div>
 								) : (
 									<motion.div
@@ -381,8 +377,8 @@ export default function FileUploader() {
 									>
 										<Upload className="h-12 w-12 text-muted-foreground" />
 										<div className="text-center">
-											<p className="text-lg font-medium">{t('drag_drop')}</p>
-											<p className="text-sm text-muted-foreground mt-1">{t('or_browse')}</p>
+											<p className="text-lg font-medium">{t("drag_drop")}</p>
+											<p className="text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
 										</div>
 									</motion.div>
 								)}
@@ -400,7 +396,7 @@ export default function FileUploader() {
 											if (input) input.click();
 										}}
 									>
-										{t('browse_files')}
+										{t("browse_files")}
 									</Button>
 								</div>
 							</div>
@@ -422,9 +418,9 @@ export default function FileUploader() {
 								<CardHeader>
 									<div className="flex items-center justify-between">
 										<div>
-											<CardTitle>{t('selected_files', { count: files.length })}</CardTitle>
+											<CardTitle>{t("selected_files", { count: files.length })}</CardTitle>
 											<CardDescription>
-												{t('total_size')}: {formatFileSize(getTotalFileSize())}
+												{t("total_size")}: {formatFileSize(getTotalFileSize())}
 											</CardDescription>
 										</div>
 										<Button
@@ -433,7 +429,7 @@ export default function FileUploader() {
 											onClick={() => setFiles([])}
 											disabled={isUploading}
 										>
-											{t('clear_all')}
+											{t("clear_all")}
 										</Button>
 									</div>
 								</CardHeader>
@@ -490,7 +486,7 @@ export default function FileUploader() {
 											<Separator />
 											<div className="space-y-2">
 												<div className="flex items-center justify-between text-sm">
-													<span>{t('uploading_files')}</span>
+													<span>{t("uploading_files")}</span>
 													<span>{Math.round(uploadProgress)}%</span>
 												</div>
 												<Progress value={uploadProgress} className="h-2" />
@@ -521,7 +517,7 @@ export default function FileUploader() {
 													>
 														<Upload className="h-5 w-5" />
 													</motion.div>
-													<span>{t('uploading')}</span>
+													<span>{t("uploading")}</span>
 												</motion.div>
 											) : (
 												<motion.div
@@ -530,9 +526,7 @@ export default function FileUploader() {
 													whileTap={{ scale: 0.98 }}
 												>
 													<CheckCircle2 className="h-5 w-5" />
-													<span>
-														{t('upload_button', { count: files.length })}
-													</span>
+													<span>{t("upload_button", { count: files.length })}</span>
 												</motion.div>
 											)}
 										</Button>
@@ -549,11 +543,9 @@ export default function FileUploader() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<Tag className="h-5 w-5" />
-								{t('supported_file_types')}
+								{t("supported_file_types")}
 							</CardTitle>
-							<CardDescription>
-								{t('file_types_desc')}
-							</CardDescription>
+							<CardDescription>{t("file_types_desc")}</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<div className="flex flex-wrap gap-2">

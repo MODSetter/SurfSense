@@ -39,7 +39,7 @@ export function PaginationControls({
 	canNext: boolean;
 	id: string;
 }) {
-	const t = useTranslations('documents');
+	const t = useTranslations("documents");
 	const start = total === 0 ? 0 : pageIndex * pageSize + 1;
 	const end = Math.min((pageIndex + 1) * pageSize, total);
 
@@ -52,7 +52,7 @@ export function PaginationControls({
 				transition={{ type: "spring", stiffness: 300, damping: 30 }}
 			>
 				<Label htmlFor={id} className="max-sm:sr-only">
-					{t('rows_per_page')}
+					{t("rows_per_page")}
 				</Label>
 				<Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(Number(v))}>
 					<SelectTrigger id={id} className="w-fit whitespace-nowrap">

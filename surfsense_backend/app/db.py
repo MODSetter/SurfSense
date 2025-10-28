@@ -76,9 +76,6 @@ class SearchSourceConnectorType(str, Enum):
 
 class ChatType(str, Enum):
     QNA = "QNA"
-    REPORT_GENERAL = "REPORT_GENERAL"
-    REPORT_DEEP = "REPORT_DEEP"
-    REPORT_DEEPER = "REPORT_DEEPER"
 
 
 class LiteLLMProvider(str, Enum):

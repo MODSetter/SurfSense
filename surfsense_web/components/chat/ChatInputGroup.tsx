@@ -4,7 +4,6 @@ import { ChatInput } from "@llamaindex/chat-ui";
 import { Brain, Check, FolderOpen, Zap } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { Suspense, useCallback, useState } from "react";
-import type { ResearchMode } from "@/components/chat";
 import { ConnectorButton as ConnectorButtonComponent } from "@/components/chat/ConnectorComponents";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Badge } from "@/components/ui/badge";
@@ -243,74 +242,6 @@ const SearchModeSelector = React.memo(
 
 SearchModeSelector.displayName = "SearchModeSelector";
 
-const ResearchModeSelector = React.memo(
-	({
-		researchMode,
-		onResearchModeChange,
-	}: {
-		researchMode?: ResearchMode;
-		onResearchModeChange?: (mode: ResearchMode) => void;
-	}) => {
-		const handleValueChange = React.useCallback(
-			(value: string) => {
-				onResearchModeChange?.(value as ResearchMode);
-			},
-			[onResearchModeChange]
-		);
-
-		// Memoize mode options to prevent recreation
-		const modeOptions = React.useMemo(
-			() => [
-				{ value: "QNA", label: "Q&A", shortLabel: "Q&A" },
-				{
-					value: "REPORT_GENERAL",
-					label: "General Report",
-					shortLabel: "General",
-				},
-				{
-					value: "REPORT_DEEP",
-					label: "Deep Report",
-					shortLabel: "Deep",
-				},
-				{
-					value: "REPORT_DEEPER",
-					label: "Deeper Report",
-					shortLabel: "Deeper",
-				},
-			],
-			[]
-		);
-
-		return (
-			<div className="flex items-center gap-1 sm:gap-2">
-				<span className="text-xs text-muted-foreground hidden sm:block">Mode:</span>
-				<Select value={researchMode} onValueChange={handleValueChange}>
-					<SelectTrigger className="w-auto min-w-[80px] sm:min-w-[120px] h-8 text-xs border-border bg-background hover:bg-muted/50 transition-colors duration-200 focus:ring-2 focus:ring-primary/20">
-						<SelectValue placeholder="Mode" className="text-xs" />
-					</SelectTrigger>
-					<SelectContent align="end" className="min-w-[140px]">
-						<div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b bg-muted/30">
-							Research Mode
-						</div>
-						{modeOptions.map((option) => (
-							<SelectItem
-								key={option.value}
-								value={option.value}
-								className="px-3 py-2 cursor-pointer hover:bg-accent/50 focus:bg-accent"
-							>
-								<span className="hidden sm:inline">{option.label}</span>
-								<span className="sm:hidden">{option.shortLabel}</span>
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</div>
-		);
-	}
-);
-
-ResearchModeSelector.displayName = "ResearchModeSelector";
-
 const LLMSelector = React.memo(() => {
 	const { search_space_id } = useParams();
 	const searchSpaceId = Number(search_space_id);
@@ -473,8 +404,6 @@ const CustomChatInputOptions = React.memo(
 		selectedConnectors,
 		searchMode,
 		onSearchModeChange,
-		researchMode,
-		onResearchModeChange,
 	}: {
 		onDocumentSelectionChange?: (documents: Document[]) => void;
 		selectedDocuments?: Document[];
@@ -482,8 +411,6 @@ const CustomChatInputOptions = React.memo(
 		selectedConnectors?: string[];
 		searchMode?: "DOCUMENTS" | "CHUNKS";
 		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
-		researchMode?: ResearchMode;
-		onResearchModeChange?: (mode: ResearchMode) => void;
 	}) => {
 		// Memoize the loading fallback to prevent recreation
 		const loadingFallback = React.useMemo(
@@ -506,10 +433,6 @@ const CustomChatInputOptions = React.memo(
 					/>
 				</Suspense>
 				<SearchModeSelector searchMode={searchMode} onSearchModeChange={onSearchModeChange} />
-				<ResearchModeSelector
-					researchMode={researchMode}
-					onResearchModeChange={onResearchModeChange}
-				/>
 				<LLMSelector />
 			</div>
 		);
@@ -526,8 +449,6 @@ export const ChatInputUI = React.memo(
 		selectedConnectors,
 		searchMode,
 		onSearchModeChange,
-		researchMode,
-		onResearchModeChange,
 	}: {
 		onDocumentSelectionChange?: (documents: Document[]) => void;
 		selectedDocuments?: Document[];
@@ -535,8 +456,6 @@ export const ChatInputUI = React.memo(
 		selectedConnectors?: string[];
 		searchMode?: "DOCUMENTS" | "CHUNKS";
 		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
-		researchMode?: ResearchMode;
-		onResearchModeChange?: (mode: ResearchMode) => void;
 	}) => {
 		return (
 			<ChatInput>
@@ -551,8 +470,6 @@ export const ChatInputUI = React.memo(
 					selectedConnectors={selectedConnectors}
 					searchMode={searchMode}
 					onSearchModeChange={onSearchModeChange}
-					researchMode={researchMode}
-					onResearchModeChange={onResearchModeChange}
 				/>
 			</ChatInput>
 		);
