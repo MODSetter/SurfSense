@@ -62,23 +62,27 @@ export function NavMain({ items }: { items: NavItem[] }) {
 			<SidebarMenu>
 				{memoizedItems.map((item, index) => {
 					const translatedTitle = translateTitle(item.title);
+					const hasSub = !!item.items?.length;
 					return (
 						<Collapsible key={`${item.title}-${index}`} asChild defaultOpen={item.isActive}>
 							<SidebarMenuItem>
-								<SidebarMenuButton
-									asChild
-									tooltip={translatedTitle}
-									isActive={item.isActive}
-									aria-label={`${translatedTitle}${item.items?.length ? " with submenu" : ""}`}
-								>
-									<a href={item.url}>
-										<item.icon />
-										<span>{translatedTitle}</span>
-									</a>
-								</SidebarMenuButton>
-
-								{item.items?.length ? (
+								{hasSub ? (
+									// When the item has children, make the whole row a collapsible trigger
 									<>
+										<CollapsibleTrigger asChild>
+											<SidebarMenuButton
+												asChild
+												tooltip={translatedTitle}
+												isActive={item.isActive}
+												aria-label={`${translatedTitle} with submenu`}
+											>
+												<button type="button" className="flex items-center gap-2 w-full text-left">
+													<item.icon />
+													<span>{translatedTitle}</span>
+												</button>
+											</SidebarMenuButton>
+										</CollapsibleTrigger>
+
 										<CollapsibleTrigger asChild>
 											<SidebarMenuAction
 												className="data-[state=open]:rotate-90 transition-transform duration-200"
@@ -88,6 +92,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
 												<span className="sr-only">Toggle submenu</span>
 											</SidebarMenuAction>
 										</CollapsibleTrigger>
+
 										<CollapsibleContent className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 duration-200">
 											<SidebarMenuSub>
 												{item.items?.map((subItem, subIndex) => {
@@ -105,7 +110,20 @@ export function NavMain({ items }: { items: NavItem[] }) {
 											</SidebarMenuSub>
 										</CollapsibleContent>
 									</>
-								) : null}
+								) : (
+									// Leaf item: treat as a normal link
+									<SidebarMenuButton
+										asChild
+										tooltip={translatedTitle}
+										isActive={item.isActive}
+										aria-label={translatedTitle}
+									>
+										<a href={item.url}>
+											<item.icon />
+											<span>{translatedTitle}</span>
+										</a>
+									</SidebarMenuButton>
+								)}
 							</SidebarMenuItem>
 						</Collapsible>
 					);
