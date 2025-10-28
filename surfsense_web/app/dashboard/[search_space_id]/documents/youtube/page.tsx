@@ -5,9 +5,9 @@ import { type Tag, TagInput } from "emblor";
 import { Loader2 } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -24,7 +24,7 @@ const youtubeRegex =
 	/^(https:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
 
 export default function YouTubeVideoAdder() {
-	const t = useTranslations('add_youtube');
+	const t = useTranslations("add_youtube");
 	const params = useParams();
 	const router = useRouter();
 	const search_space_id = params.search_space_id as string;
@@ -49,14 +49,14 @@ export default function YouTubeVideoAdder() {
 	const handleSubmit = async () => {
 		// Validate that we have at least one video URL
 		if (videoTags.length === 0) {
-			setError(t('error_no_video'));
+			setError(t("error_no_video"));
 			return;
 		}
 
 		// Validate all URLs
 		const invalidUrls = videoTags.filter((tag) => !isValidYoutubeUrl(tag.text));
 		if (invalidUrls.length > 0) {
-			setError(t('error_invalid_urls', { urls: invalidUrls.map((tag) => tag.text).join(", ") }));
+			setError(t("error_invalid_urls", { urls: invalidUrls.map((tag) => tag.text).join(", ") }));
 			return;
 		}
 
@@ -64,8 +64,8 @@ export default function YouTubeVideoAdder() {
 		setIsSubmitting(true);
 
 		try {
-			toast(t('processing_toast'), {
-				description: t('processing_toast_desc'),
+			toast(t("processing_toast"), {
+				description: t("processing_toast_desc"),
 			});
 
 			// Extract URLs from tags
@@ -94,16 +94,16 @@ export default function YouTubeVideoAdder() {
 
 			await response.json();
 
-			toast(t('success_toast'), {
-				description: t('success_toast_desc'),
+			toast(t("success_toast"), {
+				description: t("success_toast_desc"),
 			});
 
 			// Redirect to documents page
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
-			setError(error.message || t('error_generic'));
-			toast(t('error_toast'), {
-				description: `${t('error_toast_desc')}: ${error.message}`,
+			setError(error.message || t("error_generic"));
+			toast(t("error_toast"), {
+				description: `${t("error_toast_desc")}: ${error.message}`,
 			});
 		} finally {
 			setIsSubmitting(false);
@@ -114,16 +114,16 @@ export default function YouTubeVideoAdder() {
 	const handleAddTag = (text: string) => {
 		// Basic URL validation
 		if (!isValidYoutubeUrl(text)) {
-			toast(t('invalid_url_toast'), {
-				description: t('invalid_url_toast_desc'),
+			toast(t("invalid_url_toast"), {
+				description: t("invalid_url_toast_desc"),
 			});
 			return;
 		}
 
 		// Check for duplicates
 		if (videoTags.some((tag) => tag.text === text)) {
-			toast(t('duplicate_url_toast'), {
-				description: t('duplicate_url_toast_desc'),
+			toast(t("duplicate_url_toast"), {
+				description: t("duplicate_url_toast_desc"),
 			});
 			return;
 		}
@@ -169,11 +169,9 @@ export default function YouTubeVideoAdder() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<IconBrandYoutube className="h-5 w-5" />
-								{t('title')}
+								{t("title")}
 							</CardTitle>
-							<CardDescription>
-								{t('subtitle')}
-							</CardDescription>
+							<CardDescription>{t("subtitle")}</CardDescription>
 						</CardHeader>
 					</motion.div>
 
@@ -181,12 +179,12 @@ export default function YouTubeVideoAdder() {
 						<CardContent>
 							<div className="space-y-4">
 								<div className="space-y-2">
-									<Label htmlFor="video-input">{t('label')}</Label>
+									<Label htmlFor="video-input">{t("label")}</Label>
 									<TagInput
 										id="video-input"
 										tags={videoTags}
 										setTags={setVideoTags}
-										placeholder={t('placeholder')}
+										placeholder={t("placeholder")}
 										onAddTag={handleAddTag}
 										styleClasses={{
 											inlineTagsContainer:
@@ -201,9 +199,7 @@ export default function YouTubeVideoAdder() {
 										activeTagIndex={activeTagIndex}
 										setActiveTagIndex={setActiveTagIndex}
 									/>
-									<p className="text-xs text-muted-foreground mt-1">
-										{t('hint')}
-									</p>
+									<p className="text-xs text-muted-foreground mt-1">{t("hint")}</p>
 								</div>
 
 								{error && (
@@ -218,18 +214,18 @@ export default function YouTubeVideoAdder() {
 								)}
 
 								<motion.div variants={itemVariants} className="bg-muted/50 rounded-lg p-4 text-sm">
-									<h4 className="font-medium mb-2">{t('tips_title')}</h4>
+									<h4 className="font-medium mb-2">{t("tips_title")}</h4>
 									<ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-										<li>{t('tip_1')}</li>
-										<li>{t('tip_2')}</li>
-										<li>{t('tip_3')}</li>
-										<li>{t('tip_4')}</li>
+										<li>{t("tip_1")}</li>
+										<li>{t("tip_2")}</li>
+										<li>{t("tip_3")}</li>
+										<li>{t("tip_4")}</li>
 									</ul>
 								</motion.div>
 
 								{videoTags.length > 0 && (
 									<motion.div variants={itemVariants} className="mt-4 space-y-2">
-										<h4 className="font-medium">{t('preview')}:</h4>
+										<h4 className="font-medium">{t("preview")}:</h4>
 										<div className="grid grid-cols-1 gap-3">
 											{videoTags.map((tag, index) => {
 												const videoId = extractVideoId(tag.text);
@@ -265,7 +261,7 @@ export default function YouTubeVideoAdder() {
 								variant="outline"
 								onClick={() => router.push(`/dashboard/${search_space_id}/documents`)}
 							>
-								{t('cancel')}
+								{t("cancel")}
 							</Button>
 							<Button
 								onClick={handleSubmit}
@@ -275,7 +271,7 @@ export default function YouTubeVideoAdder() {
 								{isSubmitting ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-										{t('processing')}
+										{t("processing")}
 									</>
 								) : (
 									<>
@@ -287,7 +283,7 @@ export default function YouTubeVideoAdder() {
 										>
 											<IconBrandYoutube className="h-4 w-4" />
 										</motion.span>
-										{t('submit')}
+										{t("submit")}
 									</>
 								)}
 								<motion.div

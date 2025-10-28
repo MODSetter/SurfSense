@@ -38,16 +38,6 @@ async def stream_connector_search_results(
     """
     streaming_service = StreamingService()
 
-    if research_mode == "REPORT_GENERAL":
-        num_sections = 1
-    elif research_mode == "REPORT_DEEP":
-        num_sections = 3
-    elif research_mode == "REPORT_DEEPER":
-        num_sections = 6
-    else:
-        # Default fallback
-        num_sections = 1
-
     # Convert UUID to string if needed
     user_id_str = str(user_id) if isinstance(user_id, UUID) else user_id
 
@@ -60,12 +50,10 @@ async def stream_connector_search_results(
     config = {
         "configurable": {
             "user_query": user_query,
-            "num_sections": num_sections,
             "connectors_to_search": selected_connectors,
             "user_id": user_id_str,
             "search_space_id": search_space_id,
             "search_mode": search_mode,
-            "research_mode": research_mode,
             "document_ids_to_add_in_context": document_ids_to_add_in_context,
             "language": language,  # Add language to the configuration
         }

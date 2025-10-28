@@ -2,8 +2,8 @@
 
 import { CircleAlert, CircleX, Columns3, Filter, ListFilter, Trash } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
-import React, { useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
+import React, { useMemo, useRef } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -56,7 +56,7 @@ export function DocumentsFilters({
 	columnVisibility: ColumnVisibility;
 	onToggleColumn: (id: keyof ColumnVisibility, checked: boolean) => void;
 }) {
-	const t = useTranslations('documents');
+	const t = useTranslations("documents");
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
 
@@ -92,9 +92,9 @@ export function DocumentsFilters({
 						className="peer min-w-60 ps-9"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
-						placeholder={t('filter_placeholder')}
+						placeholder={t("filter_placeholder")}
 						type="text"
-						aria-label={t('filter_placeholder')}
+						aria-label={t("filter_placeholder")}
 					/>
 					<motion.div
 						className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80 peer-disabled:opacity-50"

@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider";
 import { Roboto } from "next/font/google";
+import { I18nProvider } from "@/components/providers/I18nProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
 import { LocaleProvider } from "@/contexts/LocaleContext";
-import { I18nProvider } from "@/components/providers/I18nProvider";
+import { cn } from "@/lib/utils";
 
 const roboto = Roboto({
 	subsets: ["latin"],

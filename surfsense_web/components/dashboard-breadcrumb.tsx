@@ -1,8 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import React from "react";
 import { useTranslations } from "next-intl";
+import React from "react";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -18,7 +18,7 @@ interface BreadcrumbItemInterface {
 }
 
 export function DashboardBreadcrumb() {
-	const t = useTranslations('breadcrumb');
+	const t = useTranslations("breadcrumb");
 	const pathname = usePathname();
 
 	// Parse the pathname to create breadcrumb items
@@ -27,11 +27,14 @@ export function DashboardBreadcrumb() {
 		const breadcrumbs: BreadcrumbItemInterface[] = [];
 
 		// Always start with Dashboard
-		breadcrumbs.push({ label: t('dashboard'), href: "/dashboard" });
+		breadcrumbs.push({ label: t("dashboard"), href: "/dashboard" });
 
 		// Handle search space
 		if (segments[0] === "dashboard" && segments[1]) {
-			breadcrumbs.push({ label: `${t('search_space')} ${segments[1]}`, href: `/dashboard/${segments[1]}` });
+			breadcrumbs.push({
+				label: `${t("search_space")} ${segments[1]}`,
+				href: `/dashboard/${segments[1]}`,
+			});
 
 			// Handle specific sections
 			if (segments[2]) {
@@ -40,13 +43,13 @@ export function DashboardBreadcrumb() {
 
 				// Map section names to more readable labels
 				const sectionLabels: Record<string, string> = {
-					researcher: t('researcher'),
-					documents: t('documents'),
-					connectors: t('connectors'),
-					podcasts: t('podcasts'),
-					logs: t('logs'),
-					chats: t('chats'),
-					settings: t('settings'),
+					researcher: t("researcher"),
+					documents: t("documents"),
+					connectors: t("connectors"),
+					podcasts: t("podcasts"),
+					logs: t("logs"),
+					chats: t("chats"),
+					settings: t("settings"),
 				};
 
 				sectionLabel = sectionLabels[section] || sectionLabel;
@@ -59,14 +62,14 @@ export function DashboardBreadcrumb() {
 					// Handle documents sub-sections
 					if (section === "documents") {
 						const documentLabels: Record<string, string> = {
-							upload: t('upload_documents'),
-							youtube: t('add_youtube'),
-							webpage: t('add_webpages'),
+							upload: t("upload_documents"),
+							youtube: t("add_youtube"),
+							webpage: t("add_webpages"),
 						};
 
 						const documentLabel = documentLabels[subSection] || subSectionLabel;
 						breadcrumbs.push({
-							label: t('documents'),
+							label: t("documents"),
 							href: `/dashboard/${segments[1]}/documents`,
 						});
 						breadcrumbs.push({ label: documentLabel });
@@ -108,13 +111,13 @@ export function DashboardBreadcrumb() {
 						}
 
 						const connectorLabels: Record<string, string> = {
-							add: t('add_connector'),
-							manage: t('manage_connectors'),
+							add: t("add_connector"),
+							manage: t("manage_connectors"),
 						};
 
 						const connectorLabel = connectorLabels[subSection] || subSectionLabel;
 						breadcrumbs.push({
-							label: t('connectors'),
+							label: t("connectors"),
 							href: `/dashboard/${segments[1]}/connectors`,
 						});
 						breadcrumbs.push({ label: connectorLabel });
@@ -123,12 +126,12 @@ export function DashboardBreadcrumb() {
 
 					// Handle other sub-sections
 					const subSectionLabels: Record<string, string> = {
-						upload: t('upload_documents'),
-						youtube: t('add_youtube'),
-						webpage: t('add_webpages'),
-						add: t('add_connector'),
-						edit: t('edit_connector'),
-						manage: t('manage'),
+						upload: t("upload_documents"),
+						youtube: t("add_youtube"),
+						webpage: t("add_webpages"),
+						add: t("add_connector"),
+						edit: t("edit_connector"),
+						manage: t("manage"),
 					};
 
 					subSectionLabel = subSectionLabels[subSection] || subSectionLabel;

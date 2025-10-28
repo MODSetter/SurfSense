@@ -1,35 +1,8 @@
-import { ChevronDown, FileText, MessageCircle, Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { Connector, ResearchMode } from "./types";
-
-export const researcherOptions: {
-	value: ResearchMode;
-	label: string;
-	icon: React.ReactNode;
-}[] = [
-	{
-		value: "QNA",
-		label: "Q/A",
-		icon: getConnectorIcon("GENERAL"),
-	},
-	{
-		value: "REPORT_GENERAL",
-		label: "General",
-		icon: getConnectorIcon("GENERAL"),
-	},
-	{
-		value: "REPORT_DEEP",
-		label: "Deep",
-		icon: getConnectorIcon("DEEP"),
-	},
-	{
-		value: "REPORT_DEEPER",
-		label: "Deeper",
-		icon: getConnectorIcon("DEEPER"),
-	},
-];
+import type { Connector } from "./types";
 
 /**
  * Displays a small icon for a connector type
@@ -132,95 +105,5 @@ export const ConnectorButton = ({
 				<ChevronDown className="h-3 w-3 ml-0.5 text-muted-foreground opacity-70" />
 			</div>
 		</Button>
-	);
-};
-
-// New component for Research Mode Control with Q/A and Report toggle
-type ResearchModeControlProps = {
-	value: ResearchMode;
-	onChange: (value: ResearchMode) => void;
-};
-
-export const ResearchModeControl = ({ value, onChange }: ResearchModeControlProps) => {
-	// Determine if we're in Q/A mode or Report mode
-	const isQnaMode = value === "QNA";
-	const isReportMode = value.startsWith("REPORT_");
-
-	// Get the current report sub-mode
-	const getCurrentReportMode = () => {
-		if (!isReportMode) return "GENERAL";
-		return value.replace("REPORT_", "") as "GENERAL" | "DEEP" | "DEEPER";
-	};
-
-	const reportSubOptions = [
-		{ value: "GENERAL", label: "General", icon: getConnectorIcon("GENERAL") },
-		{ value: "DEEP", label: "Deep", icon: getConnectorIcon("DEEP") },
-		{ value: "DEEPER", label: "Deeper", icon: getConnectorIcon("DEEPER") },
-	];
-
-	const handleModeToggle = (mode: "QNA" | "REPORT") => {
-		if (mode === "QNA") {
-			onChange("QNA");
-		} else {
-			// Default to GENERAL for Report mode
-			onChange("REPORT_GENERAL");
-		}
-	};
-
-	const handleReportSubModeChange = (subMode: string) => {
-		onChange(`REPORT_${subMode}` as ResearchMode);
-	};
-
-	return (
-		<div className="flex items-center gap-2">
-			{/* Main Q/A vs Report Toggle */}
-			<div className="flex h-8 rounded-md border border-border overflow-hidden">
-				<Button
-					className={`flex h-full items-center gap-1 px-3 text-xs font-medium transition-colors whitespace-nowrap ${
-						isQnaMode
-							? "bg-primary text-primary-foreground"
-							: "hover:bg-muted text-muted-foreground hover:text-foreground"
-					}`}
-					onClick={() => handleModeToggle("QNA")}
-					aria-pressed={isQnaMode}
-				>
-					<MessageCircle className="h-3 w-3" />
-					<span>Q/A</span>
-				</Button>
-				<Button
-					className={`flex h-full items-center gap-1 px-3 text-xs font-medium transition-colors whitespace-nowrap ${
-						isReportMode
-							? "bg-primary text-primary-foreground"
-							: "hover:bg-muted text-muted-foreground hover:text-foreground"
-					}`}
-					onClick={() => handleModeToggle("REPORT")}
-					aria-pressed={isReportMode}
-				>
-					<FileText className="h-3 w-3" />
-					<span>Report</span>
-				</Button>
-			</div>
-
-			{/* Report Sub-options (only show when in Report mode) */}
-			{isReportMode && (
-				<div className="flex h-8 rounded-md border border-border overflow-hidden">
-					{reportSubOptions.map((option) => (
-						<Button
-							key={option.value}
-							className={`flex h-full items-center gap-1 px-2 text-xs font-medium transition-colors whitespace-nowrap ${
-								getCurrentReportMode() === option.value
-									? "bg-primary text-primary-foreground"
-									: "hover:bg-muted text-muted-foreground hover:text-foreground"
-							}`}
-							onClick={() => handleReportSubModeChange(option.value)}
-							aria-pressed={getCurrentReportMode() === option.value}
-						>
-							{option.icon}
-							<span>{option.label}</span>
-						</Button>
-					))}
-				</div>
-			)}
-		</div>
 	);
 };

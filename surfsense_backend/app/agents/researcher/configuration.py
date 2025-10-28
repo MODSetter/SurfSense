@@ -15,27 +15,16 @@ class SearchMode(Enum):
     DOCUMENTS = "DOCUMENTS"
 
 
-class ResearchMode(Enum):
-    """Enum defining the type of research mode."""
-
-    QNA = "QNA"
-    REPORT_GENERAL = "REPORT_GENERAL"
-    REPORT_DEEP = "REPORT_DEEP"
-    REPORT_DEEPER = "REPORT_DEEPER"
-
-
 @dataclass(kw_only=True)
 class Configuration:
     """The configuration for the agent."""
 
     # Input parameters provided at invocation
     user_query: str
-    num_sections: int
     connectors_to_search: list[str]
     user_id: str
     search_space_id: int
     search_mode: SearchMode
-    research_mode: ResearchMode
     document_ids_to_add_in_context: list[int]
     language: str | None = None
 

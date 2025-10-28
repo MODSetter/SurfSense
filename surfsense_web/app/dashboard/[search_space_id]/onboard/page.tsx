@@ -3,8 +3,8 @@
 import { ArrowLeft, ArrowRight, Bot, CheckCircle, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { AddProviderStep } from "@/components/onboard/add-provider-step";
 import { AssignRolesStep } from "@/components/onboard/assign-roles-step";
@@ -17,7 +17,7 @@ import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 const TOTAL_STEPS = 3;
 
 const OnboardPage = () => {
-	const t = useTranslations('onboard');
+	const t = useTranslations("onboard");
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
@@ -69,12 +69,12 @@ const OnboardPage = () => {
 
 	const progress = (currentStep / TOTAL_STEPS) * 100;
 
-	const stepTitles = [t('add_llm_provider'), t('assign_llm_roles'), t('setup_complete')];
+	const stepTitles = [t("add_llm_provider"), t("assign_llm_roles"), t("setup_complete")];
 
 	const stepDescriptions = [
-		t('configure_first_provider'),
-		t('assign_specific_roles'),
-		t('all_set'),
+		t("configure_first_provider"),
+		t("assign_specific_roles"),
+		t("all_set"),
 	];
 
 	const canProceedToStep2 = !configsLoading && llmConfigs.length > 0;
@@ -106,7 +106,7 @@ const OnboardPage = () => {
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardContent className="flex flex-col items-center justify-center py-12">
 						<Bot className="h-12 w-12 text-primary animate-pulse mb-4" />
-						<p className="text-sm text-muted-foreground">{t('loading_config')}</p>
+						<p className="text-sm text-muted-foreground">{t("loading_config")}</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -125,11 +125,9 @@ const OnboardPage = () => {
 				<div className="text-center mb-8">
 					<div className="flex items-center justify-center mb-4">
 						<Logo className="w-12 h-12 mr-3 rounded-full" />
-						<h1 className="text-3xl font-bold">{t('welcome_title')}</h1>
+						<h1 className="text-3xl font-bold">{t("welcome_title")}</h1>
 					</div>
-					<p className="text-muted-foreground text-lg">
-						{t('welcome_subtitle')}
-					</p>
+					<p className="text-muted-foreground text-lg">{t("welcome_subtitle")}</p>
 				</div>
 
 				{/* Progress */}
@@ -137,9 +135,11 @@ const OnboardPage = () => {
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between mb-4">
 							<div className="text-sm font-medium">
-								{t('step_of', { current: currentStep, total: TOTAL_STEPS })}
+								{t("step_of", { current: currentStep, total: TOTAL_STEPS })}
 							</div>
-							<div className="text-sm text-muted-foreground">{t('percent_complete', { percent: Math.round(progress) })}</div>
+							<div className="text-sm text-muted-foreground">
+								{t("percent_complete", { percent: Math.round(progress) })}
+							</div>
 						</div>
 						<Progress value={progress} className="mb-4" />
 						<div className="grid grid-cols-3 gap-4">
@@ -227,7 +227,7 @@ const OnboardPage = () => {
 						className="flex items-center gap-2"
 					>
 						<ArrowLeft className="w-4 h-4" />
-						{t('previous')}
+						{t("previous")}
 					</Button>
 
 					<div className="flex gap-2">
@@ -240,14 +240,14 @@ const OnboardPage = () => {
 								}
 								className="flex items-center gap-2"
 							>
-								{t('next')}
+								{t("next")}
 								<ArrowRight className="w-4 h-4" />
 							</Button>
 						)}
 
 						{currentStep === TOTAL_STEPS && (
 							<Button onClick={handleComplete} className="flex items-center gap-2">
-								{t('complete_setup')}
+								{t("complete_setup")}
 								<CheckCircle className="w-4 h-4" />
 							</Button>
 						)}

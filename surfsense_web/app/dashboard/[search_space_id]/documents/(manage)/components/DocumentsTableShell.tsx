@@ -2,8 +2,8 @@
 
 import { ChevronDown, ChevronUp, FileX } from "lucide-react";
 import { motion } from "motion/react";
-import React from "react";
 import { useTranslations } from "next-intl";
+import React from "react";
 import { DocumentViewer } from "@/components/document-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -67,7 +67,7 @@ export function DocumentsTableShell({
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
 }) {
-	const t = useTranslations('documents');
+	const t = useTranslations("documents");
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
 		[documents, sortKey, sortDesc]
@@ -103,15 +103,15 @@ export function DocumentsTableShell({
 				<div className="flex h-[400px] w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-2">
 						<div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-						<p className="text-sm text-muted-foreground">{t('loading')}</p>
+						<p className="text-sm text-muted-foreground">{t("loading")}</p>
 					</div>
 				</div>
 			) : error ? (
 				<div className="flex h-[400px] w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-2">
-						<p className="text-sm text-destructive">{t('error_loading')}</p>
+						<p className="text-sm text-destructive">{t("error_loading")}</p>
 						<Button variant="outline" size="sm" onClick={() => onRefresh()} className="mt-2">
-							{t('retry')}
+							{t("retry")}
 						</Button>
 					</div>
 				</div>
@@ -119,7 +119,7 @@ export function DocumentsTableShell({
 				<div className="flex h-[400px] w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-2">
 						<FileX className="h-8 w-8 text-muted-foreground" />
-						<p className="text-sm text-muted-foreground">{t('no_documents')}</p>
+						<p className="text-sm text-muted-foreground">{t("no_documents")}</p>
 					</div>
 				</div>
 			) : (
@@ -142,7 +142,7 @@ export function DocumentsTableShell({
 												className="flex h-full w-full cursor-pointer select-none items-center justify-between gap-2"
 												onClick={() => onSortHeader("title")}
 											>
-												{t('title')}
+												{t("title")}
 												{sortKey === "title" ? (
 													sortDesc ? (
 														<ChevronDown className="shrink-0 opacity-60" size={16} />
@@ -160,7 +160,7 @@ export function DocumentsTableShell({
 												className="flex h-full w-full cursor-pointer select-none items-center justify-between gap-2"
 												onClick={() => onSortHeader("document_type")}
 											>
-												{t('type')}
+												{t("type")}
 												{sortKey === "document_type" ? (
 													sortDesc ? (
 														<ChevronDown className="shrink-0 opacity-60" size={16} />
@@ -172,7 +172,7 @@ export function DocumentsTableShell({
 										</TableHead>
 									)}
 									{columnVisibility.content && (
-										<TableHead style={{ width: 300 }}>{t('content_summary')}</TableHead>
+										<TableHead style={{ width: 300 }}>{t("content_summary")}</TableHead>
 									)}
 									{columnVisibility.created_at && (
 										<TableHead style={{ width: 120 }}>
@@ -266,7 +266,7 @@ export function DocumentsTableShell({
 															content={doc.content}
 															trigger={
 																<Button variant="ghost" size="sm" className="w-fit text-xs">
-																	{t('view_full')}
+																	{t("view_full")}
 																</Button>
 															}
 														/>
@@ -337,7 +337,7 @@ export function DocumentsTableShell({
 																	size="sm"
 																	className="w-fit text-xs p-0 h-auto"
 																>
-																	{t('view_full')}
+																	{t("view_full")}
 																</Button>
 															}
 														/>
