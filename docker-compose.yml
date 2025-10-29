@@ -39,7 +39,6 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./surfsense_backend/app:/app/app
-      - ./surfsense_backend/scripts:/app/scripts:ro
       - shared_temp:/tmp
     env_file:
       - ./surfsense_backend/.env

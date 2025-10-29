@@ -72,5 +72,5 @@ ENV PYTHONPATH=/app
 ENV UVICORN_LOOP=asyncio
 
 # Run
-EXPOSE 8000
+EXPOSE 8000-8001
 CMD ["/app/scripts/docker/entrypoint.sh"] 
