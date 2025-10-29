@@ -141,9 +141,7 @@ async def generate_chat_podcast(
 
         # check if podcast already exists for this chat with the same title (re-generation)
         existing_podcast = await session.execute(
-            select(Podcast).filter(
-                Podcast.chat_id == chat_id, Podcast.title == podcast_title
-            )
+            select(Podcast).filter(Podcast.chat_id == chat_id)
         )
         existing_podcast = existing_podcast.scalars().first()
 

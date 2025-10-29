@@ -113,25 +113,27 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 					</button>
 				)}
 			</div>
-			<div
-				className={cn(
-					"w-full h-full border-b",
-					!isChatPannelOpen && "flex items-center justify-center p-4"
-				)}
-			>
-				{isChatPannelOpen ? (
-					<PodcastPlayer compact podcast={podcast} />
-				) : podcast ? (
-					<button
-						title="Play Podcast"
-						type="button"
-						onClick={() => setIsChatPannelOpen(true)}
-						className="p-2 rounded-full hover:bg-muted transition-colors text-green-600 dark:text-green-500"
-					>
-						<Play strokeWidth={1} className="h-5 w-5" />
-					</button>
-				) : null}
-			</div>
+			{podcast ? (
+				<div
+					className={cn(
+						"w-full h-full border-b",
+						!isChatPannelOpen && "flex items-center justify-center p-4"
+					)}
+				>
+					{isChatPannelOpen ? (
+						<PodcastPlayer compact podcast={podcast} />
+					) : podcast ? (
+						<button
+							title="Play Podcast"
+							type="button"
+							onClick={() => setIsChatPannelOpen(true)}
+							className="p-2 rounded-full hover:bg-muted transition-colors text-green-600 dark:text-green-500"
+						>
+							<Play strokeWidth={1} className="h-5 w-5" />
+						</button>
+					) : null}
+				</div>
+			) : null}
 		</div>
 	);
 }
