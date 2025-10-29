@@ -7,7 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13.0",
     "asyncpg>=0.30.0",
-    "chonkie[all]>=1.0.6",
     "discord-py>=2.5.2",
     "docling>=2.15.0",
     "fastapi>=0.115.8",
@@ -48,6 +47,7 @@ dependencies = [
     "celery[redis]>=5.5.3",
     "flower>=2.0.1",
     "redis>=5.2.1",
+    "chonkie[all]>=1.4.0",
 ]
 
 [dependency-groups]
