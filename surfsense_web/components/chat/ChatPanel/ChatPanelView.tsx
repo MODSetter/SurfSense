@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertCircle, Pencil, Podcast, RefreshCw } from "lucide-react";
+import { AlertCircle, Pencil, Play, Podcast, RefreshCw } from "lucide-react";
 import { useCallback, useContext, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { chatInterfaceContext } from "../ChatInterface";
 import { getPodcastStalenessMessage, isPodcastStale } from "../PodcastUtils";
 import type { GeneratePodcastRequest } from "./ChatPanelContainer";
 import { ConfigModal } from "./ConfigModal";
+import { PodcastPlayer } from "./PodcastPlayer";
 
 interface ChatPanelViewProps {
 	generatePodcast: (request: GeneratePodcastRequest) => Promise<void>;
@@ -111,6 +112,25 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 						)}
 					</button>
 				)}
+			</div>
+			<div
+				className={cn(
+					"w-full h-full border-b",
+					!isChatPannelOpen && "flex items-center justify-center p-4"
+				)}
+			>
+				{isChatPannelOpen ? (
+					<PodcastPlayer compact podcast={podcast} />
+				) : podcast ? (
+					<button
+						title="Play Podcast"
+						type="button"
+						onClick={() => setIsChatPannelOpen(true)}
+						className="p-2 rounded-full hover:bg-muted transition-colors text-green-600 dark:text-green-500"
+					>
+						<Play strokeWidth={1} className="h-5 w-5" />
+					</button>
+				) : null}
 			</div>
 		</div>
 	);
