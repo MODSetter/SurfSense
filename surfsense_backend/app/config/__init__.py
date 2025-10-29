@@ -3,8 +3,26 @@ import shutil
 from pathlib import Path
 
 from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
+from chonkie.embeddings.azure_openai import AzureOpenAIEmbeddings
+from chonkie.embeddings.registry import EmbeddingsRegistry
 from dotenv import load_dotenv
 from rerankers import Reranker
+
+# TODO: Fix this in chonkie upstream
+# Register Azure OpenAI embeddings with pattern
+# This automatically infers the following arguments from their corresponding environment variables if they are not provided:
+# - `api_key` from `AZURE_OPENAI_API_KEY`
+# - `organization` from `OPENAI_ORG_ID`
+# - `project` from `OPENAI_PROJECT_ID`
+# - `azure_ad_token` from `AZURE_OPENAI_AD_TOKEN`
+# - `api_version` from `OPENAI_API_VERSION`
+# - `azure_endpoint` from `AZURE_OPENAI_ENDPOINT`
+EmbeddingsRegistry.register_provider("azure_openai", AzureOpenAIEmbeddings)
+EmbeddingsRegistry.register_pattern(r"^text-embedding-", AzureOpenAIEmbeddings)
+EmbeddingsRegistry.register_model("text-embedding-ada-002", AzureOpenAIEmbeddings)
+EmbeddingsRegistry.register_model("text-embedding-3-small", AzureOpenAIEmbeddings)
+EmbeddingsRegistry.register_model("text-embedding-3-large", AzureOpenAIEmbeddings)
+
 
 # Get the base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
