@@ -1,6 +1,8 @@
 """Celery tasks for podcast generation."""
 
+import asyncio
 import logging
+import sys
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -10,6 +12,14 @@ from app.config import config
 from app.tasks.podcast_tasks import generate_chat_podcast
 
 logger = logging.getLogger(__name__)
+
+if sys.platform.startswith("win"):
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    except AttributeError:
+        logger.warning(
+            "WindowsProactorEventLoopPolicy is unavailable; async subprocess support may fail."
+        )
 
 
 def get_celery_session_maker():
@@ -39,8 +49,6 @@ def generate_chat_podcast_task(
         podcast_title: Title for the podcast
         user_id: ID of the user
     """
-    import asyncio
-
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -48,7 +56,9 @@ def generate_chat_podcast_task(
         loop.run_until_complete(
             _generate_chat_podcast(chat_id, search_space_id, podcast_title, user_id)
         )
+        loop.run_until_complete(loop.shutdown_asyncgens())
     finally:
+        asyncio.set_event_loop(None)
         loop.close()
 
 
