@@ -4,7 +4,6 @@ import { ChatInput } from "@llamaindex/chat-ui";
 import { Brain, Check, FolderOpen, Zap } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { Suspense, useCallback, useState } from "react";
-import { ConnectorButton as ConnectorButtonComponent } from "@/components/chat/ConnectorComponents";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,9 +23,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 const DocumentSelector = React.memo(
 	({
@@ -59,22 +58,31 @@ const DocumentSelector = React.memo(
 		return (
 			<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 				<DialogTrigger asChild>
-					<Button variant="outline" className="relative">
-						<FolderOpen className="w-4 h-4" />
+					<Button
+						variant="outline"
+						size="sm"
+						className="h-9 gap-2 px-3 border-dashed hover:border-solid hover:bg-accent/50 transition-all"
+					>
+						<FolderOpen className="h-4 w-4 text-muted-foreground" />
+						<span className="text-xs font-medium">
+							{selectedCount > 0 ? `Selected` : "Documents"}
+						</span>
 						{selectedCount > 0 && (
-							<span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+							<Badge variant="secondary" className="h-5 px-1.5 text-xs font-medium">
 								{selectedCount}
-							</span>
+							</Badge>
 						)}
 					</Button>
 				</DialogTrigger>
 
 				<DialogContent className="max-w-[95vw] md:max-w-5xl h-[90vh] md:h-[85vh] p-0 flex flex-col">
 					<div className="flex flex-col h-full">
-						<div className="px-4 md:px-6 py-4 border-b flex-shrink-0">
-							<DialogTitle className="text-lg md:text-xl">Select Documents</DialogTitle>
-							<DialogDescription className="mt-1 text-sm">
-								Choose documents to include in your research context
+						<div className="px-4 md:px-6 py-4 border-b flex-shrink-0 bg-muted/30">
+							<DialogTitle className="text-lg md:text-xl font-semibold">
+								Select Documents
+							</DialogTitle>
+							<DialogDescription className="mt-1.5 text-sm">
+								Choose specific documents to include in your research context
 							</DialogDescription>
 						</div>
 
@@ -106,17 +114,19 @@ const ConnectorSelector = React.memo(
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
-		const { connectorSourceItems, isLoading, isLoaded, fetchConnectors } =
-			useSearchSourceConnectors(true, Number(search_space_id));
+		const { documentTypes, isLoading, isLoaded, fetchDocumentTypes } = useDocumentTypes(
+			Number(search_space_id),
+			true
+		);
 
 		const handleOpenChange = useCallback(
 			(open: boolean) => {
 				setIsOpen(open);
 				if (open && !isLoaded) {
-					fetchConnectors(Number(search_space_id));
+					fetchDocumentTypes(Number(search_space_id));
 				}
 			},
-			[fetchConnectors, isLoaded, search_space_id]
+			[fetchDocumentTypes, isLoaded, search_space_id]
 		);
 
 		const handleConnectorToggle = useCallback(
@@ -131,64 +141,152 @@ const ConnectorSelector = React.memo(
 		);
 
 		const handleSelectAll = useCallback(() => {
-			onSelectionChange?.(connectorSourceItems.map((c) => c.type));
-		}, [connectorSourceItems, onSelectionChange]);
+			onSelectionChange?.(documentTypes.map((dt) => dt.type));
+		}, [documentTypes, onSelectionChange]);
 
 		const handleClearAll = useCallback(() => {
 			onSelectionChange?.([]);
 		}, [onSelectionChange]);
 
+		// Get display name for document type
+		const getDisplayName = (type: string) => {
+			return type
+				.split("_")
+				.map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+				.join(" ");
+		};
+
+		// Get selected document types with their counts
+		const selectedDocTypes = documentTypes.filter((dt) => selectedConnectors.includes(dt.type));
+
 		return (
 			<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 				<DialogTrigger asChild>
-					<ConnectorButtonComponent
-						selectedConnectors={selectedConnectors}
-						onClick={() => setIsOpen(true)}
-						connectorSources={connectorSourceItems}
-					/>
+					<Button
+						variant="outline"
+						size="sm"
+						className="relative h-9 gap-2 px-3 border-dashed hover:border-solid hover:bg-accent/50 transition-all"
+					>
+						<div className="flex items-center gap-1.5">
+							{selectedDocTypes.length > 0 ? (
+								<>
+									<div className="flex items-center -space-x-2">
+										{selectedDocTypes.slice(0, 3).map((docType) => (
+											<div
+												key={docType.type}
+												className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted"
+											>
+												{getConnectorIcon(docType.type, "h-3 w-3")}
+											</div>
+										))}
+									</div>
+									<span className="text-xs font-medium">
+										{selectedDocTypes.length} {selectedDocTypes.length === 1 ? "source" : "sources"}
+									</span>
+								</>
+							) : (
+								<>
+									<Brain className="h-4 w-4 text-muted-foreground" />
+									<span className="text-xs font-medium">Sources</span>
+								</>
+							)}
+						</div>
+					</Button>
 				</DialogTrigger>
 
-				<DialogContent className="sm:max-w-md">
-					<DialogTitle>Select Connectors</DialogTitle>
-					<DialogDescription>
-						Choose which data sources to include in your research
-					</DialogDescription>
+				<DialogContent className="sm:max-w-2xl">
+					<div className="space-y-4">
+						<div>
+							<DialogTitle className="text-xl">Select Document Types</DialogTitle>
+							<DialogDescription className="mt-1.5">
+								Choose which document types to include in your search
+							</DialogDescription>
+						</div>
 
-					{/* Connector selection grid */}
-					<div className="grid grid-cols-2 gap-4 py-4">
-						{isLoading ? (
-							<div className="col-span-2 flex justify-center py-4">
-								<div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-							</div>
-						) : (
-							connectorSourceItems.map((connector) => {
-								const isSelected = selectedConnectors.includes(connector.type);
+						{/* Document type selection grid */}
+						<div className="grid grid-cols-2 gap-3">
+							{isLoading ? (
+								<div className="col-span-2 flex justify-center py-8">
+									<div className="animate-spin h-8 w-8 border-3 border-primary border-t-transparent rounded-full" />
+								</div>
+							) : documentTypes.length === 0 ? (
+								<div className="col-span-2 flex flex-col items-center justify-center py-12 text-center">
+									<div className="rounded-full bg-muted p-4 mb-4">
+										<Brain className="h-8 w-8 text-muted-foreground" />
+									</div>
+									<h4 className="text-sm font-medium mb-1">No documents found</h4>
+									<p className="text-xs text-muted-foreground max-w-xs">
+										Add documents to this search space to enable filtering by type
+									</p>
+								</div>
+							) : (
+								documentTypes.map((docType) => {
+									const isSelected = selectedConnectors.includes(docType.type);
 
-								return (
-									<Button
-										key={connector.id}
-										className={`flex items-center gap-2 p-2 rounded-md border cursor-pointer transition-colors`}
-										onClick={() => handleConnectorToggle(connector.type)}
-										variant={isSelected ? "default" : "outline"}
-										size="sm"
-										type="button"
-									>
-										{getConnectorIcon(connector.type)}
-										<span className="flex-1 text-sm truncate font-medium">{connector.name}</span>
-									</Button>
-								);
-							})
+									return (
+										<button
+											key={docType.type}
+											onClick={() => handleConnectorToggle(docType.type)}
+											type="button"
+											className={`group relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+												isSelected
+													? "border-primary bg-primary/5 shadow-sm"
+													: "border-border hover:border-primary/50 hover:bg-accent/50"
+											}`}
+										>
+											<div
+												className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+													isSelected ? "bg-primary/10" : "bg-muted group-hover:bg-primary/5"
+												}`}
+											>
+												{getConnectorIcon(
+													docType.type,
+													`h-5 w-5 ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`
+												)}
+											</div>
+											<div className="flex-1 text-left min-w-0">
+												<div className="flex items-center gap-2">
+													<p className="text-sm font-medium truncate">
+														{getDisplayName(docType.type)}
+													</p>
+													{isSelected && (
+														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+															<Check className="h-3 w-3 text-primary-foreground" />
+														</div>
+													)}
+												</div>
+												<p className="text-xs text-muted-foreground mt-0.5">
+													{docType.count} {docType.count === 1 ? "document" : "documents"}
+												</p>
+											</div>
+										</button>
+									);
+								})
+							)}
+						</div>
+
+						{documentTypes.length > 0 && (
+							<DialogFooter className="flex flex-row justify-between items-center gap-2 pt-2">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={handleClearAll}
+									disabled={selectedConnectors.length === 0}
+									className="text-xs"
+								>
+									Clear All
+								</Button>
+								<Button
+									size="sm"
+									onClick={handleSelectAll}
+									disabled={selectedConnectors.length === documentTypes.length}
+									className="text-xs"
+								>
+									Select All ({documentTypes.length})
+								</Button>
+							</DialogFooter>
 						)}
 					</div>
-
-					<DialogFooter className="flex justify-between items-center">
-						<div className="flex gap-2">
-							<Button variant="outline" onClick={handleClearAll}>
-								Clear All
-							</Button>
-							<Button onClick={handleSelectAll}>Select All</Button>
-						</div>
-					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		);
@@ -214,26 +312,33 @@ const SearchModeSelector = React.memo(
 		}, [onSearchModeChange]);
 
 		return (
-			<div className="flex items-center gap-1 sm:gap-2">
-				<span className="text-xs text-muted-foreground hidden sm:block">Scope:</span>
-				<div className="flex rounded-md border border-border overflow-hidden">
-					<Button
-						variant={searchMode === "DOCUMENTS" ? "default" : "ghost"}
-						size="sm"
-						className="rounded-none border-r h-8 px-2 sm:px-3 text-xs transition-all duration-200 hover:bg-muted/80"
+			<div className="flex items-center gap-2">
+				<div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+					<button
+						type="button"
 						onClick={handleDocumentsClick}
+						className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+							searchMode === "DOCUMENTS"
+								? "bg-background text-foreground shadow-sm"
+								: "hover:bg-background/50 hover:text-foreground"
+						}`}
 					>
+						<FolderOpen className="h-3.5 w-3.5 mr-1.5" />
 						<span className="hidden sm:inline">Documents</span>
 						<span className="sm:hidden">Docs</span>
-					</Button>
-					<Button
-						variant={searchMode === "CHUNKS" ? "default" : "ghost"}
-						size="sm"
-						className="rounded-none h-8 px-2 sm:px-3 text-xs transition-all duration-200 hover:bg-muted/80"
+					</button>
+					<button
+						type="button"
 						onClick={handleChunksClick}
+						className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+							searchMode === "CHUNKS"
+								? "bg-background text-foreground shadow-sm"
+								: "hover:bg-background/50 hover:text-foreground"
+						}`}
 					>
+						<Zap className="h-3.5 w-3.5 mr-1.5" />
 						Chunks
-					</Button>
+					</button>
 				</div>
 			</div>
 		);
@@ -414,25 +519,29 @@ const CustomChatInputOptions = React.memo(
 	}) => {
 		// Memoize the loading fallback to prevent recreation
 		const loadingFallback = React.useMemo(
-			() => <div className="h-8 min-w-[100px] animate-pulse bg-muted rounded-md" />,
+			() => <div className="h-9 w-24 animate-pulse bg-muted/50 rounded-md" />,
 			[]
 		);
 
 		return (
-			<div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-start">
-				<Suspense fallback={loadingFallback}>
-					<DocumentSelector
-						onSelectionChange={onDocumentSelectionChange}
-						selectedDocuments={selectedDocuments}
-					/>
-				</Suspense>
-				<Suspense fallback={loadingFallback}>
-					<ConnectorSelector
-						onSelectionChange={onConnectorSelectionChange}
-						selectedConnectors={selectedConnectors}
-					/>
-				</Suspense>
+			<div className="flex flex-wrap gap-2 items-center">
+				<div className="flex items-center gap-2">
+					<Suspense fallback={loadingFallback}>
+						<DocumentSelector
+							onSelectionChange={onDocumentSelectionChange}
+							selectedDocuments={selectedDocuments}
+						/>
+					</Suspense>
+					<Suspense fallback={loadingFallback}>
+						<ConnectorSelector
+							onSelectionChange={onConnectorSelectionChange}
+							selectedConnectors={selectedConnectors}
+						/>
+					</Suspense>
+				</div>
+				<div className="h-4 w-px bg-border hidden sm:block" />
 				<SearchModeSelector searchMode={searchMode} onSearchModeChange={onSearchModeChange} />
+				<div className="h-4 w-px bg-border hidden sm:block" />
 				<LLMSelector />
 			</div>
 		);
