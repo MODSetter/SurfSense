@@ -26,6 +26,7 @@ dependencies = [
     "numpy>=1.24.0",
     "pgvector>=0.3.6",
     "playwright>=1.50.0",
+    "pypdf>=5.1.0",
     "python-ffmpeg>=2.0.12",
     "rerankers[flashrank]>=0.7.1",
     "sentence-transformers>=3.4.1",

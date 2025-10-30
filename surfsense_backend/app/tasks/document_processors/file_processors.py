@@ -2,6 +2,7 @@
 File document processors for different ETL services (Unstructured, LlamaCloud, Docling).
 """
 
+import contextlib
 import logging
 
 from fastapi import HTTPException
@@ -579,6 +580,67 @@ async def process_file_in_background(
                 )
 
         else:
+            # Import page limit service
+            from app.services.page_limit_service import (
+                PageLimitExceededError,
+                PageLimitService,
+            )
+
+            # Initialize page limit service
+            page_limit_service = PageLimitService(session)
+
+            # CRITICAL: Estimate page count BEFORE making expensive ETL API calls
+            # This prevents users from incurring costs on files that would exceed their limit
+            try:
+                estimated_pages_before = (
+                    page_limit_service.estimate_pages_before_processing(file_path)
+                )
+            except Exception:
+                # If estimation fails, use a conservative estimate based on file size
+                import os
+
+                file_size = os.path.getsize(file_path)
+                estimated_pages_before = max(
+                    1, file_size // (80 * 1024)
+                )  # ~80KB per page
+
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Estimated {estimated_pages_before} pages for file: {filename}",
+                {
+                    "estimated_pages": estimated_pages_before,
+                    "file_type": "document",
+                },
+            )
+
+            # Check page limit BEFORE calling ETL service to avoid unnecessary costs
+            try:
+                await page_limit_service.check_page_limit(
+                    user_id, estimated_pages_before
+                )
+            except PageLimitExceededError as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Page limit exceeded before processing: {filename}",
+                    str(e),
+                    {
+                        "error_type": "PageLimitExceeded",
+                        "pages_used": e.pages_used,
+                        "pages_limit": e.pages_limit,
+                        "estimated_pages": estimated_pages_before,
+                    },
+                )
+                # Clean up the temp file
+                import os
+
+                with contextlib.suppress(Exception):
+                    os.unlink(file_path)
+
+                raise HTTPException(
+                    status_code=403,
+                    detail=str(e),
+                ) from e
+
             if app_config.ETL_SERVICE == "UNSTRUCTURED":
                 await task_logger.log_task_progress(
                     log_entry,
@@ -611,6 +673,24 @@ async def process_file_in_background(
                     {"processing_stage": "etl_complete", "elements_count": len(docs)},
                 )
 
+                # Verify actual page count from parsed documents
+                actual_pages = page_limit_service.estimate_pages_from_elements(docs)
+
+                # Use the higher of the two estimates for safety (in case pre-estimate was too low)
+                final_page_count = max(estimated_pages_before, actual_pages)
+
+                # If actual is significantly higher than estimate, log a warning
+                if actual_pages > estimated_pages_before * 1.5:
+                    await task_logger.log_task_progress(
+                        log_entry,
+                        f"Actual page count higher than estimate: {filename}",
+                        {
+                            "estimated_before": estimated_pages_before,
+                            "actual_pages": actual_pages,
+                            "using_count": final_page_count,
+                        },
+                    )
+
                 # Clean up the temp file
                 import os
 
@@ -626,6 +706,12 @@ async def process_file_in_background(
                 )
 
                 if result:
+                    # Update page usage after successful processing
+                    # allow_exceed=True because document was already created after passing initial check
+                    await page_limit_service.update_page_usage(
+                        user_id, final_page_count, allow_exceed=True
+                    )
+
                     await task_logger.log_task_success(
                         log_entry,
                         f"Successfully processed file with Unstructured: {filename}",
@@ -634,6 +720,7 @@ async def process_file_in_background(
                             "content_hash": result.content_hash,
                             "file_type": "document",
                             "etl_service": "UNSTRUCTURED",
+                            "pages_processed": final_page_count,
                         },
                     )
                 else:
@@ -696,6 +783,45 @@ async def process_file_in_background(
                     },
                 )
 
+                # Check if LlamaCloud returned any documents
+                if not markdown_documents or len(markdown_documents) == 0:
+                    await task_logger.log_task_failure(
+                        log_entry,
+                        f"LlamaCloud parsing returned no documents: {filename}",
+                        "ETL service returned empty document list",
+                        {
+                            "error_type": "EmptyDocumentList",
+                            "etl_service": "LLAMACLOUD",
+                        },
+                    )
+                    raise ValueError(
+                        f"LlamaCloud parsing returned no documents for {filename}"
+                    )
+
+                # Verify actual page count from parsed markdown documents
+                actual_pages = page_limit_service.estimate_pages_from_markdown(
+                    markdown_documents
+                )
+
+                # Use the higher of the two estimates for safety (in case pre-estimate was too low)
+                final_page_count = max(estimated_pages_before, actual_pages)
+
+                # If actual is significantly higher than estimate, log a warning
+                if actual_pages > estimated_pages_before * 1.5:
+                    await task_logger.log_task_progress(
+                        log_entry,
+                        f"Actual page count higher than estimate: {filename}",
+                        {
+                            "estimated_before": estimated_pages_before,
+                            "actual_pages": actual_pages,
+                            "using_count": final_page_count,
+                        },
+                    )
+
+                # Track if any document was successfully created (not a duplicate)
+                any_doc_created = False
+                last_created_doc = None
+
                 for doc in markdown_documents:
                     # Extract text content from the markdown documents
                     markdown_content = doc.text
@@ -709,18 +835,34 @@ async def process_file_in_background(
                         user_id=user_id,
                     )
 
-                if doc_result:
+                    # Track if this document was successfully created
+                    if doc_result:
+                        any_doc_created = True
+                        last_created_doc = doc_result
+
+                # Update page usage once after processing all documents
+                # Only update if at least one document was created (not all duplicates)
+                if any_doc_created:
+                    # Update page usage after successful processing
+                    # allow_exceed=True because document was already created after passing initial check
+                    await page_limit_service.update_page_usage(
+                        user_id, final_page_count, allow_exceed=True
+                    )
+
                     await task_logger.log_task_success(
                         log_entry,
                         f"Successfully processed file with LlamaCloud: {filename}",
                         {
-                            "document_id": doc_result.id,
-                            "content_hash": doc_result.content_hash,
+                            "document_id": last_created_doc.id,
+                            "content_hash": last_created_doc.content_hash,
                             "file_type": "document",
                             "etl_service": "LLAMACLOUD",
+                            "pages_processed": final_page_count,
+                            "documents_count": len(markdown_documents),
                         },
                     )
                 else:
+                    # All documents were duplicates (markdown_documents was not empty, but all returned None)
                     await task_logger.log_task_success(
                         log_entry,
                         f"Document already exists (duplicate): {filename}",
@@ -728,6 +870,7 @@ async def process_file_in_background(
                             "duplicate_detected": True,
                             "file_type": "document",
                             "etl_service": "LLAMACLOUD",
+                            "documents_count": len(markdown_documents),
                         },
                     )
 
@@ -769,6 +912,26 @@ async def process_file_in_background(
                     },
                 )
 
+                # Verify actual page count from content length
+                actual_pages = page_limit_service.estimate_pages_from_content_length(
+                    len(result["content"])
+                )
+
+                # Use the higher of the two estimates for safety (in case pre-estimate was too low)
+                final_page_count = max(estimated_pages_before, actual_pages)
+
+                # If actual is significantly higher than estimate, log a warning
+                if actual_pages > estimated_pages_before * 1.5:
+                    await task_logger.log_task_progress(
+                        log_entry,
+                        f"Actual page count higher than estimate: {filename}",
+                        {
+                            "estimated_before": estimated_pages_before,
+                            "actual_pages": actual_pages,
+                            "using_count": final_page_count,
+                        },
+                    )
+
                 # Process the document using our Docling background task
                 doc_result = await add_received_file_document_using_docling(
                     session,
@@ -779,6 +942,12 @@ async def process_file_in_background(
                 )
 
                 if doc_result:
+                    # Update page usage after successful processing
+                    # allow_exceed=True because document was already created after passing initial check
+                    await page_limit_service.update_page_usage(
+                        user_id, final_page_count, allow_exceed=True
+                    )
+
                     await task_logger.log_task_success(
                         log_entry,
                         f"Successfully processed file with Docling: {filename}",
@@ -787,6 +956,7 @@ async def process_file_in_background(
                             "content_hash": doc_result.content_hash,
                             "file_type": "document",
                             "etl_service": "DOCLING",
+                            "pages_processed": final_page_count,
                         },
                     )
                 else:
@@ -801,13 +971,24 @@ async def process_file_in_background(
                     )
     except Exception as e:
         await session.rollback()
+
+        # For page limit errors, use the detailed message from the exception
+        from app.services.page_limit_service import PageLimitExceededError
+
+        if isinstance(e, PageLimitExceededError):
+            error_message = str(e)
+        elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
+            error_message = str(e.detail)
+        else:
+            error_message = f"Failed to process file: {filename}"
+
         await task_logger.log_task_failure(
             log_entry,
-            f"Failed to process file: {filename}",
+            error_message,
             str(e),
             {"error_type": type(e).__name__, "filename": filename},
         )
         import logging
 
-        logging.error(f"Error processing file in background: {e!s}")
+        logging.error(f"Error processing file in background: {error_message}")
         raise  # Re-raise so the wrapper can also handle it

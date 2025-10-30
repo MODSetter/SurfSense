@@ -308,11 +308,24 @@ async def _process_file_upload(
                 log_entry,
             )
         except Exception as e:
+            # Import here to avoid circular dependencies
+            from fastapi import HTTPException
+
+            from app.services.page_limit_service import PageLimitExceededError
+
+            # For page limit errors, use the detailed message from the exception
+            if isinstance(e, PageLimitExceededError):
+                error_message = str(e)
+            elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
+                error_message = str(e.detail)
+            else:
+                error_message = f"Failed to process file: {filename}"
+
             await task_logger.log_task_failure(
                 log_entry,
-                f"Failed to process file: {filename}",
+                error_message,
                 str(e),
                 {"error_type": type(e).__name__},
             )
-            logger.error(f"Error processing file: {e!s}")
+            logger.error(error_message)
             raise
