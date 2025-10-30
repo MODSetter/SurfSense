@@ -81,7 +81,6 @@ class ChatType(str, Enum):
 class LiteLLMProvider(str, Enum):
     """
     Enum for LLM providers supported by LiteLLM.
-    LiteLLM 支持的 LLM 提供商枚举。
     """
 
     OPENAI = "OPENAI"
@@ -401,6 +400,10 @@ if config.AUTH_TYPE == "GOOGLE":
             cascade="all, delete-orphan",
         )
 
+        # Page usage tracking for ETL services
+        pages_limit = Column(Integer, nullable=False, default=500, server_default="500")
+        pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+
 else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
@@ -410,6 +413,10 @@ else:
             back_populates="user",
             cascade="all, delete-orphan",
         )
+
+        # Page usage tracking for ETL services
+        pages_limit = Column(Integer, nullable=False, default=500, server_default="500")
+        pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
 
 engine = create_async_engine(DATABASE_URL)
