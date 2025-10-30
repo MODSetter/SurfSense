@@ -32,6 +32,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import Link from "next/link";
 
 // Map of icon names to their components
 export const iconMap: Record<string, LucideIcon> = {
@@ -213,16 +214,16 @@ export const AppSidebar = memo(function AppSidebar({
 			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<SidebarMenuButton size="lg" asChild aria-label="Go to home page">
-							<div>
-								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-									<Logo className="rounded-lg" />
-								</div>
-								<div className="grid flex-1 text-left text-sm leading-tight">
-									<span className="truncate font-medium">SurfSense</span>
-									<span className="truncate text-xs">beta v0.0.8</span>
-								</div>
+						<SidebarMenuButton asChild size="lg">
+						<Link href="/" className="flex items-center gap-2 w-full">
+							<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+							<Logo className="pointer-events-none rounded-lg" />
 							</div>
+							<div className="grid flex-1 text-left text-sm leading-tight">
+							<span className="truncate font-medium">SurfSense</span>
+							<span className="truncate text-xs">beta v0.0.8</span>
+							</div>
+						</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
