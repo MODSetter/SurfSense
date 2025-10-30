@@ -24,6 +24,8 @@ async def rerank_documents(state: State, config: RunnableConfig) -> dict[str, An
     reranks them using the reranker service based on the user's query,
     and updates the state with the reranked documents.
 
+    If reranking is disabled, returns the original documents without processing.
+
     Returns:
         Dict containing the reranked documents.
     """
@@ -40,45 +42,45 @@ async def rerank_documents(state: State, config: RunnableConfig) -> dict[str, An
     # Get reranker service from app config
     reranker_service = RerankerService.get_reranker_instance()
 
-    # Use documents as is if no reranker service is available
-    reranked_docs = documents
+    # If reranking is not enabled, return original documents without processing
+    if not reranker_service:
+        print("Reranking is disabled. Using original document order.")
+        return {"reranked_documents": documents}
 
-    if reranker_service:
-        try:
-            # Convert documents to format expected by reranker if needed
-            reranker_input_docs = [
-                {
-                    "chunk_id": doc.get("chunk_id", f"chunk_{i}"),
-                    "content": doc.get("content", ""),
-                    "score": doc.get("score", 0.0),
-                    "document": {
-                        "id": doc.get("document", {}).get("id", ""),
-                        "title": doc.get("document", {}).get("title", ""),
-                        "document_type": doc.get("document", {}).get(
-                            "document_type", ""
-                        ),
-                        "metadata": doc.get("document", {}).get("metadata", {}),
-                    },
-                }
-                for i, doc in enumerate(documents)
-            ]
+    # Perform reranking
+    try:
+        # Convert documents to format expected by reranker if needed
+        reranker_input_docs = [
+            {
+                "chunk_id": doc.get("chunk_id", f"chunk_{i}"),
+                "content": doc.get("content", ""),
+                "score": doc.get("score", 0.0),
+                "document": {
+                    "id": doc.get("document", {}).get("id", ""),
+                    "title": doc.get("document", {}).get("title", ""),
+                    "document_type": doc.get("document", {}).get("document_type", ""),
+                    "metadata": doc.get("document", {}).get("metadata", {}),
+                },
+            }
+            for i, doc in enumerate(documents)
+        ]
 
-            # Rerank documents using the user's query
-            reranked_docs = reranker_service.rerank_documents(
-                user_query + "\n" + reformulated_query, reranker_input_docs
-            )
+        # Rerank documents using the user's query
+        reranked_docs = reranker_service.rerank_documents(
+            user_query + "\n" + reformulated_query, reranker_input_docs
+        )
 
-            # Sort by score in descending order
-            reranked_docs.sort(key=lambda x: x.get("score", 0), reverse=True)
+        # Sort by score in descending order
+        reranked_docs.sort(key=lambda x: x.get("score", 0), reverse=True)
 
-            print(
-                f"Reranked {len(reranked_docs)} documents for Q&A query: {user_query}"
-            )
-        except Exception as e:
-            print(f"Error during reranking: {e!s}")
-            # Use original docs if reranking fails
+        print(f"Reranked {len(reranked_docs)} documents for Q&A query: {user_query}")
 
-    return {"reranked_documents": reranked_docs}
+        return {"reranked_documents": reranked_docs}
+
+    except Exception as e:
+        print(f"Error during reranking: {e!s}")
+        # Fall back to original documents if reranking fails
+        return {"reranked_documents": documents}
 
 
 async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any]:
