@@ -92,12 +92,16 @@ class Config:
     )
 
     # Reranker's Configuration | Pinecode, Cohere etc. Read more at https://github.com/AnswerDotAI/rerankers?tab=readme-ov-file#usage
-    RERANKERS_MODEL_NAME = os.getenv("RERANKERS_MODEL_NAME")
-    RERANKERS_MODEL_TYPE = os.getenv("RERANKERS_MODEL_TYPE")
-    reranker_instance = Reranker(
-        model_name=RERANKERS_MODEL_NAME,
-        model_type=RERANKERS_MODEL_TYPE,
-    )
+    RERANKERS_ENABLED = os.getenv("RERANKERS_ENABLED", "FALSE").upper() == "TRUE"
+    if RERANKERS_ENABLED:
+        RERANKERS_MODEL_NAME = os.getenv("RERANKERS_MODEL_NAME")
+        RERANKERS_MODEL_TYPE = os.getenv("RERANKERS_MODEL_TYPE")
+        reranker_instance = Reranker(
+            model_name=RERANKERS_MODEL_NAME,
+            model_type=RERANKERS_MODEL_TYPE,
+        )
+    else:
+        reranker_instance = None
 
     # OAuth JWT
     SECRET_KEY = os.getenv("SECRET_KEY")
