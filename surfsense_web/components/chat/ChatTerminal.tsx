@@ -77,9 +77,15 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 				</div>
 			</Button>
 
-			{/* Terminal Content */}
-			{!isCollapsed && (
-				<div ref={bottomRef} className="h-64 overflow-y-auto p-4 space-y-1 bg-gray-900">
+			{/* Terminal Content (animated expand/collapse) */}
+			<div
+				className={`overflow-hidden bg-gray-900 transition-[max-height,opacity] duration-300 ease-in-out ${
+					isCollapsed ? "max-h-0 opacity-0" : "max-h-64 opacity-100"
+				}`}
+				style={{ maxHeight: isCollapsed ? "0px" : "16rem" }}
+				aria-hidden={isCollapsed}
+			>
+				<div ref={bottomRef} className="h-64 overflow-y-auto p-4 space-y-1">
 					{events.map((event, index) => (
 						<div key={`${event.id}-${index}`} className="text-green-400">
 							<span className="text-blue-400">$</span>
@@ -93,7 +99,7 @@ export default function TerminalDisplay({ message, open }: { message: Message; o
 						<div className="text-gray-500 italic">No agent events to display...</div>
 					)}
 				</div>
-			)}
+			</div>
 		</div>
 	);
 }
