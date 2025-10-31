@@ -10,7 +10,7 @@ from app.utils.check_ownership import check_ownership
 router = APIRouter()
 
 
-@router.post("/searchspaces/", response_model=SearchSpaceRead)
+@router.post("/searchspaces", response_model=SearchSpaceRead)
 async def create_search_space(
     search_space: SearchSpaceCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -31,7 +31,7 @@ async def create_search_space(
         ) from e
 
 
-@router.get("/searchspaces/", response_model=list[SearchSpaceRead])
+@router.get("/searchspaces", response_model=list[SearchSpaceRead])
 async def read_search_spaces(
     skip: int = 0,
     limit: int = 200,

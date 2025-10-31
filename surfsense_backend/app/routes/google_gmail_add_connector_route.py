@@ -52,7 +52,7 @@ def get_google_flow():
     return flow
 
 
-@router.get("/auth/google/gmail/connector/add/")
+@router.get("/auth/google/gmail/connector/add")
 async def connect_gmail(space_id: int, user: User = Depends(current_active_user)):
     try:
         if not space_id:
@@ -82,7 +82,7 @@ async def connect_gmail(space_id: int, user: User = Depends(current_active_user)
         ) from e
 
 
-@router.get("/auth/google/gmail/connector/callback/")
+@router.get("/auth/google/gmail/connector/callback")
 async def gmail_callback(
     request: Request,
     code: str,

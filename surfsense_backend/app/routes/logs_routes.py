@@ -13,7 +13,7 @@ from app.utils.check_ownership import check_ownership
 router = APIRouter()
 
 
-@router.post("/logs/", response_model=LogRead)
+@router.post("/logs", response_model=LogRead)
 async def create_log(
     log: LogCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -38,7 +38,7 @@ async def create_log(
         ) from e
 
 
-@router.get("/logs/", response_model=list[LogRead])
+@router.get("/logs", response_model=list[LogRead])
 async def read_logs(
     skip: int = 0,
     limit: int = 100,

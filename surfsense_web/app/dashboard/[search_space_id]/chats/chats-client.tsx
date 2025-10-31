@@ -140,7 +140,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 
 				// Fetch all chats for this search space
 				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/?search_space_id=${searchSpaceId}`,
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats?search_space_id=${searchSpaceId}`,
 					{
 						headers: {
 							Authorization: `Bearer ${token}`,
@@ -285,7 +285,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 			};
 
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/generate/`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/generate`,
 				{
 					method: "POST",
 					headers: {

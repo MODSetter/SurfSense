@@ -74,7 +74,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 
 				// Build URL with optional search_space_id query parameter
 				const url = new URL(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/`
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`
 				);
 				if (spaceId !== undefined) {
 					url.searchParams.append("search_space_id", spaceId.toString());
@@ -184,7 +184,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 
 			// Add search_space_id as a query parameter
 			const url = new URL(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/`
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`
 			);
 			url.searchParams.append("search_space_id", spaceId.toString());
 

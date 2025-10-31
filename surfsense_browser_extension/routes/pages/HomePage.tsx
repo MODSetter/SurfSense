@@ -47,7 +47,7 @@ const HomePage = () => {
 			const token = await storage.get("token");
 			try {
 				const response = await fetch(
-					`${process.env.PLASMO_PUBLIC_BACKEND_URL}/api/v1/searchspaces/`,
+					`${process.env.PLASMO_PUBLIC_BACKEND_URL}/api/v1/searchspaces`,
 					{
 						headers: {
 							Authorization: `Bearer ${token}`,

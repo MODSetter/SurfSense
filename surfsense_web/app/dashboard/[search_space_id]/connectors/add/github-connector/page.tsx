@@ -107,7 +107,7 @@ export default function GithubConnectorPage() {
 			}
 
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories/`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories`,
 				{
 					method: "POST",
 					headers: {
@@ -158,6 +158,9 @@ export default function GithubConnectorPage() {
 					},
 					is_indexable: true,
 					last_indexed_at: null,
+					periodic_indexing_enabled: false,
+					indexing_frequency_minutes: null,
+					next_scheduled_at: null,
 				},
 				parseInt(searchSpaceId)
 			);

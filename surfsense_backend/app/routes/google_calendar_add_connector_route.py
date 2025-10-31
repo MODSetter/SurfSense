@@ -53,7 +53,7 @@ def get_google_flow():
         ) from e
 
 
-@router.get("/auth/google/calendar/connector/add/")
+@router.get("/auth/google/calendar/connector/add")
 async def connect_calendar(space_id: int, user: User = Depends(current_active_user)):
     try:
         if not space_id:
@@ -83,7 +83,7 @@ async def connect_calendar(space_id: int, user: User = Depends(current_active_us
         ) from e
 
 
-@router.get("/auth/google/calendar/connector/callback/")
+@router.get("/auth/google/calendar/connector/callback")
 async def calendar_callback(
     request: Request,
     code: str,

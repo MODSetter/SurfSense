@@ -70,7 +70,7 @@ class GitHubPATRequest(BaseModel):
 
 
 # --- New Endpoint to list GitHub Repositories ---
-@router.post("/github/repositories/", response_model=list[dict[str, Any]])
+@router.post("/github/repositories", response_model=list[dict[str, Any]])
 async def list_github_repositories(
     pat_request: GitHubPATRequest,
     user: User = Depends(current_active_user),  # Ensure the user is logged in
@@ -96,7 +96,7 @@ async def list_github_repositories(
         ) from e
 
 
-@router.post("/search-source-connectors/", response_model=SearchSourceConnectorRead)
+@router.post("/search-source-connectors", response_model=SearchSourceConnectorRead)
 async def create_search_source_connector(
     connector: SearchSourceConnectorCreate,
     search_space_id: int = Query(
@@ -189,9 +189,7 @@ async def create_search_source_connector(
         ) from e
 
 
-@router.get(
-    "/search-source-connectors/", response_model=list[SearchSourceConnectorRead]
-)
+@router.get("/search-source-connectors", response_model=list[SearchSourceConnectorRead])
 async def read_search_source_connectors(
     skip: int = 0,
     limit: int = 100,

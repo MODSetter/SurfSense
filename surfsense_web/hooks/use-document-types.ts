@@ -31,7 +31,7 @@ export const useDocumentTypes = (searchSpaceId?: number, lazy: boolean = false) 
 
 				// Build URL with optional search_space_id query parameter
 				const url = new URL(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/type-counts/`
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/type-counts`
 				);
 				if (spaceId !== undefined) {
 					url.searchParams.append("search_space_id", spaceId.toString());
