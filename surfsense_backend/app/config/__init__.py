@@ -97,6 +97,8 @@ class Config:
     DATABASE_URL = os.getenv("DATABASE_URL")
 
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
+    # Backend URL to override the http to https in the OAuth redirect URI
+    BACKEND_URL = os.getenv("BACKEND_URL")
 
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")

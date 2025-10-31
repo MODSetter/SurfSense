@@ -68,6 +68,14 @@ if config.AUTH_TYPE == "GOOGLE":
     app.include_router(
         fastapi_users.get_oauth_router(
             google_oauth_client, auth_backend, SECRET, is_verified_by_default=True
+        )
+        if not config.BACKEND_URL
+        else fastapi_users.get_oauth_router(
+            google_oauth_client,
+            auth_backend,
+            SECRET,
+            is_verified_by_default=True,
+            redirect_url=f"{config.BACKEND_URL}/auth/google/callback",
         ),
         prefix="/auth/google",
         tags=["auth"],
