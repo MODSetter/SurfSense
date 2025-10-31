@@ -287,3 +287,27 @@ async def stream_podcast(
         raise HTTPException(
             status_code=500, detail=f"Error streaming podcast: {e!s}"
         ) from e
+
+
+@router.get("/podcasts/by-chat/{chat_id}", response_model=PodcastRead | None)
+async def get_podcast_by_chat_id(
+    chat_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    try:
+        # Get the podcast and check if user has access
+        result = await session.execute(
+            select(Podcast)
+            .join(SearchSpace)
+            .filter(Podcast.chat_id == chat_id, SearchSpace.user_id == user.id)
+        )
+        podcast = result.scalars().first()
+
+        return podcast
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching podcast: {e!s}"
+        ) from e
