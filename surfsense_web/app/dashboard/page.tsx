@@ -292,7 +292,7 @@ const DashboardPage = () => {
 												mass: 0.2,
 											}}
 										/>
-										<div className="flex flex-col h-full overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
+										<div className="flex flex-col h-full justify-between overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
 											<div className="relative h-32 w-full overflow-hidden">
 												<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
 													<Image
@@ -337,15 +337,15 @@ const DashboardPage = () => {
 													</div>
 												</div>
 											</div>
-											<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
-												<div className="flex flex-1 flex-col justify-between p-4">
+											<Link className="flex flex-1 flex-col p-4 cursor-pointer" href={`/dashboard/${space.id}/documents`} key={space.id}>
+												<div className="flex flex-1 flex-col justify-between p-1">
 													<div>
 														<h3 className="font-medium text-lg">{space.name}</h3>
 														<p className="mt-1 text-sm text-muted-foreground">
 															{space.description}
 														</p>
 													</div>
-													<div className="mt-4 flex justify-between text-xs text-muted-foreground">
+													<div className="mt-4  text-xs text-muted-foreground">
 														{/* <span>{space.title}</span> */}
 														<span>
 															{t("created")} {formatDate(space.created_at)}
