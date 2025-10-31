@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.config import config
 from app.db import User, create_db_and_tables, get_async_session
@@ -27,6 +28,10 @@ def registration_allowed():
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
+# This ensures FastAPI uses HTTPS in redirects when behind a proxy
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Add CORS middleware
 app.add_middleware(

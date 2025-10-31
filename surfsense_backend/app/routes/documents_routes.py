@@ -38,7 +38,7 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 router = APIRouter()
 
 
-@router.post("/documents/")
+@router.post("/documents")
 async def create_documents(
     request: DocumentsCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -147,7 +147,7 @@ async def create_documents_file_upload(
         ) from e
 
 
-@router.get("/documents/", response_model=PaginatedResponse[DocumentRead])
+@router.get("/documents", response_model=PaginatedResponse[DocumentRead])
 async def read_documents(
     skip: int | None = None,
     page: int | None = None,
@@ -248,7 +248,7 @@ async def read_documents(
         ) from e
 
 
-@router.get("/documents/search/", response_model=PaginatedResponse[DocumentRead])
+@router.get("/documents/search", response_model=PaginatedResponse[DocumentRead])
 async def search_documents(
     title: str,
     skip: int | None = None,
@@ -350,6 +350,103 @@ async def search_documents(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to search documents: {e!s}"
+        ) from e
+
+
+@router.get("/documents/type-counts")
+async def get_document_type_counts(
+    search_space_id: int | None = None,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Get counts of documents by type for the current user.
+
+    Args:
+        search_space_id: If provided, restrict counts to a specific search space.
+        session: Database session (injected).
+        user: Current authenticated user (injected).
+
+    Returns:
+        Dict mapping document types to their counts.
+    """
+    try:
+        from sqlalchemy import func
+
+        query = (
+            select(Document.document_type, func.count(Document.id))
+            .join(SearchSpace)
+            .filter(SearchSpace.user_id == user.id)
+            .group_by(Document.document_type)
+        )
+
+        if search_space_id is not None:
+            query = query.filter(Document.search_space_id == search_space_id)
+
+        result = await session.execute(query)
+        type_counts = dict(result.all())
+
+        return type_counts
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch document type counts: {e!s}"
+        ) from e
+
+
+@router.get("/documents/by-chunk/{chunk_id}", response_model=DocumentWithChunksRead)
+async def get_document_by_chunk_id(
+    chunk_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Retrieves a document based on a chunk ID, including all its chunks ordered by creation time.
+    The document's embedding and chunk embeddings are excluded from the response.
+    """
+    try:
+        # First, get the chunk and verify it exists
+        chunk_result = await session.execute(select(Chunk).filter(Chunk.id == chunk_id))
+        chunk = chunk_result.scalars().first()
+
+        if not chunk:
+            raise HTTPException(
+                status_code=404, detail=f"Chunk with id {chunk_id} not found"
+            )
+
+        # Get the associated document and verify ownership
+        document_result = await session.execute(
+            select(Document)
+            .options(selectinload(Document.chunks))
+            .join(SearchSpace)
+            .filter(Document.id == chunk.document_id, SearchSpace.user_id == user.id)
+        )
+        document = document_result.scalars().first()
+
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found or you don't have access to it",
+            )
+
+        # Sort chunks by creation time
+        sorted_chunks = sorted(document.chunks, key=lambda x: x.created_at)
+
+        # Return the document with its chunks
+        return DocumentWithChunksRead(
+            id=document.id,
+            title=document.title,
+            document_type=document.document_type,
+            document_metadata=document.document_metadata,
+            content=document.content,
+            created_at=document.created_at,
+            search_space_id=document.search_space_id,
+            chunks=sorted_chunks,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve document: {e!s}"
         ) from e
 
 
@@ -463,101 +560,4 @@ async def delete_document(
         await session.rollback()
         raise HTTPException(
             status_code=500, detail=f"Failed to delete document: {e!s}"
-        ) from e
-
-
-@router.get("/documents/type-counts/")
-async def get_document_type_counts(
-    search_space_id: int | None = None,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """
-    Get counts of documents by type for the current user.
-
-    Args:
-        search_space_id: If provided, restrict counts to a specific search space.
-        session: Database session (injected).
-        user: Current authenticated user (injected).
-
-    Returns:
-        Dict mapping document types to their counts.
-    """
-    try:
-        from sqlalchemy import func
-
-        query = (
-            select(Document.document_type, func.count(Document.id))
-            .join(SearchSpace)
-            .filter(SearchSpace.user_id == user.id)
-            .group_by(Document.document_type)
-        )
-
-        if search_space_id is not None:
-            query = query.filter(Document.search_space_id == search_space_id)
-
-        result = await session.execute(query)
-        type_counts = dict(result.all())
-
-        return type_counts
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch document type counts: {e!s}"
-        ) from e
-
-
-@router.get("/documents/by-chunk/{chunk_id}", response_model=DocumentWithChunksRead)
-async def get_document_by_chunk_id(
-    chunk_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """
-    Retrieves a document based on a chunk ID, including all its chunks ordered by creation time.
-    The document's embedding and chunk embeddings are excluded from the response.
-    """
-    try:
-        # First, get the chunk and verify it exists
-        chunk_result = await session.execute(select(Chunk).filter(Chunk.id == chunk_id))
-        chunk = chunk_result.scalars().first()
-
-        if not chunk:
-            raise HTTPException(
-                status_code=404, detail=f"Chunk with id {chunk_id} not found"
-            )
-
-        # Get the associated document and verify ownership
-        document_result = await session.execute(
-            select(Document)
-            .options(selectinload(Document.chunks))
-            .join(SearchSpace)
-            .filter(Document.id == chunk.document_id, SearchSpace.user_id == user.id)
-        )
-        document = document_result.scalars().first()
-
-        if not document:
-            raise HTTPException(
-                status_code=404,
-                detail="Document not found or you don't have access to it",
-            )
-
-        # Sort chunks by creation time
-        sorted_chunks = sorted(document.chunks, key=lambda x: x.created_at)
-
-        # Return the document with its chunks
-        return DocumentWithChunksRead(
-            id=document.id,
-            title=document.title,
-            document_type=document.document_type,
-            document_metadata=document.document_metadata,
-            content=document.content,
-            created_at=document.created_at,
-            search_space_id=document.search_space_id,
-            chunks=sorted_chunks,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve document: {e!s}"
         ) from e

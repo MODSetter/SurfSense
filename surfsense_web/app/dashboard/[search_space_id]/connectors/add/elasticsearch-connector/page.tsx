@@ -177,7 +177,10 @@ export default function ElasticsearchConnectorPage() {
 				name: values.name,
 				connector_type: EnumConnectorName.ELASTICSEARCH_CONNECTOR,
 				is_indexable: true,
-				search_space_id: searchSpaceIdNum,
+				last_indexed_at: null,
+				periodic_indexing_enabled: false,
+				indexing_frequency_minutes: null,
+				next_scheduled_at: null,
 				config,
 			};
 
@@ -464,7 +467,7 @@ export default function ElasticsearchConnectorPage() {
 												<div className="rounded-lg border bg-muted/50 p-3">
 													<h4 className="text-sm font-medium mb-2">Selected Indices:</h4>
 													<div className="flex flex-wrap gap-2">
-														{stringToArray(form.watch("indices")).map((index) => (
+														{stringToArray(form.watch("indices") ?? "").map((index) => (
 															<Badge key={index} variant="secondary" className="text-xs">
 																{index}
 															</Badge>
@@ -543,7 +546,7 @@ export default function ElasticsearchConnectorPage() {
 														<div className="rounded-lg border bg-muted/50 p-3">
 															<h4 className="text-sm font-medium mb-2">Search Fields:</h4>
 															<div className="flex flex-wrap gap-2">
-																{stringToArray(form.watch("search_fields")).map((field) => (
+																{stringToArray(form.watch("search_fields") ?? "").map((field) => (
 																	<Badge key={field} variant="outline" className="text-xs">
 																		{field}
 																	</Badge>

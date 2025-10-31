@@ -177,7 +177,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 				const token = localStorage.getItem("surfsense_bearer_token");
 				if (!token) throw new Error("No auth token");
 				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories/`,
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories`,
 					{
 						method: "POST",
 						headers: {

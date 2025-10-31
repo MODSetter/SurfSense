@@ -87,7 +87,7 @@ class LLMPreferencesRead(BaseModel):
     strategic_llm: LLMConfigRead | None = None
 
 
-@router.post("/llm-configs/", response_model=LLMConfigRead)
+@router.post("/llm-configs", response_model=LLMConfigRead)
 async def create_llm_config(
     llm_config: LLMConfigCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -112,7 +112,7 @@ async def create_llm_config(
         ) from e
 
 
-@router.get("/llm-configs/", response_model=list[LLMConfigRead])
+@router.get("/llm-configs", response_model=list[LLMConfigRead])
 async def read_llm_configs(
     search_space_id: int,
     skip: int = 0,

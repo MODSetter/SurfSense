@@ -67,6 +67,9 @@ export default function ClickUpConnectorPage() {
 					CLICKUP_API_TOKEN: values.api_token,
 				},
 				last_indexed_at: null,
+				periodic_indexing_enabled: false,
+				indexing_frequency_minutes: null,
+				next_scheduled_at: null,
 			};
 
 			await createConnector(connectorData, parseInt(searchSpaceId));

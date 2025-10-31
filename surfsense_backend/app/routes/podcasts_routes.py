@@ -21,7 +21,7 @@ from app.utils.check_ownership import check_ownership
 router = APIRouter()
 
 
-@router.post("/podcasts/", response_model=PodcastRead)
+@router.post("/podcasts", response_model=PodcastRead)
 async def create_podcast(
     podcast: PodcastCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -54,7 +54,7 @@ async def create_podcast(
         ) from None
 
 
-@router.get("/podcasts/", response_model=list[PodcastRead])
+@router.get("/podcasts", response_model=list[PodcastRead])
 async def read_podcasts(
     skip: int = 0,
     limit: int = 100,
@@ -171,7 +171,7 @@ async def generate_chat_podcast_with_new_session(
             logging.error(f"Error generating podcast from chat: {e!s}")
 
 
-@router.post("/podcasts/generate/")
+@router.post("/podcasts/generate")
 async def generate_podcast(
     request: PodcastGenerateRequest,
     session: AsyncSession = Depends(get_async_session),

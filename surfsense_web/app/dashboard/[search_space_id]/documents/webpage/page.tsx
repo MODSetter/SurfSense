@@ -64,7 +64,7 @@ export default function WebpageCrawler() {
 
 			// Make API call to backend
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`,
 				{
 					method: "POST",
 					headers: {

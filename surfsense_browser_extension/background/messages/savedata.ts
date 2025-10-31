@@ -131,7 +131,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 			};
 
 			const response = await fetch(
-				`${process.env.PLASMO_PUBLIC_BACKEND_URL}/api/v1/documents/`,
+				`${process.env.PLASMO_PUBLIC_BACKEND_URL}/api/v1/documents`,
 				requestOptions
 			);
 			const resp = await response.json();

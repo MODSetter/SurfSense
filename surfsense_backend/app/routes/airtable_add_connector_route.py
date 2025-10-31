@@ -69,7 +69,7 @@ def generate_pkce_pair() -> tuple[str, str]:
     return code_verifier, code_challenge
 
 
-@router.get("/auth/airtable/connector/add/")
+@router.get("/auth/airtable/connector/add")
 async def connect_airtable(space_id: int, user: User = Depends(current_active_user)):
     """
     Initiate Airtable OAuth flow.
@@ -131,7 +131,7 @@ async def connect_airtable(space_id: int, user: User = Depends(current_active_us
         ) from e
 
 
-@router.get("/auth/airtable/connector/callback/")
+@router.get("/auth/airtable/connector/callback")
 async def airtable_callback(
     request: Request,
     code: str,

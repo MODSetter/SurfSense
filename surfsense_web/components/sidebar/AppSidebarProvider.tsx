@@ -90,7 +90,7 @@ export function AppSidebarProvider({
 			if (typeof window === "undefined") return;
 
 			const chats: Chat[] = await apiClient.get<Chat[]>(
-				`api/v1/chats/?limit=5&skip=0&search_space_id=${searchSpaceId}`
+				`api/v1/chats?limit=5&skip=0&search_space_id=${searchSpaceId}`
 			);
 
 			// Sort chats by created_at in descending order (newest first)

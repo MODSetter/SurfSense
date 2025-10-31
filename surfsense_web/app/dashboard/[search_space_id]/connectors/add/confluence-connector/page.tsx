@@ -88,6 +88,9 @@ export default function ConfluenceConnectorPage() {
 					},
 					is_indexable: true,
 					last_indexed_at: null,
+					periodic_indexing_enabled: false,
+					indexing_frequency_minutes: null,
+					next_scheduled_at: null,
 				},
 				parseInt(searchSpaceId)
 			);

@@ -90,7 +90,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 
 			try {
 				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/`,
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats`,
 					{
 						method: "POST",
 						headers: {

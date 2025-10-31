@@ -130,7 +130,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 
 				// Fetch all podcasts for this search space
 				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/`,
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts`,
 					{
 						headers: {
 							Authorization: `Bearer ${token}`,

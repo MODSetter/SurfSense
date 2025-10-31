@@ -96,7 +96,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				if (options.limit !== undefined) params.append("limit", options.limit.toString());
 
 				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/?${params}`,
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs?${params}`,
 					{
 						headers: {
 							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
@@ -147,7 +147,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 	// Function to create a new log
 	const createLog = useCallback(async (logData: Omit<Log, "id" | "created_at">) => {
 		try {
-			const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/`, {
+			const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs`, {
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
