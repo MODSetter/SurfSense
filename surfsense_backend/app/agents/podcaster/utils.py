@@ -63,6 +63,17 @@ def get_voice_for_provider(provider: str, speaker_id: int) -> dict | str:
             },
         }
         return vertex_voices.get(speaker_id, vertex_voices[0])
+    elif provider_type == "azure":
+        # OpenAI voice mapping - simple string values
+        azure_voices = {
+            0: "alloy",  # Default/intro voice
+            1: "echo",  # First speaker
+            2: "fable",  # Second speaker
+            3: "onyx",  # Third speaker
+            4: "nova",  # Fourth speaker
+            5: "shimmer",  # Fifth speaker
+        }
+        return azure_voices.get(speaker_id, "alloy")
 
     else:
         # Default fallback to OpenAI format for unknown providers

@@ -98,7 +98,7 @@ class PageLimitService:
 
         # Get user
         result = await self.session.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
+        user = result.unique().scalar_one_or_none()
 
         if not user:
             raise ValueError(f"User with ID {user_id} not found")
