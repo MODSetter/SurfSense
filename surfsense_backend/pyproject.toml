@@ -1,3 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
+include-package-data = false
+
+[tool.setuptools.package-data]
+app = ["**/*"]
+
 [project]
 name = "surf-new-backend"
 version = "0.0.8"
