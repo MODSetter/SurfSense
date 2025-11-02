@@ -4,6 +4,8 @@ File document processors for different ETL services (Unstructured, LlamaCloud, D
 
 import contextlib
 import logging
+import warnings
+from logging import ERROR, getLogger
 
 from fastapi import HTTPException
 from langchain_core.documents import Document as LangChainDocument
@@ -886,8 +888,6 @@ async def process_file_in_background(
                 )
 
                 # Use Docling service for document processing
-                import warnings
-
                 from app.services.docling_service import create_docling_service
 
                 # Create Docling service
@@ -896,7 +896,7 @@ async def process_file_in_background(
                 # Suppress pdfminer warnings that can cause processing to hang
                 # These warnings are harmless but can spam logs and potentially halt processing
                 # Suppress both Python warnings and logging warnings from pdfminer
-                pdfminer_logger = logging.getLogger("pdfminer")
+                pdfminer_logger = getLogger("pdfminer")
                 original_level = pdfminer_logger.level
                 
                 with warnings.catch_warnings():
@@ -912,7 +912,7 @@ async def process_file_in_background(
                     )
                     
                     # Temporarily suppress pdfminer logging warnings
-                    pdfminer_logger.setLevel(logging.ERROR)
+                    pdfminer_logger.setLevel(ERROR)
                     
                     try:
                         # Process the document
