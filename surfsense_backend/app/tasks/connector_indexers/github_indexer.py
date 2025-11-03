@@ -380,6 +380,11 @@ async def index_github_repos(
                     )
                     session.add(document)
                     documents_processed += 1
+                    
+                    # Batch commit every 10 documents
+                    if documents_processed % 10 == 0:
+                        logger.info(f"Committing batch: {documents_processed} GitHub files processed so far")
+                        await session.commit()
 
             except Exception as repo_err:
                 logger.error(
@@ -387,7 +392,8 @@ async def index_github_repos(
                 )
                 errors.append(f"Failed processing {repo_full_name}: {repo_err}")
 
-        # Commit all changes at the end
+        # Final commit for any remaining documents not yet committed in batches
+        logger.info(f"Final commit: Total {documents_processed} GitHub files processed")
         await session.commit()
         logger.info(
             f"Finished GitHub indexing for connector {connector_id}. Processed {documents_processed} files."

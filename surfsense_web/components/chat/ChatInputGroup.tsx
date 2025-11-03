@@ -26,6 +26,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
 import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 const DocumentSelector = React.memo(
 	({
@@ -119,14 +120,31 @@ const ConnectorSelector = React.memo(
 			true
 		);
 
+		// Fetch live search connectors (non-indexable)
+		const {
+			connectors: searchConnectors,
+			isLoading: connectorsLoading,
+			isLoaded: connectorsLoaded,
+			fetchConnectors,
+		} = useSearchSourceConnectors(true, Number(search_space_id));
+
+		// Filter for non-indexable connectors (live search)
+		const liveSearchConnectors = React.useMemo(
+			() => searchConnectors.filter((connector) => !connector.is_indexable),
+			[searchConnectors]
+		);
+
 		const handleOpenChange = useCallback(
 			(open: boolean) => {
 				setIsOpen(open);
 				if (open && !isLoaded) {
 					fetchDocumentTypes(Number(search_space_id));
 				}
+				if (open && !connectorsLoaded) {
+					fetchConnectors(Number(search_space_id));
+				}
 			},
-			[fetchDocumentTypes, isLoaded, search_space_id]
+			[fetchDocumentTypes, isLoaded, fetchConnectors, connectorsLoaded, search_space_id]
 		);
 
 		const handleConnectorToggle = useCallback(
@@ -141,14 +159,18 @@ const ConnectorSelector = React.memo(
 		);
 
 		const handleSelectAll = useCallback(() => {
-			onSelectionChange?.(documentTypes.map((dt) => dt.type));
-		}, [documentTypes, onSelectionChange]);
+			const allTypes = [
+				...documentTypes.map((dt) => dt.type),
+				...liveSearchConnectors.map((c) => c.connector_type),
+			];
+			onSelectionChange?.(allTypes);
+		}, [documentTypes, liveSearchConnectors, onSelectionChange]);
 
 		const handleClearAll = useCallback(() => {
 			onSelectionChange?.([]);
 		}, [onSelectionChange]);
 
-		// Get display name for document type
+		// Get display name for connector type
 		const getDisplayName = (type: string) => {
 			return type
 				.split("_")
@@ -158,6 +180,13 @@ const ConnectorSelector = React.memo(
 
 		// Get selected document types with their counts
 		const selectedDocTypes = documentTypes.filter((dt) => selectedConnectors.includes(dt.type));
+		const selectedLiveConnectors = liveSearchConnectors.filter((c) =>
+			selectedConnectors.includes(c.connector_type)
+		);
+
+		// Total selected count
+		const totalSelectedCount = selectedDocTypes.length + selectedLiveConnectors.length;
+		const totalAvailableCount = documentTypes.length + liveSearchConnectors.length;
 
 		return (
 			<Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -168,10 +197,10 @@ const ConnectorSelector = React.memo(
 						className="relative h-9 gap-2 px-3 border-dashed hover:border-solid hover:bg-accent/50 transition-all"
 					>
 						<div className="flex items-center gap-1.5">
-							{selectedDocTypes.length > 0 ? (
+							{totalSelectedCount > 0 ? (
 								<>
 									<div className="flex items-center -space-x-2">
-										{selectedDocTypes.slice(0, 3).map((docType) => (
+										{selectedDocTypes.slice(0, 2).map((docType) => (
 											<div
 												key={docType.type}
 												className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted"
@@ -179,9 +208,17 @@ const ConnectorSelector = React.memo(
 												{getConnectorIcon(docType.type, "h-3 w-3")}
 											</div>
 										))}
+										{selectedLiveConnectors.slice(0, 3 - selectedDocTypes.slice(0, 2).length).map((connector) => (
+											<div
+												key={connector.id}
+												className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted"
+											>
+												{getConnectorIcon(connector.connector_type, "h-3 w-3")}
+											</div>
+										))}
 									</div>
 									<span className="text-xs font-medium">
-										{selectedDocTypes.length} {selectedDocTypes.length === 1 ? "source" : "sources"}
+										{totalSelectedCount} {totalSelectedCount === 1 ? "source" : "sources"}
 									</span>
 								</>
 							) : (
@@ -194,99 +231,169 @@ const ConnectorSelector = React.memo(
 					</Button>
 				</DialogTrigger>
 
-				<DialogContent className="sm:max-w-2xl">
-					<div className="space-y-4">
+				<DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+					<div className="space-y-4 flex-1 overflow-y-auto pr-2">
 						<div>
-							<DialogTitle className="text-xl">Select Document Types</DialogTitle>
+							<DialogTitle className="text-xl">Select Sources</DialogTitle>
 							<DialogDescription className="mt-1.5">
-								Choose which document types to include in your search
+								Choose indexed document types and live search connectors to include in your search
 							</DialogDescription>
 						</div>
 
-						{/* Document type selection grid */}
-						<div className="grid grid-cols-2 gap-3">
-							{isLoading ? (
-								<div className="col-span-2 flex justify-center py-8">
-									<div className="animate-spin h-8 w-8 border-3 border-primary border-t-transparent rounded-full" />
+						{(isLoading || connectorsLoading) ? (
+							<div className="flex justify-center py-8">
+								<div className="animate-spin h-8 w-8 border-3 border-primary border-t-transparent rounded-full" />
+							</div>
+						) : totalAvailableCount === 0 ? (
+							<div className="flex flex-col items-center justify-center py-12 text-center">
+								<div className="rounded-full bg-muted p-4 mb-4">
+									<Brain className="h-8 w-8 text-muted-foreground" />
 								</div>
-							) : documentTypes.length === 0 ? (
-								<div className="col-span-2 flex flex-col items-center justify-center py-12 text-center">
-									<div className="rounded-full bg-muted p-4 mb-4">
-										<Brain className="h-8 w-8 text-muted-foreground" />
-									</div>
-									<h4 className="text-sm font-medium mb-1">No documents found</h4>
-									<p className="text-xs text-muted-foreground max-w-xs">
-										Add documents to this search space to enable filtering by type
-									</p>
-								</div>
-							) : (
-								documentTypes.map((docType) => {
-									const isSelected = selectedConnectors.includes(docType.type);
+								<h4 className="text-sm font-medium mb-1">No sources found</h4>
+								<p className="text-xs text-muted-foreground max-w-xs">
+									Add documents or configure search connectors for this search space
+								</p>
+							</div>
+						) : (
+							<>
+								{/* Live Search Connectors Section */}
+								{liveSearchConnectors.length > 0 && (
+									<div className="space-y-2">
+										<div className="flex items-center gap-2 pb-2">
+											<Zap className="h-4 w-4 text-primary" />
+											<h3 className="text-sm font-semibold">Live Search Connectors</h3>
+											<Badge variant="outline" className="text-xs">
+												Real-time
+											</Badge>
+										</div>
+										<div className="grid grid-cols-2 gap-3">
+											{liveSearchConnectors.map((connector) => {
+												const isSelected = selectedConnectors.includes(connector.connector_type);
 
-									return (
-										<button
-											key={docType.type}
-											onClick={() => handleConnectorToggle(docType.type)}
-											type="button"
-											className={`group relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
-												isSelected
-													? "border-primary bg-primary/5 shadow-sm"
-													: "border-border hover:border-primary/50 hover:bg-accent/50"
-											}`}
-										>
-											<div
-												className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
-													isSelected ? "bg-primary/10" : "bg-muted group-hover:bg-primary/5"
-												}`}
-											>
-												{getConnectorIcon(
-													docType.type,
-													`h-5 w-5 ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`
-												)}
-											</div>
-											<div className="flex-1 text-left min-w-0">
-												<div className="flex items-center gap-2">
-													<p className="text-sm font-medium truncate">
-														{getDisplayName(docType.type)}
-													</p>
-													{isSelected && (
-														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
-															<Check className="h-3 w-3 text-primary-foreground" />
+												return (
+													<button
+														key={connector.id}
+														onClick={() => handleConnectorToggle(connector.connector_type)}
+														type="button"
+														className={`group relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+															isSelected
+																? "border-primary bg-primary/5 shadow-sm"
+																: "border-border hover:border-primary/50 hover:bg-accent/50"
+														}`}
+													>
+														<div
+															className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+																isSelected ? "bg-primary/10" : "bg-muted group-hover:bg-primary/5"
+															}`}
+														>
+															{getConnectorIcon(
+																connector.connector_type,
+																`h-5 w-5 ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`
+															)}
 														</div>
-													)}
-												</div>
-												<p className="text-xs text-muted-foreground mt-0.5">
-													{docType.count} {docType.count === 1 ? "document" : "documents"}
-												</p>
-											</div>
-										</button>
-									);
-								})
-							)}
-						</div>
+														<div className="flex-1 text-left min-w-0">
+															<div className="flex items-center gap-2">
+																<p className="text-sm font-medium truncate">
+																	{connector.name}
+																</p>
+																{isSelected && (
+																	<div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+																		<Check className="h-3 w-3 text-primary-foreground" />
+																	</div>
+																)}
+															</div>
+															<p className="text-xs text-muted-foreground mt-0.5 truncate">
+																{getDisplayName(connector.connector_type)}
+															</p>
+														</div>
+													</button>
+												);
+											})}
+										</div>
+									</div>
+								)}
 
-						{documentTypes.length > 0 && (
-							<DialogFooter className="flex flex-row justify-between items-center gap-2 pt-2">
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={handleClearAll}
-									disabled={selectedConnectors.length === 0}
-									className="text-xs"
-								>
-									Clear All
-								</Button>
-								<Button
-									size="sm"
-									onClick={handleSelectAll}
-									disabled={selectedConnectors.length === documentTypes.length}
-									className="text-xs"
-								>
-									Select All ({documentTypes.length})
-								</Button>
-							</DialogFooter>
+								{/* Document Types Section */}
+								{documentTypes.length > 0 && (
+									<div className="space-y-2">
+										<div className="flex items-center gap-2 pb-2">
+											<FolderOpen className="h-4 w-4 text-primary" />
+											<h3 className="text-sm font-semibold">Indexed Document Types</h3>
+											<Badge variant="outline" className="text-xs">
+												Stored
+											</Badge>
+										</div>
+										<div className="grid grid-cols-2 gap-3">
+											{documentTypes.map((docType) => {
+												const isSelected = selectedConnectors.includes(docType.type);
+
+												return (
+													<button
+														key={docType.type}
+														onClick={() => handleConnectorToggle(docType.type)}
+														type="button"
+														className={`group relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+															isSelected
+																? "border-primary bg-primary/5 shadow-sm"
+																: "border-border hover:border-primary/50 hover:bg-accent/50"
+														}`}
+													>
+														<div
+															className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+																isSelected ? "bg-primary/10" : "bg-muted group-hover:bg-primary/5"
+															}`}
+														>
+															{getConnectorIcon(
+																docType.type,
+																`h-5 w-5 ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`
+															)}
+														</div>
+														<div className="flex-1 text-left min-w-0">
+															<div className="flex items-center gap-2">
+																<p className="text-sm font-medium truncate">
+																	{getDisplayName(docType.type)}
+																</p>
+																{isSelected && (
+																	<div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+																		<Check className="h-3 w-3 text-primary-foreground" />
+																	</div>
+																)}
+															</div>
+															<p className="text-xs text-muted-foreground mt-0.5">
+																{docType.count} {docType.count === 1 ? "document" : "documents"}
+															</p>
+														</div>
+													</button>
+												);
+											})}
+										</div>
+									</div>
+								)}
+							</>
 						)}
 					</div>
+
+					{totalAvailableCount > 0 && (
+						<DialogFooter className="flex flex-row justify-between items-center gap-2 pt-4 border-t">
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={handleClearAll}
+								disabled={selectedConnectors.length === 0}
+								className="text-xs"
+							>
+								Clear All
+							</Button>
+							<Button
+								size="sm"
+								onClick={handleSelectAll}
+								disabled={selectedConnectors.length === totalAvailableCount}
+								className="text-xs"
+							>
+								Select All ({totalAvailableCount})
+							</Button>
+						</DialogFooter>
+					)}
 				</DialogContent>
 			</Dialog>
 		);

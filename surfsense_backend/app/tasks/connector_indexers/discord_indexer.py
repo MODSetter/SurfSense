@@ -461,6 +461,11 @@ async def index_discord_messages(
                         logger.info(
                             f"Successfully indexed new channel {guild_name}#{channel_name} with {len(formatted_messages)} messages"
                         )
+                        
+                        # Batch commit every 10 documents
+                        if documents_indexed % 10 == 0:
+                            logger.info(f"Committing batch: {documents_indexed} Discord channels processed so far")
+                            await session.commit()
 
                 except Exception as e:
                     logger.error(
@@ -476,6 +481,8 @@ async def index_discord_messages(
         if documents_indexed > 0:
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
+        # Final commit for any remaining documents not yet committed in batches
+        logger.info(f"Final commit: Total {documents_indexed} Discord channels processed")
         await session.commit()
 
         # Prepare result message

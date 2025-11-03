@@ -76,8 +76,8 @@ celery_app.conf.update(
     enable_utc=True,
     # Task execution settings
     task_track_started=True,
-    task_time_limit=3600,  # 1 hour hard limit
-    task_soft_time_limit=3000,  # 50 minutes soft limit
+    task_time_limit=28800,  # 8 hour hard limit
+    task_soft_time_limit=28200,  # 7 hours 50 minutes soft limit
     # Result backend settings
     result_expires=86400,  # Results expire after 24 hours
     result_extended=True,
