@@ -590,11 +590,7 @@ const LLMSelector = React.memo(() => {
 												</p>
 											</div>
 										</div>
-										{preferences.fast_llm_id === config.id && (
-											<div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary ml-2 flex-shrink-0">
-												<Check className="h-3 w-3 text-primary-foreground" />
-											</div>
-										)}
+										
 									</div>
 								</SelectItem>
 							))}
