@@ -25,6 +25,7 @@ import { Logo } from "@/components/Logo";
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
+import { PageUsageDisplay } from "@/components/sidebar/page-usage-display";
 import {
 	Sidebar,
 	SidebarContent,
@@ -175,6 +176,10 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 		email: string;
 		avatar: string;
 	};
+	pageUsage?: {
+		pagesUsed: number;
+		pagesLimit: number;
+	};
 }
 
 // Memoized AppSidebar component for better performance
@@ -182,6 +187,7 @@ export const AppSidebar = memo(function AppSidebar({
 	navMain = defaultData.navMain,
 	navSecondary = defaultData.navSecondary,
 	RecentChats = defaultData.RecentChats,
+	pageUsage,
 	...props
 }: AppSidebarProps) {
 	// Process navMain to resolve icon names to components
@@ -246,6 +252,9 @@ export const AppSidebar = memo(function AppSidebar({
 				)}
 			</SidebarContent>
 			<SidebarFooter>
+				{pageUsage && (
+					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
+				)}
 				<NavSecondary items={processedNavSecondary} className="mt-auto" />
 			</SidebarFooter>
 		</Sidebar>

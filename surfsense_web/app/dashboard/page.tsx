@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
@@ -34,16 +33,8 @@ import {
 } from "@/components/ui/card";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
+import { useUser } from "@/hooks";
 import { useSearchSpaces } from "@/hooks/use-search-spaces";
-import { apiClient } from "@/lib/api";
-
-interface User {
-	id: string;
-	email: string;
-	is_active: boolean;
-	is_superuser: boolean;
-	is_verified: boolean;
-}
 
 /**
  * Formats a date string into a readable format
@@ -163,35 +154,8 @@ const DashboardPage = () => {
 
 	const { searchSpaces, loading, error, refreshSearchSpaces } = useSearchSpaces();
 
-	// User state management
-	const [user, setUser] = useState<User | null>(null);
-	const [isLoadingUser, setIsLoadingUser] = useState(true);
-	const [userError, setUserError] = useState<string | null>(null);
-
 	// Fetch user details
-	useEffect(() => {
-		const fetchUser = async () => {
-			try {
-				if (typeof window === "undefined") return;
-
-				try {
-					const userData = await apiClient.get<User>("users/me");
-					setUser(userData);
-					setUserError(null);
-				} catch (error) {
-					console.error("Error fetching user:", error);
-					setUserError(error instanceof Error ? error.message : "Unknown error occurred");
-				} finally {
-					setIsLoadingUser(false);
-				}
-			} catch (error) {
-				console.error("Error in fetchUser:", error);
-				setIsLoadingUser(false);
-			}
-		};
-
-		fetchUser();
-	}, []);
+	const { user, loading: isLoadingUser, error: userError } = useUser();
 
 	// Create user object for UserDropdown
 	const customUser = {
