@@ -389,10 +389,12 @@ async def index_airtable_records(
                             logger.info(
                                 f"Successfully indexed new Airtable record {summary_content}"
                             )
-                            
+
                             # Batch commit every 10 documents
                             if documents_indexed % 10 == 0:
-                                logger.info(f"Committing batch: {documents_indexed} Airtable records processed so far")
+                                logger.info(
+                                    f"Committing batch: {documents_indexed} Airtable records processed so far"
+                                )
                                 await session.commit()
 
                         except Exception as e:
@@ -414,7 +416,9 @@ async def index_airtable_records(
                         )
 
                     # Final commit for any remaining documents not yet committed in batches
-                    logger.info(f"Final commit: Total {documents_indexed} Airtable records processed")
+                    logger.info(
+                        f"Final commit: Total {documents_indexed} Airtable records processed"
+                    )
                     await session.commit()
                     logger.info(
                         "Successfully committed all Airtable document changes to database"

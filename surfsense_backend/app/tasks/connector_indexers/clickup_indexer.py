@@ -353,10 +353,12 @@ async def index_clickup_tasks(
                     session.add(document)
                     documents_indexed += 1
                     logger.info(f"Successfully indexed new task {task_name}")
-                    
+
                     # Batch commit every 10 documents
                     if documents_indexed % 10 == 0:
-                        logger.info(f"Committing batch: {documents_indexed} ClickUp tasks processed so far")
+                        logger.info(
+                            f"Committing batch: {documents_indexed} ClickUp tasks processed so far"
+                        )
                         await session.commit()
 
                 except Exception as e:

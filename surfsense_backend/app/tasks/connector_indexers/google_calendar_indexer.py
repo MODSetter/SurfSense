@@ -406,10 +406,12 @@ async def index_google_calendar_events(
                 session.add(document)
                 documents_indexed += 1
                 logger.info(f"Successfully indexed new event {event_summary}")
-                
+
                 # Batch commit every 10 documents
                 if documents_indexed % 10 == 0:
-                    logger.info(f"Committing batch: {documents_indexed} Google Calendar events processed so far")
+                    logger.info(
+                        f"Committing batch: {documents_indexed} Google Calendar events processed so far"
+                    )
                     await session.commit()
 
             except Exception as e:
@@ -428,7 +430,9 @@ async def index_google_calendar_events(
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit for any remaining documents not yet committed in batches
-        logger.info(f"Final commit: Total {documents_indexed} Google Calendar events processed")
+        logger.info(
+            f"Final commit: Total {documents_indexed} Google Calendar events processed"
+        )
         await session.commit()
 
         await task_logger.log_task_success(

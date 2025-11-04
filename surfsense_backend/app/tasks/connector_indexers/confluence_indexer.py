@@ -367,10 +367,12 @@ async def index_confluence_pages(
                 session.add(document)
                 documents_indexed += 1
                 logger.info(f"Successfully indexed new page {page_title}")
-                
+
                 # Batch commit every 10 documents
                 if documents_indexed % 10 == 0:
-                    logger.info(f"Committing batch: {documents_indexed} Confluence pages processed so far")
+                    logger.info(
+                        f"Committing batch: {documents_indexed} Confluence pages processed so far"
+                    )
                     await session.commit()
 
             except Exception as e:
@@ -390,7 +392,9 @@ async def index_confluence_pages(
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit for any remaining documents not yet committed in batches
-        logger.info(f"Final commit: Total {documents_indexed} Confluence pages processed")
+        logger.info(
+            f"Final commit: Total {documents_indexed} Confluence pages processed"
+        )
         await session.commit()
         logger.info(
             "Successfully committed all Confluence document changes to database"

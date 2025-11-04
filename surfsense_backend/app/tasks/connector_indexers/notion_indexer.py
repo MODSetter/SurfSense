@@ -356,12 +356,14 @@ async def index_notion_pages(
 
                         documents_indexed += 1
                         logger.info(f"Successfully updated Notion page: {page_title}")
-                        
+
                         # Batch commit every 10 documents
                         if documents_indexed % 10 == 0:
-                            logger.info(f"Committing batch: {documents_indexed} documents processed so far")
+                            logger.info(
+                                f"Committing batch: {documents_indexed} documents processed so far"
+                            )
                             await session.commit()
-                        
+
                         continue
 
                 # Document doesn't exist - create new one
@@ -411,10 +413,12 @@ async def index_notion_pages(
                 session.add(document)
                 documents_indexed += 1
                 logger.info(f"Successfully indexed new Notion page: {page_title}")
-                
+
                 # Batch commit every 10 documents
                 if documents_indexed % 10 == 0:
-                    logger.info(f"Committing batch: {documents_indexed} documents processed so far")
+                    logger.info(
+                        f"Committing batch: {documents_indexed} documents processed so far"
+                    )
                     await session.commit()
 
             except Exception as e:

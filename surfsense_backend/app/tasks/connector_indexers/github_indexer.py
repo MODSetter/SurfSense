@@ -380,10 +380,12 @@ async def index_github_repos(
                     )
                     session.add(document)
                     documents_processed += 1
-                    
+
                     # Batch commit every 10 documents
                     if documents_processed % 10 == 0:
-                        logger.info(f"Committing batch: {documents_processed} GitHub files processed so far")
+                        logger.info(
+                            f"Committing batch: {documents_processed} GitHub files processed so far"
+                        )
                         await session.commit()
 
             except Exception as repo_err:

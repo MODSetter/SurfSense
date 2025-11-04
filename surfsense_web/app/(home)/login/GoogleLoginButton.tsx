@@ -36,7 +36,7 @@ export function GoogleLoginButton() {
 				<h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
 					{t("welcome_back")}
 				</h1>
-{/* 
+				{/* 
 				<motion.div
 					initial={{ opacity: 0, y: -5 }}
 					animate={{ opacity: 1, y: 0 }}

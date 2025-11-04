@@ -437,10 +437,12 @@ async def index_luma_events(
                 session.add(document)
                 documents_indexed += 1
                 logger.info(f"Successfully indexed new event {event_name}")
-                
+
                 # Batch commit every 10 documents
                 if documents_indexed % 10 == 0:
-                    logger.info(f"Committing batch: {documents_indexed} Luma events processed so far")
+                    logger.info(
+                        f"Committing batch: {documents_indexed} Luma events processed so far"
+                    )
                     await session.commit()
 
             except Exception as e:

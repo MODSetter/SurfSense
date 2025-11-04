@@ -370,10 +370,12 @@ async def index_linear_issues(
                 logger.info(
                     f"Successfully indexed new issue {issue_identifier} - {issue_title}"
                 )
-                
+
                 # Batch commit every 10 documents
                 if documents_indexed % 10 == 0:
-                    logger.info(f"Committing batch: {documents_indexed} Linear issues processed so far")
+                    logger.info(
+                        f"Committing batch: {documents_indexed} Linear issues processed so far"
+                    )
                     await session.commit()
 
             except Exception as e:

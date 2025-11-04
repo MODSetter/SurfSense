@@ -208,14 +208,16 @@ const ConnectorSelector = React.memo(
 												{getConnectorIcon(docType.type, "h-3 w-3")}
 											</div>
 										))}
-										{selectedLiveConnectors.slice(0, 3 - selectedDocTypes.slice(0, 2).length).map((connector) => (
-											<div
-												key={connector.id}
-												className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted"
-											>
-												{getConnectorIcon(connector.connector_type, "h-3 w-3")}
-											</div>
-										))}
+										{selectedLiveConnectors
+											.slice(0, 3 - selectedDocTypes.slice(0, 2).length)
+											.map((connector) => (
+												<div
+													key={connector.id}
+													className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted"
+												>
+													{getConnectorIcon(connector.connector_type, "h-3 w-3")}
+												</div>
+											))}
 									</div>
 									<span className="text-xs font-medium">
 										{totalSelectedCount} {totalSelectedCount === 1 ? "source" : "sources"}
@@ -240,7 +242,7 @@ const ConnectorSelector = React.memo(
 							</DialogDescription>
 						</div>
 
-						{(isLoading || connectorsLoading) ? (
+						{isLoading || connectorsLoading ? (
 							<div className="flex justify-center py-8">
 								<div className="animate-spin h-8 w-8 border-3 border-primary border-t-transparent rounded-full" />
 							</div>
@@ -293,9 +295,7 @@ const ConnectorSelector = React.memo(
 														</div>
 														<div className="flex-1 text-left min-w-0">
 															<div className="flex items-center gap-2">
-																<p className="text-sm font-medium truncate">
-																	{connector.name}
-																</p>
+																<p className="text-sm font-medium truncate">{connector.name}</p>
 																{isSelected && (
 																	<div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
 																		<Check className="h-3 w-3 text-primary-foreground" />
@@ -590,7 +590,6 @@ const LLMSelector = React.memo(() => {
 												</p>
 											</div>
 										</div>
-										
 									</div>
 								</SelectItem>
 							))}

@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
-
 import {
 	AlertCircle,
 	BookOpen,
@@ -20,6 +17,8 @@ import {
 	Trash2,
 	Undo2,
 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { memo, useMemo } from "react";
 
 import { Logo } from "@/components/Logo";
@@ -35,7 +34,6 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-
 
 // Map of icon names to their components
 export const iconMap: Record<string, LucideIcon> = {
@@ -218,21 +216,21 @@ export const AppSidebar = memo(function AppSidebar({
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild size="lg">
-						<Link href="/" className="flex items-center gap-2 w-full">
-							<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-							<Image
-								src="/icon-128.png"
-								alt="SurfSense logo"
-								width={32}
-								height={32}
-								className="rounded-lg"
-							/>
-							</div>
-							<div className="grid flex-1 text-left text-sm leading-tight">
-							<span className="truncate font-medium">SurfSense</span>
-							<span className="truncate text-xs">beta v0.0.8</span>
-							</div>
-						</Link>
+							<Link href="/" className="flex items-center gap-2 w-full">
+								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+									<Image
+										src="/icon-128.png"
+										alt="SurfSense logo"
+										width={32}
+										height={32}
+										className="rounded-lg"
+									/>
+								</div>
+								<div className="grid flex-1 text-left text-sm leading-tight">
+									<span className="truncate font-medium">SurfSense</span>
+									<span className="truncate text-xs">beta v0.0.8</span>
+								</div>
+							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>

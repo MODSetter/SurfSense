@@ -66,12 +66,12 @@ class NotionHistoryConnector:
         while has_more:
             if cursor:
                 search_params["start_cursor"] = cursor
-            
+
             search_results = await self.notion.search(**search_params)
-            
+
             pages.extend(search_results["results"])
             has_more = search_results.get("has_more", False)
-            
+
             if has_more:
                 cursor = search_results.get("next_cursor")
 
