@@ -5,7 +5,7 @@ URL crawler document processor.
 import logging
 
 import validators
-from firecrawl import FirecrawlApp
+from firecrawl import AsyncFirecrawlApp
 from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_core.documents import Document as LangchainDocument
 from sqlalchemy.exc import SQLAlchemyError
@@ -76,7 +76,7 @@ async def add_crawled_url_document(
         
         if use_firecrawl:
             # Use Firecrawl SDK directly
-            firecrawl_app = FirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
+            firecrawl_app = AsyncFirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
         else:
             crawl_loader = AsyncChromiumLoader(urls=[url], headless=True)
 
@@ -84,17 +84,15 @@ async def add_crawled_url_document(
         await task_logger.log_task_progress(
             log_entry,
             f"Crawling URL content: {url}",
-            {"stage": "crawling", "crawler_type": "FirecrawlApp" if use_firecrawl else "AsyncChromiumLoader"},
+            {"stage": "crawling", "crawler_type": "AsyncFirecrawlApp" if use_firecrawl else "AsyncChromiumLoader"},
         )
 
         if use_firecrawl:
-            # Use Firecrawl SDK directly with v1 API
-            scrape_result = firecrawl_app.scrape_url(
+            # Use async Firecrawl SDK with v1 API - properly awaited
+            scrape_result = await firecrawl_app.scrape_url(
                 url=url,
                 formats=['markdown']
             )
-
-            print(scrape_result)
             
             # scrape_result is a Pydantic ScrapeResponse object
             # Access attributes directly
@@ -102,7 +100,7 @@ async def add_crawled_url_document(
                 # Extract markdown content
                 markdown_content = scrape_result.markdown or ''
                 
-                # Extract metadata - this is a DICT, not a Pydantic object
+                # Extract metadata - this is a DICT
                 metadata = scrape_result.metadata if scrape_result.metadata else {}
                 
                 # Convert to LangChain Document format
