@@ -1,0 +1,12 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/SurfSense/SurfSense/tree/main/docs
+    about: Check our documentation for guides and setup instructions
+  - name: 💬 Discussions
+    url: https://github.com/SurfSense/SurfSense/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🤝 Contributing Guide
+    url: https://github.com/SurfSense/SurfSense/blob/main/CONTRIBUTING.md
+    about: Learn how to contribute to SurfSense
+
