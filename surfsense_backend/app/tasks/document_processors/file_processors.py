@@ -4,6 +4,8 @@ File document processors for different ETL services (Unstructured, LlamaCloud, D
 
 import contextlib
 import logging
+import warnings
+from logging import ERROR, getLogger
 
 from fastapi import HTTPException
 from langchain_core.documents import Document as LangChainDocument
@@ -891,8 +893,33 @@ async def process_file_in_background(
                 # Create Docling service
                 docling_service = create_docling_service()
 
-                # Process the document
-                result = await docling_service.process_document(file_path, filename)
+                # Suppress pdfminer warnings that can cause processing to hang
+                # These warnings are harmless but can spam logs and potentially halt processing
+                # Suppress both Python warnings and logging warnings from pdfminer
+                pdfminer_logger = getLogger("pdfminer")
+                original_level = pdfminer_logger.level
+                
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", category=UserWarning, module="pdfminer"
+                    )
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=".*Cannot set gray non-stroke color.*",
+                    )
+                    warnings.filterwarnings(
+                        "ignore", message=".*invalid float value.*"
+                    )
+                    
+                    # Temporarily suppress pdfminer logging warnings
+                    pdfminer_logger.setLevel(ERROR)
+                    
+                    try:
+                        # Process the document
+                        result = await docling_service.process_document(file_path, filename)
+                    finally:
+                        # Restore original logging level
+                        pdfminer_logger.setLevel(original_level)
 
                 # Clean up the temp file
                 import os
