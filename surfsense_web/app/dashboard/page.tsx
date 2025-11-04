@@ -337,7 +337,11 @@ const DashboardPage = () => {
 													</div>
 												</div>
 											</div>
-											<Link className="flex flex-1 flex-col p-4 cursor-pointer" href={`/dashboard/${space.id}/documents`} key={space.id}>
+											<Link
+												className="flex flex-1 flex-col p-4 cursor-pointer"
+												href={`/dashboard/${space.id}/documents`}
+												key={space.id}
+											>
 												<div className="flex flex-1 flex-col justify-between p-1">
 													<div>
 														<h3 className="font-medium text-lg">{space.name}</h3>

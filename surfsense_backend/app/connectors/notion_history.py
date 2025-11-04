@@ -58,10 +58,23 @@ class NotionHistoryConnector:
                     "timestamp": "last_edited_time",
                 }
 
-        # First, get a list of all pages the integration has access to
-        search_results = await self.notion.search(**search_params)
+        # Paginate through all pages the integration has access to
+        pages = []
+        has_more = True
+        cursor = None
 
-        pages = search_results["results"]
+        while has_more:
+            if cursor:
+                search_params["start_cursor"] = cursor
+
+            search_results = await self.notion.search(**search_params)
+
+            pages.extend(search_results["results"])
+            has_more = search_results.get("has_more", False)
+
+            if has_more:
+                cursor = search_results.get("next_cursor")
+
         all_page_data = []
 
         for page in pages:

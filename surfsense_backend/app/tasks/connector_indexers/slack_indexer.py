@@ -353,6 +353,14 @@ async def index_slack_messages(
 
                     session.add(document)
                     documents_indexed += 1
+
+                    # Batch commit every 10 documents
+                    if documents_indexed % 10 == 0:
+                        logger.info(
+                            f"Committing batch: {documents_indexed} Slack channels processed so far"
+                        )
+                        await session.commit()
+
                 logger.info(
                     f"Successfully indexed new channel {channel_name} with {len(formatted_messages)} messages"
                 )
@@ -376,7 +384,8 @@ async def index_slack_messages(
         if total_processed > 0:
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
-        # Commit all changes
+        # Final commit for any remaining documents not yet committed in batches
+        logger.info(f"Final commit: Total {documents_indexed} Slack channels processed")
         await session.commit()
 
         # Prepare result message

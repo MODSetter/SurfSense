@@ -324,6 +324,13 @@ async def index_google_gmail_messages(
                 documents_indexed += 1
                 logger.info(f"Successfully indexed new email {summary_content}")
 
+                # Batch commit every 10 documents
+                if documents_indexed % 10 == 0:
+                    logger.info(
+                        f"Committing batch: {documents_indexed} Gmail messages processed so far"
+                    )
+                    await session.commit()
+
             except Exception as e:
                 logger.error(
                     f"Error processing the email {message_id}: {e!s}",
@@ -338,7 +345,8 @@ async def index_google_gmail_messages(
         if total_processed > 0:
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
-        # Commit all changes
+        # Final commit for any remaining documents not yet committed in batches
+        logger.info(f"Final commit: Total {documents_indexed} Gmail messages processed")
         await session.commit()
         logger.info(
             "Successfully committed all Google gmail document changes to database"

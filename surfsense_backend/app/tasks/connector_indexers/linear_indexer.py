@@ -371,6 +371,13 @@ async def index_linear_issues(
                     f"Successfully indexed new issue {issue_identifier} - {issue_title}"
                 )
 
+                # Batch commit every 10 documents
+                if documents_indexed % 10 == 0:
+                    logger.info(
+                        f"Committing batch: {documents_indexed} Linear issues processed so far"
+                    )
+                    await session.commit()
+
             except Exception as e:
                 logger.error(
                     f"Error processing issue {issue.get('identifier', 'Unknown')}: {e!s}",
@@ -387,7 +394,8 @@ async def index_linear_issues(
         if update_last_indexed:
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
-        # Commit all changes
+        # Final commit for any remaining documents not yet committed in batches
+        logger.info(f"Final commit: Total {documents_indexed} Linear issues processed")
         await session.commit()
         logger.info("Successfully committed all Linear document changes to database")
 
