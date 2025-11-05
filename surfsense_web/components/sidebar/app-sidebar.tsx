@@ -78,6 +78,10 @@ const defaultData = {
 					url: "#",
 				},
 				{
+				  title: "Add Webpages",
+				  url: "#",
+				},
+				{
 					title: "Manage Documents",
 					url: "#",
 				},
