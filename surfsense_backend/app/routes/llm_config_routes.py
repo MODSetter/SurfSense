@@ -211,9 +211,7 @@ async def update_llm_config(
 
         # Apply updates to a temporary copy for validation
         temp_config = {
-            "provider": update_data.get("provider", db_llm_config.provider).value
-            if "provider" in update_data
-            else db_llm_config.provider.value,
+            "provider": update_data.get("provider", db_llm_config.provider.value),
             "model_name": update_data.get("model_name", db_llm_config.model_name),
             "api_key": update_data.get("api_key", db_llm_config.api_key),
             "api_base": update_data.get("api_base", db_llm_config.api_base),
