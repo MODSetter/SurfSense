@@ -8,6 +8,11 @@
 </a>
 </div>
 
+<div align="center">
+
+[English](README.md) | [简体中文](README.zh-CN.md)
+
+</div>
 
 # SurfSense
 While tools like NotebookLM and Perplexity are impressive and highly effective for conducting research on any topic/query, SurfSense elevates this capability by integrating with your personal knowledge base. It is a highly customizable AI research agent, connected to external sources such as Search Engines (SearxNG, Tavily, LinkUp), Slack, Linear, Jira, ClickUp, Confluence, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Elasticsearch and more to come.
