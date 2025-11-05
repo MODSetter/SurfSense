@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
+import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
@@ -34,6 +36,19 @@ export default function ResearcherPage() {
 		token,
 		search_space_id: search_space_id as string,
 	});
+
+	// Fetch all available sources (document types + live search connectors)
+	const { documentTypes } = useDocumentTypes(Number(search_space_id));
+	const { connectors: searchConnectors } = useSearchSourceConnectors(
+		false,
+		Number(search_space_id)
+	);
+
+	// Filter for non-indexable connectors (live search)
+	const liveSearchConnectors = useMemo(
+		() => searchConnectors.filter((connector) => !connector.is_indexable),
+		[searchConnectors]
+	);
 
 	// Memoize document IDs to prevent infinite re-renders
 	const documentIds = useMemo(() => {
@@ -134,6 +149,27 @@ export default function ResearcherPage() {
 			}
 		}
 	}, [chatIdParam, search_space_id, setSelectedDocuments, setSelectedConnectors, setSearchMode]);
+
+	// Set all sources as default for new chats
+	useEffect(() => {
+		if (isNewChat && selectedConnectors.length === 0 && documentTypes.length > 0) {
+			// Combine all document types and live search connectors
+			const allSourceTypes = [
+				...documentTypes.map((dt) => dt.type),
+				...liveSearchConnectors.map((c) => c.connector_type),
+			];
+
+			if (allSourceTypes.length > 0) {
+				setSelectedConnectors(allSourceTypes);
+			}
+		}
+	}, [
+		isNewChat,
+		documentTypes,
+		liveSearchConnectors,
+		selectedConnectors.length,
+		setSelectedConnectors,
+	]);
 
 	const loadChatData = async (chatId: string) => {
 		try {

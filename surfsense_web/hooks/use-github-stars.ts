@@ -47,6 +47,8 @@ export const useGithubStars = () => {
 		error,
 		compactFormat: Intl.NumberFormat("en-US", {
 			notation: "compact",
+			maximumFractionDigits: 1,
+			minimumFractionDigits: 1,
 		}).format(stars || 0),
 	};
 };

@@ -77,10 +77,10 @@ const defaultData = {
 					title: "Upload Documents",
 					url: "#",
 				},
-				{
-				  title: "Add Webpages",
-				  url: "#",
-				},
+				// {
+				//   title: "Add Webpages",
+				//   url: "#",
+				// },
 				{
 					title: "Manage Documents",
 					url: "#",

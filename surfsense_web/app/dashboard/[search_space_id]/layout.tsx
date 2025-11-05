@@ -49,10 +49,10 @@ export default function DashboardLayout({
 					title: "Upload Documents",
 					url: `/dashboard/${search_space_id}/documents/upload`,
 				},
-				{
-				  title: "Add Webpages",
-				  url: `/dashboard/${search_space_id}/documents/webpage`,
-				},
+				// {
+				//   title: "Add Webpages",
+				//   url: `/dashboard/${search_space_id}/documents/webpage`,
+				// },
 				{
 					title: "Add Youtube Videos",
 					url: `/dashboard/${search_space_id}/documents/youtube`,

@@ -898,7 +898,7 @@ async def process_file_in_background(
                 # Suppress both Python warnings and logging warnings from pdfminer
                 pdfminer_logger = getLogger("pdfminer")
                 original_level = pdfminer_logger.level
-                
+
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
                         "ignore", category=UserWarning, module="pdfminer"
@@ -907,16 +907,16 @@ async def process_file_in_background(
                         "ignore",
                         message=".*Cannot set gray non-stroke color.*",
                     )
-                    warnings.filterwarnings(
-                        "ignore", message=".*invalid float value.*"
-                    )
-                    
+                    warnings.filterwarnings("ignore", message=".*invalid float value.*")
+
                     # Temporarily suppress pdfminer logging warnings
                     pdfminer_logger.setLevel(ERROR)
-                    
+
                     try:
                         # Process the document
-                        result = await docling_service.process_document(file_path, filename)
+                        result = await docling_service.process_document(
+                            file_path, filename
+                        )
                     finally:
                         # Restore original logging level
                         pdfminer_logger.setLevel(original_level)
