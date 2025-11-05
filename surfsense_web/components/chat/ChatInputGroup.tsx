@@ -115,18 +115,19 @@ const ConnectorSelector = React.memo(
 		const { search_space_id } = useParams();
 		const [isOpen, setIsOpen] = useState(false);
 
+		// Fetch immediately (not lazy) so the button can show the correct count
 		const { documentTypes, isLoading, isLoaded, fetchDocumentTypes } = useDocumentTypes(
 			Number(search_space_id),
-			true
+			false
 		);
 
-		// Fetch live search connectors (non-indexable)
+		// Fetch live search connectors immediately (non-indexable)
 		const {
 			connectors: searchConnectors,
 			isLoading: connectorsLoading,
 			isLoaded: connectorsLoaded,
 			fetchConnectors,
-		} = useSearchSourceConnectors(true, Number(search_space_id));
+		} = useSearchSourceConnectors(false, Number(search_space_id));
 
 		// Filter for non-indexable connectors (live search)
 		const liveSearchConnectors = React.useMemo(
@@ -134,18 +135,10 @@ const ConnectorSelector = React.memo(
 			[searchConnectors]
 		);
 
-		const handleOpenChange = useCallback(
-			(open: boolean) => {
-				setIsOpen(open);
-				if (open && !isLoaded) {
-					fetchDocumentTypes(Number(search_space_id));
-				}
-				if (open && !connectorsLoaded) {
-					fetchConnectors(Number(search_space_id));
-				}
-			},
-			[fetchDocumentTypes, isLoaded, fetchConnectors, connectorsLoaded, search_space_id]
-		);
+		const handleOpenChange = useCallback((open: boolean) => {
+			setIsOpen(open);
+			// Data is already loaded on mount, no need to fetch again
+		}, []);
 
 		const handleConnectorToggle = useCallback(
 			(connectorType: string) => {

@@ -5,7 +5,9 @@ URL crawler document processor.
 import logging
 
 import validators
-from langchain_community.document_loaders import AsyncChromiumLoader, FireCrawlLoader
+from firecrawl import AsyncFirecrawlApp
+from langchain_community.document_loaders import AsyncChromiumLoader
+from langchain_core.documents import Document as LangchainDocument
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,16 +72,11 @@ async def add_crawled_url_document(
             },
         )
 
-        if config.FIRECRAWL_API_KEY:
-            crawl_loader = FireCrawlLoader(
-                url=url,
-                api_key=config.FIRECRAWL_API_KEY,
-                mode="scrape",
-                params={
-                    "formats": ["markdown"],
-                    "excludeTags": ["a"],
-                },
-            )
+        use_firecrawl = bool(config.FIRECRAWL_API_KEY)
+
+        if use_firecrawl:
+            # Use Firecrawl SDK directly
+            firecrawl_app = AsyncFirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
         else:
             crawl_loader = AsyncChromiumLoader(urls=[url], headless=True)
 
@@ -87,14 +84,54 @@ async def add_crawled_url_document(
         await task_logger.log_task_progress(
             log_entry,
             f"Crawling URL content: {url}",
-            {"stage": "crawling", "crawler_type": type(crawl_loader).__name__},
+            {
+                "stage": "crawling",
+                "crawler_type": "AsyncFirecrawlApp"
+                if use_firecrawl
+                else "AsyncChromiumLoader",
+            },
         )
 
-        url_crawled = await crawl_loader.aload()
+        if use_firecrawl:
+            # Use async Firecrawl SDK with v1 API - properly awaited
+            scrape_result = await firecrawl_app.scrape_url(
+                url=url, formats=["markdown"]
+            )
 
-        if isinstance(crawl_loader, FireCrawlLoader):
-            content_in_markdown = url_crawled[0].page_content
-        elif isinstance(crawl_loader, AsyncChromiumLoader):
+            # scrape_result is a Pydantic ScrapeResponse object
+            # Access attributes directly
+            if scrape_result and scrape_result.success:
+                # Extract markdown content
+                markdown_content = scrape_result.markdown or ""
+
+                # Extract metadata - this is a DICT
+                metadata = scrape_result.metadata if scrape_result.metadata else {}
+
+                # Convert to LangChain Document format
+                url_crawled = [
+                    LangchainDocument(
+                        page_content=markdown_content,
+                        metadata={
+                            "source": url,
+                            "title": metadata.get("title", url),
+                            "description": metadata.get("description", ""),
+                            "language": metadata.get("language", ""),
+                            "sourceURL": metadata.get("sourceURL", url),
+                            **metadata,  # Include all other metadata fields
+                        },
+                    )
+                ]
+                content_in_markdown = url_crawled[0].page_content
+            else:
+                error_msg = (
+                    scrape_result.error
+                    if scrape_result and hasattr(scrape_result, "error")
+                    else "Unknown error"
+                )
+                raise ValueError(f"Firecrawl failed to scrape URL: {error_msg}")
+        else:
+            # Use AsyncChromiumLoader as fallback
+            url_crawled = await crawl_loader.aload()
             content_in_markdown = md.transform_documents(url_crawled)[0].page_content
 
         # Format document
@@ -198,7 +235,7 @@ async def add_crawled_url_document(
             "url": url,
             "title": url_crawled[0].metadata.get("title", url),
             "document_type": "Crawled URL Document",
-            "crawler_type": type(crawl_loader).__name__,
+            "crawler_type": "FirecrawlApp" if use_firecrawl else "AsyncChromiumLoader",
         }
         summary_content, summary_embedding = await generate_document_summary(
             combined_document_string, user_llm, document_metadata
@@ -222,10 +259,8 @@ async def add_crawled_url_document(
                 {"stage": "document_update", "chunks_count": len(chunks)},
             )
 
-            existing_document.title = (
-                url_crawled[0].metadata["title"]
-                if isinstance(crawl_loader, FireCrawlLoader)
-                else url_crawled[0].metadata["source"]
+            existing_document.title = url_crawled[0].metadata.get(
+                "title", url_crawled[0].metadata.get("source", url)
             )
             existing_document.content = summary_content
             existing_document.content_hash = content_hash
@@ -244,9 +279,9 @@ async def add_crawled_url_document(
 
             document = Document(
                 search_space_id=search_space_id,
-                title=url_crawled[0].metadata["title"]
-                if isinstance(crawl_loader, FireCrawlLoader)
-                else url_crawled[0].metadata["source"],
+                title=url_crawled[0].metadata.get(
+                    "title", url_crawled[0].metadata.get("source", url)
+                ),
                 document_type=DocumentType.CRAWLED_URL,
                 document_metadata=url_crawled[0].metadata,
                 content=summary_content,

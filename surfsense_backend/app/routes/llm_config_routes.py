@@ -12,6 +12,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas import LLMConfigCreate, LLMConfigRead, LLMConfigUpdate
+from app.services.llm_service import validate_llm_config
 from app.users import current_active_user
 
 router = APIRouter()
@@ -97,6 +98,22 @@ async def create_llm_config(
     try:
         # Verify user has access to the search space
         await check_search_space_access(session, llm_config.search_space_id, user)
+
+        # Validate the LLM configuration by making a test API call
+        is_valid, error_message = await validate_llm_config(
+            provider=llm_config.provider.value,
+            model_name=llm_config.model_name,
+            api_key=llm_config.api_key,
+            api_base=llm_config.api_base,
+            custom_provider=llm_config.custom_provider,
+            litellm_params=llm_config.litellm_params,
+        )
+
+        if not is_valid:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid LLM configuration: {error_message}",
+            )
 
         db_llm_config = LLMConfig(**llm_config.model_dump())
         session.add(db_llm_config)
@@ -192,6 +209,37 @@ async def update_llm_config(
 
         update_data = llm_config_update.model_dump(exclude_unset=True)
 
+        # Apply updates to a temporary copy for validation
+        temp_config = {
+            "provider": update_data.get("provider", db_llm_config.provider.value),
+            "model_name": update_data.get("model_name", db_llm_config.model_name),
+            "api_key": update_data.get("api_key", db_llm_config.api_key),
+            "api_base": update_data.get("api_base", db_llm_config.api_base),
+            "custom_provider": update_data.get(
+                "custom_provider", db_llm_config.custom_provider
+            ),
+            "litellm_params": update_data.get(
+                "litellm_params", db_llm_config.litellm_params
+            ),
+        }
+
+        # Validate the updated configuration
+        is_valid, error_message = await validate_llm_config(
+            provider=temp_config["provider"],
+            model_name=temp_config["model_name"],
+            api_key=temp_config["api_key"],
+            api_base=temp_config["api_base"],
+            custom_provider=temp_config["custom_provider"],
+            litellm_params=temp_config["litellm_params"],
+        )
+
+        if not is_valid:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid LLM configuration: {error_message}",
+            )
+
+        # Apply updates to the database object
         for key, value in update_data.items():
             setattr(db_llm_config, key, value)
 
