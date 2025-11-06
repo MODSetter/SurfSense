@@ -14,10 +14,11 @@ export function useChatState({ chat_id }: UseChatStateProps) {
 	const [currentChatId, setCurrentChatId] = useState<string | null>(chat_id || null);
 
 	// Chat configuration state
-	const [searchMode, setSearchMode] = useState<"DOCUMENTS" | "CHUNKS">("CHUNKS");
+	const [searchMode, setSearchMode] = useState<"DOCUMENTS" | "CHUNKS">("DOCUMENTS");
 	const [researchMode, setResearchMode] = useState<ResearchMode>("QNA");
 	const [selectedConnectors, setSelectedConnectors] = useState<string[]>([]);
 	const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
+	const [topK, setTopK] = useState<number>(5);
 
 	useEffect(() => {
 		const bearerToken = localStorage.getItem("surfsense_bearer_token");
@@ -39,6 +40,8 @@ export function useChatState({ chat_id }: UseChatStateProps) {
 		setSelectedConnectors,
 		selectedDocuments,
 		setSelectedDocuments,
+		topK,
+		setTopK,
 	};
 }
 

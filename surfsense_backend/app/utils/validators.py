@@ -241,6 +241,60 @@ def validate_search_mode(search_mode: Any) -> str:
     return normalized_mode
 
 
+def validate_top_k(top_k: Any) -> int:
+    """
+    Validate and convert top_k to integer.
+
+    Args:
+        top_k: The top_k value to validate
+
+    Returns:
+        int: Validated top_k value (defaults to 10 if None)
+
+    Raises:
+        HTTPException: If validation fails
+    """
+    if top_k is None:
+        return 10  # Default value
+
+    if isinstance(top_k, bool):
+        raise HTTPException(
+            status_code=400, detail="top_k must be an integer, not a boolean"
+        )
+
+    if isinstance(top_k, int):
+        if top_k <= 0:
+            raise HTTPException(
+                status_code=400, detail="top_k must be a positive integer"
+            )
+        if top_k > 100:
+            raise HTTPException(status_code=400, detail="top_k must not exceed 100")
+        return top_k
+
+    if isinstance(top_k, str):
+        if not top_k.strip():
+            raise HTTPException(status_code=400, detail="top_k cannot be empty")
+
+        if not re.match(r"^[1-9]\d*$", top_k.strip()):
+            raise HTTPException(
+                status_code=400, detail="top_k must be a valid positive integer"
+            )
+
+        value = int(top_k.strip())
+        if value <= 0:
+            raise HTTPException(
+                status_code=400, detail="top_k must be a positive integer"
+            )
+        if value > 100:
+            raise HTTPException(status_code=400, detail="top_k must not exceed 100")
+        return value
+
+    raise HTTPException(
+        status_code=400,
+        detail="top_k must be an integer or string representation of an integer",
+    )
+
+
 def validate_messages(messages: Any) -> list[dict]:
     """
     Validate messages structure.

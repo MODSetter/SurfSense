@@ -27,6 +27,8 @@ export default function ResearcherPage() {
 		setSelectedConnectors,
 		selectedDocuments,
 		setSelectedDocuments,
+		topK,
+		setTopK,
 	} = useChatState({
 		search_space_id: search_space_id as string,
 		chat_id: chatIdParam,
@@ -66,6 +68,7 @@ export default function ResearcherPage() {
 		selectedConnectors: string[];
 		searchMode: "DOCUMENTS" | "CHUNKS";
 		researchMode: "QNA"; // Always QNA mode
+		topK: number;
 	}
 
 	const getChatStateStorageKey = (searchSpaceId: string, chatId: string) =>
@@ -105,6 +108,7 @@ export default function ResearcherPage() {
 				research_mode: researchMode,
 				search_mode: searchMode,
 				document_ids_to_add_in_context: documentIds,
+				top_k: topK,
 			},
 		},
 		onError: (error) => {
@@ -124,6 +128,7 @@ export default function ResearcherPage() {
 				selectedConnectors,
 				searchMode,
 				researchMode,
+				topK,
 			});
 			router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
 		}
@@ -145,10 +150,18 @@ export default function ResearcherPage() {
 				setSelectedDocuments(restoredState.selectedDocuments);
 				setSelectedConnectors(restoredState.selectedConnectors);
 				setSearchMode(restoredState.searchMode);
+				setTopK(restoredState.topK);
 				// researchMode is always "QNA", no need to restore
 			}
 		}
-	}, [chatIdParam, search_space_id, setSelectedDocuments, setSelectedConnectors, setSearchMode]);
+	}, [
+		chatIdParam,
+		search_space_id,
+		setSelectedDocuments,
+		setSelectedConnectors,
+		setSearchMode,
+		setTopK,
+	]);
 
 	// Set all sources as default for new chats
 	useEffect(() => {
@@ -234,6 +247,8 @@ export default function ResearcherPage() {
 			selectedConnectors={selectedConnectors}
 			searchMode={searchMode}
 			onSearchModeChange={setSearchMode}
+			topK={topK}
+			onTopKChange={setTopK}
 		/>
 	);
 }

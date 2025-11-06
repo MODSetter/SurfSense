@@ -1,7 +1,7 @@
 "use client";
 
 import { ChatInput } from "@llamaindex/chat-ui";
-import { Brain, Check, FolderOpen, Zap } from "lucide-react";
+import { Brain, Check, FolderOpen, Minus, Plus, Zap } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { Suspense, useCallback, useState } from "react";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
@@ -15,6 +15,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -22,6 +23,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
@@ -447,6 +449,119 @@ const SearchModeSelector = React.memo(
 
 SearchModeSelector.displayName = "SearchModeSelector";
 
+const TopKSelector = React.memo(
+	({ topK = 10, onTopKChange }: { topK?: number; onTopKChange?: (topK: number) => void }) => {
+		const MIN_VALUE = 1;
+		const MAX_VALUE = 100;
+
+		const handleIncrement = React.useCallback(() => {
+			if (topK < MAX_VALUE) {
+				onTopKChange?.(topK + 1);
+			}
+		}, [topK, onTopKChange]);
+
+		const handleDecrement = React.useCallback(() => {
+			if (topK > MIN_VALUE) {
+				onTopKChange?.(topK - 1);
+			}
+		}, [topK, onTopKChange]);
+
+		const handleInputChange = React.useCallback(
+			(e: React.ChangeEvent<HTMLInputElement>) => {
+				const value = e.target.value;
+				// Allow empty input for editing
+				if (value === "") {
+					return;
+				}
+				const numValue = parseInt(value, 10);
+				if (!isNaN(numValue) && numValue >= MIN_VALUE && numValue <= MAX_VALUE) {
+					onTopKChange?.(numValue);
+				}
+			},
+			[onTopKChange]
+		);
+
+		const handleInputBlur = React.useCallback(
+			(e: React.FocusEvent<HTMLInputElement>) => {
+				const value = e.target.value;
+				if (value === "") {
+					// Reset to default if empty
+					onTopKChange?.(10);
+					return;
+				}
+				const numValue = parseInt(value, 10);
+				if (isNaN(numValue) || numValue < MIN_VALUE) {
+					onTopKChange?.(MIN_VALUE);
+				} else if (numValue > MAX_VALUE) {
+					onTopKChange?.(MAX_VALUE);
+				}
+			},
+			[onTopKChange]
+		);
+
+		return (
+			<TooltipProvider>
+				<Tooltip delayDuration={200}>
+					<TooltipTrigger asChild>
+						<div className="flex items-center h-8 border rounded-md bg-background hover:bg-accent/50 transition-colors">
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="h-full w-7 rounded-l-md rounded-r-none hover:bg-accent border-r"
+								onClick={handleDecrement}
+								disabled={topK <= MIN_VALUE}
+							>
+								<Minus className="h-3.5 w-3.5" />
+							</Button>
+							<div className="flex flex-col items-center justify-center px-2 min-w-[60px]">
+								<Input
+									type="number"
+									value={topK}
+									onChange={handleInputChange}
+									onBlur={handleInputBlur}
+									min={MIN_VALUE}
+									max={MAX_VALUE}
+									className="h-5 w-full px-1 text-center text-sm font-semibold border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+								/>
+								<span className="text-[10px] text-muted-foreground leading-none">Results</span>
+							</div>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="h-full w-7 rounded-r-md rounded-l-none hover:bg-accent border-l"
+								onClick={handleIncrement}
+								disabled={topK >= MAX_VALUE}
+							>
+								<Plus className="h-3.5 w-3.5" />
+							</Button>
+						</div>
+					</TooltipTrigger>
+					<TooltipContent side="top" className="max-w-xs">
+						<div className="space-y-2">
+							<p className="text-sm font-semibold">Results per Source</p>
+							<p className="text-xs text-muted-foreground leading-relaxed">
+								Control how many results to fetch from each data source. Set a higher number to get
+								more information, or a lower number for faster, more focused results.
+							</p>
+							<div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 border-t">
+								<span>Recommended: 5-20</span>
+								<span>•</span>
+								<span>
+									Range: {MIN_VALUE}-{MAX_VALUE}
+								</span>
+							</div>
+						</div>
+					</TooltipContent>
+				</Tooltip>
+			</TooltipProvider>
+		);
+	}
+);
+
+TopKSelector.displayName = "TopKSelector";
+
 const LLMSelector = React.memo(() => {
 	const { search_space_id } = useParams();
 	const searchSpaceId = Number(search_space_id);
@@ -604,6 +719,8 @@ const CustomChatInputOptions = React.memo(
 		selectedConnectors,
 		searchMode,
 		onSearchModeChange,
+		topK,
+		onTopKChange,
 	}: {
 		onDocumentSelectionChange?: (documents: Document[]) => void;
 		selectedDocuments?: Document[];
@@ -611,6 +728,8 @@ const CustomChatInputOptions = React.memo(
 		selectedConnectors?: string[];
 		searchMode?: "DOCUMENTS" | "CHUNKS";
 		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+		topK?: number;
+		onTopKChange?: (topK: number) => void;
 	}) => {
 		// Memoize the loading fallback to prevent recreation
 		const loadingFallback = React.useMemo(
@@ -637,6 +756,8 @@ const CustomChatInputOptions = React.memo(
 				<div className="h-4 w-px bg-border hidden sm:block" />
 				<SearchModeSelector searchMode={searchMode} onSearchModeChange={onSearchModeChange} />
 				<div className="h-4 w-px bg-border hidden sm:block" />
+				<TopKSelector topK={topK} onTopKChange={onTopKChange} />
+				<div className="h-4 w-px bg-border hidden sm:block" />
 				<LLMSelector />
 			</div>
 		);
@@ -653,6 +774,8 @@ export const ChatInputUI = React.memo(
 		selectedConnectors,
 		searchMode,
 		onSearchModeChange,
+		topK,
+		onTopKChange,
 	}: {
 		onDocumentSelectionChange?: (documents: Document[]) => void;
 		selectedDocuments?: Document[];
@@ -660,6 +783,8 @@ export const ChatInputUI = React.memo(
 		selectedConnectors?: string[];
 		searchMode?: "DOCUMENTS" | "CHUNKS";
 		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+		topK?: number;
+		onTopKChange?: (topK: number) => void;
 	}) => {
 		return (
 			<ChatInput>
@@ -674,6 +799,8 @@ export const ChatInputUI = React.memo(
 					selectedConnectors={selectedConnectors}
 					searchMode={searchMode}
 					onSearchModeChange={onSearchModeChange}
+					topK={topK}
+					onTopKChange={onTopKChange}
 				/>
 			</ChatInput>
 		);

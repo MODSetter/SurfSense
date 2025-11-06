@@ -27,6 +27,7 @@ class Configuration:
     search_mode: SearchMode
     document_ids_to_add_in_context: list[int]
     language: str | None = None
+    top_k: int = 10
 
     @classmethod
     def from_runnable_config(
