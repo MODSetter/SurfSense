@@ -13,6 +13,8 @@ interface ChatInterfaceProps {
 	selectedConnectors?: string[];
 	searchMode?: "DOCUMENTS" | "CHUNKS";
 	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
+	topK?: number;
+	onTopKChange?: (topK: number) => void;
 }
 
 export default function ChatInterface({
@@ -23,6 +25,8 @@ export default function ChatInterface({
 	selectedConnectors = [],
 	searchMode,
 	onSearchModeChange,
+	topK = 10,
+	onTopKChange,
 }: ChatInterfaceProps) {
 	return (
 		<LlamaIndexChatSection handler={handler} className="flex h-full">
@@ -36,6 +40,8 @@ export default function ChatInterface({
 						selectedConnectors={selectedConnectors}
 						searchMode={searchMode}
 						onSearchModeChange={onSearchModeChange}
+						topK={topK}
+						onTopKChange={onTopKChange}
 					/>
 				</div>
 			</div>

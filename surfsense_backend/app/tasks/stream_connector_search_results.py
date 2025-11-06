@@ -21,6 +21,7 @@ async def stream_connector_search_results(
     search_mode_str: str,
     document_ids_to_add_in_context: list[int],
     language: str | None = None,
+    top_k: int = 10,
 ) -> AsyncGenerator[str, None]:
     """
     Stream connector search results to the client
@@ -56,6 +57,7 @@ async def stream_connector_search_results(
             "search_mode": search_mode,
             "document_ids_to_add_in_context": document_ids_to_add_in_context,
             "language": language,  # Add language to the configuration
+            "top_k": top_k,  # Add top_k to the configuration
         }
     }
     # print(f"Researcher configuration: {config['configurable']}")  # Debug print

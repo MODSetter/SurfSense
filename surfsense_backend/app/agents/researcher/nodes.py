@@ -1366,8 +1366,8 @@ async def handle_qna_workflow(
         }
     )
 
-    # Use a reasonable top_k for QNA - not too many documents to avoid overwhelming the LLM
-    top_k = 5 if configuration.search_mode == SearchMode.DOCUMENTS else 20
+    # Use the top_k value from configuration
+    top_k = configuration.top_k
 
     relevant_documents = []
     user_selected_documents = []

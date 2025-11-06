@@ -24,6 +24,7 @@ from app.utils.validators import (
     validate_research_mode,
     validate_search_mode,
     validate_search_space_id,
+    validate_top_k,
 )
 
 router = APIRouter()
@@ -54,6 +55,7 @@ async def handle_chat_data(
         request_data.get("document_ids_to_add_in_context")
     )
     search_mode_str = validate_search_mode(request_data.get("search_mode"))
+    top_k = validate_top_k(request_data.get("top_k"))
     # print("RESQUEST DATA:", request_data)
     # print("SELECTED CONNECTORS:", selected_connectors)
 
@@ -123,6 +125,7 @@ async def handle_chat_data(
             search_mode_str,
             document_ids_to_add_in_context,
             language,
+            top_k,
         )
     )
 

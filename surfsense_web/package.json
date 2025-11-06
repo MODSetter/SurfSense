@@ -9,6 +9,7 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
+		"format": "biome check --write ./ --max-diagnostics 500",
 		"debug": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:browser": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:server": "cross-env NODE_OPTIONS=--inspect=0.0.0.0:9229 next dev --turbopack",
