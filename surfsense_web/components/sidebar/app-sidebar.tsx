@@ -4,6 +4,7 @@ import {
 	AlertCircle,
 	BookOpen,
 	Cable,
+	Database,
 	ExternalLink,
 	FileStack,
 	FileText,
@@ -40,6 +41,7 @@ import {
 export const iconMap: Record<string, LucideIcon> = {
 	BookOpen,
 	Cable,
+	Database,
 	FileStack,
 	Undo2,
 	MessageCircleMore,
@@ -69,50 +71,20 @@ const defaultData = {
 			items: [],
 		},
 		{
-			title: "Documents",
+			title: "Sources",
 			url: "#",
-			icon: "FileStack",
+			icon: "Database",
 			items: [
 				{
-					title: "Upload Documents",
+					title: "Add Sources",
 					url: "#",
 				},
-				// {
-				//   title: "Add Webpages",
-				//   url: "#",
-				// },
 				{
 					title: "Manage Documents",
 					url: "#",
 				},
-			],
-		},
-		{
-			title: "Connectors",
-			url: "#",
-			icon: "Cable",
-			items: [
-				{
-					title: "Add Connector",
-					url: "#",
-				},
 				{
 					title: "Manage Connectors",
-					url: "#",
-				},
-			],
-		},
-		{
-			title: "Research Synthesizer's",
-			url: "#",
-			icon: "SquareLibrary",
-			items: [
-				{
-					title: "Podcast Creator",
-					url: "#",
-				},
-				{
-					title: "Presentation Creator",
 					url: "#",
 				},
 			],

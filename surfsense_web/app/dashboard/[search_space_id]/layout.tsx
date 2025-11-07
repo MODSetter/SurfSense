@@ -41,36 +41,17 @@ export default function DashboardLayout({
 		},
 
 		{
-			title: "Documents",
+			title: "Sources",
 			url: "#",
-			icon: "FileStack",
+			icon: "Database",
 			items: [
 				{
-					title: "Upload Documents",
-					url: `/dashboard/${search_space_id}/documents/upload`,
-				},
-				// {
-				//   title: "Add Webpages",
-				//   url: `/dashboard/${search_space_id}/documents/webpage`,
-				// },
-				{
-					title: "Add Youtube Videos",
-					url: `/dashboard/${search_space_id}/documents/youtube`,
+					title: "Add Sources",
+					url: `/dashboard/${search_space_id}/sources/add`,
 				},
 				{
 					title: "Manage Documents",
 					url: `/dashboard/${search_space_id}/documents`,
-				},
-			],
-		},
-		{
-			title: "Connectors",
-			url: `#`,
-			icon: "Cable",
-			items: [
-				{
-					title: "Add Connector",
-					url: `/dashboard/${search_space_id}/connectors/add`,
 				},
 				{
 					title: "Manage Connectors",

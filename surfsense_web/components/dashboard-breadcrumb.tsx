@@ -46,6 +46,7 @@ export function DashboardBreadcrumb() {
 					researcher: t("researcher"),
 					documents: t("documents"),
 					connectors: t("connectors"),
+					sources: "Sources",
 					podcasts: t("podcasts"),
 					logs: t("logs"),
 					chats: t("chats"),
@@ -58,6 +59,21 @@ export function DashboardBreadcrumb() {
 				if (segments[3]) {
 					const subSection = segments[3];
 					let subSectionLabel = subSection.charAt(0).toUpperCase() + subSection.slice(1);
+
+					// Handle sources sub-sections
+					if (section === "sources") {
+						const sourceLabels: Record<string, string> = {
+							add: "Add Sources",
+						};
+
+						const sourceLabel = sourceLabels[subSection] || subSectionLabel;
+						breadcrumbs.push({
+							label: "Sources",
+							href: `/dashboard/${segments[1]}/sources`,
+						});
+						breadcrumbs.push({ label: sourceLabel });
+						return breadcrumbs;
+					}
 
 					// Handle documents sub-sections
 					if (section === "documents") {
