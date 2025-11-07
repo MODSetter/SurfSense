@@ -2,7 +2,7 @@
 
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import { useDocumentTypes } from "@/hooks/use-document-types";
@@ -12,9 +12,15 @@ import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors"
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
 	const router = useRouter();
+	const hasSetInitialConnectors = useRef(false);
 
 	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
 	const isNewChat = !chatIdParam;
+
+	// Reset the flag when chat ID changes
+	useEffect(() => {
+		hasSetInitialConnectors.current = false;
+	}, [chatIdParam]);
 
 	const {
 		token,
@@ -163,9 +169,14 @@ export default function ResearcherPage() {
 		setTopK,
 	]);
 
-	// Set all sources as default for new chats
+	// Set all sources as default for new chats (only once on initial mount)
 	useEffect(() => {
-		if (isNewChat && selectedConnectors.length === 0 && documentTypes.length > 0) {
+		if (
+			isNewChat &&
+			!hasSetInitialConnectors.current &&
+			selectedConnectors.length === 0 &&
+			documentTypes.length > 0
+		) {
 			// Combine all document types and live search connectors
 			const allSourceTypes = [
 				...documentTypes.map((dt) => dt.type),
@@ -174,6 +185,7 @@ export default function ResearcherPage() {
 
 			if (allSourceTypes.length > 0) {
 				setSelectedConnectors(allSourceTypes);
+				hasSetInitialConnectors.current = true;
 			}
 		}
 	}, [
