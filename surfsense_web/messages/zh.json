@@ -134,6 +134,8 @@
 		"platform": "平台",
 		"researcher": "AI 研究",
 		"manage_llms": "管理 LLM",
+		"sources": "数据源",
+		"add_sources": "添加数据源",
 		"documents": "文档",
 		"upload_documents": "上传文档",
 		"add_webpages": "添加网页",

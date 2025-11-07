@@ -134,6 +134,8 @@
 		"platform": "Platform",
 		"researcher": "Researcher",
 		"manage_llms": "Manage LLMs",
+		"sources": "Sources",
+		"add_sources": "Add Sources",
 		"documents": "Documents",
 		"upload_documents": "Upload Documents",
 		"add_webpages": "Add Webpages",
