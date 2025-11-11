@@ -79,12 +79,6 @@ export default function DashboardLayout({
 			],
 		},
 		{
-			title: "Podcasts",
-			url: `/dashboard/${search_space_id}/podcasts`,
-			icon: "Podcast",
-			items: [],
-		},
-		{
 			title: "Logs",
 			url: `/dashboard/${search_space_id}/logs`,
 			icon: "FileText",
