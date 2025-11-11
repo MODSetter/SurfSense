@@ -13,6 +13,7 @@ export interface GeneratePodcastRequest {
 	ids: number[];
 	search_space_id: number;
 	podcast_title?: string;
+	user_prompt?: string;
 }
 
 export function ChatPanelContainer() {

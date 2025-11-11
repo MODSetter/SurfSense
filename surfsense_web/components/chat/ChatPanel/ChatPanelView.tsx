@@ -73,7 +73,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 							tabIndex={0}
 							onClick={handleGeneratePost}
 							onKeyDown={(e) => {
-								if (e.key === "Enter" || e.key === " ") {
+								if (e.key === "Enter") {
 									e.preventDefault();
 									handleGeneratePost();
 								}

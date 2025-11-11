@@ -19,7 +19,7 @@ export function ConfigModal(props: ConfigModalProps) {
 
 	const { generatePodcast } = props;
 
-	const [podcastTitle, setPodcastTitle] = useState(podcast?.title || chatDetails?.title);
+	const [userPromt, setUserPrompt] = useState("");
 
 	const handleGeneratePost = useCallback(async () => {
 		if (!chatDetails) return;
@@ -27,9 +27,10 @@ export function ConfigModal(props: ConfigModalProps) {
 			type: "CHAT",
 			ids: [chatDetails.id],
 			search_space_id: chatDetails.search_space_id,
-			podcast_title: podcastTitle || podcast?.title || chatDetails.title,
+			podcast_title: podcast?.title || chatDetails.title,
+			user_prompt: userPromt,
 		});
-	}, [chatDetails, podcastTitle]);
+	}, [chatDetails, userPromt]);
 
 	return (
 		<Popover>
@@ -49,11 +50,11 @@ export function ConfigModal(props: ConfigModalProps) {
 					<textarea
 						name="prompt"
 						id="prompt"
-						defaultValue={podcastTitle}
+						defaultValue={userPromt}
 						className="w-full rounded-md border border-slate-400/40 p-2"
 						onChange={(e) => {
 							e.stopPropagation();
-							setPodcastTitle(e.target.value);
+							setUserPrompt(e.target.value);
 						}}
 					></textarea>
 

@@ -28,8 +28,6 @@ export const getPodcastByChatId = async (chatId: string, authToken: string) => {
 
 export const generatePodcast = async (request: GeneratePodcastRequest, authToken: string) => {
 	try {
-		const { podcast_title = "SurfSense Podcast" } = request;
-
 		const response = await fetch(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/generate/`,
 			{
@@ -38,7 +36,7 @@ export const generatePodcast = async (request: GeneratePodcastRequest, authToken
 					Authorization: `Bearer ${authToken}`,
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ ...request, podcast_title }),
+				body: JSON.stringify(request),
 			}
 		);
 
