@@ -19,8 +19,9 @@ async def generate_chat_podcast(
     session: AsyncSession,
     chat_id: int,
     search_space_id: int,
-    podcast_title: str,
     user_id: int,
+    podcast_title: str | None = None,
+    user_prompt: str | None = None,
 ):
     task_logger = TaskLoggingService(session, search_space_id)
 
@@ -34,6 +35,7 @@ async def generate_chat_podcast(
             "search_space_id": search_space_id,
             "podcast_title": podcast_title,
             "user_id": str(user_id),
+            "user_prompt": user_prompt,
         },
     )
 
@@ -96,9 +98,10 @@ async def generate_chat_podcast(
 
         config = {
             "configurable": {
-                "podcast_title": "SurfSense",
+                "podcast_title": podcast_title or "SurfSense Podcast",
                 "user_id": str(user_id),
                 "search_space_id": search_space_id,
+                "user_prompt": user_prompt,
             }
         }
         # Initialize state with database session and streaming service

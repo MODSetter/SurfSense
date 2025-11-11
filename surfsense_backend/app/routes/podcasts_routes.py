@@ -155,7 +155,11 @@ async def delete_podcast(
 
 
 async def generate_chat_podcast_with_new_session(
-    chat_id: int, search_space_id: int, podcast_title: str, user_id: int
+    chat_id: int,
+    search_space_id: int,
+    user_id: int,
+    podcast_title: str | None = None,
+    user_prompt: str | None = None,
 ):
     """Create a new session and process chat podcast generation."""
     from app.db import async_session_maker
@@ -163,7 +167,7 @@ async def generate_chat_podcast_with_new_session(
     async with async_session_maker() as session:
         try:
             await generate_chat_podcast(
-                session, chat_id, search_space_id, podcast_title, user_id
+                session, chat_id, search_space_id, user_id, podcast_title, user_prompt
             )
         except Exception as e:
             import logging
@@ -211,7 +215,11 @@ async def generate_podcast(
             # Add Celery tasks for each chat ID
             for chat_id in valid_chat_ids:
                 generate_chat_podcast_task.delay(
-                    chat_id, request.search_space_id, request.podcast_title, user.id
+                    chat_id,
+                    request.search_space_id,
+                    user.id,
+                    request.podcast_title,
+                    request.user_prompt,
                 )
 
         return {
