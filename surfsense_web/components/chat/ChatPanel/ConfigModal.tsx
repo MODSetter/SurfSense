@@ -1,9 +1,10 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { Pencil } from "lucide-react";
 import { useCallback, useContext, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { chatInterfaceContext } from "../ChatInterface";
+import { activeChatAtom } from "@/stores/chat/active-chat.atom";
 import type { GeneratePodcastRequest } from "./ChatPanelContainer";
 
 interface ConfigModalProps {
@@ -11,15 +12,14 @@ interface ConfigModalProps {
 }
 
 export function ConfigModal(props: ConfigModalProps) {
-	const context = useContext(chatInterfaceContext);
+	const { data: activeChatState } = useAtomValue(activeChatAtom);
 
-	if (!context) {
-		throw new Error("chatInterfaceContext must be used within a ChatProvider");
-	}
-	const { chatDetails } = context;
+	const chatDetails = activeChatState?.chatDetails;
+	const podcast = activeChatState?.podcast;
+
 	const { generatePodcast } = props;
 
-	const [podcastTitle, setPodcastTitle] = useState(chatDetails?.title);
+	const [podcastTitle, setPodcastTitle] = useState(podcast?.title || chatDetails?.title);
 
 	const handleGeneratePost = useCallback(async () => {
 		if (!chatDetails) return;
@@ -27,9 +27,10 @@ export function ConfigModal(props: ConfigModalProps) {
 			type: "CHAT",
 			ids: [chatDetails.id],
 			search_space_id: chatDetails.search_space_id,
-			podcast_title: podcastTitle,
+			podcast_title: podcastTitle || podcast?.title || chatDetails.title,
 		});
 	}, [chatDetails, podcastTitle]);
+
 	return (
 		<Popover>
 			<PopoverTrigger
@@ -50,7 +51,10 @@ export function ConfigModal(props: ConfigModalProps) {
 						id="prompt"
 						defaultValue={podcastTitle}
 						className="w-full rounded-md border border-slate-400/40 p-2"
-						onChange={(e) => setPodcastTitle(e.target.value)}
+						onChange={(e) => {
+							e.stopPropagation();
+							setPodcastTitle(e.target.value);
+						}}
 					></textarea>
 
 					<button

@@ -1,10 +1,12 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { useAtom } from "jotai";
+import { Loader2, PanelRight } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContainer";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
@@ -13,6 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
+import { cn } from "@/lib/utils";
+import { chatUIAtom } from "@/stores/chat/chat-ui.atom";
 
 export function DashboardClientLayout({
 	children,
@@ -29,6 +33,10 @@ export function DashboardClientLayout({
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchSpaceIdNum = Number(searchSpaceId);
+
+	const [chatUIState, setChatUIState] = useAtom(chatUIAtom);
+
+	const { isChatPannelOpen } = chatUIState;
 
 	const { loading, error, isOnboardingComplete } = useLLMPreferences(searchSpaceIdNum);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
@@ -129,28 +137,49 @@ export function DashboardClientLayout({
 	}
 
 	return (
-		<SidebarProvider open={open} onOpenChange={setOpen}>
+		<SidebarProvider
+			className="h-full bg-red-600 overflow-hidden"
+			open={open}
+			onOpenChange={setOpen}
+		>
 			{/* Use AppSidebarProvider which fetches user, search space, and recent chats */}
 			<AppSidebarProvider
 				searchSpaceId={searchSpaceId}
 				navSecondary={translatedNavSecondary}
 				navMain={translatedNavMain}
 			/>
-			<SidebarInset>
-				<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-					<div className="flex items-center justify-between w-full gap-2 px-4">
-						<div className="flex items-center gap-2">
-							<SidebarTrigger className="-ml-1" />
-							<Separator orientation="vertical" className="h-6" />
-							<DashboardBreadcrumb />
-						</div>
-						<div className="flex items-center gap-2">
-							<LanguageSwitcher />
-							<ThemeTogglerComponent />
-						</div>
+			<SidebarInset className="h-full ">
+				<main className="flex h-full">
+					<div className="flex grow flex-col h-full border-r">
+						<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+							<div className="flex items-center justify-between w-full gap-2 px-4">
+								<div className="flex items-center gap-2">
+									<SidebarTrigger className="-ml-1" />
+									<Separator orientation="vertical" className="h-6" />
+									<DashboardBreadcrumb />
+								</div>
+								<div className="flex items-center gap-2">
+									<LanguageSwitcher />
+									<ThemeTogglerComponent />
+									<button
+										type="button"
+										onClick={() =>
+											setChatUIState((prev) => ({
+												...prev,
+												isChatPannelOpen: !isChatPannelOpen,
+											}))
+										}
+										className={cn(" shrink-0 rounded-full w-fit hover:bg-muted")}
+									>
+										<PanelRight className="h-4 w-4" />
+									</button>
+								</div>
+							</div>
+						</header>
+						<div className="grow flex-1 overflow-auto">{children}</div>
 					</div>
-				</header>
-				{children}
+					<ChatPanelContainer />
+				</main>
 			</SidebarInset>
 		</SidebarProvider>
 	);

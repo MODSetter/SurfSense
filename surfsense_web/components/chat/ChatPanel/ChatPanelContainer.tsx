@@ -1,8 +1,11 @@
-import { PanelRight } from "lucide-react";
-import { useActionState, useContext, useTransition } from "react";
+"use client";
+import { useAtom, useAtomValue } from "jotai";
+import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
+import { generatePodcast } from "@/lib/apis/podcast-apis";
 import { cn } from "@/lib/utils";
-import { chatInterfaceContext } from "../ChatInterface";
+import { activeChatAtom, activeChatIdAtom } from "@/stores/chat/active-chat.atom";
+import { chatUIAtom } from "@/stores/chat/chat-ui.atom";
 import { ChatPanelView } from "./ChatPanelView";
 
 export interface GeneratePodcastRequest {
@@ -13,68 +16,52 @@ export interface GeneratePodcastRequest {
 }
 
 export function ChatPanelContainer() {
-	const context = useContext(chatInterfaceContext);
+	const {
+		data: activeChatState,
+		isLoading: isChatLoading,
+		error: chatError,
+	} = useAtomValue(activeChatAtom);
+	const activeChatIdState = useAtomValue(activeChatIdAtom);
+	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const { isChatPannelOpen } = useAtomValue(chatUIAtom);
 
-	if (!context) {
-		throw new Error("chatInterfaceContext must be used within a ChatProvider");
-	}
-
-	const { isChatPannelOpen, setIsChatPannelOpen, chat_id: chatId } = context;
-
-	const generatePodcast = async (request: GeneratePodcastRequest) => {
+	const handleGeneratePodcast = async (request: GeneratePodcastRequest) => {
 		try {
-			const { podcast_title = "SurfSense Podcast" } = request;
-
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/generate/`,
-				{
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({ ...request, podcast_title }),
-				}
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.detail || "Failed to generate podcast");
+			if (!authToken) {
+				throw new Error("Authentication error. Please log in again.");
 			}
-
+			await generatePodcast(request, authToken);
 			toast.success(`Podcast generation started!`);
 		} catch (error) {
+			toast.error("Error generating podcast. Please log in again.");
 			console.error("Error generating podcast:", error);
-			console.log(error);
-		} finally {
 		}
 	};
 
-	return chatId && chatId !== "" ? (
+	return activeChatIdState ? (
 		<div
 			className={cn(
-				"border rounded-2xl shrink-0 bg-sidebar flex flex-col h-full transition-all",
-				isChatPannelOpen ? "w-72" : "w-14"
+				"shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex flex-col h-full transition-all",
+				isChatPannelOpen ? "w-64" : "w-0"
 			)}
 		>
-			<div
-				className={cn(
-					"w-full border-b p-2 flex items-center transition-all ",
-					isChatPannelOpen ? "justify-end" : " justify-center "
-				)}
-			>
-				<button
-					type="button"
-					onClick={() => setIsChatPannelOpen(!isChatPannelOpen)}
-					className={cn(" shrink-0 rounded-full p-2 w-fit hover:bg-muted")}
-				>
-					<PanelRight className="h-5 w-5" strokeWidth={1.5} />
-				</button>
-			</div>
+			{isChatLoading || chatError ? (
+				<div className="border-b p-2">
+					{isChatLoading ? (
+						<div title="Loading chat" className="flex items-center justify-center h-full">
+							<LoaderIcon strokeWidth={1.5} className="h-5 w-5 animate-spin" />
+						</div>
+					) : chatError ? (
+						<div title="Failed to load chat" className="flex items-center justify-center h-full">
+							<TriangleAlert strokeWidth={1.5} className="h-5 w-5 text-red-600" />
+						</div>
+					) : null}
+				</div>
+			) : null}
 
-			<div className="border-b rounded-lg grow-1">
-				<ChatPanelView generatePodcast={generatePodcast} />
-			</div>
+			{!isChatLoading && !chatError && activeChatState?.chatDetails && (
+				<ChatPanelView generatePodcast={handleGeneratePodcast} />
+			)}
 		</div>
 	) : null;
 }

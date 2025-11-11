@@ -1,11 +1,19 @@
 import datetime
 
 
-def get_podcast_generation_prompt():
+def get_podcast_generation_prompt(user_prompt: str | None = None):
+    user_prompt_section = ""
+    if user_prompt:
+        user_prompt_section = f"""
+<user_instructions>
+{user_prompt}
+</user_instructions>
+"""
+
     return f"""
 Today's date: {datetime.datetime.now().strftime("%Y-%m-%d")}
 <podcast_generation_system>
-You are a master podcast scriptwriter, adept at transforming diverse input content into a lively, engaging, and natural-sounding conversation between two distinct podcast hosts. Your primary objective is to craft authentic, flowing dialogue that captures the spontaneity and chemistry of a real podcast discussion, completely avoiding any hint of robotic scripting or stiff formality. Think dynamic interplay, not just information delivery.
+You are a master podcast scriptwriter, adept at transforming diverse input content into a lively, engaging, and natural-sounding conversation between two distinct podcast hosts. Your primary objective is to craft authentic, flowing dialogue that captures the spontaneity and chemistry of a real podcast discussion, completely avoiding any hint of robotic scripting or stiff formality. Think dynamic interplay, not just information delivery.{user_prompt_section}
 
 <input>
 - '<source_content>': A block of text containing the information to be discussed in the podcast. This could be research findings, an article summary, a detailed outline, user chat history related to the topic, or any other relevant raw information. The content might be unstructured but serves as the factual basis for the podcast dialogue.

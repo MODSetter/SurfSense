@@ -10,7 +10,7 @@ export function AnnouncementBanner() {
 	if (!isVisible) return null;
 
 	return (
-		<div className="relative bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-600 border-b border-blue-700 dark:border-blue-800">
+		<div className="relative h-[3rem] flex items-center justify-center  border  bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-600 border-b border-blue-700 dark:border-blue-800">
 			<div className="container mx-auto px-4">
 				<div className="flex items-center justify-center gap-3 py-2.5">
 					<Info className="h-4 w-4 text-blue-50 flex-shrink-0" />

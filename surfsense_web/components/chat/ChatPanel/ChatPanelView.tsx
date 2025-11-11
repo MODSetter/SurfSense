@@ -1,9 +1,11 @@
 "use client";
 
+import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Pencil, Play, Podcast, RefreshCw } from "lucide-react";
 import { useCallback, useContext, useTransition } from "react";
 import { cn } from "@/lib/utils";
-import { chatInterfaceContext } from "../ChatInterface";
+import { activeChatAtom } from "@/stores/chat/active-chat.atom";
+import { chatUIAtom } from "@/stores/chat/chat-ui.atom";
 import { getPodcastStalenessMessage, isPodcastStale } from "../PodcastUtils";
 import type { GeneratePodcastRequest } from "./ChatPanelContainer";
 import { ConfigModal } from "./ConfigModal";
@@ -14,12 +16,13 @@ interface ChatPanelViewProps {
 }
 
 export function ChatPanelView(props: ChatPanelViewProps) {
-	const context = useContext(chatInterfaceContext);
-	if (!context) {
-		throw new Error("chatInterfaceContext must be used within a ChatProvider");
-	}
+	const [chatUIState, setChatUIState] = useAtom(chatUIAtom);
+	const { data: activeChatState } = useAtomValue(activeChatAtom);
 
-	const { isChatPannelOpen, setIsChatPannelOpen, chatDetails, podcast } = context;
+	const { isChatPannelOpen } = chatUIState;
+	const podcast = activeChatState?.podcast;
+	const chatDetails = activeChatState?.chatDetails;
+
 	const { generatePodcast } = props;
 
 	// Check if podcast is stale
@@ -40,7 +43,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 		<div className="w-full">
 			<div
 				className={cn(
-					"w-full cursor-pointer h-full p-4 border-b",
+					"w-full  cursor-pointer p-4 border-b",
 					!isChatPannelOpen && "flex items-center justify-center"
 				)}
 				title={podcastIsStale ? "Regenerate Podcast" : "Generate Podcast"}
@@ -99,7 +102,12 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 					<button
 						title={podcastIsStale ? "Regenerate Podcast" : "Generate Podcast"}
 						type="button"
-						onClick={() => setIsChatPannelOpen(!isChatPannelOpen)}
+						onClick={() =>
+							setChatUIState((prev) => ({
+								...prev,
+								isChatPannelOpen: !isChatPannelOpen,
+							}))
+						}
 						className={cn(
 							"p-2 rounded-full hover:bg-muted transition-colors",
 							podcastIsStale && "text-amber-600 dark:text-amber-500"
@@ -116,7 +124,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 			{podcast ? (
 				<div
 					className={cn(
-						"w-full h-full border-b",
+						"w-full border-b",
 						!isChatPannelOpen && "flex items-center justify-center p-4"
 					)}
 				>
@@ -126,7 +134,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 						<button
 							title="Play Podcast"
 							type="button"
-							onClick={() => setIsChatPannelOpen(true)}
+							onClick={() => setChatUIState((prev) => ({ ...prev, isChatPannelOpen: true }))}
 							className="p-2 rounded-full hover:bg-muted transition-colors text-green-600 dark:text-green-500"
 						>
 							<Play strokeWidth={1} className="h-5 w-5" />

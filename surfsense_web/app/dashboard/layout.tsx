@@ -42,9 +42,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 	}
 
 	return (
-		<>
+		<div className="h-full flex flex-col ">
 			<AnnouncementBanner />
-			{children}
-		</>
+			<div className="flex-1 min-h-0">{children}</div>
+		</div>
 	);
 }
