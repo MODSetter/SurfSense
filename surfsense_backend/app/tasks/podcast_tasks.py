@@ -96,7 +96,7 @@ async def generate_chat_podcast(
 
         config = {
             "configurable": {
-                "podcast_title": podcast_title,
+                "podcast_title": "SurfSense",
                 "user_id": str(user_id),
                 "search_space_id": search_space_id,
             }

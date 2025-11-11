@@ -46,7 +46,7 @@ def generate_chat_podcast_task(
     Args:
         chat_id: ID of the chat to generate podcast from
         search_space_id: ID of the search space
-        podcast_title: Title for the podcast (used as user prompt for generation)
+        podcast_title: Title for the podcast
         user_id: ID of the user
     """
     loop = asyncio.new_event_loop()
