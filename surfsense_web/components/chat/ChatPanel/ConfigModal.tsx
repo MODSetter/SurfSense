@@ -44,8 +44,20 @@ export function ConfigModal(props: ConfigModalProps) {
 			<PopoverContent onClick={(e) => e.stopPropagation()} align="end" className="bg-sidebar w-96 ">
 				<form className="flex flex-col gap-3 w-full">
 					<label className="text-sm font-medium" htmlFor="prompt">
-						What subjects should the AI cover in this podcast ?
+						Special user instructions
 					</label>
+					<p className="text-xs text-slate-500 dark:text-slate-400">
+						Leave empty to use the default prompt
+					</p>
+					<div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+						<p>Examples:</p>
+						<ul className="list-disc list-inside space-y-0.5">
+							<li>Make hosts speak in London street language</li>
+							<li>Use real-world analogies and metaphors</li>
+							<li>Add dramatic pauses like a late-night radio show</li>
+							<li>Include 90s pop culture references</li>
+						</ul>
+					</div>
 
 					<textarea
 						name="prompt"

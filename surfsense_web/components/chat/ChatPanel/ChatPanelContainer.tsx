@@ -43,7 +43,7 @@ export function ChatPanelContainer() {
 		<div
 			className={cn(
 				"shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex flex-col h-full transition-all",
-				isChatPannelOpen ? "w-64" : "w-0"
+				isChatPannelOpen ? "w-96" : "w-0"
 			)}
 		>
 			{isChatLoading || chatError ? (

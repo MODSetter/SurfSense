@@ -202,94 +202,116 @@ export function PodcastPlayer({
 	if (compact) {
 		return (
 			<>
-				<div className="flex flex-col gap-3 p-3">
-					<div className="flex items-center gap-2">
-						<motion.div
-							className="w-8 h-8 bg-primary/20 rounded-md flex items-center justify-center flex-shrink-0"
-							animate={{ scale: isPlaying ? [1, 1.05, 1] : 1 }}
-							transition={{
-								repeat: isPlaying ? Infinity : 0,
-								duration: 2,
-							}}
-						>
-							<Podcast className="h-4 w-4 text-primary" />
-						</motion.div>
-						<h4 className="font-medium text-xs line-clamp-1 flex-grow">{podcast.title}</h4>
-						{onClose && (
-							<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={onClose}
-									className="h-6 w-6 flex-shrink-0"
-								>
-									<X className="h-3 w-3" />
-								</Button>
-							</motion.div>
+				<div className="flex flex-col gap-4 p-4">
+					{/* Audio Visualizer */}
+					<motion.div
+						className="relative h-1 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 rounded-full overflow-hidden"
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ duration: 0.5 }}
+					>
+						{isPlaying && (
+							<motion.div
+								className="absolute inset-0 bg-gradient-to-r from-transparent via-primary to-transparent"
+								animate={{
+									x: ["-100%", "100%"],
+								}}
+								transition={{
+									duration: 2,
+									repeat: Infinity,
+									ease: "linear",
+								}}
+							/>
 						)}
-					</div>
+					</motion.div>
 
-					<div className="flex items-center gap-1">
+					{/* Progress Bar with Time */}
+					<div className="space-y-2">
 						<Slider
 							value={[currentTime]}
 							min={0}
 							max={duration || 100}
 							step={0.1}
 							onValueChange={handleSeek}
-							className="flex-grow"
+							className="w-full cursor-pointer"
 						/>
-						<div className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-							{formatTime(currentTime)} / {formatTime(duration)}
+						<div className="flex items-center justify-between text-xs text-muted-foreground">
+							<span className="font-mono">{formatTime(currentTime)}</span>
+							<span className="font-mono">{formatTime(duration)}</span>
 						</div>
 					</div>
 
-					<div className="flex items-center justify-between gap-1">
-						<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={skipBackward}
-								className="h-7 w-7"
-								disabled={!duration}
-							>
-								<SkipBack className="h-3 w-3" />
-							</Button>
-						</motion.div>
+					{/* Controls */}
+					<div className="flex items-center justify-between">
+						{/* Left: Volume */}
+						<div className="flex items-center gap-2 flex-1">
+							<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+								<Button variant="ghost" size="icon" onClick={toggleMute} className="h-8 w-8">
+									{isMuted ? (
+										<VolumeX className="h-4 w-4 text-muted-foreground" />
+									) : (
+										<Volume2 className="h-4 w-4" />
+									)}
+								</Button>
+							</motion.div>
+						</div>
 
-						<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-							<Button
-								variant="default"
-								size="icon"
-								onClick={togglePlayPause}
-								className="h-8 w-8 rounded-full"
-								disabled={!duration}
-							>
-								{isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
-							</Button>
-						</motion.div>
+						{/* Center: Playback Controls */}
+						<div className="flex items-center gap-1">
+							<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={skipBackward}
+									className="h-9 w-9"
+									disabled={!duration}
+								>
+									<SkipBack className="h-4 w-4" />
+								</Button>
+							</motion.div>
 
-						<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={skipForward}
-								className="h-7 w-7"
-								disabled={!duration}
+							<motion.div
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}
+								animate={
+									isPlaying
+										? {
+												boxShadow: [
+													"0 0 0 0 rgba(var(--primary), 0)",
+													"0 0 0 8px rgba(var(--primary), 0.1)",
+													"0 0 0 0 rgba(var(--primary), 0)",
+												],
+											}
+										: {}
+								}
+								transition={{ duration: 1.5, repeat: isPlaying ? Infinity : 0 }}
 							>
-								<SkipForward className="h-3 w-3" />
-							</Button>
-						</motion.div>
+								<Button
+									variant="default"
+									size="icon"
+									onClick={togglePlayPause}
+									className="h-10 w-10 rounded-full"
+									disabled={!duration}
+								>
+									{isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+								</Button>
+							</motion.div>
 
-						<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={toggleMute}
-								className={`h-7 w-7 ${isMuted ? "text-muted-foreground" : "text-primary"}`}
-							>
-								{isMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
-							</Button>
-						</motion.div>
+							<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={skipForward}
+									className="h-9 w-9"
+									disabled={!duration}
+								>
+									<SkipForward className="h-4 w-4" />
+								</Button>
+							</motion.div>
+						</div>
+
+						{/* Right: Placeholder for symmetry */}
+						<div className="flex-1" />
 					</div>
 				</div>
 

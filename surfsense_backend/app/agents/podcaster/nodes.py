@@ -99,10 +99,10 @@ async def create_merged_podcast_audio(
 ) -> dict[str, Any]:
     """Generate audio for each transcript and merge them into a single podcast file."""
 
-    configuration = Configuration.from_runnable_config(config)
+    # configuration = Configuration.from_runnable_config(config)
 
     starting_transcript = PodcastTranscriptEntry(
-        speaker_id=1, dialog=f"Welcome to {configuration.podcast_title} Podcast."
+        speaker_id=1, dialog="Welcome to Surfsense Podcast."
     )
 
     transcript = state.podcast_transcript

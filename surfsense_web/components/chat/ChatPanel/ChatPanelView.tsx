@@ -1,7 +1,8 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { AlertCircle, Pencil, Play, Podcast, RefreshCw } from "lucide-react";
+import { AlertCircle, Pencil, Play, Podcast, RefreshCw, Sparkles } from "lucide-react";
+import { motion } from "motion/react";
 import { useCallback, useContext, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { activeChatAtom } from "@/stores/chat/active-chat.atom";
@@ -41,23 +42,26 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 
 	return (
 		<div className="w-full">
-			<div
-				className={cn(
-					"w-full  cursor-pointer p-4 border-b",
-					!isChatPannelOpen && "flex items-center justify-center"
-				)}
-				title={podcastIsStale ? "Regenerate Podcast" : "Generate Podcast"}
-			>
+			<div className={cn("w-full p-4", !isChatPannelOpen && "flex items-center justify-center")}>
 				{isChatPannelOpen ? (
 					<div className="space-y-3">
 						{/* Show stale podcast warning if applicable */}
 						{podcastIsStale && (
-							<div className="rounded-lg p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+							<motion.div
+								initial={{ opacity: 0, y: -10 }}
+								animate={{ opacity: 1, y: 0 }}
+								className="rounded-xl p-3 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/50 dark:border-amber-800/50 shadow-sm"
+							>
 								<div className="flex gap-2 items-start">
-									<AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
-									<div className="text-sm text-amber-800 dark:text-amber-200">
-										<p className="font-medium">Podcast is outdated</p>
-										<p className="text-xs mt-1 opacity-90">
+									<motion.div
+										animate={{ rotate: [0, 10, -10, 0] }}
+										transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3 }}
+									>
+										<AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+									</motion.div>
+									<div className="text-sm text-amber-900 dark:text-amber-100">
+										<p className="font-semibold">Podcast Outdated</p>
+										<p className="text-xs mt-1 opacity-80">
 											{getPodcastStalenessMessage(
 												chatDetails?.state_version || 0,
 												podcast?.chat_state_version
@@ -65,41 +69,96 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 										</p>
 									</div>
 								</div>
-							</div>
+							</motion.div>
 						)}
 
-						<div
-							role="button"
-							tabIndex={0}
-							onClick={handleGeneratePost}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									e.preventDefault();
-									handleGeneratePost();
-								}
-							}}
-							className={cn(
-								"w-full space-y-3 rounded-xl p-3 transition-colors",
-								podcastIsStale
-									? "bg-gradient-to-r from-amber-400/50 to-orange-300/50 dark:from-amber-500/30 dark:to-orange-600/30 hover:from-amber-400/60 hover:to-orange-300/60"
-									: "bg-gradient-to-r from-slate-400/50 to-slate-200/50 dark:from-slate-400/30 dark:to-slate-800/60 hover:from-slate-400/60 hover:to-slate-200/60"
-							)}
+						<motion.div
+							whileHover={{ scale: 1.02 }}
+							whileTap={{ scale: 0.98 }}
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							transition={{ duration: 0.3 }}
 						>
-							<div className="w-full flex items-center justify-between">
-								{podcastIsStale ? (
-									<RefreshCw strokeWidth={1} className="h-5 w-5" />
-								) : (
-									<Podcast strokeWidth={1} className="h-5 w-5" />
+							<div
+								role="button"
+								tabIndex={0}
+								onClick={handleGeneratePost}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault();
+										handleGeneratePost();
+									}
+								}}
+								className={cn(
+									"relative w-full rounded-2xl p-4 transition-all duration-300 cursor-pointer group overflow-hidden",
+									"border-2",
+									podcastIsStale
+										? "bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-amber-500/10 dark:from-amber-500/20 dark:via-orange-500/20 dark:to-amber-500/20 border-amber-400/50 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/20"
+										: "bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 border-primary/30 hover:border-primary/60 hover:shadow-lg hover:shadow-primary/20"
 								)}
-								<ConfigModal generatePodcast={generatePodcast} />
+							>
+								{/* Background gradient animation */}
+								<motion.div
+									className={cn(
+										"absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+										podcastIsStale
+											? "bg-gradient-to-r from-transparent via-amber-400/10 to-transparent"
+											: "bg-gradient-to-r from-transparent via-primary/10 to-transparent"
+									)}
+									animate={{
+										x: ["-100%", "100%"],
+									}}
+									transition={{
+										duration: 3,
+										repeat: Infinity,
+										ease: "linear",
+									}}
+								/>
+
+								<div className="relative z-10 space-y-3">
+									<div className="flex items-center justify-between">
+										<div className="flex items-center gap-3">
+											<motion.div
+												className={cn(
+													"p-2.5 rounded-xl",
+													podcastIsStale
+														? "bg-amber-500/20 dark:bg-amber-500/30"
+														: "bg-primary/20 dark:bg-primary/30"
+												)}
+												animate={{
+													rotate: podcastIsStale ? [0, 360] : 0,
+												}}
+												transition={{
+													duration: 2,
+													repeat: podcastIsStale ? Infinity : 0,
+													ease: "linear",
+												}}
+											>
+												{podcastIsStale ? (
+													<RefreshCw className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+												) : (
+													<Sparkles className="h-5 w-5 text-primary" />
+												)}
+											</motion.div>
+											<div>
+												<p className="text-sm font-semibold">
+													{podcastIsStale ? "Regenerate Podcast" : "Generate Podcast"}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{podcastIsStale
+														? "Update with latest changes"
+														: "Create podcasts of your chat"}
+												</p>
+											</div>
+										</div>
+										<ConfigModal generatePodcast={generatePodcast} />
+									</div>
+								</div>
 							</div>
-							<p className="text-sm font-medium text-left">
-								{podcastIsStale ? "Regenerate Podcast" : "Generate Podcast"}
-							</p>
-						</div>
+						</motion.div>
 					</div>
 				) : (
-					<button
+					<motion.button
 						title={podcastIsStale ? "Regenerate Podcast" : "Generate Podcast"}
 						type="button"
 						onClick={() =>
@@ -108,37 +167,39 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 								isChatPannelOpen: !isChatPannelOpen,
 							}))
 						}
+						whileHover={{ scale: 1.1 }}
+						whileTap={{ scale: 0.9 }}
 						className={cn(
-							"p-2 rounded-full hover:bg-muted transition-colors",
-							podcastIsStale && "text-amber-600 dark:text-amber-500"
+							"p-2.5 rounded-full transition-colors shadow-sm",
+							podcastIsStale
+								? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400"
+								: "bg-primary/20 hover:bg-primary/30 text-primary"
 						)}
 					>
-						{podcastIsStale ? (
-							<RefreshCw strokeWidth={1} className="h-5 w-5" />
-						) : (
-							<Podcast strokeWidth={1} className="h-5 w-5" />
-						)}
-					</button>
+						{podcastIsStale ? <RefreshCw className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+					</motion.button>
 				)}
 			</div>
 			{podcast ? (
 				<div
 					className={cn(
-						"w-full border-b",
+						"w-full border-t",
 						!isChatPannelOpen && "flex items-center justify-center p-4"
 					)}
 				>
 					{isChatPannelOpen ? (
 						<PodcastPlayer compact podcast={podcast} />
 					) : podcast ? (
-						<button
+						<motion.button
 							title="Play Podcast"
 							type="button"
 							onClick={() => setChatUIState((prev) => ({ ...prev, isChatPannelOpen: true }))}
-							className="p-2 rounded-full hover:bg-muted transition-colors text-green-600 dark:text-green-500"
+							whileHover={{ scale: 1.1 }}
+							whileTap={{ scale: 0.9 }}
+							className="p-2.5 rounded-full bg-green-500/20 hover:bg-green-500/30 text-green-600 dark:text-green-400 transition-colors shadow-sm"
 						>
-							<Play strokeWidth={1} className="h-5 w-5" />
-						</button>
+							<Play className="h-5 w-5" />
+						</motion.button>
 					) : null}
 				</div>
 			) : null}
