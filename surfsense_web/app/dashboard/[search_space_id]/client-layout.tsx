@@ -17,8 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
-import { activeChatIdAtom } from "@/stores/chat/active-chat.atom";
-import { chatUIAtom } from "@/stores/chat/chat-ui.atom";
+import { activeChatIdAtom } from "@/stores/chats/active-chat.atom";
+import { chatUIAtom } from "@/stores/chats/active-chat-ui.atom";
 
 export function DashboardClientLayout({
 	children,
