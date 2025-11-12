@@ -38,7 +38,12 @@ def get_celery_session_maker():
 
 @celery_app.task(name="generate_chat_podcast", bind=True)
 def generate_chat_podcast_task(
-    self, chat_id: int, search_space_id: int, podcast_title: str, user_id: int
+    self,
+    chat_id: int,
+    search_space_id: int,
+    user_id: int,
+    podcast_title: str | None = None,
+    user_prompt: str | None = None,
 ):
     """
     Celery task to generate podcast from chat.
@@ -46,15 +51,18 @@ def generate_chat_podcast_task(
     Args:
         chat_id: ID of the chat to generate podcast from
         search_space_id: ID of the search space
+        user_id: ID of the user,
         podcast_title: Title for the podcast
-        user_id: ID of the user
+        user_prompt: Optional prompt from the user to guide the podcast generation
     """
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     try:
         loop.run_until_complete(
-            _generate_chat_podcast(chat_id, search_space_id, podcast_title, user_id)
+            _generate_chat_podcast(
+                chat_id, search_space_id, user_id, podcast_title, user_prompt
+            )
         )
         loop.run_until_complete(loop.shutdown_asyncgens())
     finally:
@@ -63,13 +71,17 @@ def generate_chat_podcast_task(
 
 
 async def _generate_chat_podcast(
-    chat_id: int, search_space_id: int, podcast_title: str, user_id: int
+    chat_id: int,
+    search_space_id: int,
+    user_id: int,
+    podcast_title: str | None = None,
+    user_prompt: str | None = None,
 ):
     """Generate chat podcast with new session."""
     async with get_celery_session_maker()() as session:
         try:
             await generate_chat_podcast(
-                session, chat_id, search_space_id, podcast_title, user_id
+                session, chat_id, search_space_id, user_id, podcast_title, user_prompt
             )
         except Exception as e:
             logger.error(f"Error generating podcast from chat: {e!s}")

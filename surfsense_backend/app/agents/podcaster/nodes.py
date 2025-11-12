@@ -29,6 +29,7 @@ async def create_podcast_transcript(
     configuration = Configuration.from_runnable_config(config)
     user_id = configuration.user_id
     search_space_id = configuration.search_space_id
+    user_prompt = configuration.user_prompt
 
     # Get user's long context LLM
     llm = await get_user_long_context_llm(state.db_session, user_id, search_space_id)
@@ -38,7 +39,7 @@ async def create_podcast_transcript(
         raise RuntimeError(error_message)
 
     # Get the prompt
-    prompt = get_podcast_generation_prompt()
+    prompt = get_podcast_generation_prompt(user_prompt)
 
     # Create the messages
     messages = [

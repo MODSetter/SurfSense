@@ -18,6 +18,7 @@ class Configuration:
     podcast_title: str
     user_id: str
     search_space_id: int
+    user_prompt: str | None = None
 
     @classmethod
     def from_runnable_config(

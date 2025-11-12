@@ -199,6 +199,7 @@ async def read_chats(
                 Chat.initial_connectors,
                 Chat.search_space_id,
                 Chat.created_at,
+                Chat.state_version,
             )
             .join(SearchSpace)
             .filter(SearchSpace.user_id == user.id)
@@ -261,7 +262,10 @@ async def update_chat(
         db_chat = await read_chat(chat_id, session, user)
         update_data = chat_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
+            if key == "messages":
+                db_chat.state_version = len(update_data["messages"])
             setattr(db_chat, key, value)
+
         await session.commit()
         await session.refresh(db_chat)
         return db_chat

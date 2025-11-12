@@ -47,13 +47,14 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 
-interface PodcastItem {
+export interface PodcastItem {
 	id: number;
 	title: string;
 	created_at: string;
 	file_location: string;
 	podcast_transcript: any[];
 	search_space_id: number;
+	chat_state_version: number | null;
 }
 
 interface PodcastsPageClientProps {
