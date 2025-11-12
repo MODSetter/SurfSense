@@ -1,112 +1,91 @@
 export const fetchSearchSpaces = async () => {
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem(
-            "surfsense_bearer_token"
-          )}`,
-        },
-        method: "GET",
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Not authenticated");
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem(
+          "surfsense_bearer_token"
+        )}`,
+      },
+      method: "GET",
     }
+  );
 
-    const data = await response.json();
-    return data;
-  } catch (err: any) {
-    console.error("Error fetching search spaces:", err);
-    return null;
+  if (!response.ok) {
+    throw new Error("Not authenticated");
   }
+
+  return await response.json();
 };
 
-export const handleDeleteSearchSpace = async (id: number) => {
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${id}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem(
-            "surfsense_bearer_token"
-          )}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to delete search space");
+export const deleteSearchSpace = async (id: number) => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${id}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem(
+          "surfsense_bearer_token"
+        )}`,
+      },
     }
-  } catch (error) {
-    console.error("Error deleting search space:", error);
-    return;
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to delete search space");
   }
+
+  return await response.json();
 };
 
-export const handleCreateSearchSpace = async (data: {
+export const createSearchSpace = async (data: {
   name: string;
   description: string;
 }) => {
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem(
-            "surfsense_bearer_token"
-          )}`,
-        },
-        body: JSON.stringify(data),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to create search space");
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem(
+          "surfsense_bearer_token"
+        )}`,
+      },
+      body: JSON.stringify(data),
     }
+  );
 
-    const result = await response.json();
-
-    return result;
-  } catch (error) {
-    console.error("Error creating search space:", error);
-    throw error;
+  if (!response.ok) {
+    throw new Error("Failed to create search space");
   }
+
+  return await response.json();
 };
 
 export const fetchSearchSpace = async (searchSpaceId: string) => {
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem(
-            "surfsense_bearer_token"
-          )}`,
-        },
-        method: "GET",
-      }
-    );
-
-    if (response.status === 401) {
-      // Clear token and redirect to home
-      localStorage.removeItem("surfsense_bearer_token");
-      window.location.href = "/";
-      throw new Error("Unauthorized: Redirecting to login page");
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem(
+          "surfsense_bearer_token"
+        )}`,
+      },
+      method: "GET",
     }
+  );
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch search space: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (err: any) {
-    console.error("Error fetching search space:", err);
+  if (response.status === 401) {
+    // Clear token and redirect to home
+    localStorage.removeItem("surfsense_bearer_token");
+    window.location.href = "/";
+    throw new Error("Unauthorized: Redirecting to login page");
   }
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch search space: ${response.status}`);
+  }
+
+  return await response.json();
 };
