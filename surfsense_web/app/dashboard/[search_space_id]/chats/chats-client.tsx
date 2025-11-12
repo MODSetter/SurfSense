@@ -93,10 +93,7 @@ const MotionCard = motion(Card);
 
 export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps) {
 	const router = useRouter();
-	// const [chats, setChats] = useState<Chat[]>([]);
 	const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
-	// const [isFetching, setIsLoading] = useState(true);
-	// const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
@@ -127,55 +124,6 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 			console.error("Error fetching chats:", error);
 		}
 	}, [error]);
-
-	// Fetch chats from API
-	// useEffect(() => {
-	// 	const fetchChats = async () => {
-	// 		try {
-	// 			setIsLoading(true);
-
-	// 			// Get token from localStorage
-	// 			const token = localStorage.getItem("surfsense_bearer_token");
-
-	// 			if (!token) {
-	// 				setError("Authentication token not found. Please log in again.");
-	// 				setIsLoading(false);
-	// 				return;
-	// 			}
-
-	// 			// Fetch all chats for this search space
-	// 			const response = await fetch(
-	// 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats?search_space_id=${searchSpaceId}`,
-	// 				{
-	// 					headers: {
-	// 						Authorization: `Bearer ${token}`,
-	// 						"Content-Type": "application/json",
-	// 					},
-	// 					cache: "no-store",
-	// 				}
-	// 			);
-
-	// 			if (!response.ok) {
-	// 				const errorData = await response.json().catch(() => null);
-	// 				throw new Error(`Failed to fetch chats: ${response.status} ${errorData?.error || ""}`);
-	// 			}
-
-	// 			const data: Chat[] = await response.json();
-	// 			setChats(data);
-	// 			setFilteredChats(data);
-	// 			setError(null);
-	// 		} catch (error) {
-	// 			console.error("Error fetching chats:", error);
-	// 			setError(error instanceof Error ? error.message : "Unknown error occurred");
-	// 			setChats([]);
-	// 			setFilteredChats([]);
-	// 		} finally {
-	// 			setIsLoading(false);
-	// 		}
-	// 	};
-
-	// 	fetchChats();
-	// }, [searchSpaceId]);
 
 	// Filter and sort chats based on search query, type, and sort order
 	useEffect(() => {
@@ -252,8 +200,8 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	};
 
 	// Calculate pagination
-	const indexOfLastChat = currentPage * chatsPerPage;
-	const indexOfFirstChat = indexOfLastChat - chatsPerPage;
+	const indexOfLastChat = currentPage * chatsPerPage; // Index of last chat in the current page
+	const indexOfFirstChat = indexOfLastChat - chatsPerPage; // Index of first chat in the current page
 	const currentChats = filteredChats.slice(indexOfFirstChat, indexOfLastChat);
 
 	// Get unique chat types for filter dropdown
