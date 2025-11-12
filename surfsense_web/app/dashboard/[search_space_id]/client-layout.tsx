@@ -27,9 +27,9 @@ import {
 } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
-import { activeChatIdAtom } from "@/stores/chats/active-chat.atom";
-import { chatUIAtom } from "@/stores/chats/active-chat-ui.atom";
-import { activeSearchSpaceIdAtom } from "@/stores/seach-space/active-seach-space.atom";
+import { activeChatIdAtom } from "@/atoms/chats/queries/active-chat.atom";
+import { chatUIAtom } from "@/atoms/chats/active-chat-ui.atom";
+import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/active-seach-space.atom";
 
 export function DashboardClientLayout({
   children,

@@ -1,4 +1,7 @@
 export const cacheKeys = {
-	activeChat: (chatId: string) => ["activeChat", chatId],
-	activeSearchSpaceChats: (searchSpaceId: string) => ["activeSearchSpaceChats", searchSpaceId],
+	activeSearchSpace: {
+		chats : (searchSpaceId: string) => ["active-search-space", "chats", searchSpaceId] as const,
+		activeChat : (chatId: string) => ["active-search-space", "active-chat", chatId] as const,
+		deleteChat : ( searchSpaceId: string, chatId: string) => ["active-search-space", "chats", searchSpaceId, "delete", chatId] as const,
+	},
 };

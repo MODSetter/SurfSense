@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { Pencil } from "lucide-react";
 import { useCallback, useContext, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { activeChatAtom } from "@/stores/chats/active-chat.atom";
+import { activeChatAtom } from "@/atoms/chats/queries/active-chat.atom";
 import type { GeneratePodcastRequest } from "./ChatPanelContainer";
 
 interface ConfigModalProps {
