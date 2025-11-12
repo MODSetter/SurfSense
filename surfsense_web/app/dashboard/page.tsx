@@ -236,7 +236,7 @@ const DashboardPage = () => {
 						{searchSpaces &&
 							searchSpaces.length > 0 &&
 							searchSpaces.map((space) => (
-								<motion.div key={space.id} variants={itemVariants} className="aspect-[4/3]">
+								<motion.div key={space.id} variants={itemVariants} className="aspect-4/3">
 									<Tilt
 										rotationFactor={6}
 										isRevese

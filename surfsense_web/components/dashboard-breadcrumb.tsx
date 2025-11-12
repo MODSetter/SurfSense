@@ -13,7 +13,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useSearchSpace } from "@/hooks/use-search-space";
-import { fetchChatDetails } from "@/lib/apis/chat-apis";
+import { fetchChatDetails } from "@/lib/apis/chats.api";
 
 interface BreadcrumbItemInterface {
 	label: string;

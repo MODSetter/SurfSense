@@ -2,10 +2,10 @@
 import { useAtom, useAtomValue } from "jotai";
 import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { generatePodcast } from "@/lib/apis/podcast-apis";
+import { generatePodcast } from "@/lib/apis/podcasts.api";
 import { cn } from "@/lib/utils";
-import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/queries/active-chat.query.atom";
-import { chatUIAtom } from "@/atoms/chats/active-chat.atom";
+import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/chat-queries.atom";
+import { chatUIAtom } from "@/atoms/chats/chat-uis.atom";
 import { ChatPanelView } from "./ChatPanelView";
 
 export interface GeneratePodcastRequest {
