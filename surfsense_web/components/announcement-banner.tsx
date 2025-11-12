@@ -1,13 +1,18 @@
 "use client";
 
+import { useAtom } from "jotai";
 import { ExternalLink, Info, X } from "lucide-react";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { announcementDismissedAtom } from "@/stores/announcement.atom";
 
 export function AnnouncementBanner() {
-	const [isVisible, setIsVisible] = useState(true);
+	const [isDismissed, setIsDismissed] = useAtom(announcementDismissedAtom);
 
-	if (!isVisible) return null;
+	const handleDismiss = () => {
+		setIsDismissed(true);
+	};
+
+	if (isDismissed) return null;
 
 	return (
 		<div className="relative h-[3rem] flex items-center justify-center  border  bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-600 border-b border-blue-700 dark:border-blue-800">
@@ -30,7 +35,7 @@ export function AnnouncementBanner() {
 						variant="ghost"
 						size="sm"
 						className="h-7 w-7 p-0 shrink-0 text-blue-100 hover:text-white hover:bg-blue-700/50 dark:hover:bg-blue-800/50 absolute right-4"
-						onClick={() => setIsVisible(false)}
+						onClick={handleDismiss}
 					>
 						<X className="h-3.5 w-3.5" />
 						<span className="sr-only">Dismiss</span>
