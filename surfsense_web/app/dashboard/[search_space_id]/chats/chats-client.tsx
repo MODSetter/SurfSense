@@ -55,8 +55,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAtom, useAtomValue } from "jotai";
-import { activeSearchSpaceChatsAtom } from "@/atoms/chats/queries/active-search-space-chats.query.atom";
-import { deleteChatMutationAtom } from "@/atoms/chats/mutations/delete-chat.mutation.atom";
+import { activeSearchSpaceChatsAtom } from "@/atoms/chats/chat-queries.atom";
+import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutations.atom";
 
 export interface Chat {
   created_at: string;

@@ -2,9 +2,13 @@ import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
 import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/podcasts-client";
-import { fetchChatDetails } from "@/lib/apis/chat-apis";
-import { getPodcastByChatId } from "@/lib/apis/podcast-apis";
+import {
+  fetchChatDetails,
+  fetchChatsBySearchSpace,
+} from "@/lib/apis/chats.api";
+import { getPodcastByChatId } from "@/lib/apis/podcasts.api";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 
 type ActiveChatState = {
   chatId: string | null;
@@ -35,6 +39,26 @@ export const activeChatAtom = atomWithQuery<ActiveChatState>((get) => {
       ]);
 
       return { chatId: activeChatId, chatDetails, podcast };
+    },
+  };
+});
+
+export const activeSearchSpaceChatsAtom = atomWithQuery((get) => {
+  const searchSpaceId = get(activeSearchSpaceIdAtom);
+  const authToken = localStorage.getItem("surfsense_bearer_token");
+
+  return {
+    queryKey: cacheKeys.activeSearchSpace.chats(searchSpaceId ?? ""),
+    enabled: !!searchSpaceId && !!authToken,
+    queryFn: async () => {
+      if (!authToken) {
+        throw new Error("No authentication token found");
+      }
+      if (!searchSpaceId) {
+        throw new Error("No search space id found");
+      }
+
+      return fetchChatsBySearchSpace(searchSpaceId, authToken);
     },
   };
 });
