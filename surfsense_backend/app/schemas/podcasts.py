@@ -10,6 +10,7 @@ class PodcastBase(BaseModel):
     podcast_transcript: list[Any]
     file_location: str = ""
     search_space_id: int
+    chat_state_version: int | None = None
 
 
 class PodcastCreate(PodcastBase):
@@ -28,4 +29,5 @@ class PodcastGenerateRequest(BaseModel):
     type: Literal["DOCUMENT", "CHAT"]
     ids: list[int]
     search_space_id: int
-    podcast_title: str = "SurfSense Podcast"
+    podcast_title: str | None = None
+    user_prompt: str | None = None

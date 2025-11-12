@@ -1,5 +1,6 @@
 import type { Message } from "@ai-sdk/react";
 import { useCallback, useEffect, useState } from "react";
+import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/hooks/use-documents";
 
@@ -52,7 +53,7 @@ interface UseChatAPIProps {
 
 export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 	const fetchChatDetails = useCallback(
-		async (chatId: string) => {
+		async (chatId: string): Promise<ChatDetails | null> => {
 			if (!token) return null;
 
 			try {

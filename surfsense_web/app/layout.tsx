@@ -6,6 +6,7 @@ import { I18nProvider } from "@/components/providers/I18nProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
+import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
 import { cn } from "@/lib/utils";
 
 const roboto = Roboto({
@@ -89,7 +90,7 @@ export default function RootLayout({
 	// Locale state is managed by LocaleContext and persisted in localStorage
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<body className={cn(roboto.className, "bg-white dark:bg-black antialiased h-full w-full")}>
+			<body className={cn(roboto.className, "bg-white dark:bg-black antialiased h-full w-full ")}>
 				<LocaleProvider>
 					<I18nProvider>
 						<ThemeProvider
@@ -99,7 +100,9 @@ export default function RootLayout({
 							defaultTheme="light"
 						>
 							<RootProvider>
-								{children}
+								<ReactQueryClientProvider>
+									<div className=" h-[100dvh] w-[100vw] overflow-hidden">{children}</div>
+								</ReactQueryClientProvider>
 								<Toaster />
 							</RootProvider>
 						</ThemeProvider>
