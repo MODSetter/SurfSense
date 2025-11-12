@@ -4,6 +4,7 @@ import { activeSearchSpaceIdAtom } from "../../seach-spaces/active-seach-space.a
 import { queryClient } from "@/lib/query-client/client";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { toast } from "sonner";
+import { Chat } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 
 export const deleteChatMutationAtom = atomWithMutation((get) => {
   const searchSpaceId = get(activeSearchSpaceIdAtom);
@@ -23,10 +24,10 @@ export const deleteChatMutationAtom = atomWithMutation((get) => {
       return deleteChat(chatId, authToken);
     },
 
-    onSuccess: () => {
+    onSuccess: (_, chatId) => {
       toast.success("Chat deleted successfully");
-      queryClient.invalidateQueries({
-        queryKey: cacheKeys.activeSearchSpace.chats(searchSpaceId!),
+      queryClient.setQueryData(cacheKeys.activeSearchSpace.chats(searchSpaceId!), (oldData: Chat[]) => {
+        return oldData.filter((chat) => chat.id !== chatId);
       });
     },
   };
