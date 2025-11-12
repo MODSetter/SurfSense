@@ -89,3 +89,24 @@ export const fetchSearchSpace = async (searchSpaceId: string) => {
 
   return await response.json();
 };
+
+export const fetchSearchSpacePreferences = async (
+  searchSpaceId: number,
+  authToken: string
+) => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
+    {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+      method: "GET",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch LLM preferences");
+  }
+
+  return await response.json();
+};
