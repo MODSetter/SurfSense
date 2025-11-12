@@ -50,6 +50,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useAtomValue } from "jotai";
+import { activeSearchSpaceChatsAtom } from "@/stores/chats/active-search-space-chats.atom";
 
 export interface Chat {
 	created_at: string;
@@ -91,10 +93,10 @@ const MotionCard = motion(Card);
 
 export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps) {
 	const router = useRouter();
-	const [chats, setChats] = useState<Chat[]>([]);
+	// const [chats, setChats] = useState<Chat[]>([]);
 	const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	// const [isFetching, setIsLoading] = useState(true);
+	// const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
@@ -103,6 +105,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; title: string } | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const {isFetching , data : chats, error} = useAtomValue(activeSearchSpaceChatsAtom);
 
 	const chatsPerPage = 9;
 	const searchParams = useSearchParams();
@@ -118,58 +121,67 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		}
 	}, [searchParams]);
 
-	// Fetch chats from API
+
 	useEffect(() => {
-		const fetchChats = async () => {
-			try {
-				setIsLoading(true);
+		if (error) {
+			console.error("Error fetching chats:", error);
+		}
+	}, [error]);
 
-				// Get token from localStorage
-				const token = localStorage.getItem("surfsense_bearer_token");
+	// Fetch chats from API
+	// useEffect(() => {
+	// 	const fetchChats = async () => {
+	// 		try {
+	// 			setIsLoading(true);
 
-				if (!token) {
-					setError("Authentication token not found. Please log in again.");
-					setIsLoading(false);
-					return;
-				}
+	// 			// Get token from localStorage
+	// 			const token = localStorage.getItem("surfsense_bearer_token");
 
-				// Fetch all chats for this search space
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats?search_space_id=${searchSpaceId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-							"Content-Type": "application/json",
-						},
-						cache: "no-store",
-					}
-				);
+	// 			if (!token) {
+	// 				setError("Authentication token not found. Please log in again.");
+	// 				setIsLoading(false);
+	// 				return;
+	// 			}
 
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => null);
-					throw new Error(`Failed to fetch chats: ${response.status} ${errorData?.error || ""}`);
-				}
+	// 			// Fetch all chats for this search space
+	// 			const response = await fetch(
+	// 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats?search_space_id=${searchSpaceId}`,
+	// 				{
+	// 					headers: {
+	// 						Authorization: `Bearer ${token}`,
+	// 						"Content-Type": "application/json",
+	// 					},
+	// 					cache: "no-store",
+	// 				}
+	// 			);
 
-				const data: Chat[] = await response.json();
-				setChats(data);
-				setFilteredChats(data);
-				setError(null);
-			} catch (error) {
-				console.error("Error fetching chats:", error);
-				setError(error instanceof Error ? error.message : "Unknown error occurred");
-				setChats([]);
-				setFilteredChats([]);
-			} finally {
-				setIsLoading(false);
-			}
-		};
+	// 			if (!response.ok) {
+	// 				const errorData = await response.json().catch(() => null);
+	// 				throw new Error(`Failed to fetch chats: ${response.status} ${errorData?.error || ""}`);
+	// 			}
 
-		fetchChats();
-	}, [searchSpaceId]);
+	// 			const data: Chat[] = await response.json();
+	// 			setChats(data);
+	// 			setFilteredChats(data);
+	// 			setError(null);
+	// 		} catch (error) {
+	// 			console.error("Error fetching chats:", error);
+	// 			setError(error instanceof Error ? error.message : "Unknown error occurred");
+	// 			setChats([]);
+	// 			setFilteredChats([]);
+	// 		} finally {
+	// 			setIsLoading(false);
+	// 		}
+	// 	};
+
+	// 	fetchChats();
+	// }, [searchSpaceId]);
 
 	// Filter and sort chats based on search query, type, and sort order
 	useEffect(() => {
-		let result = [...chats];
+		let result = [...(chats || [])];
+
+		console.log("chats", chats);
 
 		// Filter by search term
 		if (searchQuery) {
@@ -201,42 +213,42 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 
 	// Function to handle chat deletion
 	const handleDeleteChat = async () => {
-		if (!chatToDelete) return;
+		// if (!chatToDelete) return;
 
-		setIsDeleting(true);
-		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				setIsDeleting(false);
-				return;
-			}
+		// setIsDeleting(true);
+		// try {
+		// 	const token = localStorage.getItem("surfsense_bearer_token");
+		// 	if (!token) {
+		// 		setIsDeleting(false);
+		// 		return;
+		// 	}
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${chatToDelete.id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${token}`,
-						"Content-Type": "application/json",
-					},
-				}
-			);
+		// 	const response = await fetch(
+		// 		`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${chatToDelete.id}`,
+		// 		{
+		// 			method: "DELETE",
+		// 			headers: {
+		// 				Authorization: `Bearer ${token}`,
+		// 				"Content-Type": "application/json",
+		// 			},
+		// 		}
+		// 	);
 
-			if (!response.ok) {
-				throw new Error(`Failed to delete chat: ${response.statusText}`);
-			}
+		// 	if (!response.ok) {
+		// 		throw new Error(`Failed to delete chat: ${response.statusText}`);
+		// 	}
 
-			// Close dialog and refresh chats
-			setDeleteDialogOpen(false);
-			setChatToDelete(null);
+		// 	// Close dialog and refresh chats
+		// 	setDeleteDialogOpen(false);
+		// 	setChatToDelete(null);
 
-			// Update local state by removing the deleted chat
-			setChats((prevChats) => prevChats.filter((chat) => chat.id !== chatToDelete.id));
-		} catch (error) {
-			console.error("Error deleting chat:", error);
-		} finally {
-			setIsDeleting(false);
-		}
+		// 	// Update local state by removing the deleted chat
+		// 	setChats((prevChats) => prevChats.filter((chat) => chat.id !== chatToDelete.id));
+		// } catch (error) {
+		// 	console.error("Error deleting chat:", error);
+		// } finally {
+		// 	setIsDeleting(false);
+		// }
 	};
 
 	// Calculate pagination
@@ -245,7 +257,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	const currentChats = filteredChats.slice(indexOfFirstChat, indexOfLastChat);
 
 	// Get unique chat types for filter dropdown
-	const chatTypes = ["all", ...Array.from(new Set(chats.map((chat) => chat.type)))];
+	const chatTypes = chats ? ["all", ...Array.from(new Set(chats.map((chat) => chat.type)))] : [];
 
 	return (
 		<motion.div
@@ -307,7 +319,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				</div>
 
 				{/* Status Messages */}
-				{isLoading && (
+				{isFetching && (
 					<div className="flex items-center justify-center h-40">
 						<div className="flex flex-col items-center gap-2">
 							<div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -316,14 +328,14 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 					</div>
 				)}
 
-				{error && !isLoading && (
+				{error && !isFetching && (
 					<div className="border border-destructive/50 text-destructive p-4 rounded-md">
 						<h3 className="font-medium">Error loading chats</h3>
-						<p className="text-sm">{error}</p>
+						<p className="text-sm">{error.message}</p>
 					</div>
 				)}
 
-				{!isLoading && !error && filteredChats.length === 0 && (
+				{!isFetching && !error && filteredChats.length === 0 && (
 					<div className="flex flex-col items-center justify-center h-40 gap-2 text-center">
 						<MessageCircleMore className="h-8 w-8 text-muted-foreground" />
 						<h3 className="font-medium">No chats found</h3>
@@ -336,7 +348,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				)}
 
 				{/* Chat Grid */}
-				{!isLoading && !error && filteredChats.length > 0 && (
+				{!isFetching && !error && filteredChats.length > 0 && (
 					<AnimatePresence mode="wait">
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 							{currentChats.map((chat, index) => (
@@ -422,7 +434,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				)}
 
 				{/* Pagination */}
-				{!isLoading && !error && totalPages > 1 && (
+				{!isFetching && !error && totalPages > 1 && (
 					<Pagination className="mt-8">
 						<PaginationContent>
 							<PaginationItem>
