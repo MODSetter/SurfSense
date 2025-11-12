@@ -7,7 +7,7 @@ import { useEffect } from "react";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 import type { Document } from "@/hooks/use-documents";
-import { activeChatIdAtom } from "@/stores/chat/active-chat.atom";
+import { activeChatIdAtom } from "@/stores/chats/active-chat.atom";
 import { ChatPanelContainer } from "./ChatPanel/ChatPanelContainer";
 
 interface ChatInterfaceProps {
