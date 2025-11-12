@@ -72,9 +72,7 @@ export const deleteChat = async (chatId: number, authToken: string) => {
 			throw new Error(`Failed to delete chat: ${response.statusText}`);
 		}
 
-		return true;
 	} catch (err) {
 		console.error("Error deleting chat:", err);
-		return false;
 	}
 };
