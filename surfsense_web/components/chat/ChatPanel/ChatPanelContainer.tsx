@@ -4,8 +4,8 @@ import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { generatePodcast } from "@/lib/apis/podcast-apis";
 import { cn } from "@/lib/utils";
-import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/queries/active-chat.atom";
-import { chatUIAtom } from "@/atoms/chats/active-chat-ui.atom";
+import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/queries/active-chat.query.atom";
+import { chatUIAtom } from "@/atoms/chats/active-chat.atom";
 import { ChatPanelView } from "./ChatPanelView";
 
 export interface GeneratePodcastRequest {

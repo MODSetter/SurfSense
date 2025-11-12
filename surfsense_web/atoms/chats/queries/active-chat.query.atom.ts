@@ -18,18 +18,8 @@ export const activeChatAtom = atomWithQuery<ActiveChatState>((get) => {
   const activeChatId = get(activeChatIdAtom);
   const authToken = localStorage.getItem("surfsense_bearer_token");
 
-  if (!activeChatId) {
-    return {
-      queryKey: [],
-      enabled: false,
-      queryFn: async () => {
-        return { chatId: null, chatDetails: null, podcast: null };
-      },
-    };
-  }
-
   return {
-    queryKey: cacheKeys.activeSearchSpace.activeChat(activeChatId),
+    queryKey: cacheKeys.activeSearchSpace.activeChat(activeChatId ?? ""),
     enabled: !!activeChatId && !!authToken,
     queryFn: async () => {
       if (!authToken) {
