@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useAtomValue } from "jotai";
-import { activeSearchSpaceChatsAtom } from "@/stores/chats/active-search-space-chats.atom";
+import { activeSearchSpaceChatsAtom } from "@/atoms/chats/queries/active-search-space-chats.atom";
 
 export interface Chat {
 	created_at: string;
@@ -128,8 +128,6 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	// Filter and sort chats based on search query, type, and sort order
 	useEffect(() => {
 		let result = [...(chats || [])];
-
-		console.log("chats", chats);
 
 		// Filter by search term
 		if (searchQuery) {

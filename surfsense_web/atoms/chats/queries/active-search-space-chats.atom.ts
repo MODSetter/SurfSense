@@ -1,6 +1,6 @@
 import { atomWithQuery } from "jotai-tanstack-query";
 import { fetchChatsBySearchSpace } from "@/lib/apis/chat-apis";
-import { activeSearchSpaceIdAtom } from "../seach-space/active-seach-space.atom";
+import { activeSearchSpaceIdAtom } from "../../seach-spaces/active-seach-space.atom";
 
 export const activeSearchSpaceChatsAtom = atomWithQuery((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);

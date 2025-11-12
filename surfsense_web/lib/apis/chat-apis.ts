@@ -54,3 +54,27 @@ export const fetchChatsBySearchSpace = async (
     return null;
   }
 };
+
+
+export const deleteChat = async (chatId: number, authToken: string) => {
+	try {
+		const response = await fetch(
+			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${chatId}`,
+			{
+				method: "DELETE",
+				headers: {
+					Authorization: `Bearer ${authToken}`,
+				},
+			}
+		);
+
+		if (!response.ok) {
+			throw new Error(`Failed to delete chat: ${response.statusText}`);
+		}
+
+		return true;
+	} catch (err) {
+		console.error("Error deleting chat:", err);
+		return false;
+	}
+};
