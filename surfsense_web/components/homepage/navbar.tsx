@@ -19,21 +19,15 @@ export const Navbar = () => {
 	];
 
 	useEffect(() => {
-		const handleScroll = (e: Event) => {
-			const target = e.target as HTMLElement;
-			setIsScrolled(target.scrollTop > 20);
+		if (typeof window === "undefined") return;
+
+		const handleScroll = () => {
+			setIsScrolled(window.scrollY > 20);
 		};
 
-		// Find the scrollable container (the div with overflow-auto in root layout)
-		const scrollContainer = document.querySelector(".h-\\[100dvh\\].w-\\[100vw\\].overflow-auto");
-
-		if (scrollContainer) {
-			// Check initial scroll position
-			setIsScrolled(scrollContainer.scrollTop > 20);
-
-			scrollContainer.addEventListener("scroll", handleScroll);
-			return () => scrollContainer.removeEventListener("scroll", handleScroll);
-		}
+		handleScroll();
+		window.addEventListener("scroll", handleScroll);
+		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
 	return (

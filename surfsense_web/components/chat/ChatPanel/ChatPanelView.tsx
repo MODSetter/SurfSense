@@ -1,9 +1,9 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { AlertCircle, Pencil, Play, Podcast, RefreshCw, Sparkles } from "lucide-react";
+import { AlertCircle, Play, RefreshCw, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useContext, useTransition } from "react";
+import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { activeChatAtom } from "@/stores/chat/active-chat.atom";
 import { chatUIAtom } from "@/stores/chat/chat-ui.atom";
@@ -79,16 +79,9 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 							animate={{ opacity: 1 }}
 							transition={{ duration: 0.3 }}
 						>
-							<div
-								role="button"
-								tabIndex={0}
+							<button
+								type="button"
 								onClick={handleGeneratePost}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") {
-										e.preventDefault();
-										handleGeneratePost();
-									}
-								}}
 								className={cn(
 									"relative w-full rounded-2xl p-4 transition-all duration-300 cursor-pointer group overflow-hidden",
 									"border-2",
@@ -154,7 +147,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 										<ConfigModal generatePodcast={generatePodcast} />
 									</div>
 								</div>
-							</div>
+							</button>
 						</motion.div>
 					</div>
 				) : (

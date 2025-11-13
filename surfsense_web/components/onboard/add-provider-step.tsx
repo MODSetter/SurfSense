@@ -28,7 +28,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { LANGUAGES } from "@/contracts/enums/languages";
-import { getModelsByProvider, LLM_MODELS } from "@/contracts/enums/llm-models";
+import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
@@ -255,7 +255,6 @@ export function AddProviderStep({
 									<PopoverTrigger asChild>
 										<Button
 											variant="outline"
-											role="combobox"
 											aria-expanded={modelComboboxOpen}
 											className="w-full justify-between font-normal"
 										>
