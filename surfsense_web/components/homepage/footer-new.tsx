@@ -31,10 +31,10 @@ export function FooterNew() {
 			title: "Docs",
 			href: "/docs",
 		},
-		// {
-		//   title: "Blog",
-		//   href: "#",
-		// },
+		{
+			title: "Contact Us",
+			href: "/contact",
+		},
 	];
 
 	const socials = [
