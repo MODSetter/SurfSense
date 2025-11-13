@@ -61,11 +61,26 @@ async def validate_llm_config(
                 "AZURE_OPENAI": "azure",
                 "OPENROUTER": "openrouter",
                 "COMETAPI": "cometapi",
-                # Chinese LLM providers (OpenAI-compatible)
+                "XAI": "xai",
+                "BEDROCK": "bedrock",
+                "AWS_BEDROCK": "bedrock",  # Legacy support (backward compatibility)
+                "VERTEX_AI": "vertex_ai",
+                "TOGETHER_AI": "together_ai",
+                "FIREWORKS_AI": "fireworks_ai",
+                "REPLICATE": "replicate",
+                "PERPLEXITY": "perplexity",
+                "ANYSCALE": "anyscale",
+                "DEEPINFRA": "deepinfra",
+                "CEREBRAS": "cerebras",
+                "SAMBANOVA": "sambanova",
+                "AI21": "ai21",
+                "CLOUDFLARE": "cloudflare",
+                "DATABRICKS": "databricks",
+                # Chinese LLM providers
                 "DEEPSEEK": "openai",
                 "ALIBABA_QWEN": "openai",
                 "MOONSHOT": "openai",
-                "ZHIPU": "openai",
+                "ZHIPU": "openai",  # GLM needs special handling
             }
             provider_prefix = provider_map.get(provider, provider.lower())
             model_string = f"{provider_prefix}/{model_name}"
@@ -187,12 +202,26 @@ async def get_user_llm_instance(
                 "AZURE_OPENAI": "azure",
                 "OPENROUTER": "openrouter",
                 "COMETAPI": "cometapi",
-                # Chinese LLM providers (OpenAI-compatible)
-                "DEEPSEEK": "openai",  # DeepSeek uses OpenAI-compatible API
-                "ALIBABA_QWEN": "openai",  # Qwen uses OpenAI-compatible API
-                "MOONSHOT": "openai",  # Moonshot (Kimi) uses OpenAI-compatible API
-                "ZHIPU": "openai",  # Zhipu (GLM) uses OpenAI-compatible API
-                # Add more mappings as needed
+                "XAI": "xai",
+                "BEDROCK": "bedrock",
+                "AWS_BEDROCK": "bedrock",  # Legacy support (backward compatibility)
+                "VERTEX_AI": "vertex_ai",
+                "TOGETHER_AI": "together_ai",
+                "FIREWORKS_AI": "fireworks_ai",
+                "REPLICATE": "replicate",
+                "PERPLEXITY": "perplexity",
+                "ANYSCALE": "anyscale",
+                "DEEPINFRA": "deepinfra",
+                "CEREBRAS": "cerebras",
+                "SAMBANOVA": "sambanova",
+                "AI21": "ai21",
+                "CLOUDFLARE": "cloudflare",
+                "DATABRICKS": "databricks",
+                # Chinese LLM providers
+                "DEEPSEEK": "openai",
+                "ALIBABA_QWEN": "openai",
+                "MOONSHOT": "openai",
+                "ZHIPU": "openai",
             }
             provider_prefix = provider_map.get(
                 llm_config.provider.value, llm_config.provider.value.lower()

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Bot, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Bot, Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -9,8 +9,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -19,8 +28,10 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { LANGUAGES } from "@/contracts/enums/languages";
+import { getModelsByProvider, LLM_MODELS } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
+import { cn } from "@/lib/utils";
 
 import InferenceParamsEditor from "../inference-params-editor";
 
@@ -50,6 +61,7 @@ export function AddProviderStep({
 		search_space_id: searchSpaceId,
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
 
 	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
@@ -85,9 +97,16 @@ export function AddProviderStep({
 	};
 
 	const selectedProvider = LLM_PROVIDERS.find((p) => p.value === formData.provider);
+	const availableModels = formData.provider ? getModelsByProvider(formData.provider) : [];
 
 	const handleParamsChange = (newParams: Record<string, number | string>) => {
 		setFormData((prev) => ({ ...prev, litellm_params: newParams }));
+	};
+
+	// Reset model when provider changes
+	const handleProviderChange = (value: string) => {
+		handleInputChange("provider", value);
+		setFormData((prev) => ({ ...prev, model_name: "" }));
 	};
 
 	return (
@@ -182,14 +201,11 @@ export function AddProviderStep({
 
 								<div className="space-y-2">
 									<Label htmlFor="provider">{t("provider_required")}</Label>
-									<Select
-										value={formData.provider}
-										onValueChange={(value) => handleInputChange("provider", value)}
-									>
+									<Select value={formData.provider} onValueChange={handleProviderChange}>
 										<SelectTrigger>
 											<SelectValue placeholder={t("provider_placeholder")} />
 										</SelectTrigger>
-										<SelectContent>
+										<SelectContent className="max-h-[300px]">
 											{LLM_PROVIDERS.map((provider) => (
 												<SelectItem key={provider.value} value={provider.value}>
 													{provider.label}
@@ -235,18 +251,95 @@ export function AddProviderStep({
 
 							<div className="space-y-2">
 								<Label htmlFor="model_name">{t("model_name_required")}</Label>
-								<Input
-									id="model_name"
-									placeholder={selectedProvider?.example || t("model_name_placeholder")}
-									value={formData.model_name}
-									onChange={(e) => handleInputChange("model_name", e.target.value)}
-									required
-								/>
-								{selectedProvider && (
-									<p className="text-xs text-muted-foreground">
-										{t("examples")}: {selectedProvider.example}
-									</p>
-								)}
+								<Popover open={modelComboboxOpen} onOpenChange={setModelComboboxOpen}>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											role="combobox"
+											aria-expanded={modelComboboxOpen}
+											className="w-full justify-between font-normal"
+										>
+											<span className={cn(!formData.model_name && "text-muted-foreground")}>
+												{formData.model_name || t("model_name_placeholder")}
+											</span>
+											<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-full p-0" align="start" side="bottom">
+										<Command shouldFilter={false}>
+											<CommandInput
+												placeholder={
+													selectedProvider?.example ||
+													t("model_name_placeholder") ||
+													"Type model name..."
+												}
+												value={formData.model_name}
+												onValueChange={(value) => handleInputChange("model_name", value)}
+											/>
+											<CommandList>
+												<CommandEmpty>
+													<div className="py-2 text-center text-sm text-muted-foreground">
+														{formData.model_name
+															? `Using custom model: "${formData.model_name}"`
+															: "Type your model name above"}
+													</div>
+												</CommandEmpty>
+												{availableModels.length > 0 && (
+													<CommandGroup heading="Suggested Models">
+														{availableModels
+															.filter(
+																(model) =>
+																	!formData.model_name ||
+																	model.value
+																		.toLowerCase()
+																		.includes(formData.model_name.toLowerCase()) ||
+																	model.label
+																		.toLowerCase()
+																		.includes(formData.model_name.toLowerCase())
+															)
+															.map((model) => (
+																<CommandItem
+																	key={model.value}
+																	value={model.value}
+																	onSelect={(currentValue) => {
+																		handleInputChange("model_name", currentValue);
+																		setModelComboboxOpen(false);
+																	}}
+																	className="flex flex-col items-start py-3"
+																>
+																	<div className="flex w-full items-center">
+																		<Check
+																			className={cn(
+																				"mr-2 h-4 w-4 shrink-0",
+																				formData.model_name === model.value
+																					? "opacity-100"
+																					: "opacity-0"
+																			)}
+																		/>
+																		<div className="flex-1">
+																			<div className="font-medium">{model.label}</div>
+																			{model.contextWindow && (
+																				<div className="text-xs text-muted-foreground">
+																					Context: {model.contextWindow}
+																				</div>
+																			)}
+																		</div>
+																	</div>
+																</CommandItem>
+															))}
+													</CommandGroup>
+												)}
+											</CommandList>
+										</Command>
+									</PopoverContent>
+								</Popover>
+								<p className="text-xs text-muted-foreground">
+									{availableModels.length > 0
+										? `Type freely or select from ${availableModels.length} model suggestions`
+										: selectedProvider?.example
+											? `${t("examples")}: ${selectedProvider.example}`
+											: "Type your model name freely"}
+								</p>
 							</div>
 
 							<div className="space-y-2">
