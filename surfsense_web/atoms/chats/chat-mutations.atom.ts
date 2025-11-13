@@ -7,28 +7,31 @@ import { toast } from "sonner";
 import { Chat } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 
 export const deleteChatMutationAtom = atomWithMutation((get) => {
-  const searchSpaceId = get(activeSearchSpaceIdAtom);
-  const authToken = localStorage.getItem("surfsense_bearer_token");
+	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const authToken = localStorage.getItem("surfsense_bearer_token");
 
-  return {
-    mutationKey: cacheKeys.activeSearchSpace.chats(searchSpaceId ?? ""),
-    enabled: !!searchSpaceId && !!authToken,
-    mutationFn: async (chatId: number) => {
-      if (!authToken) {
-        throw new Error("No authentication token found");
-      }
-      if (!searchSpaceId) {
-        throw new Error("No search space id found");
-      }
+	return {
+		mutationKey: cacheKeys.activeSearchSpace.chats(searchSpaceId ?? ""),
+		enabled: !!searchSpaceId && !!authToken,
+		mutationFn: async (chatId: number) => {
+			if (!authToken) {
+				throw new Error("No authentication token found");
+			}
+			if (!searchSpaceId) {
+				throw new Error("No search space id found");
+			}
 
-      return deleteChat(chatId, authToken);
-    },
+			return deleteChat(chatId, authToken);
+		},
 
-    onSuccess: (_, chatId) => {
-      toast.success("Chat deleted successfully");
-      queryClient.setQueryData(cacheKeys.activeSearchSpace.chats(searchSpaceId!), (oldData: Chat[]) => {
-        return oldData.filter((chat) => chat.id !== chatId);
-      });
-    },
-  };
+		onSuccess: (_, chatId) => {
+			toast.success("Chat deleted successfully");
+			queryClient.setQueryData(
+				cacheKeys.activeSearchSpace.chats(searchSpaceId!),
+				(oldData: Chat[]) => {
+					return oldData.filter((chat) => chat.id !== chatId);
+				}
+			);
+		},
+	};
 });
