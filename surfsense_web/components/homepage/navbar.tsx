@@ -19,12 +19,21 @@ export const Navbar = () => {
 	];
 
 	useEffect(() => {
-		const handleScroll = () => {
-			setIsScrolled(window.scrollY > 20);
+		const handleScroll = (e: Event) => {
+			const target = e.target as HTMLElement;
+			setIsScrolled(target.scrollTop > 20);
 		};
 
-		window.addEventListener("scroll", handleScroll);
-		return () => window.removeEventListener("scroll", handleScroll);
+		// Find the scrollable container (the div with overflow-auto in root layout)
+		const scrollContainer = document.querySelector(".h-\\[100dvh\\].w-\\[100vw\\].overflow-auto");
+
+		if (scrollContainer) {
+			// Check initial scroll position
+			setIsScrolled(scrollContainer.scrollTop > 20);
+
+			scrollContainer.addEventListener("scroll", handleScroll);
+			return () => scrollContainer.removeEventListener("scroll", handleScroll);
+		}
 	}, []);
 
 	return (
@@ -50,7 +59,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					: "bg-transparent border border-transparent"
 			)}
 		>
-			<div className="flex flex-row items-center gap-2">
+			<div className="flex flex-1 flex-row items-center gap-2">
 				<Logo className="h-8 w-8 rounded-md" />
 				<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 			</div>
@@ -73,7 +82,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					</Link>
 				))}
 			</div>
-			<div className="flex items-center gap-2">
+			<div className="flex flex-1 items-center justify-end gap-2">
 				<Link
 					href="https://discord.gg/ejRNvftDp9"
 					target="_blank"
