@@ -38,6 +38,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { LANGUAGES } from "@/contracts/enums/languages";
+import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
 import InferenceParamsEditor from "../inference-params-editor";
@@ -93,12 +94,13 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
-	// Handle provider change with auto-fill API Base URL / 处理 Provider 变更并自动填充 API Base URL
+	// Handle provider change with auto-fill API Base URL and reset model / 处理 Provider 变更并自动填充 API Base URL 并重置模型
 	const handleProviderChange = (providerValue: string) => {
 		const provider = LLM_PROVIDERS.find((p) => p.value === providerValue);
 		setFormData((prev) => ({
 			...prev,
 			provider: providerValue,
+			model_name: "", // Reset model when provider changes
 			// Auto-fill API Base URL if provider has a default / 如果提供商有默认值则自动填充
 			api_base: provider?.apiBase || prev.api_base,
 		}));
@@ -157,6 +159,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	};
 
 	const selectedProvider = LLM_PROVIDERS.find((p) => p.value === formData.provider);
+	const availableModels = formData.provider ? getModelsByProvider(formData.provider) : [];
 
 	const getProviderInfo = (providerValue: string) => {
 		return LLM_PROVIDERS.find((p) => p.value === providerValue);
@@ -530,17 +533,50 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 						<div className="space-y-2">
 							<Label htmlFor="model_name">Model Name *</Label>
-							<Input
-								id="model_name"
-								placeholder={selectedProvider?.example || "e.g., gpt-4"}
-								value={formData.model_name}
-								onChange={(e) => handleInputChange("model_name", e.target.value)}
-								required
-							/>
-							{selectedProvider && (
-								<p className="text-xs text-muted-foreground">
-									Examples: {selectedProvider.example}
-								</p>
+							{availableModels.length > 0 ? (
+								<>
+									<Select
+										value={formData.model_name}
+										onValueChange={(value) => handleInputChange("model_name", value)}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Select a model" />
+										</SelectTrigger>
+										<SelectContent className="max-h-[400px]">
+											{availableModels.map((model) => (
+												<SelectItem key={model.value} value={model.value}>
+													<div className="flex flex-col py-1">
+														<span className="font-medium">{model.label}</span>
+														{model.contextWindow && (
+															<span className="text-xs text-muted-foreground">
+																Context: {model.contextWindow}
+															</span>
+														)}
+													</div>
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									<p className="text-xs text-muted-foreground">
+										{availableModels.length} model{availableModels.length !== 1 ? "s" : ""}{" "}
+										available
+									</p>
+								</>
+							) : (
+								<>
+									<Input
+										id="model_name"
+										placeholder={selectedProvider?.example || "e.g., gpt-4"}
+										value={formData.model_name}
+										onChange={(e) => handleInputChange("model_name", e.target.value)}
+										required
+									/>
+									{selectedProvider && (
+										<p className="text-xs text-muted-foreground">
+											Examples: {selectedProvider.example}
+										</p>
+									)}
+								</>
 							)}
 						</div>
 
