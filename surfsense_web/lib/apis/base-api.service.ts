@@ -33,7 +33,7 @@ export class BaseApiService {
     body?: any,
     responseSchema?: z.ZodSchema<T>,
     options?: RequestOptions
-  ) {
+  ) : Promise<T> {
     const defaultOptions: RequestOptions = {
       headers: {
         "Content-Type": "application/json",
@@ -55,7 +55,10 @@ export class BaseApiService {
 
     // Serialize body
     if (body) {
-      if (mergedOptions.headers?.["Content-Type"].toLocaleLowerCase() === "application/json") {
+      if (
+        mergedOptions.headers?.["Content-Type"].toLocaleLowerCase() ===
+        "application/json"
+      ) {
         requestBody = JSON.stringify(body);
       }
 
@@ -125,7 +128,7 @@ export class BaseApiService {
   async get<T>(
     url: string,
     responseSchema?: z.ZodSchema<T>,
-    options?: RequestOptions
+    options?: Omit<RequestOptions, "method">
   ) {
     return this.request(url, undefined, responseSchema, {
       ...options,
@@ -137,7 +140,7 @@ export class BaseApiService {
     url: string,
     body?: any,
     responseSchema?: z.ZodSchema<T>,
-    options?: RequestOptions
+    options?: Omit<RequestOptions, "method">
   ) {
     return this.request(url, body, responseSchema, {
       ...options,
@@ -149,7 +152,7 @@ export class BaseApiService {
     url: string,
     body?: any,
     responseSchema?: z.ZodSchema<T>,
-    options?: RequestOptions
+    options?: Omit<RequestOptions, "method">
   ) {
     return this.request(url, body, responseSchema, {
       ...options,
@@ -161,7 +164,7 @@ export class BaseApiService {
     url: string,
     body?: any,
     responseSchema?: z.ZodSchema<T>,
-    options?: RequestOptions
+    options?: Omit<RequestOptions, "method">
   ) {
     return this.request(url, body, responseSchema, {
       ...options,
@@ -169,3 +172,8 @@ export class BaseApiService {
     });
   }
 }
+
+export const baseApiService = new BaseApiService(
+  typeof window !== "undefined" ? localStorage.getItem("surfsense_bearer_token") || "" : "",
+  process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || ""
+);
