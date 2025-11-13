@@ -6,7 +6,6 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-
 export function getChatTitleFromMessages(messages: Message[]) {
 	const userMessages = messages.filter((msg) => msg.role === "user");
 	if (userMessages.length === 0) return "Untitled Chat";
