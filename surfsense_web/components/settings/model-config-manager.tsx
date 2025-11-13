@@ -3,7 +3,9 @@
 import {
 	AlertCircle,
 	Bot,
+	Check,
 	CheckCircle,
+	ChevronsUpDown,
 	Clock,
 	Edit3,
 	Eye,
@@ -22,6 +24,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
+import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
@@ -30,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -41,6 +52,7 @@ import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
+import { cn } from "@/lib/utils";
 import InferenceParamsEditor from "../inference-params-editor";
 
 interface ModelConfigManagerProps {
@@ -72,6 +84,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		search_space_id: searchSpaceId,
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
 
 	// Populate form when editing
 	useEffect(() => {
@@ -533,51 +546,91 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 						<div className="space-y-2">
 							<Label htmlFor="model_name">Model Name *</Label>
-							{availableModels.length > 0 ? (
-								<>
-									<Select
-										value={formData.model_name}
-										onValueChange={(value) => handleInputChange("model_name", value)}
+							<Popover open={modelComboboxOpen} onOpenChange={setModelComboboxOpen}>
+								<PopoverTrigger asChild>
+									<Button
+										variant="outline"
+										role="combobox"
+										aria-expanded={modelComboboxOpen}
+										className="w-full justify-between font-normal"
 									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select a model" />
-										</SelectTrigger>
-										<SelectContent className="max-h-[400px]">
-											{availableModels.map((model) => (
-												<SelectItem key={model.value} value={model.value}>
-													<div className="flex flex-col py-1">
-														<span className="font-medium">{model.label}</span>
-														{model.contextWindow && (
-															<span className="text-xs text-muted-foreground">
-																Context: {model.contextWindow}
-															</span>
-														)}
-													</div>
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									<p className="text-xs text-muted-foreground">
-										{availableModels.length} model{availableModels.length !== 1 ? "s" : ""}{" "}
-										available
-									</p>
-								</>
-							) : (
-								<>
-									<Input
-										id="model_name"
-										placeholder={selectedProvider?.example || "e.g., gpt-4"}
-										value={formData.model_name}
-										onChange={(e) => handleInputChange("model_name", e.target.value)}
-										required
-									/>
-									{selectedProvider && (
-										<p className="text-xs text-muted-foreground">
-											Examples: {selectedProvider.example}
-										</p>
-									)}
-								</>
-							)}
+										<span className={cn(!formData.model_name && "text-muted-foreground")}>
+											{formData.model_name || "Select or type model name..."}
+										</span>
+										<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent className="w-full p-0" align="start" side="bottom">
+									<Command shouldFilter={false}>
+										<CommandInput
+											placeholder={selectedProvider?.example || "Type model name..."}
+											value={formData.model_name}
+											onValueChange={(value) => handleInputChange("model_name", value)}
+										/>
+										<CommandList>
+											<CommandEmpty>
+												<div className="py-2 text-center text-sm text-muted-foreground">
+													{formData.model_name
+														? `Using custom model: "${formData.model_name}"`
+														: "Type your model name above"}
+												</div>
+											</CommandEmpty>
+											{availableModels.length > 0 && (
+												<CommandGroup heading="Suggested Models">
+													{availableModels
+														.filter(
+															(model) =>
+																!formData.model_name ||
+																model.value
+																	.toLowerCase()
+																	.includes(formData.model_name.toLowerCase()) ||
+																model.label
+																	.toLowerCase()
+																	.includes(formData.model_name.toLowerCase())
+														)
+														.map((model) => (
+															<CommandItem
+																key={model.value}
+																value={model.value}
+																onSelect={(currentValue) => {
+																	handleInputChange("model_name", currentValue);
+																	setModelComboboxOpen(false);
+																}}
+																className="flex flex-col items-start py-3"
+															>
+																<div className="flex w-full items-center">
+																	<Check
+																		className={cn(
+																			"mr-2 h-4 w-4 shrink-0",
+																			formData.model_name === model.value
+																				? "opacity-100"
+																				: "opacity-0"
+																		)}
+																	/>
+																	<div className="flex-1">
+																		<div className="font-medium">{model.label}</div>
+																		{model.contextWindow && (
+																			<div className="text-xs text-muted-foreground">
+																				Context: {model.contextWindow}
+																			</div>
+																		)}
+																	</div>
+																</div>
+															</CommandItem>
+														))}
+												</CommandGroup>
+											)}
+										</CommandList>
+									</Command>
+								</PopoverContent>
+							</Popover>
+							<p className="text-xs text-muted-foreground">
+								{availableModels.length > 0
+									? `Type freely or select from ${availableModels.length} model suggestions`
+									: selectedProvider?.example
+										? `Examples: ${selectedProvider.example}`
+										: "Type your model name freely"}
+							</p>
 						</div>
 
 						<div className="space-y-2">
