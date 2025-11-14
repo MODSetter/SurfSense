@@ -102,9 +102,7 @@ export default function RootLayout({
 							defaultTheme="light"
 						>
 							<RootProvider>
-								<ReactQueryClientProvider>
-									<div className=" h-[100dvh] w-[100vw] overflow-auto">{children}</div>
-								</ReactQueryClientProvider>
+								<ReactQueryClientProvider>{children}</ReactQueryClientProvider>
 								<Toaster />
 							</RootProvider>
 						</ThemeProvider>

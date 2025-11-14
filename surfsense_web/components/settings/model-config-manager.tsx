@@ -550,7 +550,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 								<PopoverTrigger asChild>
 									<Button
 										variant="outline"
-										role="combobox"
 										aria-expanded={modelComboboxOpen}
 										className="w-full justify-between font-normal"
 									>
