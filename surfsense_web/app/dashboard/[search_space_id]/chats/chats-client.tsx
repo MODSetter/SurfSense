@@ -125,18 +125,6 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		}
 	}, [searchParams]);
 
-	useEffect(() => {
-		if (fetchError) {
-			console.error("Error fetching chats:", fetchError);
-		}
-	}, [fetchError]);
-
-	useEffect(() => {
-		if (deleteError) {
-			console.error("Error deleting chat:", deleteError);
-		}
-	}, [deleteError]);
-
 	// Filter and sort chats based on search query, type, and sort order
 	useEffect(() => {
 		let result = [...(chats || [])];
