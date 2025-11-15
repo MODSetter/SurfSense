@@ -1,4 +1,4 @@
-import { CreateLLMConfig, LLMConfig, UpdateLLMConfig } from "@/hooks/use-llm-configs";
+import type { CreateLLMConfig, LLMConfig, UpdateLLMConfig } from "@/hooks/use-llm-configs";
 
 export const fetchLLMConfigs = async (searchSpaceId: number, authToken: string) => {
 	const response = await fetch(

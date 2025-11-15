@@ -1,21 +1,21 @@
-import { ResearchMode } from "@/components/chat/types";
 import { Message } from "@ai-sdk/react";
+import { z } from "zod";
+import { ResearchMode } from "@/components/chat/types";
 import {
+	type CreateChatRequest,
 	chatDetails,
 	chatSummary,
 	createChatRequest,
-	CreateChatRequest,
+	type DeleteChatRequest,
 	deleteChatRequest,
-	DeleteChatRequest,
-	getChatDetailsRequest,
-	GetChatDetailsRequest,
-	getChatsBySearchSpaceRequest,
-	GetChatsBySearchSpaceRequest,
 	deleteChatResponse,
-	UpdateChatRequest,
+	type GetChatDetailsRequest,
+	type GetChatsBySearchSpaceRequest,
+	getChatDetailsRequest,
+	getChatsBySearchSpaceRequest,
+	type UpdateChatRequest,
 	updateChatRequest,
 } from "@/contracts/types/chat.types";
-import { z } from "zod";
 import { baseApiService } from "./base-api.service";
 
 export class ChatApiService {

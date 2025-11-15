@@ -1,4 +1,4 @@
-import { Connector, CreateConnectorRequest } from "@/hooks/use-connectors";
+import type { Connector, CreateConnectorRequest } from "@/hooks/use-connectors";
 
 export const createConnector = async (
 	data: CreateConnectorRequest,

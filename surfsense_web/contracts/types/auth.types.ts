@@ -1,29 +1,27 @@
 import { z } from "zod";
 
 export const loginRequest = z.object({
-  email: z.string().email(),
-  password: z.string().min(3),
-  grant_type: z.string().optional(),
+	email: z.string().email("Invalid email address"),
+	password: z.string().min(3, "Password must be at least 3 characters"),
+	grant_type: z.string().optional(),
 });
 
 export const loginResponse = z.object({
-  access_token: z.string(),
-  token_type: z.string(),
+	access_token: z.string(),
+	token_type: z.string(),
 });
 
 export const registerRequest = loginRequest.omit({ grant_type: true }).extend({
-  is_active: z.boolean().optional(),
-  is_superuser: z.boolean().optional(),
-  is_verified: z.boolean().optional(),
+	is_active: z.boolean().optional(),
+	is_superuser: z.boolean().optional(),
+	is_verified: z.boolean().optional(),
 });
 
-export const registerResponse = registerRequest
-  .omit({ password: true })
-  .extend({
-    id: z.number(),
-    pages_limit: z.number(),
-    pages_used: z.number(),
-  });
+export const registerResponse = registerRequest.omit({ password: true }).extend({
+	id: z.string(),
+	pages_limit: z.number(),
+	pages_used: z.number(),
+});
 
 export type LoginRequest = z.infer<typeof loginRequest>;
 export type LoginResponse = z.infer<typeof loginResponse>;

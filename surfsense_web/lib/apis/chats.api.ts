@@ -1,6 +1,6 @@
+import type { Message } from "@ai-sdk/react";
 import type { Chat, ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
-import { ResearchMode } from "@/components/chat/types";
-import { Message } from "@ai-sdk/react";
+import type { ResearchMode } from "@/components/chat/types";
 
 export const fetchChatDetails = async (
 	chatId: string,

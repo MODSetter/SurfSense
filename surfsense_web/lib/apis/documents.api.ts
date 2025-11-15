@@ -1,5 +1,5 @@
-import { DocumentWithChunks } from "@/hooks/use-document-by-chunk";
-import { DocumentTypeCount } from "@/hooks/use-document-types";
+import type { DocumentWithChunks } from "@/hooks/use-document-by-chunk";
+import type { DocumentTypeCount } from "@/hooks/use-document-types";
 import { normalizeListResponse } from "../pagination";
 
 export const uploadDocument = async (formData: FormData, authToken: string) => {

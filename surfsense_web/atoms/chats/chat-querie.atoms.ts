@@ -2,10 +2,10 @@ import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
 import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/podcasts-client";
+import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { fetchChatDetails, fetchChatsBySearchSpace } from "@/lib/apis/chats.api";
 import { getPodcastByChatId } from "@/lib/apis/podcasts.api";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 
 type ActiveChatState = {
 	chatId: string | null;

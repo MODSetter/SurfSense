@@ -3,8 +3,8 @@
 import { useAtomValue } from "jotai";
 import { Pencil } from "lucide-react";
 import { useCallback, useContext, useState } from "react";
+import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { activeChatAtom } from "@/atoms/chats/chat-queries.atom";
 import type { GeneratePodcastRequest } from "./ChatPanelContainer";
 
 interface ConfigModalProps {

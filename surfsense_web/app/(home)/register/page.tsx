@@ -1,13 +1,16 @@
 "use client";
 
+import { useAtom } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
+import { AppError, ValidationError } from "@/lib/error";
 import { AmbientBackground } from "../login/AmbientBackground";
 
 export default function RegisterPage() {
@@ -16,10 +19,15 @@ export default function RegisterPage() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
-	const [error, setError] = useState<string | null>(null);
-	const [errorTitle, setErrorTitle] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<{
+		title: string | null;
+		message: string | null;
+	}>({
+		title: null,
+		message: null,
+	});
 	const router = useRouter();
+	const [{ mutateAsync: register, isPending: isRegistering }] = useAtom(registerMutationAtom);
 
 	// Check authentication type and redirect if not LOCAL
 	useEffect(() => {
@@ -34,8 +42,7 @@ export default function RegisterPage() {
 
 		// Form validation
 		if (password !== confirmPassword) {
-			setError(t("passwords_no_match"));
-			setErrorTitle(t("password_mismatch"));
+			setError({ title: t("password_mismatch"), message: t("passwords_no_match_desc") });
 			toast.error(t("password_mismatch"), {
 				description: t("passwords_no_match_desc"),
 				duration: 4000,
@@ -43,47 +50,19 @@ export default function RegisterPage() {
 			return;
 		}
 
-		setIsLoading(true);
-		setError(null); // Clear any previous errors
-		setErrorTitle(null);
+		setError({ title: null, message: null }); // Clear any previous errors
 
 		// Show loading toast
 		const loadingToast = toast.loading(t("creating_account"));
 
 		try {
-			const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/register`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					email,
-					password,
-					is_active: true,
-					is_superuser: false,
-					is_verified: false,
-				}),
+			await register({
+				email,
+				password,
+				is_active: true,
+				is_superuser: false,
+				is_verified: false,
 			});
-
-			const data = await response.json();
-
-			if (!response.ok && response.status === 403) {
-				const friendlyMessage =
-					"Registrations are currently closed. If you need access, contact your administrator.";
-				setErrorTitle("Registration is disabled");
-				setError(friendlyMessage);
-				toast.error("Registration is disabled", {
-					id: loadingToast,
-					description: friendlyMessage,
-					duration: 6000,
-				});
-				setIsLoading(false);
-				return;
-			}
-
-			if (!response.ok) {
-				throw new Error(data.detail || `HTTP ${response.status}`);
-			}
 
 			// Success toast
 			toast.success(t("register_success"), {
@@ -97,6 +76,34 @@ export default function RegisterPage() {
 				router.push("/login?registered=true");
 			}, 500);
 		} catch (err) {
+			if (err instanceof AppError) {
+				switch (err.status) {
+					case 403: {
+						const friendlyMessage =
+							"Registrations are currently closed. If you need access, contact your administrator.";
+						setError({ title: "Registration is disabled", message: friendlyMessage });
+						toast.error("Registration is disabled", {
+							id: loadingToast,
+							description: friendlyMessage,
+							duration: 6000,
+						});
+						return;
+					}
+					default:
+						break;
+				}
+
+				if (err instanceof ValidationError) {
+					setError({ title: err.name, message: err.message });
+					toast.error(err.name, {
+						id: loadingToast,
+						description: err.message,
+						duration: 6000,
+					});
+					return;
+				}
+			}
+
 			// Use auth-errors utility to get proper error details
 			let errorCode = "UNKNOWN_ERROR";
 
@@ -110,8 +117,7 @@ export default function RegisterPage() {
 			const errorDetails = getAuthErrorDetails(errorCode);
 
 			// Set persistent error display
-			setErrorTitle(errorDetails.title);
-			setError(errorDetails.description);
+			setError({ title: errorDetails.title, message: errorDetails.description });
 
 			// Show error toast with conditional retry action
 			const toastOptions: any = {
@@ -129,8 +135,6 @@ export default function RegisterPage() {
 			}
 
 			toast.error(errorDetails.title, toastOptions);
-		} finally {
-			setIsLoading(false);
 		}
 	};
 
@@ -147,7 +151,7 @@ export default function RegisterPage() {
 					<form onSubmit={handleSubmit} className="space-y-4">
 						{/* Enhanced Error Display */}
 						<AnimatePresence>
-							{error && errorTitle && (
+							{error && error.title && (
 								<motion.div
 									initial={{ opacity: 0, y: -10, scale: 0.95 }}
 									animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -174,13 +178,12 @@ export default function RegisterPage() {
 											<line x1="9" y1="9" x2="15" y2="15" />
 										</svg>
 										<div className="flex-1 min-w-0">
-											<p className="text-sm font-semibold mb-1">{errorTitle}</p>
-											<p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+											<p className="text-sm font-semibold mb-1">{error.title}</p>
+											<p className="text-sm text-red-700 dark:text-red-300">{error.message}</p>
 										</div>
 										<button
 											onClick={() => {
-												setError(null);
-												setErrorTitle(null);
+												setError({ title: null, message: null });
 											}}
 											className="flex-shrink-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors"
 											aria-label="Dismiss error"
@@ -221,11 +224,11 @@ export default function RegisterPage() {
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-colors ${
-									error
+									error.title
 										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
 										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
 								}`}
-								disabled={isLoading}
+								disabled={isRegistering}
 							/>
 						</div>
 
@@ -243,11 +246,11 @@ export default function RegisterPage() {
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-colors ${
-									error
+									error.title
 										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
 										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
 								}`}
-								disabled={isLoading}
+								disabled={isRegistering}
 							/>
 						</div>
 
@@ -265,20 +268,20 @@ export default function RegisterPage() {
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}
 								className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-colors ${
-									error
+									error.title
 										? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
 										: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
 								}`}
-								disabled={isLoading}
+								disabled={isRegistering}
 							/>
 						</div>
 
 						<button
 							type="submit"
-							disabled={isLoading}
+							disabled={isRegistering}
 							className="w-full rounded-md bg-blue-600 px-4 py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
 						>
-							{isLoading ? t("creating_account_btn") : t("register")}
+							{isRegistering ? t("creating_account_btn") : t("register")}
 						</button>
 					</form>
 

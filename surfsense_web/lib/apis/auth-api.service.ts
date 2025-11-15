@@ -1,11 +1,12 @@
 import {
+	type LoginRequest,
 	loginRequest,
-	LoginRequest,
 	loginResponse,
+	type RegisterRequest,
 	registerRequest,
-	RegisterRequest,
 	registerResponse,
 } from "@/contracts/types/auth.types";
+import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
 export class AuthApiService {
@@ -14,7 +15,11 @@ export class AuthApiService {
 		const parsedRequest = loginRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			throw new Error(`Invalid request: ${parsedRequest.error.message}`);
+			console.error("Invalid request:", parsedRequest.error);
+
+			// Format a user frendly error message
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`, undefined, "VALLIDATION_ERROR");
 		}
 
 		return baseApiService.post(`/auth/jwt/login`, parsedRequest.data, loginResponse, {
@@ -27,9 +32,15 @@ export class AuthApiService {
 		const parsedRequest = registerRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			throw new Error(`Invalid request: ${parsedRequest.error.message}`);
+			console.error("Invalid request:", parsedRequest.error);
+
+			// Format a user frendly error message
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
 		return baseApiService.post(`/auth/register`, parsedRequest.data, registerResponse);
 	};
 }
+
+export const authApiService = new AuthApiService();

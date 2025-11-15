@@ -4,9 +4,9 @@ import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Play, RefreshCw, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback } from "react";
+import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
 import { cn } from "@/lib/utils";
-import { activeChatAtom } from "@/atoms/chats/chat-queries.atom";
-import { chatUIAtom } from "@/atoms/chats/chat-uis.atom";
 import { getPodcastStalenessMessage, isPodcastStale } from "../PodcastUtils";
 import type { GeneratePodcastRequest } from "./ChatPanelContainer";
 import { ConfigModal } from "./ConfigModal";
@@ -17,7 +17,7 @@ interface ChatPanelViewProps {
 }
 
 export function ChatPanelView(props: ChatPanelViewProps) {
-	const [chatUIState, setChatUIState] = useAtom(chatUIAtom);
+	const [chatUIState, setChatUIState] = useAtom(activeChathatUIAtom);
 	const { data: activeChatState } = useAtomValue(activeChatAtom);
 
 	const { isChatPannelOpen } = chatUIState;
@@ -40,6 +40,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 		});
 	}, [chatDetails, generatePodcast]);
 
+	// biome-ignore-start lint/a11y/useSemanticElements: using div for custom layout — will convert later
 	return (
 		<div className="w-full">
 			<div className={cn("w-full p-4", !isChatPannelOpen && "flex items-center justify-center")}>
@@ -202,4 +203,5 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 			) : null}
 		</div>
 	);
+	// biome-ignore-end lint/a11y/useSemanticElements : using div for custom layout — will convert later
 }

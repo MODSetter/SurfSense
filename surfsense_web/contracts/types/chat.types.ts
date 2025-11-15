@@ -1,5 +1,5 @@
+import type { Message } from "@ai-sdk/react";
 import { z } from "zod";
-import { type Message } from "@ai-sdk/react";
 import { paginationQueryParams } from ".";
 
 export const chatTypeEnum = z.enum(["QNA"]);
