@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const loginRequest = z.object({
-	email: z.string().email("Invalid email address"),
+	username: z.string(),
 	password: z.string().min(3, "Password must be at least 3 characters"),
 	grant_type: z.string().optional(),
 });
@@ -11,7 +11,8 @@ export const loginResponse = z.object({
 	token_type: z.string(),
 });
 
-export const registerRequest = loginRequest.omit({ grant_type: true }).extend({
+export const registerRequest = loginRequest.omit({ grant_type: true, username: true }).extend({
+	email: z.string().email("Invalid email address"),
 	is_active: z.boolean().optional(),
 	is_superuser: z.boolean().optional(),
 	is_verified: z.boolean().optional(),
