@@ -51,7 +51,12 @@ import {
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
-import { type CreateLLMConfig, type LLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
+import {
+	type CreateLLMConfig,
+	type LLMConfig,
+	useGlobalLLMConfigs,
+	useLLMConfigs,
+} from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
 import InferenceParamsEditor from "../inference-params-editor";
 
@@ -69,6 +74,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		deleteLLMConfig,
 		refreshConfigs,
 	} = useLLMConfigs(searchSpaceId);
+	const { globalConfigs } = useGlobalLLMConfigs();
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null);
 	const [showApiKey, setShowApiKey] = useState<Record<number, boolean>>({});
@@ -224,6 +230,20 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				</Alert>
 			)}
 
+			{/* Global Configs Info Alert */}
+			{!loading && !error && globalConfigs.length > 0 && (
+				<Alert>
+					<CheckCircle className="h-4 w-4" />
+					<AlertDescription>
+						<strong>
+							{globalConfigs.length} global configuration{globalConfigs.length > 1 ? "s" : ""}
+						</strong>{" "}
+						available for use. You can assign them in the LLM Roles tab without adding your own API
+						keys.
+					</AlertDescription>
+				</Alert>
+			)}
+
 			{/* Loading State */}
 			{loading && (
 				<Card>
@@ -310,8 +330,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 								<div className="space-y-2 mb-6">
 									<h3 className="text-xl font-semibold">No Configurations Yet</h3>
 									<p className="text-muted-foreground max-w-sm">
-										Get started by adding your first LLM provider configuration to begin using the
-										system.
+										Add your own LLM provider configurations.
 									</p>
 								</div>
 								<Button onClick={() => setIsAddingNew(true)} size="lg">
@@ -412,12 +431,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 															{/* Metadata */}
 															<div className="flex flex-wrap items-center gap-4 pt-4 border-t border-border/50">
-																<div className="flex items-center gap-2 text-xs text-muted-foreground">
-																	<Clock className="h-3 w-3" />
-																	<span>
-																		Created {new Date(config.created_at).toLocaleDateString()}
-																	</span>
-																</div>
+																{config.created_at && (
+																	<div className="flex items-center gap-2 text-xs text-muted-foreground">
+																		<Clock className="h-3 w-3" />
+																		<span>
+																			Created {new Date(config.created_at).toLocaleDateString()}
+																		</span>
+																	</div>
+																)}
 																<div className="flex items-center gap-2 text-xs">
 																	<div className="h-2 w-2 rounded-full bg-green-500"></div>
 																	<span className="text-green-600 font-medium">Active</span>

@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+import yaml
 from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
 from chonkie.embeddings.azure_openai import AzureOpenAIEmbeddings
 from chonkie.embeddings.registry import EmbeddingsRegistry
@@ -80,6 +81,36 @@ def is_ffmpeg_installed():
     return shutil.which("ffmpeg") is not None
 
 
+def load_global_llm_configs():
+    """
+    Load global LLM configurations from YAML file.
+    Falls back to example file if main file doesn't exist.
+
+    Returns:
+        list: List of global LLM config dictionaries, or empty list if file doesn't exist
+    """
+    # Try main config file first
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    # Fall back to example file for testing
+    # if not global_config_file.exists():
+    #     global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.example.yaml"
+    #     if global_config_file.exists():
+    #         print("Info: Using global_llm_config.example.yaml (copy to global_llm_config.yaml for production)")
+
+    if not global_config_file.exists():
+        # No global configs available
+        return []
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data.get("global_llm_configs", [])
+    except Exception as e:
+        print(f"Warning: Failed to load global LLM configs: {e}")
+        return []
+
+
 class Config:
     # Check if ffmpeg is installed
     if not is_ffmpeg_installed():
@@ -121,6 +152,11 @@ class Config:
 
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
+
+    # Global LLM Configurations (optional)
+    # Load from global_llm_config.yaml if available
+    # These can be used as default options for users
+    GLOBAL_LLM_CONFIGS = load_global_llm_configs()
 
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")

@@ -4,7 +4,7 @@ import { ArrowRight, Bot, Brain, CheckCircle, Sparkles, Zap } from "lucide-react
 import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
 const ROLE_ICONS = {
 	long_context: Brain,
@@ -18,12 +18,16 @@ interface CompletionStepProps {
 
 export function CompletionStep({ searchSpaceId }: CompletionStepProps) {
 	const { llmConfigs } = useLLMConfigs(searchSpaceId);
+	const { globalConfigs } = useGlobalLLMConfigs();
 	const { preferences } = useLLMPreferences(searchSpaceId);
 
+	// Combine global and user-specific configs
+	const allConfigs = [...globalConfigs, ...llmConfigs];
+
 	const assignedConfigs = {
-		long_context: llmConfigs.find((c) => c.id === preferences.long_context_llm_id),
-		fast: llmConfigs.find((c) => c.id === preferences.fast_llm_id),
-		strategic: llmConfigs.find((c) => c.id === preferences.strategic_llm_id),
+		long_context: allConfigs.find((c) => c.id === preferences.long_context_llm_id),
+		fast: allConfigs.find((c) => c.id === preferences.fast_llm_id),
+		strategic: allConfigs.find((c) => c.id === preferences.strategic_llm_id),
 	};
 
 	return (
@@ -86,6 +90,11 @@ export function CompletionStep({ searchSpaceId }: CompletionStepProps) {
 										</div>
 									</div>
 									<div className="flex items-center gap-2">
+										{config.is_global && (
+											<Badge variant="secondary" className="text-xs">
+												🌐 Global
+											</Badge>
+										)}
 										<Badge variant="outline">{config.provider}</Badge>
 										<span className="text-sm text-muted-foreground">{config.model_name}</span>
 									</div>
@@ -115,8 +124,14 @@ export function CompletionStep({ searchSpaceId }: CompletionStepProps) {
 						</p>
 						<div className="flex flex-wrap gap-2 text-sm">
 							<Badge variant="secondary">
-								✓ {llmConfigs.length} LLM provider{llmConfigs.length > 1 ? "s" : ""} configured
+								✓ {allConfigs.length} LLM provider{allConfigs.length > 1 ? "s" : ""} available
 							</Badge>
+							{globalConfigs.length > 0 && (
+								<Badge variant="secondary">✓ {globalConfigs.length} Global config(s)</Badge>
+							)}
+							{llmConfigs.length > 0 && (
+								<Badge variant="secondary">✓ {llmConfigs.length} Custom config(s)</Badge>
+							)}
 							<Badge variant="secondary">✓ All roles assigned</Badge>
 							<Badge variant="secondary">✓ Ready to use</Badge>
 						</div>

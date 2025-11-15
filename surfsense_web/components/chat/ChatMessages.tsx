@@ -22,7 +22,7 @@ export function ChatMessagesUI() {
 			<LlamaIndexChatMessages.Empty>
 				<AnimatedEmptyState />
 			</LlamaIndexChatMessages.Empty>
-			<LlamaIndexChatMessages.List className="p-4">
+			<LlamaIndexChatMessages.List className="p-2">
 				{messages.map((message, index) => (
 					<ChatMessageUI
 						key={`Message-${index}`}

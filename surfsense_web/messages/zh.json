@@ -583,7 +583,9 @@
 		"assigned": "已分配",
 		"all_roles_assigned_saved": "所有角色已分配并保存！",
 		"progress": "进度",
-		"roles_assigned": "{assigned}/{total} 个角色已分配"
+		"roles_assigned": "{assigned}/{total} 个角色已分配",
+		"global_configs": "全局配置",
+		"your_configs": "您的配置"
 	},
 	"model_config": {
 		"title": "模型配置",
@@ -598,7 +600,7 @@
 		"manage_configs": "管理和配置您的 LLM 提供商",
 		"add_config": "添加配置",
 		"no_configs": "暂无配置",
-		"no_configs_desc": "开始添加您的第一个 LLM 提供商配置以开始使用系统。",
+		"no_configs_desc": "添加您自己的 LLM 提供商配置。",
 		"add_first_config": "添加首个配置",
 		"created": "创建于"
 	},

@@ -62,7 +62,11 @@ class LLMConfigUpdate(BaseModel):
 
 class LLMConfigRead(LLMConfigBase, IDModel, TimestampModel):
     id: int
-    created_at: datetime
-    search_space_id: int
+    created_at: datetime | None = Field(
+        None, description="Creation timestamp (None for global configs)"
+    )
+    search_space_id: int | None = Field(
+        None, description="Search space ID (None for global configs)"
+    )
 
     model_config = ConfigDict(from_attributes=True)

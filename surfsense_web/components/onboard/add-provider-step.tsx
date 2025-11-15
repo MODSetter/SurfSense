@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Bot, Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Bot, Check, CheckCircle, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -30,7 +30,7 @@ import {
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
-import { type CreateLLMConfig, useLLMConfigs } from "@/hooks/use-llm-configs";
+import { type CreateLLMConfig, useGlobalLLMConfigs, useLLMConfigs } from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
 
 import InferenceParamsEditor from "../inference-params-editor";
@@ -48,6 +48,7 @@ export function AddProviderStep({
 }: AddProviderStepProps) {
 	const t = useTranslations("onboard");
 	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
+	const { globalConfigs } = useGlobalLLMConfigs();
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [formData, setFormData] = useState<CreateLLMConfig>({
 		name: "",
@@ -116,6 +117,19 @@ export function AddProviderStep({
 				<AlertCircle className="h-4 w-4" />
 				<AlertDescription>{t("add_provider_instruction")}</AlertDescription>
 			</Alert>
+
+			{/* Global Configs Notice */}
+			{globalConfigs.length > 0 && (
+				<Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+					<CheckCircle className="h-4 w-4 text-blue-600" />
+					<AlertDescription className="text-blue-800 dark:text-blue-200">
+						<strong>{globalConfigs.length} global configuration(s) available!</strong>
+						<br />
+						You can skip adding your own LLM provider and use our pre-configured models in the next
+						step. Or continue here to add your own custom configurations.
+					</AlertDescription>
+				</Alert>
+			)}
 
 			{/* Existing Configurations */}
 			{llmConfigs.length > 0 && (

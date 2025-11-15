@@ -1,9 +1,11 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
 
+from app.config import config
 from app.db import (
     LLMConfig,
     SearchSpace,
@@ -16,6 +18,7 @@ from app.services.llm_service import validate_llm_config
 from app.users import current_active_user
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # Helper function to check search space access
@@ -43,16 +46,11 @@ async def get_or_create_user_preference(
 ) -> UserSearchSpacePreference:
     """Get or create user preference for a search space"""
     result = await session.execute(
-        select(UserSearchSpacePreference)
-        .filter(
+        select(UserSearchSpacePreference).filter(
             UserSearchSpacePreference.user_id == user_id,
             UserSearchSpacePreference.search_space_id == search_space_id,
         )
-        .options(
-            selectinload(UserSearchSpacePreference.long_context_llm),
-            selectinload(UserSearchSpacePreference.fast_llm),
-            selectinload(UserSearchSpacePreference.strategic_llm),
-        )
+        # Removed selectinload options since relationships no longer exist
     )
     preference = result.scalars().first()
 
@@ -86,6 +84,58 @@ class LLMPreferencesRead(BaseModel):
     long_context_llm: LLMConfigRead | None = None
     fast_llm: LLMConfigRead | None = None
     strategic_llm: LLMConfigRead | None = None
+
+
+class GlobalLLMConfigRead(BaseModel):
+    """Schema for reading global LLM configs (without API key)"""
+
+    id: int
+    name: str
+    provider: str
+    custom_provider: str | None = None
+    model_name: str
+    api_base: str | None = None
+    language: str | None = None
+    litellm_params: dict | None = None
+    is_global: bool = True
+
+
+# Global LLM Config endpoints
+
+
+@router.get("/global-llm-configs", response_model=list[GlobalLLMConfigRead])
+async def get_global_llm_configs(
+    user: User = Depends(current_active_user),
+):
+    """
+    Get all available global LLM configurations.
+    These are pre-configured by the system administrator and available to all users.
+    API keys are not exposed through this endpoint.
+    """
+    try:
+        global_configs = config.GLOBAL_LLM_CONFIGS
+
+        # Remove API keys from response
+        safe_configs = []
+        for cfg in global_configs:
+            safe_config = {
+                "id": cfg.get("id"),
+                "name": cfg.get("name"),
+                "provider": cfg.get("provider"),
+                "custom_provider": cfg.get("custom_provider"),
+                "model_name": cfg.get("model_name"),
+                "api_base": cfg.get("api_base"),
+                "language": cfg.get("language"),
+                "litellm_params": cfg.get("litellm_params", {}),
+                "is_global": True,
+            }
+            safe_configs.append(safe_config)
+
+        return safe_configs
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch global LLM configs: {e!s}"
+        ) from e
 
 
 @router.post("/llm-configs", response_model=LLMConfigRead)
@@ -309,13 +359,49 @@ async def get_user_llm_preferences(
             session, user.id, search_space_id
         )
 
+        # Helper function to get config (global or custom)
+        async def get_config_for_id(config_id):
+            if config_id is None:
+                return None
+
+            # Check if it's a global config (negative ID)
+            if config_id < 0:
+                for cfg in config.GLOBAL_LLM_CONFIGS:
+                    if cfg.get("id") == config_id:
+                        # Return as LLMConfigRead-compatible dict
+                        return {
+                            "id": cfg.get("id"),
+                            "name": cfg.get("name"),
+                            "provider": cfg.get("provider"),
+                            "custom_provider": cfg.get("custom_provider"),
+                            "model_name": cfg.get("model_name"),
+                            "api_key": "***GLOBAL***",  # Don't expose the actual key
+                            "api_base": cfg.get("api_base"),
+                            "language": cfg.get("language"),
+                            "litellm_params": cfg.get("litellm_params"),
+                            "created_at": None,
+                            "search_space_id": search_space_id,
+                        }
+                return None
+
+            # It's a custom config, fetch from database
+            result = await session.execute(
+                select(LLMConfig).filter(LLMConfig.id == config_id)
+            )
+            return result.scalars().first()
+
+        # Get the configs (from DB for custom, or constructed for global)
+        long_context_llm = await get_config_for_id(preference.long_context_llm_id)
+        fast_llm = await get_config_for_id(preference.fast_llm_id)
+        strategic_llm = await get_config_for_id(preference.strategic_llm_id)
+
         return {
             "long_context_llm_id": preference.long_context_llm_id,
             "fast_llm_id": preference.fast_llm_id,
             "strategic_llm_id": preference.strategic_llm_id,
-            "long_context_llm": preference.long_context_llm,
-            "fast_llm": preference.fast_llm,
-            "strategic_llm": preference.strategic_llm,
+            "long_context_llm": long_context_llm,
+            "fast_llm": fast_llm,
+            "strategic_llm": strategic_llm,
         }
     except HTTPException:
         raise
@@ -353,29 +439,57 @@ async def update_user_llm_preferences(
 
         for _key, llm_config_id in update_data.items():
             if llm_config_id is not None:
-                # Verify the LLM config belongs to the search space
-                result = await session.execute(
-                    select(LLMConfig).filter(
-                        LLMConfig.id == llm_config_id,
-                        LLMConfig.search_space_id == search_space_id,
-                    )
-                )
-                llm_config = result.scalars().first()
-                if not llm_config:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"LLM configuration {llm_config_id} not found in this search space",
-                    )
+                # Check if this is a global config (negative ID)
+                if llm_config_id < 0:
+                    # Validate global config exists
+                    global_config = None
+                    for cfg in config.GLOBAL_LLM_CONFIGS:
+                        if cfg.get("id") == llm_config_id:
+                            global_config = cfg
+                            break
 
-                # Collect language for consistency check
-                languages.add(llm_config.language)
+                    if not global_config:
+                        raise HTTPException(
+                            status_code=404,
+                            detail=f"Global LLM configuration {llm_config_id} not found",
+                        )
 
-        # Check if all selected LLM configs have the same language
+                    # Collect language for consistency check (if explicitly set)
+                    lang = global_config.get("language")
+                    if lang and lang.strip():  # Only add non-empty languages
+                        languages.add(lang.strip())
+                else:
+                    # Verify the LLM config belongs to the search space (custom config)
+                    result = await session.execute(
+                        select(LLMConfig).filter(
+                            LLMConfig.id == llm_config_id,
+                            LLMConfig.search_space_id == search_space_id,
+                        )
+                    )
+                    llm_config = result.scalars().first()
+                    if not llm_config:
+                        raise HTTPException(
+                            status_code=404,
+                            detail=f"LLM configuration {llm_config_id} not found in this search space",
+                        )
+
+                    # Collect language for consistency check (if explicitly set)
+                    if llm_config.language and llm_config.language.strip():
+                        languages.add(llm_config.language.strip())
+
+        # Language consistency check - only warn if there are multiple explicit languages
+        # Allow mixing configs with and without language settings
         if len(languages) > 1:
-            raise HTTPException(
-                status_code=400,
-                detail="All selected LLM configurations must have the same language setting",
+            # Log warning but allow the operation
+            logger.warning(
+                f"Multiple languages detected in LLM selection for search_space {search_space_id}: {languages}. "
+                "This may affect response quality."
             )
+            # Don't raise an exception - allow users to proceed
+            # raise HTTPException(
+            #     status_code=400,
+            #     detail="All selected LLM configurations must have the same language setting",
+            # )
 
         # Update user preferences
         for key, value in update_data.items():
@@ -384,19 +498,50 @@ async def update_user_llm_preferences(
         await session.commit()
         await session.refresh(preference)
 
-        # Reload relationships
-        await session.refresh(
-            preference, ["long_context_llm", "fast_llm", "strategic_llm"]
-        )
+        # Helper function to get config (global or custom)
+        async def get_config_for_id(config_id):
+            if config_id is None:
+                return None
+
+            # Check if it's a global config (negative ID)
+            if config_id < 0:
+                for cfg in config.GLOBAL_LLM_CONFIGS:
+                    if cfg.get("id") == config_id:
+                        # Return as LLMConfigRead-compatible dict
+                        return {
+                            "id": cfg.get("id"),
+                            "name": cfg.get("name"),
+                            "provider": cfg.get("provider"),
+                            "custom_provider": cfg.get("custom_provider"),
+                            "model_name": cfg.get("model_name"),
+                            "api_key": "***GLOBAL***",  # Don't expose the actual key
+                            "api_base": cfg.get("api_base"),
+                            "language": cfg.get("language"),
+                            "litellm_params": cfg.get("litellm_params"),
+                            "created_at": None,
+                            "search_space_id": search_space_id,
+                        }
+                return None
+
+            # It's a custom config, fetch from database
+            result = await session.execute(
+                select(LLMConfig).filter(LLMConfig.id == config_id)
+            )
+            return result.scalars().first()
+
+        # Get the configs (from DB for custom, or constructed for global)
+        long_context_llm = await get_config_for_id(preference.long_context_llm_id)
+        fast_llm = await get_config_for_id(preference.fast_llm_id)
+        strategic_llm = await get_config_for_id(preference.strategic_llm_id)
 
         # Return updated preferences
         return {
             "long_context_llm_id": preference.long_context_llm_id,
             "fast_llm_id": preference.fast_llm_id,
             "strategic_llm_id": preference.strategic_llm_id,
-            "long_context_llm": preference.long_context_llm,
-            "fast_llm": preference.fast_llm,
-            "strategic_llm": preference.strategic_llm,
+            "long_context_llm": long_context_llm,
+            "fast_llm": fast_llm,
+            "strategic_llm": strategic_llm,
         }
     except HTTPException:
         raise
