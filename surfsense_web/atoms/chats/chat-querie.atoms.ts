@@ -3,7 +3,6 @@ import { atomWithQuery } from "jotai-tanstack-query";
 import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/podcasts-client";
 import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
-import { fetchChatDetails, fetchChatsBySearchSpace } from "@/lib/apis/chats.api";
 import { chatApiService } from "@/lib/apis/chats-api.service";
 import { getPodcastByChatId } from "@/lib/apis/podcasts.api";
 import { cacheKeys } from "@/lib/query-client/cache-keys";

@@ -1,9 +1,10 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import React, { useEffect, useState } from "react";
-import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
+import React, { useEffect } from "react";
+import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/chat-querie.atoms";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -13,7 +14,6 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useSearchSpace } from "@/hooks/use-search-space";
-import { fetchChatDetails } from "@/lib/apis/chats.api";
 
 interface BreadcrumbItemInterface {
 	label: string;
@@ -23,31 +23,16 @@ interface BreadcrumbItemInterface {
 export function DashboardBreadcrumb() {
 	const t = useTranslations("breadcrumb");
 	const pathname = usePathname();
-	const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
-
+	const { data: activeChatState } = useAtomValue(activeChatAtom);
 	// Extract search space ID and chat ID from pathname
 	const segments = pathname.split("/").filter(Boolean);
 	const searchSpaceId = segments[0] === "dashboard" && segments[1] ? segments[1] : null;
-	const chatId =
-		segments[0] === "dashboard" && segments[2] === "researcher" && segments[3] ? segments[3] : null;
 
 	// Fetch search space details if we have an ID
 	const { searchSpace } = useSearchSpace({
 		searchSpaceId: searchSpaceId || "",
 		autoFetch: !!searchSpaceId,
 	});
-
-	// Fetch chat details if we have a chat ID
-	useEffect(() => {
-		if (chatId) {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (token) {
-				fetchChatDetails(chatId, token).then(setChatDetails);
-			}
-		} else {
-			setChatDetails(null);
-		}
-	}, [chatId]);
 
 	// Parse the pathname to create breadcrumb items
 	const generateBreadcrumbs = (path: string): BreadcrumbItemInterface[] => {
@@ -125,7 +110,7 @@ export function DashboardBreadcrumb() {
 					// Handle researcher sub-sections (chat IDs)
 					if (section === "researcher") {
 						// Use the actual chat title if available, otherwise fall back to the ID
-						const chatLabel = chatDetails?.title || subSection;
+						const chatLabel = activeChatState?.chatDetails?.title || subSection;
 						breadcrumbs.push({
 							label: t("researcher"),
 							href: `/dashboard/${segments[1]}/researcher`,
