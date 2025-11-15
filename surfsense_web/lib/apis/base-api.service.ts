@@ -20,7 +20,7 @@ export class BaseApiService {
 	bearerToken: string;
 	baseUrl: string;
 
-	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register"];
+	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh"]; // Add more endpoints as needed
 
 	constructor(bearerToken: string, baseUrl: string) {
 		this.bearerToken = bearerToken;
@@ -33,7 +33,6 @@ export class BaseApiService {
 
 	async request<T>(
 		url: string,
-		body?: any,
 		responseSchema?: z.ZodSchema<T>,
 		options?: RequestOptions
 	): Promise<T> {
@@ -54,25 +53,6 @@ export class BaseApiService {
 					...(options?.headers ?? {}),
 				},
 			};
-
-			// biome-ignore lint/suspicious: Unknown
-			let requestBody;
-
-			// Serialize body
-			if (body) {
-				if (mergedOptions.headers?.["Content-Type"].toLocaleLowerCase() === "application/json") {
-					requestBody = JSON.stringify(body);
-				}
-
-				if (
-					mergedOptions.headers?.["Content-Type"].toLocaleLowerCase() ===
-					"application/x-www-form-urlencoded"
-				) {
-					requestBody = new URLSearchParams(body);
-				}
-
-				mergedOptions.body = requestBody;
-			}
 
 			if (!this.baseUrl) {
 				throw new AppError("Base URL is not set.");
@@ -161,7 +141,7 @@ export class BaseApiService {
 		responseSchema?: z.ZodSchema<T>,
 		options?: Omit<RequestOptions, "method">
 	) {
-		return this.request(url, undefined, responseSchema, {
+		return this.request(url, responseSchema, {
 			...options,
 			method: "GET",
 		});
@@ -169,37 +149,34 @@ export class BaseApiService {
 
 	async post<T>(
 		url: string,
-		body?: any,
 		responseSchema?: z.ZodSchema<T>,
 		options?: Omit<RequestOptions, "method">
 	) {
-		return this.request(url, body, responseSchema, {
-			...options,
+		return this.request(url, responseSchema, {
 			method: "POST",
+			...options,
 		});
 	}
 
 	async put<T>(
 		url: string,
-		body?: any,
 		responseSchema?: z.ZodSchema<T>,
 		options?: Omit<RequestOptions, "method">
 	) {
-		return this.request(url, body, responseSchema, {
-			...options,
+		return this.request(url, responseSchema, {
 			method: "PUT",
+			...options,
 		});
 	}
 
 	async delete<T>(
 		url: string,
-		body?: any,
 		responseSchema?: z.ZodSchema<T>,
 		options?: Omit<RequestOptions, "method">
 	) {
-		return this.request(url, body, responseSchema, {
-			...options,
+		return this.request(url, responseSchema, {
 			method: "DELETE",
+			...options,
 		});
 	}
 }

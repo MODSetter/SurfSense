@@ -19,11 +19,20 @@ export class AuthApiService {
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
-			throw new ValidationError(`Invalid request: ${errorMessage}`, undefined, "VALLIDATION_ERROR");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.post(`/auth/jwt/login`, parsedRequest.data, loginResponse, {
-			contentType: "application/x-www-form-urlencoded",
+		// Create form data for the API request
+		const formData = new URLSearchParams();
+		formData.append("username", request.username);
+		formData.append("password", request.password);
+		formData.append("grant_type", "password");
+
+		return baseApiService.post(`/auth/jwt/login`, loginResponse, {
+			body: formData.toString(),
+			headers: {
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
 		});
 	};
 
@@ -39,7 +48,9 @@ export class AuthApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.post(`/auth/register`, parsedRequest.data, registerResponse);
+		return baseApiService.post(`/auth/register`, registerResponse, {
+			body: parsedRequest.data,
+		});
 	};
 }
 
