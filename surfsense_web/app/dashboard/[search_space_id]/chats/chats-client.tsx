@@ -55,14 +55,14 @@ import {
 export interface Chat {
 	created_at: string;
 	id: number;
-	type: "DOCUMENT" | "CHAT";
+	type: "QNA";
 	title: string;
 	search_space_id: number;
 	state_version: number;
 }
 
 export interface ChatDetails {
-	type: "DOCUMENT" | "CHAT";
+	type: "QNA";
 	title: string;
 	initial_connectors: string[];
 	messages: any[];
