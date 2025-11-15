@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { useAtom, useAtomValue } from "jotai";
 import {
 	Calendar,
 	ExternalLink,
@@ -13,7 +14,8 @@ import {
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
+import { activeSearchSpaceChatsAtom } from "@/atoms/chats/chat-querie.atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,19 +51,18 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 export interface Chat {
 	created_at: string;
 	id: number;
-	type: "DOCUMENT" | "CHAT";
+	type: "QNA";
 	title: string;
 	search_space_id: number;
 	state_version: number;
 }
 
 export interface ChatDetails {
-	type: "DOCUMENT" | "CHAT";
+	type: "QNA";
 	title: string;
 	initial_connectors: string[];
 	messages: any[];
@@ -91,18 +92,24 @@ const MotionCard = motion(Card);
 
 export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps) {
 	const router = useRouter();
-	const [chats, setChats] = useState<Chat[]>([]);
 	const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 	const [selectedType, setSelectedType] = useState<string>("all");
 	const [sortOrder, setSortOrder] = useState<string>("newest");
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [chatToDelete, setChatToDelete] = useState<{ id: number; title: string } | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
+	const [chatToDelete, setChatToDelete] = useState<{
+		id: number;
+		title: string;
+	} | null>(null);
+	const {
+		isFetching: isFetchingChats,
+		data: chats,
+		error: fetchError,
+	} = useAtomValue(activeSearchSpaceChatsAtom);
+	const [{ isPending: isDeletingChat, mutateAsync: deleteChat, error: deleteError }] =
+		useAtom(deleteChatMutationAtom);
 
 	const chatsPerPage = 9;
 	const searchParams = useSearchParams();
@@ -118,58 +125,9 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		}
 	}, [searchParams]);
 
-	// Fetch chats from API
-	useEffect(() => {
-		const fetchChats = async () => {
-			try {
-				setIsLoading(true);
-
-				// Get token from localStorage
-				const token = localStorage.getItem("surfsense_bearer_token");
-
-				if (!token) {
-					setError("Authentication token not found. Please log in again.");
-					setIsLoading(false);
-					return;
-				}
-
-				// Fetch all chats for this search space
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats?search_space_id=${searchSpaceId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-							"Content-Type": "application/json",
-						},
-						cache: "no-store",
-					}
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => null);
-					throw new Error(`Failed to fetch chats: ${response.status} ${errorData?.error || ""}`);
-				}
-
-				const data: Chat[] = await response.json();
-				setChats(data);
-				setFilteredChats(data);
-				setError(null);
-			} catch (error) {
-				console.error("Error fetching chats:", error);
-				setError(error instanceof Error ? error.message : "Unknown error occurred");
-				setChats([]);
-				setFilteredChats([]);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		fetchChats();
-	}, [searchSpaceId]);
-
 	// Filter and sort chats based on search query, type, and sort order
 	useEffect(() => {
-		let result = [...chats];
+		let result = [...(chats || [])];
 
 		// Filter by search term
 		if (searchQuery) {
@@ -203,49 +161,19 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	const handleDeleteChat = async () => {
 		if (!chatToDelete) return;
 
-		setIsDeleting(true);
-		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				setIsDeleting(false);
-				return;
-			}
+		await deleteChat(chatToDelete.id);
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${chatToDelete.id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${token}`,
-						"Content-Type": "application/json",
-					},
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error(`Failed to delete chat: ${response.statusText}`);
-			}
-
-			// Close dialog and refresh chats
-			setDeleteDialogOpen(false);
-			setChatToDelete(null);
-
-			// Update local state by removing the deleted chat
-			setChats((prevChats) => prevChats.filter((chat) => chat.id !== chatToDelete.id));
-		} catch (error) {
-			console.error("Error deleting chat:", error);
-		} finally {
-			setIsDeleting(false);
-		}
+		setDeleteDialogOpen(false);
+		setChatToDelete(null);
 	};
 
 	// Calculate pagination
-	const indexOfLastChat = currentPage * chatsPerPage;
-	const indexOfFirstChat = indexOfLastChat - chatsPerPage;
+	const indexOfLastChat = currentPage * chatsPerPage; // Index of last chat in the current page
+	const indexOfFirstChat = indexOfLastChat - chatsPerPage; // Index of first chat in the current page
 	const currentChats = filteredChats.slice(indexOfFirstChat, indexOfLastChat);
 
 	// Get unique chat types for filter dropdown
-	const chatTypes = ["all", ...Array.from(new Set(chats.map((chat) => chat.type)))];
+	const chatTypes = chats ? ["all", ...Array.from(new Set(chats.map((chat) => chat.type)))] : [];
 
 	return (
 		<motion.div
@@ -307,7 +235,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				</div>
 
 				{/* Status Messages */}
-				{isLoading && (
+				{isFetchingChats && (
 					<div className="flex items-center justify-center h-40">
 						<div className="flex flex-col items-center gap-2">
 							<div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -316,14 +244,14 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 					</div>
 				)}
 
-				{error && !isLoading && (
+				{fetchError && !isFetchingChats && (
 					<div className="border border-destructive/50 text-destructive p-4 rounded-md">
 						<h3 className="font-medium">Error loading chats</h3>
-						<p className="text-sm">{error}</p>
+						<p className="text-sm">{fetchError.message}</p>
 					</div>
 				)}
 
-				{!isLoading && !error && filteredChats.length === 0 && (
+				{!isFetchingChats && !fetchError && filteredChats.length === 0 && (
 					<div className="flex flex-col items-center justify-center h-40 gap-2 text-center">
 						<MessageCircleMore className="h-8 w-8 text-muted-foreground" />
 						<h3 className="font-medium">No chats found</h3>
@@ -336,7 +264,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				)}
 
 				{/* Chat Grid */}
-				{!isLoading && !error && filteredChats.length > 0 && (
+				{!isFetchingChats && !fetchError && filteredChats.length > 0 && (
 					<AnimatePresence mode="wait">
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 							{currentChats.map((chat, index) => (
@@ -422,7 +350,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 				)}
 
 				{/* Pagination */}
-				{!isLoading && !error && totalPages > 1 && (
+				{!isFetchingChats && !fetchError && totalPages > 1 && (
 					<Pagination className="mt-8">
 						<PaginationContent>
 							<PaginationItem>
@@ -504,17 +432,17 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 						<Button
 							variant="outline"
 							onClick={() => setDeleteDialogOpen(false)}
-							disabled={isDeleting}
+							disabled={isDeletingChat}
 						>
 							Cancel
 						</Button>
 						<Button
 							variant="destructive"
 							onClick={handleDeleteChat}
-							disabled={isDeleting}
+							disabled={isDeletingChat}
 							className="gap-2"
 						>
-							{isDeleting ? (
+							{isDeletingChat ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 									Deleting...

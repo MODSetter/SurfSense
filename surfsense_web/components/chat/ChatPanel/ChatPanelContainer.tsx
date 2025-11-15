@@ -2,10 +2,10 @@
 import { useAtom, useAtomValue } from "jotai";
 import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { generatePodcast } from "@/lib/apis/podcast-apis";
+import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
+import { generatePodcast } from "@/lib/apis/podcasts.api";
 import { cn } from "@/lib/utils";
-import { activeChatAtom, activeChatIdAtom } from "@/stores/chat/active-chat.atom";
-import { chatUIAtom } from "@/stores/chat/chat-ui.atom";
 import { ChatPanelView } from "./ChatPanelView";
 
 export interface GeneratePodcastRequest {
@@ -24,7 +24,7 @@ export function ChatPanelContainer() {
 	} = useAtomValue(activeChatAtom);
 	const activeChatIdState = useAtomValue(activeChatIdAtom);
 	const authToken = localStorage.getItem("surfsense_bearer_token");
-	const { isChatPannelOpen } = useAtomValue(chatUIAtom);
+	const { isChatPannelOpen } = useAtomValue(activeChathatUIAtom);
 
 	const handleGeneratePodcast = async (request: GeneratePodcastRequest) => {
 		try {

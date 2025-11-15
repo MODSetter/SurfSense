@@ -2,8 +2,10 @@ import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
 import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/podcasts-client";
-import { fetchChatDetails } from "@/lib/apis/chat-apis";
-import { getPodcastByChatId } from "@/lib/apis/podcast-apis";
+import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
+import { chatApiService } from "@/lib/apis/chats-api.service";
+import { getPodcastByChatId } from "@/lib/apis/podcasts.api";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 type ActiveChatState = {
 	chatId: string | null;
@@ -18,7 +20,7 @@ export const activeChatAtom = atomWithQuery<ActiveChatState>((get) => {
 	const authToken = localStorage.getItem("surfsense_bearer_token");
 
 	return {
-		queryKey: ["activeChat", activeChatId],
+		queryKey: cacheKeys.activeSearchSpace.activeChat(activeChatId ?? ""),
 		enabled: !!activeChatId && !!authToken,
 		queryFn: async () => {
 			if (!authToken) {
@@ -30,10 +32,23 @@ export const activeChatAtom = atomWithQuery<ActiveChatState>((get) => {
 
 			const [podcast, chatDetails] = await Promise.all([
 				getPodcastByChatId(activeChatId, authToken),
-				fetchChatDetails(activeChatId, authToken),
+				chatApiService.getChatDetails({ id: Number(activeChatId) }),
 			]);
 
 			return { chatId: activeChatId, chatDetails, podcast };
+		},
+	};
+});
+
+export const activeSearchSpaceChatsAtom = atomWithQuery((get) => {
+	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const authToken = localStorage.getItem("surfsense_bearer_token");
+
+	return {
+		queryKey: cacheKeys.activeSearchSpace.chats(searchSpaceId ?? ""),
+		enabled: !!searchSpaceId && !!authToken,
+		queryFn: async () => {
+			return chatApiService.getChatsBySearchSpace({ search_space_id: Number(searchSpaceId) });
 		},
 	};
 });
