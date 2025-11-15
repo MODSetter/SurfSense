@@ -68,9 +68,9 @@ async def handle_chat_data(
                 selectinload(UserSearchSpacePreference.search_space).selectinload(
                     SearchSpace.llm_configs
                 ),
-                selectinload(UserSearchSpacePreference.long_context_llm),
-                selectinload(UserSearchSpacePreference.fast_llm),
-                selectinload(UserSearchSpacePreference.strategic_llm),
+                # Note: Removed selectinload for LLM relationships as they no longer exist
+                # Global configs (negative IDs) don't have foreign keys
+                # LLM configs are now fetched manually when needed
             )
             .filter(
                 UserSearchSpacePreference.search_space_id == search_space_id,
@@ -81,6 +81,8 @@ async def handle_chat_data(
         # print("UserSearchSpacePreference:", user_preference)
 
         language = None
+        llm_configs = []  # Initialize to empty list
+
         if (
             user_preference
             and user_preference.search_space
@@ -88,16 +90,36 @@ async def handle_chat_data(
         ):
             llm_configs = user_preference.search_space.llm_configs
 
-            for preferred_llm in [
-                user_preference.fast_llm,
-                user_preference.long_context_llm,
-                user_preference.strategic_llm,
-            ]:
-                if preferred_llm and getattr(preferred_llm, "language", None):
-                    language = preferred_llm.language
-                    break
+            # Manually fetch LLM configs since relationships no longer exist
+            # Check fast_llm, long_context_llm, and strategic_llm IDs
+            from app.config import config as app_config
 
-        if not language:
+            for llm_id in [
+                user_preference.fast_llm_id,
+                user_preference.long_context_llm_id,
+                user_preference.strategic_llm_id,
+            ]:
+                if llm_id is not None:
+                    # Check if it's a global config (negative ID)
+                    if llm_id < 0:
+                        # Look in global configs
+                        for global_cfg in app_config.GLOBAL_LLM_CONFIGS:
+                            if global_cfg.get("id") == llm_id:
+                                language = global_cfg.get("language")
+                                if language:
+                                    break
+                    else:
+                        # Look in custom configs
+                        for llm_config in llm_configs:
+                            if llm_config.id == llm_id and getattr(
+                                llm_config, "language", None
+                            ):
+                                language = llm_config.language
+                                break
+                    if language:
+                        break
+
+        if not language and llm_configs:
             first_llm_config = llm_configs[0]
             language = getattr(first_llm_config, "language", None)
 

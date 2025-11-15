@@ -282,7 +282,7 @@ export function DashboardClientLayout({
 								</div>
 							</div>
 						</header>
-						<div className="grow flex-1 overflow-auto">{children}</div>
+						<div className="grow flex-1 overflow-auto min-h-[calc(100vh-64px)]">{children}</div>
 					</div>
 					{/* Only render chat panel on researcher page */}
 					{isResearcherPage && <ChatPanelContainer />}

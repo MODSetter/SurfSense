@@ -12,7 +12,7 @@ import { CompletionStep } from "@/components/onboard/completion-step";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
 const TOTAL_STEPS = 3;
 
@@ -23,6 +23,7 @@ const OnboardPage = () => {
 	const searchSpaceId = Number(params.search_space_id);
 
 	const { llmConfigs, loading: configsLoading, refreshConfigs } = useLLMConfigs(searchSpaceId);
+	const { globalConfigs, loading: globalConfigsLoading } = useGlobalLLMConfigs();
 	const {
 		preferences,
 		loading: preferencesLoading,
@@ -51,7 +52,13 @@ const OnboardPage = () => {
 	// Redirect to dashboard if onboarding is already complete and user hasn't progressed (fresh page load)
 	// But only check once to avoid redirect loops
 	useEffect(() => {
-		if (!preferencesLoading && !configsLoading && isOnboardingComplete() && !hasUserProgressed) {
+		if (
+			!preferencesLoading &&
+			!configsLoading &&
+			!globalConfigsLoading &&
+			isOnboardingComplete() &&
+			!hasUserProgressed
+		) {
 			// Small delay to ensure the check is stable
 			const timer = setTimeout(() => {
 				router.push(`/dashboard/${searchSpaceId}`);
@@ -61,6 +68,7 @@ const OnboardPage = () => {
 	}, [
 		preferencesLoading,
 		configsLoading,
+		globalConfigsLoading,
 		isOnboardingComplete,
 		hasUserProgressed,
 		router,
@@ -77,7 +85,10 @@ const OnboardPage = () => {
 		t("all_set"),
 	];
 
-	const canProceedToStep2 = !configsLoading && llmConfigs.length > 0;
+	// User can proceed to step 2 if they have either custom configs OR global configs available
+	const canProceedToStep2 =
+		!configsLoading && !globalConfigsLoading && (llmConfigs.length > 0 || globalConfigs.length > 0);
+
 	const canProceedToStep3 =
 		!preferencesLoading &&
 		preferences.long_context_llm_id &&
@@ -100,7 +111,7 @@ const OnboardPage = () => {
 		router.push(`/dashboard/${searchSpaceId}/documents`);
 	};
 
-	if (configsLoading || preferencesLoading) {
+	if (configsLoading || preferencesLoading || globalConfigsLoading) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">

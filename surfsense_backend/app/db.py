@@ -348,15 +348,11 @@ class UserSearchSpacePreference(BaseModel, TimestampMixin):
     )
 
     # User-specific LLM preferences for this search space
-    long_context_llm_id = Column(
-        Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-    )
-    fast_llm_id = Column(
-        Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-    )
-    strategic_llm_id = Column(
-        Integer, ForeignKey("llm_configs.id", ondelete="SET NULL"), nullable=True
-    )
+    # Note: These can be negative IDs for global configs (from YAML) or positive IDs for custom configs (from DB)
+    # Foreign keys removed to support global configs with negative IDs
+    long_context_llm_id = Column(Integer, nullable=True)
+    fast_llm_id = Column(Integer, nullable=True)
+    strategic_llm_id = Column(Integer, nullable=True)
 
     # Future RBAC fields can be added here
     # role = Column(String(50), nullable=True)  # e.g., 'owner', 'editor', 'viewer'
@@ -365,13 +361,12 @@ class UserSearchSpacePreference(BaseModel, TimestampMixin):
     user = relationship("User", back_populates="search_space_preferences")
     search_space = relationship("SearchSpace", back_populates="user_preferences")
 
-    long_context_llm = relationship(
-        "LLMConfig", foreign_keys=[long_context_llm_id], post_update=True
-    )
-    fast_llm = relationship("LLMConfig", foreign_keys=[fast_llm_id], post_update=True)
-    strategic_llm = relationship(
-        "LLMConfig", foreign_keys=[strategic_llm_id], post_update=True
-    )
+    # Note: Relationships removed because foreign keys no longer exist
+    # Global configs (negative IDs) don't exist in llm_configs table
+    # Application code manually fetches configs when needed
+    # long_context_llm = relationship("LLMConfig", foreign_keys=[long_context_llm_id], post_update=True)
+    # fast_llm = relationship("LLMConfig", foreign_keys=[fast_llm_id], post_update=True)
+    # strategic_llm = relationship("LLMConfig", foreign_keys=[strategic_llm_id], post_update=True)
 
 
 class Log(BaseModel, TimestampMixin):

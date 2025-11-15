@@ -11,3 +11,4 @@ celerybeat-schedule*
 celerybeat-schedule.*
 celerybeat-schedule.dir
 celerybeat-schedule.bak
+global_llm_config.yaml

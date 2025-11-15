@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
-import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 const DocumentSelector = React.memo(
@@ -568,18 +568,28 @@ const LLMSelector = React.memo(() => {
 
 	const { llmConfigs, loading: llmLoading, error } = useLLMConfigs(searchSpaceId);
 	const {
+		globalConfigs,
+		loading: globalConfigsLoading,
+		error: globalConfigsError,
+	} = useGlobalLLMConfigs();
+	const {
 		preferences,
 		updatePreferences,
 		loading: preferencesLoading,
 	} = useLLMPreferences(searchSpaceId);
 
-	const isLoading = llmLoading || preferencesLoading;
+	const isLoading = llmLoading || preferencesLoading || globalConfigsLoading;
+
+	// Combine global and custom configs
+	const allConfigs = React.useMemo(() => {
+		return [...globalConfigs.map((config) => ({ ...config, is_global: true })), ...llmConfigs];
+	}, [globalConfigs, llmConfigs]);
 
 	// Memoize the selected config to avoid repeated lookups
 	const selectedConfig = React.useMemo(() => {
-		if (!preferences.fast_llm_id || !llmConfigs.length) return null;
-		return llmConfigs.find((config) => config.id === preferences.fast_llm_id) || null;
-	}, [preferences.fast_llm_id, llmConfigs]);
+		if (!preferences.fast_llm_id || !allConfigs.length) return null;
+		return allConfigs.find((config) => config.id === preferences.fast_llm_id) || null;
+	}, [preferences.fast_llm_id, allConfigs]);
 
 	// Memoize the display value for the trigger
 	const displayValue = React.useMemo(() => {
@@ -591,6 +601,7 @@ const LLMSelector = React.memo(() => {
 				<span className="hidden sm:inline text-muted-foreground text-xs truncate max-w-[60px]">
 					{selectedConfig.name}
 				</span>
+				{selectedConfig.is_global && <span className="text-xs">🌐</span>}
 			</div>
 		);
 	}, [selectedConfig]);
@@ -616,7 +627,7 @@ const LLMSelector = React.memo(() => {
 	}
 
 	// Error state
-	if (error) {
+	if (error || globalConfigsError) {
 		return (
 			<div className="h-8 min-w-[100px] sm:min-w-[120px]">
 				<Button
@@ -655,7 +666,7 @@ const LLMSelector = React.memo(() => {
 						</div>
 					</div>
 
-					{llmConfigs.length === 0 ? (
+					{allConfigs.length === 0 ? (
 						<div className="px-4 py-6 text-center">
 							<div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
 								<Brain className="h-5 w-5 text-muted-foreground" />
@@ -675,32 +686,87 @@ const LLMSelector = React.memo(() => {
 						</div>
 					) : (
 						<div className="py-1">
-							{llmConfigs.map((config) => (
-								<SelectItem
-									key={config.id}
-									value={config.id.toString()}
-									className="px-3 py-2 cursor-pointer hover:bg-accent/50 focus:bg-accent"
-								>
-									<div className="flex items-center justify-between w-full min-w-0">
-										<div className="flex items-center gap-3 min-w-0 flex-1">
-											<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
-												<Brain className="h-4 w-4 text-primary" />
-											</div>
-											<div className="min-w-0 flex-1">
-												<div className="flex items-center gap-2 mb-1">
-													<span className="font-medium text-sm truncate">{config.name}</span>
-													<Badge variant="outline" className="text-xs px-1.5 py-0.5 flex-shrink-0">
-														{config.provider}
-													</Badge>
-												</div>
-												<p className="text-xs text-muted-foreground font-mono truncate">
-													{config.model_name}
-												</p>
-											</div>
-										</div>
+							{/* Global Configurations */}
+							{globalConfigs.length > 0 && (
+								<>
+									<div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+										Global Configurations
 									</div>
-								</SelectItem>
-							))}
+									{globalConfigs.map((config) => (
+										<SelectItem
+											key={config.id}
+											value={config.id.toString()}
+											className="px-3 py-2 cursor-pointer hover:bg-accent/50 focus:bg-accent"
+										>
+											<div className="flex items-center justify-between w-full min-w-0">
+												<div className="flex items-center gap-3 min-w-0 flex-1">
+													<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
+														<Brain className="h-4 w-4 text-primary" />
+													</div>
+													<div className="min-w-0 flex-1">
+														<div className="flex items-center gap-2 mb-1 flex-wrap">
+															<span className="font-medium text-sm truncate">{config.name}</span>
+															<Badge
+																variant="outline"
+																className="text-xs px-1.5 py-0.5 flex-shrink-0"
+															>
+																{config.provider}
+															</Badge>
+															<Badge
+																variant="secondary"
+																className="text-xs px-1.5 py-0.5 flex-shrink-0"
+															>
+																🌐 Global
+															</Badge>
+														</div>
+														<p className="text-xs text-muted-foreground font-mono truncate">
+															{config.model_name}
+														</p>
+													</div>
+												</div>
+											</div>
+										</SelectItem>
+									))}
+								</>
+							)}
+
+							{/* Custom Configurations */}
+							{llmConfigs.length > 0 && (
+								<>
+									<div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+										Your Configurations
+									</div>
+									{llmConfigs.map((config) => (
+										<SelectItem
+											key={config.id}
+											value={config.id.toString()}
+											className="px-3 py-2 cursor-pointer hover:bg-accent/50 focus:bg-accent"
+										>
+											<div className="flex items-center justify-between w-full min-w-0">
+												<div className="flex items-center gap-3 min-w-0 flex-1">
+													<div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
+														<Brain className="h-4 w-4 text-primary" />
+													</div>
+													<div className="min-w-0 flex-1">
+														<div className="flex items-center gap-2 mb-1">
+															<span className="font-medium text-sm truncate">{config.name}</span>
+															<Badge
+																variant="outline"
+																className="text-xs px-1.5 py-0.5 flex-shrink-0"
+															>
+																{config.provider}
+															</Badge>
+														</div>
+														<p className="text-xs text-muted-foreground font-mono truncate">
+															{config.model_name}
+														</p>
+													</div>
+												</div>
+											</div>
+										</SelectItem>
+									))}
+								</>
+							)}
 						</div>
 					)}
 				</SelectContent>
@@ -787,7 +853,7 @@ export const ChatInputUI = React.memo(
 		onTopKChange?: (topK: number) => void;
 	}) => {
 		return (
-			<ChatInput>
+			<ChatInput className="p-2">
 				<ChatInput.Form className="flex gap-2">
 					<ChatInput.Field className="flex-1" />
 					<ChatInput.Submit />

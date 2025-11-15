@@ -6,6 +6,7 @@ from langchain_litellm import ChatLiteLLM
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.config import config
 from app.db import LLMConfig, UserSearchSpacePreference
 
 # Configure litellm to automatically drop unsupported parameters
@@ -18,6 +19,27 @@ class LLMRole:
     LONG_CONTEXT = "long_context"
     FAST = "fast"
     STRATEGIC = "strategic"
+
+
+def get_global_llm_config(llm_config_id: int) -> dict | None:
+    """
+    Get a global LLM configuration by ID.
+    Global configs have negative IDs.
+
+    Args:
+        llm_config_id: The ID of the global config (should be negative)
+
+    Returns:
+        dict: Global config dictionary or None if not found
+    """
+    if llm_config_id >= 0:
+        return None
+
+    for cfg in config.GLOBAL_LLM_CONFIGS:
+        if cfg.get("id") == llm_config_id:
+            return cfg
+
+    return None
 
 
 async def validate_llm_config(
@@ -171,7 +193,70 @@ async def get_user_llm_instance(
             )
             return None
 
-        # Get the LLM configuration
+        # Check if this is a global config (negative ID)
+        if llm_config_id < 0:
+            global_config = get_global_llm_config(llm_config_id)
+            if not global_config:
+                logger.error(f"Global LLM config {llm_config_id} not found")
+                return None
+
+            # Build model string for global config
+            if global_config.get("custom_provider"):
+                model_string = (
+                    f"{global_config['custom_provider']}/{global_config['model_name']}"
+                )
+            else:
+                provider_map = {
+                    "OPENAI": "openai",
+                    "ANTHROPIC": "anthropic",
+                    "GROQ": "groq",
+                    "COHERE": "cohere",
+                    "GOOGLE": "gemini",
+                    "OLLAMA": "ollama",
+                    "MISTRAL": "mistral",
+                    "AZURE_OPENAI": "azure",
+                    "OPENROUTER": "openrouter",
+                    "COMETAPI": "cometapi",
+                    "XAI": "xai",
+                    "BEDROCK": "bedrock",
+                    "AWS_BEDROCK": "bedrock",
+                    "VERTEX_AI": "vertex_ai",
+                    "TOGETHER_AI": "together_ai",
+                    "FIREWORKS_AI": "fireworks_ai",
+                    "REPLICATE": "replicate",
+                    "PERPLEXITY": "perplexity",
+                    "ANYSCALE": "anyscale",
+                    "DEEPINFRA": "deepinfra",
+                    "CEREBRAS": "cerebras",
+                    "SAMBANOVA": "sambanova",
+                    "AI21": "ai21",
+                    "CLOUDFLARE": "cloudflare",
+                    "DATABRICKS": "databricks",
+                    "DEEPSEEK": "openai",
+                    "ALIBABA_QWEN": "openai",
+                    "MOONSHOT": "openai",
+                    "ZHIPU": "openai",
+                }
+                provider_prefix = provider_map.get(
+                    global_config["provider"], global_config["provider"].lower()
+                )
+                model_string = f"{provider_prefix}/{global_config['model_name']}"
+
+            # Create ChatLiteLLM instance from global config
+            litellm_kwargs = {
+                "model": model_string,
+                "api_key": global_config["api_key"],
+            }
+
+            if global_config.get("api_base"):
+                litellm_kwargs["api_base"] = global_config["api_base"]
+
+            if global_config.get("litellm_params"):
+                litellm_kwargs.update(global_config["litellm_params"])
+
+            return ChatLiteLLM(**litellm_kwargs)
+
+        # Get the LLM configuration from database (user-specific config)
         result = await session.execute(
             select(LLMConfig).where(
                 LLMConfig.id == llm_config_id,

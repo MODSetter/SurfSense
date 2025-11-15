@@ -43,10 +43,10 @@ export default function ChatInterface({
 	}, [chat_id, search_space_id]);
 
 	return (
-		<LlamaIndexChatSection handler={handler} className="flex h-full">
+		<LlamaIndexChatSection handler={handler} className="flex h-full max-w-7xl mx-auto">
 			<div className="flex grow-1 flex-col">
 				<ChatMessagesUI />
-				<div className="border-t p-4">
+				<div className="border-1 rounded-4xl p-2">
 					<ChatInputUI
 						onDocumentSelectionChange={onDocumentSelectionChange}
 						selectedDocuments={selectedDocuments}

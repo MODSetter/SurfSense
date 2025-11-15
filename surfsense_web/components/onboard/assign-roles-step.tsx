@@ -15,7 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
 interface AssignRolesStepProps {
 	searchSpaceId: number;
@@ -25,7 +25,11 @@ interface AssignRolesStepProps {
 export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignRolesStepProps) {
 	const t = useTranslations("onboard");
 	const { llmConfigs } = useLLMConfigs(searchSpaceId);
+	const { globalConfigs } = useGlobalLLMConfigs();
 	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
+
+	// Combine global and user-specific configs
+	const allConfigs = [...globalConfigs, ...llmConfigs];
 
 	const ROLE_DESCRIPTIONS = {
 		long_context: {
@@ -107,7 +111,7 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 	const isAssignmentComplete =
 		assignments.long_context_llm_id && assignments.fast_llm_id && assignments.strategic_llm_id;
 
-	if (llmConfigs.length === 0) {
+	if (allConfigs.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
 				<AlertCircle className="w-16 h-16 text-muted-foreground mb-4" />
@@ -130,7 +134,7 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 				{Object.entries(ROLE_DESCRIPTIONS).map(([key, role]) => {
 					const IconComponent = role.icon;
 					const currentAssignment = assignments[`${key}_llm_id` as keyof typeof assignments];
-					const assignedConfig = llmConfigs.find((config) => config.id === currentAssignment);
+					const assignedConfig = allConfigs.find((config) => config.id === currentAssignment);
 
 					return (
 						<motion.div
@@ -171,6 +175,32 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 												<SelectValue placeholder={t("select_llm_config")} />
 											</SelectTrigger>
 											<SelectContent>
+												{globalConfigs.length > 0 && (
+													<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+														{t("global_configs") || "Global Configurations"}
+													</div>
+												)}
+												{globalConfigs
+													.filter((config) => config.id && config.id.toString().trim() !== "")
+													.map((config) => (
+														<SelectItem key={config.id} value={config.id.toString()}>
+															<div className="flex items-center gap-2">
+																<Badge variant="secondary" className="text-xs">
+																	🌐 Global
+																</Badge>
+																<Badge variant="outline" className="text-xs">
+																	{config.provider}
+																</Badge>
+																<span>{config.name}</span>
+																<span className="text-muted-foreground">({config.model_name})</span>
+															</div>
+														</SelectItem>
+													))}
+												{llmConfigs.length > 0 && globalConfigs.length > 0 && (
+													<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1">
+														{t("your_configs") || "Your Configurations"}
+													</div>
+												)}
 												{llmConfigs
 													.filter((config) => config.id && config.id.toString().trim() !== "")
 													.map((config) => (
@@ -193,6 +223,11 @@ export function AssignRolesStep({ searchSpaceId, onPreferencesUpdated }: AssignR
 											<div className="flex items-center gap-2 text-sm">
 												<Bot className="w-4 h-4" />
 												<span className="font-medium">{t("assigned")}:</span>
+												{assignedConfig.is_global && (
+													<Badge variant="secondary" className="text-xs">
+														🌐 Global
+													</Badge>
+												)}
 												<Badge variant="secondary">{assignedConfig.provider}</Badge>
 												<span>{assignedConfig.name}</span>
 											</div>

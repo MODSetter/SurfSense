@@ -1,0 +1,80 @@
+# Global LLM Configuration
+# 
+# SETUP INSTRUCTIONS:
+# 1. For production: Copy this file to global_llm_config.yaml and add your real API keys
+# 2. For testing: The system will use this example file automatically if global_llm_config.yaml doesn't exist
+#
+# NOTE: The example API keys below are placeholders and won't work.
+# Replace them with your actual API keys to enable global configurations.
+#
+# These configurations will be available to all users as a convenient option
+# Users can choose to use these global configs or add their own
+
+global_llm_configs:
+  # Example: OpenAI GPT-4 Turbo
+  - id: -1
+    name: "Global GPT-4 Turbo"
+    provider: "OPENAI"
+    model_name: "gpt-4-turbo-preview"
+    api_key: "sk-your-openai-api-key-here"
+    api_base: ""
+    language: "English"
+    litellm_params:
+      temperature: 0.7
+      max_tokens: 4000
+
+  # Example: Anthropic Claude 3 Opus
+  - id: -2
+    name: "Global Claude 3 Opus"
+    provider: "ANTHROPIC"
+    model_name: "claude-3-opus-20240229"
+    api_key: "sk-ant-your-anthropic-api-key-here"
+    api_base: ""
+    language: "English"
+    litellm_params:
+      temperature: 0.7
+      max_tokens: 4000
+
+  # Example: Fast model - GPT-3.5 Turbo
+  - id: -3
+    name: "Global GPT-3.5 Turbo"
+    provider: "OPENAI"
+    model_name: "gpt-3.5-turbo"
+    api_key: "sk-your-openai-api-key-here"
+    api_base: ""
+    language: "English"
+    litellm_params:
+      temperature: 0.5
+      max_tokens: 2000
+
+  # Example: Chinese LLM - DeepSeek
+  - id: -4
+    name: "Global DeepSeek Chat"
+    provider: "DEEPSEEK"
+    model_name: "deepseek-chat"
+    api_key: "your-deepseek-api-key-here"
+    api_base: "https://api.deepseek.com/v1"
+    language: "Chinese"
+    litellm_params:
+      temperature: 0.7
+      max_tokens: 4000
+
+  # Example: Groq - Fast inference
+  - id: -5
+    name: "Global Groq Llama 3"
+    provider: "GROQ"
+    model_name: "llama3-70b-8192"
+    api_key: "your-groq-api-key-here"
+    api_base: ""
+    language: "English"
+    litellm_params:
+      temperature: 0.7
+      max_tokens: 8000
+
+# Notes:
+# - Use negative IDs to distinguish global configs from user configs
+# - IDs should be unique and sequential (e.g., -1, -2, -3, etc.)
+# - The 'api_key' field will not be exposed to users via API
+# - Users can select these configs for their long_context, fast, or strategic LLM roles
+# - All standard LiteLLM providers are supported
+

@@ -583,7 +583,9 @@
 		"assigned": "Assigned",
 		"all_roles_assigned_saved": "All roles assigned and saved!",
 		"progress": "Progress",
-		"roles_assigned": "{assigned} of {total} roles assigned"
+		"roles_assigned": "{assigned} of {total} roles assigned",
+		"global_configs": "Global Configurations",
+		"your_configs": "Your Configurations"
 	},
 	"model_config": {
 		"title": "Model Configurations",
@@ -598,7 +600,7 @@
 		"manage_configs": "Manage and configure your LLM providers",
 		"add_config": "Add Configuration",
 		"no_configs": "No Configurations Yet",
-		"no_configs_desc": "Get started by adding your first LLM provider configuration to begin using the system.",
+		"no_configs_desc": "Add your own LLM provider configurations.",
 		"add_first_config": "Add First Configuration",
 		"created": "Created"
 	},

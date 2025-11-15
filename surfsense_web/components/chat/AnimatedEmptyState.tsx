@@ -131,7 +131,7 @@ export function AnimatedEmptyState() {
 	}, [layoutStable, isInView]);
 
 	return (
-		<div ref={ref} className="flex-1 flex items-center justify-center w-full min-h-[400px]">
+		<div ref={ref} className="flex-1 flex items-center justify-center w-full min-h-fit">
 			<div className="max-w-4xl mx-auto px-4 py-10 text-center">
 				<RoughNotationGroup show={shouldShowHighlight}>
 					<h1 className={headingClassName}>

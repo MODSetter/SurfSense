@@ -27,7 +27,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
 const ROLE_DESCRIPTIONS = {
 	long_context: {
@@ -67,6 +67,12 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		error: configsError,
 		refreshConfigs,
 	} = useLLMConfigs(searchSpaceId);
+	const {
+		globalConfigs,
+		loading: globalConfigsLoading,
+		error: globalConfigsError,
+		refreshGlobalConfigs,
+	} = useGlobalLLMConfigs();
 	const {
 		preferences,
 		loading: preferencesLoading,
@@ -164,12 +170,17 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const isAssignmentComplete =
 		assignments.long_context_llm_id && assignments.fast_llm_id && assignments.strategic_llm_id;
 	const assignedConfigIds = Object.values(assignments).filter((id) => id !== "");
-	const availableConfigs = llmConfigs.filter(
-		(config) => config.id && config.id.toString().trim() !== ""
-	);
 
-	const isLoading = configsLoading || preferencesLoading;
-	const hasError = configsError || preferencesError;
+	// Combine global and custom configs
+	const allConfigs = [
+		...globalConfigs.map((config) => ({ ...config, is_global: true })),
+		...llmConfigs.filter((config) => config.id && config.id.toString().trim() !== ""),
+	];
+
+	const availableConfigs = allConfigs;
+
+	const isLoading = configsLoading || preferencesLoading || globalConfigsLoading;
+	const hasError = configsError || preferencesError || globalConfigsError;
 
 	return (
 		<div className="space-y-6">
@@ -218,7 +229,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			{hasError && (
 				<Alert variant="destructive">
 					<AlertCircle className="h-4 w-4" />
-					<AlertDescription>{configsError || preferencesError}</AlertDescription>
+					<AlertDescription>
+						{configsError || preferencesError || globalConfigsError}
+					</AlertDescription>
 				</Alert>
 			)}
 
@@ -249,6 +262,10 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 								<div className="space-y-1">
 									<p className="text-3xl font-bold tracking-tight">{availableConfigs.length}</p>
 									<p className="text-sm font-medium text-muted-foreground">Available Models</p>
+									<div className="flex gap-2 text-xs text-muted-foreground">
+										<span>🌐 {globalConfigs.length} Global</span>
+										<span>• {llmConfigs.length} Custom</span>
+									</div>
 								</div>
 								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10">
 									<Bot className="h-6 w-6 text-blue-600" />
@@ -422,30 +439,73 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 															<SelectItem value="unassigned">
 																<span className="text-muted-foreground">Unassigned</span>
 															</SelectItem>
-															{availableConfigs.map((config) => (
-																<SelectItem key={config.id} value={config.id.toString()}>
-																	<div className="flex items-center gap-2">
-																		<Badge variant="outline" className="text-xs">
-																			{config.provider}
-																		</Badge>
-																		<span>{config.name}</span>
-																		<span className="text-muted-foreground">
-																			({config.model_name})
-																		</span>
+
+															{/* Global Configurations */}
+															{globalConfigs.length > 0 && (
+																<>
+																	<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+																		Global Configurations
 																	</div>
-																</SelectItem>
-															))}
+																	{globalConfigs.map((config) => (
+																		<SelectItem key={config.id} value={config.id.toString()}>
+																			<div className="flex items-center gap-2">
+																				<Badge variant="outline" className="text-xs">
+																					{config.provider}
+																				</Badge>
+																				<span>{config.name}</span>
+																				<span className="text-muted-foreground">
+																					({config.model_name})
+																				</span>
+																				<Badge variant="secondary" className="text-xs">
+																					🌐 Global
+																				</Badge>
+																			</div>
+																		</SelectItem>
+																	))}
+																</>
+															)}
+
+															{/* Custom Configurations */}
+															{llmConfigs.length > 0 && (
+																<>
+																	<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+																		Your Configurations
+																	</div>
+																	{llmConfigs
+																		.filter(
+																			(config) => config.id && config.id.toString().trim() !== ""
+																		)
+																		.map((config) => (
+																			<SelectItem key={config.id} value={config.id.toString()}>
+																				<div className="flex items-center gap-2">
+																					<Badge variant="outline" className="text-xs">
+																						{config.provider}
+																					</Badge>
+																					<span>{config.name}</span>
+																					<span className="text-muted-foreground">
+																						({config.model_name})
+																					</span>
+																				</div>
+																			</SelectItem>
+																		))}
+																</>
+															)}
 														</SelectContent>
 													</Select>
 												</div>
 
 												{assignedConfig && (
 													<div className="mt-3 p-3 bg-muted/50 rounded-lg">
-														<div className="flex items-center gap-2 text-sm">
+														<div className="flex items-center gap-2 text-sm flex-wrap">
 															<Bot className="w-4 h-4" />
 															<span className="font-medium">Assigned:</span>
 															<Badge variant="secondary">{assignedConfig.provider}</Badge>
 															<span>{assignedConfig.name}</span>
+															{assignedConfig.is_global && (
+																<Badge variant="outline" className="text-xs">
+																	🌐 Global
+																</Badge>
+															)}
 														</div>
 														<div className="text-xs text-muted-foreground mt-1">
 															Model: {assignedConfig.model_name}

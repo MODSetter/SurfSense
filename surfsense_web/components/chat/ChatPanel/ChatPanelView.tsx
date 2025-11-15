@@ -79,9 +79,16 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 							animate={{ opacity: 1 }}
 							transition={{ duration: 0.3 }}
 						>
-							<button
-								type="button"
+							<div
+								role="button"
+								tabIndex={0}
 								onClick={handleGeneratePost}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										handleGeneratePost();
+									}
+								}}
 								className={cn(
 									"relative w-full rounded-2xl p-4 transition-all duration-300 cursor-pointer group overflow-hidden",
 									"border-2",
@@ -147,7 +154,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 										<ConfigModal generatePodcast={generatePodcast} />
 									</div>
 								</div>
-							</button>
+							</div>
 						</motion.div>
 					</div>
 				) : (
