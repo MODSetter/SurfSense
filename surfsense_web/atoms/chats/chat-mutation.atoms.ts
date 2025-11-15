@@ -1,7 +1,6 @@
 import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
 import type { Chat } from "@/app/dashboard/[search_space_id]/chats/chats-client";
-import { deleteChat } from "@/lib/apis/chats.api";
 import { chatApiService } from "@/lib/apis/chats-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
