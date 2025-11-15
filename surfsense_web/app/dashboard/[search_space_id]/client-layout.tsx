@@ -7,6 +7,9 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { activeChatIdAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContainer";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -17,9 +20,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
-import { activeChatIdAtom } from "@/atoms/chats/chat-queries.atom";
-import { chatUIAtom } from "@/atoms/chats/chat-uis.atom";
-import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 
 export function DashboardClientLayout({
 	children,
@@ -37,7 +37,7 @@ export function DashboardClientLayout({
 	const pathname = usePathname();
 	const searchSpaceIdNum = Number(searchSpaceId);
 	const { search_space_id, chat_id } = useParams();
-	const [chatUIState, setChatUIState] = useAtom(chatUIAtom);
+	const [chatUIState, setChatUIState] = useAtom(activeChathatUIAtom);
 	const activeChatId = useAtomValue(activeChatIdAtom);
 	const setActiveSearchSpaceIdState = useSetAtom(activeSearchSpaceIdAtom);
 	const setActiveChatIdState = useSetAtom(activeChatIdAtom);

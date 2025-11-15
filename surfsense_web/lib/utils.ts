@@ -1,4 +1,4 @@
-import { Message } from "@ai-sdk/react";
+import type { Message } from "@ai-sdk/react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 

@@ -2,8 +2,8 @@
 
 import { useAtom } from "jotai";
 import { ExternalLink, Info, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { announcementDismissedAtom } from "@/atoms/announcement.atom";
+import { Button } from "@/components/ui/button";
 
 export function AnnouncementBanner() {
 	const [isDismissed, setIsDismissed] = useAtom(announcementDismissedAtom);

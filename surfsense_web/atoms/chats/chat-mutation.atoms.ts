@@ -1,10 +1,10 @@
 import { atomWithMutation } from "jotai-tanstack-query";
-import { deleteChat } from "@/lib/apis/chats.api";
-import { activeSearchSpaceIdAtom } from "../seach-spaces/seach-space-queries.atom";
-import { queryClient } from "@/lib/query-client/client";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { toast } from "sonner";
-import { Chat } from "@/app/dashboard/[search_space_id]/chats/chats-client";
+import type { Chat } from "@/app/dashboard/[search_space_id]/chats/chats-client";
+import { deleteChat } from "@/lib/apis/chats.api";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { queryClient } from "@/lib/query-client/client";
+import { activeSearchSpaceIdAtom } from "../seach-spaces/seach-space-queries.atom";
 
 export const deleteChatMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
