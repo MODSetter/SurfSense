@@ -147,7 +147,8 @@
 		"manage_connectors": "管理连接器",
 		"podcasts": "播客",
 		"logs": "日志",
-		"all_search_spaces": "所有搜索空间"
+		"all_search_spaces": "所有搜索空间",
+		"chat": "聊天"
 	},
 	"pricing": {
 		"title": "SurfSense 定价",
@@ -527,6 +528,8 @@
 		"percent_complete": "已完成 {percent}%",
 		"add_llm_provider": "添加 LLM 提供商",
 		"assign_llm_roles": "分配 LLM 角色",
+		"setup_llm_configuration": "设置 LLM 配置",
+		"configure_providers_and_assign_roles": "添加您的 LLM 提供商并为其分配特定角色",
 		"setup_complete": "设置完成",
 		"configure_first_provider": "配置您的第一个模型提供商",
 		"assign_specific_roles": "为您的 LLM 配置分配特定角色",

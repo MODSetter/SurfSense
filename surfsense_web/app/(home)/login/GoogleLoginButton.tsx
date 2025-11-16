@@ -32,10 +32,10 @@ export function GoogleLoginButton() {
 		<div className="relative w-full overflow-hidden">
 			<AmbientBackground />
 			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-				<Logo className="rounded-md" />
-				<h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
-					{t("welcome_back")}
-				</h1>
+				<Logo className="rounded-full my-8" />
+				{/* <h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
+					Login
+				</h1> */}
 				{/* 
 				<motion.div
 					initial={{ opacity: 0, y: -5 }}

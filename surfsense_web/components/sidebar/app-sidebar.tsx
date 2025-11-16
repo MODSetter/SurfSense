@@ -64,7 +64,7 @@ const defaultData = {
 	},
 	navMain: [
 		{
-			title: "Researcher",
+			title: "Chat",
 			url: "#",
 			icon: "SquareTerminal",
 			isActive: true,

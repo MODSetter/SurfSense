@@ -147,7 +147,8 @@
 		"manage_connectors": "Manage Connectors",
 		"podcasts": "Podcasts",
 		"logs": "Logs",
-		"all_search_spaces": "All Search Spaces"
+		"all_search_spaces": "All Search Spaces",
+		"chat": "Chat"
 	},
 	"pricing": {
 		"title": "SurfSense Pricing",
@@ -527,6 +528,8 @@
 		"percent_complete": "{percent}% Complete",
 		"add_llm_provider": "Add LLM Provider",
 		"assign_llm_roles": "Assign LLM Roles",
+		"setup_llm_configuration": "Setup LLM Configuration",
+		"configure_providers_and_assign_roles": "Add your LLM providers and assign them to specific roles",
 		"setup_complete": "Setup Complete",
 		"configure_first_provider": "Configure your first model provider",
 		"assign_specific_roles": "Assign specific roles to your LLM configurations",

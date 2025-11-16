@@ -4,17 +4,16 @@ import { ArrowLeft, ArrowRight, Bot, CheckCircle, Sparkles } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Logo";
-import { AddProviderStep } from "@/components/onboard/add-provider-step";
-import { AssignRolesStep } from "@/components/onboard/assign-roles-step";
 import { CompletionStep } from "@/components/onboard/completion-step";
+import { SetupLLMStep } from "@/components/onboard/setup-llm-step";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 2;
 
 const OnboardPage = () => {
 	const t = useTranslations("onboard");
@@ -33,6 +32,10 @@ const OnboardPage = () => {
 	const [currentStep, setCurrentStep] = useState(1);
 	const [hasUserProgressed, setHasUserProgressed] = useState(false);
 
+	// Track if onboarding was complete on initial mount
+	const wasCompleteOnMount = useRef<boolean | null>(null);
+	const hasCheckedInitialState = useRef(false);
+
 	// Check if user is authenticated
 	useEffect(() => {
 		const token = localStorage.getItem("surfsense_bearer_token");
@@ -42,6 +45,19 @@ const OnboardPage = () => {
 		}
 	}, [router]);
 
+	// Capture onboarding state on first load
+	useEffect(() => {
+		if (
+			!hasCheckedInitialState.current &&
+			!preferencesLoading &&
+			!configsLoading &&
+			!globalConfigsLoading
+		) {
+			wasCompleteOnMount.current = isOnboardingComplete();
+			hasCheckedInitialState.current = true;
+		}
+	}, [preferencesLoading, configsLoading, globalConfigsLoading, isOnboardingComplete]);
+
 	// Track if user has progressed beyond step 1
 	useEffect(() => {
 		if (currentStep > 1) {
@@ -49,47 +65,42 @@ const OnboardPage = () => {
 		}
 	}, [currentStep]);
 
-	// Redirect to dashboard if onboarding is already complete and user hasn't progressed (fresh page load)
-	// But only check once to avoid redirect loops
+	// Redirect to dashboard if onboarding was already complete on mount (not during this session)
 	useEffect(() => {
+		// Only redirect if:
+		// 1. Onboarding was complete when page loaded
+		// 2. User hasn't progressed past step 1
+		// 3. All data is loaded
 		if (
+			wasCompleteOnMount.current === true &&
+			!hasUserProgressed &&
 			!preferencesLoading &&
 			!configsLoading &&
-			!globalConfigsLoading &&
-			isOnboardingComplete() &&
-			!hasUserProgressed
+			!globalConfigsLoading
 		) {
-			// Small delay to ensure the check is stable
+			// Small delay to ensure the check is stable on initial load
 			const timer = setTimeout(() => {
 				router.push(`/dashboard/${searchSpaceId}`);
-			}, 100);
+			}, 300);
 			return () => clearTimeout(timer);
 		}
 	}, [
+		hasUserProgressed,
 		preferencesLoading,
 		configsLoading,
 		globalConfigsLoading,
-		isOnboardingComplete,
-		hasUserProgressed,
 		router,
 		searchSpaceId,
 	]);
 
 	const progress = (currentStep / TOTAL_STEPS) * 100;
 
-	const stepTitles = [t("add_llm_provider"), t("assign_llm_roles"), t("setup_complete")];
+	const stepTitles = [t("setup_llm_configuration"), t("setup_complete")];
 
-	const stepDescriptions = [
-		t("configure_first_provider"),
-		t("assign_specific_roles"),
-		t("all_set"),
-	];
+	const stepDescriptions = [t("configure_providers_and_assign_roles"), t("all_set")];
 
-	// User can proceed to step 2 if they have either custom configs OR global configs available
+	// User can proceed to step 2 if all roles are assigned
 	const canProceedToStep2 =
-		!configsLoading && !globalConfigsLoading && (llmConfigs.length > 0 || globalConfigs.length > 0);
-
-	const canProceedToStep3 =
 		!preferencesLoading &&
 		preferences.long_context_llm_id &&
 		preferences.fast_llm_id &&
@@ -105,10 +116,6 @@ const OnboardPage = () => {
 		if (currentStep > 1) {
 			setCurrentStep(currentStep - 1);
 		}
-	};
-
-	const handleComplete = () => {
-		router.push(`/dashboard/${searchSpaceId}/documents`);
 	};
 
 	if (configsLoading || preferencesLoading || globalConfigsLoading) {
@@ -192,9 +199,8 @@ const OnboardPage = () => {
 				<Card className="min-h-[500px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="text-center">
 						<CardTitle className="text-2xl flex items-center justify-center gap-2">
-							{currentStep === 1 && <Bot className="w-6 h-6" />}
-							{currentStep === 2 && <Sparkles className="w-6 h-6" />}
-							{currentStep === 3 && <CheckCircle className="w-6 h-6" />}
+							{currentStep === 1 && <Sparkles className="w-6 h-6" />}
+							{currentStep === 2 && <CheckCircle className="w-6 h-6" />}
 							{stepTitles[currentStep - 1]}
 						</CardTitle>
 						<CardDescription className="text-base">
@@ -211,19 +217,14 @@ const OnboardPage = () => {
 								transition={{ duration: 0.3 }}
 							>
 								{currentStep === 1 && (
-									<AddProviderStep
+									<SetupLLMStep
 										searchSpaceId={searchSpaceId}
 										onConfigCreated={refreshConfigs}
 										onConfigDeleted={refreshConfigs}
-									/>
-								)}
-								{currentStep === 2 && (
-									<AssignRolesStep
-										searchSpaceId={searchSpaceId}
 										onPreferencesUpdated={refreshPreferences}
 									/>
 								)}
-								{currentStep === 3 && <CompletionStep searchSpaceId={searchSpaceId} />}
+								{currentStep === 2 && <CompletionStep searchSpaceId={searchSpaceId} />}
 							</motion.div>
 						</AnimatePresence>
 					</CardContent>
@@ -231,38 +232,24 @@ const OnboardPage = () => {
 
 				{/* Navigation */}
 				<div className="flex justify-between mt-8">
-					<Button
-						variant="outline"
-						onClick={handlePrevious}
-						disabled={currentStep === 1}
-						className="flex items-center gap-2"
-					>
-						<ArrowLeft className="w-4 h-4" />
-						{t("previous")}
-					</Button>
-
-					<div className="flex gap-2">
-						{currentStep < TOTAL_STEPS && (
+					{currentStep === 1 ? (
+						<>
+							<div />
 							<Button
 								onClick={handleNext}
-								disabled={
-									(currentStep === 1 && !canProceedToStep2) ||
-									(currentStep === 2 && !canProceedToStep3)
-								}
+								disabled={!canProceedToStep2}
 								className="flex items-center gap-2"
 							>
 								{t("next")}
 								<ArrowRight className="w-4 h-4" />
 							</Button>
-						)}
-
-						{currentStep === TOTAL_STEPS && (
-							<Button onClick={handleComplete} className="flex items-center gap-2">
-								{t("complete_setup")}
-								<CheckCircle className="w-4 h-4" />
-							</Button>
-						)}
-					</div>
+						</>
+					) : (
+						<Button variant="outline" onClick={handlePrevious} className="flex items-center gap-2">
+							<ArrowLeft className="w-4 h-4" />
+							{t("previous")}
+						</Button>
+					)}
 				</div>
 			</motion.div>
 		</div>
