@@ -1,0 +1,45 @@
+# Global LLM Configuration for SurfSense
+# Three-tier architecture: Mistral NeMo (primary) -> TildeOpen (grammar) -> Gemini (fallback)
+
+global_llm_configs:
+  # Mistral NeMo 12B - PRIMARY: Main response generation from documents
+  # French AI model with excellent multilingual capabilities
+  - id: -1
+    name: "Mistral NeMo 12B (Local)"
+    provider: "OLLAMA"
+    model_name: "mistral-nemo:128k"
+    api_key: ""
+    api_base: "http://localhost:11434"
+    language: "auto"
+    system_prompt: "You are a knowledgeable research assistant. Answer questions accurately based on the provided documents. If the documents don't contain the answer, clearly state that. Always maintain context and cite sources when possible."
+    litellm_params:
+      temperature: 0.7
+      max_tokens: 8000
+
+  # TildeOpen 30B - GRAMMAR CHECKER: Latvian language quality control
+  # Latvian AI model specifically for grammar correction
+  - id: -2
+    name: "TildeOpen 30B (Grammar Checker)"
+    provider: "OLLAMA"
+    model_name: "tildeopen:latest"
+    api_key: ""
+    api_base: "http://localhost:11434"
+    language: "Latvian"
+    system_prompt: "You are a Latvian grammar correction assistant. Your ONLY task is to correct grammatical errors in Latvian text while preserving the original meaning, style, and formatting. Do not add explanations, commentary, or change the content. Only fix grammar mistakes."
+    litellm_params:
+      temperature: 0.3
+      max_tokens: 8000
+
+  # Google Gemini 2.0 Flash - FALLBACK: Emergency only when local models fail
+  # Only used when Mistral NeMo cannot generate adequate responses
+  - id: -3
+    name: "Gemini 2.0 Flash (API Fallback)"
+    provider: "GOOGLE"
+    model_name: "gemini-2.0-flash-exp"
+    api_key: "${GEMINI_API_KEY}"
+    api_base: ""
+    language: "auto"
+    system_prompt: "You are a helpful AI assistant. Provide accurate, well-researched answers based on available information."
+    litellm_params:
+      temperature: 0.7
+      max_tokens: 8000

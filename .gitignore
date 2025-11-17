@@ -3,3 +3,58 @@ podcasts/
 .env
 node_modules/
 .ruff_cache/
+# Environment variables and secrets
+.env.local
+.env.production
+*.env
+
+# LLM Configuration with API keys
+**/config/global_llm_config.yaml
+**/config/global_llm_config.yaml.backup*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+ENV/
+.pytest_cache/
+
+# Logs and databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# SSL and keys
+*.pem
+*.key
+*.crt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Uploads and temp files
+uploads/
+temp/
+tmp/
+
+# Backup files
+*.backup
+*.backup.*
+.env.backup*
+pyproject.toml.backup*
+security_audit_baseline*.json
+installed_before_update.txt

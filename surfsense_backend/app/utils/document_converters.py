@@ -9,10 +9,20 @@ from app.prompts import SUMMARY_PROMPT_TEMPLATE
 
 def get_model_context_window(model_name: str) -> int:
     """Get the total context window size for a model (input + output tokens)."""
+    
+    # Override for Ollama models with known incorrect LiteLLM values
+    if "mistral-nemo" in model_name.lower():
+        return 131072  # Mistral NeMo actual context window: 128K tokens
+    
     try:
         model_info = get_model_info(model_name)
         context_window = model_info.get("max_input_tokens", 4096)  # Default fallback
         return context_window
+    except Exception as e:
+        print(
+            f"Warning: Could not get model info for {model_name}, using default 4096 tokens. Error: {e}"
+        )
+        return 4096  # Conservative fallback
     except Exception as e:
         print(
             f"Warning: Could not get model info for {model_name}, using default 4096 tokens. Error: {e}"
