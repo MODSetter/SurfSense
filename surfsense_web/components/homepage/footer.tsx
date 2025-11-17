@@ -1,9 +1,8 @@
 "use client";
 import {
-	IconBrandDiscord,
-	IconBrandGithub,
-	IconBrandLinkedin,
-	IconBrandTwitter,
+	IconBrandMastodon,
+	IconBook,
+	IconPhoto,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import type React from "react";
@@ -48,17 +47,29 @@ export function Footer() {
 						&copy; SurfSense 2025
 					</p>
 					<div className="flex gap-4">
-						<Link href="https://x.com/mod_setter">
-							<IconBrandTwitter className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
+						<Link
+							href="https://kapteinis.lv/@ojars"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="Mastodon"
+						>
+							<IconBrandMastodon className="h-6 w-6 text-neutral-500 dark:text-neutral-300 hover:text-neutral-700 dark:hover:text-neutral-100 transition-colors" />
 						</Link>
-						<Link href="https://www.linkedin.com/in/rohan-verma-sde/">
-							<IconBrandLinkedin className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
+						<Link
+							href="https://pixel.kapteinis.lv/ojars"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="Pixelfed"
+						>
+							<IconPhoto className="h-6 w-6 text-neutral-500 dark:text-neutral-300 hover:text-neutral-700 dark:hover:text-neutral-100 transition-colors" />
 						</Link>
-						<Link href="https://github.com/MODSetter">
-							<IconBrandGithub className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
-						</Link>
-						<Link href="https://discord.gg/ejRNvftDp9">
-							<IconBrandDiscord className="h-6 w-6 text-neutral-500 dark:text-neutral-300" />
+						<Link
+							href="https://book.kapteinis.lv/user/ojars"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label="Bookwyrm"
+						>
+							<IconBook className="h-6 w-6 text-neutral-500 dark:text-neutral-300 hover:text-neutral-700 dark:hover:text-neutral-100 transition-colors" />
 						</Link>
 					</div>
 				</div>

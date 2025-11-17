@@ -50,6 +50,10 @@ export default function DashboardLayout({
 					url: `/dashboard/${search_space_id}/sources/add`,
 				},
 				{
+					title: "Add Webpage(s)",
+					url: `/dashboard/${search_space_id}/documents/webpage`,
+				},
+				{
 					title: "Manage Documents",
 					url: `/dashboard/${search_space_id}/documents`,
 				},

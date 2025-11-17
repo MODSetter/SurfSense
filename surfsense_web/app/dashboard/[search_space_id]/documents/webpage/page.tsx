@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
-// URL validation regex
-const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+// URL validation regex - updated to support percent-encoded URLs (e.g., Latvian characters)
+const urlRegex = /^https?:\/\/[^\s]+$/;
 
 export default function WebpageCrawler() {
 	const t = useTranslations("add_webpage");

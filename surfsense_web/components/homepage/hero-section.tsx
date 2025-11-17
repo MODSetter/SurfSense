@@ -59,18 +59,15 @@ export function HeroSection() {
 
 			<h2 className="relative z-50 mx-auto mb-4 mt-4 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
 				<Balancer>
-					The AI Workspace{" "}
 					<div className="relative mx-auto inline-block w-max [filter:drop-shadow(0px_1px_3px_rgba(27,_37,_80,_0.14))]">
 						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-							<span className="">Built for Teams</span>
+							<span className="">Let's Start Surfing</span>
 						</div>
 					</div>
 				</Balancer>
 			</h2>
-			{/* // TODO:aCTUAL DESCRITION */}
 			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
-				your team.
+				Your AI-powered research agent and personal knowledge base. Connect any LLM to your data sources and explore information like never before.
 			</p>
 			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
 				<Link
