@@ -1,14 +1,10 @@
 "use client";
 
 import { type ChatHandler, ChatSection as LlamaIndexChatSection } from "@llamaindex/chat-ui";
-import { useSetAtom } from "jotai";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
 import type { Document } from "@/hooks/use-documents";
-import { activeChatIdAtom } from "@/stores/chat/active-chat.atom";
-import { ChatPanelContainer } from "./ChatPanel/ChatPanelContainer";
 
 interface ChatInterfaceProps {
 	handler: ChatHandler;
@@ -34,13 +30,6 @@ export default function ChatInterface({
 	onTopKChange,
 }: ChatInterfaceProps) {
 	const { chat_id, search_space_id } = useParams();
-	const setActiveChatIdState = useSetAtom(activeChatIdAtom);
-
-	useEffect(() => {
-		const id = typeof chat_id === "string" ? chat_id : chat_id ? chat_id[0] : "";
-		if (!id) return;
-		setActiveChatIdState(id);
-	}, [chat_id, search_space_id]);
 
 	return (
 		<LlamaIndexChatSection handler={handler} className="flex h-full max-w-7xl mx-auto">
