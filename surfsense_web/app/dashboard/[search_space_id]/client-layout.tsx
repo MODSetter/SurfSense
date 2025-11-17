@@ -1,12 +1,15 @@
 "use client";
 
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Loader2, PanelRight } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { activeChatIdAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContainer";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -17,8 +20,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
-import { activeChatIdAtom } from "@/stores/chat/active-chat.atom";
-import { chatUIAtom } from "@/stores/chat/chat-ui.atom";
 
 export function DashboardClientLayout({
 	children,
@@ -35,9 +36,11 @@ export function DashboardClientLayout({
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchSpaceIdNum = Number(searchSpaceId);
-
-	const [chatUIState, setChatUIState] = useAtom(chatUIAtom);
+	const { search_space_id, chat_id } = useParams();
+	const [chatUIState, setChatUIState] = useAtom(activeChathatUIAtom);
 	const activeChatId = useAtomValue(activeChatIdAtom);
+	const setActiveSearchSpaceIdState = useSetAtom(activeSearchSpaceIdAtom);
+	const setActiveChatIdState = useSetAtom(activeChatIdAtom);
 	const [showIndicator, setShowIndicator] = useState(false);
 
 	const { isChatPannelOpen } = chatUIState;
@@ -119,6 +122,29 @@ export function DashboardClientLayout({
 		hasCheckedOnboarding,
 	]);
 
+	// Synchronize active search space and chat IDs with URL
+	useEffect(() => {
+		const activeSeacrhSpaceId =
+			typeof search_space_id === "string"
+				? search_space_id
+				: Array.isArray(search_space_id) && search_space_id.length > 0
+					? search_space_id[0]
+					: "";
+		if (!activeSeacrhSpaceId) return;
+		setActiveSearchSpaceIdState(activeSeacrhSpaceId);
+	}, [search_space_id]);
+
+	useEffect(() => {
+		const activeChatId =
+			typeof chat_id === "string"
+				? chat_id
+				: Array.isArray(chat_id) && chat_id.length > 0
+					? chat_id[0]
+					: "";
+		if (!activeChatId) return;
+		setActiveChatIdState(activeChatId);
+	}, [chat_id, search_space_id]);
+
 	// Show loading screen while checking onboarding status (only on first load)
 	if (!hasCheckedOnboarding && loading && !isOnboardingPage) {
 		return (
@@ -170,7 +196,7 @@ export function DashboardClientLayout({
 			<SidebarInset className="h-full ">
 				<main className="flex h-full">
 					<div className="flex grow flex-col h-full border-r">
-						<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+						<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b">
 							<div className="flex items-center justify-between w-full gap-2 px-4">
 								<div className="flex items-center gap-2">
 									<SidebarTrigger className="-ml-1" />
