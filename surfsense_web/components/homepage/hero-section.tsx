@@ -66,23 +66,9 @@ export function HeroSection() {
 					</div>
 				</Balancer>
 			</h2>
-			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
+			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200 mb-10 md:mb-20">
 				Your AI-powered research agent and personal knowledge base. Connect any LLM to your data sources and explore information like never before.
 			</p>
-			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
-				<Link
-					href="/login"
-					className="group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-black p-px px-4 py-2 text-center text-sm font-semibold leading-6 text-white no-underline transition duration-200 sm:w-52 dark:bg-white dark:text-black"
-				>
-					Get Started
-				</Link>
-				{/* <Link
-					href="/pricing"
-					className="shadow-input group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-white p-px px-4 py-2 text-sm font-semibold leading-6 text-black no-underline transition duration-200 hover:-translate-y-0.5 sm:w-52 dark:bg-neutral-800 dark:text-white"
-				>
-					Start Free Trial
-				</Link> */}
-			</div>
 			<div
 				ref={containerRef}
 				className="relative mx-auto max-w-7xl rounded-[32px] border border-neutral-200/50 bg-neutral-100 p-2 backdrop-blur-lg md:p-4 dark:border-neutral-700 dark:bg-neutral-800/50"

@@ -9,17 +9,6 @@ import type React from "react";
 import { cn } from "@/lib/utils";
 
 export function Footer() {
-	const pages = [
-		{
-			title: "Privacy",
-			href: "/privacy",
-		},
-		{
-			title: "Terms",
-			href: "/terms",
-		},
-	];
-
 	return (
 		<div className="border-t border-neutral-100 dark:border-white/[0.1] px-8 py-20 w-full relative overflow-hidden">
 			<div className="max-w-7xl mx-auto text-sm text-neutral-500 justify-between items-start md:px-8">
@@ -29,16 +18,6 @@ export function Footer() {
 							<span className="font-medium text-black dark:text-white ml-2">SurfSense</span>
 						</div>
 					</div>
-
-					<ul className="transition-colors flex sm:flex-row flex-col hover:text-text-neutral-800 text-neutral-600 dark:text-neutral-300 list-none gap-4">
-						{pages.map((page) => (
-							<li key={`pages-${page.title}`} className="list-none">
-								<Link className="transition-colors hover:text-text-neutral-800" href={page.href}>
-									{page.title}
-								</Link>
-							</li>
-						))}
-					</ul>
 
 					<GridLineHorizontal className="max-w-7xl mx-auto mt-8" />
 				</div>
