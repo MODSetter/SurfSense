@@ -28,7 +28,7 @@ export default function DashboardLayout({
 
 	const customNavMain = [
 		{
-			title: "Researcher",
+			title: "Chat",
 			url: `/dashboard/${search_space_id}/researcher`,
 			icon: "SquareTerminal",
 			items: [],
