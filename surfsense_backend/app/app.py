@@ -36,7 +36,7 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["https://ai.kapteinis.lv"],  # Only allow our domain
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers

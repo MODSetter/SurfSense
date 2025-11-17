@@ -108,17 +108,21 @@ async def create_documents_file_upload(
 
         for file in files:
             try:
-                # Save file to a temporary location to avoid stream issues
+                # Save file to persistent uploads directory
                 import os
-                import tempfile
+                import uuid
+                from pathlib import Path
 
-                # Create temp file
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=os.path.splitext(file.filename)[1]
-                ) as temp_file:
-                    temp_path = temp_file.name
+                # Create uploads directory if it doesn't exist
+                uploads_dir = Path("/opt/SurfSense/surfsense_backend/uploads")
+                uploads_dir.mkdir(parents=True, exist_ok=True)
 
-                # Write uploaded file to temp file
+                # Create unique filename
+                file_ext = os.path.splitext(file.filename)[1]
+                unique_filename = f"{uuid.uuid4()}{file_ext}"
+                temp_path = str(uploads_dir / unique_filename)
+
+                # Write uploaded file to persistent location
                 content = await file.read()
                 with open(temp_path, "wb") as f:
                     f.write(content)
