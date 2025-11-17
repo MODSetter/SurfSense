@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { GoogleAnalytics } from "@next/third-parties/google";
 import { RootProvider } from "fumadocs-ui/provider";
 import { Roboto } from "next/font/google";
 import { I18nProvider } from "@/components/providers/I18nProvider";
@@ -91,7 +90,6 @@ export default function RootLayout({
 	// Locale state is managed by LocaleContext and persisted in localStorage
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<GoogleAnalytics gaId="G-T4CHE7W3TE" />
 			<body className={cn(roboto.className, "bg-white dark:bg-black antialiased h-full w-full ")}>
 				<LocaleProvider>
 					<I18nProvider>
