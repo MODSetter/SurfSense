@@ -3,12 +3,72 @@ import {
 	IconBrandMastodon,
 	IconBook,
 	IconPhoto,
+	IconBrandGithub,
+	IconBrandGitlab,
+	IconBrandLinkedin,
+	IconWorld,
+	IconMail,
+	IconBrandMatrix,
+	IconDeviceTv,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import type React from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
+interface SocialMediaLink {
+	id: number;
+	platform: string;
+	url: string;
+	label: string | null;
+}
+
+// Map platform names to icons
+const getPlatformIcon = (platform: string) => {
+	const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+		MASTODON: IconBrandMastodon,
+		PIXELFED: IconPhoto,
+		BOOKWYRM: IconBook,
+		GITHUB: IconBrandGithub,
+		GITLAB: IconBrandGitlab,
+		LINKEDIN: IconBrandLinkedin,
+		WEBSITE: IconWorld,
+		EMAIL: IconMail,
+		MATRIX: IconBrandMatrix,
+		PEERTUBE: IconDeviceTv,
+		LEMMY: IconWorld, // Using generic world icon for Lemmy
+		OTHER: IconWorld,
+	};
+	return iconMap[platform] || IconWorld;
+};
+
 export function Footer() {
+	const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+
+	useEffect(() => {
+		// Fetch social media links from the public API (no auth required)
+		const fetchSocialLinks = async () => {
+			try {
+				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const response = await fetch(`${backendUrl}/api/v1/social-media-links/public`);
+
+				if (response.ok) {
+					const links = await response.json();
+					setSocialLinks(links);
+				} else {
+					console.error("Failed to fetch social media links:", response.statusText);
+				}
+			} catch (error) {
+				console.error("Error fetching social media links:", error);
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		fetchSocialLinks();
+	}, []);
+
 	return (
 		<div className="border-t border-neutral-100 dark:border-white/[0.1] px-8 py-20 w-full relative overflow-hidden">
 			<div className="max-w-7xl mx-auto text-sm text-neutral-500 justify-between items-start md:px-8">
@@ -25,32 +85,26 @@ export function Footer() {
 					<p className="text-neutral-500 dark:text-neutral-400 mb-8 sm:mb-0">
 						&copy; SurfSense 2025
 					</p>
-					<div className="flex gap-4">
-						<Link
-							href="https://kapteinis.lv/@ojars"
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label="Mastodon"
-						>
-							<IconBrandMastodon className="h-6 w-6 text-neutral-500 dark:text-neutral-300 hover:text-neutral-700 dark:hover:text-neutral-100 transition-colors" />
-						</Link>
-						<Link
-							href="https://pixel.kapteinis.lv/ojars"
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label="Pixelfed"
-						>
-							<IconPhoto className="h-6 w-6 text-neutral-500 dark:text-neutral-300 hover:text-neutral-700 dark:hover:text-neutral-100 transition-colors" />
-						</Link>
-						<Link
-							href="https://book.kapteinis.lv/user/ojars"
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label="Bookwyrm"
-						>
-							<IconBook className="h-6 w-6 text-neutral-500 dark:text-neutral-300 hover:text-neutral-700 dark:hover:text-neutral-100 transition-colors" />
-						</Link>
-					</div>
+					{!isLoading && socialLinks.length > 0 && (
+						<div className="flex gap-4">
+							{socialLinks.map((link) => {
+								const IconComponent = getPlatformIcon(link.platform);
+								const ariaLabel = link.label || link.platform.toLowerCase();
+
+								return (
+									<Link
+										key={link.id}
+										href={link.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										aria-label={ariaLabel}
+									>
+										<IconComponent className="h-6 w-6 text-neutral-500 dark:text-neutral-300 hover:text-neutral-700 dark:hover:text-neutral-100 transition-colors" />
+									</Link>
+								);
+							})}
+						</div>
+					)}
 				</div>
 			</div>
 		</div>

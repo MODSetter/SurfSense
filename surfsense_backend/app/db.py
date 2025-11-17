@@ -124,6 +124,21 @@ class LogStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class SocialMediaPlatform(str, Enum):
+    MASTODON = "MASTODON"
+    PIXELFED = "PIXELFED"
+    BOOKWYRM = "BOOKWYRM"
+    LEMMY = "LEMMY"
+    PEERTUBE = "PEERTUBE"
+    GITHUB = "GITHUB"
+    GITLAB = "GITLAB"
+    MATRIX = "MATRIX"
+    LINKEDIN = "LINKEDIN"
+    WEBSITE = "WEBSITE"
+    EMAIL = "EMAIL"
+    OTHER = "OTHER"
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -356,6 +371,16 @@ class Log(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
     search_space = relationship("SearchSpace", back_populates="logs")
+
+
+class SocialMediaLink(BaseModel, TimestampMixin):
+    __tablename__ = "social_media_links"
+
+    platform = Column(SQLAlchemyEnum(SocialMediaPlatform), nullable=False, index=True)
+    url = Column(String(500), nullable=False)
+    label = Column(String(100), nullable=True)  # Optional custom label
+    display_order = Column(Integer, nullable=False, default=0)  # For ordering links
+    is_active = Column(Boolean, nullable=False, default=True)  # Toggle visibility
 
 
 if config.AUTH_TYPE == "GOOGLE":
