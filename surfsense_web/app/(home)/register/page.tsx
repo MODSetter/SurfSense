@@ -29,12 +29,9 @@ export default function RegisterPage() {
 	const router = useRouter();
 	const [{ mutateAsync: register, isPending: isRegistering }] = useAtom(registerMutationAtom);
 
-	// Check authentication type and redirect if not LOCAL
+	// Email/password authentication is enforced - registration is always available
 	useEffect(() => {
-		const authType = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE";
-		if (authType !== "LOCAL") {
-			router.push("/login");
-		}
+		// Email authentication is the only method - no redirect needed
 	}, [router]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
