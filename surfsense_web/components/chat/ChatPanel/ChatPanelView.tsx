@@ -4,9 +4,9 @@ import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Play, RefreshCw, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback } from "react";
+import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
 import { cn } from "@/lib/utils";
-import { activeChatAtom } from "@/stores/chat/active-chat.atom";
-import { chatUIAtom } from "@/stores/chat/chat-ui.atom";
 import { getPodcastStalenessMessage, isPodcastStale } from "../PodcastUtils";
 import type { GeneratePodcastRequest } from "./ChatPanelContainer";
 import { ConfigModal } from "./ConfigModal";
@@ -17,7 +17,7 @@ interface ChatPanelViewProps {
 }
 
 export function ChatPanelView(props: ChatPanelViewProps) {
-	const [chatUIState, setChatUIState] = useAtom(chatUIAtom);
+	const [chatUIState, setChatUIState] = useAtom(activeChathatUIAtom);
 	const { data: activeChatState } = useAtomValue(activeChatAtom);
 
 	const { isChatPannelOpen } = chatUIState;
@@ -40,6 +40,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 		});
 	}, [chatDetails, generatePodcast]);
 
+	// biome-ignore-start lint/a11y/useSemanticElements: using div for custom layout — will convert later
 	return (
 		<div className="w-full">
 			<div className={cn("w-full p-4", !isChatPannelOpen && "flex items-center justify-center")}>
@@ -78,17 +79,11 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
 							transition={{ duration: 0.3 }}
+							className="relative"
 						>
-							<div
-								role="button"
-								tabIndex={0}
+							<button
+								type="button"
 								onClick={handleGeneratePost}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault();
-										handleGeneratePost();
-									}
-								}}
 								className={cn(
 									"relative w-full rounded-2xl p-4 transition-all duration-300 cursor-pointer group overflow-hidden",
 									"border-2",
@@ -151,9 +146,12 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 												</p>
 											</div>
 										</div>
-										<ConfigModal generatePodcast={generatePodcast} />
 									</div>
 								</div>
+							</button>
+							{/* ConfigModal positioned absolutely to avoid nesting buttons */}
+							<div className="absolute top-4 right-4 z-20">
+								<ConfigModal generatePodcast={generatePodcast} />
 							</div>
 						</motion.div>
 					</div>
@@ -205,4 +203,5 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 			) : null}
 		</div>
 	);
+	// biome-ignore-end lint/a11y/useSemanticElements : using div for custom layout — will convert later
 }

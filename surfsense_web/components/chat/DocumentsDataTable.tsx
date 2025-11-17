@@ -7,7 +7,8 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Calendar, FileText, Filter, Search } from "lucide-react";
+import { ArrowUpDown, Calendar, FileText, Filter, Plus, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -177,6 +178,7 @@ export function DocumentsDataTable({
 	onDone,
 	initialSelectedDocuments = [],
 }: DocumentsDataTableProps) {
+	const router = useRouter();
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 300);
@@ -527,11 +529,26 @@ export function DocumentsDataTable({
 									))
 								) : (
 									<TableRow>
-										<TableCell
-											colSpan={columns.length}
-											className="h-32 text-center text-muted-foreground text-sm"
-										>
-											No documents found.
+										<TableCell colSpan={columns.length} className="h-64">
+											<div className="flex flex-col items-center justify-center gap-4 py-8">
+												<div className="rounded-full bg-muted p-3">
+													<FileText className="h-6 w-6 text-muted-foreground" />
+												</div>
+												<div className="space-y-2 text-center max-w-sm">
+													<h3 className="font-semibold">No documents found</h3>
+													<p className="text-sm text-muted-foreground">
+														Get started by adding your first data source to build your knowledge
+														base.
+													</p>
+												</div>
+												<Button
+													size="sm"
+													onClick={() => router.push(`/dashboard/${searchSpaceId}/sources/add`)}
+												>
+													<Plus className="mr-2 h-4 w-4" />
+													Add Sources
+												</Button>
+											</div>
 										</TableCell>
 									</TableRow>
 								)}

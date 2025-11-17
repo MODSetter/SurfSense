@@ -1,22 +1,28 @@
 "use client";
 
-import { ArrowRight, Bot, Brain, CheckCircle, Sparkles, Zap } from "lucide-react";
+import {
+	ArrowRight,
+	Bot,
+	Brain,
+	CheckCircle,
+	FileText,
+	MessageSquare,
+	Sparkles,
+	Zap,
+} from "lucide-react";
 import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
-
-const ROLE_ICONS = {
-	long_context: Brain,
-	fast: Zap,
-	strategic: Bot,
-};
 
 interface CompletionStepProps {
 	searchSpaceId: number;
 }
 
 export function CompletionStep({ searchSpaceId }: CompletionStepProps) {
+	const router = useRouter();
 	const { llmConfigs } = useLLMConfigs(searchSpaceId);
 	const { globalConfigs } = useGlobalLLMConfigs();
 	const { preferences } = useLLMPreferences(searchSpaceId);
@@ -32,111 +38,123 @@ export function CompletionStep({ searchSpaceId }: CompletionStepProps) {
 
 	return (
 		<div className="space-y-8">
-			{/* Success Message */}
-			<motion.div
-				initial={{ opacity: 0, scale: 0.95 }}
-				animate={{ opacity: 1, scale: 1 }}
-				transition={{ duration: 0.5 }}
-				className="text-center"
-			>
-				<div className="w-20 h-20 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
-					<CheckCircle className="w-10 h-10 text-green-600" />
-				</div>
-				<h2 className="text-2xl font-bold mb-2">Setup Complete!</h2>
-			</motion.div>
-
-			{/* Configuration Summary */}
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ delay: 0.2 }}
-			>
-				<Card>
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<Sparkles className="w-5 h-5" />
-							Your LLM Configuration
-						</CardTitle>
-						<CardDescription>Here's a summary of your setup</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						{Object.entries(assignedConfigs).map(([role, config]) => {
-							if (!config) return null;
-
-							const IconComponent = ROLE_ICONS[role as keyof typeof ROLE_ICONS];
-							const roleDisplayNames = {
-								long_context: "Long Context LLM",
-								fast: "Fast LLM",
-								strategic: "Strategic LLM",
-							};
-
-							return (
-								<motion.div
-									key={role}
-									initial={{ opacity: 0, x: -10 }}
-									animate={{ opacity: 1, x: 0 }}
-									transition={{ delay: 0.3 + Object.keys(assignedConfigs).indexOf(role) * 0.1 }}
-									className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-								>
-									<div className="flex items-center gap-3">
-										<div className="p-2 bg-background rounded-md">
-											<IconComponent className="w-4 h-4" />
-										</div>
-										<div>
-											<p className="font-medium">
-												{roleDisplayNames[role as keyof typeof roleDisplayNames]}
-											</p>
-											<p className="text-sm text-muted-foreground">{config.name}</p>
-										</div>
-									</div>
-									<div className="flex items-center gap-2">
-										{config.is_global && (
-											<Badge variant="secondary" className="text-xs">
-												🌐 Global
-											</Badge>
-										)}
-										<Badge variant="outline">{config.provider}</Badge>
-										<span className="text-sm text-muted-foreground">{config.model_name}</span>
-									</div>
-								</motion.div>
-							);
-						})}
-					</CardContent>
-				</Card>
-			</motion.div>
-
-			{/* Next Steps */}
+			{/* Next Steps - What would you like to do? */}
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.6 }}
+				className="space-y-4"
 			>
-				<Card className="border-primary/20 bg-primary/5">
-					<CardContent className="pt-6">
-						<div className="flex items-center gap-3 mb-4">
-							<div className="p-2 bg-primary rounded-md">
-								<ArrowRight className="w-4 h-4 text-primary-foreground" />
-							</div>
-							<h3 className="text-lg font-semibold">Ready to Get Started?</h3>
-						</div>
-						<p className="text-muted-foreground mb-4">
-							Click "Complete Setup" to enter your dashboard and start exploring!
-						</p>
-						<div className="flex flex-wrap gap-2 text-sm">
-							<Badge variant="secondary">
-								✓ {allConfigs.length} LLM provider{allConfigs.length > 1 ? "s" : ""} available
-							</Badge>
-							{globalConfigs.length > 0 && (
-								<Badge variant="secondary">✓ {globalConfigs.length} Global config(s)</Badge>
-							)}
-							{llmConfigs.length > 0 && (
-								<Badge variant="secondary">✓ {llmConfigs.length} Custom config(s)</Badge>
-							)}
-							<Badge variant="secondary">✓ All roles assigned</Badge>
-							<Badge variant="secondary">✓ Ready to use</Badge>
-						</div>
-					</CardContent>
-				</Card>
+				<div className="text-center">
+					<h3 className="text-xl font-semibold mb-2">What would you like to do next?</h3>
+					<p className="text-muted-foreground">Choose an option to continue</p>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+					{/* Add Sources Card */}
+					<motion.div
+						initial={{ opacity: 0, x: -20 }}
+						animate={{ opacity: 1, x: 0 }}
+						transition={{ delay: 0.7 }}
+					>
+						<Card className="h-full border-2 hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer group">
+							<CardHeader>
+								<div className="w-12 h-12 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+									<FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+								</div>
+								<CardTitle className="text-lg">Add Sources</CardTitle>
+								<CardDescription>
+									Connect your data sources to start building your knowledge base
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="space-y-2 text-sm text-muted-foreground">
+									<div className="flex items-center gap-2">
+										<CheckCircle className="w-4 h-4 text-green-600" />
+										<span>Connect documents and files</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<CheckCircle className="w-4 h-4 text-green-600" />
+										<span>Import from various sources</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<CheckCircle className="w-4 h-4 text-green-600" />
+										<span>Build your knowledge base</span>
+									</div>
+								</div>
+								<Button
+									className="w-full group-hover:bg-primary/90"
+									onClick={() => router.push(`/dashboard/${searchSpaceId}/sources/add`)}
+								>
+									Add Sources
+									<ArrowRight className="w-4 h-4 ml-2" />
+								</Button>
+							</CardContent>
+						</Card>
+					</motion.div>
+
+					{/* Start Chatting Card */}
+					<motion.div
+						initial={{ opacity: 0, x: 20 }}
+						animate={{ opacity: 1, x: 0 }}
+						transition={{ delay: 0.8 }}
+					>
+						<Card className="h-full border-2 hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer group">
+							<CardHeader>
+								<div className="w-12 h-12 bg-purple-100 dark:bg-purple-950 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+									<MessageSquare className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+								</div>
+								<CardTitle className="text-lg">Start Chatting</CardTitle>
+								<CardDescription>
+									Jump right into the AI researcher and start asking questions
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="space-y-2 text-sm text-muted-foreground">
+									<div className="flex items-center gap-2">
+										<CheckCircle className="w-4 h-4 text-green-600" />
+										<span>AI-powered conversations</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<CheckCircle className="w-4 h-4 text-green-600" />
+										<span>Research and explore topics</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<CheckCircle className="w-4 h-4 text-green-600" />
+										<span>Get instant insights</span>
+									</div>
+								</div>
+								<Button
+									className="w-full group-hover:bg-primary/90"
+									onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)}
+								>
+									Start Chatting
+									<ArrowRight className="w-4 h-4 ml-2" />
+								</Button>
+							</CardContent>
+						</Card>
+					</motion.div>
+				</div>
+
+				{/* Quick Stats */}
+				<motion.div
+					initial={{ opacity: 0, y: 10 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ delay: 0.9 }}
+					className="flex flex-wrap justify-center gap-2 pt-4"
+				>
+					<Badge variant="secondary">
+						✓ {allConfigs.length} LLM provider{allConfigs.length > 1 ? "s" : ""} available
+					</Badge>
+					{globalConfigs.length > 0 && (
+						<Badge variant="secondary">✓ {globalConfigs.length} Global config(s)</Badge>
+					)}
+					{llmConfigs.length > 0 && (
+						<Badge variant="secondary">✓ {llmConfigs.length} Custom config(s)</Badge>
+					)}
+					<Badge variant="secondary">✓ All roles assigned</Badge>
+					<Badge variant="secondary">✓ Ready to use</Badge>
+				</motion.div>
 			</motion.div>
 		</div>
 	);
