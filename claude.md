@@ -1459,6 +1459,198 @@ For questions or issues related to site configuration:
 
 ---
 
+## Google OAuth Removal for User Authentication
+
+**Implementation Date:** 2025-11-18
+**Implemented By:** Claude AI Assistant (Anthropic Sonnet 4.5)
+**Feature:** Email/Password-Only Authentication
+
+### Overview
+
+Removed Google OAuth as an authentication method for user accounts, enforcing email/password authentication only. Google OAuth credentials are now exclusively used for Gmail and Google Calendar connector integrations, not for user sign-in/registration.
+
+### Changes Implemented
+
+#### Backend Configuration
+**File:** `surfsense_backend/.env.example`
+
+- Changed `AUTH_TYPE` from `GOOGLE or LOCAL` to `LOCAL` (email/password only)
+- Updated Google OAuth credentials documentation to clarify they're only for Gmail/Calendar connectors
+- Removed misleading "For Google Auth Only" comment
+
+**Before:**
+```env
+AUTH_TYPE=GOOGLE or LOCAL
+# For Google Auth Only
+GOOGLE_OAUTH_CLIENT_ID=924507538m
+GOOGLE_OAUTH_CLIENT_SECRET=GOCSV
+```
+
+**After:**
+```env
+AUTH_TYPE=LOCAL
+# Google OAuth Credentials (OPTIONAL - Required only for Gmail and Google Calendar connectors)
+GOOGLE_OAUTH_CLIENT_ID=your_google_client_id
+GOOGLE_OAUTH_CLIENT_SECRET=your_google_client_secret
+```
+
+#### Frontend Configuration
+**File:** `surfsense_web/.env.example`
+
+- Updated `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` to `LOCAL` only
+- Removed `or GOOGLE` option
+
+#### Frontend Components
+**File:** `surfsense_web/app/(home)/login/LocalLoginForm.tsx`
+
+**Changes:**
+- Removed `authType` state variable (line 27)
+- Removed `useEffect` that checked `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` environment variable (lines 31-34)
+- Removed conditional check for showing registration link (line 236)
+- Now always displays "Don't have an account? Sign up" link
+
+**Rationale:** Since authentication is email/password only, the registration link should always be visible. The authType check was unnecessary.
+
+#### Documentation Updates
+**File:** `surfsense_web/content/docs/index.mdx`
+
+**Changes:**
+- Updated Auth Setup section to state "SurfSense uses email/password authentication for user accounts"
+- Removed references to deleted Google OAuth setup images (google_oauth_people_api.png, google_oauth_screen.png, google_oauth_client.png, google_oauth_config.png)
+- Clarified Google OAuth is only for Gmail/Calendar connectors
+- Added redirect URI examples for connector setup
+
+**Before:**
+```markdown
+## Auth Setup
+SurfSense supports both Google OAuth and local email/password authentication...
+![Google Developer Console People API](/docs/google_oauth_people_api.png)
+```
+
+**After:**
+```markdown
+## Auth Setup
+SurfSense uses email/password authentication for user accounts.
+
+### Google OAuth for Connectors (Optional)
+**Note**: Google OAuth setup is **required** only if you want to use the Gmail and Google Calendar connectors...
+```
+
+### What Was NOT Changed
+
+The following components were intentionally preserved:
+
+1. **OAuth Error Handling** (`surfsense_web/lib/auth-errors.ts`):
+   - Generic OAuth error codes (lines 65-93) remain because they're needed for connector OAuth flows
+   - Error handling applies to any OAuth integration, not just user authentication
+
+2. **Backend OAuth Configuration** (`surfsense_backend/app/config/__init__.py`):
+   - `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables still loaded
+   - Still used by `google_gmail_add_connector_route.py` and `google_calendar_add_connector_route.py`
+
+3. **Backend User Authentication Logic** (`surfsense_backend/app/users.py`, `app/app.py`, `app/db.py`):
+   - Conditional logic checking `AUTH_TYPE == "GOOGLE"` remains
+   - Allows future re-enabling of Google OAuth if needed
+   - No breaking changes to existing authentication flow when `AUTH_TYPE=LOCAL`
+
+4. **Connector Integration**:
+   - Google Calendar connector (`app/dashboard/[search_space_id]/connectors/add/google-calendar-connector/page.tsx`)
+   - Google Gmail connector (`app/dashboard/[search_space_id]/connectors/add/google-gmail-connector/page.tsx`)
+   - Both still use Google OAuth for accessing user's Google data
+
+### Deployment Steps Completed
+
+1. ✅ Updated local repository to latest nightly branch
+2. ✅ Identified and analyzed all OAuth references in codebase
+3. ✅ Removed authType state check from LocalLoginForm
+4. ✅ Updated `.env.example` files (frontend and backend)
+5. ✅ Fixed documentation to remove deleted OAuth images
+6. ✅ Committed changes with descriptive messages:
+   - Commit 1 (586ab48): "Remove Google OAuth from login/register, enforce email-only authentication"
+   - Commit 2 (a148614): "Fix documentation: Remove deleted Google OAuth images, clarify auth is email-only"
+7. ✅ Pushed changes to `nightly` branch
+8. ✅ Deployed to VPS at 46.62.230.195
+9. ✅ Rebuilt frontend on VPS (`pnpm build`)
+10. ✅ Restarted all services:
+    - surfsense.service (Backend)
+    - surfsense-frontend.service (Frontend)
+    - surfsense-celery.service (Worker)
+    - surfsense-celery-beat.service (Scheduler)
+11. ✅ Verified deployment at https://ai.kapteinis.lv/login and https://ai.kapteinis.lv/register
+
+### Verification Results
+
+**Login Page** (`https://ai.kapteinis.lv/login`):
+- ✅ Email and password fields present
+- ✅ "Don't have an account? Sign up" link visible
+- ✅ No Google OAuth or "Continue with Google" button
+- ✅ Page loads correctly without errors
+- ✅ Only email/password authentication available
+
+**Register Page** (`https://ai.kapteinis.lv/register`):
+- ✅ Email, password, and confirm password fields present
+- ✅ No Google OAuth references
+- ✅ "Already have an account? Sign In" link visible
+- ✅ Page loads successfully
+
+### Files Modified
+
+**Backend:**
+```
+surfsense_backend/.env.example                    # AUTH_TYPE=LOCAL, clarified OAuth usage
+```
+
+**Frontend:**
+```
+surfsense_web/.env.example                        # AUTH_TYPE=LOCAL
+surfsense_web/app/(home)/login/LocalLoginForm.tsx # Removed authType check
+surfsense_web/content/docs/index.mdx              # Updated auth documentation
+```
+
+### Benefits
+
+1. **Simplified Authentication**: Users no longer confused by multiple auth methods
+2. **Reduced Dependencies**: No dependency on Google OAuth service for user authentication
+3. **Privacy-Focused**: User accounts managed entirely within SurfSense
+4. **Clear Documentation**: Distinction between user auth and connector OAuth
+5. **Maintained Functionality**: Gmail/Calendar connectors still work with OAuth
+
+### Future Considerations
+
+If Google OAuth needs to be re-enabled for user authentication:
+1. Set `AUTH_TYPE=GOOGLE` in backend `.env`
+2. Set `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=GOOGLE` in frontend `.env`
+3. Provide valid `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
+4. Backend conditional logic will automatically enable Google OAuth routes
+
+The backend code architecture supports both authentication methods through configuration, making this a non-breaking change.
+
+### Testing Checklist
+
+- [x] Login page shows only email/password fields
+- [x] Register page shows only email/password fields
+- [x] "Don't have an account?" link always visible on login
+- [x] "Already have an account?" link visible on register
+- [x] No Google OAuth button or references in UI
+- [x] Documentation updated to reflect email-only auth
+- [x] .env.example files updated
+- [x] Frontend builds successfully
+- [x] Services restart without errors
+- [x] Login page loads at https://ai.kapteinis.lv/login
+- [x] Register page loads at https://ai.kapteinis.lv/register
+- [x] Gmail connector OAuth still functional (preserved)
+- [x] Calendar connector OAuth still functional (preserved)
+
+### Support
+
+For questions or issues related to authentication:
+- Review backend users configuration: `surfsense_backend/app/users.py`
+- Check authentication routes: `surfsense_backend/app/app.py`
+- Examine frontend login form: `surfsense_web/app/(home)/login/LocalLoginForm.tsx`
+- Verify environment variables in `.env` files
+
+---
+
 ## Conclusion
 
 **Overall Security Posture:** ✅ **STRONG**
