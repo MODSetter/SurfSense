@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 // Assuming useSearchSourceConnectors hook exists and works similarly
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
@@ -101,7 +102,7 @@ export default function GithubConnectorPage() {
 		setConnectorName(values.name); // Store the name
 		setValidatedPat(values.github_pat); // Store the PAT temporarily
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 			if (!token) {
 				throw new Error("No authentication token found");
 			}

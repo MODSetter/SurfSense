@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SearchSpaceForm } from "@/components/search-space-form";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 export default function SearchSpacesPage() {
 	const router = useRouter();
 	const handleCreateSearchSpace = async (data: { name: string; description: string }) => {
@@ -14,7 +15,7 @@ export default function SearchSpacesPage() {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: JSON.stringify(data),
 				}

@@ -7,6 +7,7 @@ import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
 import { generatePodcast } from "@/lib/apis/podcasts.api";
 import { cn } from "@/lib/utils";
 import { ChatPanelView } from "./ChatPanelView";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export interface GeneratePodcastRequest {
 	type: "CHAT" | "DOCUMENT";
@@ -23,7 +24,7 @@ export function ChatPanelContainer() {
 		error: chatError,
 	} = useAtomValue(activeChatAtom);
 	const activeChatIdState = useAtomValue(activeChatIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = localStorage.getItem(AUTH_TOKEN_KEY);
 	const { isChatPannelOpen } = useAtomValue(activeChathatUIAtom);
 
 	const handleGeneratePodcast = async (request: GeneratePodcastRequest) => {

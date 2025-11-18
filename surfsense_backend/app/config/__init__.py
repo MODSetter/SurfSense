@@ -135,6 +135,11 @@ class Config:
     AUTH_TYPE = os.getenv("AUTH_TYPE")
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
 
+    # CORS Configuration
+    # Comma-separated list of allowed origins, defaults to all origins if not set
+    _cors_origins_str = os.getenv("CORS_ORIGINS", "*")
+    CORS_ORIGINS = [origin.strip() for origin in _cors_origins_str.split(",") if origin.strip()]
+
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")

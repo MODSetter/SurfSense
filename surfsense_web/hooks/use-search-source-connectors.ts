@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export interface SearchSourceConnector {
 	id: number;
@@ -66,7 +67,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			try {
 				setIsLoading(true);
 				setError(null);
-				const token = localStorage.getItem("surfsense_bearer_token");
+				const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
 				if (!token) {
 					throw new Error("No authentication token found");
@@ -176,7 +177,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		spaceId: number
 	) => {
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
 			if (!token) {
 				throw new Error("No authentication token found");
@@ -222,7 +223,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		>
 	) => {
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
 			if (!token) {
 				throw new Error("No authentication token found");
@@ -262,7 +263,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	 */
 	const deleteConnector = async (connectorId: number) => {
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
 			if (!token) {
 				throw new Error("No authentication token found");
@@ -302,7 +303,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		endDate?: string
 	) => {
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
 			if (!token) {
 				throw new Error("No authentication token found");

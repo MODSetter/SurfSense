@@ -4,6 +4,7 @@ import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-
 import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/podcasts-client";
 import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { chatApiService } from "@/lib/apis/chats-api.service";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 import { getPodcastByChatId } from "@/lib/apis/podcasts.api";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
@@ -17,7 +18,7 @@ export const activeChatIdAtom = atom<string | null>(null);
 
 export const activeChatAtom = atomWithQuery<ActiveChatState>((get) => {
 	const activeChatId = get(activeChatIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = localStorage.getItem(AUTH_TOKEN_KEY);
 
 	return {
 		queryKey: cacheKeys.activeSearchSpace.activeChat(activeChatId ?? ""),
@@ -42,7 +43,7 @@ export const activeChatAtom = atomWithQuery<ActiveChatState>((get) => {
 
 export const activeSearchSpaceChatsAtom = atomWithQuery((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = localStorage.getItem(AUTH_TOKEN_KEY);
 
 	return {
 		queryKey: cacheKeys.activeSearchSpace.chats(searchSpaceId ?? ""),
