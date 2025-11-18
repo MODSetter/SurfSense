@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 interface SiteConfigForm {
 	// Header/Navbar toggles
@@ -37,6 +39,7 @@ interface SiteConfigForm {
 
 export default function SiteSettingsPage() {
 	const { config, isLoading, refetch } = useSiteConfig();
+	const router = useRouter();
 	const [formData, setFormData] = useState<SiteConfigForm>({
 		show_pricing_link: false,
 		show_docs_link: false,
@@ -56,6 +59,54 @@ export default function SiteSettingsPage() {
 		custom_copyright: "SurfSense 2025",
 	});
 	const [isSaving, setIsSaving] = useState(false);
+	const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+	const [isSuperuser, setIsSuperuser] = useState(false);
+
+	// Check if user is a superuser
+	useEffect(() => {
+		const checkSuperuser = async () => {
+			try {
+				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const token = localStorage.getItem("access_token");
+
+				if (!token) {
+					router.push("/login");
+					return;
+				}
+
+				const response = await fetch(`${backendUrl}/verify-token`, {
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				});
+
+				if (!response.ok) {
+					router.push("/login");
+					return;
+				}
+
+				const data = await response.json();
+
+				if (!data.user?.is_superuser) {
+					toast.error("Access Denied", {
+						description: "You must be a superuser to access site settings.",
+						duration: 5000,
+					});
+					router.push("/dashboard");
+					return;
+				}
+
+				setIsSuperuser(true);
+			} catch (error) {
+				console.error("Error verifying superuser status:", error);
+				router.push("/login");
+			} finally {
+				setIsCheckingAuth(false);
+			}
+		};
+
+		checkSuperuser();
+	}, [router]);
 
 	// Load config into form when available
 	useEffect(() => {
@@ -127,12 +178,30 @@ export default function SiteSettingsPage() {
 		}
 	};
 
-	if (isLoading) {
+	// Show loading screen while checking authentication or loading config
+	if (isCheckingAuth || isLoading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
-				<div className="text-neutral-600 dark:text-neutral-400">Loading configuration...</div>
+			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
+				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-xl font-medium">
+							{isCheckingAuth ? "Verifying Access" : "Loading Configuration"}
+						</CardTitle>
+						<CardDescription>
+							{isCheckingAuth ? "Checking superuser permissions..." : "Loading site settings..."}
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="flex justify-center py-6">
+						<Loader2 className="h-12 w-12 text-primary animate-spin" />
+					</CardContent>
+				</Card>
 			</div>
 		);
+	}
+
+	// If not checking auth anymore and user is not superuser, they've been redirected
+	if (!isSuperuser) {
+		return null;
 	}
 
 	return (

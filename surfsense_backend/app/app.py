@@ -111,4 +111,13 @@ async def authenticated_route(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    return {"message": "Token is valid"}
+    return {
+        "message": "Token is valid",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "is_active": user.is_active,
+            "is_superuser": user.is_superuser,
+            "is_verified": user.is_verified,
+        }
+    }
