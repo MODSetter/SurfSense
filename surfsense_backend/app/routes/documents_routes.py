@@ -1,5 +1,8 @@
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
+import os
+import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +26,7 @@ from app.schemas import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from app.tasks.celery_tasks.document_tasks import process_file_upload_task
 
 try:
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
@@ -108,11 +112,6 @@ async def create_documents_file_upload(
 
         for file in files:
             try:
-                # Save file to persistent uploads directory
-                import os
-                import uuid
-                from pathlib import Path
-
                 # Create uploads directory if it doesn't exist
                 uploads_dir = Path(os.getenv("UPLOADS_DIR", "./uploads"))
                 uploads_dir.mkdir(parents=True, exist_ok=True)
@@ -126,10 +125,6 @@ async def create_documents_file_upload(
                 content = await file.read()
                 with open(temp_path, "wb") as f:
                     f.write(content)
-
-                from app.tasks.celery_tasks.document_tasks import (
-                    process_file_upload_task,
-                )
 
                 process_file_upload_task.delay(
                     temp_path, file.filename, search_space_id, str(user.id)
