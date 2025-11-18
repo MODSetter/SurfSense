@@ -92,6 +92,12 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 		description: "Login is temporarily unavailable. Please try again later",
 	},
 
+	// Session errors
+	session_expired: {
+		title: "Session expired",
+		description: "Your session has expired. Please sign in again",
+	},
+
 	// Network errors
 	NETWORK_ERROR: {
 		title: "Connection failed",

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { baseApiService } from "@/lib/apis/base-api.service";
 
 interface User {
 	id: string;
@@ -33,9 +34,11 @@ export function useUser() {
 				});
 
 				if (response.status === 401) {
-					// Clear token and redirect to home
+					// Clear token from both localStorage and baseApiService
 					localStorage.removeItem("surfsense_bearer_token");
-					window.location.href = "/";
+					baseApiService.setBearerToken("");
+					// Redirect to login with session expired message
+					window.location.href = "/login?error=session_expired";
 					throw new Error("Unauthorized: Redirecting to login page");
 				}
 
