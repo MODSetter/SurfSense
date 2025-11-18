@@ -6,6 +6,7 @@ import { I18nProvider } from "@/components/providers/I18nProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
+import { SiteConfigProvider } from "@/contexts/SiteConfigContext";
 import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
 import { cn } from "@/lib/utils";
 
@@ -100,8 +101,10 @@ export default function RootLayout({
 							defaultTheme="light"
 						>
 							<RootProvider>
-								<ReactQueryClientProvider>{children}</ReactQueryClientProvider>
-								<Toaster />
+								<SiteConfigProvider>
+									<ReactQueryClientProvider>{children}</ReactQueryClientProvider>
+									<Toaster />
+								</SiteConfigProvider>
 							</RootProvider>
 						</ThemeProvider>
 					</I18nProvider>

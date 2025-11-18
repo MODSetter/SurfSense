@@ -15,6 +15,7 @@ import Link from "next/link";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 interface SocialMediaLink {
 	id: number;
@@ -36,18 +37,18 @@ const getPlatformIcon = (platform: string) => {
 		EMAIL: IconMail,
 		MATRIX: IconBrandMatrix,
 		PEERTUBE: IconDeviceTv,
-		LEMMY: IconWorld, // Using generic world icon for Lemmy
+		LEMMY: IconWorld,
 		OTHER: IconWorld,
 	};
 	return iconMap[platform] || IconWorld;
 };
 
 export function Footer() {
+	const { config } = useSiteConfig();
 	const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		// Fetch social media links from the public API (no auth required)
 		const fetchSocialLinks = async () => {
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
@@ -56,8 +57,6 @@ export function Footer() {
 				if (response.ok) {
 					const links = await response.json();
 					setSocialLinks(links);
-				} else {
-					console.error("Failed to fetch social media links:", response.statusText);
 				}
 			} catch (error) {
 				console.error("Error fetching social media links:", error);
@@ -78,19 +77,91 @@ export function Footer() {
 							<span className="font-medium text-black dark:text-white ml-2">SurfSense</span>
 						</div>
 					</div>
-
 					<GridLineHorizontal className="max-w-7xl mx-auto mt-8" />
 				</div>
-				<div className="flex sm:flex-row flex-col justify-between mt-8 items-center w-full">
-					<p className="text-neutral-500 dark:text-neutral-400 mb-8 sm:mb-0">
-						&copy; SurfSense 2025
+
+				<div className="flex sm:flex-row flex-col justify-between mt-8 items-start sm:items-center w-full gap-8">
+					<p className="text-neutral-500 dark:text-neutral-400">
+						&copy; {config.custom_copyright || "SurfSense 2025"}
 					</p>
+
+					<div className="flex flex-col sm:flex-row gap-8 flex-1 justify-center">
+						{config.show_pages_section && (
+							<div className="flex flex-col gap-2">
+								<h3 className="font-semibold text-neutral-700 dark:text-neutral-300 mb-2">Pages</h3>
+								{!config.disable_pricing_route && (
+									<Link
+										href="/pricing"
+										className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+									>
+										Pricing
+									</Link>
+								)}
+								{!config.disable_docs_route && (
+									<Link
+										href="/docs"
+										className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+									>
+										Documentation
+									</Link>
+								)}
+								{!config.disable_contact_route && (
+									<Link
+										href="/contact"
+										className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+									>
+										Contact
+									</Link>
+								)}
+							</div>
+						)}
+
+						{config.show_legal_section && (
+							<div className="flex flex-col gap-2">
+								<h3 className="font-semibold text-neutral-700 dark:text-neutral-300 mb-2">Legal</h3>
+								{!config.disable_terms_route && (
+									<Link
+										href="/terms"
+										className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+									>
+										Terms of Service
+									</Link>
+								)}
+								{!config.disable_privacy_route && (
+									<Link
+										href="/privacy"
+										className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+									>
+										Privacy Policy
+									</Link>
+								)}
+							</div>
+						)}
+
+						{config.show_register_section && (
+							<div className="flex flex-col gap-2">
+								<h3 className="font-semibold text-neutral-700 dark:text-neutral-300 mb-2">Get Started</h3>
+								<Link
+									href="/register"
+									className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+								>
+									Create Account
+								</Link>
+								<Link
+									href="/login"
+									className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+								>
+									Sign In
+								</Link>
+							</div>
+						)}
+					</div>
+
 					{!isLoading && socialLinks.length > 0 && (
 						<div className="flex gap-4">
 							{socialLinks.map((link) => {
 								const IconComponent = getPlatformIcon(link.platform);
 								const ariaLabel = link.label || link.platform.toLowerCase();
-
 								return (
 									<Link
 										key={link.id}
@@ -121,7 +192,7 @@ const GridLineHorizontal = ({ className, offset }: { className?: string; offset?
 					"--height": "1px",
 					"--width": "5px",
 					"--fade-stop": "90%",
-					"--offset": offset || "200px", //-100px if you want to keep the line inside
+					"--offset": offset || "200px",
 					"--color-dark": "rgba(255, 255, 255, 0.2)",
 					maskComposite: "exclude",
 				} as React.CSSProperties

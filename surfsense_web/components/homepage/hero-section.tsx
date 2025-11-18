@@ -5,10 +5,12 @@ import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
 import { cn } from "@/lib/utils";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 export function HeroSection() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const parentRef = useRef<HTMLDivElement>(null);
+	const { config } = useSiteConfig();
 
 	return (
 		<div
@@ -66,9 +68,32 @@ export function HeroSection() {
 					</div>
 				</Balancer>
 			</h2>
-			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200 mb-10 md:mb-20">
+			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200 mb-8">
 				Your AI-powered research agent and personal knowledge base. Connect any LLM to your data sources and explore information like never before.
 			</p>
+
+			{/* Conditional Action Buttons */}
+			{(config.show_get_started_button || config.show_talk_to_us_button) && (
+				<div className="relative z-50 flex flex-col sm:flex-row gap-4 mb-10 md:mb-20">
+					{config.show_get_started_button && (
+						<Link
+							href="/register"
+							className="px-8 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+						>
+							Get Started
+						</Link>
+					)}
+					{config.show_talk_to_us_button && !config.disable_contact_route && (
+						<Link
+							href="/contact"
+							className="px-8 py-3 bg-white dark:bg-neutral-800 text-gray-800 dark:text-white font-semibold rounded-full border-2 border-neutral-200 dark:border-neutral-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+						>
+							Talk to Us
+						</Link>
+					)}
+				</div>
+			)}
+
 			<div
 				ref={containerRef}
 				className="relative mx-auto max-w-7xl rounded-[32px] border border-neutral-200/50 bg-neutral-100 p-2 backdrop-blur-lg md:p-4 dark:border-neutral-700 dark:bg-neutral-800/50"
