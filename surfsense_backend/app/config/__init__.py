@@ -138,7 +138,8 @@ class Config:
     # CORS Configuration
     # Comma-separated list of allowed origins, defaults to frontend URL
     # Note: Wildcard "*" is not allowed when allow_credentials=True
-    _cors_origins_str = os.getenv("CORS_ORIGINS", os.getenv("NEXT_FRONTEND_URL", "http://localhost:3000"))
+    _default_cors_origin = os.getenv("NEXT_FRONTEND_URL", "http://localhost:3000")
+    _cors_origins_str = os.getenv("CORS_ORIGINS", _default_cors_origin)
     CORS_ORIGINS = [origin.strip() for origin in _cors_origins_str.split(",") if origin.strip()]
 
     # Google OAuth
