@@ -22,6 +22,9 @@ export const getPodcastByChatIdRequest = z.object({
 	chat_id: z.number(),
 });
 
+export const getPodcastByChatResponse = podcast.nullish();
+
 export type GeneratePodcastRequest = z.infer<typeof generatePodcastRequest>;
 export type GetPodcastByChatIdRequest = z.infer<typeof getPodcastByChatIdRequest>;
+export type GetPodcastByChatResponse = z.infer<typeof getPodcastByChatResponse>;
 export type Podcast = z.infer<typeof podcast>;

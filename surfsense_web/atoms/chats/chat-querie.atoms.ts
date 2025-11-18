@@ -1,21 +1,13 @@
 import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
-import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
-import type { Podcast } from "@/contracts/types/podcast.types";
 import { chatsApiService } from "@/lib/apis/chats-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
-type ActiveChatState = {
-	chatId: string | null;
-	chatDetails: ChatDetails | null;
-	podcast: Podcast | null;
-};
-
 export const activeChatIdAtom = atom<string | null>(null);
 
-export const activeChatAtom = atomWithQuery<ActiveChatState>((get) => {
+export const activeChatAtom = atomWithQuery((get) => {
 	const activeChatId = get(activeChatIdAtom);
 	const authToken = localStorage.getItem("surfsense_bearer_token");
 

@@ -3,8 +3,8 @@ import {
 	type GetPodcastByChatIdRequest,
 	generatePodcastRequest,
 	getPodcastByChatIdRequest,
+	getPodcastByChatResponse,
 	type Podcast,
-	podcast,
 } from "@/contracts/types/podcast.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
@@ -22,7 +22,10 @@ class PodcastsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.get(`/api/v1/podcasts/by-chat/${request.chat_id}`, podcast);
+		return baseApiService.get(
+			`/api/v1/podcasts/by-chat/${request.chat_id}`,
+			getPodcastByChatResponse
+		);
 	};
 
 	generatePodcast = async (request: GeneratePodcastRequest) => {
@@ -38,7 +41,7 @@ class PodcastsApiService {
 		}
 
 		return baseApiService.post(`/api/v1/podcasts/generate`, undefined, {
-			body: request,
+			body: parsedRequest.data,
 		});
 	};
 

@@ -1,3 +1,4 @@
+import { th } from "date-fns/locale";
 import type z from "zod";
 import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
 
@@ -50,6 +51,11 @@ class BaseApiService {
 						: unknown
 	> {
 		try {
+			/**
+			 * ----------
+			 * REQUEST
+			 * ----------
+			 */
 			const defaultOptions: RequestOptions = {
 				headers: {
 					"Content-Type": "application/json",
@@ -68,18 +74,46 @@ class BaseApiService {
 				},
 			};
 
+			// Validate the base URL
 			if (!this.baseUrl) {
 				throw new AppError("Base URL is not set.");
 			}
 
+			// Validate the bearer token
 			if (!this.bearerToken && !this.noAuthEndpoints.includes(url)) {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
+			// Construct the full URL
 			const fullUrl = new URL(url, this.baseUrl).toString();
 
-			const response = await fetch(fullUrl, mergedOptions);
+			// Prepare fetch options
+			const fetchOptions: RequestInit = {
+				method: mergedOptions.method,
+				headers: mergedOptions.headers,
+				signal: mergedOptions.signal,
+			};
 
+			// Automatically stringify body if Content-Type is application/json and body is an object
+			if (mergedOptions.body !== undefined) {
+				const contentType = mergedOptions.headers?.["Content-Type"];
+				if (contentType === "application/json" && typeof mergedOptions.body === "object") {
+					fetchOptions.body = JSON.stringify(mergedOptions.body);
+				} else {
+					// Pass body as-is for other content types (e.g., form data, already stringified)
+					fetchOptions.body = mergedOptions.body;
+				}
+			}
+
+			const response = await fetch(fullUrl, fetchOptions);
+
+			/**
+			 * ----------
+			 * RESPONSE
+			 * ----------
+			 */
+
+			// Handle errors
 			if (!response.ok) {
 				// biome-ignore lint/suspicious: Unknown
 				let data;
@@ -87,12 +121,11 @@ class BaseApiService {
 				try {
 					data = await response.json();
 				} catch (error) {
-					console.error("Failed to parse response as JSON:", error);
-
-					throw new AppError("Something went wrong", response.status, response.statusText);
+					console.error("Failed to parse response as JSON: ", JSON.stringify(error));
+					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
 
-				// for fastapi errors response
+				// For fastapi errors response
 				if (typeof data === "object" && "detail" in data) {
 					throw new AppError(data.detail, response.status, response.statusText);
 				}
@@ -138,13 +171,14 @@ class BaseApiService {
 						break;
 					//  Add more cases as needed
 					default:
-						data = await response.text();
+						data = await response.json();
 				}
 			} catch (error) {
 				console.error("Failed to parse response as JSON:", error);
 				throw new AppError("Failed to parse response", response.status, response.statusText);
 			}
 
+			// Validate response
 			if (responseType === ResponseType.JSON) {
 				if (!responseSchema) {
 					return data;
@@ -156,7 +190,7 @@ class BaseApiService {
 					 * 	This is a client side error, and should be fixed by updating the responseSchema to keep things typed.
 					 *  This error should not be shown to the user , it is for dev only.
 					 */
-					console.error("Invalid API response schema:", parsedData.error);
+					console.error(`Invalid API response schema - ${url} :`, JSON.stringify(parsedData.error));
 				}
 
 				return data;
@@ -164,7 +198,7 @@ class BaseApiService {
 
 			return data;
 		} catch (error) {
-			console.error("Request failed:", error);
+			console.error("Request failed:", JSON.stringify(error));
 			throw error;
 		}
 	}
