@@ -68,7 +68,7 @@ export function PodcastPlayer({
 
 				try {
 					const response = await podcastsApiService.loadPodcast({
-						podcast,
+						request: { id: podcast.id },
 						controller,
 					});
 

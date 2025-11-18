@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { useAtom } from "jotai";
 import {
 	Calendar,
 	MoreHorizontal,
@@ -19,6 +20,7 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { deletePodcastMutationAtom } from "@/atoms/podcasts/podcast-mutation.atoms";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -88,7 +90,6 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 		id: number;
 		title: string;
 	} | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
 
 	// Audio player state
 	const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
@@ -101,6 +102,8 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 	const [isMuted, setIsMuted] = useState(false);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const currentObjectUrlRef = useRef<string | null>(null);
+	const [{ isPending: isDeletingPodcast, mutateAsync: deletePodcast, error: deleteError }] =
+		useAtom(deletePodcastMutationAtom);
 
 	// Add podcast image URL constant
 	const PODCAST_IMAGE_URL =
@@ -330,7 +333,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 
 			try {
 				const response = await podcastsApiService.loadPodcast({
-					podcast,
+					request: { id: podcast.id },
 					controller,
 				});
 				const objectUrl = URL.createObjectURL(response);
@@ -364,37 +367,12 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 	const handleDeletePodcast = async () => {
 		if (!podcastToDelete) return;
 
-		setIsDeleting(true);
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				setIsDeleting(false);
-				return;
-			}
+			await deletePodcast({ id: podcastToDelete.id });
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcastToDelete.id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${token}`,
-						"Content-Type": "application/json",
-					},
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error(`Failed to delete podcast: ${response.statusText}`);
-			}
-
-			// Close dialog and refresh podcasts
+			// Close dialog
 			setDeleteDialogOpen(false);
 			setPodcastToDelete(null);
-
-			// Update local state by removing the deleted podcast
-			setPodcasts((prevPodcasts) =>
-				prevPodcasts.filter((podcast) => podcast.id !== podcastToDelete.id)
-			);
 
 			// If the current playing podcast is deleted, stop playback
 			if (currentPodcast && currentPodcast.id === podcastToDelete.id) {
@@ -404,13 +382,9 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				setCurrentPodcast(null);
 				setIsPlaying(false);
 			}
-
-			toast.success("Podcast deleted successfully");
 		} catch (error) {
 			console.error("Error deleting podcast:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to delete podcast");
-		} finally {
-			setIsDeleting(false);
 		}
 	};
 
@@ -933,17 +907,17 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 						<Button
 							variant="outline"
 							onClick={() => setDeleteDialogOpen(false)}
-							disabled={isDeleting}
+							disabled={isDeletingPodcast}
 						>
 							Cancel
 						</Button>
 						<Button
 							variant="destructive"
 							onClick={handleDeletePodcast}
-							disabled={isDeleting}
+							disabled={isDeletingPodcast}
 							className="gap-2"
 						>
-							{isDeleting ? (
+							{isDeletingPodcast ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 									Deleting...

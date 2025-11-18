@@ -22,9 +22,24 @@ export const getPodcastByChatIdRequest = z.object({
 	chat_id: z.number(),
 });
 
-export const getPodcastByChatResponse = podcast.nullish();
+export const getPodcastByChaIdResponse = podcast.nullish();
+
+export const deletePodcastRequest = z.object({
+	id: z.number(),
+});
+
+export const deletePodcastResponse = z.object({
+	message: z.literal("Podcast deleted successfully"),
+});
+
+export const loadPodcastRequest = z.object({
+	id: z.number(),
+});
 
 export type GeneratePodcastRequest = z.infer<typeof generatePodcastRequest>;
 export type GetPodcastByChatIdRequest = z.infer<typeof getPodcastByChatIdRequest>;
-export type GetPodcastByChatResponse = z.infer<typeof getPodcastByChatResponse>;
+export type GetPodcastByChatIdResponse = z.infer<typeof getPodcastByChaIdResponse>;
+export type DeletePodcastRequest = z.infer<typeof deletePodcastRequest>;
+export type DeletePodcastResponse = z.infer<typeof deletePodcastResponse>;
+export type LoadPodcastRequest = z.infer<typeof loadPodcastRequest>;
 export type Podcast = z.infer<typeof podcast>;

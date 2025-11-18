@@ -1,10 +1,14 @@
 import {
+	type DeletePodcastRequest,
+	deletePodcastRequest,
+	deletePodcastResponse,
 	type GeneratePodcastRequest,
 	type GetPodcastByChatIdRequest,
 	generatePodcastRequest,
+	getPodcastByChaIdResponse,
 	getPodcastByChatIdRequest,
-	getPodcastByChatResponse,
-	type Podcast,
+	type LoadPodcastRequest,
+	loadPodcastRequest,
 } from "@/contracts/types/podcast.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
@@ -24,7 +28,7 @@ class PodcastsApiService {
 
 		return baseApiService.get(
 			`/api/v1/podcasts/by-chat/${request.chat_id}`,
-			getPodcastByChatResponse
+			getPodcastByChaIdResponse
 		);
 	};
 
@@ -46,15 +50,41 @@ class PodcastsApiService {
 	};
 
 	loadPodcast = async ({
-		podcast,
+		request,
 		controller,
 	}: {
-		podcast: Podcast;
+		request: LoadPodcastRequest;
 		controller?: AbortController;
 	}) => {
-		return await baseApiService.getBlob(`/api/v1/podcasts/${podcast.id}/stream`, {
+		// Validate the request
+		const parsedRequest = loadPodcastRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			// Format a user frendly error message
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return await baseApiService.getBlob(`/api/v1/podcasts/${request.id}/stream`, {
 			signal: controller?.signal,
 		});
+	};
+
+	deletePodcast = async (request: DeletePodcastRequest) => {
+		// Validate the request
+		const parsedRequest = deletePodcastRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			// Format a user frendly error message
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.delete(`/api/v1/podcasts/${request.id}`, deletePodcastResponse);
 	};
 }
 

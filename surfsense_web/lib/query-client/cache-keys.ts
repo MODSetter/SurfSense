@@ -2,6 +2,8 @@ export const cacheKeys = {
 	activeSearchSpace: {
 		chats: (searchSpaceId: string) => ["active-search-space", "chats", searchSpaceId] as const,
 		activeChat: (chatId: string) => ["active-search-space", "active-chat", chatId] as const,
+		podcasts: (searchSpaceId: string) =>
+			["active-search-space", "podcasts", searchSpaceId] as const,
 	},
 	auth: {
 		user: ["auth", "user"] as const,

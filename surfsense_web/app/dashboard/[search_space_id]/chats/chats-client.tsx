@@ -161,7 +161,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	const handleDeleteChat = async () => {
 		if (!chatToDelete) return;
 
-		await deleteChat(chatToDelete.id);
+		await deleteChat({ id: chatToDelete.id });
 
 		setDeleteDialogOpen(false);
 		setChatToDelete(null);
