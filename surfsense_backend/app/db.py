@@ -383,6 +383,38 @@ class SocialMediaLink(BaseModel, TimestampMixin):
     is_active = Column(Boolean, nullable=False, default=True)  # Toggle visibility
 
 
+class SiteConfiguration(Base):
+    __tablename__ = "site_configuration"
+    __allow_unmapped__ = True
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Header/Navbar toggles
+    show_pricing_link = Column(Boolean, nullable=False, default=False)
+    show_docs_link = Column(Boolean, nullable=False, default=False)
+    show_github_link = Column(Boolean, nullable=False, default=False)
+    show_sign_in = Column(Boolean, nullable=False, default=True)
+
+    # Homepage toggles
+    show_get_started_button = Column(Boolean, nullable=False, default=False)
+    show_talk_to_us_button = Column(Boolean, nullable=False, default=False)
+
+    # Footer toggles
+    show_pages_section = Column(Boolean, nullable=False, default=False)
+    show_legal_section = Column(Boolean, nullable=False, default=False)
+    show_register_section = Column(Boolean, nullable=False, default=False)
+
+    # Route disabling
+    disable_pricing_route = Column(Boolean, nullable=False, default=True)
+    disable_docs_route = Column(Boolean, nullable=False, default=True)
+    disable_contact_route = Column(Boolean, nullable=False, default=True)
+    disable_terms_route = Column(Boolean, nullable=False, default=True)
+    disable_privacy_route = Column(Boolean, nullable=False, default=True)
+
+    # Custom text
+    custom_copyright = Column(String(200), nullable=True, default="SurfSense 2025")
+
+
 if config.AUTH_TYPE == "GOOGLE":
 
     class OAuthAccount(Base):
