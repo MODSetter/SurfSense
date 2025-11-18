@@ -21,8 +21,6 @@ from .prompts import get_further_questions_system_prompt
 from .qna_agent.graph import graph as qna_agent_graph
 from .state import State
 from .utils import (
-    CONNECTOR_EMOJIS,
-    CONNECTOR_RESULT_NAMES,
     get_connector_emoji,
     get_connector_friendly_name,
     get_connector_result_name,
@@ -843,8 +841,8 @@ async def fetch_relevant_documents(
 
             # Stream found document count
             if streaming_service and writer and chunks:
-                emoji = CONNECTOR_EMOJIS.get(connector, "📄")
-                result_name = CONNECTOR_RESULT_NAMES.get(connector, "chunks")
+                emoji = get_connector_emoji(connector)
+                result_name = get_connector_result_name(connector)
                 writer(
                     {
                         "yield_value": streaming_service.format_terminal_info_delta(
