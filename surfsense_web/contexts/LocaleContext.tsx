@@ -3,9 +3,9 @@
 import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import enMessages from "../messages/en.json";
-import zhMessages from "../messages/zh.json";
+import lvMessages from "../messages/lv.json";
 
-type Locale = "en" | "zh";
+type Locale = "en" | "lv";
 
 interface LocaleContextType {
 	locale: Locale;
@@ -24,15 +24,15 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 	const [mounted, setMounted] = useState(false);
 
 	// Get messages based on current locale
-	const messages = locale === "zh" ? zhMessages : enMessages;
+	const messages = locale === "lv" ? lvMessages : enMessages;
 
 	// Load locale from localStorage after component mounts (client-side only)
 	useEffect(() => {
 		setMounted(true);
 		if (typeof window !== "undefined") {
 			const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-			if (stored === "zh") {
-				setLocaleState("zh");
+			if (stored === "lv") {
+				setLocaleState("lv");
 			}
 		}
 	}, []);

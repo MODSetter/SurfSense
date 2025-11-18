@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { handleSessionExpired } from "@/lib/auth-utils";
 
 interface User {
 	id: string;
@@ -33,10 +34,7 @@ export function useUser() {
 				});
 
 				if (response.status === 401) {
-					// Clear token and redirect to home
-					localStorage.removeItem("surfsense_bearer_token");
-					window.location.href = "/";
-					throw new Error("Unauthorized: Redirecting to login page");
+					handleSessionExpired();
 				}
 
 				if (!response.ok) {
