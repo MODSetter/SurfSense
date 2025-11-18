@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { baseApiService } from "@/lib/apis/base-api.service";
+import { handleSessionExpired } from "@/lib/auth-utils";
 
 interface SearchSpace {
 	created_at: string;
@@ -39,11 +39,7 @@ export function useSearchSpace({ searchSpaceId, autoFetch = true }: UseSearchSpa
 			);
 
 			if (response.status === 401) {
-				// Clear token from both localStorage and baseApiService
-				localStorage.removeItem("surfsense_bearer_token");
-				baseApiService.setBearerToken("");
-				window.location.href = "/login?error=session_expired";
-				throw new Error("Unauthorized: Redirecting to login page");
+				handleSessionExpired();
 			}
 
 			if (!response.ok) {
