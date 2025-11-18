@@ -46,6 +46,7 @@ CONNECTOR_METADATA: dict[str, ConnectorMetadata] = {
     "CLICKUP_CONNECTOR": ConnectorMetadata("📋", "ClickUp tasks", "ClickUp"),
     "LUMA_CONNECTOR": ConnectorMetadata("🎯", "Luma events", "Luma"),
     "ELASTICSEARCH_CONNECTOR": ConnectorMetadata("🔎", "Elasticsearch chunks", "Elasticsearch"),
+    "HOME_ASSISTANT_CONNECTOR": ConnectorMetadata("🏠", "Home Assistant items", "Home Assistant"),
 }
 
 # Default metadata for unknown connectors
