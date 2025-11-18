@@ -27,7 +27,7 @@ class FixedAzureOpenAIEmbeddings(AzureOpenAIEmbeddings):
         deployment: str | None = None,
         max_retries: int = 3,
         timeout: float = 60.0,
-        batch_size: int = 128,
+        batch_size: int = 32,  # Reduced from 128 to save RAM
         **kwargs: dict[str, Any],
     ):
         """Initialize with model as first parameter to avoid conflicts."""
@@ -178,28 +178,86 @@ class Config:
     if AZURE_OPENAI_API_KEY:
         embedding_kwargs["azure_api_key"] = AZURE_OPENAI_API_KEY
 
-    embedding_model_instance = AutoEmbeddings.get_embeddings(
-        EMBEDDING_MODEL,
-        **embedding_kwargs,
-    )
-    chunker_instance = RecursiveChunker(
-        chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
-    )
-    code_chunker_instance = CodeChunker(
-        chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
-    )
+    # Lazy-loaded model instances (initialized on first access to save RAM)
+    _embedding_model_instance = None
+    _chunker_instance = None
+    _code_chunker_instance = None
+    _reranker_instance = None
+    _models_initialized = False
+
+    @classmethod
+    def _initialize_embedding_model(cls):
+        """Initialize embedding model on first access (lazy loading)."""
+        if cls._embedding_model_instance is None:
+            cls._embedding_model_instance = AutoEmbeddings.get_embeddings(
+                cls.EMBEDDING_MODEL,
+                **cls.embedding_kwargs,
+            )
+            # Validate embedding dimension
+            if (
+                hasattr(cls._embedding_model_instance, "dimension")
+                and cls._embedding_model_instance.dimension > 2000
+            ):
+                raise ValueError(
+                    f"Embedding dimension for Model: {cls.EMBEDDING_MODEL} "
+                    f"has {cls._embedding_model_instance.dimension} dimensions, which "
+                    f"exceeds the maximum of 2000 allowed by PGVector."
+                )
+        return cls._embedding_model_instance
+
+    @classmethod
+    def _initialize_chunker(cls):
+        """Initialize chunker on first access (lazy loading)."""
+        if cls._chunker_instance is None:
+            embedding_model = cls._initialize_embedding_model()
+            cls._chunker_instance = RecursiveChunker(
+                chunk_size=getattr(embedding_model, "max_seq_length", 512)
+            )
+        return cls._chunker_instance
+
+    @classmethod
+    def _initialize_code_chunker(cls):
+        """Initialize code chunker on first access (lazy loading)."""
+        if cls._code_chunker_instance is None:
+            embedding_model = cls._initialize_embedding_model()
+            cls._code_chunker_instance = CodeChunker(
+                chunk_size=getattr(embedding_model, "max_seq_length", 512)
+            )
+        return cls._code_chunker_instance
+
+    # Properties for lazy access to model instances
+    @property
+    def embedding_model_instance(self):
+        return Config._initialize_embedding_model()
+
+    @property
+    def chunker_instance(self):
+        return Config._initialize_chunker()
+
+    @property
+    def code_chunker_instance(self):
+        return Config._initialize_code_chunker()
 
     # Reranker's Configuration | Pinecode, Cohere etc. Read more at https://github.com/AnswerDotAI/rerankers?tab=readme-ov-file#usage
     RERANKERS_ENABLED = os.getenv("RERANKERS_ENABLED", "FALSE").upper() == "TRUE"
-    if RERANKERS_ENABLED:
-        RERANKERS_MODEL_NAME = os.getenv("RERANKERS_MODEL_NAME")
-        RERANKERS_MODEL_TYPE = os.getenv("RERANKERS_MODEL_TYPE")
-        reranker_instance = Reranker(
-            model_name=RERANKERS_MODEL_NAME,
-            model_type=RERANKERS_MODEL_TYPE,
-        )
-    else:
-        reranker_instance = None
+    RERANKERS_MODEL_NAME = os.getenv("RERANKERS_MODEL_NAME") if RERANKERS_ENABLED else None
+    RERANKERS_MODEL_TYPE = os.getenv("RERANKERS_MODEL_TYPE") if RERANKERS_ENABLED else None
+
+    @classmethod
+    def _initialize_reranker(cls):
+        """Initialize reranker on first access (lazy loading)."""
+        if cls.RERANKERS_ENABLED and cls._reranker_instance is None:
+            cls._reranker_instance = Reranker(
+                model_name=cls.RERANKERS_MODEL_NAME,
+                model_type=cls.RERANKERS_MODEL_TYPE,
+            )
+        return cls._reranker_instance
+
+    @property
+    def reranker_instance(self):
+        if not Config.RERANKERS_ENABLED:
+            return None
+        return Config._initialize_reranker()
 
     # OAuth JWT
     SECRET_KEY = os.getenv("SECRET_KEY")
@@ -227,18 +285,6 @@ class Config:
     STT_SERVICE = os.getenv("STT_SERVICE")
     STT_SERVICE_API_BASE = os.getenv("STT_SERVICE_API_BASE")
     STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")
-
-    # Validation Checks
-    # Check embedding dimension
-    if (
-        hasattr(embedding_model_instance, "dimension")
-        and embedding_model_instance.dimension > 2000
-    ):
-        raise ValueError(
-            f"Embedding dimension for Model: {EMBEDDING_MODEL} "
-            f"has {embedding_model_instance.dimension} dimensions, which "
-            f"exceeds the maximum of 2000 allowed by PGVector."
-        )
 
     @classmethod
     def get_settings(cls):
