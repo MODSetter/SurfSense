@@ -3,14 +3,14 @@ import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-querie
 import { chatsApiService } from "@/lib/apis/chats-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { activeChatIdAtom } from "./ui.atoms";
+import { activeChatIdAtom, globalChatsQueryParamsAtom } from "./ui.atoms";
 
 export const activeChatAtom = atomWithQuery((get) => {
 	const activeChatId = get(activeChatIdAtom);
 	const authToken = localStorage.getItem("surfsense_bearer_token");
 
 	return {
-		queryKey: cacheKeys.activeSearchSpace.activeChat(activeChatId ?? ""),
+		queryKey: cacheKeys.chats.activeChat(activeChatId ?? ""),
 		enabled: !!activeChatId && !!authToken,
 		queryFn: async () => {
 			if (!authToken) {
@@ -30,16 +30,17 @@ export const activeChatAtom = atomWithQuery((get) => {
 	};
 });
 
-export const activeSearchSpaceChatsAtom = atomWithQuery((get) => {
+export const chatsAtom = atomWithQuery((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
 	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const queryParams = get(globalChatsQueryParamsAtom);
 
 	return {
-		queryKey: cacheKeys.activeSearchSpace.chats(searchSpaceId ?? ""),
+		queryKey: cacheKeys.chats.globalQueryParams(queryParams),
 		enabled: !!searchSpaceId && !!authToken,
 		queryFn: async () => {
-			return chatsApiService.getChatsBySearchSpace({
-				queryParams: { search_space_id: searchSpaceId! },
+			return chatsApiService.getChats({
+				queryParams: queryParams,
 			});
 		},
 	};

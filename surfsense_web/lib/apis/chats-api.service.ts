@@ -8,9 +8,9 @@ import {
 	deleteChatRequest,
 	deleteChatResponse,
 	type GetChatDetailsRequest,
-	type GetChatsBySearchSpaceRequest,
+	type GetChatsRequest,
 	getChatDetailsRequest,
-	getChatsBySearchSpaceRequest,
+	getChatsRequest,
 	type UpdateChatRequest,
 	updateChatRequest,
 } from "@/contracts/types/chat.types";
@@ -33,9 +33,9 @@ class ChatApiService {
 		return baseApiService.get(`/api/v1/chats/${request.id}`, chatDetails);
 	};
 
-	getChatsBySearchSpace = async (request: GetChatsBySearchSpaceRequest) => {
+	getChats = async (request: GetChatsRequest) => {
 		// Validate the request
-		const parsedRequest = getChatsBySearchSpaceRequest.safeParse(request);
+		const parsedRequest = getChatsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -45,8 +45,15 @@ class ChatApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const queryParams = parsedRequest.data.queryParams
-			? new URLSearchParams(parsedRequest.data.queryParams).toString()
+		// Transform queries params to be string values
+		const transformedQueryParams = parsedRequest.data.queryParams
+			? Object.fromEntries(
+					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [k, String(v)])
+				)
+			: undefined;
+
+		const queryParams = transformedQueryParams
+			? new URLSearchParams(transformedQueryParams).toString()
 			: undefined;
 
 		return baseApiService.get(`/api/v1/chats?${queryParams}`, z.array(chatSummary));

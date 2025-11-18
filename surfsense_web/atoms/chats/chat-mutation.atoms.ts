@@ -6,13 +6,15 @@ import { chatsApiService } from "@/lib/apis/chats-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import { activeSearchSpaceIdAtom } from "../seach-spaces/seach-space-queries.atom";
+import { globalChatsQueryParamsAtom } from "./ui.atoms";
 
 export const deleteChatMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
 	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const chatsQueryParams = get(globalChatsQueryParamsAtom);
 
 	return {
-		mutationKey: cacheKeys.activeSearchSpace.chats(searchSpaceId ?? ""),
+		mutationKey: cacheKeys.chats.globalQueryParams(chatsQueryParams),
 		enabled: !!searchSpaceId && !!authToken,
 		mutationFn: async (request: DeleteChatRequest) => {
 			return chatsApiService.deleteChat(request);
@@ -21,7 +23,7 @@ export const deleteChatMutationAtom = atomWithMutation((get) => {
 		onSuccess: (_, request: DeleteChatRequest) => {
 			toast.success("Chat deleted successfully");
 			queryClient.setQueryData(
-				cacheKeys.activeSearchSpace.chats(searchSpaceId!),
+				cacheKeys.chats.globalQueryParams(chatsQueryParams),
 				(oldData: Chat[]) => {
 					return oldData.filter((chat) => chat.id !== request.id);
 				}

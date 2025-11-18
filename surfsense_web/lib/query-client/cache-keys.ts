@@ -1,10 +1,12 @@
+import type { GetChatsRequest } from "@/contracts/types/chat.types";
+
 export const cacheKeys = {
-	activeSearchSpace: {
-		chats: (searchSpaceId: string) => ["active-search-space", "chats", searchSpaceId] as const,
-		activeChat: (chatId: string) => ["active-search-space", "active-chat", chatId] as const,
-		podcasts: (searchSpaceId: string) =>
-			["active-search-space", "podcasts", searchSpaceId] as const,
+	chats: {
+		activeChat: (chatId: string) => ["active-chat", chatId] as const,
+		globalQueryParams: (queries: GetChatsRequest["queryParams"]) =>
+			["chats", ...(queries ? Object.values(queries) : [])] as const,
 	},
+	podcasts: () => ["podcasts"] as const,
 	auth: {
 		user: ["auth", "user"] as const,
 	},
