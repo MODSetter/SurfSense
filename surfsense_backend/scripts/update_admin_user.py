@@ -9,9 +9,19 @@ This script should be run on the VPS after deployment to:
 Usage:
     cd /path/to/SurfSense/surfsense_backend
     source venv/bin/activate  # or your virtual environment
+
+    # Set environment variables (REQUIRED - never commit passwords!)
+    export ADMIN_EMAIL="admin@example.com"
+    export ADMIN_NEW_PASSWORD="your-secure-password-here"
+
     python scripts/update_admin_user.py
 
 Note: Make sure the .env file is properly configured with DATABASE_URL
+
+SECURITY WARNING:
+    - NEVER hardcode passwords in this script
+    - NEVER commit passwords to version control
+    - Always use environment variables for sensitive data
 """
 
 import asyncio
@@ -27,13 +37,33 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import bcrypt
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-# Configuration
-ADMIN_EMAIL = "ojars@kapteinis.lv"
-NEW_PASSWORD = "^&U0yXLK1ypZOwLDGFeLT35kCrblITYyAVdVmF3!iJ%kkY1Nl^IS!P"
+
+def get_admin_credentials():
+    """Get admin credentials from environment variables."""
+    admin_email = os.getenv("ADMIN_EMAIL")
+    new_password = os.getenv("ADMIN_NEW_PASSWORD")
+
+    if not admin_email:
+        print("ERROR: ADMIN_EMAIL environment variable not set")
+        print("Please set it before running this script:")
+        print('  export ADMIN_EMAIL="admin@example.com"')
+        sys.exit(1)
+
+    if not new_password:
+        print("ERROR: ADMIN_NEW_PASSWORD environment variable not set")
+        print("Please set it before running this script:")
+        print('  export ADMIN_NEW_PASSWORD="your-secure-password"')
+        sys.exit(1)
+
+    # Validate password strength
+    if len(new_password) < 12:
+        print("WARNING: Password should be at least 12 characters for security")
+
+    return admin_email, new_password
 
 
 def hash_password(password: str) -> str:
@@ -46,6 +76,9 @@ def hash_password(password: str) -> str:
 
 async def update_admin_user():
     """Update admin user password and status."""
+
+    # Get credentials from environment
+    admin_email, new_password = get_admin_credentials()
 
     # Get database URL from environment
     database_url = os.getenv("DATABASE_URL")
@@ -60,7 +93,7 @@ async def update_admin_user():
     elif database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-    print(f"Connecting to database...")
+    print("Connecting to database...")
 
     # Create async engine
     engine = create_async_engine(database_url, echo=False)
@@ -69,12 +102,12 @@ async def update_admin_user():
     async with async_session() as session:
         try:
             # Hash the new password
-            hashed_password = hash_password(NEW_PASSWORD)
+            hashed_password = hash_password(new_password)
 
             # Update the user
             result = await session.execute(
                 update(UserTable)
-                .where(UserTable.email == ADMIN_EMAIL)
+                .where(UserTable.email == admin_email)
                 .values(
                     hashed_password=hashed_password,
                     is_superuser=True,
@@ -88,20 +121,20 @@ async def update_admin_user():
 
             if updated_user:
                 await session.commit()
-                print(f"\n✅ Successfully updated user: {ADMIN_EMAIL}")
+                print(f"\n[OK] Successfully updated user: {admin_email}")
                 print(f"   - User ID: {updated_user.id}")
-                print(f"   - Password: Updated to new value")
-                print(f"   - is_superuser: True")
-                print(f"   - is_active: True")
-                print(f"   - is_verified: True")
+                print("   - Password: Updated to new value")
+                print("   - is_superuser: True")
+                print("   - is_active: True")
+                print("   - is_verified: True")
             else:
-                print(f"\n❌ User not found: {ADMIN_EMAIL}")
+                print(f"\n[ERROR] User not found: {admin_email}")
                 print("   Make sure the email address is correct")
 
                 # List existing users for debugging
                 from sqlalchemy import text
                 users_result = await session.execute(
-                    text("SELECT email FROM \"user\" LIMIT 10")
+                    text('SELECT email FROM "user" LIMIT 10')
                 )
                 users = users_result.fetchall()
                 if users:
@@ -110,7 +143,7 @@ async def update_admin_user():
                         print(f"   - {user[0]}")
 
         except Exception as e:
-            print(f"\n❌ Error updating user: {e}")
+            print(f"\n[ERROR] Error updating user: {e}")
             await session.rollback()
             raise
         finally:
@@ -123,8 +156,13 @@ if __name__ == "__main__":
     print("=" * 50)
     print("Admin User Update Script")
     print("=" * 50)
-    print(f"\nTarget user: {ADMIN_EMAIL}")
-    print(f"New password: {'*' * 10} (hidden)")
+
+    # Get and display target (without showing password)
+    admin_email = os.getenv("ADMIN_EMAIL", "NOT SET")
+    has_password = bool(os.getenv("ADMIN_NEW_PASSWORD"))
+
+    print(f"\nTarget user: {admin_email}")
+    print(f"New password: {'[SET]' if has_password else '[NOT SET]'}")
     print()
 
     # Now import the User model
@@ -145,3 +183,6 @@ if __name__ == "__main__":
     print("\n" + "=" * 50)
     print("Done!")
     print("=" * 50)
+    print("\nSECURITY REMINDER: Clear your shell history if you used inline env vars")
+    print("  history -c  # bash")
+    print("  fc -p       # zsh")
