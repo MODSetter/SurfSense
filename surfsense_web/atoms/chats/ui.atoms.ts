@@ -7,3 +7,4 @@ type ActiveChathatUIState = {
 export const activeChathatUIAtom = atom<ActiveChathatUIState>({
 	isChatPannelOpen: false,
 });
+export const activeChatIdAtom = atom<string | null>(null);

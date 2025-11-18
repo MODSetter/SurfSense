@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, { useEffect } from "react";
-import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
 import {
 	Breadcrumb,
 	BreadcrumbItem,

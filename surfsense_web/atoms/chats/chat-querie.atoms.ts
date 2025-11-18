@@ -1,11 +1,9 @@
-import { atom } from "jotai";
 import { atomWithQuery } from "jotai-tanstack-query";
 import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { chatsApiService } from "@/lib/apis/chats-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-
-export const activeChatIdAtom = atom<string | null>(null);
+import { activeChatIdAtom } from "./ui.atoms";
 
 export const activeChatAtom = atomWithQuery((get) => {
 	const activeChatId = get(activeChatIdAtom);

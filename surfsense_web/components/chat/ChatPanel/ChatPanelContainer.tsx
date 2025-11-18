@@ -2,8 +2,8 @@
 import { useAtom, useAtomValue } from "jotai";
 import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/chat-querie.atoms";
-import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
+import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import type { GeneratePodcastRequest } from "@/contracts/types/podcast.types";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,8 @@ export function ChatPanelContainer() {
 		}
 	};
 
+	console.log("activeChatState", activeChatState, activeChatIdState);
+
 	return activeChatIdState ? (
 		<div
 			className={cn(
@@ -46,7 +48,7 @@ export function ChatPanelContainer() {
 							<LoaderIcon strokeWidth={1.5} className="h-5 w-5 animate-spin" />
 						</div>
 					) : chatError ? (
-						<div title="Failed to load chat" className="flex items-center justify-center h-full">
+						<div title="Failed  to load chat" className="flex items-center justify-center h-full">
 							<TriangleAlert strokeWidth={1.5} className="h-5 w-5 text-red-600" />
 						</div>
 					) : null}
