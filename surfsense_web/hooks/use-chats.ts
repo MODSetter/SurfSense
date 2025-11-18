@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { handleSessionExpired } from "@/lib/auth-utils";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface Chat {
 	created_at: string;
@@ -40,7 +41,7 @@ export function useChats({
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats?limit=${limit}&skip=${skip}&search_space_id=${searchSpaceId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "GET",
 				}
@@ -81,7 +82,7 @@ export function useChats({
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${chatId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "DELETE",
 				}

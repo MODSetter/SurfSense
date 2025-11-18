@@ -3,6 +3,7 @@
  */
 
 import { baseApiService } from "./apis/base-api.service";
+import { AUTH_TOKEN_KEY } from "./constants";
 
 /**
  * Handle session expiration by clearing tokens and redirecting to login
@@ -10,7 +11,7 @@ import { baseApiService } from "./apis/base-api.service";
  */
 export function handleSessionExpired(): never {
 	// Clear token from localStorage
-	localStorage.removeItem("surfsense_bearer_token");
+	localStorage.removeItem(AUTH_TOKEN_KEY);
 
 	// Clear token from baseApiService singleton to prevent stale auth state
 	baseApiService.setBearerToken("");

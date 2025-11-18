@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { handleSessionExpired } from "@/lib/auth-utils";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface SearchSpace {
 	created_at: string;
@@ -32,7 +33,7 @@ export function useSearchSpace({ searchSpaceId, autoFetch = true }: UseSearchSpa
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "GET",
 				}
