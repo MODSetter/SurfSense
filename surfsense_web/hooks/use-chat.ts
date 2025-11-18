@@ -52,35 +52,6 @@ interface UseChatAPIProps {
 }
 
 export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
-	const fetchChatDetails = useCallback(
-		async (chatId: string): Promise<ChatDetails | null> => {
-			if (!token) return null;
-
-			try {
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${Number(chatId)}`,
-					{
-						method: "GET",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-					}
-				);
-
-				if (!response.ok) {
-					throw new Error(`Failed to fetch chat details: ${response.statusText}`);
-				}
-
-				return await response.json();
-			} catch (err) {
-				console.error("Error fetching chat details:", err);
-				return null;
-			}
-		},
-		[token]
-	);
-
 	const createChat = useCallback(
 		async (
 			initialMessage: string,
@@ -174,7 +145,6 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 	);
 
 	return {
-		fetchChatDetails,
 		createChat,
 		updateChat,
 	};

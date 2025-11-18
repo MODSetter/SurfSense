@@ -51,7 +51,7 @@ export function AppSidebarProvider({
 		useAtom(deleteChatMutationAtom);
 
 	useEffect(() => {
-		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 2 }));
+		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 5 }));
 	}, [searchSpaceId]);
 
 	const {

@@ -32,8 +32,6 @@ export function ChatPanelContainer() {
 		}
 	};
 
-	console.log("activeChatState", activeChatState, activeChatIdState);
-
 	return activeChatIdState ? (
 		<div
 			className={cn(

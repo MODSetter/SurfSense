@@ -1,8 +1,11 @@
 "use client";
 
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
+import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
+import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
 import { useDocumentTypes } from "@/hooks/use-document-types";
@@ -10,22 +13,20 @@ import type { Document } from "@/hooks/use-documents";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 export default function ResearcherPage() {
-	const { search_space_id, chat_id } = useParams();
+	const { search_space_id } = useParams();
 	const router = useRouter();
 	const hasSetInitialConnectors = useRef(false);
-
-	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
-	const isNewChat = !chatIdParam;
+	const activeChatId = useAtomValue(activeChatIdAtom);
+	const { data: activeChatState, isFetching: isChatLoading } = useAtomValue(activeChatAtom);
+	const isNewChat = !activeChatId;
 
 	// Reset the flag when chat ID changes
 	useEffect(() => {
 		hasSetInitialConnectors.current = false;
-	}, [chatIdParam]);
+	}, [activeChatId]);
 
 	const {
 		token,
-		isLoading,
-		setIsLoading,
 		searchMode,
 		setSearchMode,
 		researchMode,
@@ -37,10 +38,10 @@ export default function ResearcherPage() {
 		setTopK,
 	} = useChatState({
 		search_space_id: search_space_id as string,
-		chat_id: chatIdParam,
+		chat_id: activeChatId ?? undefined,
 	});
 
-	const { fetchChatDetails, updateChat, createChat } = useChatAPI({
+	const { updateChat, createChat } = useChatAPI({
 		token,
 		search_space_id: search_space_id as string,
 	});
@@ -142,16 +143,37 @@ export default function ResearcherPage() {
 	};
 
 	useEffect(() => {
-		if (token && !isNewChat && chatIdParam) {
-			setIsLoading(true);
-			loadChatData(chatIdParam);
+		if (token && !isNewChat && activeChatId) {
+			const chatData = activeChatState?.chatDetails;
+			if (!chatData) return;
+
+			// Update configuration from chat data
+			// researchMode is always "QNA", no need to set from chat data
+
+			if (chatData.initial_connectors && Array.isArray(chatData.initial_connectors)) {
+				setSelectedConnectors(chatData.initial_connectors);
+			}
+
+			// Load existing messages
+			if (chatData.messages && Array.isArray(chatData.messages)) {
+				if (chatData.messages.length === 1 && chatData.messages[0].role === "user") {
+					// Single user message - append to trigger LLM response
+					handler.append({
+						role: "user",
+						content: chatData.messages[0].content,
+					});
+				} else if (chatData.messages.length > 1) {
+					// Multiple messages - set them all
+					handler.setMessages(chatData.messages);
+				}
+			}
 		}
-	}, [token, isNewChat, chatIdParam]);
+	}, [token, isNewChat, activeChatId, isChatLoading]);
 
 	// Restore chat state from localStorage on page load
 	useEffect(() => {
-		if (chatIdParam && search_space_id) {
-			const restoredState = restoreChatState(search_space_id as string, chatIdParam);
+		if (activeChatId && search_space_id) {
+			const restoredState = restoreChatState(search_space_id as string, activeChatId);
 			if (restoredState) {
 				setSelectedDocuments(restoredState.selectedDocuments);
 				setSelectedConnectors(restoredState.selectedConnectors);
@@ -161,7 +183,8 @@ export default function ResearcherPage() {
 			}
 		}
 	}, [
-		chatIdParam,
+		activeChatId,
+		isChatLoading,
 		search_space_id,
 		setSelectedDocuments,
 		setSelectedConnectors,
@@ -196,50 +219,20 @@ export default function ResearcherPage() {
 		setSelectedConnectors,
 	]);
 
-	const loadChatData = async (chatId: string) => {
-		try {
-			const chatData = await fetchChatDetails(chatId);
-			if (!chatData) return;
-
-			// Update configuration from chat data
-			// researchMode is always "QNA", no need to set from chat data
-
-			if (chatData.initial_connectors && Array.isArray(chatData.initial_connectors)) {
-				setSelectedConnectors(chatData.initial_connectors);
-			}
-
-			// Load existing messages
-			if (chatData.messages && Array.isArray(chatData.messages)) {
-				if (chatData.messages.length === 1 && chatData.messages[0].role === "user") {
-					// Single user message - append to trigger LLM response
-					handler.append({
-						role: "user",
-						content: chatData.messages[0].content,
-					});
-				} else if (chatData.messages.length > 1) {
-					// Multiple messages - set them all
-					handler.setMessages(chatData.messages);
-				}
-			}
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
 	// Auto-update chat when messages change (only for existing chats)
 	useEffect(() => {
 		if (
 			!isNewChat &&
-			chatIdParam &&
+			activeChatId &&
 			handler.status === "ready" &&
 			handler.messages.length > 0 &&
 			handler.messages[handler.messages.length - 1]?.role === "assistant"
 		) {
-			updateChat(chatIdParam, handler.messages, researchMode, selectedConnectors);
+			updateChat(activeChatId, handler.messages, researchMode, selectedConnectors);
 		}
-	}, [handler.messages, handler.status, chatIdParam, isNewChat]);
+	}, [handler.messages, handler.status, activeChatId, isNewChat, isChatLoading]);
 
-	if (isLoading) {
+	if (isChatLoading) {
 		return (
 			<div className="flex items-center justify-center h-full">
 				<div>Loading...</div>
