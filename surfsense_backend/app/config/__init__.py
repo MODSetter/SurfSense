@@ -184,7 +184,7 @@ class Config:
     _chunker_instance = None
     _code_chunker_instance = None
     _reranker_instance = None
-    _init_lock = threading.Lock()  # Thread-safety lock for lazy initialization
+    _init_lock = threading.RLock()  # Reentrant lock for nested initialization calls
 
     @classmethod
     def _initialize_embedding_model(cls):
