@@ -1,5 +1,6 @@
 import os
 import shutil
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -183,46 +184,55 @@ class Config:
     _chunker_instance = None
     _code_chunker_instance = None
     _reranker_instance = None
-    _models_initialized = False
+    _init_lock = threading.Lock()  # Thread-safety lock for lazy initialization
 
     @classmethod
     def _initialize_embedding_model(cls):
-        """Initialize embedding model on first access (lazy loading)."""
+        """Initialize embedding model on first access (lazy loading with thread-safety)."""
         if cls._embedding_model_instance is None:
-            cls._embedding_model_instance = AutoEmbeddings.get_embeddings(
-                cls.EMBEDDING_MODEL,
-                **cls.embedding_kwargs,
-            )
-            # Validate embedding dimension
-            if (
-                hasattr(cls._embedding_model_instance, "dimension")
-                and cls._embedding_model_instance.dimension > 2000
-            ):
-                raise ValueError(
-                    f"Embedding dimension for Model: {cls.EMBEDDING_MODEL} "
-                    f"has {cls._embedding_model_instance.dimension} dimensions, which "
-                    f"exceeds the maximum of 2000 allowed by PGVector."
-                )
+            with cls._init_lock:
+                # Double-check after acquiring lock
+                if cls._embedding_model_instance is None:
+                    cls._embedding_model_instance = AutoEmbeddings.get_embeddings(
+                        cls.EMBEDDING_MODEL,
+                        **cls.embedding_kwargs,
+                    )
+                    # Validate embedding dimension
+                    if (
+                        hasattr(cls._embedding_model_instance, "dimension")
+                        and cls._embedding_model_instance.dimension > 2000
+                    ):
+                        raise ValueError(
+                            f"Embedding dimension for Model: {cls.EMBEDDING_MODEL} "
+                            f"has {cls._embedding_model_instance.dimension} dimensions, which "
+                            f"exceeds the maximum of 2000 allowed by PGVector."
+                        )
         return cls._embedding_model_instance
 
     @classmethod
     def _initialize_chunker(cls):
-        """Initialize chunker on first access (lazy loading)."""
+        """Initialize chunker on first access (lazy loading with thread-safety)."""
         if cls._chunker_instance is None:
-            embedding_model = cls._initialize_embedding_model()
-            cls._chunker_instance = RecursiveChunker(
-                chunk_size=getattr(embedding_model, "max_seq_length", 512)
-            )
+            with cls._init_lock:
+                # Double-check after acquiring lock
+                if cls._chunker_instance is None:
+                    embedding_model = cls._initialize_embedding_model()
+                    cls._chunker_instance = RecursiveChunker(
+                        chunk_size=getattr(embedding_model, "max_seq_length", 512)
+                    )
         return cls._chunker_instance
 
     @classmethod
     def _initialize_code_chunker(cls):
-        """Initialize code chunker on first access (lazy loading)."""
+        """Initialize code chunker on first access (lazy loading with thread-safety)."""
         if cls._code_chunker_instance is None:
-            embedding_model = cls._initialize_embedding_model()
-            cls._code_chunker_instance = CodeChunker(
-                chunk_size=getattr(embedding_model, "max_seq_length", 512)
-            )
+            with cls._init_lock:
+                # Double-check after acquiring lock
+                if cls._code_chunker_instance is None:
+                    embedding_model = cls._initialize_embedding_model()
+                    cls._code_chunker_instance = CodeChunker(
+                        chunk_size=getattr(embedding_model, "max_seq_length", 512)
+                    )
         return cls._code_chunker_instance
 
     # Properties for lazy access to model instances
@@ -245,18 +255,21 @@ class Config:
 
     @classmethod
     def _initialize_reranker(cls):
-        """Initialize reranker on first access (lazy loading)."""
-        if cls.RERANKERS_ENABLED and cls._reranker_instance is None:
-            cls._reranker_instance = Reranker(
-                model_name=cls.RERANKERS_MODEL_NAME,
-                model_type=cls.RERANKERS_MODEL_TYPE,
-            )
+        """Initialize reranker on first access (lazy loading with thread-safety)."""
+        if not cls.RERANKERS_ENABLED:
+            return None
+        if cls._reranker_instance is None:
+            with cls._init_lock:
+                # Double-check after acquiring lock
+                if cls._reranker_instance is None:
+                    cls._reranker_instance = Reranker(
+                        model_name=cls.RERANKERS_MODEL_NAME,
+                        model_type=cls.RERANKERS_MODEL_TYPE,
+                    )
         return cls._reranker_instance
 
     @property
     def reranker_instance(self):
-        if not Config.RERANKERS_ENABLED:
-            return None
         return Config._initialize_reranker()
 
     # OAuth JWT
