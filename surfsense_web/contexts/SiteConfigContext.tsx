@@ -25,6 +25,9 @@ export interface SiteConfig {
 	disable_terms_route: boolean;
 	disable_privacy_route: boolean;
 
+	// Registration control
+	disable_registration: boolean;
+
 	// Custom text
 	custom_copyright: string | null;
 }
@@ -44,6 +47,7 @@ const defaultConfig: SiteConfig = {
 	disable_contact_route: true,
 	disable_terms_route: true,
 	disable_privacy_route: true,
+	disable_registration: false,
 	custom_copyright: "SurfSense 2025",
 };
 

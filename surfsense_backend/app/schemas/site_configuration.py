@@ -24,6 +24,9 @@ class SiteConfigurationBase(BaseModel):
     disable_terms_route: bool = True
     disable_privacy_route: bool = True
 
+    # Registration control
+    disable_registration: bool = False
+
     # Custom text
     custom_copyright: str | None = Field(default="SurfSense 2025", max_length=200)
 
@@ -44,6 +47,7 @@ class SiteConfigurationUpdate(SiteConfigurationBase):
     disable_contact_route: bool | None = None
     disable_terms_route: bool | None = None
     disable_privacy_route: bool | None = None
+    disable_registration: bool | None = None
     custom_copyright: str | None = None
 
 

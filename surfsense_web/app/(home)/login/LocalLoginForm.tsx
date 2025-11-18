@@ -8,12 +8,14 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { ValidationError } from "@/lib/error";
 
 export function LocalLoginForm() {
 	const t = useTranslations("auth");
 	const tCommon = useTranslations("common");
+	const { config } = useSiteConfig();
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
@@ -227,17 +229,19 @@ export function LocalLoginForm() {
 				</button>
 			</form>
 
-			<div className="mt-4 text-center text-sm">
-				<p className="text-gray-600 dark:text-gray-400">
-					{t("dont_have_account")}{" "}
-					<Link
-						href="/register"
-						className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-					>
-						{t("sign_up")}
-					</Link>
-				</p>
-			</div>
+			{!config.disable_registration && (
+				<div className="mt-4 text-center text-sm">
+					<p className="text-gray-600 dark:text-gray-400">
+						{t("dont_have_account")}{" "}
+						<Link
+							href="/register"
+							className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+						>
+							{t("sign_up")}
+						</Link>
+					</p>
+				</div>
+			)}
 		</div>
 	);
 }

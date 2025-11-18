@@ -28,6 +28,9 @@ interface SiteConfigForm {
 	disable_terms_route: boolean;
 	disable_privacy_route: boolean;
 
+	// Registration control
+	disable_registration: boolean;
+
 	// Custom text
 	custom_copyright: string;
 }
@@ -49,6 +52,7 @@ export default function SiteSettingsPage() {
 		disable_contact_route: true,
 		disable_terms_route: true,
 		disable_privacy_route: true,
+		disable_registration: false,
 		custom_copyright: "SurfSense 2025",
 	});
 	const [isSaving, setIsSaving] = useState(false);
@@ -71,6 +75,7 @@ export default function SiteSettingsPage() {
 				disable_contact_route: config.disable_contact_route,
 				disable_terms_route: config.disable_terms_route,
 				disable_privacy_route: config.disable_privacy_route,
+				disable_registration: config.disable_registration,
 				custom_copyright: config.custom_copyright || "SurfSense 2025",
 			});
 		}
@@ -253,6 +258,26 @@ export default function SiteSettingsPage() {
 										label="Disable Privacy Policy Route"
 										checked={formData.disable_privacy_route}
 										onChange={() => handleToggle("disable_privacy_route")}
+									/>
+								</div>
+							</section>
+
+							{/* Registration Control Section */}
+							<section>
+								<h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+									Registration Control
+								</h2>
+								<p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+									Control user registration availability. When disabled, the Sign Up link will be hidden
+									and the registration page will show a 404 error. The backend will also block registration
+									requests with a 403 error.
+								</p>
+								<div className="space-y-3">
+									<ToggleSwitch
+										label="Disable Registration"
+										description="Prevent new users from creating accounts"
+										checked={formData.disable_registration}
+										onChange={() => handleToggle("disable_registration")}
 									/>
 								</div>
 							</section>

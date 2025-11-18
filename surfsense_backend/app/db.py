@@ -411,6 +411,9 @@ class SiteConfiguration(Base):
     disable_terms_route = Column(Boolean, nullable=False, default=True)
     disable_privacy_route = Column(Boolean, nullable=False, default=True)
 
+    # Registration control
+    disable_registration = Column(Boolean, nullable=False, default=False)
+
     # Custom text
     custom_copyright = Column(String(200), nullable=True, default="SurfSense 2025")
 
