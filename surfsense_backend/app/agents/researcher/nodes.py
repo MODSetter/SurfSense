@@ -20,57 +20,13 @@ from .configuration import Configuration, SearchMode
 from .prompts import get_further_questions_system_prompt
 from .qna_agent.graph import graph as qna_agent_graph
 from .state import State
-from .utils import get_connector_emoji, get_connector_friendly_name
-
-
-# Connector search result metadata
-CONNECTOR_EMOJIS = {
-    "YOUTUBE_VIDEO": "📹",
-    "EXTENSION": "🧩",
-    "CRAWLED_URL": "🌐",
-    "FILE": "📄",
-    "SLACK_CONNECTOR": "💬",
-    "NOTION_CONNECTOR": "📘",
-    "GITHUB_CONNECTOR": "🐙",
-    "LINEAR_CONNECTOR": "📊",
-    "TAVILY_API": "🔍",
-    "SEARXNG_API": "🌐",
-    "LINKUP_API": "🔗",
-    "BAIDU_SEARCH_API": "🇨🇳",
-    "DISCORD_CONNECTOR": "🗨️",
-    "JIRA_CONNECTOR": "🎫",
-    "GOOGLE_CALENDAR_CONNECTOR": "📅",
-    "AIRTABLE_CONNECTOR": "🗃️",
-    "GOOGLE_GMAIL_CONNECTOR": "📧",
-    "CONFLUENCE_CONNECTOR": "📚",
-    "CLICKUP_CONNECTOR": "📋",
-    "LUMA_CONNECTOR": "🎯",
-    "ELASTICSEARCH_CONNECTOR": "🔎",
-}
-
-CONNECTOR_RESULT_NAMES = {
-    "YOUTUBE_VIDEO": "YouTube chunks",
-    "EXTENSION": "Browser Extension chunks",
-    "CRAWLED_URL": "Web Pages chunks",
-    "FILE": "Files chunks",
-    "SLACK_CONNECTOR": "Slack messages",
-    "NOTION_CONNECTOR": "Notion pages/blocks",
-    "GITHUB_CONNECTOR": "GitHub files/issues",
-    "LINEAR_CONNECTOR": "Linear issues",
-    "TAVILY_API": "Web Search results",
-    "SEARXNG_API": "SearxNG results",
-    "LINKUP_API": "Linkup results",
-    "BAIDU_SEARCH_API": "Baidu Search results",
-    "DISCORD_CONNECTOR": "Discord messages",
-    "JIRA_CONNECTOR": "Jira issues",
-    "GOOGLE_CALENDAR_CONNECTOR": "calendar events",
-    "AIRTABLE_CONNECTOR": "Airtable records",
-    "GOOGLE_GMAIL_CONNECTOR": "Gmail messages",
-    "CONFLUENCE_CONNECTOR": "Confluence pages",
-    "CLICKUP_CONNECTOR": "ClickUp tasks",
-    "LUMA_CONNECTOR": "Luma events",
-    "ELASTICSEARCH_CONNECTOR": "Elasticsearch chunks",
-}
+from .utils import (
+    CONNECTOR_EMOJIS,
+    CONNECTOR_RESULT_NAMES,
+    get_connector_emoji,
+    get_connector_friendly_name,
+    get_connector_result_name,
+)
 
 
 async def search_single_connector(
@@ -81,10 +37,10 @@ async def search_single_connector(
     search_space_id: int,
     top_k: int,
     search_mode: SearchMode,
-) -> tuple[str, Any, list]:
+) -> tuple[str, Any | None, list, str | None]:
     """
     Search a single connector and return results.
-    Returns (connector_name, source_object, chunks).
+    Returns (connector_name, source_object, chunks, error).
     """
     source_object = None
     chunks = []
