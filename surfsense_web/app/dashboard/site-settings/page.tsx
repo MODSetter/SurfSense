@@ -67,7 +67,7 @@ export default function SiteSettingsPage() {
 		const checkSuperuser = async () => {
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const token = localStorage.getItem("access_token");
+				const token = localStorage.getItem("surfsense_bearer_token");
 
 				if (!token) {
 					router.push("/login");
@@ -150,7 +150,7 @@ export default function SiteSettingsPage() {
 		setIsSaving(true);
 		try {
 			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const token = localStorage.getItem("access_token");
+			const token = localStorage.getItem("surfsense_bearer_token");
 
 			const response = await fetch(`${backendUrl}/api/v1/site-config`, {
 				method: "PUT",

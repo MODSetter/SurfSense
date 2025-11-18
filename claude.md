@@ -1651,6 +1651,521 @@ For questions or issues related to authentication:
 
 ---
 
+## Registration Toggle System
+
+**Implementation Date:** 2025-11-18
+**Implemented By:** Claude AI Assistant (Anthropic Sonnet 4.5)
+**Feature:** Disable User Registration via Admin Panel
+
+### Overview
+
+Implemented a comprehensive registration control system that allows administrators to disable new user registrations through the admin panel. This provides better control over user access and supports closed registration scenarios for private deployments.
+
+### Implementation Summary
+
+The registration toggle system operates at multiple layers:
+
+1. **Database Layer**: Added `disable_registration` boolean field to `site_configuration` table (migration #39)
+2. **Backend API Layer**: Updated `registration_allowed()` dependency to check database toggle and return 403 when disabled
+3. **Frontend UI Layer**: Conditionally hide "Sign Up" link on login page based on configuration
+4. **Frontend Route Layer**: RouteGuard component protects `/register` route, showing 404 when disabled
+5. **Admin Panel Layer**: Added "Registration Control" section to site-settings page for easy toggling
+
+### Backend Changes
+
+#### Database Migration (#39)
+
+**File:** `surfsense_backend/alembic/versions/39_add_disable_registration_to_site_configuration.py`
+
+```python
+def upgrade() -> None:
+    op.add_column(
+        'site_configuration',
+        sa.Column('disable_registration', sa.Boolean(), nullable=False, server_default='false')
+    )
+
+def downgrade() -> None:
+    op.drop_column('site_configuration', 'disable_registration')
+```
+
+**Revision ID:** `'39'` (shortened to fit varchar(32) constraint)
+**Down Revision:** `'38_add_site_configuration_table'`
+**Default Value:** `false` (registration enabled by default)
+
+#### Database Model
+
+**File:** `surfsense_backend/app/db.py`
+
+```python
+class SiteConfiguration(SQLModel, table=True):
+    # ... existing fields ...
+
+    # Registration control
+    disable_registration = Column(Boolean, nullable=False, default=False)
+```
+
+#### API Schemas
+
+**File:** `surfsense_backend/app/schemas/site_configuration.py`
+
+```python
+class SiteConfigurationBase(BaseModel):
+    # ... existing fields ...
+
+    # Registration control
+    disable_registration: bool = False
+
+class SiteConfigurationUpdate(SiteConfigurationBase):
+    # ... existing fields ...
+    disable_registration: bool | None = None
+```
+
+#### Registration Endpoint Protection
+
+**File:** `surfsense_backend/app/app.py`
+
+```python
+async def registration_allowed(session: AsyncSession = Depends(get_async_session)):
+    # Check environment variable first
+    if not config.REGISTRATION_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is disabled by system configuration"
+        )
+
+    # Check site configuration database toggle
+    result = await session.execute(select(SiteConfiguration).where(SiteConfiguration.id == 1))
+    site_config = result.scalar_one_or_none()
+
+    if site_config and site_config.disable_registration:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is currently disabled. Please contact the administrator if you need access."
+        )
+
+    return True
+
+# Applied to registration routes
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+    dependencies=[Depends(registration_allowed)],  # Enforces registration check
+)
+```
+
+**Error Response** (when disabled):
+```json
+{
+  "detail": "Registration is currently disabled. Please contact the administrator if you need access."
+}
+```
+
+### Frontend Changes
+
+#### Context/State Management
+
+**File:** `surfsense_web/contexts/SiteConfigContext.tsx`
+
+```typescript
+export interface SiteConfig {
+    // ... existing fields ...
+
+    // Registration control
+    disable_registration: boolean;
+}
+
+const defaultConfig: SiteConfig = {
+    // ... existing fields ...
+    disable_registration: false,
+    // ...
+};
+```
+
+#### Login Form
+
+**File:** `surfsense_web/app/(home)/login/LocalLoginForm.tsx`
+
+**Changes:**
+- Added `useSiteConfig()` hook to access site configuration
+- Conditionally render "Sign up" link only when `!config.disable_registration`
+
+```typescript
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
+
+export function LocalLoginForm() {
+    const { config } = useSiteConfig();
+
+    return (
+        {/* ... login form ... */}
+
+        {!config.disable_registration && (
+            <div className="mt-4 text-center text-sm">
+                <p className="text-gray-600 dark:text-gray-400">
+                    {t("dont_have_account")}{" "}
+                    <Link href="/register">
+                        {t("sign_up")}
+                    </Link>
+                </p>
+            </div>
+        )}
+    );
+}
+```
+
+#### Route Guard
+
+**File:** `surfsense_web/components/RouteGuard.tsx`
+
+**Changes:**
+- Extended `routeKey` type to include `"registration"`
+- Added special case handling for registration toggle
+
+```typescript
+interface RouteGuardProps {
+    children: React.ReactNode;
+    routeKey: "pricing" | "docs" | "contact" | "terms" | "privacy" | "registration";
+}
+
+export function RouteGuard({ children, routeKey }: RouteGuardProps) {
+    const { config, isLoading } = useSiteConfig();
+    const router = useRouter();
+
+    // Special case: registration uses disable_registration instead of disable_registration_route
+    const disableKey = routeKey === "registration"
+        ? "disable_registration"
+        : (`disable_${routeKey}_route` as keyof typeof config);
+    const isDisabled = config[disableKey as keyof typeof config];
+
+    if (isDisabled) {
+        router.replace("/404");
+        return null;
+    }
+
+    return <>{children}</>;
+}
+```
+
+#### Register Page
+
+**File:** `surfsense_web/app/(home)/register/page.tsx`
+
+**Changes:**
+- Imported `RouteGuard` component
+- Wrapped entire page content with `<RouteGuard routeKey="registration">`
+
+```typescript
+import { RouteGuard } from "@/components/RouteGuard";
+
+export default function RegisterPage() {
+    return (
+        <RouteGuard routeKey="registration">
+            {/* ... registration form content ... */}
+        </RouteGuard>
+    );
+}
+```
+
+**Behavior:** When `disable_registration` is true, accessing `/register` redirects to `/404`
+
+#### Admin Panel
+
+**File:** `surfsense_web/app/dashboard/site-settings/page.tsx`
+
+**Changes:**
+- Added `disable_registration: boolean` to `SiteConfigForm` interface
+- Added default value `disable_registration: false` to form state
+- Added field to `useEffect` that loads config from API
+- Added new "Registration Control" section in UI
+
+```typescript
+interface SiteConfigForm {
+    // ... existing fields ...
+    disable_registration: boolean;
+}
+
+{/* Registration Control Section */}
+<section>
+    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        Registration Control
+    </h2>
+    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Control user registration availability. When disabled, the Sign Up link will be hidden
+        and the registration page will show a 404 error. The backend will also block registration
+        requests with a 403 error.
+    </p>
+    <div className="space-y-3">
+        <ToggleSwitch
+            label="Disable Registration"
+            description="Prevent new users from creating accounts"
+            checked={formData.disable_registration}
+            onChange={() => handleToggle("disable_registration")}
+        />
+    </div>
+</section>
+```
+
+### Behavior Summary
+
+#### When Registration is ENABLED (default: `disable_registration = false`):
+
+1. **Login Page (`/login`):**
+   - Shows "Don't have an account? Sign up" link
+   - Link navigates to `/register`
+
+2. **Register Page (`/register`):**
+   - Page loads normally
+   - Registration form accepts submissions
+   - Backend POST `/auth/register` succeeds (200)
+
+3. **Admin Panel (`/dashboard/site-settings`):**
+   - "Disable Registration" toggle is OFF
+   - Description explains what happens when enabled
+
+#### When Registration is DISABLED (`disable_registration = true`):
+
+1. **Login Page (`/login`):**
+   - "Don't have an account? Sign up" link is HIDDEN
+   - No visual indication of registration functionality
+
+2. **Register Page (`/register`):**
+   - RouteGuard redirects to `/404` (route disabled)
+   - Page shows standard 404 error
+
+3. **Backend API (`POST /auth/register`):**
+   - Returns `403 Forbidden`
+   - Error message: "Registration is currently disabled. Please contact the administrator if you need access."
+
+4. **Admin Panel (`/dashboard/site-settings`):**
+   - "Disable Registration" toggle is ON (orange)
+   - Admins can toggle back to enable registration
+
+### Security Considerations
+
+1. **Layered Protection:**
+   - Frontend hides UI elements (Sign Up link)
+   - Frontend route guard blocks page access
+   - Backend API validates and blocks requests
+   - Defense in depth approach prevents bypass attempts
+
+2. **Database-Driven:**
+   - Configuration stored in PostgreSQL (singleton row with id=1)
+   - Atomic updates via SQLAlchemy transactions
+   - Consistent state across all application instances
+
+3. **Admin-Only Access:**
+   - Only superusers can access `/dashboard/site-settings`
+   - JWT authentication required for PUT `/api/v1/site-config`
+   - Public GET `/api/v1/site-config/public` is read-only
+
+4. **Graceful Error Messages:**
+   - User-friendly 403 message explains registration is disabled
+   - Directs users to contact administrator
+   - No technical details exposed
+
+### Deployment Steps
+
+1. ✅ **Pull latest code:** `git pull origin nightly`
+2. ✅ **Apply migration:** `alembic upgrade head` (migration #39)
+3. ✅ **Rebuild frontend:** `pnpm build`
+4. ✅ **Restart services:** `systemctl restart surfsense.service surfsense-frontend.service surfsense-celery.service surfsense-celery-beat.service`
+5. ✅ **Verify deployment:** All services active
+
+**Deployment Date:** 2025-11-18
+**Deployment Location:** https://ai.kapteinis.lv
+**VPS:** 46.62.230.195
+
+### Migration Notes
+
+#### Issue Encountered: Revision ID Too Long
+
+**Problem:** Alembic `alembic_version` table has `varchar(32)` constraint on `version_num` column. Original revision ID `'39_add_disable_registration_to_site_configuration'` (50 characters) exceeded limit.
+
+**Error:**
+```
+sqlalchemy.exc.DBAPIError: <class 'asyncpg.exceptions.StringDataRightTruncationError'>:
+value too long for type character varying(32)
+[SQL: UPDATE alembic_version SET version_num='39_add_disable_registration_to_site_configuration'
+WHERE alembic_version.version_num = '38_add_site_configuration_table']
+```
+
+**Solution:** Shortened revision ID using sed on VPS:
+```bash
+sed -i "s/revision: str = '39_add_disable_registration_to_site_configuration'/revision: str = '39'/g" \
+    alembic/versions/39_add_disable_registration_to_site_configuration.py
+```
+
+**Final Revision ID:** `'39'` (2 characters, fits varchar(32))
+
+**Note:** Migration #38 uses long ID `'38_add_site_configuration_table'` but succeeded before (possibly database was modified to allow longer IDs, or varchar constraint was later added).
+
+### Testing Checklist
+
+**Default State (Registration Enabled):**
+- [x] Login page shows "Sign up" link
+- [x] `/register` page loads successfully
+- [x] Registration form accepts submissions
+- [x] Backend POST `/auth/register` returns 200/201
+- [x] Admin panel toggle is OFF (not orange)
+
+**Toggled State (Registration Disabled):**
+- [ ] Admin can toggle "Disable Registration" ON in `/dashboard/site-settings`
+- [ ] Changes saved successfully (toast notification)
+- [ ] Login page "Sign up" link disappears after refetch
+- [ ] `/register` page shows 404 error
+- [ ] Backend POST `/auth/register` returns 403 with message
+- [ ] Admin panel toggle is ON (orange highlight)
+
+**Toggle Back (Re-enable Registration):**
+- [ ] Admin can toggle "Disable Registration" OFF
+- [ ] Login page "Sign up" link reappears
+- [ ] `/register` page loads normally
+- [ ] Backend POST `/auth/register` accepts submissions again
+
+### Files Modified
+
+**Backend (4 files + 1 migration):**
+```
+surfsense_backend/alembic/versions/39_add_disable_registration_to_site_configuration.py  # NEW
+surfsense_backend/app/db.py                                                              # +3 lines
+surfsense_backend/app/app.py                                                            # +20 lines
+surfsense_backend/app/schemas/site_configuration.py                                     # +4 lines
+```
+
+**Frontend (5 files):**
+```
+surfsense_web/contexts/SiteConfigContext.tsx                # +4 lines
+surfsense_web/app/(home)/login/LocalLoginForm.tsx           # +11 lines, -15 lines (conditional)
+surfsense_web/app/(home)/register/page.tsx                  # +2 lines (import, wrapper)
+surfsense_web/components/RouteGuard.tsx                     # +10 lines (registration support)
+surfsense_web/app/dashboard/site-settings/page.tsx         # +25 lines (new section)
+```
+
+**Total Changes:** 9 files modified, 1 file created, ~80 lines added
+
+### Commit Information
+
+**Commit Hash:** `b8bb74e`
+**Branch:** `nightly`
+**Message:**
+```
+Add disable_registration toggle to site configuration
+
+Implemented comprehensive registration control system that allows administrators
+to disable new user registrations through the admin panel. This provides better
+control over user access and supports closed registration scenarios.
+
+Backend changes:
+- Added disable_registration field to SiteConfiguration model (db.py)
+- Created migration #39 to add disable_registration column with default false
+- Updated SiteConfigurationBase, Update, and Read schemas
+- Enhanced registration_allowed() dependency to check database toggle
+- Returns 403 with clear message when registration is disabled
+
+Frontend changes:
+- Added disable_registration to SiteConfig interface and default config
+- Updated LocalLoginForm to conditionally hide "Sign up" link when disabled
+- Added RouteGuard support for "registration" route key
+- Protected /register page with RouteGuard (shows 404 when disabled)
+- Added "Registration Control" section to admin site-settings page
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+### Use Cases
+
+1. **Private Deployments:**
+   - Organization wants to control who can create accounts
+   - Only invite approved users, disable public registration
+   - Admin manually creates accounts for new employees
+
+2. **Capacity Management:**
+   - Server approaching resource limits
+   - Temporarily disable registration until scaling completed
+   - Re-enable when infrastructure ready
+
+3. **Closed Beta:**
+   - Limited initial user base for testing
+   - Disable registration after target number reached
+   - Re-enable for public launch
+
+4. **Security Incident Response:**
+   - Spam/abuse accounts being created
+   - Quickly disable registration to stop attack
+   - Investigate and re-enable when resolved
+
+### Troubleshooting
+
+#### Issue: Toggle doesn't save in admin panel
+
+**Symptoms:** Clicking toggle works, but changes don't persist after refresh
+
+**Diagnosis:**
+1. Check browser console for API errors
+2. Verify JWT token is valid (`localStorage.getItem('access_token')`)
+3. Check backend logs for 401/403 errors
+4. Confirm user is superuser (`is_superuser = true`)
+
+**Solution:** Ensure logged-in user has superuser privileges
+
+#### Issue: Sign Up link still visible after disabling registration
+
+**Symptoms:** Login page shows Sign Up link despite toggle being ON
+
+**Diagnosis:**
+1. Check if frontend context refetched after save
+2. Inspect SiteConfigContext state in React DevTools
+3. Verify GET `/api/v1/site-config/public` returns `disable_registration: true`
+
+**Solution:** Hard refresh browser (Ctrl+Shift+R) or wait for automatic refetch
+
+#### Issue: /register page still loads instead of 404
+
+**Symptoms:** Accessing `/register` shows form instead of 404 error
+
+**Diagnosis:**
+1. Verify RouteGuard is wrapping RegisterPage component
+2. Check SiteConfigContext has correct `disable_registration` value
+3. Confirm RouteGuard logic handles "registration" route key
+
+**Solution:** Verify frontend build includes latest changes, restart frontend service
+
+#### Issue: Backend still accepts registrations despite toggle
+
+**Symptoms:** POST `/auth/register` returns 200 instead of 403
+
+**Diagnosis:**
+1. Check database: `SELECT disable_registration FROM site_configuration WHERE id = 1;`
+2. Verify `registration_allowed()` function checks database
+3. Confirm dependency is applied to register router
+
+**Solution:** Restart backend service to reload code changes
+
+### Future Enhancements
+
+**Potential additions (not yet implemented):**
+- [ ] Registration whitelist (allow specific email domains)
+- [ ] Invitation-based registration (one-time tokens)
+- [ ] Registration queue/approval workflow
+- [ ] Auto-disable after N registrations
+- [ ] Custom messaging when registration disabled
+- [ ] Email notification to admins when disabled
+- [ ] Audit log of registration toggle changes
+- [ ] Rate limiting for registration attempts
+
+### Support
+
+For questions or issues related to registration control:
+- Review admin panel documentation: `/dashboard/site-settings`
+- Check backend registration logic: `surfsense_backend/app/app.py:registration_allowed()`
+- Examine frontend RouteGuard: `surfsense_web/components/RouteGuard.tsx`
+- Verify SiteConfig context: `surfsense_web/contexts/SiteConfigContext.tsx`
+- Migration file: `surfsense_backend/alembic/versions/39_add_disable_registration_to_site_configuration.py`
+
+---
+
 ## Conclusion
 
 **Overall Security Posture:** ✅ **STRONG**

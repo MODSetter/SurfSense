@@ -3,6 +3,7 @@
 import { BadgeCheck, LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { baseApiService } from "@/lib/apis/base-api.service";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -29,6 +30,8 @@ export function UserDropdown({
 		try {
 			if (typeof window !== "undefined") {
 				localStorage.removeItem("surfsense_bearer_token");
+				// Clear the baseApiService token to prevent stale auth state
+				baseApiService.setBearerToken("");
 				router.push("/");
 			}
 		} catch (error) {
