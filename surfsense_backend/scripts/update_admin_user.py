@@ -26,17 +26,22 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-# Password hashing context (same as FastAPI-Users uses)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # Configuration
 ADMIN_EMAIL = "ojars@kapteinis.lv"
 NEW_PASSWORD = "^&U0yXLK1ypZOwLDGFeLT35kCrblITYyAVdVmF3!iJ%kkY1Nl^IS!P"
+
+
+def hash_password(password: str) -> str:
+    """Hash password using bcrypt directly (same as FastAPI-Users)."""
+    # Encode to bytes and truncate to 72 bytes (bcrypt limit)
+    password_bytes = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
 
 async def update_admin_user():
@@ -64,7 +69,7 @@ async def update_admin_user():
     async with async_session() as session:
         try:
             # Hash the new password
-            hashed_password = pwd_context.hash(NEW_PASSWORD)
+            hashed_password = hash_password(NEW_PASSWORD)
 
             # Update the user
             result = await session.execute(
