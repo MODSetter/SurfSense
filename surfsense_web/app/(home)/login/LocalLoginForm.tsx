@@ -24,14 +24,8 @@ export function LocalLoginForm() {
 		title: null,
 		message: null,
 	});
-	const [authType, setAuthType] = useState<string | null>(null);
 	const router = useRouter();
 	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
-
-	useEffect(() => {
-		// Get the auth type from environment variables
-		setAuthType(process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE");
-	}, []);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -233,19 +227,17 @@ export function LocalLoginForm() {
 				</button>
 			</form>
 
-			{authType === "LOCAL" && (
-				<div className="mt-4 text-center text-sm">
-					<p className="text-gray-600 dark:text-gray-400">
-						{t("dont_have_account")}{" "}
-						<Link
-							href="/register"
-							className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-						>
-							{t("sign_up")}
-						</Link>
-					</p>
-				</div>
-			)}
+			<div className="mt-4 text-center text-sm">
+				<p className="text-gray-600 dark:text-gray-400">
+					{t("dont_have_account")}{" "}
+					<Link
+						href="/register"
+						className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
+					>
+						{t("sign_up")}
+					</Link>
+				</p>
+			</div>
 		</div>
 	);
 }
