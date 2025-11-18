@@ -16,9 +16,10 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
-// URL validation regex
-const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+// URL validation regex - updated to support percent-encoded URLs (e.g., Latvian characters)
+const urlRegex = /^https?:\/\/[^\s]+$/;
 
 export default function WebpageCrawler() {
 	const t = useTranslations("add_webpage");
@@ -69,7 +70,7 @@ export default function WebpageCrawler() {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: JSON.stringify({
 						document_type: "CRAWLED_URL",

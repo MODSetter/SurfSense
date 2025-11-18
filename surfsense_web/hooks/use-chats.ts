@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { handleSessionExpired } from "@/lib/auth-utils";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface Chat {
 	created_at: string;
@@ -39,17 +41,14 @@ export function useChats({
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats?limit=${limit}&skip=${skip}&search_space_id=${searchSpaceId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "GET",
 				}
 			);
 
 			if (response.status === 401) {
-				// Clear token and redirect to home
-				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
-				throw new Error("Unauthorized: Redirecting to login page");
+				handleSessionExpired();
 			}
 
 			if (!response.ok) {
@@ -83,17 +82,14 @@ export function useChats({
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${chatId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "DELETE",
 				}
 			);
 
 			if (response.status === 401) {
-				// Clear token and redirect to home
-				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
-				throw new Error("Unauthorized: Redirecting to login page");
+				handleSessionExpired();
 			}
 
 			if (!response.ok) {

@@ -1,4 +1,8 @@
 from collections.abc import AsyncGenerator
+import asyncio
+import json
+import logging
+import os
 from typing import Any
 from uuid import UUID
 
@@ -8,6 +12,9 @@ from app.agents.researcher.configuration import SearchMode
 from app.agents.researcher.graph import graph as researcher_graph
 from app.agents.researcher.state import State
 from app.services.streaming_service import StreamingService
+from app.services.grammar_check import auto_grammar_check
+
+logger = logging.getLogger(__name__)
 
 
 async def stream_connector_search_results(
@@ -71,6 +78,9 @@ async def stream_connector_search_results(
     # Run the graph directly
     print("\nRunning the complete researcher workflow...")
 
+    # Collect response text for grammar checking
+    response_chunks = []
+
     # Use streaming with config parameter
     async for chunk in researcher_graph.astream(
         initial_state,
@@ -78,6 +88,45 @@ async def stream_connector_search_results(
         stream_mode="custom",
     ):
         if isinstance(chunk, dict) and "yield_value" in chunk:
-            yield chunk["yield_value"]
+            # Collect text chunks for grammar checking
+            yield_value = chunk["yield_value"]
+            yield yield_value
+            
+            # Try to extract text from the chunk
+            try:
+                # Parse the chunk to extract text
+                # Format is like "0:"text"\n" for text chunks
+                if yield_value.startswith("0:"):
+                    text_json = yield_value[2:].strip()
+                    if text_json:
+                        text = json.loads(text_json)
+                        response_chunks.append(text)
+            except Exception:
+                # Ignore parsing errors, not all chunks contain text
+                pass
+
+    # Run grammar check asynchronously with timeout
+    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    
+    try:
+        # Combine response chunks
+        full_response = "".join(response_chunks)
+        
+        if full_response.strip():
+            # Run grammar check with timeout
+            grammar_result = await asyncio.wait_for(
+                auto_grammar_check(user_query, full_response, ollama_url),
+                timeout=8.0
+            )
+            
+            # If grammar check returned a result, stream it
+            if grammar_result:
+                logger.info(f"Grammar check completed for language: {grammar_result.get('language_code', 'unknown')}")
+                yield streaming_service.format_grammar_check_delta(grammar_result)
+    
+    except asyncio.TimeoutError:
+        logger.warning("Grammar check timed out")
+    except Exception as e:
+        logger.warning(f"Grammar check failed: {e}")
 
     yield streaming_service.format_completion()

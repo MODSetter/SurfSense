@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { handleSessionExpired } from "@/lib/auth-utils";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface User {
 	id: string;
@@ -27,16 +29,13 @@ export function useUser() {
 				setLoading(true);
 				const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/users/me`, {
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "GET",
 				});
 
 				if (response.status === 401) {
-					// Clear token and redirect to home
-					localStorage.removeItem("surfsense_bearer_token");
-					window.location.href = "/";
-					throw new Error("Unauthorized: Redirecting to login page");
+					handleSessionExpired();
 				}
 
 				if (!response.ok) {

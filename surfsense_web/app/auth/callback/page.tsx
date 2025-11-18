@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import TokenHandler from "@/components/TokenHandler";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export default function AuthCallbackPage() {
 	return (
@@ -15,7 +16,7 @@ export default function AuthCallbackPage() {
 				<TokenHandler
 					redirectPath="/dashboard"
 					tokenParamName="token"
-					storageKey="surfsense_bearer_token"
+					storageKey={AUTH_TOKEN_KEY}
 				/>
 			</Suspense>
 		</div>

@@ -35,6 +35,7 @@ import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
 import { useUser } from "@/hooks";
 import { useSearchSpaces } from "@/hooks/use-search-spaces";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 /**
  * Formats a date string into a readable format
@@ -177,7 +178,7 @@ const DashboardPage = () => {
 				{
 					method: "DELETE",
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 				}
 			);

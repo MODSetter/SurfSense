@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export interface DocumentTypeCount {
 	type: string;
@@ -23,7 +24,7 @@ export const useDocumentTypes = (searchSpaceId?: number, lazy: boolean = false) 
 			try {
 				setIsLoading(true);
 				setError(null);
-				const token = localStorage.getItem("surfsense_bearer_token");
+				const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
 				if (!token) {
 					throw new Error("No authentication token found");

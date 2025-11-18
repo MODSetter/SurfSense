@@ -1,9 +1,10 @@
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from enum import Enum
+import uuid
 
 from fastapi import Depends
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
+from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable, SQLAlchemyUserDatabase
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     ARRAY,
@@ -27,9 +28,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, relationship
 from app.config import config
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
-
-if config.AUTH_TYPE == "GOOGLE":
-    from fastapi_users.db import SQLAlchemyBaseOAuthAccountTableUUID
 
 DATABASE_URL = config.DATABASE_URL
 
@@ -55,11 +53,11 @@ class DocumentType(str, Enum):
 
 
 class SearchSourceConnectorType(str, Enum):
-    SERPER_API = "SERPER_API"  # NOT IMPLEMENTED YET : DON'T REMEMBER WHY : MOST PROBABLY BECAUSE WE NEED TO CRAWL THE RESULTS RETURNED BY IT
+    SERPER_API = "SERPER_API"
     TAVILY_API = "TAVILY_API"
     SEARXNG_API = "SEARXNG_API"
     LINKUP_API = "LINKUP_API"
-    BAIDU_SEARCH_API = "BAIDU_SEARCH_API"  # Baidu AI Search API for Chinese web search
+    BAIDU_SEARCH_API = "BAIDU_SEARCH_API"
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
@@ -80,10 +78,6 @@ class ChatType(str, Enum):
 
 
 class LiteLLMProvider(str, Enum):
-    """
-    Enum for LLM providers supported by LiteLLM.
-    """
-
     OPENAI = "OPENAI"
     ANTHROPIC = "ANTHROPIC"
     GOOGLE = "GOOGLE"
@@ -130,13 +124,28 @@ class LogStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class SocialMediaPlatform(str, Enum):
+    MASTODON = "MASTODON"
+    PIXELFED = "PIXELFED"
+    BOOKWYRM = "BOOKWYRM"
+    LEMMY = "LEMMY"
+    PEERTUBE = "PEERTUBE"
+    GITHUB = "GITHUB"
+    GITLAB = "GITLAB"
+    MATRIX = "MATRIX"
+    LINKEDIN = "LINKEDIN"
+    WEBSITE = "WEBSITE"
+    EMAIL = "EMAIL"
+    OTHER = "OTHER"
+
+
 class Base(DeclarativeBase):
     pass
 
 
 class TimestampMixin:
     @declared_attr
-    def created_at(cls):  # noqa: N805
+    def created_at(cls):
         return Column(
             TIMESTAMP(timezone=True),
             nullable=False,
@@ -208,7 +217,7 @@ class Podcast(BaseModel, TimestampMixin):
     file_location = Column(String(500), nullable=False, default="")
     chat_id = Column(
         Integer, ForeignKey("chats.id", ondelete="CASCADE"), nullable=True
-    )  # If generated from a chat, this will be the chat id, else null ( can be from a document or a chat )
+    )
     chat_state_version = Column(BigInteger, nullable=True)
 
     search_space_id = Column(
@@ -288,7 +297,6 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     last_indexed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     config = Column(JSON, nullable=False)
 
-    # Periodic indexing fields
     periodic_indexing_enabled = Column(Boolean, nullable=False, default=False)
     indexing_frequency_minutes = Column(Integer, nullable=True)
     next_scheduled_at = Column(TIMESTAMP(timezone=True), nullable=True)
@@ -309,19 +317,14 @@ class LLMConfig(BaseModel, TimestampMixin):
     __tablename__ = "llm_configs"
 
     name = Column(String(100), nullable=False, index=True)
-    # Provider from the enum
     provider = Column(SQLAlchemyEnum(LiteLLMProvider), nullable=False)
-    # Custom provider name when provider is CUSTOM
     custom_provider = Column(String(100), nullable=True)
-    # Just the model name without provider prefix
     model_name = Column(String(100), nullable=False)
-    # API Key should be encrypted before storing
     api_key = Column(String, nullable=False)
     api_base = Column(String(500), nullable=True)
 
     language = Column(String(50), nullable=True, default="English")
 
-    # For any other parameters that litellm supports
     litellm_params = Column(JSON, nullable=True, default={})
 
     search_space_id = Column(
@@ -347,26 +350,12 @@ class UserSearchSpacePreference(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
 
-    # User-specific LLM preferences for this search space
-    # Note: These can be negative IDs for global configs (from YAML) or positive IDs for custom configs (from DB)
-    # Foreign keys removed to support global configs with negative IDs
     long_context_llm_id = Column(Integer, nullable=True)
     fast_llm_id = Column(Integer, nullable=True)
     strategic_llm_id = Column(Integer, nullable=True)
 
-    # Future RBAC fields can be added here
-    # role = Column(String(50), nullable=True)  # e.g., 'owner', 'editor', 'viewer'
-    # permissions = Column(JSON, nullable=True)
-
     user = relationship("User", back_populates="search_space_preferences")
     search_space = relationship("SearchSpace", back_populates="user_preferences")
-
-    # Note: Relationships removed because foreign keys no longer exist
-    # Global configs (negative IDs) don't exist in llm_configs table
-    # Application code manually fetches configs when needed
-    # long_context_llm = relationship("LLMConfig", foreign_keys=[long_context_llm_id], post_update=True)
-    # fast_llm = relationship("LLMConfig", foreign_keys=[fast_llm_id], post_update=True)
-    # strategic_llm = relationship("LLMConfig", foreign_keys=[strategic_llm_id], post_update=True)
 
 
 class Log(BaseModel, TimestampMixin):
@@ -375,10 +364,8 @@ class Log(BaseModel, TimestampMixin):
     level = Column(SQLAlchemyEnum(LogLevel), nullable=False, index=True)
     status = Column(SQLAlchemyEnum(LogStatus), nullable=False, index=True)
     message = Column(Text, nullable=False)
-    source = Column(
-        String(200), nullable=True, index=True
-    )  # Service/component that generated the log
-    log_metadata = Column(JSON, nullable=True, default={})  # Additional context data
+    source = Column(String(200), nullable=True, index=True)
+    log_metadata = Column(JSON, nullable=True, default={})
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
@@ -386,38 +373,76 @@ class Log(BaseModel, TimestampMixin):
     search_space = relationship("SearchSpace", back_populates="logs")
 
 
+class SocialMediaLink(BaseModel, TimestampMixin):
+    __tablename__ = "social_media_links"
+
+    platform = Column(SQLAlchemyEnum(SocialMediaPlatform), nullable=False, index=True)
+    url = Column(String(500), nullable=False)
+    label = Column(String(100), nullable=True)  # Optional custom label
+    display_order = Column(Integer, nullable=False, default=0)  # For ordering links
+    is_active = Column(Boolean, nullable=False, default=True)  # Toggle visibility
+
+
+class SiteConfiguration(Base):
+    __tablename__ = "site_configuration"
+    __allow_unmapped__ = True
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Header/Navbar toggles
+    show_pricing_link = Column(Boolean, nullable=False, default=False)
+    show_docs_link = Column(Boolean, nullable=False, default=False)
+    show_github_link = Column(Boolean, nullable=False, default=False)
+    show_sign_in = Column(Boolean, nullable=False, default=True)
+
+    # Homepage toggles
+    show_get_started_button = Column(Boolean, nullable=False, default=False)
+    show_talk_to_us_button = Column(Boolean, nullable=False, default=False)
+
+    # Footer toggles
+    show_pages_section = Column(Boolean, nullable=False, default=False)
+    show_legal_section = Column(Boolean, nullable=False, default=False)
+    show_register_section = Column(Boolean, nullable=False, default=False)
+
+    # Route disabling
+    disable_pricing_route = Column(Boolean, nullable=False, default=True)
+    disable_docs_route = Column(Boolean, nullable=False, default=True)
+    disable_contact_route = Column(Boolean, nullable=False, default=True)
+    disable_terms_route = Column(Boolean, nullable=False, default=True)
+    disable_privacy_route = Column(Boolean, nullable=False, default=True)
+
+    # Registration control
+    disable_registration = Column(Boolean, nullable=False, default=False)
+
+    # Custom text
+    custom_copyright = Column(String(200), nullable=True, default="SurfSense 2025")
+
+
 if config.AUTH_TYPE == "GOOGLE":
 
-    class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
-        pass
+    class OAuthAccount(Base):
+        __tablename__ = "oauth_account"
+        id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    class User(SQLAlchemyBaseUserTableUUID, Base):
-        oauth_accounts: Mapped[list[OAuthAccount]] = relationship(
-            "OAuthAccount", lazy="joined"
-        )
+    class User(SQLAlchemyBaseUserTable, Base):
+        id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+        oauth_accounts = relationship("OAuthAccount", lazy="joined")
         search_spaces = relationship("SearchSpace", back_populates="user")
         search_space_preferences = relationship(
-            "UserSearchSpacePreference",
-            back_populates="user",
-            cascade="all, delete-orphan",
+            "UserSearchSpacePreference", back_populates="user", cascade="all, delete-orphan"
         )
-
-        # Page usage tracking for ETL services
-        pages_limit = Column(Integer, nullable=False, default=500, server_default="500")
+        pages_limit = Column(Integer, nullable=False, default=1000, server_default="1000")
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
 else:
 
-    class User(SQLAlchemyBaseUserTableUUID, Base):
+    class User(SQLAlchemyBaseUserTable, Base):
+        id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
         search_spaces = relationship("SearchSpace", back_populates="user")
         search_space_preferences = relationship(
-            "UserSearchSpacePreference",
-            back_populates="user",
-            cascade="all, delete-orphan",
+            "UserSearchSpacePreference", back_populates="user", cascade="all, delete-orphan"
         )
-
-        # Page usage tracking for ETL services
-        pages_limit = Column(Integer, nullable=False, default=500, server_default="500")
+        pages_limit = Column(Integer, nullable=False, default=1000, server_default="1000")
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
 
@@ -427,8 +452,6 @@ async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 async def setup_indexes():
     async with engine.begin() as conn:
-        # Create indexes
-        # Document Summary Indexes
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS document_vector_index ON documents USING hnsw (embedding public.vector_cosine_ops)"
@@ -439,7 +462,6 @@ async def setup_indexes():
                 "CREATE INDEX IF NOT EXISTS document_search_index ON documents USING gin (to_tsvector('english', content))"
             )
         )
-        # Document Chuck Indexes
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS chucks_vector_index ON chunks USING hnsw (embedding public.vector_cosine_ops)"
@@ -485,3 +507,4 @@ async def get_documents_hybrid_search_retriever(
     session: AsyncSession = Depends(get_async_session),
 ):
     return DocumentHybridSearchRetriever(session)
+

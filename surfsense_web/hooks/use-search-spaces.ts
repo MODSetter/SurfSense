@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface SearchSpace {
 	id: number;
@@ -24,7 +25,7 @@ export function useSearchSpaces() {
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
 					{
 						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						},
 						method: "GET",
 					}
@@ -57,7 +58,7 @@ export function useSearchSpaces() {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "GET",
 				}

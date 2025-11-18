@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { AmbientBackground } from "./AmbientBackground";
-import { GoogleLoginButton } from "./GoogleLoginButton";
 import { LocalLoginForm } from "./LocalLoginForm";
 
 function LoginContent() {
@@ -82,8 +81,8 @@ function LoginContent() {
 			});
 		}
 
-		// Get the auth type from environment variables
-		setAuthType(process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE");
+		// Force email/password authentication only
+		setAuthType("EMAIL");
 		setIsLoading(false);
 	}, [searchParams]);
 
@@ -103,10 +102,7 @@ function LoginContent() {
 		);
 	}
 
-	if (authType === "GOOGLE") {
-		return <GoogleLoginButton />;
-	}
-
+	// Always use email/password authentication
 	return (
 		<div className="relative w-full overflow-hidden">
 			<AmbientBackground />

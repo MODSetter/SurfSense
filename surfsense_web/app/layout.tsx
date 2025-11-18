@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { GoogleAnalytics } from "@next/third-parties/google";
 import { RootProvider } from "fumadocs-ui/provider";
 import { Roboto } from "next/font/google";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
+import { SiteConfigProvider } from "@/contexts/SiteConfigContext";
 import { ReactQueryClientProvider } from "@/lib/query-client/query-client.provider";
 import { cn } from "@/lib/utils";
 
@@ -91,7 +91,6 @@ export default function RootLayout({
 	// Locale state is managed by LocaleContext and persisted in localStorage
 	return (
 		<html lang="en" suppressHydrationWarning>
-			<GoogleAnalytics gaId="G-T4CHE7W3TE" />
 			<body className={cn(roboto.className, "bg-white dark:bg-black antialiased h-full w-full ")}>
 				<LocaleProvider>
 					<I18nProvider>
@@ -102,8 +101,10 @@ export default function RootLayout({
 							defaultTheme="light"
 						>
 							<RootProvider>
-								<ReactQueryClientProvider>{children}</ReactQueryClientProvider>
-								<Toaster />
+								<SiteConfigProvider>
+									<ReactQueryClientProvider>{children}</ReactQueryClientProvider>
+									<Toaster />
+								</SiteConfigProvider>
 							</RootProvider>
 						</ThemeProvider>
 					</I18nProvider>

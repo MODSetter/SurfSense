@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export interface Chunk {
 	id: number;
@@ -53,7 +54,7 @@ export function useDocumentByChunk() {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/by-chunk/${chunkId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						"Content-Type": "application/json",
 					},
 					method: "GET",

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
+import { RouteGuard } from "@/components/RouteGuard";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { AppError, ValidationError } from "@/lib/error";
 import { AmbientBackground } from "../login/AmbientBackground";
@@ -29,12 +30,9 @@ export default function RegisterPage() {
 	const router = useRouter();
 	const [{ mutateAsync: register, isPending: isRegistering }] = useAtom(registerMutationAtom);
 
-	// Check authentication type and redirect if not LOCAL
+	// Email/password authentication is enforced - registration is always available
 	useEffect(() => {
-		const authType = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE";
-		if (authType !== "LOCAL") {
-			router.push("/login");
-		}
+		// Email authentication is the only method - no redirect needed
 	}, [router]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -139,13 +137,14 @@ export default function RegisterPage() {
 	};
 
 	return (
-		<div className="relative w-full overflow-hidden">
-			<AmbientBackground />
-			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-				<Logo className="rounded-md" />
-				<h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
-					{t("create_account")}
-				</h1>
+		<RouteGuard routeKey="registration">
+			<div className="relative w-full overflow-hidden">
+				<AmbientBackground />
+				<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
+					<Logo className="rounded-md" />
+					<h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
+						{t("create_account")}
+					</h1>
 
 				<div className="w-full max-w-md">
 					<form onSubmit={handleSubmit} className="space-y-4">
@@ -299,5 +298,6 @@ export default function RegisterPage() {
 				</div>
 			</div>
 		</div>
+		</RouteGuard>
 	);
 }

@@ -1,14 +1,16 @@
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-	title: "Privacy Policy | SurfSense",
-	description: "Privacy Policy for SurfSense application",
-};
+import type { Metadata } from "next";
+import { RouteGuard } from "@/components/RouteGuard";
+
+// Note: metadata export removed as this is now a client component
+// Consider moving metadata to a parent layout if needed
 
 export default function PrivacyPolicy() {
 	return (
-		<div className="container max-w-4xl mx-auto py-12 px-4">
-			<h1 className="text-4xl font-bold mb-8">Privacy Policy</h1>
+		<RouteGuard routeKey="privacy">
+			<div className="container max-w-4xl mx-auto py-12 px-4">
+				<h1 className="text-4xl font-bold mb-8">Privacy Policy</h1>
 
 			<div className="prose dark:prose-invert max-w-none">
 				<p className="text-lg mb-6">Last updated: {new Date().toLocaleDateString()}</p>
@@ -186,5 +188,6 @@ export default function PrivacyPolicy() {
 				</section>
 			</div>
 		</div>
+		</RouteGuard>
 	);
 }

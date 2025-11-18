@@ -2,6 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { baseApiService } from "@/lib/apis/base-api.service";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface TokenHandlerProps {
 	redirectPath?: string; // Path to redirect after storing token
@@ -19,7 +21,7 @@ interface TokenHandlerProps {
 const TokenHandler = ({
 	redirectPath = "/",
 	tokenParamName = "token",
-	storageKey = "surfsense_bearer_token",
+	storageKey = AUTH_TOKEN_KEY,
 }: TokenHandlerProps) => {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -35,7 +37,10 @@ const TokenHandler = ({
 			try {
 				// Store token in localStorage
 				localStorage.setItem(storageKey, token);
-				// console.log(`Token stored in localStorage with key: ${storageKey}`);
+
+				// Update the baseApiService singleton with the new token
+				// This ensures subsequent API calls use the correct token
+				baseApiService.setBearerToken(token);
 
 				// Redirect to specified path
 				router.push(redirectPath);

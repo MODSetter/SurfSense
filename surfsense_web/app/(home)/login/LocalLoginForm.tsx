@@ -8,12 +8,14 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { ValidationError } from "@/lib/error";
 
 export function LocalLoginForm() {
 	const t = useTranslations("auth");
 	const tCommon = useTranslations("common");
+	const { config } = useSiteConfig();
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
@@ -24,14 +26,8 @@ export function LocalLoginForm() {
 		title: null,
 		message: null,
 	});
-	const [authType, setAuthType] = useState<string | null>(null);
 	const router = useRouter();
 	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
-
-	useEffect(() => {
-		// Get the auth type from environment variables
-		setAuthType(process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE");
-	}, []);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -233,7 +229,7 @@ export function LocalLoginForm() {
 				</button>
 			</form>
 
-			{authType === "LOCAL" && (
+			{!config.disable_registration && (
 				<div className="mt-4 text-center text-sm">
 					<p className="text-gray-600 dark:text-gray-400">
 						{t("dont_have_account")}{" "}

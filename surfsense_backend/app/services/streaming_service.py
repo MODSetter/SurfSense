@@ -189,3 +189,19 @@ class StreamingService:
             },
         }
         return f"d:{json.dumps(completion_data)}\n"
+
+    def format_grammar_check_delta(self, grammar_result: dict) -> str:
+        """
+        Format grammar check results as a delta annotation
+        
+        Args:
+            grammar_result: Grammar check result dictionary
+            
+        Returns:
+            str: The formatted annotation delta string
+        """
+        annotation = {
+            "type": "GRAMMAR_CHECK",
+            "data": grammar_result,
+        }
+        return f"8:[{json.dumps(annotation)}]\n"

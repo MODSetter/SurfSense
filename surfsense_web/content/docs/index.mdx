@@ -5,26 +5,25 @@ full: true
 ---
 
 
-## Auth Setup 
+## Auth Setup
 
-SurfSense supports both Google OAuth and local email/password authentication. Google OAuth is optional - if you prefer local authentication, you can skip this section.
+SurfSense uses email/password authentication for user accounts.
 
-**Note**: Google OAuth setup is **required** in your `.env` files if you want to use the Gmail and Google Calendar connectors in SurfSense.
+### Google OAuth for Connectors (Optional)
 
-To set up Google OAuth:
+**Note**: Google OAuth setup is **required** in your `.env` files only if you want to use the Gmail and Google Calendar connectors in SurfSense.
+
+To set up Google OAuth for Gmail/Calendar connectors:
 
 1. Login to your [Google Developer Console](https://console.cloud.google.com/)
 2. Enable the required APIs:
-   - **People API** (required for basic Google OAuth)
    - **Gmail API** (required if you want to use the Gmail connector)
    - **Google Calendar API** (required if you want to use the Google Calendar connector)
-![Google Developer Console People API](/docs/google_oauth_people_api.png)
-3. Set up OAuth consent screen.
-![Google Developer Console OAuth consent screen](/docs/google_oauth_screen.png)
-4. Create OAuth client ID and secret.
-![Google Developer Console OAuth client ID](/docs/google_oauth_client.png)
-5. It should look like this.
-![Google Developer Console Config](/docs/google_oauth_config.png)
+3. Set up OAuth consent screen
+4. Create OAuth client ID and secret
+5. Add the redirect URIs:
+   - For Gmail: `http://your-domain/api/v1/auth/google/gmail/connector/callback`
+   - For Calendar: `http://your-domain/api/v1/auth/google/calendar/connector/callback`
 
 ---
 

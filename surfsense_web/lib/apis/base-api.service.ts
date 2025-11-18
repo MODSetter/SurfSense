@@ -6,6 +6,7 @@ import {
 	NotFoundError,
 	ValidationError,
 } from "../error";
+import { AUTH_TOKEN_KEY } from "../constants";
 
 export type RequestOptions = {
 	method: "GET" | "POST" | "PUT" | "DELETE";
@@ -182,6 +183,6 @@ export class BaseApiService {
 }
 
 export const baseApiService = new BaseApiService(
-	typeof window !== "undefined" ? localStorage.getItem("surfsense_bearer_token") || "" : "",
+	typeof window !== "undefined" ? localStorage.getItem(AUTH_TOKEN_KEY) || "" : "",
 	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || ""
 );

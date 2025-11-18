@@ -23,20 +23,8 @@ global_llm_configs:
       temperature: 0.7
       max_tokens: 4000
 
-  # Example: Anthropic Claude 3 Opus
-  - id: -2
-    name: "Global Claude 3 Opus"
-    provider: "ANTHROPIC"
-    model_name: "claude-3-opus-20240229"
-    api_key: "sk-ant-your-anthropic-api-key-here"
-    api_base: ""
-    language: "English"
-    litellm_params:
-      temperature: 0.7
-      max_tokens: 4000
-
   # Example: Fast model - GPT-3.5 Turbo
-  - id: -3
+  - id: -2
     name: "Global GPT-3.5 Turbo"
     provider: "OPENAI"
     model_name: "gpt-3.5-turbo"
@@ -48,7 +36,7 @@ global_llm_configs:
       max_tokens: 2000
 
   # Example: Chinese LLM - DeepSeek
-  - id: -4
+  - id: -3
     name: "Global DeepSeek Chat"
     provider: "DEEPSEEK"
     model_name: "deepseek-chat"
@@ -60,7 +48,7 @@ global_llm_configs:
       max_tokens: 4000
 
   # Example: Groq - Fast inference
-  - id: -5
+  - id: -4
     name: "Global Groq Llama 3"
     provider: "GROQ"
     model_name: "llama3-70b-8192"

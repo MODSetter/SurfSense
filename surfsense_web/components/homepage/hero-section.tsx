@@ -5,10 +5,12 @@ import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
 import { cn } from "@/lib/utils";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 export function HeroSection() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const parentRef = useRef<HTMLDivElement>(null);
+	const { config } = useSiteConfig();
 
 	return (
 		<div
@@ -59,33 +61,39 @@ export function HeroSection() {
 
 			<h2 className="relative z-50 mx-auto mb-4 mt-4 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
 				<Balancer>
-					The AI Workspace{" "}
 					<div className="relative mx-auto inline-block w-max [filter:drop-shadow(0px_1px_3px_rgba(27,_37,_80,_0.14))]">
 						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-							<span className="">Built for Teams</span>
+							<span className="">Let's Start Surfing</span>
 						</div>
 					</div>
 				</Balancer>
 			</h2>
-			{/* // TODO:aCTUAL DESCRITION */}
-			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
-				your team.
+			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200 mb-8">
+				Your AI-powered research agent and personal knowledge base. Connect any LLM to your data sources and explore information like never before.
 			</p>
-			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
-				<Link
-					href="/login"
-					className="group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-black p-px px-4 py-2 text-center text-sm font-semibold leading-6 text-white no-underline transition duration-200 sm:w-52 dark:bg-white dark:text-black"
-				>
-					Get Started
-				</Link>
-				{/* <Link
-					href="/pricing"
-					className="shadow-input group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-white p-px px-4 py-2 text-sm font-semibold leading-6 text-black no-underline transition duration-200 hover:-translate-y-0.5 sm:w-52 dark:bg-neutral-800 dark:text-white"
-				>
-					Start Free Trial
-				</Link> */}
-			</div>
+
+			{/* Conditional Action Buttons */}
+			{(config.show_get_started_button || config.show_talk_to_us_button) && (
+				<div className="relative z-50 flex flex-col sm:flex-row gap-4 mb-10 md:mb-20">
+					{config.show_get_started_button && (
+						<Link
+							href="/register"
+							className="px-8 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+						>
+							Get Started
+						</Link>
+					)}
+					{config.show_talk_to_us_button && !config.disable_contact_route && (
+						<Link
+							href="/contact"
+							className="px-8 py-3 bg-white dark:bg-neutral-800 text-gray-800 dark:text-white font-semibold rounded-full border-2 border-neutral-200 dark:border-neutral-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+						>
+							Talk to Us
+						</Link>
+					)}
+				</div>
+			)}
+
 			<div
 				ref={containerRef}
 				className="relative mx-auto max-w-7xl rounded-[32px] border border-neutral-200/50 bg-neutral-100 p-2 backdrop-blur-lg md:p-4 dark:border-neutral-700 dark:bg-neutral-800/50"

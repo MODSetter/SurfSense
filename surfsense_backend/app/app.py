@@ -2,11 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.config import config
-from app.db import User, create_db_and_tables, get_async_session
+from app.db import SiteConfiguration, User, create_db_and_tables, get_async_session
 from app.routes import router as crud_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
@@ -19,11 +20,24 @@ async def lifespan(app: FastAPI):
     yield
 
 
-def registration_allowed():
+async def registration_allowed(session: AsyncSession = Depends(get_async_session)):
+    # Check environment variable first
     if not config.REGISTRATION_ENABLED:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Registration is disabled"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is disabled by system configuration"
         )
+
+    # Check site configuration database toggle
+    result = await session.execute(select(SiteConfiguration).where(SiteConfiguration.id == 1))
+    site_config = result.scalar_one_or_none()
+
+    if site_config and site_config.disable_registration:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is currently disabled. Please contact the administrator if you need access."
+        )
+
     return True
 
 
@@ -36,7 +50,7 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=config.CORS_ORIGINS,  # Configurable via CORS_ORIGINS env var
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -97,4 +111,13 @@ async def authenticated_route(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    return {"message": "Token is valid"}
+    return {
+        "message": "Token is valid",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "is_active": user.is_active,
+            "is_superuser": user.is_superuser,
+            "is_verified": user.is_verified,
+        }
+    }
