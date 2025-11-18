@@ -45,10 +45,11 @@ class ChatApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.get(
-			`/api/v1/chats?search_space_id=${request.search_space_id}`,
-			z.array(chatSummary)
-		);
+		const queryParams = parsedRequest.data.queryParams
+			? new URLSearchParams(parsedRequest.data.queryParams).toString()
+			: undefined;
+
+		return baseApiService.get(`/api/v1/chats?${queryParams}`, z.array(chatSummary));
 	};
 
 	deleteChat = async (request: DeleteChatRequest) => {

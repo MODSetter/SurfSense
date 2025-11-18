@@ -20,11 +20,16 @@ export const chatDetails = chatSummary.extend({
 
 export const getChatDetailsRequest = chatSummary.pick({ id: true });
 
-export const getChatsBySearchSpaceRequest = chatSummary
-	.pick({
-		search_space_id: true,
-	})
-	.merge(paginationQueryParams);
+export const getChatsBySearchSpaceRequest = z.object({
+	queryParams: paginationQueryParams
+		.extend({
+			search_space_id: z.number().or(z.string()),
+		})
+		.transform((entries) =>
+			Object.fromEntries(Object.entries(entries).map(([k, v]) => [k, v.toString()]))
+		)
+		.nullish(),
+});
 
 export const deleteChatResponse = z.object({
 	message: z.literal("Chat deleted successfully"),
@@ -38,7 +43,10 @@ export const createChatRequest = chatDetails.omit({
 	state_version: true,
 });
 
-export const updateChatRequest = chatDetails.omit({ created_at: true, state_version: true });
+export const updateChatRequest = chatDetails.omit({
+	created_at: true,
+	state_version: true,
+});
 
 export type ChatSummary = z.infer<typeof chatSummary>;
 export type ChatDetails = z.infer<typeof chatDetails> & { messages: Message[] };

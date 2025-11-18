@@ -38,7 +38,9 @@ export const activeSearchSpaceChatsAtom = atomWithQuery((get) => {
 		queryKey: cacheKeys.activeSearchSpace.chats(searchSpaceId ?? ""),
 		enabled: !!searchSpaceId && !!authToken,
 		queryFn: async () => {
-			return chatsApiService.getChatsBySearchSpace({ search_space_id: Number(searchSpaceId) });
+			return chatsApiService.getChatsBySearchSpace({
+				queryParams: { search_space_id: searchSpaceId! },
+			});
 		},
 	};
 });
