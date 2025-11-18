@@ -19,6 +19,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 const youtubeRegex =
 	/^(https:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
@@ -72,7 +73,7 @@ export function YouTubeTab({ searchSpaceId }: YouTubeTabProps) {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: JSON.stringify({
 						document_type: "YOUTUBE_VIDEO",

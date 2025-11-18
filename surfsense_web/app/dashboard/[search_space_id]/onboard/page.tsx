@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 const TOTAL_STEPS = 2;
 
@@ -38,7 +39,7 @@ const OnboardPage = () => {
 
 	// Check if user is authenticated
 	useEffect(() => {
-		const token = localStorage.getItem("surfsense_bearer_token");
+		const token = localStorage.getItem(AUTH_TOKEN_KEY);
 		if (!token) {
 			router.push("/login");
 			return;

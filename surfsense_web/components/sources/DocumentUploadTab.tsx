@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { GridPattern } from "./GridPattern";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface DocumentUploadTabProps {
 	searchSpaceId: string;
@@ -169,7 +170,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				{
 					method: "POST",
 					headers: {
-						Authorization: `Bearer ${window.localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${window.localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: formData,
 				}

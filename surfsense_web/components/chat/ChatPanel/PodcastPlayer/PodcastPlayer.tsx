@@ -8,6 +8,7 @@ import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/pod
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { PodcastPlayerCompactSkeleton } from "./PodcastPlayerCompactSkeleton";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface PodcastPlayerProps {
 	podcast: PodcastItem | null;
@@ -56,7 +57,7 @@ export function PodcastPlayer({
 		const loadPodcast = async () => {
 			setIsFetching(true);
 			try {
-				const token = localStorage.getItem("surfsense_bearer_token");
+				const token = localStorage.getItem(AUTH_TOKEN_KEY);
 				if (!token) {
 					throw new Error("Authentication token not found.");
 				}

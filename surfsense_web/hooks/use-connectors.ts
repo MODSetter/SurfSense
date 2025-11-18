@@ -1,3 +1,5 @@
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
+
 // Types for connector API
 export interface ConnectorConfig {
 	[key: string]: string;
@@ -38,7 +40,7 @@ export const ConnectorService = {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 				},
 				body: JSON.stringify(data),
 			}
@@ -58,7 +60,7 @@ export const ConnectorService = {
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors?skip=${skip}&limit=${limit}`,
 			{
 				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 				},
 			}
 		);
@@ -77,7 +79,7 @@ export const ConnectorService = {
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 			{
 				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 				},
 			}
 		);
@@ -98,7 +100,7 @@ export const ConnectorService = {
 				method: "PUT",
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 				},
 				body: JSON.stringify(data),
 			}
@@ -119,7 +121,7 @@ export const ConnectorService = {
 			{
 				method: "DELETE",
 				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 				},
 			}
 		);

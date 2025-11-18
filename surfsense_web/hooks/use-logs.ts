@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 export type LogStatus = "IN_PROGRESS" | "SUCCESS" | "FAILED";
@@ -99,7 +100,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs?${params}`,
 					{
 						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						},
 						method: "GET",
 					}
@@ -150,7 +151,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 			const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs`, {
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+					Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 				},
 				method: "POST",
 				body: JSON.stringify(logData),
@@ -184,7 +185,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 					{
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						},
 						method: "PUT",
 						body: JSON.stringify(updateData),
@@ -216,7 +217,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "DELETE",
 				}
@@ -244,7 +245,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "GET",
 				}
@@ -291,7 +292,7 @@ export function useLogsSummary(searchSpaceId: number, hours: number = 24) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/search-space/${searchSpaceId}/summary?hours=${hours}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					method: "GET",
 				}

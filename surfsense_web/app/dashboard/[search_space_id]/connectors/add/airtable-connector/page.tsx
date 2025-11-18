@@ -22,6 +22,7 @@ import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
 } from "@/hooks/use-search-source-connectors";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export default function AirtableConnectorPage() {
 	const router = useRouter();
@@ -51,7 +52,7 @@ export default function AirtableConnectorPage() {
 				{
 					method: "GET",
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 				}
 			);
