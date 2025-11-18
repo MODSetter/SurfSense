@@ -114,7 +114,7 @@ async def create_documents_file_upload(
                 from pathlib import Path
 
                 # Create uploads directory if it doesn't exist
-                uploads_dir = Path("/opt/SurfSense/surfsense_backend/uploads")
+                uploads_dir = Path(os.getenv("UPLOADS_DIR", "./uploads"))
                 uploads_dir.mkdir(parents=True, exist_ok=True)
 
                 # Create unique filename
