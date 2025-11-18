@@ -1,16 +1,17 @@
 "use client";
 
-import { Pause, Play, Podcast, SkipBack, SkipForward, Volume2, VolumeX, X } from "lucide-react";
+import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/podcasts-client";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import type { Podcast } from "@/contracts/types/podcast.types";
+import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { PodcastPlayerCompactSkeleton } from "./PodcastPlayerCompactSkeleton";
 
 interface PodcastPlayerProps {
-	podcast: PodcastItem | null;
+	podcast: Podcast | null;
 	isLoading?: boolean;
 	onClose?: () => void;
 	compact?: boolean;
@@ -56,11 +57,6 @@ export function PodcastPlayer({
 		const loadPodcast = async () => {
 			setIsFetching(true);
 			try {
-				const token = localStorage.getItem("surfsense_bearer_token");
-				if (!token) {
-					throw new Error("Authentication token not found.");
-				}
-
 				// Revoke previous object URL if exists
 				if (currentObjectUrlRef.current) {
 					URL.revokeObjectURL(currentObjectUrlRef.current);
@@ -71,22 +67,12 @@ export function PodcastPlayer({
 				const timeoutId = setTimeout(() => controller.abort(), 30000);
 
 				try {
-					const response = await fetch(
-						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcast.id}/stream`,
-						{
-							headers: {
-								Authorization: `Bearer ${token}`,
-							},
-							signal: controller.signal,
-						}
-					);
+					const response = await podcastsApiService.loadPodcast({
+						podcast,
+						controller,
+					});
 
-					if (!response.ok) {
-						throw new Error(`Failed to fetch audio stream: ${response.statusText}`);
-					}
-
-					const blob = await response.blob();
-					const objectUrl = URL.createObjectURL(blob);
+					const objectUrl = URL.createObjectURL(response);
 					currentObjectUrlRef.current = objectUrl;
 					setAudioSrc(objectUrl);
 				} catch (error) {

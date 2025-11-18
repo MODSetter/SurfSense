@@ -17,7 +17,7 @@ import {
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
- class ChatApiService {
+class ChatApiService {
 	getChatDetails = async (request: GetChatDetailsRequest) => {
 		// Validate the request
 		const parsedRequest = getChatDetailsRequest.safeParse(request);

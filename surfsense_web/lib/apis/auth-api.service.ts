@@ -9,7 +9,7 @@ import {
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
- class AuthApiService {
+class AuthApiService {
 	login = async (request: LoginRequest) => {
 		// Validate the request
 		const parsedRequest = loginRequest.safeParse(request);

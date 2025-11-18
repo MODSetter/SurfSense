@@ -6,7 +6,7 @@ import {
 	MoreHorizontal,
 	Pause,
 	Play,
-	Podcast,
+	Podcast as PodcastIcon,
 	Search,
 	SkipBack,
 	SkipForward,
@@ -46,16 +46,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-
-export interface PodcastItem {
-	id: number;
-	title: string;
-	created_at: string;
-	file_location: string;
-	podcast_transcript: any[];
-	search_space_id: number;
-	chat_state_version: number | null;
-}
+import type { Podcast } from "@/contracts/types/podcast.types";
+import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 
 interface PodcastsPageClientProps {
 	searchSpaceId: string;
@@ -85,8 +77,8 @@ const podcastCardVariants: Variants = {
 const MotionCard = motion(Card);
 
 export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClientProps) {
-	const [podcasts, setPodcasts] = useState<PodcastItem[]>([]);
-	const [filteredPodcasts, setFilteredPodcasts] = useState<PodcastItem[]>([]);
+	const [podcasts, setPodcasts] = useState<Podcast[]>([]);
+	const [filteredPodcasts, setFilteredPodcasts] = useState<Podcast[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -99,7 +91,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 	const [isDeleting, setIsDeleting] = useState(false);
 
 	// Audio player state
-	const [currentPodcast, setCurrentPodcast] = useState<PodcastItem | null>(null);
+	const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
 	const [audioSrc, setAudioSrc] = useState<string | undefined>(undefined);
 	const [isAudioLoading, setIsAudioLoading] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -148,7 +140,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 					);
 				}
 
-				const data: PodcastItem[] = await response.json();
+				const data: Podcast[] = await response.json();
 				setPodcasts(data);
 				setFilteredPodcasts(data);
 				setError(null);
@@ -305,7 +297,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 	};
 
 	// Play podcast - Fetch blob and set object URL
-	const playPodcast = async (podcast: PodcastItem) => {
+	const playPodcast = async (podcast: Podcast) => {
 		// If the same podcast is selected, just toggle play/pause
 		if (currentPodcast && currentPodcast.id === podcast.id) {
 			togglePlayPause();
@@ -326,11 +318,6 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 			setIsPlaying(false);
 			setIsAudioLoading(true);
 
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				throw new Error("Authentication token not found.");
-			}
-
 			// Revoke previous object URL if exists (only after we've started the new request)
 			if (currentObjectUrlRef.current) {
 				URL.revokeObjectURL(currentObjectUrlRef.current);
@@ -342,22 +329,11 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 			const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
 			try {
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcast.id}/stream`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-						},
-						signal: controller.signal,
-					}
-				);
-
-				if (!response.ok) {
-					throw new Error(`Failed to fetch audio stream: ${response.statusText}`);
-				}
-
-				const blob = await response.blob();
-				const objectUrl = URL.createObjectURL(blob);
+				const response = await podcastsApiService.loadPodcast({
+					podcast,
+					controller,
+				});
+				const objectUrl = URL.createObjectURL(response);
 				currentObjectUrlRef.current = objectUrl;
 
 				// Set audio source
@@ -501,7 +477,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 
 				{!isLoading && !error && filteredPodcasts.length === 0 && (
 					<div className="flex flex-col items-center justify-center h-40 gap-2 text-center">
-						<Podcast className="h-8 w-8 text-muted-foreground" />
+						<PodcastIcon className="h-8 w-8 text-muted-foreground" />
 						<h3 className="font-medium">No podcasts found</h3>
 						<p className="text-sm text-muted-foreground">
 							{searchQuery
@@ -829,7 +805,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 											duration: 2,
 										}}
 									>
-										<Podcast className="h-6 w-6 text-primary" />
+										<PodcastIcon className="h-6 w-6 text-primary" />
 									</motion.div>
 								</div>
 

@@ -4,17 +4,10 @@ import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/chat-querie.atoms";
 import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
-import { generatePodcast } from "@/lib/apis/podcasts.api";
+import type { GeneratePodcastRequest } from "@/contracts/types/podcast.types";
+import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { cn } from "@/lib/utils";
 import { ChatPanelView } from "./ChatPanelView";
-
-export interface GeneratePodcastRequest {
-	type: "CHAT" | "DOCUMENT";
-	ids: number[];
-	search_space_id: number;
-	podcast_title?: string;
-	user_prompt?: string;
-}
 
 export function ChatPanelContainer() {
 	const {
@@ -31,7 +24,7 @@ export function ChatPanelContainer() {
 			if (!authToken) {
 				throw new Error("Authentication error. Please log in again.");
 			}
-			await generatePodcast(request, authToken);
+			await podcastsApiService.generatePodcast(request);
 			toast.success(`Podcast generation started!`);
 		} catch (error) {
 			toast.error("Error generating podcast. Please log in again.");
