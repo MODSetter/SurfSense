@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { baseApiService } from "@/lib/apis/base-api.service";
 
 interface Chat {
 	created_at: string;
@@ -46,9 +47,10 @@ export function useChats({
 			);
 
 			if (response.status === 401) {
-				// Clear token and redirect to home
+				// Clear token from both localStorage and baseApiService
 				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
+				baseApiService.setBearerToken("");
+				window.location.href = "/login?error=session_expired";
 				throw new Error("Unauthorized: Redirecting to login page");
 			}
 
@@ -90,9 +92,10 @@ export function useChats({
 			);
 
 			if (response.status === 401) {
-				// Clear token and redirect to home
+				// Clear token from both localStorage and baseApiService
 				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
+				baseApiService.setBearerToken("");
+				window.location.href = "/login?error=session_expired";
 				throw new Error("Unauthorized: Redirecting to login page");
 			}
 
