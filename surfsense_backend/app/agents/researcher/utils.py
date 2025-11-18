@@ -14,53 +14,93 @@ class DocumentTokenInfo(NamedTuple):
     token_count: int
 
 
+# Centralized connector metadata - single source of truth
+CONNECTOR_EMOJIS = {
+    "YOUTUBE_VIDEO": "📹",
+    "EXTENSION": "🧩",
+    "CRAWLED_URL": "🌐",
+    "FILE": "📄",
+    "SLACK_CONNECTOR": "💬",
+    "NOTION_CONNECTOR": "📘",
+    "GITHUB_CONNECTOR": "🐙",
+    "LINEAR_CONNECTOR": "📊",
+    "TAVILY_API": "🔍",
+    "SEARXNG_API": "🌐",
+    "LINKUP_API": "🔗",
+    "BAIDU_SEARCH_API": "🇨🇳",
+    "DISCORD_CONNECTOR": "🗨️",
+    "JIRA_CONNECTOR": "🎫",
+    "GOOGLE_CALENDAR_CONNECTOR": "📅",
+    "AIRTABLE_CONNECTOR": "🗃️",
+    "GOOGLE_GMAIL_CONNECTOR": "📧",
+    "CONFLUENCE_CONNECTOR": "📚",
+    "CLICKUP_CONNECTOR": "📋",
+    "LUMA_CONNECTOR": "🎯",
+    "ELASTICSEARCH_CONNECTOR": "🔎",
+}
+
+CONNECTOR_RESULT_NAMES = {
+    "YOUTUBE_VIDEO": "YouTube chunks",
+    "EXTENSION": "Browser Extension chunks",
+    "CRAWLED_URL": "Web Pages chunks",
+    "FILE": "Files chunks",
+    "SLACK_CONNECTOR": "Slack messages",
+    "NOTION_CONNECTOR": "Notion pages/blocks",
+    "GITHUB_CONNECTOR": "GitHub files/issues",
+    "LINEAR_CONNECTOR": "Linear issues",
+    "TAVILY_API": "Web Search results",
+    "SEARXNG_API": "SearxNG results",
+    "LINKUP_API": "Linkup results",
+    "BAIDU_SEARCH_API": "Baidu Search results",
+    "DISCORD_CONNECTOR": "Discord messages",
+    "JIRA_CONNECTOR": "Jira issues",
+    "GOOGLE_CALENDAR_CONNECTOR": "calendar events",
+    "AIRTABLE_CONNECTOR": "Airtable records",
+    "GOOGLE_GMAIL_CONNECTOR": "Gmail messages",
+    "CONFLUENCE_CONNECTOR": "Confluence pages",
+    "CLICKUP_CONNECTOR": "ClickUp tasks",
+    "LUMA_CONNECTOR": "Luma events",
+    "ELASTICSEARCH_CONNECTOR": "Elasticsearch chunks",
+}
+
+CONNECTOR_FRIENDLY_NAMES = {
+    "YOUTUBE_VIDEO": "YouTube",
+    "EXTENSION": "Browser Extension",
+    "CRAWLED_URL": "Web Pages",
+    "FILE": "Files",
+    "SLACK_CONNECTOR": "Slack",
+    "NOTION_CONNECTOR": "Notion",
+    "GITHUB_CONNECTOR": "GitHub",
+    "LINEAR_CONNECTOR": "Linear",
+    "JIRA_CONNECTOR": "Jira",
+    "CONFLUENCE_CONNECTOR": "Confluence",
+    "GOOGLE_CALENDAR_CONNECTOR": "Google Calendar",
+    "DISCORD_CONNECTOR": "Discord",
+    "TAVILY_API": "Tavily Search",
+    "SEARXNG_API": "SearxNG Search",
+    "LINKUP_API": "Linkup Search",
+    "BAIDU_SEARCH_API": "Baidu Search",
+    "AIRTABLE_CONNECTOR": "Airtable",
+    "GOOGLE_GMAIL_CONNECTOR": "Gmail",
+    "CLICKUP_CONNECTOR": "ClickUp",
+    "LUMA_CONNECTOR": "Luma",
+    "ELASTICSEARCH_CONNECTOR": "Elasticsearch",
+}
+
+
 def get_connector_emoji(connector_name: str) -> str:
     """Get an appropriate emoji for a connector type."""
-    connector_emojis = {
-        "YOUTUBE_VIDEO": "📹",
-        "EXTENSION": "🧩",
-        "CRAWLED_URL": "🌐",
-        "FILE": "📄",
-        "SLACK_CONNECTOR": "💬",
-        "NOTION_CONNECTOR": "📘",
-        "GITHUB_CONNECTOR": "🐙",
-        "LINEAR_CONNECTOR": "📊",
-        "JIRA_CONNECTOR": "🎫",
-        "DISCORD_CONNECTOR": "🗨️",
-        "TAVILY_API": "🔍",
-        "LINKUP_API": "🔗",
-        "BAIDU_SEARCH_API": "🇨🇳",
-        "GOOGLE_CALENDAR_CONNECTOR": "📅",
-        "AIRTABLE_CONNECTOR": "🗃️",
-        "LUMA_CONNECTOR": "✨",
-        "ELASTICSEARCH_CONNECTOR": "⚡",
-    }
-    return connector_emojis.get(connector_name, "🔎")
+    return CONNECTOR_EMOJIS.get(connector_name, "🔎")
 
 
 def get_connector_friendly_name(connector_name: str) -> str:
     """Convert technical connector IDs to user-friendly names."""
-    connector_friendly_names = {
-        "YOUTUBE_VIDEO": "YouTube",
-        "EXTENSION": "Browser Extension",
-        "CRAWLED_URL": "Web Pages",
-        "FILE": "Files",
-        "SLACK_CONNECTOR": "Slack",
-        "NOTION_CONNECTOR": "Notion",
-        "GITHUB_CONNECTOR": "GitHub",
-        "LINEAR_CONNECTOR": "Linear",
-        "JIRA_CONNECTOR": "Jira",
-        "CONFLUENCE_CONNECTOR": "Confluence",
-        "GOOGLE_CALENDAR_CONNECTOR": "Google Calendar",
-        "DISCORD_CONNECTOR": "Discord",
-        "TAVILY_API": "Tavily Search",
-        "LINKUP_API": "Linkup Search",
-        "BAIDU_SEARCH_API": "Baidu Search",
-        "AIRTABLE_CONNECTOR": "Airtable",
-        "LUMA_CONNECTOR": "Luma",
-        "ELASTICSEARCH_CONNECTOR": "Elasticsearch",
-    }
-    return connector_friendly_names.get(connector_name, connector_name)
+    return CONNECTOR_FRIENDLY_NAMES.get(connector_name, connector_name)
+
+
+def get_connector_result_name(connector_name: str) -> str:
+    """Get the result type name for a connector (e.g., 'Slack messages')."""
+    return CONNECTOR_RESULT_NAMES.get(connector_name, "chunks")
 
 
 def convert_langchain_messages_to_dict(
