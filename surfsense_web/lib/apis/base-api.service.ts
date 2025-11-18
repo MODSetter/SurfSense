@@ -6,13 +6,21 @@ import {
   NotFoundError,
 } from "../error";
 
+enum ResponseType {
+  JSON = "json",
+  TEXT = "text",
+  BLOB = "blob",
+  ARRAY_BUFFER = "arrayBuffer",
+  // Add more response types as needed
+}
+
 export type RequestOptions = {
   method: "GET" | "POST" | "PUT" | "DELETE";
   headers?: Record<string, string>;
   contentType?: "application/json" | "application/x-www-form-urlencoded";
   signal?: AbortSignal;
   body?: any;
-  responseType?: "json" | "text" | "blob" | "arrayBuffer"; // Add more response types as needed
+  responseType?: ResponseType;
   // Add more options as needed
 };
 
@@ -35,11 +43,21 @@ class BaseApiService {
     this.bearerToken = bearerToken;
   }
 
-  async request<T>(
+  async request<T, R extends ResponseType = ResponseType.JSON>(
     url: string,
     responseSchema?: z.ZodSchema<T>,
-    options?: RequestOptions
-  ): Promise<T> {
+    options?: RequestOptions & { responseType?: R }
+  ): Promise<
+    R extends ResponseType.JSON
+      ? T
+      : R extends ResponseType.TEXT
+      ? string
+      : R extends ResponseType.BLOB
+      ? Blob
+      : R extends ResponseType.ARRAY_BUFFER
+      ? ArrayBuffer
+      : unknown
+  >  {
     try {
       const defaultOptions: RequestOptions = {
         headers: {
@@ -47,7 +65,7 @@ class BaseApiService {
           Authorization: `Bearer ${this.bearerToken || ""}`,
         },
         method: "GET",
-        responseType: "json",
+        responseType: ResponseType.JSON,
       };
 
       const mergedOptions: RequestOptions = {
@@ -125,20 +143,20 @@ class BaseApiService {
 
       // biome-ignore lint/suspicious: Unknown
       let data;
-      const responseType = mergedOptions.responseType || "json";
+      const responseType = mergedOptions.responseType
 
       try {
         switch (responseType) {
-          case "json":
+          case ResponseType.JSON:
             data = await response.json();
             break;
-          case "text":
+          case ResponseType.TEXT:
             data = await response.text();
             break;
-          case "blob":
+          case ResponseType.BLOB:
             data = await response.blob();
             break;
-          case "arrayBuffer":
+          case ResponseType.ARRAY_BUFFER:
             data = await response.arrayBuffer();
             break;
           //  Add more cases as needed
@@ -154,7 +172,7 @@ class BaseApiService {
         );
       }
 
-      if (responseType === "json") {
+      if (responseType === ResponseType.JSON) {
         if (!responseSchema) {
           return data;
         }
@@ -181,44 +199,59 @@ class BaseApiService {
   async get<T>(
     url: string,
     responseSchema?: z.ZodSchema<T>,
-    options?: Omit<RequestOptions, "method">
+    options?: Omit<RequestOptions, "method" | "responseType">
   ) {
     return this.request(url, responseSchema, {
       ...options,
       method: "GET",
+	  responseType: ResponseType.JSON,
     });
   }
 
   async post<T>(
     url: string,
     responseSchema?: z.ZodSchema<T>,
-    options?: Omit<RequestOptions, "method">
+    options?: Omit<RequestOptions, "method" | "responseType">
   ) {
     return this.request(url, responseSchema, {
       method: "POST",
       ...options,
+	  responseType: ResponseType.JSON,
     });
   }
 
   async put<T>(
     url: string,
     responseSchema?: z.ZodSchema<T>,
-    options?: Omit<RequestOptions, "method">
+    options?: Omit<RequestOptions, "method" | "responseType">
   ) {
     return this.request(url, responseSchema, {
       method: "PUT",
       ...options,
+	  responseType: ResponseType.JSON,
     });
   }
 
   async delete<T>(
     url: string,
     responseSchema?: z.ZodSchema<T>,
-    options?: Omit<RequestOptions, "method">
+    options?: Omit<RequestOptions, "method" | "responseType">,
   ) {
     return this.request(url, responseSchema, {
       method: "DELETE",
       ...options,
+	  responseType: ResponseType.JSON,
+    });
+  }
+
+  async getBlob(
+    url: string,
+    options?: Omit<RequestOptions, "method" | "responseType">
+  ) {
+    return this.request(url, undefined, {
+      ...options,
+      method: "GET",
+      responseType: ResponseType.BLOB,
     });
   }
 }

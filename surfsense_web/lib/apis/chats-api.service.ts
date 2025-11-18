@@ -17,7 +17,7 @@ import {
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
-export class ChatApiService {
+ class ChatApiService {
 	getChatDetails = async (request: GetChatDetailsRequest) => {
 		// Validate the request
 		const parsedRequest = getChatDetailsRequest.safeParse(request);
@@ -127,4 +127,4 @@ export class ChatApiService {
 	};
 }
 
-export const chatApiService = new ChatApiService();
+export const chatsApiService = new ChatApiService();
