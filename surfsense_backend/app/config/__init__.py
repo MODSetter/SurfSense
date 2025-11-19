@@ -159,12 +159,6 @@ class Config:
     # Site Configuration Defaults
     DEFAULT_CONTACT_EMAIL = os.getenv("DEFAULT_CONTACT_EMAIL", "support@example.com")
 
-    # Trusted proxy hosts for ProxyHeadersMiddleware
-    # Comma-separated list of trusted proxy IPs/hosts
-    # SECURITY: Set this to your actual proxy IPs in production
-    _trusted_hosts_str = os.getenv("TRUSTED_HOSTS", "127.0.0.1")
-    TRUSTED_HOSTS = [host.strip() for host in _trusted_hosts_str.split(",") if host.strip()]
-
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
