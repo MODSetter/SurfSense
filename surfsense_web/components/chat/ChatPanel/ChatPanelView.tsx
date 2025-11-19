@@ -4,7 +4,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Play, RefreshCw, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback } from "react";
-import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
 import { cn } from "@/lib/utils";
 import { getPodcastStalenessMessage, isPodcastStale } from "../PodcastUtils";

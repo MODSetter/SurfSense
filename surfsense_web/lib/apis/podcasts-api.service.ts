@@ -5,9 +5,11 @@ import {
 	deletePodcastResponse,
 	type GeneratePodcastRequest,
 	type GetPodcastByChatIdRequest,
+	type GetPodcastsRequest,
 	generatePodcastRequest,
 	getPodcastByChaIdResponse,
 	getPodcastByChatIdRequest,
+	getPodcastsRequest,
 	type LoadPodcastRequest,
 	loadPodcastRequest,
 	podcast,
@@ -16,8 +18,30 @@ import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
 class PodcastsApiService {
-	getPodcasts = async () => {
-		return baseApiService.get("/api/v1/podcasts", z.array(podcast));
+	getPodcasts = async (request: GetPodcastsRequest) => {
+		// Validate the request
+		const parsedRequest = getPodcastsRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			// Format a user frendly error message
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		// Transform queries params to be string values
+		const transformedQueryParams = parsedRequest.data.queryParams
+			? Object.fromEntries(
+					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [k, String(v)])
+				)
+			: undefined;
+
+		const queryParams = transformedQueryParams
+			? new URLSearchParams(transformedQueryParams).toString()
+			: undefined;
+
+		return baseApiService.get(`/api/v1/podcasts?${queryParams}`, z.array(podcast));
 	};
 
 	getPodcastByChatId = async (request: GetPodcastByChatIdRequest) => {

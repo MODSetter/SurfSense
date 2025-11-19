@@ -5,7 +5,7 @@ import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
-import { chatsAtom } from "@/atoms/chats/chat-querie.atoms";
+import { chatsAtom } from "@/atoms/chats/chat-query.atoms";
 import { globalChatsQueryParamsAtom } from "@/atoms/chats/ui.atoms";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";

@@ -4,7 +4,7 @@ import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
-import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";

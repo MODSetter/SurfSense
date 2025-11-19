@@ -2,7 +2,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
+import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import type { GeneratePodcastRequest } from "@/contracts/types/podcast.types";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";

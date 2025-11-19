@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paginationQueryParams } from ".";
 
 export const podcast = z.object({
 	id: z.number(),
@@ -36,6 +37,10 @@ export const loadPodcastRequest = z.object({
 	id: z.number(),
 });
 
+export const getPodcastsRequest = z.object({
+	queryParams: paginationQueryParams.nullish(),
+});
+
 export type GeneratePodcastRequest = z.infer<typeof generatePodcastRequest>;
 export type GetPodcastByChatIdRequest = z.infer<typeof getPodcastByChatIdRequest>;
 export type GetPodcastByChatIdResponse = z.infer<typeof getPodcastByChaIdResponse>;
@@ -43,3 +48,4 @@ export type DeletePodcastRequest = z.infer<typeof deletePodcastRequest>;
 export type DeletePodcastResponse = z.infer<typeof deletePodcastResponse>;
 export type LoadPodcastRequest = z.infer<typeof loadPodcastRequest>;
 export type Podcast = z.infer<typeof podcast>;
+export type GetPodcastsRequest = z.infer<typeof getPodcastsRequest>;

@@ -15,7 +15,7 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
-import { chatsAtom } from "@/atoms/chats/chat-querie.atoms";
+import { chatsAtom } from "@/atoms/chats/chat-query.atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
