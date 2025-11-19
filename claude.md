@@ -96,10 +96,23 @@ Located in `surfsense_backend/app/config/global_llm_config.yaml`:
 
 ### Automatic Fallback System
 The LLM service (`app/services/llm_service.py`) includes automatic fallback:
-- **Gemini → Mistral**: If Gemini API fails (rate limits, errors), falls back to local Mistral
-- Handles: connection errors, timeouts, rate limits (429), server errors (500/503)
+
+**How it works:**
+- All LLM instances (both global configs and user-specific configs) are wrapped with `ChatLiteLLMWithFallback`
+- Primary LLM is tried first; if it fails, fallback LLM is used automatically
+- Default fallback: Mistral NeMo local (config ID -1)
+
+**Error conditions that trigger fallback:**
+- Memory errors (Ollama out of RAM)
+- Connection errors / timeouts
+- Rate limits (HTTP 429)
+- Server errors (HTTP 500, 503)
+- API errors
+
+**Behavior:**
 - Transparent to the user - no manual intervention needed
-- Logs warnings when fallback is used
+- Logs warnings when fallback is activated
+- Works for both `ainvoke`/`invoke` and `astream`/`stream` methods
 
 ## Database & Search Optimization
 
