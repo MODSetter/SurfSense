@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { DEFAULT_CONTACT_EMAIL, DEFAULT_COPYRIGHT_TEXT } from "@/lib/constants";
 
 export interface SiteConfig {
 	// Header/Navbar toggles
@@ -53,8 +54,8 @@ const defaultConfig: SiteConfig = {
 	disable_privacy_route: true,
 	disable_registration: false,
 	show_contact_email: true,
-	contact_email: "rohan@surfsense.com",
-	custom_copyright: "SurfSense 2025",
+	contact_email: DEFAULT_CONTACT_EMAIL,
+	custom_copyright: DEFAULT_COPYRIGHT_TEXT,
 };
 
 interface SiteConfigContextType {
