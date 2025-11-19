@@ -1472,7 +1472,7 @@ async def handle_qna_workflow(
         writer(
             {
                 "yield_value": streaming_service.format_terminal_info_delta(
-                    "✍️ Writing comprehensive answer with citations..."
+                    "✍️ Writing comprehensive answer ..."
                 )
             }
         )

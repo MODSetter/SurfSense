@@ -131,6 +131,7 @@
 		"book_a_call": "Book a call"
 	},
 	"nav_menu": {
+		"settings": "Settings",
 		"platform": "Platform",
 		"researcher": "Researcher",
 		"manage_llms": "Manage LLMs",
@@ -425,7 +426,7 @@
 		"long_context_llm": "Long Context LLM",
 		"fast_llm": "Fast LLM",
 		"strategic_llm": "Strategic LLM",
-		"long_context_desc": "Handles complex tasks requiring extensive context understanding and reasoning",
+		"long_context_desc": "Handles summarization of long documents and complex Q&A",
 		"long_context_examples": "Document analysis, research synthesis, complex Q&A",
 		"large_context_window": "Large context window",
 		"deep_reasoning": "Deep reasoning",
@@ -572,7 +573,7 @@
 		"no_llm_configs_found": "No LLM Configurations Found",
 		"add_provider_before_roles": "Please add at least one LLM provider in the previous step before assigning roles.",
 		"long_context_llm_title": "Long Context LLM",
-		"long_context_llm_desc": "Handles complex tasks requiring extensive context understanding and reasoning",
+		"long_context_llm_desc": "Handles summarization of long documents and complex Q&A",
 		"long_context_llm_examples": "Document analysis, research synthesis, complex Q&A",
 		"fast_llm_title": "Fast LLM",
 		"fast_llm_desc": "Optimized for quick responses and real-time interactions",

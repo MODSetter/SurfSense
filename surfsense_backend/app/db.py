@@ -223,6 +223,12 @@ class SearchSpace(BaseModel, TimestampMixin):
     name = Column(String(100), nullable=False, index=True)
     description = Column(String(500), nullable=True)
 
+    citations_enabled = Column(
+        Boolean, nullable=False, default=True
+    )  # Enable/disable citations
+    qna_custom_instructions = Column(
+        Text, nullable=True, default=""
+    )  # User's custom instructions
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )

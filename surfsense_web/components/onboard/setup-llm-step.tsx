@@ -624,10 +624,6 @@ export function SetupLLMStep({
 												</div>
 											</CardHeader>
 											<CardContent className="space-y-3">
-												<div className="text-xs text-muted-foreground">
-													<strong>{t("use_cases")}:</strong> {t(role.examplesKey)}
-												</div>
-
 												<div className="space-y-2">
 													<Label className="text-sm font-medium">{t("assign_llm_config")}:</Label>
 													<Select

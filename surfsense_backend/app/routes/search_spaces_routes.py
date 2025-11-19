@@ -17,7 +17,12 @@ async def create_search_space(
     user: User = Depends(current_active_user),
 ):
     try:
-        db_search_space = SearchSpace(**search_space.model_dump(), user_id=user.id)
+        search_space_data = search_space.model_dump()
+
+        # citations_enabled defaults to True (handled by Pydantic schema)
+        # qna_custom_instructions defaults to None/empty (handled by DB)
+
+        db_search_space = SearchSpace(**search_space_data, user_id=user.id)
         session.add(db_search_space)
         await session.commit()
         await session.refresh(db_search_space)
