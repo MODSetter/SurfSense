@@ -11,7 +11,13 @@ from .google_calendar_add_connector_route import (
 from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
+from .home_assistant_add_connector_route import (
+    router as home_assistant_add_connector_router,
+)
+from .jellyfin_add_connector_route import router as jellyfin_add_connector_router
 from .llm_config_routes import router as llm_config_router
+from .mastodon_add_connector_route import router as mastodon_add_connector_router
+from .rss_add_connector_route import router as rss_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
 from .podcasts_routes import router as podcasts_router
@@ -19,6 +25,7 @@ from .search_source_connectors_routes import router as search_source_connectors_
 from .search_spaces_routes import router as search_spaces_router
 from .site_configuration_routes import router as site_configuration_router
 from .social_media_links_routes import router as social_media_links_router
+from .two_fa_routes import router as two_fa_router
 
 router = APIRouter()
 
@@ -31,7 +38,12 @@ router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
 router.include_router(airtable_add_connector_router)
 router.include_router(luma_add_connector_router)
+router.include_router(home_assistant_add_connector_router)
+router.include_router(mastodon_add_connector_router)
+router.include_router(jellyfin_add_connector_router)
+router.include_router(rss_add_connector_router)
 router.include_router(llm_config_router)
 router.include_router(logs_router)
 router.include_router(site_configuration_router)
 router.include_router(social_media_links_router)
+router.include_router(two_fa_router)
