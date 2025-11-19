@@ -151,6 +151,38 @@ class ChatLiteLLMWithFallback:
         return getattr(self.primary_llm, name)
 
 
+def _wrap_with_fallback(
+    primary_llm: ChatLiteLLM,
+    primary_model_name: str,
+) -> ChatLiteLLM | ChatLiteLLMWithFallback:
+    """
+    Wrap an LLM with fallback support if a fallback config is available.
+
+    Args:
+        primary_llm: The primary LLM instance
+        primary_model_name: Name of the primary model (to prevent circular fallback)
+
+    Returns:
+        ChatLiteLLMWithFallback if fallback available, otherwise original LLM
+    """
+    fallback_config = get_global_llm_config(FALLBACK_LLM_CONFIG_ID)
+    if not fallback_config:
+        return primary_llm
+
+    # Prevent circular fallback - don't fall back to the same model
+    if fallback_config.get("model_name") == primary_model_name:
+        logger.warning(
+            f"Skipping fallback: primary model '{primary_model_name}' is same as fallback"
+        )
+        return primary_llm
+
+    fallback_llm = _build_llm_from_global_config(fallback_config)
+    logger.info(
+        f"Created LLM with fallback: {primary_model_name} -> {fallback_config['model_name']}"
+    )
+    return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
+
+
 def _build_llm_from_global_config(global_config: dict) -> ChatLiteLLM:
     """
     Build a ChatLiteLLM instance from a global config dictionary.
@@ -405,17 +437,11 @@ async def get_user_llm_instance(
             # Build primary LLM from global config
             primary_llm = _build_llm_from_global_config(global_config)
 
-            # Add fallback support for resilience
-            # Cloud APIs fall back to local, local models fall back to cloud
-            fallback_config = get_global_llm_config(FALLBACK_LLM_CONFIG_ID)
-            if fallback_config and llm_config_id != FALLBACK_LLM_CONFIG_ID:
-                fallback_llm = _build_llm_from_global_config(fallback_config)
-                logger.info(
-                    f"Created LLM with fallback: {global_config['model_name']} -> {fallback_config['model_name']}"
-                )
-                return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
+            # Add fallback support for resilience (skip if this IS the fallback config)
+            if llm_config_id == FALLBACK_LLM_CONFIG_ID:
+                return primary_llm
 
-            return primary_llm
+            return _wrap_with_fallback(primary_llm, global_config["model_name"])
 
         # Get the LLM configuration from database (user-specific config)
         result = await session.execute(
@@ -491,15 +517,7 @@ async def get_user_llm_instance(
         primary_llm = ChatLiteLLM(**litellm_kwargs)
 
         # Add fallback support for user-specific configs too
-        fallback_config = get_global_llm_config(FALLBACK_LLM_CONFIG_ID)
-        if fallback_config:
-            fallback_llm = _build_llm_from_global_config(fallback_config)
-            logger.info(
-                f"Created LLM with fallback: {llm_config.model_name} -> {fallback_config['model_name']}"
-            )
-            return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
-
-        return primary_llm
+        return _wrap_with_fallback(primary_llm, llm_config.model_name)
 
     except Exception as e:
         logger.error(
