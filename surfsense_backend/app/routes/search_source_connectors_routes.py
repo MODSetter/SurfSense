@@ -44,6 +44,7 @@ from app.tasks.connector_indexers import (
     index_github_repos,
     index_google_calendar_events,
     index_google_gmail_messages,
+    index_home_assistant_data,
     index_jira_issues,
     index_linear_issues,
     index_luma_events,
@@ -687,6 +688,22 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Elasticsearch indexing started in the background."
+
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.HOME_ASSISTANT_CONNECTOR
+        ):
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_home_assistant_data_task,
+            )
+
+            logger.info(
+                f"Triggering Home Assistant indexing for connector {connector_id} into search space {search_space_id}"
+            )
+            index_home_assistant_data_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "Home Assistant indexing started in the background."
 
         else:
             raise HTTPException(
@@ -1521,5 +1538,43 @@ async def run_elasticsearch_indexing(
         await session.rollback()
         logger.error(
             f"Critical error in run_elasticsearch_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
+
+
+async def run_home_assistant_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Runs the Home Assistant indexing task and updates the timestamp."""
+    try:
+        indexed_count, error_message = await index_home_assistant_data(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            start_date,
+            end_date,
+            update_last_indexed=False,
+        )
+        if error_message:
+            logger.error(
+                f"Home Assistant indexing failed for connector {connector_id}: {error_message}"
+            )
+        else:
+            logger.info(
+                f"Home Assistant indexing successful for connector {connector_id}. Indexed {indexed_count} items."
+            )
+            # Update the last indexed timestamp only on success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()
+    except Exception as e:
+        await session.rollback()
+        logger.error(
+            f"Critical error in run_home_assistant_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )

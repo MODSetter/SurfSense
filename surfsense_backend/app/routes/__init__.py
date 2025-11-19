@@ -11,6 +11,9 @@ from .google_calendar_add_connector_route import (
 from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
+from .home_assistant_add_connector_route import (
+    router as home_assistant_add_connector_router,
+)
 from .llm_config_routes import router as llm_config_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
@@ -31,6 +34,7 @@ router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
 router.include_router(airtable_add_connector_router)
 router.include_router(luma_add_connector_router)
+router.include_router(home_assistant_add_connector_router)
 router.include_router(llm_config_router)
 router.include_router(logs_router)
 router.include_router(site_configuration_router)

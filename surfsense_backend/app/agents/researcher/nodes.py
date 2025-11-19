@@ -208,6 +208,14 @@ async def search_single_connector(
                 top_k=top_k,
                 search_mode=search_mode,
             )
+        elif connector == "HOME_ASSISTANT_CONNECTOR":
+            source_object, chunks = await connector_service.search_home_assistant(
+                user_query=reformulated_query,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                top_k=top_k,
+                search_mode=search_mode,
+            )
     except Exception as e:
         logging.error("Error searching connector %s: %s", connector, traceback.format_exc())
         return (connector, None, [], str(e))
@@ -683,6 +691,7 @@ async def fetch_documents_by_ids(
                 "CLICKUP_CONNECTOR": "ClickUp (Selected)",
                 "AIRTABLE_CONNECTOR": "Airtable (Selected)",
                 "LUMA_CONNECTOR": "Luma Events (Selected)",
+                "HOME_ASSISTANT_CONNECTOR": "Home Assistant (Selected)",
             }
 
             source_object = {

@@ -2541,3 +2541,107 @@ class ConnectorService:
         }
 
         return result_object, elasticsearch_chunks
+
+    async def search_home_assistant(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for Home Assistant documents and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            ha_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="HOME_ASSISTANT_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            ha_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="HOME_ASSISTANT_CONNECTOR",
+            )
+            # Transform document retriever results to match expected format
+            ha_chunks = self._transform_document_results(ha_chunks)
+
+        # Early return if no results
+        if not ha_chunks:
+            return {
+                "id": 35,
+                "name": "Home Assistant",
+                "type": "HOME_ASSISTANT_CONNECTOR",
+                "sources": [],
+            }, []
+
+        # Process each chunk and create sources
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(ha_chunks):
+                # Extract document metadata
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                # Extract Home Assistant-specific metadata
+                entity_id = metadata.get("entity_id", "")
+                item_type = metadata.get("item_type", "")
+                state = metadata.get("state", "")
+                ha_url = metadata.get("ha_url", "")
+
+                # Create a descriptive title
+                title = document.get("title", "Home Assistant Item")
+
+                # Create description from content
+                description = chunk.get("content", "")[:150]
+                if len(description) == 150:
+                    description += "..."
+
+                # Add state info to description if available
+                if state:
+                    description = f"[{state}] {description}"
+
+                # Construct URL to entity in Home Assistant
+                url = ""
+                if ha_url and entity_id:
+                    # Link to entity in Home Assistant UI
+                    url = f"{ha_url}/config/entities/entity-{entity_id}"
+
+                source = {
+                    "id": chunk.get("chunk_id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                    "entity_id": entity_id,
+                    "item_type": item_type,
+                    "state": state,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+
+        # Create result object
+        result_object = {
+            "id": 35,  # Assign a unique ID for the Home Assistant connector
+            "name": "Home Assistant",
+            "type": "HOME_ASSISTANT_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, ha_chunks

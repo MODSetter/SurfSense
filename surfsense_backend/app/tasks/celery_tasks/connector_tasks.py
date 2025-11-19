@@ -600,3 +600,46 @@ async def _index_elasticsearch_documents(
         await run_elasticsearch_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
+
+
+@celery_app.task(name="index_home_assistant_data", bind=True)
+def index_home_assistant_data_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index Home Assistant data."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_home_assistant_data(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_home_assistant_data(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index Home Assistant data with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_home_assistant_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_home_assistant_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )

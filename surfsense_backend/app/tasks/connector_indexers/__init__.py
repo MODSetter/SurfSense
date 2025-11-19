@@ -18,6 +18,7 @@ Available indexers:
 - Google Calendar: Index events from Google Calendar
 - Luma: Index events from Luma
 - Elasticsearch: Index documents from Elasticsearch instances
+- Home Assistant: Index automations, scripts, and events from Home Assistant
 """
 
 # Communication platforms
@@ -32,6 +33,7 @@ from .elasticsearch_indexer import index_elasticsearch_documents
 from .github_indexer import index_github_repos
 from .google_calendar_indexer import index_google_calendar_events
 from .google_gmail_indexer import index_google_gmail_messages
+from .home_assistant_indexer import index_home_assistant_data
 from .jira_indexer import index_jira_issues
 
 # Issue tracking and project management
@@ -61,4 +63,6 @@ __all__ = [  # noqa: RUF022
     # Communication platforms
     "index_slack_messages",
     "index_google_gmail_messages",
+    # Smart home
+    "index_home_assistant_data",
 ]
