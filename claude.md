@@ -101,6 +101,30 @@ The LLM service (`app/services/llm_service.py`) includes automatic fallback:
 - Transparent to the user - no manual intervention needed
 - Logs warnings when fallback is used
 
+## Database & Search Optimization
+
+### Reranking (Enabled)
+Reranking improves search quality by scoring retrieved documents by relevance:
+- **Model**: `ms-marco-MiniLM-L-12-v2` (FlashRank)
+- **How it works**: After vector search retrieves candidates, reranker scores them by actual query relevance
+- **Benefits**: Better answer quality, fewer irrelevant documents sent to LLM
+
+### Vector Search
+- **Index type**: HNSW (Hierarchical Navigable Small World) - fast approximate nearest neighbor
+- **Embedding model**: `sentence-transformers/all-MiniLM-L6-v2`
+
+### Database Statistics
+- Check chunk count: `SELECT COUNT(*) FROM chunks;`
+- Check document count: `SELECT COUNT(*) FROM documents;`
+- View indexes: `\di+ *vector*`
+
+### Maintenance
+Run periodically for optimal performance:
+```sql
+VACUUM ANALYZE chunks;
+VACUUM ANALYZE documents;
+```
+
 ## Database Migrations
 
 ### Current State
@@ -227,6 +251,7 @@ These are in `.gitignore`:
 8. **Grammar Check Optimization** - Reduced context window to 2048 tokens for lighter memory usage
 9. **Automatic LLM Fallback** - Bidirectional fallback between Gemini (primary) and Mistral (backup)
 10. **Gemini as Primary** - Switched to Gemini Flash as main LLM for speed and large context support
+11. **Reranking Enabled** - FlashRank reranker for better document relevance scoring
 
 ---
 
