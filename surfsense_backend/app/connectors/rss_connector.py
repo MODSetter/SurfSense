@@ -21,11 +21,12 @@ from urllib.parse import urlparse
 
 import feedparser
 import httpx
+from markdownify import markdownify as md
 
 logger = logging.getLogger(__name__)
 
 
-def is_url_safe(url: str) -> tuple[bool, str]:
+async def is_url_safe(url: str) -> tuple[bool, str]:
     """
     Validate that a URL doesn't resolve to private/internal IP addresses.
 
@@ -55,11 +56,12 @@ def is_url_safe(url: str) -> tuple[bool, str]:
         if not hostname:
             return False, "Could not extract hostname from URL"
 
-        # Resolve hostname to IP addresses
+        # Resolve hostname to IP addresses using async getaddrinfo
         try:
-            addr_info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC)
-        except socket.gaierror as e:
-            return False, f"Could not resolve hostname: {e}"
+            loop = asyncio.get_running_loop()
+            addr_info = await loop.getaddrinfo(hostname, None, family=socket.AF_UNSPEC)
+        except socket.gaierror:
+            return False, "Could not resolve hostname"
 
         for family, _, _, _, sockaddr in addr_info:
             ip_str = sockaddr[0]
@@ -68,23 +70,25 @@ def is_url_safe(url: str) -> tuple[bool, str]:
 
                 # Check for unsafe IP ranges
                 if ip.is_private:
-                    return False, f"URL resolves to private IP address: {ip_str}"
+                    return False, "URL resolves to a restricted IP address"
                 if ip.is_loopback:
-                    return False, f"URL resolves to loopback address: {ip_str}"
+                    return False, "URL resolves to a restricted IP address"
                 if ip.is_link_local:
-                    return False, f"URL resolves to link-local address: {ip_str}"
+                    return False, "URL resolves to a restricted IP address"
                 if ip.is_reserved:
-                    return False, f"URL resolves to reserved address: {ip_str}"
+                    return False, "URL resolves to a restricted IP address"
                 if ip.is_multicast:
-                    return False, f"URL resolves to multicast address: {ip_str}"
+                    return False, "URL resolves to a restricted IP address"
 
             except ValueError:
-                return False, f"Invalid IP address: {ip_str}"
+                return False, "Invalid IP address in URL"
 
         return True, ""
 
     except Exception as e:
-        return False, f"URL validation error: {str(e)}"
+        # Log detailed error server-side, return generic message to user
+        logger.error(f"URL validation error for {url}: {e}")
+        return False, "URL validation failed"
 
 
 class RSSConnector:
@@ -164,7 +168,7 @@ class RSSConnector:
         }
 
         # Validate URL for SSRF protection
-        is_safe, error_msg = is_url_safe(url)
+        is_safe, error_msg = await is_url_safe(url)
         if not is_safe:
             result["error"] = error_msg
             return result
@@ -226,7 +230,7 @@ class RSSConnector:
             Tuple of (feed_info, list of entries)
         """
         # Validate URL for SSRF protection
-        is_safe, error_msg = is_url_safe(url)
+        is_safe, error_msg = await is_url_safe(url)
         if not is_safe:
             logger.warning(f"Unsafe URL rejected: {url} - {error_msg}")
             return None, []
@@ -402,23 +406,15 @@ class RSSConnector:
         lines.append("## Content")
         content = entry.get("content") or entry.get("summary") or "No content available"
 
-        # Clean HTML tags for basic markdown (feedparser often returns HTML)
-        # Remove script and style tags (handle whitespace in closing tags)
-        content = re.sub(r'<script[^>]*>.*?</script\s*>', '', content, flags=re.DOTALL | re.IGNORECASE)
-        content = re.sub(r'<style[^>]*>.*?</style\s*>', '', content, flags=re.DOTALL | re.IGNORECASE)
-        # Convert common HTML to markdown-ish
-        content = re.sub(r'<br\s*/?>', '\n', content, flags=re.IGNORECASE)
-        content = re.sub(r'<p[^>]*>', '\n\n', content, flags=re.IGNORECASE)
-        content = re.sub(r'</p>', '', content, flags=re.IGNORECASE)
-        content = re.sub(r'<h[1-6][^>]*>(.*?)</h[1-6]>', r'\n### \1\n', content, flags=re.IGNORECASE)
-        content = re.sub(r'<a[^>]*href=["\']([^"\']*)["\'][^>]*>(.*?)</a>', r'[\2](\1)', content, flags=re.IGNORECASE)
-        content = re.sub(r'<strong[^>]*>(.*?)</strong>', r'**\1**', content, flags=re.IGNORECASE)
-        content = re.sub(r'<b[^>]*>(.*?)</b>', r'**\1**', content, flags=re.IGNORECASE)
-        content = re.sub(r'<em[^>]*>(.*?)</em>', r'*\1*', content, flags=re.IGNORECASE)
-        content = re.sub(r'<i[^>]*>(.*?)</i>', r'*\1*', content, flags=re.IGNORECASE)
-        content = re.sub(r'<li[^>]*>(.*?)</li>', r'- \1\n', content, flags=re.IGNORECASE | re.DOTALL)
-        content = re.sub(r'<[^>]+>', '', content)  # Remove remaining HTML tags
-        content = re.sub(r'\n{3,}', '\n\n', content)  # Normalize newlines
+        # Convert HTML to markdown using markdownify for safer sanitization
+        # This properly parses HTML instead of using fragile regex patterns
+        content = md(
+            content,
+            heading_style="ATX",
+            strip=['script', 'style', 'iframe', 'object', 'embed', 'form', 'input']
+        )
+        # Normalize excessive newlines
+        content = re.sub(r'\n{3,}', '\n\n', content)
         content = content.strip()
 
         lines.append(content)
