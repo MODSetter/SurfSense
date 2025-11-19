@@ -1,7 +1,11 @@
 import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
-import type { DeletePodcastRequest, Podcast } from "@/contracts/types/podcast.types";
+import type {
+	DeletePodcastRequest,
+	GeneratePodcastRequest,
+	Podcast,
+} from "@/contracts/types/podcast.types";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
@@ -27,6 +31,20 @@ export const deletePodcastMutationAtom = atomWithMutation((get) => {
 					return oldData.filter((podcast) => podcast.id !== request.id);
 				}
 			);
+		},
+	};
+});
+
+export const generatePodcastMutationAtom = atomWithMutation((get) => {
+	const searchSpaceId = get(activeSearchSpaceIdAtom);
+	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const podcastsQueryParams = get(globalPodcastsQueryParamsAtom);
+
+	return {
+		mutationKey: cacheKeys.podcasts.globalQueryParams(podcastsQueryParams),
+		enabled: !!searchSpaceId && !!authToken,
+		mutationFn: async (request: GeneratePodcastRequest) => {
+			return podcastsApiService.generatePodcast(request);
 		},
 	};
 });

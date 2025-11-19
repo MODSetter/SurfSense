@@ -1,11 +1,11 @@
 "use client";
-import { useAtom, useAtomValue } from "jotai";
-import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { LoaderIcon, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
+import { generatePodcastMutationAtom } from "@/atoms/podcasts/podcast-mutation.atoms";
 import type { GeneratePodcastRequest } from "@/contracts/types/podcast.types";
-import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { cn } from "@/lib/utils";
 import { ChatPanelView } from "./ChatPanelView";
 
@@ -16,19 +16,18 @@ export function ChatPanelContainer() {
 		error: chatError,
 	} = useAtomValue(activeChatAtom);
 	const activeChatIdState = useAtomValue(activeChatIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
 	const { isChatPannelOpen } = useAtomValue(activeChathatUIAtom);
+	const { mutateAsync: generatePodcast, error: generatePodcastError } = useAtomValue(
+		generatePodcastMutationAtom
+	);
 
 	const handleGeneratePodcast = async (request: GeneratePodcastRequest) => {
 		try {
-			if (!authToken) {
-				throw new Error("Authentication error. Please log in again.");
-			}
-			await podcastsApiService.generatePodcast(request);
+			generatePodcast(request);
 			toast.success(`Podcast generation started!`);
 		} catch (error) {
 			toast.error("Error generating podcast. Please try again later.");
-			console.error("Error generating podcast:", JSON.stringify(error));
+			console.error("Error generating podcast:", JSON.stringify(generatePodcastError));
 		}
 	};
 
