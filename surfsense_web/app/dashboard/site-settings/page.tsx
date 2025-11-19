@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
+import { AUTH_TOKEN_KEY, DEFAULT_CONTACT_EMAIL, DEFAULT_COPYRIGHT_TEXT } from "@/lib/constants";
 
 interface SiteConfigForm {
 	// Header/Navbar toggles
@@ -62,8 +62,8 @@ export default function SiteSettingsPage() {
 		disable_privacy_route: true,
 		disable_registration: false,
 		show_contact_email: true,
-		contact_email: "rohan@surfsense.com",
-		custom_copyright: "SurfSense 2025",
+		contact_email: DEFAULT_CONTACT_EMAIL,
+		custom_copyright: DEFAULT_COPYRIGHT_TEXT,
 	});
 	const [isSaving, setIsSaving] = useState(false);
 	const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -135,8 +135,8 @@ export default function SiteSettingsPage() {
 				disable_privacy_route: config.disable_privacy_route,
 				disable_registration: config.disable_registration,
 				show_contact_email: config.show_contact_email ?? true,
-				contact_email: config.contact_email || "rohan@surfsense.com",
-				custom_copyright: config.custom_copyright || "SurfSense 2025",
+				contact_email: config.contact_email || DEFAULT_CONTACT_EMAIL,
+				custom_copyright: config.custom_copyright || DEFAULT_COPYRIGHT_TEXT,
 			});
 		}
 	}, [config, isLoading]);

@@ -422,6 +422,10 @@ class SiteConfiguration(Base):
     # Registration control
     disable_registration = Column(Boolean, nullable=False, default=False)
 
+    # Contact information
+    show_contact_email = Column(Boolean, nullable=False, default=True)
+    contact_email = Column(String(200), nullable=True, default="rohan@surfsense.com")
+
     # Custom text
     custom_copyright = Column(String(200), nullable=True, default="SurfSense 2025")
 
