@@ -150,6 +150,9 @@ class Config:
     _cors_origins_str = os.getenv("CORS_ORIGINS", _default_cors_origin)
     CORS_ORIGINS = [origin.strip() for origin in _cors_origins_str.split(",") if origin.strip()]
 
+    # Site Configuration Defaults
+    DEFAULT_CONTACT_EMAIL = os.getenv("DEFAULT_CONTACT_EMAIL", "support@example.com")
+
     # Trusted proxy hosts for ProxyHeadersMiddleware
     # Comma-separated list of trusted proxy IPs/hosts
     # SECURITY: Set this to your actual proxy IPs in production
