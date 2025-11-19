@@ -58,20 +58,17 @@ _DEFAULT_METADATA = ConnectorMetadata("🔎", "chunks", "Unknown")
 
 def get_connector_emoji(connector_name: str) -> str:
     """Get an appropriate emoji for a connector type."""
-    metadata = CONNECTOR_METADATA.get(connector_name)
-    return metadata.emoji if metadata else _DEFAULT_METADATA.emoji
+    return CONNECTOR_METADATA.get(connector_name, _DEFAULT_METADATA).emoji
 
 
 def get_connector_friendly_name(connector_name: str) -> str:
     """Convert technical connector IDs to user-friendly names."""
-    metadata = CONNECTOR_METADATA.get(connector_name)
-    return metadata.friendly_name if metadata else connector_name
+    return CONNECTOR_METADATA.get(connector_name, _DEFAULT_METADATA).friendly_name
 
 
 def get_connector_result_name(connector_name: str) -> str:
     """Get the result type name for a connector (e.g., 'Slack messages')."""
-    metadata = CONNECTOR_METADATA.get(connector_name)
-    return metadata.result_name if metadata else _DEFAULT_METADATA.result_name
+    return CONNECTOR_METADATA.get(connector_name, _DEFAULT_METADATA).result_name
 
 
 def convert_langchain_messages_to_dict(

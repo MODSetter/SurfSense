@@ -407,15 +407,16 @@ async def verify_2fa_login(
     is_valid = two_fa_service.verify_totp(user.totp_secret, request.code)
 
     # If not valid, try backup codes
-    if not is_valid and user.backup_codes:
+    # Filter out any None values from previous usage
+    valid_backup_codes = [c for c in (user.backup_codes or []) if c is not None]
+    if not is_valid and valid_backup_codes:
         is_valid, used_index = two_fa_service.verify_backup_code(
-            request.code, user.backup_codes
+            request.code, valid_backup_codes
         )
         if is_valid and used_index is not None:
-            # Remove used backup code
-            backup_codes = list(user.backup_codes)
-            backup_codes[used_index] = None
-            user.backup_codes = backup_codes
+            # Remove used backup code entirely (not replace with None)
+            valid_backup_codes.pop(used_index)
+            user.backup_codes = valid_backup_codes
             await session.commit()
             logger.info(f"Backup code used for user {user.email}")
 

@@ -8,8 +8,10 @@ Supports:
 - Deduplication via GUIDs and content hashing
 """
 
+import asyncio
 import hashlib
 import logging
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Any
@@ -49,6 +51,9 @@ class RSSConnector:
         try:
             root = ET.fromstring(opml_content)
 
+            # Build parent map to find parent elements (ElementTree doesn't support "..")
+            parent_map = {child: parent for parent in root.iter() for child in parent}
+
             # Find all outline elements with xmlUrl attribute (these are feeds)
             for outline in root.iter("outline"):
                 xml_url = outline.get("xmlUrl")
@@ -61,7 +66,7 @@ class RSSConnector:
                     }
 
                     # Try to get category from parent outline
-                    parent = outline.find("..")
+                    parent = parent_map.get(outline)
                     if parent is not None and parent.get("text"):
                         feed_info["category"] = parent.get("text", "")
 
@@ -262,10 +267,22 @@ class RSSConnector:
         Returns:
             List of all entries from all feeds
         """
-        all_entries = []
+        if not self.feed_urls:
+            return []
 
-        for url in self.feed_urls:
-            feed_info, entries = await self.fetch_feed(url)
+        # Fetch all feeds in parallel using asyncio.gather
+        results = await asyncio.gather(
+            *[self.fetch_feed(url) for url in self.feed_urls],
+            return_exceptions=True
+        )
+
+        all_entries = []
+        for url, result in zip(self.feed_urls, results):
+            if isinstance(result, Exception):
+                logger.error(f"Failed to fetch feed {url}: {result}")
+                continue
+
+            feed_info, entries = result
             if entries:
                 all_entries.extend(entries)
                 logger.info(f"Fetched {len(entries)} entries from {url}")
@@ -309,7 +326,6 @@ class RSSConnector:
         content = entry.get("content") or entry.get("summary") or "No content available"
 
         # Clean HTML tags for basic markdown (feedparser often returns HTML)
-        import re
         # Remove script and style tags
         content = re.sub(r'<script[^>]*>.*?</script>', '', content, flags=re.DOTALL | re.IGNORECASE)
         content = re.sub(r'<style[^>]*>.*?</style>', '', content, flags=re.DOTALL | re.IGNORECASE)
