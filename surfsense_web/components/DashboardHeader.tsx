@@ -3,15 +3,12 @@
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
+import { CustomUser } from "@/contracts/types";
 
 interface DashboardHeaderProps {
 	title: string;
 	description: string;
-	user: {
-		name: string;
-		email: string;
-		avatar: string;
-	};
+	user: CustomUser;
 	isAdmin?: boolean;
 }
 
