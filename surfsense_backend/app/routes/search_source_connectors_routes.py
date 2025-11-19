@@ -33,7 +33,6 @@ from app.schemas import (
     SearchSourceConnectorBase,
     SearchSourceConnectorCreate,
     SearchSourceConnectorRead,
-    SearchSourceConnectorReadSafe,
     SearchSourceConnectorUpdate,
 )
 from app.tasks.connector_indexers import (
@@ -45,14 +44,10 @@ from app.tasks.connector_indexers import (
     index_github_repos,
     index_google_calendar_events,
     index_google_gmail_messages,
-    index_home_assistant_data,
-    index_jellyfin_data,
     index_jira_issues,
     index_linear_issues,
     index_luma_events,
-    index_mastodon_data,
     index_notion_pages,
-    index_rss_feeds,
     index_slack_messages,
 )
 from app.users import current_active_user
@@ -194,7 +189,7 @@ async def create_search_source_connector(
         ) from e
 
 
-@router.get("/search-source-connectors", response_model=list[SearchSourceConnectorReadSafe])
+@router.get("/search-source-connectors", response_model=list[SearchSourceConnectorRead])
 async def read_search_source_connectors(
     skip: int = 0,
     limit: int = 100,
@@ -202,7 +197,7 @@ async def read_search_source_connectors(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """List all search source connectors for the current user (sensitive config values are redacted)."""
+    """List all search source connectors for the current user, optionally filtered by search space."""
     try:
         query = select(SearchSourceConnector).filter(
             SearchSourceConnector.user_id == user.id
@@ -217,8 +212,7 @@ async def read_search_source_connectors(
             )
 
         result = await session.execute(query.offset(skip).limit(limit))
-        connectors = result.scalars().all()
-        return [SearchSourceConnectorReadSafe.from_connector(c) for c in connectors]
+        return result.scalars().all()
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -227,17 +221,16 @@ async def read_search_source_connectors(
 
 
 @router.get(
-    "/search-source-connectors/{connector_id}", response_model=SearchSourceConnectorReadSafe
+    "/search-source-connectors/{connector_id}", response_model=SearchSourceConnectorRead
 )
 async def read_search_source_connector(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Get a specific search source connector by ID (sensitive config values are redacted)."""
+    """Get a specific search source connector by ID."""
     try:
-        connector = await check_ownership(session, SearchSourceConnector, connector_id, user)
-        return SearchSourceConnectorReadSafe.from_connector(connector)
+        return await check_ownership(session, SearchSourceConnector, connector_id, user)
     except HTTPException:
         raise
     except Exception as e:
@@ -694,70 +687,6 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Elasticsearch indexing started in the background."
-
-        elif (
-            connector.connector_type
-            == SearchSourceConnectorType.HOME_ASSISTANT_CONNECTOR
-        ):
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_home_assistant_data_task,
-            )
-
-            logger.info(
-                f"Triggering Home Assistant indexing for connector {connector_id} into search space {search_space_id}"
-            )
-            index_home_assistant_data_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Home Assistant indexing started in the background."
-
-        elif (
-            connector.connector_type
-            == SearchSourceConnectorType.MASTODON_CONNECTOR
-        ):
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_mastodon_data_task,
-            )
-
-            logger.info(
-                f"Triggering Mastodon indexing for connector {connector_id} into search space {search_space_id}"
-            )
-            index_mastodon_data_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Mastodon indexing started in the background."
-
-        elif (
-            connector.connector_type
-            == SearchSourceConnectorType.JELLYFIN_CONNECTOR
-        ):
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_jellyfin_data_task,
-            )
-
-            logger.info(
-                f"Triggering Jellyfin indexing for connector {connector_id} into search space {search_space_id}"
-            )
-            index_jellyfin_data_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Jellyfin indexing started in the background."
-
-        elif (
-            connector.connector_type
-            == SearchSourceConnectorType.RSS_FEED_CONNECTOR
-        ):
-            from app.tasks.celery_tasks.connector_tasks import (
-                index_rss_feeds_task,
-            )
-
-            logger.info(
-                f"Triggering RSS feed indexing for connector {connector_id} into search space {search_space_id}"
-            )
-            index_rss_feeds_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "RSS feed indexing started in the background."
 
         else:
             raise HTTPException(
@@ -1592,157 +1521,5 @@ async def run_elasticsearch_indexing(
         await session.rollback()
         logger.error(
             f"Critical error in run_elasticsearch_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-
-
-async def run_home_assistant_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Runs the Home Assistant indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_home_assistant_data(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Home Assistant indexing failed for connector {connector_id}: {error_message}"
-            )
-        else:
-            logger.info(
-                f"Home Assistant indexing successful for connector {connector_id}. Indexed {indexed_count} items."
-            )
-            # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
-            await session.commit()
-    except Exception as e:
-        await session.rollback()
-        logger.error(
-            f"Critical error in run_home_assistant_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-
-
-async def run_mastodon_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Runs the Mastodon indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_mastodon_data(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Mastodon indexing failed for connector {connector_id}: {error_message}"
-            )
-        else:
-            logger.info(
-                f"Mastodon indexing successful for connector {connector_id}. Indexed {indexed_count} items."
-            )
-            # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
-            await session.commit()
-    except Exception as e:
-        await session.rollback()
-        logger.error(
-            f"Critical error in run_mastodon_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-
-
-async def run_jellyfin_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Runs the Jellyfin indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_jellyfin_data(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Jellyfin indexing failed for connector {connector_id}: {error_message}"
-            )
-        else:
-            logger.info(
-                f"Jellyfin indexing successful for connector {connector_id}. Indexed {indexed_count} items."
-            )
-            # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
-            await session.commit()
-    except Exception as e:
-        await session.rollback()
-        logger.error(
-            f"Critical error in run_jellyfin_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-
-
-async def run_rss_indexing(
-    session: AsyncSession,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    start_date: str,
-    end_date: str,
-):
-    """Runs the RSS feed indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_rss_feeds(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"RSS indexing failed for connector {connector_id}: {error_message}"
-            )
-        else:
-            logger.info(
-                f"RSS indexing successful for connector {connector_id}. Indexed {indexed_count} items."
-            )
-            # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
-            await session.commit()
-    except Exception as e:
-        await session.rollback()
-        logger.error(
-            f"Critical error in run_rss_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )

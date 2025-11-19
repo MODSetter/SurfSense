@@ -79,12 +79,11 @@ celery_app.conf.update(
     task_time_limit=28800,  # 8 hour hard limit
     task_soft_time_limit=28200,  # 7 hours 50 minutes soft limit
     # Result backend settings
-    result_expires=3600,  # Results expire after 1 hour (reduced from 24h to save Redis RAM)
+    result_expires=86400,  # Results expire after 24 hours
     result_extended=True,
     # Worker settings
     worker_prefetch_multiplier=1,
-    worker_max_tasks_per_child=100,  # Reduced from 1000 for more frequent memory cleanup
-    worker_max_memory_per_child=256000,  # 256MB limit per worker to prevent memory leaks
+    worker_max_tasks_per_child=1000,
     # Retry settings
     task_acks_late=True,
     task_reject_on_worker_lost=True,

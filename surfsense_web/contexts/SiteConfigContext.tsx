@@ -53,26 +53,26 @@ const defaultConfig: SiteConfig = {
 
 interface SiteConfigContextType {
 	config: SiteConfig;
-	isLoading: boolean;
+	loading: boolean;
 	error: string | null;
 	refetch: () => Promise<void>;
 }
 
 const SiteConfigContext = createContext<SiteConfigContextType>({
 	config: defaultConfig,
-	isLoading: true,
+	loading: true,
 	error: null,
 	refetch: async () => {},
 });
 
 export function SiteConfigProvider({ children }: { children: React.ReactNode }) {
 	const [config, setConfig] = useState<SiteConfig>(defaultConfig);
-	const [isLoading, setIsLoading] = useState(true);
+	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	const fetchConfig = async () => {
 		try {
-			setIsLoading(true);
+			setLoading(true);
 			setError(null);
 
 			const backendUrl =
@@ -91,7 +91,7 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
 			console.error("Error fetching site configuration:", err);
 			// Keep default config on error
 		} finally {
-			setIsLoading(false);
+			setLoading(false);
 		}
 	};
 
@@ -100,7 +100,7 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
 	}, []);
 
 	return (
-		<SiteConfigContext.Provider value={{ config, isLoading, error, refetch: fetchConfig }}>
+		<SiteConfigContext.Provider value={{ config, loading, error, refetch: fetchConfig }}>
 			{children}
 		</SiteConfigContext.Provider>
 	);

@@ -45,24 +45,15 @@ app = FastAPI(lifespan=lifespan)
 
 # Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
 # This ensures FastAPI uses HTTPS in redirects when behind a proxy
-# SECURITY: Only trust specific proxy hosts in production
-# Set TRUSTED_HOSTS env var to comma-separated list of trusted proxy IPs
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.TRUSTED_HOSTS)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Add CORS middleware
-# SECURITY: Restrict to specific methods and headers for better security
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,  # Configurable via CORS_ORIGINS env var
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=[
-        "Authorization",
-        "Content-Type",
-        "Accept",
-        "Origin",
-        "X-Requested-With",
-    ],
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 app.include_router(

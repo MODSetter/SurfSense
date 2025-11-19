@@ -18,9 +18,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
-// URL validation regex - requires valid domain structure while supporting international characters
-// Accepts: localhost, domain.tld format, and percent-encoded URLs
-const urlRegex = /^https?:\/\/(?:localhost|[\w.-]+\.[a-zA-Z]{2,})(?::\d+)?(?:\/[^\s]*)?$/;
+// URL validation regex - updated to support percent-encoded URLs (e.g., Latvian characters)
+const urlRegex = /^https?:\/\/[^\s]+$/;
 
 export default function WebpageCrawler() {
 	const t = useTranslations("add_webpage");
