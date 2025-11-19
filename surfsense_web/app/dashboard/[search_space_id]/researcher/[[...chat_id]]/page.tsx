@@ -8,7 +8,7 @@ import { createChatMutationAtom, updateChatMutationAtom } from "@/atoms/chats/ch
 import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
-import { useChatAPI, useChatState } from "@/hooks/use-chat";
+import { useChatState } from "@/hooks/use-chat";
 import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
@@ -43,11 +43,6 @@ export default function ResearcherPage() {
 		search_space_id: search_space_id as string,
 		chat_id: activeChatId ?? undefined,
 	});
-
-	// const { updateChat } = useChatAPI({
-	// 	token,
-	// 	search_space_id: search_space_id as string,
-	// });
 
 	// Fetch all available sources (document types + live search connectors)
 	const { documentTypes } = useDocumentTypes(Number(search_space_id));
