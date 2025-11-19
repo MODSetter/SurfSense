@@ -36,17 +36,24 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     verification_token_secret = SECRET
 
     async def on_after_register(self, user: User, request: Request | None = None):
+        # Log user registration without exposing sensitive data
         print(f"User {user.id} has registered.")
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Request | None = None
     ):
-        print(f"User {user.id} has forgot their password. Reset token: {token}")
+        # SECURITY: Do not log the actual reset token
+        # In production, send the token via email to the user
+        print(f"Password reset requested for user {user.id}. Token generated.")
+        # TODO: Implement email sending with the reset token
 
     async def on_after_request_verify(
         self, user: User, token: str, request: Request | None = None
     ):
-        print(f"Verification requested for user {user.id}. Verification token: {token}")
+        # SECURITY: Do not log the actual verification token
+        # In production, send the token via email to the user
+        print(f"Email verification requested for user {user.id}. Token generated.")
+        # TODO: Implement email sending with the verification token
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
@@ -54,7 +61,9 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 
 
 def get_jwt_strategy() -> JWTStrategy[models.UP, models.ID]:
-    return JWTStrategy(secret=SECRET, lifetime_seconds=3600 * 24)
+    # SECURITY: Reduced from 24 hours to 1 hour to limit exposure window
+    # Consider implementing refresh tokens for better security
+    return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
 
 
 # # COOKIE AUTH | Uncomment if you want to use cookie auth.
@@ -78,10 +87,18 @@ def get_jwt_strategy() -> JWTStrategy[models.UP, models.ID]:
 
 
 # BEARER AUTH CODE.
+# SECURITY WARNING: Passing JWT tokens in URL query parameters is not recommended
+# as they can be exposed in browser history, server logs, and referrer headers.
+# Consider using:
+# 1. HTTP-only cookies (see commented CookieTransport above)
+# 2. A short-lived authorization code that can be exchanged for a token
+# 3. POST-based token exchange with the frontend
 class CustomBearerTransport(BearerTransport):
     async def get_login_response(self, token: str) -> Response:
         bearer_response = BearerResponse(access_token=token, token_type="bearer")
-        redirect_url = f"{config.NEXT_FRONTEND_URL}/auth/callback?token={bearer_response.access_token}"
+        # Using URL fragment (#) instead of query parameter (?) to prevent token exposure
+        # in browser history, server logs, and referrer headers
+        redirect_url = f"{config.NEXT_FRONTEND_URL}/auth/callback#token={bearer_response.access_token}"
         if config.AUTH_TYPE == "GOOGLE":
             return RedirectResponse(redirect_url, status_code=302)
         else:
