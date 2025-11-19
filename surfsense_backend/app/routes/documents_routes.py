@@ -120,8 +120,7 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
     if file_ext == ".mobi":
         if len(content) >= MOBI_MIN_SIZE and content[MOBI_SIGNATURE_OFFSET:MOBI_MIN_SIZE] == MOBI_SIGNATURE:
             return True, ""
-        else:
-            return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
+        return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
     # WebP files start with RIFF but need "WEBP" at offset 8
     if file_ext == ".webp":
@@ -131,8 +130,7 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
             and content[WEBP_WEBP_OFFSET:WEBP_MIN_SIZE] == WEBP_WEBP_SIGNATURE
         ):
             return True, ""
-        else:
-            return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
+        return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
     # Check against known magic signatures
     for magic, valid_extensions in MAGIC_SIGNATURES.items():
