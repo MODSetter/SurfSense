@@ -3,12 +3,14 @@ Jellyfin connector for media library access.
 """
 
 import logging
-from datetime import datetime
-from typing import Any
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# Jellyfin uses ticks (100 nanoseconds) for time durations
+# 10,000,000 ticks = 1 second, so 600,000,000 ticks = 1 minute
+JELLYFIN_TICKS_PER_MINUTE = 600_000_000
 
 
 class JellyfinConnector:
@@ -342,7 +344,7 @@ class JellyfinConnector:
         # Format runtime
         runtime = ""
         if runtime_ticks:
-            minutes = runtime_ticks // 600000000
+            minutes = runtime_ticks // JELLYFIN_TICKS_PER_MINUTE
             hours = minutes // 60
             mins = minutes % 60
             if hours:

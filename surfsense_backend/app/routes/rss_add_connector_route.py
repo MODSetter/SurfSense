@@ -2,6 +2,7 @@
 Routes for adding and managing RSS Feed connectors.
 """
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -127,23 +128,38 @@ async def validate_multiple_feeds(
     _user: User = Depends(current_active_user),
 ):
     """
-    Validate multiple feed URLs.
+    Validate multiple feed URLs in parallel.
 
     Returns validation results for each feed.
     """
     connector = RSSConnector(feed_urls=[])
-    results = []
 
-    for url in feed_urls:
-        result = await connector.validate_feed(url)
-        results.append({
-            "url": result["url"],
-            "valid": result["valid"],
-            "title": result["title"],
-            "last_updated": result["last_updated"],
-            "item_count": result["item_count"],
-            "error": result["error"],
-        })
+    # Validate all feeds in parallel
+    validation_results = await asyncio.gather(
+        *[connector.validate_feed(url) for url in feed_urls],
+        return_exceptions=True
+    )
+
+    results = []
+    for url, result in zip(feed_urls, validation_results):
+        if isinstance(result, Exception):
+            results.append({
+                "url": url,
+                "valid": False,
+                "title": "",
+                "last_updated": None,
+                "item_count": 0,
+                "error": str(result),
+            })
+        else:
+            results.append({
+                "url": result["url"],
+                "valid": result["valid"],
+                "title": result["title"],
+                "last_updated": result["last_updated"],
+                "item_count": result["item_count"],
+                "error": result["error"],
+            })
 
     valid_count = sum(1 for r in results if r["valid"])
     invalid_count = len(results) - valid_count
