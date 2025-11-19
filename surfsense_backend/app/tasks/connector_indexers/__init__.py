@@ -19,6 +19,7 @@ Available indexers:
 - Luma: Index events from Luma
 - Elasticsearch: Index documents from Elasticsearch instances
 - Home Assistant: Index automations, scripts, and events from Home Assistant
+- Mastodon: Index posts, favourites, and bookmarks from Mastodon/Pixelfed
 """
 
 # Communication platforms
@@ -39,6 +40,9 @@ from .jira_indexer import index_jira_issues
 # Issue tracking and project management
 from .linear_indexer import index_linear_issues
 from .luma_indexer import index_luma_events
+
+# Social media
+from .mastodon_indexer import index_mastodon_data
 
 # Documentation and knowledge management
 from .notion_indexer import index_notion_pages
@@ -65,4 +69,6 @@ __all__ = [  # noqa: RUF022
     "index_google_gmail_messages",
     # Smart home
     "index_home_assistant_data",
+    # Social media
+    "index_mastodon_data",
 ]
