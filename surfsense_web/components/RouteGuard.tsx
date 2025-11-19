@@ -2,21 +2,12 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSiteConfig, SiteConfig } from "@/contexts/SiteConfigContext";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 interface RouteGuardProps {
 	children: React.ReactNode;
 	routeKey: "pricing" | "docs" | "contact" | "terms" | "privacy" | "registration";
 }
-
-const routeConfigMap: Record<RouteGuardProps["routeKey"], keyof SiteConfig> = {
-	pricing: "disable_pricing_route",
-	docs: "disable_docs_route",
-	contact: "disable_contact_route",
-	terms: "disable_terms_route",
-	privacy: "disable_privacy_route",
-	registration: "disable_registration",
-};
 
 export function RouteGuard({ children, routeKey }: RouteGuardProps) {
 	const { config, isLoading } = useSiteConfig();
@@ -25,8 +16,11 @@ export function RouteGuard({ children, routeKey }: RouteGuardProps) {
 	useEffect(() => {
 		if (isLoading) return;
 
-		const disableKey = routeConfigMap[routeKey];
-		const isDisabled = config[disableKey];
+		// Special case: registration uses disable_registration instead of disable_registration_route
+		const disableKey = routeKey === "registration"
+			? "disable_registration"
+			: (`disable_${routeKey}_route` as keyof typeof config);
+		const isDisabled = config[disableKey as keyof typeof config];
 
 		if (isDisabled) {
 			router.replace("/404");
@@ -43,8 +37,11 @@ export function RouteGuard({ children, routeKey }: RouteGuardProps) {
 	}
 
 	// Check if route is disabled
-	const disableKey = routeConfigMap[routeKey];
-	const isDisabled = config[disableKey];
+	// Special case: registration uses disable_registration instead of disable_registration_route
+	const disableKey = routeKey === "registration"
+		? "disable_registration"
+		: (`disable_${routeKey}_route` as keyof typeof config);
+	const isDisabled = config[disableKey as keyof typeof config];
 
 	if (isDisabled) {
 		return null;

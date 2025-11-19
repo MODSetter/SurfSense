@@ -18,8 +18,6 @@ Available indexers:
 - Google Calendar: Index events from Google Calendar
 - Luma: Index events from Luma
 - Elasticsearch: Index documents from Elasticsearch instances
-- Home Assistant: Index automations, scripts, and events from Home Assistant
-- Mastodon: Index posts, favourites, and bookmarks from Mastodon/Pixelfed
 """
 
 # Communication platforms
@@ -34,21 +32,11 @@ from .elasticsearch_indexer import index_elasticsearch_documents
 from .github_indexer import index_github_repos
 from .google_calendar_indexer import index_google_calendar_events
 from .google_gmail_indexer import index_google_gmail_messages
-from .home_assistant_indexer import index_home_assistant_data
 from .jira_indexer import index_jira_issues
 
 # Issue tracking and project management
 from .linear_indexer import index_linear_issues
 from .luma_indexer import index_luma_events
-
-# Social media
-from .mastodon_indexer import index_mastodon_data
-
-# Media servers
-from .jellyfin_indexer import index_jellyfin_data
-
-# RSS feeds
-from .rss_indexer import index_rss_feeds
 
 # Documentation and knowledge management
 from .notion_indexer import index_notion_pages
@@ -73,12 +61,4 @@ __all__ = [  # noqa: RUF022
     # Communication platforms
     "index_slack_messages",
     "index_google_gmail_messages",
-    # Smart home
-    "index_home_assistant_data",
-    # Social media
-    "index_mastodon_data",
-    # Media servers
-    "index_jellyfin_data",
-    # RSS feeds
-    "index_rss_feeds",
 ]
