@@ -4,7 +4,7 @@ import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
-import { createChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
+import { createChatMutationAtom, updateChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
 import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
@@ -19,11 +19,8 @@ export default function ResearcherPage() {
 	const hasSetInitialConnectors = useRef(false);
 	const activeChatId = useAtomValue(activeChatIdAtom);
 	const { data: activeChatState, isFetching: isChatLoading } = useAtomValue(activeChatAtom);
-	const {
-		mutateAsync: createChat,
-		isPending: isCreatingChat,
-		error: createChatError,
-	} = useAtomValue(createChatMutationAtom);
+	const { mutateAsync: createChat } = useAtomValue(createChatMutationAtom);
+	const { mutateAsync: updateChat } = useAtomValue(updateChatMutationAtom);
 	const isNewChat = !activeChatId;
 
 	// Reset the flag when chat ID changes
@@ -47,10 +44,10 @@ export default function ResearcherPage() {
 		chat_id: activeChatId ?? undefined,
 	});
 
-	const { updateChat } = useChatAPI({
-		token,
-		search_space_id: search_space_id as string,
-	});
+	// const { updateChat } = useChatAPI({
+	// 	token,
+	// 	search_space_id: search_space_id as string,
+	// });
 
 	// Fetch all available sources (document types + live search connectors)
 	const { documentTypes } = useDocumentTypes(Number(search_space_id));
@@ -245,7 +242,18 @@ export default function ResearcherPage() {
 			handler.messages.length > 0 &&
 			handler.messages[handler.messages.length - 1]?.role === "assistant"
 		) {
-			updateChat(activeChatId, handler.messages, researchMode, selectedConnectors);
+			const userMessages = handler.messages.filter((msg) => msg.role === "user");
+			if (userMessages.length === 0) return;
+			const title = userMessages[0].content;
+
+			updateChat({
+				type: researchMode,
+				title: title,
+				initial_connectors: selectedConnectors,
+				messages: handler.messages,
+				search_space_id: Number(search_space_id),
+				id: Number(activeChatId),
+			});
 		}
 	}, [handler.messages, handler.status, activeChatId, isNewChat, isChatLoading]);
 

@@ -34,17 +34,10 @@ export const deleteChatResponse = z.object({
 
 export const deleteChatRequest = chatSummary.pick({ id: true });
 
-export const createChatRequest = z.object({
-	type: chatTypeEnum,
-	title: z.string(),
-	initial_connectors: z.array(z.string()),
-	messages: z.array(
-		z.object({
-			role: z.enum(["user", "assistant"]),
-			content: z.string(),
-		})
-	),
-	search_space_id: z.number(),
+export const createChatRequest = chatDetails.omit({
+	created_at: true,
+	id: true,
+	state_version: true,
 });
 
 export const updateChatRequest = chatDetails.omit({
