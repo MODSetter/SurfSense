@@ -5,9 +5,13 @@ This route allows users to add a Home Assistant connector by providing
 their Home Assistant URL and Long-Lived Access Token.
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.connectors.home_assistant_connector import HomeAssistantConnector
 from app.db import SearchSourceConnector, SearchSourceConnectorType, User, get_async_session
@@ -144,9 +148,11 @@ async def test_home_assistant_connection(
 
     connected, error = await ha_client.test_connection()
     if not connected:
+        # Log detailed error server-side for debugging
+        logger.error(f"Home Assistant connection failed for user {user.id}: {error}")
         raise HTTPException(
             status_code=400,
-            detail=f"Connection failed: {error}",
+            detail="Unable to connect to Home Assistant. Please verify the URL and access token are correct.",
         )
 
     # Get config for additional info
