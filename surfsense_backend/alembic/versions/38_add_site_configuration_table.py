@@ -49,8 +49,7 @@ def upgrade() -> None:
         # Custom text
         sa.Column('custom_copyright', sa.String(length=200), nullable=True, server_default='SurfSense 2025'),
 
-        sa.PrimaryKeyConstraint('id'),
-        sa.CheckConstraint('id = 1', name='check_singleton')
+        sa.PrimaryKeyConstraint('id')
     )
 
     # Create index
