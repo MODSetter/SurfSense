@@ -43,16 +43,16 @@ export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProp
 								<span className="font-medium">{usagePercentage.toFixed(0)}%</span>
 							</div>
 							<Progress value={usagePercentage} className="h-2" />
-							{config.show_contact_email && (
+							{config.show_contact_email && config.contact_email && (
 								<div className="flex items-start gap-2 pt-1">
 									<Mail className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
 									<p className="text-[10px] text-muted-foreground leading-tight">
 										Contact{" "}
 										<a
-											href="mailto:rohan@surfsense.com"
+											href={`mailto:${config.contact_email}`}
 											className="text-primary hover:underline font-medium"
 										>
-											rohan@surfsense.com
+											{config.contact_email}
 										</a>{" "}
 										to increase limits
 									</p>

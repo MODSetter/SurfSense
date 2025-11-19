@@ -36,6 +36,7 @@ interface SiteConfigForm {
 
 	// Contact information
 	show_contact_email: boolean;
+	contact_email: string;
 
 	// Custom text
 	custom_copyright: string;
@@ -61,6 +62,7 @@ export default function SiteSettingsPage() {
 		disable_privacy_route: true,
 		disable_registration: false,
 		show_contact_email: true,
+		contact_email: "rohan@surfsense.com",
 		custom_copyright: "SurfSense 2025",
 	});
 	const [isSaving, setIsSaving] = useState(false);
@@ -133,6 +135,7 @@ export default function SiteSettingsPage() {
 				disable_privacy_route: config.disable_privacy_route,
 				disable_registration: config.disable_registration,
 				show_contact_email: config.show_contact_email ?? true,
+				contact_email: config.contact_email || "rohan@surfsense.com",
 				custom_copyright: config.custom_copyright || "SurfSense 2025",
 			});
 		}
@@ -372,6 +375,25 @@ export default function SiteSettingsPage() {
 										checked={formData.show_contact_email}
 										onChange={() => handleToggle("show_contact_email")}
 									/>
+								</div>
+								<div className="mt-4">
+									<label
+										htmlFor="contact_email"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+									>
+										Contact Email Address
+									</label>
+									<input
+										type="email"
+										id="contact_email"
+										value={formData.contact_email}
+										onChange={(e) => handleTextChange("contact_email", e.target.value)}
+										placeholder="rohan@surfsense.com"
+										className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+									/>
+									<p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+										This email will be displayed in the sidebar for users to contact about page limits.
+									</p>
 								</div>
 							</section>
 
