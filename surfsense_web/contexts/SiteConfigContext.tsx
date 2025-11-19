@@ -30,6 +30,7 @@ export interface SiteConfig {
 
 	// Contact information
 	show_contact_email: boolean;
+	contact_email: string | null;
 
 	// Custom text
 	custom_copyright: string | null;
@@ -52,6 +53,7 @@ const defaultConfig: SiteConfig = {
 	disable_privacy_route: true,
 	disable_registration: false,
 	show_contact_email: true,
+	contact_email: "rohan@surfsense.com",
 	custom_copyright: "SurfSense 2025",
 };
 
