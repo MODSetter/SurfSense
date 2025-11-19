@@ -439,6 +439,10 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         pages_limit = Column(Integer, nullable=False, default=1000, server_default="1000")
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+        # Two-factor authentication fields
+        two_fa_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+        totp_secret = Column(String(255), nullable=True)
+        backup_codes = Column(JSON, nullable=True)
 
 else:
 
@@ -450,6 +454,10 @@ else:
         )
         pages_limit = Column(Integer, nullable=False, default=1000, server_default="1000")
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+        # Two-factor authentication fields
+        two_fa_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+        totp_secret = Column(String(255), nullable=True)
+        backup_codes = Column(JSON, nullable=True)
 
 
 engine = create_async_engine(DATABASE_URL)
