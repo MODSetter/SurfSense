@@ -136,22 +136,9 @@ async def validate_multiple_feeds(
 
     # Validate all feeds in parallel
     # Note: validate_feed never raises exceptions, it returns errors in the result dict
-    validation_results = await asyncio.gather(
+    results = await asyncio.gather(
         *[connector.validate_feed(url) for url in feed_urls]
     )
-
-    # Map results directly since validate_feed handles all errors internally
-    results = [
-        {
-            "url": result["url"],
-            "valid": result["valid"],
-            "title": result["title"],
-            "last_updated": result["last_updated"],
-            "item_count": result["item_count"],
-            "error": result["error"],
-        }
-        for result in validation_results
-    ]
 
     valid_count = sum(1 for r in results if r["valid"])
     invalid_count = len(results) - valid_count
