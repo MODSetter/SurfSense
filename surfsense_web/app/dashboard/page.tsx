@@ -7,9 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Logo } from "@/components/Logo";
-import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
-import { UserDropdown } from "@/components/UserDropdown";
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
 	AlertDialog,
@@ -206,19 +204,12 @@ const DashboardPage = () => {
 			variants={containerVariants}
 		>
 			<motion.div className="flex flex-col space-y-6" variants={itemVariants}>
-				<div className="flex flex-row space-x-4 justify-between">
-					<div className="flex flex-row space-x-4">
-						<Logo className="w-10 h-10 rounded-md" href="/dashboard" />
-						<div className="flex flex-col space-y-2">
-							<h1 className="text-4xl font-bold">{t("surfsense_dashboard")}</h1>
-							<p className="text-muted-foreground">{t("welcome_message")}</p>
-						</div>
-					</div>
-					<div className="flex items-center space-x-3">
-						<UserDropdown user={customUser} isAdmin={user?.is_superuser ?? false} />
-						<ThemeTogglerComponent />
-					</div>
-				</div>
+				<DashboardHeader
+					title={t("surfsense_dashboard")}
+					description={t("welcome_message")}
+					user={customUser}
+					isAdmin={user?.is_superuser ?? false}
+				/>
 
 				<div className="flex flex-col space-y-6 mt-6">
 					<div className="flex justify-between items-center">

@@ -2,9 +2,7 @@
 
 import { ArrowLeft, Shield, ShieldCheck, ShieldOff } from "lucide-react";
 import Link from "next/link";
-import { Logo } from "@/components/Logo";
-import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
-import { UserDropdown } from "@/components/UserDropdown";
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +19,7 @@ export default function SecurityPage() {
 
 	const customUser = {
 		name: user?.email ? user.email.split("@")[0] : "User",
-		email: user?.email || "Loading...",
+		email: user?.email || (error ? "Error loading user" : "Unknown User"),
 		avatar: "/icon-128.png",
 	};
 
@@ -48,21 +46,12 @@ export default function SecurityPage() {
 	return (
 		<div className="container mx-auto py-10">
 			<div className="flex flex-col space-y-6">
-				<div className="flex flex-row space-x-4 justify-between">
-					<div className="flex flex-row space-x-4">
-						<Logo className="w-10 h-10 rounded-md" href="/dashboard" />
-						<div className="flex flex-col space-y-2">
-							<h1 className="text-4xl font-bold">Security Settings</h1>
-							<p className="text-muted-foreground">
-								Manage your account security and two-factor authentication
-							</p>
-						</div>
-					</div>
-					<div className="flex items-center space-x-3">
-						<UserDropdown user={customUser} isAdmin={user?.is_superuser ?? false} />
-						<ThemeTogglerComponent />
-					</div>
-				</div>
+				<DashboardHeader
+					title="Security Settings"
+					description="Manage your account security and two-factor authentication"
+					user={customUser}
+					isAdmin={user?.is_superuser ?? false}
+				/>
 
 				<div className="mb-4">
 					<Link href="/dashboard">
