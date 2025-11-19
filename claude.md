@@ -116,7 +116,7 @@ Reranking improves search quality by scoring retrieved documents by relevance:
 ### Database Statistics
 - Check chunk count: `SELECT COUNT(*) FROM chunks;`
 - Check document count: `SELECT COUNT(*) FROM documents;`
-- View indexes (in psql): `\di+ \*vector\*`
+- View indexes (in psql): `\di+ *vector*`
 
 ### Maintenance
 Run periodically for optimal performance:
