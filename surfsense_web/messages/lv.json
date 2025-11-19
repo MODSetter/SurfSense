@@ -308,6 +308,7 @@
 		"project_management": "Projektu pārvaldība",
 		"knowledge_bases": "Zināšanu bāzes",
 		"communication": "Komunikācija",
+		"media_and_home": "Mediji un mājas",
 		"connect": "Savienot",
 		"coming_soon": "Drīzumā",
 		"connected": "Savienots",
@@ -330,7 +331,11 @@
 		"luma_desc": "Savienoties ar Luma, lai meklētu notikumus",
 		"calendar_desc": "Savienoties ar Google Calendar, lai meklētu notikumus, sapulces un grafikus.",
 		"gmail_desc": "Savienoties ar savu Gmail kontu, lai meklētu e-pastus.",
-		"zoom_desc": "Savienoties ar Zoom, lai piekļūtu sapulču ierakstiem un stenogrammām."
+		"zoom_desc": "Savienoties ar Zoom, lai piekļūtu sapulču ierakstiem un stenogrammām.",
+		"rss_desc": "Savienojieties ar RSS plūsmām, lai indeksētu emuāru ierakstus un ziņu rakstus.",
+		"mastodon_desc": "Savienojieties ar Mastodon, lai meklētu savā laika līnijā un ierakstos.",
+		"jellyfin_desc": "Savienojieties ar Jellyfin, lai meklētu mediju bibliotēkas metadatus.",
+		"home_assistant_desc": "Savienojieties ar Home Assistant, lai meklētu ierīču stāvokļus un notikumus."
 	},
 	"upload_documents": {
 		"title": "Augšupielādēt dokumentus",
