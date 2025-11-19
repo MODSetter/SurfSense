@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import litellm
 from langchain_core.messages import HumanMessage
@@ -13,6 +14,181 @@ from app.db import LLMConfig, UserSearchSpacePreference
 litellm.drop_params = True
 
 logger = logging.getLogger(__name__)
+
+# Default fallback LLM config ID (Gemini Flash)
+FALLBACK_LLM_CONFIG_ID = -3
+
+
+class ChatLiteLLMWithFallback:
+    """
+    Wrapper around ChatLiteLLM that provides automatic fallback to another LLM
+    when the primary LLM fails (e.g., Ollama memory errors).
+    """
+
+    def __init__(self, primary_llm: ChatLiteLLM, fallback_llm: ChatLiteLLM | None = None):
+        self.primary_llm = primary_llm
+        self.fallback_llm = fallback_llm
+        self._using_fallback = False
+
+    @property
+    def using_fallback(self) -> bool:
+        return self._using_fallback
+
+    async def ainvoke(self, messages: list, **kwargs) -> Any:
+        """Invoke with automatic fallback on failure."""
+        try:
+            self._using_fallback = False
+            return await self.primary_llm.ainvoke(messages, **kwargs)
+        except Exception as e:
+            error_str = str(e).lower()
+            # Check for Ollama-specific errors that warrant fallback
+            if self.fallback_llm and (
+                "memory" in error_str
+                or "ollama" in error_str
+                or "connection" in error_str
+                or "timeout" in error_str
+            ):
+                logger.warning(
+                    f"Primary LLM failed with error: {e}. Falling back to secondary LLM."
+                )
+                self._using_fallback = True
+                return await self.fallback_llm.ainvoke(messages, **kwargs)
+            raise
+
+    async def astream(self, messages: list, **kwargs):
+        """Stream with automatic fallback on failure."""
+        try:
+            self._using_fallback = False
+            async for chunk in self.primary_llm.astream(messages, **kwargs):
+                yield chunk
+        except Exception as e:
+            error_str = str(e).lower()
+            if self.fallback_llm and (
+                "memory" in error_str
+                or "ollama" in error_str
+                or "connection" in error_str
+                or "timeout" in error_str
+            ):
+                logger.warning(
+                    f"Primary LLM streaming failed with error: {e}. Falling back to secondary LLM."
+                )
+                self._using_fallback = True
+                async for chunk in self.fallback_llm.astream(messages, **kwargs):
+                    yield chunk
+            else:
+                raise
+
+    def invoke(self, messages: list, **kwargs) -> Any:
+        """Synchronous invoke with automatic fallback on failure."""
+        try:
+            self._using_fallback = False
+            return self.primary_llm.invoke(messages, **kwargs)
+        except Exception as e:
+            error_str = str(e).lower()
+            if self.fallback_llm and (
+                "memory" in error_str
+                or "ollama" in error_str
+                or "connection" in error_str
+                or "timeout" in error_str
+            ):
+                logger.warning(
+                    f"Primary LLM failed with error: {e}. Falling back to secondary LLM."
+                )
+                self._using_fallback = True
+                return self.fallback_llm.invoke(messages, **kwargs)
+            raise
+
+    def stream(self, messages: list, **kwargs):
+        """Synchronous stream with automatic fallback on failure."""
+        try:
+            self._using_fallback = False
+            for chunk in self.primary_llm.stream(messages, **kwargs):
+                yield chunk
+        except Exception as e:
+            error_str = str(e).lower()
+            if self.fallback_llm and (
+                "memory" in error_str
+                or "ollama" in error_str
+                or "connection" in error_str
+                or "timeout" in error_str
+            ):
+                logger.warning(
+                    f"Primary LLM streaming failed with error: {e}. Falling back to secondary LLM."
+                )
+                self._using_fallback = True
+                for chunk in self.fallback_llm.stream(messages, **kwargs):
+                    yield chunk
+            else:
+                raise
+
+    # Proxy other attributes to primary LLM
+    def __getattr__(self, name):
+        return getattr(self.primary_llm, name)
+
+
+def _build_llm_from_global_config(global_config: dict) -> ChatLiteLLM:
+    """
+    Build a ChatLiteLLM instance from a global config dictionary.
+
+    Args:
+        global_config: Global LLM config dictionary
+
+    Returns:
+        ChatLiteLLM instance
+    """
+    # Build model string
+    if global_config.get("custom_provider"):
+        model_string = f"{global_config['custom_provider']}/{global_config['model_name']}"
+    else:
+        provider_map = {
+            "OPENAI": "openai",
+            "ANTHROPIC": "anthropic",
+            "GROQ": "groq",
+            "COHERE": "cohere",
+            "GOOGLE": "gemini",
+            "OLLAMA": "ollama",
+            "MISTRAL": "mistral",
+            "AZURE_OPENAI": "azure",
+            "OPENROUTER": "openrouter",
+            "COMETAPI": "cometapi",
+            "XAI": "xai",
+            "BEDROCK": "bedrock",
+            "AWS_BEDROCK": "bedrock",
+            "VERTEX_AI": "vertex_ai",
+            "TOGETHER_AI": "together_ai",
+            "FIREWORKS_AI": "fireworks_ai",
+            "REPLICATE": "replicate",
+            "PERPLEXITY": "perplexity",
+            "ANYSCALE": "anyscale",
+            "DEEPINFRA": "deepinfra",
+            "CEREBRAS": "cerebras",
+            "SAMBANOVA": "sambanova",
+            "AI21": "ai21",
+            "CLOUDFLARE": "cloudflare",
+            "DATABRICKS": "databricks",
+            "DEEPSEEK": "openai",
+            "ALIBABA_QWEN": "openai",
+            "MOONSHOT": "openai",
+            "ZHIPU": "openai",
+        }
+        provider_prefix = provider_map.get(
+            global_config["provider"], global_config["provider"].lower()
+        )
+        model_string = f"{provider_prefix}/{global_config['model_name']}"
+
+    # Create ChatLiteLLM instance
+    litellm_kwargs = {
+        "model": model_string,
+        "api_key": global_config.get("api_key", ""),
+    }
+
+    if global_config.get("api_base"):
+        litellm_kwargs["api_base"] = global_config["api_base"]
+
+    if global_config.get("litellm_params"):
+        litellm_kwargs.update(global_config["litellm_params"])
+
+    return ChatLiteLLM(**litellm_kwargs)
 
 
 class LLMRole:
@@ -146,9 +322,10 @@ async def validate_llm_config(
 
 async def get_user_llm_instance(
     session: AsyncSession, user_id: str, search_space_id: int, role: str
-) -> ChatLiteLLM | None:
+) -> ChatLiteLLM | ChatLiteLLMWithFallback | None:
     """
     Get a ChatLiteLLM instance for a specific user, search space, and role.
+    Automatically wraps with fallback support for local models.
 
     Args:
         session: Database session
@@ -157,7 +334,7 @@ async def get_user_llm_instance(
         role: LLM role ('long_context', 'fast', or 'strategic')
 
     Returns:
-        ChatLiteLLM instance or None if not found
+        ChatLiteLLM or ChatLiteLLMWithFallback instance, or None if not found
     """
     try:
         # Get user's LLM preferences for this search space
@@ -200,61 +377,20 @@ async def get_user_llm_instance(
                 logger.error(f"Global LLM config {llm_config_id} not found")
                 return None
 
-            # Build model string for global config
-            if global_config.get("custom_provider"):
-                model_string = (
-                    f"{global_config['custom_provider']}/{global_config['model_name']}"
-                )
-            else:
-                provider_map = {
-                    "OPENAI": "openai",
-                    "ANTHROPIC": "anthropic",
-                    "GROQ": "groq",
-                    "COHERE": "cohere",
-                    "GOOGLE": "gemini",
-                    "OLLAMA": "ollama",
-                    "MISTRAL": "mistral",
-                    "AZURE_OPENAI": "azure",
-                    "OPENROUTER": "openrouter",
-                    "COMETAPI": "cometapi",
-                    "XAI": "xai",
-                    "BEDROCK": "bedrock",
-                    "AWS_BEDROCK": "bedrock",
-                    "VERTEX_AI": "vertex_ai",
-                    "TOGETHER_AI": "together_ai",
-                    "FIREWORKS_AI": "fireworks_ai",
-                    "REPLICATE": "replicate",
-                    "PERPLEXITY": "perplexity",
-                    "ANYSCALE": "anyscale",
-                    "DEEPINFRA": "deepinfra",
-                    "CEREBRAS": "cerebras",
-                    "SAMBANOVA": "sambanova",
-                    "AI21": "ai21",
-                    "CLOUDFLARE": "cloudflare",
-                    "DATABRICKS": "databricks",
-                    "DEEPSEEK": "openai",
-                    "ALIBABA_QWEN": "openai",
-                    "MOONSHOT": "openai",
-                    "ZHIPU": "openai",
-                }
-                provider_prefix = provider_map.get(
-                    global_config["provider"], global_config["provider"].lower()
-                )
-                model_string = f"{provider_prefix}/{global_config['model_name']}"
+            # Build primary LLM from global config
+            primary_llm = _build_llm_from_global_config(global_config)
 
-            # Create ChatLiteLLM instance from global config
-            litellm_kwargs = {
-                "model": model_string,
-                "api_key": global_config["api_key"],
-            }
+            # If primary is a local model (Ollama), add fallback support
+            if global_config.get("provider") == "OLLAMA":
+                fallback_config = get_global_llm_config(FALLBACK_LLM_CONFIG_ID)
+                if fallback_config:
+                    fallback_llm = _build_llm_from_global_config(fallback_config)
+                    logger.info(
+                        f"Created LLM with fallback: {global_config['model_name']} -> {fallback_config['model_name']}"
+                    )
+                    return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
 
-            if global_config.get("api_base"):
-                litellm_kwargs["api_base"] = global_config["api_base"]
-
-            if global_config.get("litellm_params"):
-                litellm_kwargs.update(global_config["litellm_params"])
-
-            return ChatLiteLLM(**litellm_kwargs)
+            return primary_llm
 
         # Get the LLM configuration from database (user-specific config)
         result = await session.execute(

@@ -87,9 +87,16 @@ Located in `surfsense_backend/app/config/global_llm_config.yaml`:
    - Provider: Ollama
    - Model: `tildeopen:latest`
 
-3. **Gemini 2.0 Flash (API)** - Fallback only
+3. **Gemini 2.0 Flash (API)** - Automatic fallback
    - Provider: Google
    - Model: `gemini-2.0-flash-exp`
+
+### Automatic Fallback System
+The LLM service (`app/services/llm_service.py`) includes automatic fallback:
+- When local Ollama models fail (memory errors, connection issues, timeouts)
+- Automatically switches to Gemini Flash API
+- Transparent to the user - no manual intervention needed
+- Logs warnings when fallback is used
 
 ## Database Migrations
 
@@ -215,6 +222,7 @@ These are in `.gitignore`:
 6. **Memory Optimization** - Switched from `mistral-nemo:128k` to `mistral-nemo:latest` (8k context) to fit in 30 GiB RAM
 7. **Swap File** - Added 8 GiB swap to support TildeOpen grammar checking
 8. **Grammar Check Optimization** - Reduced context window to 2048 tokens for lighter memory usage
+9. **Automatic LLM Fallback** - Local Ollama models now automatically fall back to Gemini Flash API on failure
 
 ---
 
