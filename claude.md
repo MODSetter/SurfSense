@@ -79,22 +79,25 @@ python scripts/sops_mcp_server.py set api_keys.openai "value"  # Set secret
 ### Three-Tier Architecture
 Located in `surfsense_backend/app/config/global_llm_config.yaml`:
 
-1. **Mistral NeMo 12B (Local)** - Primary response generation
-   - Provider: Ollama
-   - Model: `mistral-nemo:latest` (8k context - uses less RAM than 128k variant)
-
-2. **TildeOpen 30B (Local)** - Latvian grammar checker
-   - Provider: Ollama
-   - Model: `tildeopen:latest`
-
-3. **Gemini 2.0 Flash (API)** - Automatic fallback
+1. **Gemini 2.0 Flash (API)** - Primary response generation
    - Provider: Google
    - Model: `gemini-2.0-flash-exp`
+   - Fast, large context (1M+ tokens), multilingual
+
+2. **Mistral NeMo 12B (Local)** - Fallback when Gemini fails
+   - Provider: Ollama
+   - Model: `mistral-nemo:latest` (8k context)
+   - Slow on CPU but works offline
+
+3. **TildeOpen 30B (Local)** - Latvian grammar checker
+   - Provider: Ollama
+   - Model: `tildeopen:latest`
+   - Separate from main LLM flow
 
 ### Automatic Fallback System
 The LLM service (`app/services/llm_service.py`) includes automatic fallback:
-- When local Ollama models fail (memory errors, connection issues, timeouts)
-- Automatically switches to Gemini Flash API
+- **Gemini → Mistral**: If Gemini API fails (rate limits, errors), falls back to local Mistral
+- Handles: connection errors, timeouts, rate limits (429), server errors (500/503)
 - Transparent to the user - no manual intervention needed
 - Logs warnings when fallback is used
 
@@ -222,7 +225,8 @@ These are in `.gitignore`:
 6. **Memory Optimization** - Switched from `mistral-nemo:128k` to `mistral-nemo:latest` (8k context) to fit in 30 GiB RAM
 7. **Swap File** - Added 8 GiB swap to support TildeOpen grammar checking
 8. **Grammar Check Optimization** - Reduced context window to 2048 tokens for lighter memory usage
-9. **Automatic LLM Fallback** - Local Ollama models now automatically fall back to Gemini Flash API on failure
+9. **Automatic LLM Fallback** - Bidirectional fallback between Gemini (primary) and Mistral (backup)
+10. **Gemini as Primary** - Switched to Gemini Flash as main LLM for speed and large context support
 
 ---
 

@@ -15,8 +15,9 @@ litellm.drop_params = True
 
 logger = logging.getLogger(__name__)
 
-# Default fallback LLM config ID (Gemini Flash)
-FALLBACK_LLM_CONFIG_ID = -3
+# Default fallback LLM config ID (Mistral NeMo local)
+# Used when primary cloud API fails
+FALLBACK_LLM_CONFIG_ID = -1
 
 
 class ChatLiteLLMWithFallback:
@@ -41,12 +42,18 @@ class ChatLiteLLMWithFallback:
             return await self.primary_llm.ainvoke(messages, **kwargs)
         except Exception as e:
             error_str = str(e).lower()
-            # Check for Ollama-specific errors that warrant fallback
+            # Check for errors that warrant fallback (local or cloud)
             if self.fallback_llm and (
                 "memory" in error_str
                 or "ollama" in error_str
                 or "connection" in error_str
                 or "timeout" in error_str
+                or "rate" in error_str
+                or "quota" in error_str
+                or "api" in error_str
+                or "503" in error_str
+                or "500" in error_str
+                or "429" in error_str
             ):
                 logger.warning(
                     f"Primary LLM failed with error: {e}. Falling back to secondary LLM."
@@ -68,6 +75,12 @@ class ChatLiteLLMWithFallback:
                 or "ollama" in error_str
                 or "connection" in error_str
                 or "timeout" in error_str
+                or "rate" in error_str
+                or "quota" in error_str
+                or "api" in error_str
+                or "503" in error_str
+                or "500" in error_str
+                or "429" in error_str
             ):
                 logger.warning(
                     f"Primary LLM streaming failed with error: {e}. Falling back to secondary LLM."
@@ -90,6 +103,12 @@ class ChatLiteLLMWithFallback:
                 or "ollama" in error_str
                 or "connection" in error_str
                 or "timeout" in error_str
+                or "rate" in error_str
+                or "quota" in error_str
+                or "api" in error_str
+                or "503" in error_str
+                or "500" in error_str
+                or "429" in error_str
             ):
                 logger.warning(
                     f"Primary LLM failed with error: {e}. Falling back to secondary LLM."
@@ -111,6 +130,12 @@ class ChatLiteLLMWithFallback:
                 or "ollama" in error_str
                 or "connection" in error_str
                 or "timeout" in error_str
+                or "rate" in error_str
+                or "quota" in error_str
+                or "api" in error_str
+                or "503" in error_str
+                or "500" in error_str
+                or "429" in error_str
             ):
                 logger.warning(
                     f"Primary LLM streaming failed with error: {e}. Falling back to secondary LLM."
@@ -380,15 +405,15 @@ async def get_user_llm_instance(
             # Build primary LLM from global config
             primary_llm = _build_llm_from_global_config(global_config)
 
-            # If primary is a local model (Ollama), add fallback support
-            if global_config.get("provider") == "OLLAMA":
-                fallback_config = get_global_llm_config(FALLBACK_LLM_CONFIG_ID)
-                if fallback_config:
-                    fallback_llm = _build_llm_from_global_config(fallback_config)
-                    logger.info(
-                        f"Created LLM with fallback: {global_config['model_name']} -> {fallback_config['model_name']}"
-                    )
-                    return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
+            # Add fallback support for resilience
+            # Cloud APIs fall back to local, local models fall back to cloud
+            fallback_config = get_global_llm_config(FALLBACK_LLM_CONFIG_ID)
+            if fallback_config and llm_config_id != FALLBACK_LLM_CONFIG_ID:
+                fallback_llm = _build_llm_from_global_config(fallback_config)
+                logger.info(
+                    f"Created LLM with fallback: {global_config['model_name']} -> {fallback_config['model_name']}"
+                )
+                return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
 
             return primary_llm
 
