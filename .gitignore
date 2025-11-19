@@ -69,7 +69,6 @@ installed_before_update.txt
 
 # Deployment and production documentation (store privately)
 DEPLOYMENT.md
-claude.md
 sync-from-production.sh
 MIGRATION_LOCAL_LLM.md
 PR_DESCRIPTION.md
