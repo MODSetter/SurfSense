@@ -140,6 +140,9 @@ class Config:
     _cors_origins_str = os.getenv("CORS_ORIGINS", "*")
     CORS_ORIGINS = [origin.strip() for origin in _cors_origins_str.split(",") if origin.strip()]
 
+    # Site Configuration Defaults
+    DEFAULT_CONTACT_EMAIL = os.getenv("DEFAULT_CONTACT_EMAIL", "support@example.com")
+
     # Google OAuth
     GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
     GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")

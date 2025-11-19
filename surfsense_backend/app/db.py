@@ -416,6 +416,7 @@ class SiteConfiguration(Base):
 
     # Custom text
     custom_copyright = Column(String(200), nullable=True, default="SurfSense 2025")
+    contact_email = Column(String(200), nullable=True, default=config.DEFAULT_CONTACT_EMAIL)
 
 
 if config.AUTH_TYPE == "GOOGLE":

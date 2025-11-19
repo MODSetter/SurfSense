@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.config import config
+
 
 class SiteConfigurationBase(BaseModel):
     # Header/Navbar toggles
@@ -29,6 +31,7 @@ class SiteConfigurationBase(BaseModel):
 
     # Custom text
     custom_copyright: str | None = Field(default="SurfSense 2025", max_length=200)
+    contact_email: str | None = Field(default=config.DEFAULT_CONTACT_EMAIL, max_length=200)
 
 
 class SiteConfigurationUpdate(SiteConfigurationBase):
@@ -49,6 +52,7 @@ class SiteConfigurationUpdate(SiteConfigurationBase):
     disable_privacy_route: bool | None = None
     disable_registration: bool | None = None
     custom_copyright: str | None = None
+    contact_email: str | None = None
 
 
 class SiteConfigurationRead(SiteConfigurationBase):
