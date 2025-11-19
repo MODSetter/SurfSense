@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Bot, CheckCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bot, CheckCircle, MessageSquare, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -8,13 +8,14 @@ import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { CompletionStep } from "@/components/onboard/completion-step";
 import { SetupLLMStep } from "@/components/onboard/setup-llm-step";
+import { SetupPromptStep } from "@/components/onboard/setup-prompt-step";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
-const TOTAL_STEPS = 2;
+const TOTAL_STEPS = 3;
 
 const OnboardPage = () => {
 	const t = useTranslations("onboard");
@@ -96,9 +97,13 @@ const OnboardPage = () => {
 
 	const progress = (currentStep / TOTAL_STEPS) * 100;
 
-	const stepTitles = [t("setup_llm_configuration"), t("setup_complete")];
+	const stepTitles = [t("setup_llm_configuration"), "Configure AI Responses", t("setup_complete")];
 
-	const stepDescriptions = [t("configure_providers_and_assign_roles"), t("all_set")];
+	const stepDescriptions = [
+		t("configure_providers_and_assign_roles"),
+		"Customize how the AI responds to your queries (Optional)",
+		t("all_set"),
+	];
 
 	// User can proceed to step 2 if all roles are assigned
 	const canProceedToStep2 =
@@ -106,6 +111,9 @@ const OnboardPage = () => {
 		preferences.long_context_llm_id &&
 		preferences.fast_llm_id &&
 		preferences.strategic_llm_id;
+
+	// User can always proceed from step 2 to step 3 (prompt config is optional)
+	const canProceedToStep3 = true;
 
 	const handleNext = () => {
 		if (currentStep < TOTAL_STEPS) {
@@ -201,7 +209,8 @@ const OnboardPage = () => {
 					<CardHeader className="text-center">
 						<CardTitle className="text-2xl flex items-center justify-center gap-2">
 							{currentStep === 1 && <Sparkles className="w-6 h-6" />}
-							{currentStep === 2 && <CheckCircle className="w-6 h-6" />}
+							{currentStep === 2 && <MessageSquare className="w-6 h-6" />}
+							{currentStep === 3 && <CheckCircle className="w-6 h-6" />}
 							{stepTitles[currentStep - 1]}
 						</CardTitle>
 						<CardDescription className="text-base">
@@ -225,7 +234,10 @@ const OnboardPage = () => {
 										onPreferencesUpdated={refreshPreferences}
 									/>
 								)}
-								{currentStep === 2 && <CompletionStep searchSpaceId={searchSpaceId} />}
+								{currentStep === 2 && (
+									<SetupPromptStep searchSpaceId={searchSpaceId} onComplete={handleNext} />
+								)}
+								{currentStep === 3 && <CompletionStep searchSpaceId={searchSpaceId} />}
 							</motion.div>
 						</AnimatePresence>
 					</CardContent>
@@ -245,11 +257,31 @@ const OnboardPage = () => {
 								<ArrowRight className="w-4 h-4" />
 							</Button>
 						</>
+					) : currentStep === 2 ? (
+						<>
+							<Button
+								variant="outline"
+								onClick={handlePrevious}
+								className="flex items-center gap-2"
+							>
+								<ArrowLeft className="w-4 h-4" />
+								{t("previous")}
+							</Button>
+							{/* Next button is handled by SetupPromptStep component */}
+							<div />
+						</>
 					) : (
-						<Button variant="outline" onClick={handlePrevious} className="flex items-center gap-2">
-							<ArrowLeft className="w-4 h-4" />
-							{t("previous")}
-						</Button>
+						<>
+							<Button
+								variant="outline"
+								onClick={handlePrevious}
+								className="flex items-center gap-2"
+							>
+								<ArrowLeft className="w-4 h-4" />
+								{t("previous")}
+							</Button>
+							<div />
+						</>
 					)}
 				</div>
 			</motion.div>

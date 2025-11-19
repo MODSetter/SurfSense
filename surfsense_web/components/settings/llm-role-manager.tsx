@@ -33,7 +33,7 @@ const ROLE_DESCRIPTIONS = {
 	long_context: {
 		icon: Brain,
 		title: "Long Context LLM",
-		description: "Handles complex tasks requiring extensive context understanding and reasoning",
+		description: "Handles summarization of long documents and complex Q&A",
 		color: "bg-blue-100 text-blue-800 border-blue-200",
 		examples: "Document analysis, research synthesis, complex Q&A",
 		characteristics: ["Large context window", "Deep reasoning", "Complex analysis"],
