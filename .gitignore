@@ -1,5 +1,5 @@
 .flashrank_cache*
-podcasts/
+./surfsense_backend/podcasts/
 .env
 node_modules/
 .ruff_cache/
