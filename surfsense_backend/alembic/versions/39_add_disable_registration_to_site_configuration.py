@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '39_add_disable_registration_to_site_configuration'
-down_revision: Union[str, None] = '38_add_site_configuration_table'
+revision: str = '39'
+down_revision: Union[str, None] = '38'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
