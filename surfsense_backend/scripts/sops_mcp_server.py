@@ -580,29 +580,35 @@ if __name__ == '__main__':
         # Check for --show-values flag for commands that output secrets
         show_values = '--show-values' in sys.argv
 
+        # Filter out flags from positional arguments for consistent parsing
+        positional_args = [a for a in sys.argv[2:] if not a.startswith('--')]
+
         if command == 'list':
             result = manager.list_secrets()
             # List only shows keys, not values - safe to print
             print(json.dumps(result, indent=2))
-        elif command == 'get' and len(sys.argv) > 2:
-            key_path = sys.argv[2] if sys.argv[2] != '--show-values' else sys.argv[3] if len(sys.argv) > 3 else ''
+        elif command == 'get':
+            if not positional_args:
+                print("Usage: sops_mcp_server.py get <key_path> [--show-values]")
+                sys.exit(1)
+            key_path = positional_args[0]
             result = manager.get_secret(key_path)
             if not show_values and 'value' in result:
                 # Redact the value in CLI output
                 result['value'] = redact_value(str(result['value']))
                 result['note'] = "Use --show-values flag to see actual value"
             print(json.dumps(result, indent=2))
-        elif command == 'set' and len(sys.argv) > 3:
-            # Filter out flags from arguments
-            args = [a for a in sys.argv[2:] if not a.startswith('--')]
-            if len(args) >= 2:
-                result = manager.set_secret(args[0], args[1])
-                print(json.dumps(result, indent=2))
-            else:
+        elif command == 'set':
+            if len(positional_args) < 2:
                 print("Usage: sops_mcp_server.py set <key_path> <value>")
                 sys.exit(1)
-        elif command == 'delete' and len(sys.argv) > 2:
-            key_path = sys.argv[2] if sys.argv[2] != '--show-values' else sys.argv[3] if len(sys.argv) > 3 else ''
+            result = manager.set_secret(positional_args[0], positional_args[1])
+            print(json.dumps(result, indent=2))
+        elif command == 'delete':
+            if not positional_args:
+                print("Usage: sops_mcp_server.py delete <key_path>")
+                sys.exit(1)
+            key_path = positional_args[0]
             print(json.dumps(manager.delete_secret(key_path), indent=2))
         elif command == 'rotate':
             print(json.dumps(manager.rotate_key(), indent=2))
