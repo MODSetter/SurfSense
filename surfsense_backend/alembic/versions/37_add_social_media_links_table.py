@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '37_add_social_media_links_table'
-down_revision: Union[str, None] = '36_remove_fk_constraints_for_global_llm_configs'
+revision: str = '37'
+down_revision: Union[str, None] = '36'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

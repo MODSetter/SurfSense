@@ -29,6 +29,10 @@ class SiteConfigurationBase(BaseModel):
     # Registration control
     disable_registration: bool = False
 
+    # Contact information
+    show_contact_email: bool = True
+    contact_email: str | None = Field(default="rohan@surfsense.com", max_length=200)
+
     # Custom text
     custom_copyright: str | None = Field(default="SurfSense 2025", max_length=200)
     contact_email: str | None = Field(default=config.DEFAULT_CONTACT_EMAIL, max_length=200)
@@ -51,6 +55,8 @@ class SiteConfigurationUpdate(SiteConfigurationBase):
     disable_terms_route: bool | None = None
     disable_privacy_route: bool | None = None
     disable_registration: bool | None = None
+    show_contact_email: bool | None = None
+    contact_email: str | None = None
     custom_copyright: str | None = None
     contact_email: str | None = None
 

@@ -198,7 +198,7 @@ export const AppSidebar = memo(function AppSidebar({
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton asChild size="lg">
-							<Link href="/" className="flex items-center gap-2 w-full">
+							<Link href="/dashboard" className="flex items-center gap-2 w-full">
 								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
 									<Image
 										src="/icon-128.png"

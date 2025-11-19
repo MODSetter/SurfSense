@@ -50,6 +50,10 @@ class DocumentType(str, Enum):
     AIRTABLE_CONNECTOR = "AIRTABLE_CONNECTOR"
     LUMA_CONNECTOR = "LUMA_CONNECTOR"
     ELASTICSEARCH_CONNECTOR = "ELASTICSEARCH_CONNECTOR"
+    HOME_ASSISTANT_CONNECTOR = "HOME_ASSISTANT_CONNECTOR"
+    MASTODON_CONNECTOR = "MASTODON_CONNECTOR"
+    JELLYFIN_CONNECTOR = "JELLYFIN_CONNECTOR"
+    RSS_FEED_CONNECTOR = "RSS_FEED_CONNECTOR"
 
 
 class SearchSourceConnectorType(str, Enum):
@@ -71,6 +75,10 @@ class SearchSourceConnectorType(str, Enum):
     AIRTABLE_CONNECTOR = "AIRTABLE_CONNECTOR"
     LUMA_CONNECTOR = "LUMA_CONNECTOR"
     ELASTICSEARCH_CONNECTOR = "ELASTICSEARCH_CONNECTOR"
+    HOME_ASSISTANT_CONNECTOR = "HOME_ASSISTANT_CONNECTOR"
+    MASTODON_CONNECTOR = "MASTODON_CONNECTOR"
+    JELLYFIN_CONNECTOR = "JELLYFIN_CONNECTOR"
+    RSS_FEED_CONNECTOR = "RSS_FEED_CONNECTOR"
 
 
 class ChatType(str, Enum):
@@ -414,6 +422,10 @@ class SiteConfiguration(Base):
     # Registration control
     disable_registration = Column(Boolean, nullable=False, default=False)
 
+    # Contact information
+    show_contact_email = Column(Boolean, nullable=False, default=True)
+    contact_email = Column(String(200), nullable=True, default="rohan@surfsense.com")
+
     # Custom text
     custom_copyright = Column(String(200), nullable=True, default="SurfSense 2025")
     contact_email = Column(String(200), nullable=True, default=config.DEFAULT_CONTACT_EMAIL)
@@ -434,6 +446,10 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         pages_limit = Column(Integer, nullable=False, default=1000, server_default="1000")
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+        # Two-factor authentication fields
+        two_fa_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+        totp_secret = Column(String(255), nullable=True)
+        backup_codes = Column(JSON, nullable=True)
 
 else:
 
@@ -445,6 +461,10 @@ else:
         )
         pages_limit = Column(Integer, nullable=False, default=1000, server_default="1000")
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+        # Two-factor authentication fields
+        two_fa_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+        totp_secret = Column(String(255), nullable=True)
+        backup_codes = Column(JSON, nullable=True)
 
 
 engine = create_async_engine(DATABASE_URL)
