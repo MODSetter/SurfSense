@@ -17,6 +17,7 @@ from .home_assistant_add_connector_route import (
 from .jellyfin_add_connector_route import router as jellyfin_add_connector_router
 from .llm_config_routes import router as llm_config_router
 from .mastodon_add_connector_route import router as mastodon_add_connector_router
+from .rss_add_connector_route import router as rss_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
 from .podcasts_routes import router as podcasts_router
@@ -40,6 +41,7 @@ router.include_router(luma_add_connector_router)
 router.include_router(home_assistant_add_connector_router)
 router.include_router(mastodon_add_connector_router)
 router.include_router(jellyfin_add_connector_router)
+router.include_router(rss_add_connector_router)
 router.include_router(llm_config_router)
 router.include_router(logs_router)
 router.include_router(site_configuration_router)

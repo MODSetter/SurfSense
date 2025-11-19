@@ -2839,3 +2839,100 @@ class ConnectorService:
         }
 
         return result_object, jellyfin_chunks
+
+    async def search_rss_feeds(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for RSS feed documents and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            rss_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="RSS_FEED_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            rss_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="RSS_FEED_CONNECTOR",
+            )
+            rss_chunks = self._transform_document_results(rss_chunks)
+
+        if not rss_chunks:
+            return {
+                "id": 38,
+                "name": "RSS Feeds",
+                "type": "RSS_FEED_CONNECTOR",
+                "sources": [],
+            }, []
+
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(rss_chunks):
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                link = metadata.get("link", "")
+                feed_title = metadata.get("feed_title", "")
+                author = metadata.get("author", "")
+                published = metadata.get("published", "")
+                categories = metadata.get("categories", [])
+
+                title = document.get("title", "RSS Entry")
+                description = chunk.get("content", "")[:150]
+                if len(description) == 150:
+                    description += "..."
+
+                # Add feed info to description
+                info_parts = []
+                if feed_title:
+                    info_parts.append(feed_title)
+                if author:
+                    info_parts.append(f"by {author}")
+                if categories:
+                    info_parts.append(", ".join(categories[:3]))
+
+                if info_parts:
+                    description = f"[{' | '.join(info_parts)}] {description}"
+
+                source_entry = {
+                    "id": chunk.get("chunk_id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": link,
+                    "feed_title": feed_title,
+                    "published": published,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source_entry)
+
+        result_object = {
+            "id": 38,
+            "name": "RSS Feeds",
+            "type": "RSS_FEED_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, rss_chunks
