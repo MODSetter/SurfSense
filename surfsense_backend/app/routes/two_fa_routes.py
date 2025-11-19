@@ -2,10 +2,13 @@
 Two-Factor Authentication routes.
 """
 
+import json
 import logging
+import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
+import redis
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
@@ -24,9 +27,20 @@ router = APIRouter(prefix="/auth/2fa", tags=["2fa"])
 # Password context for verifying user passwords
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# In-memory store for temporary tokens (use Redis in production)
-# Format: {token: {"user_id": str, "expires_at": datetime}}
-_temp_tokens: dict[str, dict] = {}
+# Redis client for temporary token storage
+# Uses the same Redis as Celery for consistency
+REDIS_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+_redis_client: redis.Redis | None = None
+
+def get_redis_client() -> redis.Redis:
+    """Get or create Redis client for 2FA token storage."""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    return _redis_client
+
+# Key prefix for 2FA temporary tokens in Redis
+TEMP_TOKEN_PREFIX = "2fa_temp_token:"
 
 
 class SetupResponse(BaseModel):
@@ -266,37 +280,46 @@ async def regenerate_backup_codes(
 
 
 def store_temporary_token(token: str, user_id: str, expires_in_minutes: int = 5):
-    """Store a temporary token for 2FA verification."""
-    expires_at = datetime.now(UTC) + timedelta(minutes=expires_in_minutes)
-    _temp_tokens[token] = {
-        "user_id": user_id,
-        "expires_at": expires_at,
-    }
-
-    # Clean up expired tokens
-    current_time = datetime.now(UTC)
-    expired = [k for k, v in _temp_tokens.items() if v["expires_at"] < current_time]
-    for k in expired:
-        del _temp_tokens[k]
+    """Store a temporary token for 2FA verification in Redis."""
+    try:
+        client = get_redis_client()
+        key = f"{TEMP_TOKEN_PREFIX}{token}"
+        data = json.dumps({"user_id": user_id})
+        # Set with TTL for automatic expiration
+        client.setex(key, expires_in_minutes * 60, data)
+    except redis.RedisError as e:
+        logger.error(f"Failed to store 2FA token in Redis: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to process 2FA request. Please try again.",
+        )
 
 
 def get_user_id_from_token(token: str) -> str | None:
     """Get user ID from temporary token if valid and not expired."""
-    if token not in _temp_tokens:
+    try:
+        client = get_redis_client()
+        key = f"{TEMP_TOKEN_PREFIX}{token}"
+        data = client.get(key)
+        if not data:
+            return None
+        return json.loads(data)["user_id"]
+    except redis.RedisError as e:
+        logger.error(f"Failed to retrieve 2FA token from Redis: {e}")
         return None
-
-    token_data = _temp_tokens[token]
-    if token_data["expires_at"] < datetime.now(UTC):
-        del _temp_tokens[token]
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.error(f"Invalid 2FA token data: {e}")
         return None
-
-    return token_data["user_id"]
 
 
 def invalidate_temporary_token(token: str):
     """Invalidate a temporary token after use."""
-    if token in _temp_tokens:
-        del _temp_tokens[token]
+    try:
+        client = get_redis_client()
+        key = f"{TEMP_TOKEN_PREFIX}{token}"
+        client.delete(key)
+    except redis.RedisError as e:
+        logger.error(f"Failed to invalidate 2FA token in Redis: {e}")
 
 
 class LoginResponse(BaseModel):

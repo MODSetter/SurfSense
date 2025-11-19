@@ -33,6 +33,7 @@ from app.schemas import (
     SearchSourceConnectorBase,
     SearchSourceConnectorCreate,
     SearchSourceConnectorRead,
+    SearchSourceConnectorReadSafe,
     SearchSourceConnectorUpdate,
 )
 from app.tasks.connector_indexers import (
@@ -193,7 +194,7 @@ async def create_search_source_connector(
         ) from e
 
 
-@router.get("/search-source-connectors", response_model=list[SearchSourceConnectorRead])
+@router.get("/search-source-connectors", response_model=list[SearchSourceConnectorReadSafe])
 async def read_search_source_connectors(
     skip: int = 0,
     limit: int = 100,
@@ -201,7 +202,7 @@ async def read_search_source_connectors(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """List all search source connectors for the current user, optionally filtered by search space."""
+    """List all search source connectors for the current user (sensitive config values are redacted)."""
     try:
         query = select(SearchSourceConnector).filter(
             SearchSourceConnector.user_id == user.id
@@ -216,7 +217,8 @@ async def read_search_source_connectors(
             )
 
         result = await session.execute(query.offset(skip).limit(limit))
-        return result.scalars().all()
+        connectors = result.scalars().all()
+        return [SearchSourceConnectorReadSafe.from_connector(c) for c in connectors]
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -225,16 +227,17 @@ async def read_search_source_connectors(
 
 
 @router.get(
-    "/search-source-connectors/{connector_id}", response_model=SearchSourceConnectorRead
+    "/search-source-connectors/{connector_id}", response_model=SearchSourceConnectorReadSafe
 )
 async def read_search_source_connector(
     connector_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Get a specific search source connector by ID."""
+    """Get a specific search source connector by ID (sensitive config values are redacted)."""
     try:
-        return await check_ownership(session, SearchSourceConnector, connector_id, user)
+        connector = await check_ownership(session, SearchSourceConnector, connector_id, user)
+        return SearchSourceConnectorReadSafe.from_connector(connector)
     except HTTPException:
         raise
     except Exception as e:
