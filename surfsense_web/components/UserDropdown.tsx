@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, LogOut, Settings } from "lucide-react";
+import { BadgeCheck, LogOut, Settings, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { baseApiService } from "@/lib/apis/base-api.service";
@@ -18,12 +18,14 @@ import {
 
 export function UserDropdown({
 	user,
+	isAdmin = false,
 }: {
 	user: {
 		name: string;
 		email: string;
 		avatar: string;
 	};
+	isAdmin?: boolean;
 }) {
 	const router = useRouter();
 
@@ -68,6 +70,16 @@ export function UserDropdown({
 						<BadgeCheck className="mr-2 h-4 w-4" />
 						API Key
 					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => router.push(`/dashboard/security`)}>
+						<Shield className="mr-2 h-4 w-4" />
+						Security (2FA)
+					</DropdownMenuItem>
+					{isAdmin && (
+						<DropdownMenuItem onClick={() => router.push(`/dashboard/site-settings`)}>
+							<Settings className="mr-2 h-4 w-4" />
+							Site Settings
+						</DropdownMenuItem>
+					)}
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem onClick={handleLogout}>
