@@ -36,7 +36,7 @@ export const deleteChatRequest = chatSummary.pick({ id: true });
 
 export const createChatRequest = z.object({
 	type: chatTypeEnum,
-	title: z.string().optional().default("Untitled Chat"),
+	title: z.string(),
 	initial_connectors: z.array(z.string()),
 	messages: z.array(
 		z.object({

@@ -4,6 +4,7 @@ import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
+import { createChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
 import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
@@ -18,6 +19,11 @@ export default function ResearcherPage() {
 	const hasSetInitialConnectors = useRef(false);
 	const activeChatId = useAtomValue(activeChatIdAtom);
 	const { data: activeChatState, isFetching: isChatLoading } = useAtomValue(activeChatAtom);
+	const {
+		mutateAsync: createChat,
+		isPending: isCreatingChat,
+		error: createChatError,
+	} = useAtomValue(createChatMutationAtom);
 	const isNewChat = !activeChatId;
 
 	// Reset the flag when chat ID changes
@@ -41,7 +47,7 @@ export default function ResearcherPage() {
 		chat_id: activeChatId ?? undefined,
 	});
 
-	const { updateChat, createChat } = useChatAPI({
+	const { updateChat } = useChatAPI({
 		token,
 		search_space_id: search_space_id as string,
 	});
@@ -127,19 +133,30 @@ export default function ResearcherPage() {
 		message: Message | CreateMessage,
 		chatRequestOptions?: { data?: any }
 	) => {
-		const newChatId = await createChat(message.content, researchMode, selectedConnectors);
-		if (newChatId) {
+		const newChat = await createChat({
+			type: researchMode,
+			title: "Untitled Chat",
+			initial_connectors: selectedConnectors,
+			messages: [
+				{
+					role: "user",
+					content: message.content,
+				},
+			],
+			search_space_id: Number(search_space_id),
+		});
+		if (newChat) {
 			// Store chat state before navigation
-			storeChatState(search_space_id as string, newChatId, {
+			storeChatState(search_space_id as string, String(newChat.id), {
 				selectedDocuments,
 				selectedConnectors,
 				searchMode,
 				researchMode,
 				topK,
 			});
-			router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
+			router.replace(`/dashboard/${search_space_id}/researcher/${newChat.id}`);
 		}
-		return newChatId;
+		return String(newChat.id);
 	};
 
 	useEffect(() => {
