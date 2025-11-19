@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import {
 	Calendar,
 	MoreHorizontal,
@@ -21,6 +21,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { deletePodcastMutationAtom } from "@/atoms/podcasts/podcast-mutation.atoms";
+import { podcastsAtom } from "@/atoms/podcasts/podcast-query.atoms";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -79,10 +80,7 @@ const podcastCardVariants: Variants = {
 const MotionCard = motion(Card);
 
 export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClientProps) {
-	const [podcasts, setPodcasts] = useState<Podcast[]>([]);
 	const [filteredPodcasts, setFilteredPodcasts] = useState<Podcast[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortOrder, setSortOrder] = useState<string>("newest");
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -104,64 +102,37 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 	const currentObjectUrlRef = useRef<string | null>(null);
 	const [{ isPending: isDeletingPodcast, mutateAsync: deletePodcast, error: deleteError }] =
 		useAtom(deletePodcastMutationAtom);
+	const {
+		data: podcasts,
+		isLoading: isFetchingPodcasts,
+		error: fetchError,
+	} = useAtomValue(podcastsAtom);
 
 	// Add podcast image URL constant
 	const PODCAST_IMAGE_URL =
 		"https://static.vecteezy.com/system/resources/thumbnails/002/157/611/small_2x/illustrations-concept-design-podcast-channel-free-vector.jpg";
 
-	// Fetch podcasts from API
 	useEffect(() => {
-		const fetchPodcasts = async () => {
-			try {
-				setIsLoading(true);
+		if (isFetchingPodcasts) return;
 
-				// Get token from localStorage
-				const token = localStorage.getItem("surfsense_bearer_token");
+		if (fetchError) {
+			console.error("Error fetching podcasts:", fetchError);
+			setFilteredPodcasts([]);
+			return;
+		}
 
-				if (!token) {
-					setError("Authentication token not found. Please log in again.");
-					setIsLoading(false);
-					return;
-				}
+		if (!podcasts) {
+			setFilteredPodcasts([]);
+			return;
+		}
 
-				// Fetch all podcasts for this search space
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-							"Content-Type": "application/json",
-						},
-						cache: "no-store",
-					}
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => null);
-					throw new Error(
-						`Failed to fetch podcasts: ${response.status} ${errorData?.detail || ""}`
-					);
-				}
-
-				const data: Podcast[] = await response.json();
-				setPodcasts(data);
-				setFilteredPodcasts(data);
-				setError(null);
-			} catch (error) {
-				console.error("Error fetching podcasts:", error);
-				setError(error instanceof Error ? error.message : "Unknown error occurred");
-				setPodcasts([]);
-				setFilteredPodcasts([]);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		fetchPodcasts();
+		setFilteredPodcasts(podcasts);
 	}, []);
 
 	// Filter and sort podcasts based on search query and sort order
 	useEffect(() => {
+		if (!podcasts) return;
+
 		let result = [...podcasts];
 
 		// Filter by search term
@@ -433,7 +404,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				</div>
 
 				{/* Status Messages */}
-				{isLoading && (
+				{isFetchingPodcasts && (
 					<div className="flex items-center justify-center h-40">
 						<div className="flex flex-col items-center gap-2">
 							<div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -442,14 +413,14 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 					</div>
 				)}
 
-				{error && !isLoading && (
+				{fetchError && !isFetchingPodcasts && (
 					<div className="border border-destructive/50 text-destructive p-4 rounded-md">
 						<h3 className="font-medium">Error loading podcasts</h3>
-						<p className="text-sm">{error}</p>
+						<p className="text-sm">{fetchError.message ?? "Failed to load podcasts"}</p>
 					</div>
 				)}
 
-				{!isLoading && !error && filteredPodcasts.length === 0 && (
+				{!isFetchingPodcasts && !fetchError && filteredPodcasts.length === 0 && (
 					<div className="flex flex-col items-center justify-center h-40 gap-2 text-center">
 						<PodcastIcon className="h-8 w-8 text-muted-foreground" />
 						<h3 className="font-medium">No podcasts found</h3>
@@ -462,7 +433,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				)}
 
 				{/* Podcast Grid */}
-				{!isLoading && !error && filteredPodcasts.length > 0 && (
+				{!isFetchingPodcasts && !fetchError && filteredPodcasts.length > 0 && (
 					<AnimatePresence mode="wait">
 						<motion.div
 							className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
