@@ -191,6 +191,11 @@ journalctl -u surfsense -n 50        # View logs
 - Customizable branding (logo, name, description)
 - Social media links
 - Registration enable/disable
+- Configurable contact email (visibility toggle + custom address)
+- Custom copyright text
+- Route disabling (pricing, docs, contact, terms, privacy)
+- Header/footer element visibility toggles
+- Constants centralized in `surfsense_web/lib/constants.ts`
 
 ## Development Notes
 

@@ -14,4 +14,8 @@ export const AUTH_TOKEN_KEY = "surfsense_bearer_token";
  * Can be overridden via environment variables
  */
 export const DEFAULT_CONTACT_EMAIL = process.env.NEXT_PUBLIC_DEFAULT_CONTACT_EMAIL || "support@example.com";
+
+/**
+ * Default copyright text with dynamic year
+ */
 export const DEFAULT_COPYRIGHT_TEXT = `SurfSense ${new Date().getFullYear()}`;
