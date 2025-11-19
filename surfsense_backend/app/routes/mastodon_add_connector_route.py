@@ -7,9 +7,13 @@ their instance URL and access token.
 Works with Mastodon, Pixelfed, and other Mastodon-compatible instances.
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.connectors.mastodon_connector import MastodonConnector
 from app.db import SearchSourceConnector, SearchSourceConnectorType, User, get_async_session
@@ -153,9 +157,11 @@ async def test_mastodon_connection(
 
     account, error = await mastodon_client.verify_credentials()
     if error:
+        # Log detailed error server-side for debugging
+        logger.error(f"Mastodon connection failed for user {user.id}: {error}")
         raise HTTPException(
             status_code=400,
-            detail=f"Connection failed: {error}",
+            detail="Unable to connect to Mastodon instance. Please verify the URL and access token are correct.",
         )
 
     # Get instance info
