@@ -44,6 +44,9 @@ from .luma_indexer import index_luma_events
 # Social media
 from .mastodon_indexer import index_mastodon_data
 
+# Media servers
+from .jellyfin_indexer import index_jellyfin_data
+
 # Documentation and knowledge management
 from .notion_indexer import index_notion_pages
 from .slack_indexer import index_slack_messages
@@ -71,4 +74,6 @@ __all__ = [  # noqa: RUF022
     "index_home_assistant_data",
     # Social media
     "index_mastodon_data",
+    # Media servers
+    "index_jellyfin_data",
 ]

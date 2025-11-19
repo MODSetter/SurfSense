@@ -48,6 +48,7 @@ CONNECTOR_METADATA: dict[str, ConnectorMetadata] = {
     "ELASTICSEARCH_CONNECTOR": ConnectorMetadata("🔎", "Elasticsearch chunks", "Elasticsearch"),
     "HOME_ASSISTANT_CONNECTOR": ConnectorMetadata("🏠", "Home Assistant items", "Home Assistant"),
     "MASTODON_CONNECTOR": ConnectorMetadata("🐘", "Mastodon posts", "Mastodon"),
+    "JELLYFIN_CONNECTOR": ConnectorMetadata("🎬", "Jellyfin media", "Jellyfin"),
 }
 
 # Default metadata for unknown connectors
