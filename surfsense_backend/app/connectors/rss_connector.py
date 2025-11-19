@@ -10,16 +10,81 @@ Supports:
 
 import asyncio
 import hashlib
+import ipaddress
 import logging
 import re
+import socket
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 import feedparser
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+def is_url_safe(url: str) -> tuple[bool, str]:
+    """
+    Validate that a URL doesn't resolve to private/internal IP addresses.
+
+    Prevents SSRF attacks by rejecting connections to:
+    - Private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+    - Loopback addresses (127.x.x.x, ::1)
+    - Link-local addresses (169.254.x.x, fe80::/10)
+    - Reserved/special ranges
+
+    Args:
+        url: URL to validate
+
+    Returns:
+        Tuple of (is_safe, error_message)
+    """
+    try:
+        parsed = urlparse(url)
+
+        if not parsed.scheme or parsed.scheme not in ('http', 'https'):
+            return False, "URL must use http or https scheme"
+
+        if not parsed.netloc:
+            return False, "URL must have a valid host"
+
+        # Extract hostname (handle port in netloc)
+        hostname = parsed.hostname
+        if not hostname:
+            return False, "Could not extract hostname from URL"
+
+        # Resolve hostname to IP addresses
+        try:
+            addr_info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC)
+        except socket.gaierror as e:
+            return False, f"Could not resolve hostname: {e}"
+
+        for family, _, _, _, sockaddr in addr_info:
+            ip_str = sockaddr[0]
+            try:
+                ip = ipaddress.ip_address(ip_str)
+
+                # Check for unsafe IP ranges
+                if ip.is_private:
+                    return False, f"URL resolves to private IP address: {ip_str}"
+                if ip.is_loopback:
+                    return False, f"URL resolves to loopback address: {ip_str}"
+                if ip.is_link_local:
+                    return False, f"URL resolves to link-local address: {ip_str}"
+                if ip.is_reserved:
+                    return False, f"URL resolves to reserved address: {ip_str}"
+                if ip.is_multicast:
+                    return False, f"URL resolves to multicast address: {ip_str}"
+
+            except ValueError:
+                return False, f"Invalid IP address: {ip_str}"
+
+        return True, ""
+
+    except Exception as e:
+        return False, f"URL validation error: {str(e)}"
 
 
 class RSSConnector:
@@ -98,6 +163,12 @@ class RSSConnector:
             "error": None,
         }
 
+        # Validate URL for SSRF protection
+        is_safe, error_msg = is_url_safe(url)
+        if not is_safe:
+            result["error"] = error_msg
+            return result
+
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
@@ -154,6 +225,12 @@ class RSSConnector:
         Returns:
             Tuple of (feed_info, list of entries)
         """
+        # Validate URL for SSRF protection
+        is_safe, error_msg = is_url_safe(url)
+        if not is_safe:
+            logger.warning(f"Unsafe URL rejected: {url} - {error_msg}")
+            return None, []
+
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
@@ -326,9 +403,9 @@ class RSSConnector:
         content = entry.get("content") or entry.get("summary") or "No content available"
 
         # Clean HTML tags for basic markdown (feedparser often returns HTML)
-        # Remove script and style tags
-        content = re.sub(r'<script[^>]*>.*?</script>', '', content, flags=re.DOTALL | re.IGNORECASE)
-        content = re.sub(r'<style[^>]*>.*?</style>', '', content, flags=re.DOTALL | re.IGNORECASE)
+        # Remove script and style tags (handle whitespace in closing tags)
+        content = re.sub(r'<script[^>]*>.*?</script\s*>', '', content, flags=re.DOTALL | re.IGNORECASE)
+        content = re.sub(r'<style[^>]*>.*?</style\s*>', '', content, flags=re.DOTALL | re.IGNORECASE)
         # Convert common HTML to markdown-ish
         content = re.sub(r'<br\s*/?>', '\n', content, flags=re.IGNORECASE)
         content = re.sub(r'<p[^>]*>', '\n\n', content, flags=re.IGNORECASE)

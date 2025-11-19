@@ -551,26 +551,79 @@ def main():
             print(json.dumps({"error": str(e)}), flush=True)
 
 
+def redact_value(value: str, show_chars: int = 4) -> str:
+    """Redact a secret value, showing only first few characters."""
+    if not value or len(value) <= show_chars:
+        return "[REDACTED]"
+    return value[:show_chars] + "..." + "[REDACTED]"
+
+
+def redact_dict_values(obj: dict) -> dict:
+    """Recursively redact all string values in a dictionary."""
+    result = {}
+    for key, value in obj.items():
+        if isinstance(value, dict):
+            result[key] = redact_dict_values(value)
+        elif isinstance(value, str):
+            result[key] = redact_value(value)
+        else:
+            result[key] = value
+    return result
+
+
 if __name__ == '__main__':
     # If running directly (not as MCP server), provide CLI interface
     if len(sys.argv) > 1:
         manager = SOPSManager()
         command = sys.argv[1]
 
+        # Check for --show-values flag for commands that output secrets
+        show_values = '--show-values' in sys.argv
+
         if command == 'list':
-            print(json.dumps(manager.list_secrets(), indent=2))
+            result = manager.list_secrets()
+            # List only shows keys, not values - safe to print
+            print(json.dumps(result, indent=2))
         elif command == 'get' and len(sys.argv) > 2:
-            print(json.dumps(manager.get_secret(sys.argv[2]), indent=2))
+            key_path = sys.argv[2] if sys.argv[2] != '--show-values' else sys.argv[3] if len(sys.argv) > 3 else ''
+            result = manager.get_secret(key_path)
+            if not show_values and 'value' in result:
+                # Redact the value in CLI output
+                result['value'] = redact_value(str(result['value']))
+                result['note'] = "Use --show-values flag to see actual value"
+            print(json.dumps(result, indent=2))
         elif command == 'set' and len(sys.argv) > 3:
-            print(json.dumps(manager.set_secret(sys.argv[2], sys.argv[3]), indent=2))
+            # Filter out flags from arguments
+            args = [a for a in sys.argv[2:] if not a.startswith('--')]
+            if len(args) >= 2:
+                result = manager.set_secret(args[0], args[1])
+                print(json.dumps(result, indent=2))
+            else:
+                print("Usage: sops_mcp_server.py set <key_path> <value>")
+                sys.exit(1)
         elif command == 'delete' and len(sys.argv) > 2:
-            print(json.dumps(manager.delete_secret(sys.argv[2]), indent=2))
+            key_path = sys.argv[2] if sys.argv[2] != '--show-values' else sys.argv[3] if len(sys.argv) > 3 else ''
+            print(json.dumps(manager.delete_secret(key_path), indent=2))
         elif command == 'rotate':
             print(json.dumps(manager.rotate_key(), indent=2))
         elif command == 'export':
-            print(json.dumps(manager.export_env(), indent=2))
+            result = manager.export_env()
+            if not show_values and 'env_vars' in result:
+                # Redact all values in export output
+                result['env_vars'] = redact_dict_values(result['env_vars'])
+                result['note'] = "Use --show-values flag to see actual values"
+            print(json.dumps(result, indent=2))
         else:
-            print("Usage: sops_mcp_server.py [list|get|set|delete|rotate|export] [args...]")
+            print("Usage: sops_mcp_server.py [list|get|set|delete|rotate|export] [args...] [--show-values]")
+            print("\nCommands:")
+            print("  list              - List all secret keys (not values)")
+            print("  get <key_path>    - Get a secret value (redacted by default)")
+            print("  set <key> <value> - Set or update a secret")
+            print("  delete <key_path> - Delete a secret")
+            print("  rotate            - Rotate encryption keys")
+            print("  export            - Export as env vars (redacted by default)")
+            print("\nFlags:")
+            print("  --show-values     - Show actual secret values (use with caution)")
             sys.exit(1)
     else:
         main()
