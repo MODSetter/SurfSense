@@ -9,8 +9,9 @@
 export const AUTH_TOKEN_KEY = "surfsense_bearer_token";
 
 /**
- * Default contact email address
- * Can be overridden via NEXT_PUBLIC_DEFAULT_CONTACT_EMAIL environment variable
+ * Default site configuration values
+ * Used in SiteConfigContext and site-settings page
+ * Can be overridden via environment variables
  */
 export const DEFAULT_CONTACT_EMAIL = process.env.NEXT_PUBLIC_DEFAULT_CONTACT_EMAIL || "support@example.com";
 
