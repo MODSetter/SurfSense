@@ -44,6 +44,58 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 router = APIRouter()
 
+# File upload security settings
+MAX_FILE_SIZE_MB = 100  # Maximum file size in MB
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+# Allowed file extensions for document uploads
+ALLOWED_EXTENSIONS = {
+    # Documents
+    ".pdf", ".doc", ".docx", ".txt", ".rtf", ".odt",
+    # Spreadsheets
+    ".xls", ".xlsx", ".csv", ".ods",
+    # Presentations
+    ".ppt", ".pptx", ".odp",
+    # Images (for OCR)
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp",
+    # Web/markup
+    ".html", ".htm", ".xml", ".json", ".md", ".markdown",
+    # Code
+    ".py", ".js", ".ts", ".java", ".cpp", ".c", ".h", ".go", ".rs", ".rb",
+    # E-books
+    ".epub", ".mobi",
+}
+
+
+def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
+    """
+    Validate a file upload for security.
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # Check filename exists
+    if not file.filename:
+        return False, "File must have a filename"
+
+    # Check file extension
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        return False, f"File type '{file_ext}' is not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+
+    # Check content type if available (basic MIME validation)
+    if file.content_type:
+        # Block potentially dangerous content types
+        dangerous_types = [
+            "application/x-executable",
+            "application/x-msdownload",
+            "application/x-msdos-program",
+        ]
+        if file.content_type in dangerous_types:
+            return False, f"Content type '{file.content_type}' is not allowed"
+
+    return True, ""
+
 
 @router.post("/documents")
 async def create_documents(
@@ -106,6 +158,15 @@ async def create_documents_file_upload(
         if not files:
             raise HTTPException(status_code=400, detail="No files provided")
 
+        # Validate all files first before processing any
+        for file in files:
+            is_valid, error_msg = validate_file_upload(file)
+            if not is_valid:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid file '{file.filename}': {error_msg}",
+                )
+
         for file in files:
             try:
                 # Create uploads directory if it doesn't exist
@@ -117,14 +178,23 @@ async def create_documents_file_upload(
                 unique_filename = f"{uuid.uuid4()}{file_ext}"
                 temp_path = str(uploads_dir / unique_filename)
 
-                # Write uploaded file to persistent location
+                # Read file content and check size
                 content = await file.read()
+                if len(content) > MAX_FILE_SIZE_BYTES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
+                    )
+
+                # Write uploaded file to persistent location
                 with open(temp_path, "wb") as f:
                     f.write(content)
 
                 process_file_upload_task.delay(
                     temp_path, file.filename, search_space_id, str(user.id)
                 )
+            except HTTPException:
+                raise
             except Exception as e:
                 raise HTTPException(
                     status_code=422,
