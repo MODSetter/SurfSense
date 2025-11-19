@@ -131,6 +131,7 @@
 		"book_a_call": "预约咨询"
 	},
 	"nav_menu": {
+		"settings": "设置",
 		"platform": "平台",
 		"researcher": "AI 研究",
 		"manage_llms": "管理 LLM",
@@ -425,7 +426,7 @@
 		"long_context_llm": "长上下文 LLM",
 		"fast_llm": "快速 LLM",
 		"strategic_llm": "战略 LLM",
-		"long_context_desc": "处理需要广泛上下文理解和推理的复杂任务",
+		"long_context_desc": "处理长文档摘要和复杂问答",
 		"long_context_examples": "文档分析、研究综合、复杂问答",
 		"large_context_window": "大型上下文窗口",
 		"deep_reasoning": "深度推理",
@@ -572,7 +573,7 @@
 		"no_llm_configs_found": "未找到 LLM 配置",
 		"add_provider_before_roles": "在分配角色之前，请先在上一步中添加至少一个 LLM 提供商。",
 		"long_context_llm_title": "长上下文 LLM",
-		"long_context_llm_desc": "处理需要广泛上下文理解和推理的复杂任务",
+		"long_context_llm_desc": "处理长文档摘要和复杂问答",
 		"long_context_llm_examples": "文档分析、研究综合、复杂问答",
 		"fast_llm_title": "快速 LLM",
 		"fast_llm_desc": "针对快速响应和实时交互进行优化",
