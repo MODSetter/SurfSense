@@ -35,6 +35,23 @@ import os
 os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 
+# Restricted allowlist of document file extensions
+# Excludes executable script files (.py, .js, .java, etc.) to prevent code execution risks
+ALLOWED_EXTENSIONS = {
+    # Documents
+    '.pdf', '.doc', '.docx', '.odt', '.rtf',
+    # Spreadsheets
+    '.xls', '.xlsx', '.ods', '.csv',
+    # Presentations
+    '.ppt', '.pptx', '.odp',
+    # Text files
+    '.txt', '.md', '.rst',
+    # Images
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp',
+    # Archives (for document collections)
+    '.zip',
+}
+
 router = APIRouter()
 
 
@@ -113,12 +130,17 @@ async def create_documents_file_upload(
                 import uuid
                 from pathlib import Path
 
+                # Validate file extension
+                file_ext = os.path.splitext(file.filename)[1].lower()
+                if file_ext not in ALLOWED_EXTENSIONS:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"File type '{file_ext}' is not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+                    )
+
                 # Create uploads directory if it doesn't exist
                 uploads_dir = Path("/opt/SurfSense/surfsense_backend/uploads")
                 uploads_dir.mkdir(parents=True, exist_ok=True)
-
-                # Create unique filename
-                file_ext = os.path.splitext(file.filename)[1]
                 unique_filename = f"{uuid.uuid4()}{file_ext}"
                 temp_path = str(uploads_dir / unique_filename)
 
