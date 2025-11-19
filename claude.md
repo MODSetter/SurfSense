@@ -23,8 +23,32 @@ SurfSense is a personal AI assistant that indexes and searches personal data fro
 ### Services on VPS
 - `surfsense.service` - Backend API (port 8000)
 - `surfsense-frontend.service` - Next.js (port 3000)
-- `surfsense-celery.service` - Task worker
+- `surfsense-celery.service` - Task worker (background document processing)
 - `surfsense-celery-beat.service` - Scheduled tasks
+
+### VPS Server Configuration
+**Server**: 30 GiB RAM, no GPU
+
+**Memory Setup**:
+- 8 GiB swap file at `/swapfile` (required for TildeOpen 30B model)
+- Celery workers: ~18 workers using ~700 MB each
+
+**Swap file setup** (already configured):
+```bash
+fallocate -l 8G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+**Model memory requirements**:
+- `mistral-nemo:latest` (8k context): ~7 GiB
+- `mistral-nemo:128k` (128k context): ~26 GiB (too large for this server)
+- `tildeopen:latest`: ~21 GiB (uses swap when needed)
+
+**Grammar check optimization** in `app/services/grammar_check.py`:
+- Uses `num_ctx: 2048` to reduce memory for short grammar checks
 
 ## Secrets Management (SOPS)
 
@@ -57,7 +81,7 @@ Located in `surfsense_backend/app/config/global_llm_config.yaml`:
 
 1. **Mistral NeMo 12B (Local)** - Primary response generation
    - Provider: Ollama
-   - Model: `mistral-nemo:128k`
+   - Model: `mistral-nemo:latest` (8k context - uses less RAM than 128k variant)
 
 2. **TildeOpen 30B (Local)** - Latvian grammar checker
    - Provider: Ollama
@@ -188,6 +212,9 @@ These are in `.gitignore`:
 3. **New Connectors** - RSS, Mastodon, Jellyfin, Home Assistant
 4. **Migration Fixes** - Standardized revision identifiers
 5. **Security Audit** - Various security improvements
+6. **Memory Optimization** - Switched from `mistral-nemo:128k` to `mistral-nemo:latest` (8k context) to fit in 30 GiB RAM
+7. **Swap File** - Added 8 GiB swap to support TildeOpen grammar checking
+8. **Grammar Check Optimization** - Reduced context window to 2048 tokens for lighter memory usage
 
 ---
 
