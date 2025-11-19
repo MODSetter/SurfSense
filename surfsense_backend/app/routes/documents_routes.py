@@ -48,7 +48,8 @@ router = APIRouter()
 MAX_FILE_SIZE_MB = 100  # Maximum file size in MB
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
-# Allowed file extensions for document uploads
+# Restricted allowlist of document file extensions
+# SECURITY: Excludes executable script files (.py, .js, .java, etc.) to prevent code execution risks
 ALLOWED_EXTENSIONS = {
     # Documents
     ".pdf", ".doc", ".docx", ".txt", ".rtf", ".odt",
@@ -58,12 +59,12 @@ ALLOWED_EXTENSIONS = {
     ".ppt", ".pptx", ".odp",
     # Images (for OCR)
     ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp",
-    # Web/markup
-    ".html", ".htm", ".xml", ".json", ".md", ".markdown",
-    # Code
-    ".py", ".js", ".ts", ".java", ".cpp", ".c", ".h", ".go", ".rs", ".rb",
+    # Web/markup (non-executable)
+    ".html", ".htm", ".xml", ".json", ".md", ".markdown", ".rst",
     # E-books
     ".epub", ".mobi",
+    # Archives (for document collections)
+    ".zip",
 }
 
 
@@ -169,12 +170,12 @@ async def create_documents_file_upload(
 
         for file in files:
             try:
+                # Get file extension for unique filename
+                file_ext = os.path.splitext(file.filename)[1].lower()
+
                 # Create uploads directory if it doesn't exist
                 uploads_dir = Path(os.getenv("UPLOADS_DIR", "./uploads"))
                 uploads_dir.mkdir(parents=True, exist_ok=True)
-
-                # Create unique filename
-                file_ext = os.path.splitext(file.filename)[1]
                 unique_filename = f"{uuid.uuid4()}{file_ext}"
                 temp_path = str(uploads_dir / unique_filename)
 

@@ -96,8 +96,9 @@ def get_jwt_strategy() -> JWTStrategy[models.UP, models.ID]:
 class CustomBearerTransport(BearerTransport):
     async def get_login_response(self, token: str) -> Response:
         bearer_response = BearerResponse(access_token=token, token_type="bearer")
-        # TODO: Replace URL parameter with a more secure token exchange mechanism
-        redirect_url = f"{config.NEXT_FRONTEND_URL}/auth/callback?token={bearer_response.access_token}"
+        # Using URL fragment (#) instead of query parameter (?) to prevent token exposure
+        # in browser history, server logs, and referrer headers
+        redirect_url = f"{config.NEXT_FRONTEND_URL}/auth/callback#token={bearer_response.access_token}"
         if config.AUTH_TYPE == "GOOGLE":
             return RedirectResponse(redirect_url, status_code=302)
         else:
