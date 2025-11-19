@@ -11,6 +11,8 @@ from chonkie.embeddings.registry import EmbeddingsRegistry
 from dotenv import load_dotenv
 from rerankers import Reranker
 
+from app.config.secrets_loader import inject_secrets_to_env
+
 
 # Monkey patch AzureOpenAIEmbeddings to fix parameter order issue
 # This is a temporary workaround until the upstream chonkie library is fixed
@@ -70,6 +72,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env_file = BASE_DIR / ".env"
 load_dotenv(env_file)
+
+# Load and inject SOPS-encrypted secrets into environment
+# This allows secrets from secrets.enc.yaml to override/supplement .env values
+# Priority: SOPS secrets > .env file > system environment
+inject_secrets_to_env()
 
 
 def is_ffmpeg_installed():

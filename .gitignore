@@ -8,6 +8,14 @@ node_modules/
 .env.production
 *.env
 
+# SOPS secrets management
+# Never commit unencrypted secrets
+secrets.yaml
+**/secrets.yaml
+# Age private keys (keep only on VPS/local)
+keys.txt
+**/keys.txt
+
 # LLM Configuration with API keys
 **/config/global_llm_config.yaml
 **/config/global_llm_config.yaml.backup*
