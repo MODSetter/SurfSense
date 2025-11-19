@@ -14,53 +14,61 @@ class DocumentTokenInfo(NamedTuple):
     token_count: int
 
 
+class ConnectorMetadata(NamedTuple):
+    """Consolidated metadata for a connector type."""
+
+    emoji: str
+    result_name: str
+    friendly_name: str
+
+
+# Centralized connector metadata - single source of truth
+# All connector information is consolidated in one place for easier maintenance
+CONNECTOR_METADATA: dict[str, ConnectorMetadata] = {
+    "YOUTUBE_VIDEO": ConnectorMetadata("📹", "YouTube chunks", "YouTube"),
+    "EXTENSION": ConnectorMetadata("🧩", "Browser Extension chunks", "Browser Extension"),
+    "CRAWLED_URL": ConnectorMetadata("🌐", "Web Pages chunks", "Web Pages"),
+    "FILE": ConnectorMetadata("📄", "Files chunks", "Files"),
+    "SLACK_CONNECTOR": ConnectorMetadata("💬", "Slack messages", "Slack"),
+    "NOTION_CONNECTOR": ConnectorMetadata("📘", "Notion pages/blocks", "Notion"),
+    "GITHUB_CONNECTOR": ConnectorMetadata("🐙", "GitHub files/issues", "GitHub"),
+    "LINEAR_CONNECTOR": ConnectorMetadata("📊", "Linear issues", "Linear"),
+    "TAVILY_API": ConnectorMetadata("🔍", "Web Search results", "Tavily Search"),
+    "SEARXNG_API": ConnectorMetadata("🌐", "SearxNG results", "SearxNG Search"),
+    "LINKUP_API": ConnectorMetadata("🔗", "Linkup results", "Linkup Search"),
+    "BAIDU_SEARCH_API": ConnectorMetadata("🇨🇳", "Baidu Search results", "Baidu Search"),
+    "DISCORD_CONNECTOR": ConnectorMetadata("🗨️", "Discord messages", "Discord"),
+    "JIRA_CONNECTOR": ConnectorMetadata("🎫", "Jira issues", "Jira"),
+    "GOOGLE_CALENDAR_CONNECTOR": ConnectorMetadata("📅", "calendar events", "Google Calendar"),
+    "AIRTABLE_CONNECTOR": ConnectorMetadata("🗃️", "Airtable records", "Airtable"),
+    "GOOGLE_GMAIL_CONNECTOR": ConnectorMetadata("📧", "Gmail messages", "Gmail"),
+    "CONFLUENCE_CONNECTOR": ConnectorMetadata("📚", "Confluence pages", "Confluence"),
+    "CLICKUP_CONNECTOR": ConnectorMetadata("📋", "ClickUp tasks", "ClickUp"),
+    "LUMA_CONNECTOR": ConnectorMetadata("🎯", "Luma events", "Luma"),
+    "ELASTICSEARCH_CONNECTOR": ConnectorMetadata("🔎", "Elasticsearch chunks", "Elasticsearch"),
+    "HOME_ASSISTANT_CONNECTOR": ConnectorMetadata("🏠", "Home Assistant items", "Home Assistant"),
+    "MASTODON_CONNECTOR": ConnectorMetadata("🐘", "Mastodon posts", "Mastodon"),
+    "JELLYFIN_CONNECTOR": ConnectorMetadata("🎬", "Jellyfin media", "Jellyfin"),
+    "RSS_FEED_CONNECTOR": ConnectorMetadata("📰", "RSS feed entries", "RSS Feeds"),
+}
+
+# Default metadata for unknown connectors
+_DEFAULT_METADATA = ConnectorMetadata("🔎", "chunks", "Unknown")
+
+
 def get_connector_emoji(connector_name: str) -> str:
     """Get an appropriate emoji for a connector type."""
-    connector_emojis = {
-        "YOUTUBE_VIDEO": "📹",
-        "EXTENSION": "🧩",
-        "CRAWLED_URL": "🌐",
-        "FILE": "📄",
-        "SLACK_CONNECTOR": "💬",
-        "NOTION_CONNECTOR": "📘",
-        "GITHUB_CONNECTOR": "🐙",
-        "LINEAR_CONNECTOR": "📊",
-        "JIRA_CONNECTOR": "🎫",
-        "DISCORD_CONNECTOR": "🗨️",
-        "TAVILY_API": "🔍",
-        "LINKUP_API": "🔗",
-        "BAIDU_SEARCH_API": "🇨🇳",
-        "GOOGLE_CALENDAR_CONNECTOR": "📅",
-        "AIRTABLE_CONNECTOR": "🗃️",
-        "LUMA_CONNECTOR": "✨",
-        "ELASTICSEARCH_CONNECTOR": "⚡",
-    }
-    return connector_emojis.get(connector_name, "🔎")
+    return CONNECTOR_METADATA.get(connector_name, _DEFAULT_METADATA).emoji
 
 
 def get_connector_friendly_name(connector_name: str) -> str:
     """Convert technical connector IDs to user-friendly names."""
-    connector_friendly_names = {
-        "YOUTUBE_VIDEO": "YouTube",
-        "EXTENSION": "Browser Extension",
-        "CRAWLED_URL": "Web Pages",
-        "FILE": "Files",
-        "SLACK_CONNECTOR": "Slack",
-        "NOTION_CONNECTOR": "Notion",
-        "GITHUB_CONNECTOR": "GitHub",
-        "LINEAR_CONNECTOR": "Linear",
-        "JIRA_CONNECTOR": "Jira",
-        "CONFLUENCE_CONNECTOR": "Confluence",
-        "GOOGLE_CALENDAR_CONNECTOR": "Google Calendar",
-        "DISCORD_CONNECTOR": "Discord",
-        "TAVILY_API": "Tavily Search",
-        "LINKUP_API": "Linkup Search",
-        "BAIDU_SEARCH_API": "Baidu Search",
-        "AIRTABLE_CONNECTOR": "Airtable",
-        "LUMA_CONNECTOR": "Luma",
-        "ELASTICSEARCH_CONNECTOR": "Elasticsearch",
-    }
-    return connector_friendly_names.get(connector_name, connector_name)
+    return CONNECTOR_METADATA.get(connector_name, _DEFAULT_METADATA).friendly_name
+
+
+def get_connector_result_name(connector_name: str) -> str:
+    """Get the result type name for a connector (e.g., 'Slack messages')."""
+    return CONNECTOR_METADATA.get(connector_name, _DEFAULT_METADATA).result_name
 
 
 def convert_langchain_messages_to_dict(

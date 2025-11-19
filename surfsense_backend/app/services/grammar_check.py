@@ -92,6 +92,7 @@ async def check_grammar_with_tildeopen(
                     "model": "tildeopen",
                     "prompt": prompt,
                     "stream": False,
+                    "options": {"num_ctx": 2048},
                 },
             )
             

@@ -1,5 +1,8 @@
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
+import os
+import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +26,12 @@ from app.schemas import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from app.tasks.celery_tasks.document_tasks import (
+    process_crawled_url_task,
+    process_extension_document_task,
+    process_file_upload_task,
+    process_youtube_video_task,
+)
 
 try:
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
@@ -30,12 +39,140 @@ except RuntimeError as e:
     print("Error setting event loop policy", e)
     pass
 
-import os
-
 os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 
 router = APIRouter()
+
+# File upload security settings
+MAX_FILE_SIZE_MB = 100  # Maximum file size in MB
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+# Restricted allowlist of document file extensions
+# SECURITY: Excludes executable script files (.py, .js, .java, etc.) to prevent code execution risks
+ALLOWED_EXTENSIONS = {
+    # Documents
+    ".pdf", ".doc", ".docx", ".txt", ".rtf", ".odt",
+    # Spreadsheets
+    ".xls", ".xlsx", ".csv", ".ods",
+    # Presentations
+    ".ppt", ".pptx", ".odp",
+    # Images (for OCR)
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp",
+    # Web/markup (non-executable)
+    ".html", ".htm", ".xml", ".json", ".md", ".markdown", ".rst",
+    # E-books
+    ".epub", ".mobi",
+    # Archives (for document collections)
+    ".zip",
+}
+
+# Magic byte signatures for file type validation
+# SECURITY: Validates actual file content, not just extension
+MAGIC_SIGNATURES = {
+    # Documents
+    b"%PDF": [".pdf"],
+    b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1": [".doc", ".xls", ".ppt"],  # OLE2 format
+    b"PK\x03\x04": [".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".epub", ".zip"],  # ZIP-based formats
+    # Images
+    b"\x89PNG\r\n\x1a\n": [".png"],
+    b"\xff\xd8\xff": [".jpg", ".jpeg"],
+    b"GIF87a": [".gif"],
+    b"GIF89a": [".gif"],
+    b"BM": [".bmp"],
+    b"II*\x00": [".tiff"],  # Little-endian TIFF
+    b"MM\x00*": [".tiff"],  # Big-endian TIFF
+    # Note: WebP uses RIFF but requires additional WEBP check at offset 8, handled separately
+    # Text-based formats (no magic bytes, validated by extension only)
+}
+
+# Extensions that are text-based and don't have magic bytes
+TEXT_BASED_EXTENSIONS = {".txt", ".csv", ".html", ".htm", ".xml", ".json", ".md", ".markdown", ".rst", ".rtf"}
+
+# MOBI file format constants
+MOBI_SIGNATURE = b"BOOKMOBI"
+MOBI_SIGNATURE_OFFSET = 60
+MOBI_MIN_SIZE = MOBI_SIGNATURE_OFFSET + len(MOBI_SIGNATURE)  # 68 bytes
+
+# WebP file format constants
+WEBP_RIFF_SIGNATURE = b"RIFF"
+WEBP_WEBP_SIGNATURE = b"WEBP"
+WEBP_RIFF_SIZE = len(WEBP_RIFF_SIGNATURE)  # 4 bytes
+WEBP_WEBP_OFFSET = 8
+WEBP_MIN_SIZE = WEBP_WEBP_OFFSET + len(WEBP_WEBP_SIGNATURE)  # 12 bytes
+
+# Error message template for file type spoofing
+FILE_TYPE_SPOOFING_ERROR = "File content does not match extension '{}'. Possible file type spoofing detected."
+
+
+def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
+    """
+    Validate file content against magic byte signatures.
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # Text-based files don't have reliable magic bytes
+    if file_ext in TEXT_BASED_EXTENSIONS:
+        return True, ""
+
+    # MOBI files have "BOOKMOBI" signature at offset 60
+    if file_ext == ".mobi":
+        if len(content) >= MOBI_MIN_SIZE and content[MOBI_SIGNATURE_OFFSET:MOBI_MIN_SIZE] == MOBI_SIGNATURE:
+            return True, ""
+        return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
+
+    # WebP files start with RIFF but need "WEBP" at offset 8
+    if file_ext == ".webp":
+        if (
+            len(content) >= WEBP_MIN_SIZE
+            and content[:WEBP_RIFF_SIZE] == WEBP_RIFF_SIGNATURE
+            and content[WEBP_WEBP_OFFSET:WEBP_MIN_SIZE] == WEBP_WEBP_SIGNATURE
+        ):
+            return True, ""
+        return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
+
+    # Check against known magic signatures
+    for magic, valid_extensions in MAGIC_SIGNATURES.items():
+        if content.startswith(magic):
+            if file_ext in valid_extensions:
+                return True, ""
+            else:
+                # File content doesn't match claimed extension
+                return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
+
+    # No matching signature found for non-text file
+    return False, f"Unable to verify file type for extension '{file_ext}'. File may be corrupted or spoofed."
+
+
+def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
+    """
+    Validate a file upload for security.
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # Check filename exists
+    if not file.filename:
+        return False, "File must have a filename"
+
+    # Check file extension
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        return False, f"File type '{file_ext}' is not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+
+    # Check content type if available (basic MIME validation)
+    if file.content_type:
+        # Block potentially dangerous content types
+        dangerous_types = [
+            "application/x-executable",
+            "application/x-msdownload",
+            "application/x-msdos-program",
+        ]
+        if file.content_type in dangerous_types:
+            return False, f"Content type '{file.content_type}' is not allowed"
+
+    return True, ""
 
 
 @router.post("/documents")
@@ -49,10 +186,6 @@ async def create_documents(
         await check_ownership(session, SearchSpace, request.search_space_id, user)
 
         if request.document_type == DocumentType.EXTENSION:
-            from app.tasks.celery_tasks.document_tasks import (
-                process_extension_document_task,
-            )
-
             for individual_document in request.content:
                 # Convert document to dict for Celery serialization
                 document_dict = {
@@ -66,14 +199,11 @@ async def create_documents(
                     document_dict, request.search_space_id, str(user.id)
                 )
         elif request.document_type == DocumentType.CRAWLED_URL:
-            from app.tasks.celery_tasks.document_tasks import process_crawled_url_task
-
             for url in request.content:
                 process_crawled_url_task.delay(
                     url, request.search_space_id, str(user.id)
                 )
         elif request.document_type == DocumentType.YOUTUBE_VIDEO:
-            from app.tasks.celery_tasks.document_tasks import process_youtube_video_task
 
             for url in request.content:
                 process_youtube_video_task.delay(
@@ -106,34 +236,51 @@ async def create_documents_file_upload(
         if not files:
             raise HTTPException(status_code=400, detail="No files provided")
 
+        # Validate all files first before processing any
+        for file in files:
+            is_valid, error_msg = validate_file_upload(file)
+            if not is_valid:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid file '{file.filename}': {error_msg}",
+                )
+
         for file in files:
             try:
-                # Save file to persistent uploads directory
-                import os
-                import uuid
-                from pathlib import Path
+                # Get file extension for unique filename
+                file_ext = os.path.splitext(file.filename)[1].lower()
 
                 # Create uploads directory if it doesn't exist
-                uploads_dir = Path("/opt/SurfSense/surfsense_backend/uploads")
+                uploads_dir = Path(os.getenv("UPLOADS_DIR", "./uploads"))
                 uploads_dir.mkdir(parents=True, exist_ok=True)
-
-                # Create unique filename
-                file_ext = os.path.splitext(file.filename)[1]
                 unique_filename = f"{uuid.uuid4()}{file_ext}"
                 temp_path = str(uploads_dir / unique_filename)
 
-                # Write uploaded file to persistent location
+                # Read file content and check size
                 content = await file.read()
+                if len(content) > MAX_FILE_SIZE_BYTES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
+                    )
+
+                # Validate magic bytes to prevent file type spoofing
+                is_valid, error_msg = validate_magic_bytes(content, file_ext)
+                if not is_valid:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid file '{file.filename}': {error_msg}",
+                    )
+
+                # Write uploaded file to persistent location
                 with open(temp_path, "wb") as f:
                     f.write(content)
-
-                from app.tasks.celery_tasks.document_tasks import (
-                    process_file_upload_task,
-                )
 
                 process_file_upload_task.delay(
                     temp_path, file.filename, search_space_id, str(user.id)
                 )
+            except HTTPException:
+                raise
             except Exception as e:
                 raise HTTPException(
                     status_code=422,

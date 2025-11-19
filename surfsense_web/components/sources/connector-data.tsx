@@ -138,6 +138,13 @@ export const connectorCategories: ConnectorCategory[] = [
 				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
+			{
+				id: "rss-connector",
+				title: "RSS",
+				description: "rss_desc",
+				icon: getConnectorIcon(EnumConnectorName.RSS_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
 		],
 	},
 	{
@@ -159,11 +166,38 @@ export const connectorCategories: ConnectorCategory[] = [
 				status: "available",
 			},
 			{
+				id: "mastodon-connector",
+				title: "Mastodon",
+				description: "mastodon_desc",
+				icon: getConnectorIcon(EnumConnectorName.MASTODON_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
+			{
 				id: "zoom",
 				title: "Zoom",
 				description: "zoom_desc",
 				icon: <IconBrandZoom className="h-6 w-6" />,
 				status: "coming-soon",
+			},
+		],
+	},
+	{
+		id: "media-and-home",
+		title: "media_and_home",
+		connectors: [
+			{
+				id: "jellyfin-connector",
+				title: "Jellyfin",
+				description: "jellyfin_desc",
+				icon: getConnectorIcon(EnumConnectorName.JELLYFIN_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
+			{
+				id: "home-assistant-connector",
+				title: "Home Assistant",
+				description: "home_assistant_desc",
+				icon: getConnectorIcon(EnumConnectorName.HOME_ASSISTANT_CONNECTOR, "h-6 w-6"),
+				status: "available",
 			},
 		],
 	},

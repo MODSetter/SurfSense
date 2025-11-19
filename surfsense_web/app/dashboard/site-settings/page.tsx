@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
+import { AUTH_TOKEN_KEY, DEFAULT_CONTACT_EMAIL, DEFAULT_COPYRIGHT_TEXT } from "@/lib/constants";
 
 interface SiteConfigForm {
 	// Header/Navbar toggles
@@ -34,6 +34,10 @@ interface SiteConfigForm {
 	// Registration control
 	disable_registration: boolean;
 
+	// Contact information
+	show_contact_email: boolean;
+	contact_email: string;
+
 	// Custom text
 	custom_copyright: string;
 }
@@ -57,7 +61,9 @@ export default function SiteSettingsPage() {
 		disable_terms_route: true,
 		disable_privacy_route: true,
 		disable_registration: false,
-		custom_copyright: "SurfSense 2025",
+		show_contact_email: true,
+		contact_email: DEFAULT_CONTACT_EMAIL,
+		custom_copyright: DEFAULT_COPYRIGHT_TEXT,
 	});
 	const [isSaving, setIsSaving] = useState(false);
 	const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -128,7 +134,9 @@ export default function SiteSettingsPage() {
 				disable_terms_route: config.disable_terms_route,
 				disable_privacy_route: config.disable_privacy_route,
 				disable_registration: config.disable_registration,
-				custom_copyright: config.custom_copyright || "SurfSense 2025",
+				show_contact_email: config.show_contact_email ?? true,
+				contact_email: config.contact_email || DEFAULT_CONTACT_EMAIL,
+				custom_copyright: config.custom_copyright || DEFAULT_COPYRIGHT_TEXT,
 			});
 		}
 	}, [config, isLoading]);
@@ -349,6 +357,43 @@ export default function SiteSettingsPage() {
 										checked={formData.disable_registration}
 										onChange={() => handleToggle("disable_registration")}
 									/>
+								</div>
+							</section>
+
+							{/* Contact Information Section */}
+							<section>
+								<h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+									Contact Information
+								</h2>
+								<p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+									Control the visibility of the contact email in the sidebar.
+								</p>
+								<div className="space-y-3">
+									<ToggleSwitch
+										label="Show Contact Email"
+										description="Display contact email in sidebar for page limit inquiries"
+										checked={formData.show_contact_email}
+										onChange={() => handleToggle("show_contact_email")}
+									/>
+								</div>
+								<div className="mt-4">
+									<label
+										htmlFor="contact_email"
+										className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+									>
+										Contact Email Address
+									</label>
+									<input
+										type="email"
+										id="contact_email"
+										value={formData.contact_email}
+										onChange={(e) => handleTextChange("contact_email", e.target.value)}
+										placeholder="rohan@surfsense.com"
+										className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+									/>
+									<p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+										This email will be displayed in the sidebar for users to contact about page limits.
+									</p>
 								</div>
 							</section>
 
