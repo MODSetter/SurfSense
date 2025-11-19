@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { AUTH_TOKEN_KEY } from "@/lib/constants";
+import { CustomUser } from "@/contracts/types";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -16,17 +17,12 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function UserDropdown({
-	user,
-	isAdmin = false,
-}: {
-	user: {
-		name: string;
-		email: string;
-		avatar: string;
-	};
+interface UserDropdownProps {
+	user: CustomUser;
 	isAdmin?: boolean;
-}) {
+}
+
+export function UserDropdown({ user, isAdmin = false }: UserDropdownProps) {
 	const router = useRouter();
 
 	const handleLogout = () => {
