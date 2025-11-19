@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import Depends, Request, Response
@@ -13,6 +14,8 @@ from pydantic import BaseModel
 
 from app.config import config
 from app.db import User, get_user_db
+
+logger = logging.getLogger(__name__)
 
 
 class BearerResponse(BaseModel):
@@ -37,14 +40,14 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     async def on_after_register(self, user: User, request: Request | None = None):
         # Log user registration without exposing sensitive data
-        print(f"User {user.id} has registered.")
+        logger.info("User %s has registered.", user.id)
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Request | None = None
     ):
         # SECURITY: Do not log the actual reset token
         # In production, send the token via email to the user
-        print(f"Password reset requested for user {user.id}. Token generated.")
+        logger.info("Password reset requested for user %s. Token generated.", user.id)
         # TODO: Implement email sending with the reset token
 
     async def on_after_request_verify(
@@ -52,7 +55,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     ):
         # SECURITY: Do not log the actual verification token
         # In production, send the token via email to the user
-        print(f"Email verification requested for user {user.id}. Token generated.")
+        logger.info("Email verification requested for user %s. Token generated.", user.id)
         # TODO: Implement email sending with the verification token
 
 
