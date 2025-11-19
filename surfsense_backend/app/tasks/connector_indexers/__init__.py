@@ -47,6 +47,9 @@ from .mastodon_indexer import index_mastodon_data
 # Media servers
 from .jellyfin_indexer import index_jellyfin_data
 
+# RSS feeds
+from .rss_indexer import index_rss_feeds
+
 # Documentation and knowledge management
 from .notion_indexer import index_notion_pages
 from .slack_indexer import index_slack_messages
@@ -76,4 +79,6 @@ __all__ = [  # noqa: RUF022
     "index_mastodon_data",
     # Media servers
     "index_jellyfin_data",
+    # RSS feeds
+    "index_rss_feeds",
 ]

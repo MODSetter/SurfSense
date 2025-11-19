@@ -49,6 +49,7 @@ CONNECTOR_METADATA: dict[str, ConnectorMetadata] = {
     "HOME_ASSISTANT_CONNECTOR": ConnectorMetadata("🏠", "Home Assistant items", "Home Assistant"),
     "MASTODON_CONNECTOR": ConnectorMetadata("🐘", "Mastodon posts", "Mastodon"),
     "JELLYFIN_CONNECTOR": ConnectorMetadata("🎬", "Jellyfin media", "Jellyfin"),
+    "RSS_FEED_CONNECTOR": ConnectorMetadata("📰", "RSS feed entries", "RSS Feeds"),
 }
 
 # Default metadata for unknown connectors

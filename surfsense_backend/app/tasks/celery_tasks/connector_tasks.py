@@ -729,3 +729,46 @@ async def _index_jellyfin_data(
         await run_jellyfin_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
+
+
+@celery_app.task(name="index_rss_feeds", bind=True)
+def index_rss_feeds_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index RSS feed data."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_rss_feeds(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_rss_feeds(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index RSS feed data with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_rss_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_rss_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )

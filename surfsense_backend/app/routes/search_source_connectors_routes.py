@@ -51,6 +51,7 @@ from app.tasks.connector_indexers import (
     index_luma_events,
     index_mastodon_data,
     index_notion_pages,
+    index_rss_feeds,
     index_slack_messages,
 )
 from app.users import current_active_user
@@ -738,6 +739,22 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Jellyfin indexing started in the background."
+
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.RSS_FEED_CONNECTOR
+        ):
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_rss_feeds_task,
+            )
+
+            logger.info(
+                f"Triggering RSS feed indexing for connector {connector_id} into search space {search_space_id}"
+            )
+            index_rss_feeds_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "RSS feed indexing started in the background."
 
         else:
             raise HTTPException(
@@ -1686,5 +1703,43 @@ async def run_jellyfin_indexing(
         await session.rollback()
         logger.error(
             f"Critical error in run_jellyfin_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
+
+
+async def run_rss_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Runs the RSS feed indexing task and updates the timestamp."""
+    try:
+        indexed_count, error_message = await index_rss_feeds(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            start_date,
+            end_date,
+            update_last_indexed=False,
+        )
+        if error_message:
+            logger.error(
+                f"RSS indexing failed for connector {connector_id}: {error_message}"
+            )
+        else:
+            logger.info(
+                f"RSS indexing successful for connector {connector_id}. Indexed {indexed_count} items."
+            )
+            # Update the last indexed timestamp only on success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()
+    except Exception as e:
+        await session.rollback()
+        logger.error(
+            f"Critical error in run_rss_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
