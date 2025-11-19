@@ -600,3 +600,175 @@ async def _index_elasticsearch_documents(
         await run_elasticsearch_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
+
+
+@celery_app.task(name="index_home_assistant_data", bind=True)
+def index_home_assistant_data_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index Home Assistant data."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_home_assistant_data(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_home_assistant_data(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index Home Assistant data with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_home_assistant_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_home_assistant_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+
+@celery_app.task(name="index_mastodon_data", bind=True)
+def index_mastodon_data_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index Mastodon data."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_mastodon_data(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_mastodon_data(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index Mastodon data with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_mastodon_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_mastodon_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+
+@celery_app.task(name="index_jellyfin_data", bind=True)
+def index_jellyfin_data_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index Jellyfin data."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_jellyfin_data(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_jellyfin_data(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index Jellyfin data with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_jellyfin_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_jellyfin_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+
+@celery_app.task(name="index_rss_feeds", bind=True)
+def index_rss_feeds_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index RSS feed data."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_rss_feeds(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_rss_feeds(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index RSS feed data with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_rss_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_rss_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )

@@ -70,3 +70,37 @@ class LLMConfigRead(LLMConfigBase, IDModel, TimestampModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LLMConfigReadSafe(BaseModel):
+    """Safe response schema that excludes sensitive API keys"""
+    id: int
+    name: str
+    provider: LiteLLMProvider
+    custom_provider: str | None = None
+    model_name: str
+    api_base: str | None = None
+    litellm_params: dict[str, Any] | None = None
+    language: str | None = None
+    created_at: datetime | None = None
+    search_space_id: int | None = None
+    has_api_key: bool = Field(default=True, description="Indicates if API key is configured")
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def from_llm_config(cls, config) -> "LLMConfigReadSafe":
+        """Create safe response from LLMConfig model"""
+        return cls(
+            id=config.id,
+            name=config.name,
+            provider=config.provider,
+            custom_provider=config.custom_provider,
+            model_name=config.model_name,
+            api_base=config.api_base,
+            litellm_params=config.litellm_params,
+            language=config.language,
+            created_at=config.created_at,
+            search_space_id=config.search_space_id,
+            has_api_key=bool(config.api_key),
+        )
