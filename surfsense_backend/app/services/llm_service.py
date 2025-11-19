@@ -177,9 +177,9 @@ def _wrap_with_fallback(
         return primary_llm
 
     fallback_llm = _build_llm_from_global_config(fallback_config)
-    fallback_model_name = fallback_config.get("model_name", "unknown")
     logger.info(
-        f"Created LLM with fallback: {primary_model_name} -> {fallback_model_name}"
+        f"Created LLM with fallback: {primary_model_name} -> "
+        f"{fallback_config.get('model_name')}"
     )
     return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
 
@@ -201,10 +201,16 @@ def _build_llm_from_global_config(global_config: dict) -> ChatLiteLLM:
     model_name = global_config.get("model_name")
     provider = global_config.get("provider")
 
+    missing_fields = []
     if not model_name:
-        raise ValueError("Global LLM config missing required 'model_name' field")
+        missing_fields.append("'model_name'")
     if not provider:
-        raise ValueError("Global LLM config missing required 'provider' field")
+        missing_fields.append("'provider'")
+    if missing_fields:
+        raise ValueError(
+            f"Global LLM config missing required field(s): "
+            f"{', '.join(missing_fields)}"
+        )
 
     # Build model string
     custom_provider = global_config.get("custom_provider")
