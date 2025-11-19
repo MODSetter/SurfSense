@@ -118,19 +118,17 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
 
     # MOBI files have "BOOKMOBI" signature at offset 60
     if file_ext == ".mobi":
-        signature_end = MOBI_SIGNATURE_OFFSET + len(MOBI_SIGNATURE)
-        if len(content) >= MOBI_MIN_SIZE and content[MOBI_SIGNATURE_OFFSET:signature_end] == MOBI_SIGNATURE:
+        if len(content) >= MOBI_MIN_SIZE and content[MOBI_SIGNATURE_OFFSET:MOBI_MIN_SIZE] == MOBI_SIGNATURE:
             return True, ""
         else:
             return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
     # WebP files start with RIFF but need "WEBP" at offset 8
     if file_ext == ".webp":
-        webp_signature_end = WEBP_WEBP_OFFSET + len(WEBP_WEBP_SIGNATURE)
         if (
             len(content) >= WEBP_MIN_SIZE
             and content[:WEBP_RIFF_SIZE] == WEBP_RIFF_SIGNATURE
-            and content[WEBP_WEBP_OFFSET:webp_signature_end] == WEBP_WEBP_SIGNATURE
+            and content[WEBP_WEBP_OFFSET:WEBP_MIN_SIZE] == WEBP_WEBP_SIGNATURE
         ):
             return True, ""
         else:
