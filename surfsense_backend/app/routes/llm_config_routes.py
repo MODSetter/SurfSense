@@ -13,7 +13,12 @@ from app.db import (
     UserSearchSpacePreference,
     get_async_session,
 )
-from app.schemas import LLMConfigCreate, LLMConfigRead, LLMConfigUpdate
+from app.schemas import (
+    LLMConfigCreate,
+    LLMConfigRead,
+    LLMConfigReadSafe,
+    LLMConfigUpdate,
+)
 from app.services.llm_service import validate_llm_config
 from app.users import current_active_user
 
@@ -179,7 +184,7 @@ async def create_llm_config(
         ) from e
 
 
-@router.get("/llm-configs", response_model=list[LLMConfigRead])
+@router.get("/llm-configs", response_model=list[LLMConfigReadSafe])
 async def read_llm_configs(
     search_space_id: int,
     skip: int = 0,
@@ -187,7 +192,7 @@ async def read_llm_configs(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Get all LLM configurations for a search space"""
+    """Get all LLM configurations for a search space (API keys are not exposed)"""
     try:
         # Verify user has access to the search space
         await check_search_space_access(session, search_space_id, user)
@@ -198,7 +203,8 @@ async def read_llm_configs(
             .offset(skip)
             .limit(limit)
         )
-        return result.scalars().all()
+        configs = result.scalars().all()
+        return [LLMConfigReadSafe.from_llm_config(c) for c in configs]
     except HTTPException:
         raise
     except Exception as e:
@@ -207,13 +213,13 @@ async def read_llm_configs(
         ) from e
 
 
-@router.get("/llm-configs/{llm_config_id}", response_model=LLMConfigRead)
+@router.get("/llm-configs/{llm_config_id}", response_model=LLMConfigReadSafe)
 async def read_llm_config(
     llm_config_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Get a specific LLM configuration by ID"""
+    """Get a specific LLM configuration by ID (API key is not exposed)"""
     try:
         # Get the LLM config
         result = await session.execute(
@@ -227,7 +233,7 @@ async def read_llm_config(
         # Verify user has access to the search space
         await check_search_space_access(session, llm_config.search_space_id, user)
 
-        return llm_config
+        return LLMConfigReadSafe.from_llm_config(llm_config)
     except HTTPException:
         raise
     except Exception as e:

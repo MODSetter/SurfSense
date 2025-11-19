@@ -1,0 +1,11 @@
+# SOPS configuration file
+# This file defines encryption rules for secrets management
+
+creation_rules:
+  # Encrypt all secrets.yaml files with age
+  - path_regex: secrets\.yaml$
+    age: age1pa3pqtg5kxzzdukzlz6emtpem60dc79npgwh975mynn0v604cs9qefwms7
+
+  # Encrypt all secrets.enc.yaml files
+  - path_regex: secrets\.enc\.yaml$
+    age: age1pa3pqtg5kxzzdukzlz6emtpem60dc79npgwh975mynn0v604cs9qefwms7
