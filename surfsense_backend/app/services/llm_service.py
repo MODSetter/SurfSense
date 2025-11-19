@@ -177,8 +177,9 @@ def _wrap_with_fallback(
         return primary_llm
 
     fallback_llm = _build_llm_from_global_config(fallback_config)
+    fallback_model_name = fallback_config.get("model_name", "unknown")
     logger.info(
-        f"Created LLM with fallback: {primary_model_name} -> {fallback_config['model_name']}"
+        f"Created LLM with fallback: {primary_model_name} -> {fallback_model_name}"
     )
     return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
 
@@ -192,10 +193,23 @@ def _build_llm_from_global_config(global_config: dict) -> ChatLiteLLM:
 
     Returns:
         ChatLiteLLM instance
+
+    Raises:
+        ValueError: If required configuration keys are missing
     """
+    # Validate required keys
+    model_name = global_config.get("model_name")
+    provider = global_config.get("provider")
+
+    if not model_name:
+        raise ValueError("Global LLM config missing required 'model_name' field")
+    if not provider:
+        raise ValueError("Global LLM config missing required 'provider' field")
+
     # Build model string
-    if global_config.get("custom_provider"):
-        model_string = f"{global_config['custom_provider']}/{global_config['model_name']}"
+    custom_provider = global_config.get("custom_provider")
+    if custom_provider:
+        model_string = f"{custom_provider}/{model_name}"
     else:
         provider_map = {
             "OPENAI": "openai",
@@ -228,10 +242,8 @@ def _build_llm_from_global_config(global_config: dict) -> ChatLiteLLM:
             "MOONSHOT": "openai",
             "ZHIPU": "openai",
         }
-        provider_prefix = provider_map.get(
-            global_config["provider"], global_config["provider"].lower()
-        )
-        model_string = f"{provider_prefix}/{global_config['model_name']}"
+        provider_prefix = provider_map.get(provider, provider.lower())
+        model_string = f"{provider_prefix}/{model_name}"
 
     # Create ChatLiteLLM instance
     litellm_kwargs = {
@@ -239,11 +251,13 @@ def _build_llm_from_global_config(global_config: dict) -> ChatLiteLLM:
         "api_key": global_config.get("api_key", ""),
     }
 
-    if global_config.get("api_base"):
-        litellm_kwargs["api_base"] = global_config["api_base"]
+    api_base = global_config.get("api_base")
+    if api_base:
+        litellm_kwargs["api_base"] = api_base
 
-    if global_config.get("litellm_params"):
-        litellm_kwargs.update(global_config["litellm_params"])
+    litellm_params = global_config.get("litellm_params")
+    if litellm_params:
+        litellm_kwargs.update(litellm_params)
 
     return ChatLiteLLM(**litellm_kwargs)
 
