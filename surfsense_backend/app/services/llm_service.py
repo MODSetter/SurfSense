@@ -488,7 +488,18 @@ async def get_user_llm_instance(
         if llm_config.litellm_params:
             litellm_kwargs.update(llm_config.litellm_params)
 
-        return ChatLiteLLM(**litellm_kwargs)
+        primary_llm = ChatLiteLLM(**litellm_kwargs)
+
+        # Add fallback support for user-specific configs too
+        fallback_config = get_global_llm_config(FALLBACK_LLM_CONFIG_ID)
+        if fallback_config:
+            fallback_llm = _build_llm_from_global_config(fallback_config)
+            logger.info(
+                f"Created LLM with fallback: {llm_config.model_name} -> {fallback_config['model_name']}"
+            )
+            return ChatLiteLLMWithFallback(primary_llm, fallback_llm)
+
+        return primary_llm
 
     except Exception as e:
         logger.error(
