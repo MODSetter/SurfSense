@@ -67,6 +67,56 @@ ALLOWED_EXTENSIONS = {
     ".zip",
 }
 
+# Magic byte signatures for file type validation
+# SECURITY: Validates actual file content, not just extension
+MAGIC_SIGNATURES = {
+    # Documents
+    b"%PDF": [".pdf"],
+    b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1": [".doc", ".xls", ".ppt"],  # OLE2 format
+    b"PK\x03\x04": [".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".epub", ".zip"],  # ZIP-based formats
+    # Images
+    b"\x89PNG\r\n\x1a\n": [".png"],
+    b"\xff\xd8\xff": [".jpg", ".jpeg"],
+    b"GIF87a": [".gif"],
+    b"GIF89a": [".gif"],
+    b"BM": [".bmp"],
+    b"II*\x00": [".tiff"],  # Little-endian TIFF
+    b"MM\x00*": [".tiff"],  # Big-endian TIFF
+    b"RIFF": [".webp"],  # WebP (needs additional check for WEBP)
+    # Text-based formats (no magic bytes, validated by extension only)
+}
+
+# Extensions that are text-based and don't have magic bytes
+TEXT_BASED_EXTENSIONS = {".txt", ".csv", ".html", ".htm", ".xml", ".json", ".md", ".markdown", ".rst", ".rtf"}
+
+
+def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
+    """
+    Validate file content against magic byte signatures.
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # Text-based files don't have reliable magic bytes
+    if file_ext in TEXT_BASED_EXTENSIONS:
+        return True, ""
+
+    # MOBI files have complex structure, skip magic validation
+    if file_ext == ".mobi":
+        return True, ""
+
+    # Check against known magic signatures
+    for magic, valid_extensions in MAGIC_SIGNATURES.items():
+        if content.startswith(magic):
+            if file_ext in valid_extensions:
+                return True, ""
+            else:
+                # File content doesn't match claimed extension
+                return False, f"File content does not match extension '{file_ext}'. Possible file type spoofing detected."
+
+    # No matching signature found for non-text file
+    return False, f"Unable to verify file type for extension '{file_ext}'. File may be corrupted or spoofed."
+
 
 def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
     """
@@ -185,6 +235,14 @@ async def create_documents_file_upload(
                     raise HTTPException(
                         status_code=400,
                         detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
+                    )
+
+                # Validate magic bytes to prevent file type spoofing
+                is_valid, error_msg = validate_magic_bytes(content, file_ext)
+                if not is_valid:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid file '{file.filename}': {error_msg}",
                     )
 
                 # Write uploaded file to persistent location
