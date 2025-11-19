@@ -2645,3 +2645,93 @@ class ConnectorService:
         }
 
         return result_object, ha_chunks
+
+    async def search_mastodon(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for Mastodon documents and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            mastodon_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="MASTODON_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            mastodon_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="MASTODON_CONNECTOR",
+            )
+            mastodon_chunks = self._transform_document_results(mastodon_chunks)
+
+        if not mastodon_chunks:
+            return {
+                "id": 36,
+                "name": "Mastodon",
+                "type": "MASTODON_CONNECTOR",
+                "sources": [],
+            }, []
+
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(mastodon_chunks):
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                status_id = metadata.get("status_id", "")
+                source = metadata.get("source", "")
+                username = metadata.get("username", "")
+                status_url = metadata.get("url", "")
+
+                title = document.get("title", "Mastodon Post")
+                description = chunk.get("content", "")[:150]
+                if len(description) == 150:
+                    description += "..."
+
+                favourites = metadata.get("favourites_count", 0)
+                reblogs = metadata.get("reblogs_count", 0)
+                if favourites or reblogs:
+                    description = f"[{favourites}❤️ {reblogs}🔁] {description}"
+
+                source_entry = {
+                    "id": chunk.get("chunk_id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": status_url,
+                    "status_id": status_id,
+                    "source": source,
+                    "username": username,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source_entry)
+
+        result_object = {
+            "id": 36,
+            "name": "Mastodon",
+            "type": "MASTODON_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, mastodon_chunks
