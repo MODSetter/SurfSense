@@ -3,14 +3,18 @@ import {
 	IconBrandDiscord,
 	IconBrandElastic,
 	IconBrandGithub,
+	IconBrandMastodon,
 	IconBrandNotion,
 	IconBrandSlack,
 	IconBrandYoutube,
 	IconCalendar,
 	IconChecklist,
+	IconDeviceTv,
 	IconLayoutKanban,
 	IconLinkPlus,
 	IconMail,
+	IconRss,
+	IconSmartHome,
 	IconSparkles,
 	IconTable,
 	IconTicket,
@@ -59,6 +63,14 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconSparkles {...iconProps} />;
 		case EnumConnectorName.ELASTICSEARCH_CONNECTOR:
 			return <IconBrandElastic {...iconProps} />;
+		case EnumConnectorName.RSS_CONNECTOR:
+			return <IconRss {...iconProps} />;
+		case EnumConnectorName.MASTODON_CONNECTOR:
+			return <IconBrandMastodon {...iconProps} />;
+		case EnumConnectorName.JELLYFIN_CONNECTOR:
+			return <IconDeviceTv {...iconProps} />;
+		case EnumConnectorName.HOME_ASSISTANT_CONNECTOR:
+			return <IconSmartHome {...iconProps} />;
 		// Additional cases for non-enum connector types
 		case "YOUTUBE_VIDEO":
 			return <IconBrandYoutube {...iconProps} />;
