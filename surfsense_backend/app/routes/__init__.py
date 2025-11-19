@@ -24,6 +24,7 @@ from .search_source_connectors_routes import router as search_source_connectors_
 from .search_spaces_routes import router as search_spaces_router
 from .site_configuration_routes import router as site_configuration_router
 from .social_media_links_routes import router as social_media_links_router
+from .two_fa_routes import router as two_fa_router
 
 router = APIRouter()
 
@@ -43,3 +44,4 @@ router.include_router(llm_config_router)
 router.include_router(logs_router)
 router.include_router(site_configuration_router)
 router.include_router(social_media_links_router)
+router.include_router(two_fa_router)
