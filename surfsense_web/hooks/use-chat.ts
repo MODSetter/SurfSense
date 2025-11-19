@@ -52,55 +52,6 @@ interface UseChatAPIProps {
 }
 
 export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
-	const createChat = useCallback(
-		async (
-			initialMessage: string,
-			researchMode: ResearchMode,
-			selectedConnectors: string[]
-		): Promise<string | null> => {
-			if (!token) {
-				console.error("Authentication token not found");
-				return null;
-			}
-
-			try {
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats`,
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({
-							type: researchMode,
-							title: "Untitled Chat",
-							initial_connectors: selectedConnectors,
-							messages: [
-								{
-									role: "user",
-									content: initialMessage,
-								},
-							],
-							search_space_id: Number(search_space_id),
-						}),
-					}
-				);
-
-				if (!response.ok) {
-					throw new Error(`Failed to create chat: ${response.statusText}`);
-				}
-
-				const data = await response.json();
-				return data.id;
-			} catch (err) {
-				console.error("Error creating chat:", err);
-				return null;
-			}
-		},
-		[token, search_space_id]
-	);
-
 	const updateChat = useCallback(
 		async (
 			chatId: string,
@@ -145,7 +96,6 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 	);
 
 	return {
-		createChat,
 		updateChat,
 	};
 }
