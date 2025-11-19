@@ -89,6 +89,21 @@ MAGIC_SIGNATURES = {
 # Extensions that are text-based and don't have magic bytes
 TEXT_BASED_EXTENSIONS = {".txt", ".csv", ".html", ".htm", ".xml", ".json", ".md", ".markdown", ".rst", ".rtf"}
 
+# MOBI file format constants
+MOBI_SIGNATURE = b"BOOKMOBI"
+MOBI_SIGNATURE_OFFSET = 60
+MOBI_MIN_SIZE = MOBI_SIGNATURE_OFFSET + len(MOBI_SIGNATURE)  # 68 bytes
+
+# WebP file format constants
+WEBP_RIFF_SIGNATURE = b"RIFF"
+WEBP_WEBP_SIGNATURE = b"WEBP"
+WEBP_RIFF_SIZE = len(WEBP_RIFF_SIGNATURE)  # 4 bytes
+WEBP_WEBP_OFFSET = 8
+WEBP_MIN_SIZE = WEBP_WEBP_OFFSET + len(WEBP_WEBP_SIGNATURE)  # 12 bytes
+
+# Error message template for file type spoofing
+FILE_TYPE_SPOOFING_ERROR = "File content does not match extension '{}'. Possible file type spoofing detected."
+
 
 def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
     """
@@ -103,17 +118,23 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
 
     # MOBI files have "BOOKMOBI" signature at offset 60
     if file_ext == ".mobi":
-        if len(content) >= 68 and content[60:68] == b"BOOKMOBI":
+        signature_end = MOBI_SIGNATURE_OFFSET + len(MOBI_SIGNATURE)
+        if len(content) >= MOBI_MIN_SIZE and content[MOBI_SIGNATURE_OFFSET:signature_end] == MOBI_SIGNATURE:
             return True, ""
         else:
-            return False, f"File content does not match extension '{file_ext}'. Possible file type spoofing detected."
+            return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
     # WebP files start with RIFF but need "WEBP" at offset 8
     if file_ext == ".webp":
-        if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        webp_signature_end = WEBP_WEBP_OFFSET + len(WEBP_WEBP_SIGNATURE)
+        if (
+            len(content) >= WEBP_MIN_SIZE
+            and content[:WEBP_RIFF_SIZE] == WEBP_RIFF_SIGNATURE
+            and content[WEBP_WEBP_OFFSET:webp_signature_end] == WEBP_WEBP_SIGNATURE
+        ):
             return True, ""
         else:
-            return False, f"File content does not match extension '{file_ext}'. Possible file type spoofing detected."
+            return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
     # Check against known magic signatures
     for magic, valid_extensions in MAGIC_SIGNATURES.items():
@@ -122,7 +143,7 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
                 return True, ""
             else:
                 # File content doesn't match claimed extension
-                return False, f"File content does not match extension '{file_ext}'. Possible file type spoofing detected."
+                return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
     # No matching signature found for non-text file
     return False, f"Unable to verify file type for extension '{file_ext}'. File may be corrupted or spoofed."
