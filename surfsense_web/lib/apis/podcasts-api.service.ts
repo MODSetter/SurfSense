@@ -1,3 +1,4 @@
+import z from "zod";
 import {
 	type DeletePodcastRequest,
 	deletePodcastRequest,
@@ -9,11 +10,16 @@ import {
 	getPodcastByChatIdRequest,
 	type LoadPodcastRequest,
 	loadPodcastRequest,
+	podcast,
 } from "@/contracts/types/podcast.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
 class PodcastsApiService {
+	getPodcasts = async () => {
+		return baseApiService.get("/api/v1/podcasts", z.array(podcast));
+	};
+
 	getPodcastByChatId = async (request: GetPodcastByChatIdRequest) => {
 		// Validate the request
 		const parsedRequest = getPodcastByChatIdRequest.safeParse(request);
