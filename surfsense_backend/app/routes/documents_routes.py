@@ -82,7 +82,7 @@ MAGIC_SIGNATURES = {
     b"BM": [".bmp"],
     b"II*\x00": [".tiff"],  # Little-endian TIFF
     b"MM\x00*": [".tiff"],  # Big-endian TIFF
-    b"RIFF": [".webp"],  # WebP (needs additional check for WEBP)
+    # Note: WebP uses RIFF but requires additional WEBP check at offset 8, handled separately
     # Text-based formats (no magic bytes, validated by extension only)
 }
 
@@ -101,9 +101,19 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
     if file_ext in TEXT_BASED_EXTENSIONS:
         return True, ""
 
-    # MOBI files have complex structure, skip magic validation
+    # MOBI files have "BOOKMOBI" signature at offset 60
     if file_ext == ".mobi":
-        return True, ""
+        if len(content) >= 68 and content[60:68] == b"BOOKMOBI":
+            return True, ""
+        else:
+            return False, f"File content does not match extension '{file_ext}'. Possible file type spoofing detected."
+
+    # WebP files start with RIFF but need "WEBP" at offset 8
+    if file_ext == ".webp":
+        if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+            return True, ""
+        else:
+            return False, f"File content does not match extension '{file_ext}'. Possible file type spoofing detected."
 
     # Check against known magic signatures
     for magic, valid_extensions in MAGIC_SIGNATURES.items():
