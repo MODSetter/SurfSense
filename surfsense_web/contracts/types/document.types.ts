@@ -122,3 +122,5 @@ export type CreateDocumentRequest = z.infer<typeof createDocumentRequest>;
 export type CreateDocumentResponse = z.infer<typeof createDocumentResponse>;
 export type UploadDocumentRequest = z.infer<typeof uploadDocumentRequest>;
 export type UploadDocumentResponse = z.infer<typeof uploadDocumentResponse>;
+export type SearchDocumentsRequest = z.infer<typeof searchDocumentsRequest>;
+export type SearchDocumentsResponse = z.infer<typeof searchDocumentsResponse>;
