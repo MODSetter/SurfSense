@@ -374,11 +374,9 @@ class RateLimitService:
 
             return len(ip_addresses), []
 
-        except redis.RedisError as e:
-            logger.error(
-                f"Failed to bulk unlock {len(ip_addresses)} IPs in Redis: {e}. "
-                f"All unlock operations failed.",
-                exc_info=True,
+        except redis.RedisError:
+            logger.exception(
+                f"Failed to bulk unlock {len(ip_addresses)} IPs in Redis"
             )
             # Return complete failure - if pipeline failed (likely connection issue),
             # individual operations would also fail, causing redundant error logs
