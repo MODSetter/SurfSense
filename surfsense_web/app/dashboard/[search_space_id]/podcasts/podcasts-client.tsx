@@ -1,12 +1,13 @@
 "use client";
 
 import { format } from "date-fns";
+import { useAtom, useAtomValue } from "jotai";
 import {
 	Calendar,
 	MoreHorizontal,
 	Pause,
 	Play,
-	Podcast,
+	Podcast as PodcastIcon,
 	Search,
 	SkipBack,
 	SkipForward,
@@ -19,6 +20,8 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { deletePodcastMutationAtom } from "@/atoms/podcasts/podcast-mutation.atoms";
+import { podcastsAtom } from "@/atoms/podcasts/podcast-query.atoms";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -46,16 +49,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-
-export interface PodcastItem {
-	id: number;
-	title: string;
-	created_at: string;
-	file_location: string;
-	podcast_transcript: any[];
-	search_space_id: number;
-	chat_state_version: number | null;
-}
+import type { Podcast } from "@/contracts/types/podcast.types";
+import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 
 interface PodcastsPageClientProps {
 	searchSpaceId: string;
@@ -85,10 +80,7 @@ const podcastCardVariants: Variants = {
 const MotionCard = motion(Card);
 
 export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClientProps) {
-	const [podcasts, setPodcasts] = useState<PodcastItem[]>([]);
-	const [filteredPodcasts, setFilteredPodcasts] = useState<PodcastItem[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const [filteredPodcasts, setFilteredPodcasts] = useState<Podcast[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortOrder, setSortOrder] = useState<string>("newest");
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -96,10 +88,9 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 		id: number;
 		title: string;
 	} | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
 
 	// Audio player state
-	const [currentPodcast, setCurrentPodcast] = useState<PodcastItem | null>(null);
+	const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
 	const [audioSrc, setAudioSrc] = useState<string | undefined>(undefined);
 	const [isAudioLoading, setIsAudioLoading] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -109,64 +100,39 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 	const [isMuted, setIsMuted] = useState(false);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const currentObjectUrlRef = useRef<string | null>(null);
+	const [{ isPending: isDeletingPodcast, mutateAsync: deletePodcast, error: deleteError }] =
+		useAtom(deletePodcastMutationAtom);
+	const {
+		data: podcasts,
+		isLoading: isFetchingPodcasts,
+		error: fetchError,
+	} = useAtomValue(podcastsAtom);
 
 	// Add podcast image URL constant
 	const PODCAST_IMAGE_URL =
 		"https://static.vecteezy.com/system/resources/thumbnails/002/157/611/small_2x/illustrations-concept-design-podcast-channel-free-vector.jpg";
 
-	// Fetch podcasts from API
 	useEffect(() => {
-		const fetchPodcasts = async () => {
-			try {
-				setIsLoading(true);
+		if (isFetchingPodcasts) return;
 
-				// Get token from localStorage
-				const token = localStorage.getItem("surfsense_bearer_token");
+		if (fetchError) {
+			console.error("Error fetching podcasts:", fetchError);
+			setFilteredPodcasts([]);
+			return;
+		}
 
-				if (!token) {
-					setError("Authentication token not found. Please log in again.");
-					setIsLoading(false);
-					return;
-				}
+		if (!podcasts) {
+			setFilteredPodcasts([]);
+			return;
+		}
 
-				// Fetch all podcasts for this search space
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-							"Content-Type": "application/json",
-						},
-						cache: "no-store",
-					}
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => null);
-					throw new Error(
-						`Failed to fetch podcasts: ${response.status} ${errorData?.detail || ""}`
-					);
-				}
-
-				const data: PodcastItem[] = await response.json();
-				setPodcasts(data);
-				setFilteredPodcasts(data);
-				setError(null);
-			} catch (error) {
-				console.error("Error fetching podcasts:", error);
-				setError(error instanceof Error ? error.message : "Unknown error occurred");
-				setPodcasts([]);
-				setFilteredPodcasts([]);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		fetchPodcasts();
+		setFilteredPodcasts(podcasts);
 	}, []);
 
 	// Filter and sort podcasts based on search query and sort order
 	useEffect(() => {
+		if (!podcasts) return;
+
 		let result = [...podcasts];
 
 		// Filter by search term
@@ -305,7 +271,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 	};
 
 	// Play podcast - Fetch blob and set object URL
-	const playPodcast = async (podcast: PodcastItem) => {
+	const playPodcast = async (podcast: Podcast) => {
 		// If the same podcast is selected, just toggle play/pause
 		if (currentPodcast && currentPodcast.id === podcast.id) {
 			togglePlayPause();
@@ -326,11 +292,6 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 			setIsPlaying(false);
 			setIsAudioLoading(true);
 
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				throw new Error("Authentication token not found.");
-			}
-
 			// Revoke previous object URL if exists (only after we've started the new request)
 			if (currentObjectUrlRef.current) {
 				URL.revokeObjectURL(currentObjectUrlRef.current);
@@ -342,22 +303,11 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 			const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
 			try {
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcast.id}/stream`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-						},
-						signal: controller.signal,
-					}
-				);
-
-				if (!response.ok) {
-					throw new Error(`Failed to fetch audio stream: ${response.statusText}`);
-				}
-
-				const blob = await response.blob();
-				const objectUrl = URL.createObjectURL(blob);
+				const response = await podcastsApiService.loadPodcast({
+					request: { id: podcast.id },
+					controller,
+				});
+				const objectUrl = URL.createObjectURL(response);
 				currentObjectUrlRef.current = objectUrl;
 
 				// Set audio source
@@ -388,37 +338,12 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 	const handleDeletePodcast = async () => {
 		if (!podcastToDelete) return;
 
-		setIsDeleting(true);
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				setIsDeleting(false);
-				return;
-			}
+			await deletePodcast({ id: podcastToDelete.id });
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcastToDelete.id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${token}`,
-						"Content-Type": "application/json",
-					},
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error(`Failed to delete podcast: ${response.statusText}`);
-			}
-
-			// Close dialog and refresh podcasts
+			// Close dialog
 			setDeleteDialogOpen(false);
 			setPodcastToDelete(null);
-
-			// Update local state by removing the deleted podcast
-			setPodcasts((prevPodcasts) =>
-				prevPodcasts.filter((podcast) => podcast.id !== podcastToDelete.id)
-			);
 
 			// If the current playing podcast is deleted, stop playback
 			if (currentPodcast && currentPodcast.id === podcastToDelete.id) {
@@ -428,13 +353,9 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				setCurrentPodcast(null);
 				setIsPlaying(false);
 			}
-
-			toast.success("Podcast deleted successfully");
 		} catch (error) {
 			console.error("Error deleting podcast:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to delete podcast");
-		} finally {
-			setIsDeleting(false);
 		}
 	};
 
@@ -483,7 +404,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				</div>
 
 				{/* Status Messages */}
-				{isLoading && (
+				{isFetchingPodcasts && (
 					<div className="flex items-center justify-center h-40">
 						<div className="flex flex-col items-center gap-2">
 							<div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -492,16 +413,16 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 					</div>
 				)}
 
-				{error && !isLoading && (
+				{fetchError && !isFetchingPodcasts && (
 					<div className="border border-destructive/50 text-destructive p-4 rounded-md">
 						<h3 className="font-medium">Error loading podcasts</h3>
-						<p className="text-sm">{error}</p>
+						<p className="text-sm">{fetchError.message ?? "Failed to load podcasts"}</p>
 					</div>
 				)}
 
-				{!isLoading && !error && filteredPodcasts.length === 0 && (
+				{!isFetchingPodcasts && !fetchError && filteredPodcasts.length === 0 && (
 					<div className="flex flex-col items-center justify-center h-40 gap-2 text-center">
-						<Podcast className="h-8 w-8 text-muted-foreground" />
+						<PodcastIcon className="h-8 w-8 text-muted-foreground" />
 						<h3 className="font-medium">No podcasts found</h3>
 						<p className="text-sm text-muted-foreground">
 							{searchQuery
@@ -512,7 +433,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				)}
 
 				{/* Podcast Grid */}
-				{!isLoading && !error && filteredPodcasts.length > 0 && (
+				{!isFetchingPodcasts && !fetchError && filteredPodcasts.length > 0 && (
 					<AnimatePresence mode="wait">
 						<motion.div
 							className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
@@ -829,7 +750,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 											duration: 2,
 										}}
 									>
-										<Podcast className="h-6 w-6 text-primary" />
+										<PodcastIcon className="h-6 w-6 text-primary" />
 									</motion.div>
 								</div>
 
@@ -957,17 +878,17 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 						<Button
 							variant="outline"
 							onClick={() => setDeleteDialogOpen(false)}
-							disabled={isDeleting}
+							disabled={isDeletingPodcast}
 						>
 							Cancel
 						</Button>
 						<Button
 							variant="destructive"
 							onClick={handleDeletePodcast}
-							disabled={isDeleting}
+							disabled={isDeletingPodcast}
 							className="gap-2"
 						>
-							{isDeleting ? (
+							{isDeletingPodcast ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 									Deleting...

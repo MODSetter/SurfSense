@@ -1,20 +1,13 @@
 "use client";
-import { useAtom, useAtomValue } from "jotai";
-import { LoaderIcon, PanelRight, TriangleAlert } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { LoaderIcon, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { activeChatAtom, activeChatIdAtom } from "@/atoms/chats/chat-querie.atoms";
-import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
-import { generatePodcast } from "@/lib/apis/podcasts.api";
+import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
+import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
+import { generatePodcastMutationAtom } from "@/atoms/podcasts/podcast-mutation.atoms";
+import type { GeneratePodcastRequest } from "@/contracts/types/podcast.types";
 import { cn } from "@/lib/utils";
 import { ChatPanelView } from "./ChatPanelView";
-
-export interface GeneratePodcastRequest {
-	type: "CHAT" | "DOCUMENT";
-	ids: number[];
-	search_space_id: number;
-	podcast_title?: string;
-	user_prompt?: string;
-}
 
 export function ChatPanelContainer() {
 	const {
@@ -23,19 +16,18 @@ export function ChatPanelContainer() {
 		error: chatError,
 	} = useAtomValue(activeChatAtom);
 	const activeChatIdState = useAtomValue(activeChatIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
 	const { isChatPannelOpen } = useAtomValue(activeChathatUIAtom);
+	const { mutateAsync: generatePodcast, error: generatePodcastError } = useAtomValue(
+		generatePodcastMutationAtom
+	);
 
 	const handleGeneratePodcast = async (request: GeneratePodcastRequest) => {
 		try {
-			if (!authToken) {
-				throw new Error("Authentication error. Please log in again.");
-			}
-			await generatePodcast(request, authToken);
+			generatePodcast(request);
 			toast.success(`Podcast generation started!`);
 		} catch (error) {
-			toast.error("Error generating podcast. Please log in again.");
-			console.error("Error generating podcast:", error);
+			toast.error("Error generating podcast. Please try again later.");
+			console.error("Error generating podcast:", JSON.stringify(generatePodcastError));
 		}
 	};
 
@@ -53,7 +45,7 @@ export function ChatPanelContainer() {
 							<LoaderIcon strokeWidth={1.5} className="h-5 w-5 animate-spin" />
 						</div>
 					) : chatError ? (
-						<div title="Failed to load chat" className="flex items-center justify-center h-full">
+						<div title="Failed  to load chat" className="flex items-center justify-center h-full">
 							<TriangleAlert strokeWidth={1.5} className="h-5 w-5 text-red-600" />
 						</div>
 					) : null}

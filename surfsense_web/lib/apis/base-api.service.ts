@@ -1,11 +1,14 @@
+import { th } from "date-fns/locale";
 import type z from "zod";
-import {
-	AppError,
-	AuthenticationError,
-	AuthorizationError,
-	NotFoundError,
-	ValidationError,
-} from "../error";
+import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
+
+enum ResponseType {
+	JSON = "json",
+	TEXT = "text",
+	BLOB = "blob",
+	ARRAY_BUFFER = "arrayBuffer",
+	// Add more response types as needed
+}
 
 export type RequestOptions = {
 	method: "GET" | "POST" | "PUT" | "DELETE";
@@ -13,10 +16,11 @@ export type RequestOptions = {
 	contentType?: "application/json" | "application/x-www-form-urlencoded";
 	signal?: AbortSignal;
 	body?: any;
+	responseType?: ResponseType;
 	// Add more options as needed
 };
 
-export class BaseApiService {
+class BaseApiService {
 	bearerToken: string;
 	baseUrl: string;
 
@@ -31,18 +35,34 @@ export class BaseApiService {
 		this.bearerToken = bearerToken;
 	}
 
-	async request<T>(
+	async request<T, R extends ResponseType = ResponseType.JSON>(
 		url: string,
 		responseSchema?: z.ZodSchema<T>,
-		options?: RequestOptions
-	): Promise<T> {
+		options?: RequestOptions & { responseType?: R }
+	): Promise<
+		R extends ResponseType.JSON
+			? T
+			: R extends ResponseType.TEXT
+				? string
+				: R extends ResponseType.BLOB
+					? Blob
+					: R extends ResponseType.ARRAY_BUFFER
+						? ArrayBuffer
+						: unknown
+	> {
 		try {
+			/**
+			 * ----------
+			 * REQUEST
+			 * ----------
+			 */
 			const defaultOptions: RequestOptions = {
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.bearerToken || ""}`,
 				},
 				method: "GET",
+				responseType: ResponseType.JSON,
 			};
 
 			const mergedOptions: RequestOptions = {
@@ -54,18 +74,46 @@ export class BaseApiService {
 				},
 			};
 
+			// Validate the base URL
 			if (!this.baseUrl) {
 				throw new AppError("Base URL is not set.");
 			}
 
+			// Validate the bearer token
 			if (!this.bearerToken && !this.noAuthEndpoints.includes(url)) {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
+			// Construct the full URL
 			const fullUrl = new URL(url, this.baseUrl).toString();
 
-			const response = await fetch(fullUrl, mergedOptions);
+			// Prepare fetch options
+			const fetchOptions: RequestInit = {
+				method: mergedOptions.method,
+				headers: mergedOptions.headers,
+				signal: mergedOptions.signal,
+			};
 
+			// Automatically stringify body if Content-Type is application/json and body is an object
+			if (mergedOptions.body !== undefined) {
+				const contentType = mergedOptions.headers?.["Content-Type"];
+				if (contentType === "application/json" && typeof mergedOptions.body === "object") {
+					fetchOptions.body = JSON.stringify(mergedOptions.body);
+				} else {
+					// Pass body as-is for other content types (e.g., form data, already stringified)
+					fetchOptions.body = mergedOptions.body;
+				}
+			}
+
+			const response = await fetch(fullUrl, fetchOptions);
+
+			/**
+			 * ----------
+			 * RESPONSE
+			 * ----------
+			 */
+
+			// Handle errors
 			if (!response.ok) {
 				// biome-ignore lint/suspicious: Unknown
 				let data;
@@ -73,13 +121,12 @@ export class BaseApiService {
 				try {
 					data = await response.json();
 				} catch (error) {
-					console.error("Failed to parse response as JSON:", error);
-
-					throw new AppError("Something went wrong", response.status, response.statusText);
+					console.error("Failed to parse response as JSON: ", JSON.stringify(error));
+					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
 
-				// for fastapi errors response
-				if ("detail" in data) {
+				// For fastapi errors response
+				if (typeof data === "object" && "detail" in data) {
 					throw new AppError(data.detail, response.status, response.statusText);
 				}
 
@@ -106,32 +153,52 @@ export class BaseApiService {
 
 			// biome-ignore lint/suspicious: Unknown
 			let data;
+			const responseType = mergedOptions.responseType;
 
 			try {
-				data = await response.json();
+				switch (responseType) {
+					case ResponseType.JSON:
+						data = await response.json();
+						break;
+					case ResponseType.TEXT:
+						data = await response.text();
+						break;
+					case ResponseType.BLOB:
+						data = await response.blob();
+						break;
+					case ResponseType.ARRAY_BUFFER:
+						data = await response.arrayBuffer();
+						break;
+					//  Add more cases as needed
+					default:
+						data = await response.json();
+				}
 			} catch (error) {
 				console.error("Failed to parse response as JSON:", error);
-
-				throw new AppError("Something went wrong", response.status, response.statusText);
+				throw new AppError("Failed to parse response", response.status, response.statusText);
 			}
 
-			if (!responseSchema) {
+			// Validate response
+			if (responseType === ResponseType.JSON) {
+				if (!responseSchema) {
+					return data;
+				}
+				const parsedData = responseSchema.safeParse(data);
+
+				if (!parsedData.success) {
+					/** The request was successful, but the response data does not match the expected schema.
+					 * 	This is a client side error, and should be fixed by updating the responseSchema to keep things typed.
+					 *  This error should not be shown to the user , it is for dev only.
+					 */
+					console.error(`Invalid API response schema - ${url} :`, JSON.stringify(parsedData.error));
+				}
+
 				return data;
-			}
-
-			const parsedData = responseSchema.safeParse(data);
-
-			if (!parsedData.success) {
-				/** The request was successful, but the response data does not match the expected schema.
-				 * 	This is a client side error, and should be fixed by updating the responseSchema to keep things typed.
-				 *  This error should not be shown to the user , it is for dev only.
-				 */
-				console.error("Invalid API response schema:", parsedData.error);
 			}
 
 			return data;
 		} catch (error) {
-			console.error("Request failed:", error);
+			console.error("Request failed:", JSON.stringify(error));
 			throw error;
 		}
 	}
@@ -139,44 +206,56 @@ export class BaseApiService {
 	async get<T>(
 		url: string,
 		responseSchema?: z.ZodSchema<T>,
-		options?: Omit<RequestOptions, "method">
+		options?: Omit<RequestOptions, "method" | "responseType">
 	) {
 		return this.request(url, responseSchema, {
 			...options,
 			method: "GET",
+			responseType: ResponseType.JSON,
 		});
 	}
 
 	async post<T>(
 		url: string,
 		responseSchema?: z.ZodSchema<T>,
-		options?: Omit<RequestOptions, "method">
+		options?: Omit<RequestOptions, "method" | "responseType">
 	) {
 		return this.request(url, responseSchema, {
 			method: "POST",
 			...options,
+			responseType: ResponseType.JSON,
 		});
 	}
 
 	async put<T>(
 		url: string,
 		responseSchema?: z.ZodSchema<T>,
-		options?: Omit<RequestOptions, "method">
+		options?: Omit<RequestOptions, "method" | "responseType">
 	) {
 		return this.request(url, responseSchema, {
 			method: "PUT",
 			...options,
+			responseType: ResponseType.JSON,
 		});
 	}
 
 	async delete<T>(
 		url: string,
 		responseSchema?: z.ZodSchema<T>,
-		options?: Omit<RequestOptions, "method">
+		options?: Omit<RequestOptions, "method" | "responseType">
 	) {
 		return this.request(url, responseSchema, {
 			method: "DELETE",
 			...options,
+			responseType: ResponseType.JSON,
+		});
+	}
+
+	async getBlob(url: string, options?: Omit<RequestOptions, "method" | "responseType">) {
+		return this.request(url, undefined, {
+			...options,
+			method: "GET",
+			responseType: ResponseType.BLOB,
 		});
 	}
 }
