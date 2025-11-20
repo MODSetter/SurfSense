@@ -428,8 +428,8 @@ class LoginResponse(BaseModel):
 
 @router.post("/login", response_model=LoginResponse)
 async def login_with_2fa(
-    form_data: OAuth2PasswordRequestForm = Depends(),
     http_request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
