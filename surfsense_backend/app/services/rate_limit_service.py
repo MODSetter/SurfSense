@@ -375,16 +375,13 @@ class RateLimitService:
             return len(ip_addresses), []
 
         except redis.RedisError as e:
-            logger.error(f"Failed to bulk unlock IPs in Redis: {e}")
-            # Fallback to individual unlocks on error
-            successful = 0
-            failed = []
-            for ip_address in ip_addresses:
-                if RateLimitService.unlock_ip(ip_address, admin_user_id, reason):
-                    successful += 1
-                else:
-                    failed.append(ip_address)
-            return successful, failed
+            logger.error(
+                f"Failed to bulk unlock {len(ip_addresses)} IPs in Redis: {e}. "
+                f"All unlock operations failed."
+            )
+            # Return complete failure - if pipeline failed (likely connection issue),
+            # individual operations would also fail, causing redundant error logs
+            return 0, ip_addresses
 
     @staticmethod
     def get_statistics() -> RateLimitStats:
