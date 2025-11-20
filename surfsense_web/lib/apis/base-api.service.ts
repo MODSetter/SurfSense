@@ -260,6 +260,26 @@ class BaseApiService {
 			responseType: ResponseType.BLOB,
 		});
 	}
+
+	async postFormData<T>(
+		url: string,
+		responseSchema?: z.ZodSchema<T>,
+		options?: Omit<RequestOptions, "method" | "responseType" | "body"> & { body: FormData }
+	) {
+		// Remove Content-Type from options headers if present
+		const { "Content-Type": _, ...headersWithoutContentType } = options?.headers ?? {};
+
+		return this.request(url, responseSchema, {
+			method: "POST",
+			...options,
+			headers: {
+				// Don't set Content-Type - let browser set it with multipart boundary
+				Authorization: `Bearer ${this.bearerToken}`,
+				...headersWithoutContentType,
+			},
+			responseType: ResponseType.JSON,
+		});
+	}
 }
 
 export const baseApiService = new BaseApiService(

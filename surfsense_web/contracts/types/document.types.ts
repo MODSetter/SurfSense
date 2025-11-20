@@ -87,7 +87,7 @@ export const createDocumentRequest = document
 	});
 
 export const createDocumentResponse = z.object({
-	message: z.literal("Document created successfully"),
+	message: z.literal("Documents created successfully"),
 });
 
 /**
