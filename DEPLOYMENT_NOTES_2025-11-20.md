@@ -78,8 +78,8 @@ async def login_with_2fa(
 
 ## VPS-Specific Changes
 
-### Manual Changes on VPS (46.62.230.195)
-These changes were applied directly on the server and are NOT tracked in code:
+### Manual Changes on VPS
+These changes were applied directly on the production server and are NOT tracked in code:
 
 1. **Bcrypt Downgrade:**
    ```bash
@@ -91,9 +91,10 @@ These changes were applied directly on the server and are NOT tracked in code:
    - **Note:** Now handled automatically via `pyproject.toml` for future deployments
 
 2. **Password Resets:**
-   - Created test user: `test@test.com` / `test123` (superuser)
-   - Reset password for: `ojars@kapteinis.lv` (superuser)
+   - Created test user with superuser privileges
+   - Reset password for production admin account
    - **Note:** Password hashes stored in database, not in code
+   - **Security:** Use strong, unique passwords and rotate them regularly
 
 ---
 
@@ -124,7 +125,7 @@ curl http://127.0.0.1:8000/api/v1/site-config/public
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/auth/2fa/login \
   -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'username=test@test.com&password=test123&grant_type=password'
+  -d 'username=YOUR_EMAIL&password=YOUR_PASSWORD&grant_type=password'
 
 # Response:
 {
@@ -137,8 +138,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/2fa/login \
 
 ### Frontend Test ✅
 - URL: https://ai.kapteinis.lv/login
-- Test Account: `test@test.com` / `test123`
-- User Account: `ojars@kapteinis.lv` / [secure password]
+- Use your test account credentials to verify login functionality
 - Result: Login successful, redirects to dashboard
 
 ---
