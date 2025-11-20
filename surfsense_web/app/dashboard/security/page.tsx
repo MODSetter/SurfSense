@@ -54,10 +54,11 @@ export default function SecurityPage() {
 	const [copiedCode, setCopiedCode] = useState<string | null>(null);
 	const [isProcessing, setIsProcessing] = useState(false);
 
+	// Defensive: Safely handle user data, including null/undefined cases
 	const customUser = {
 		name: user?.email ? user.email.split("@")[0] : "User",
 		email: user?.email || (error ? "Error loading user" : "Unknown User"),
-		avatar: "/icon-128.png",
+		avatar: user?.avatar || "/icon-128.png",
 	};
 
 	// Fetch 2FA status

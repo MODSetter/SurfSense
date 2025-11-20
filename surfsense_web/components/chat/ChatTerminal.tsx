@@ -25,8 +25,9 @@ const STATUS_TEXT_MAP: Record<string, string> = {
 };
 
 /**
- * Loading indicator component that displays a rotating anchor icon and dynamic status text
+ * Loading indicator component that displays a pulsing anchor icon and dynamic status text
  * Respects user's motion preferences and provides proper accessibility support
+ * Styled to blend seamlessly with the chat interface
  */
 export default function TerminalDisplay({ message }: TerminalDisplayProps) {
 	if (!message) {
@@ -60,14 +61,14 @@ export default function TerminalDisplay({ message }: TerminalDisplayProps) {
 
 	return (
 		<div
-			className="flex items-center gap-3 py-3 px-4 bg-gray-900 rounded-lg border border-gray-700"
+			className="flex items-center justify-center gap-2 py-2"
 			role="status"
 			aria-live="polite"
 			aria-label={statusText}
 		>
-			{/* Rotating Anchor Icon */}
+			{/* Pulsing Anchor Icon - uses custom pulse animation for smooth, gentle effect */}
 			<svg
-				className="w-5 h-5 text-blue-400 animate-spin-slow motion-reduce:animate-none"
+				className="w-4 h-4 text-blue-400 animate-anchor-pulse motion-reduce:animate-none"
 				viewBox="0 0 24 24"
 				fill="currentColor"
 				xmlns="http://www.w3.org/2000/svg"
@@ -90,8 +91,8 @@ export default function TerminalDisplay({ message }: TerminalDisplayProps) {
 				<path d="M 12 15 Q 16 16, 18 19 L 19 19.5 Q 19.5 20, 19 20.5 L 18 21 Q 17 21, 16.5 20 L 15 17.5 Q 13.5 15.5, 12 15 Z" />
 			</svg>
 
-			{/* Dynamic Loading Text */}
-			<span className="text-gray-300 text-sm">{statusText}</span>
+			{/* Dynamic Loading Text - subtle and centered */}
+			<span className="text-muted-foreground text-sm">{statusText}</span>
 		</div>
 	);
 }

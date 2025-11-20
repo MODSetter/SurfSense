@@ -91,13 +91,32 @@ export default function SiteSettingsPage() {
 				});
 
 				if (!response.ok) {
+					// Defensive: Provide user feedback on session expiry before redirect
+					toast.error("Session Expired", {
+						description: "Your session has expired. Please log in again.",
+						duration: 3000,
+					});
 					router.push("/login");
 					return;
 				}
 
+				// Defensive: Safely parse response and check for valid data structure
 				const data = await response.json();
 
-				if (!data.user?.is_superuser) {
+				// Defensive: Check if data exists and has valid structure before accessing nested properties
+				if (!data || typeof data !== "object") {
+					console.error("Invalid response data from verify-token endpoint");
+					toast.error("Authentication Error", {
+						description: "Unable to verify your session. Please log in again.",
+						duration: 5000,
+					});
+					router.push("/login");
+					return;
+				}
+
+				// Defensive: Safely check superuser status with explicit null/undefined checks
+				const isSuperuser = data.user?.is_superuser === true;
+				if (!isSuperuser) {
 					toast.error("Access Denied", {
 						description: "You must be a superuser to access site settings.",
 						duration: 5000,
@@ -109,6 +128,11 @@ export default function SiteSettingsPage() {
 				setIsSuperuser(true);
 			} catch (error) {
 				console.error("Error verifying superuser status:", error);
+				// Defensive: Provide better user feedback on error
+				toast.error("Authentication Error", {
+					description: "Unable to verify authentication. Please log in again.",
+					duration: 3000,
+				});
 				router.push("/login");
 			} finally {
 				setIsCheckingAuth(false);
