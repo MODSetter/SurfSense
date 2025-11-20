@@ -377,7 +377,8 @@ class RateLimitService:
         except redis.RedisError as e:
             logger.error(
                 f"Failed to bulk unlock {len(ip_addresses)} IPs in Redis: {e}. "
-                f"All unlock operations failed."
+                f"All unlock operations failed.",
+                exc_info=True,
             )
             # Return complete failure - if pipeline failed (likely connection issue),
             # individual operations would also fail, causing redundant error logs
