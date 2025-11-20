@@ -52,6 +52,11 @@ export const backupCodesResponse = z.object({
 	backup_codes: z.array(z.string()),
 });
 
+export const disable2FAResponse = z.object({
+	success: z.boolean(),
+	message: z.string(),
+});
+
 export const registerRequest = loginRequest.omit({ grant_type: true, username: true }).extend({
 	email: z.string().email("Invalid email address"),
 	is_active: z.boolean().optional(),
@@ -75,5 +80,6 @@ export type VerifyCodeRequest = z.infer<typeof verifyCodeRequest>;
 export type VerifySetupResponse = z.infer<typeof verifySetupResponse>;
 export type DisableRequest = z.infer<typeof disableRequest>;
 export type BackupCodesResponse = z.infer<typeof backupCodesResponse>;
+export type Disable2FAResponse = z.infer<typeof disable2FAResponse>;
 export type RegisterRequest = z.infer<typeof registerRequest>;
 export type RegisterResponse = z.infer<typeof registerResponse>;

@@ -20,28 +20,46 @@ import {
 	disableRequest,
 	type BackupCodesResponse,
 	backupCodesResponse,
+	type Disable2FAResponse,
+	disable2FAResponse,
 } from "@/contracts/types/auth.types";
 import { z } from "zod";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
 export class AuthApiService {
-	login = async (request: LoginRequest) => {
-		// Validate the request
-		const parsedRequest = loginRequest.safeParse(request);
+	/**
+	 * Private helper method to validate requests using Zod schemas
+	 * @param schema - The Zod schema to validate against
+	 * @param request - The request data to validate
+	 * @param requestName - Name of the request for error messages
+	 * @returns Validated and parsed request data
+	 * @throws ValidationError if validation fails
+	 */
+	private _validateRequest<T>(
+		schema: z.ZodSchema<T>,
+		request: unknown,
+		requestName: string
+	): T {
+		const parsedRequest = schema.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
-
-			// Format a user frendly error message
+			console.error(`Invalid ${requestName}:`, parsedRequest.error);
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
+		return parsedRequest.data;
+	}
+
+	login = async (request: LoginRequest) => {
+		// Validate the request
+		const validatedRequest = this._validateRequest(loginRequest, request, "login request");
+
 		// Create form data for the API request
 		const formData = new URLSearchParams();
-		formData.append("username", request.username);
-		formData.append("password", request.password);
+		formData.append("username", validatedRequest.username);
+		formData.append("password", validatedRequest.password);
 		formData.append("grant_type", "password");
 
 		// Use the 2FA-aware login endpoint
@@ -55,35 +73,19 @@ export class AuthApiService {
 
 	verify2FA = async (request: Verify2FARequest) => {
 		// Validate the request
-		const parsedRequest = verify2FARequest.safeParse(request);
-
-		if (!parsedRequest.success) {
-			console.error("Invalid 2FA request:", parsedRequest.error);
-
-			// Format a user friendly error message
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
-			throw new ValidationError(`Invalid request: ${errorMessage}`);
-		}
+		const validatedRequest = this._validateRequest(verify2FARequest, request, "2FA verification request");
 
 		return baseApiService.post(`/api/v1/auth/2fa/verify`, verify2FAResponse, {
-			body: JSON.stringify(parsedRequest.data),
+			body: JSON.stringify(validatedRequest),
 		});
 	};
 
 	register = async (request: RegisterRequest) => {
 		// Validate the request
-		const parsedRequest = registerRequest.safeParse(request);
-
-		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
-
-			// Format a user frendly error message
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
-			throw new ValidationError(`Invalid request: ${errorMessage}`);
-		}
+		const validatedRequest = this._validateRequest(registerRequest, request, "registration request");
 
 		return baseApiService.post(`/auth/register`, registerResponse, {
-			body: JSON.stringify(parsedRequest.data),
+			body: JSON.stringify(validatedRequest),
 		});
 	};
 
@@ -99,45 +101,26 @@ export class AuthApiService {
 	};
 
 	verifySetup2FA = async (request: VerifyCodeRequest): Promise<VerifySetupResponse> => {
-		const parsedRequest = verifyCodeRequest.safeParse(request);
-
-		if (!parsedRequest.success) {
-			console.error("Invalid verification request:", parsedRequest.error);
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
-			throw new ValidationError(`Invalid request: ${errorMessage}`);
-		}
+		const validatedRequest = this._validateRequest(verifyCodeRequest, request, "verification request");
 
 		return baseApiService.post(`/api/v1/auth/2fa/verify-setup`, verifySetupResponse, {
-			body: JSON.stringify(parsedRequest.data),
+			body: JSON.stringify(validatedRequest),
 		});
 	};
 
-	disable2FA = async (request: DisableRequest): Promise<{ success: boolean; message: string }> => {
-		const parsedRequest = disableRequest.safeParse(request);
+	disable2FA = async (request: DisableRequest): Promise<Disable2FAResponse> => {
+		const validatedRequest = this._validateRequest(disableRequest, request, "disable request");
 
-		if (!parsedRequest.success) {
-			console.error("Invalid disable request:", parsedRequest.error);
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
-			throw new ValidationError(`Invalid request: ${errorMessage}`);
-		}
-
-		return baseApiService.post(`/api/v1/auth/2fa/disable`,
-			z.object({ success: z.boolean(), message: z.string() }), {
-			body: JSON.stringify(parsedRequest.data),
+		return baseApiService.post(`/api/v1/auth/2fa/disable`, disable2FAResponse, {
+			body: JSON.stringify(validatedRequest),
 		});
 	};
 
 	regenerateBackupCodes = async (request: VerifyCodeRequest): Promise<BackupCodesResponse> => {
-		const parsedRequest = verifyCodeRequest.safeParse(request);
-
-		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
-			throw new ValidationError(`Invalid request: ${errorMessage}`);
-		}
+		const validatedRequest = this._validateRequest(verifyCodeRequest, request, "backup codes request");
 
 		return baseApiService.post(`/api/v1/auth/2fa/backup-codes`, backupCodesResponse, {
-			body: JSON.stringify(parsedRequest.data),
+			body: JSON.stringify(validatedRequest),
 		});
 	};
 }
