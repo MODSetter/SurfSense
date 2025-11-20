@@ -222,3 +222,30 @@ def build_document_metadata_markdown(
         document_parts.pop()
 
     return "\n".join(document_parts)
+
+
+def get_error_metadata(e: Exception) -> dict[str, str]:
+    """
+    Generate standard error metadata dictionary for structured logging.
+
+    This helper provides consistent error metadata across all connector indexers,
+    making it easier to debug issues from database logs.
+
+    Args:
+        e: Exception instance
+
+    Returns:
+        Dictionary with error_type (exception class name) and error_message (string representation)
+
+    Example:
+        >>> try:
+        ...     raise ValueError("Invalid input")
+        ... except Exception as e:
+        ...     metadata = get_error_metadata(e)
+        >>> metadata
+        {'error_type': 'ValueError', 'error_message': 'Invalid input'}
+    """
+    return {
+        "error_type": type(e).__name__,
+        "error_message": str(e),
+    }
