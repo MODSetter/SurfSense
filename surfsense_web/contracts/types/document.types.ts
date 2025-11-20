@@ -65,10 +65,17 @@ export const getDocumentsRequest = z.object({
 		.nullish(),
 });
 
-export const getDocumentResponse = z.object({
+export const getDocumentsResponse = z.object({
 	items: z.array(document),
 	total: z.number(),
 });
+
+/**
+ * Get document
+ */
+export const getDocumentRequest = document.pick({ id: true });
+
+export const getDocumentResponse = document;
 
 /**
  * Create documents
@@ -136,6 +143,8 @@ export const getDocumentByChunkRequest = z.object({
 export const getDocumentByChunkResponse = documentWithChunks;
 
 export type GetDocumentsRequest = z.infer<typeof getDocumentsRequest>;
+export type GetDocumentsResponse = z.infer<typeof getDocumentsResponse>;
+export type GetDocumentRequest = z.infer<typeof getDocumentRequest>;
 export type GetDocumentResponse = z.infer<typeof getDocumentResponse>;
 export type CreateDocumentRequest = z.infer<typeof createDocumentRequest>;
 export type CreateDocumentResponse = z.infer<typeof createDocumentResponse>;
