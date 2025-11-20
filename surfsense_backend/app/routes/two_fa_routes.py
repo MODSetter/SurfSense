@@ -91,7 +91,11 @@ class StatusResponse(BaseModel):
 
 
 class DisableRequest(BaseModel):
-    """Request to disable 2FA."""
+    """Request to disable 2FA.
+
+    Attributes:
+        code: A 6-digit TOTP code from authenticator app or a backup code (format: XXXX-XXXX)
+    """
 
     code: str
 
@@ -103,7 +107,12 @@ class BackupCodesResponse(BaseModel):
 
 
 class TwoFALoginRequest(BaseModel):
-    """Request for 2FA verification during login."""
+    """Request for 2FA verification during login.
+
+    Attributes:
+        temporary_token: Temporary token received from /login endpoint
+        code: A 6-digit TOTP code from authenticator app or a backup code (format: XXXX-XXXX)
+    """
 
     temporary_token: str
     code: str
@@ -258,7 +267,8 @@ async def disable_2fa(
     """
     Disable 2FA for the user.
 
-    Requires a valid TOTP code or backup code for security.
+    Requires either a valid 6-digit TOTP code from the authenticator app
+    or a single-use backup code (format: XXXX-XXXX) for security verification.
     """
     ip_address, user_agent = get_request_metadata(http_request)
 
@@ -273,13 +283,16 @@ async def disable_2fa(
     used_backup_code = False
 
     # If not valid, try backup codes
-    if not is_valid and user.backup_codes:
+    # Filter out any None values from previous usage
+    valid_backup_codes = [c for c in (user.backup_codes or []) if c is not None]
+    if not is_valid and valid_backup_codes:
         is_valid, used_index = two_fa_service.verify_backup_code(
-            code_request.code, user.backup_codes
+            code_request.code, valid_backup_codes
         )
         if is_valid and used_index is not None:
-            # Remove used backup code
-            user.backup_codes[used_index] = None
+            # Remove used backup code entirely (not replace with None)
+            valid_backup_codes.pop(used_index)
+            user.backup_codes = valid_backup_codes
             used_backup_code = True
 
     if not is_valid:
@@ -418,7 +431,7 @@ class LoginResponse(BaseModel):
 @router.post("/login", response_model=LoginResponse)
 async def login_with_2fa(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    http_request: Request = None,
+    http_request: Request,
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -507,7 +520,8 @@ async def verify_2fa_login(
     """
     Verify 2FA code and complete login.
 
-    Called after /login when 2FA is required.
+    Called after /login when 2FA is required. Accepts either a 6-digit TOTP code
+    from the authenticator app or a single-use backup code (format: XXXX-XXXX).
     """
     ip_address, user_agent = get_request_metadata(http_request)
 

@@ -70,7 +70,6 @@ def upgrade() -> None:
     )
 
     # Create indexes
-    op.create_index("ix_security_events_id", "security_events", ["id"])
     op.create_index("ix_security_events_event_type", "security_events", ["event_type"])
     op.create_index("ix_security_events_user_id", "security_events", ["user_id"])
     op.create_index("ix_security_events_created_at", "security_events", ["created_at"])
@@ -81,7 +80,6 @@ def downgrade() -> None:
     op.drop_index("ix_security_events_created_at", table_name="security_events")
     op.drop_index("ix_security_events_user_id", table_name="security_events")
     op.drop_index("ix_security_events_event_type", table_name="security_events")
-    op.drop_index("ix_security_events_id", table_name="security_events")
 
     # Drop table
     op.drop_table("security_events")
