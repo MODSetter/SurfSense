@@ -411,7 +411,7 @@ class SecurityEvent(BaseModel, TimestampMixin):
     ip_address = Column(String(45), nullable=True)  # IPv6 max length is 45
     user_agent = Column(String(500), nullable=True)
     success = Column(Boolean, nullable=False, default=True)
-    details = Column(JSON, nullable=True, default={})
+    details = Column(JSON, nullable=True, default=dict)
 
     user = relationship("User", backref="security_events")
 
