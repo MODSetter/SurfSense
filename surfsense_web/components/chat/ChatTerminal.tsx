@@ -14,6 +14,16 @@ interface TerminalDisplayProps {
 	message: Message;
 }
 
+// Lookup map for status text based on keywords
+// Defined at module scope to avoid recreation on every render
+const STATUS_TEXT_MAP: Record<string, string> = {
+	research: "Researching...",
+	generat: "Generating answer...",
+	writ: "Writing response...",
+	analyz: "Analyzing...",
+	search: "Searching...",
+};
+
 /**
  * Loading indicator component that displays a rotating anchor icon and dynamic status text
  * Respects user's motion preferences and provides proper accessibility support
@@ -29,15 +39,6 @@ export default function TerminalDisplay({ message }: TerminalDisplayProps) {
 	if (events.length === 0) {
 		return null;
 	}
-
-	// Lookup map for status text based on keywords
-	const STATUS_TEXT_MAP: Record<string, string> = {
-		research: "Researching...",
-		generat: "Generating answer...",
-		writ: "Writing response...",
-		analyz: "Analyzing...",
-		search: "Searching...",
-	};
 
 	// Extract dynamic status text from the last event
 	const getStatusText = (): string => {
