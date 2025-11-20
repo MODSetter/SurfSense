@@ -69,15 +69,8 @@ async def is_url_safe(url: str) -> tuple[bool, str]:
                 ip = ipaddress.ip_address(ip_str)
 
                 # Check for unsafe IP ranges
-                if ip.is_private:
-                    return False, "URL resolves to a restricted IP address"
-                if ip.is_loopback:
-                    return False, "URL resolves to a restricted IP address"
-                if ip.is_link_local:
-                    return False, "URL resolves to a restricted IP address"
-                if ip.is_reserved:
-                    return False, "URL resolves to a restricted IP address"
-                if ip.is_multicast:
+                if (ip.is_private or ip.is_loopback or ip.is_link_local or
+                    ip.is_reserved or ip.is_multicast):
                     return False, "URL resolves to a restricted IP address"
 
             except ValueError:
