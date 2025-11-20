@@ -26,6 +26,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser } from "@/hooks";
 import { AUTH_TOKEN_KEY } from "@/lib/constants";
+import { authApiService } from "@/lib/apis/auth-api.service";
+import { ValidationError } from "@/lib/error";
 
 interface TwoFAStatus {
 	enabled: boolean;
@@ -68,22 +70,8 @@ export default function SecurityPage() {
 	const fetch2FAStatus = async () => {
 		try {
 			setIsLoadingStatus(true);
-			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-			const response = await fetch(`${backendUrl}/api/v1/auth/2fa/status`, {
-				method: "GET",
-				credentials: "include",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-			});
-
-			if (response.ok) {
-				const data = await response.json();
-				setTwoFAStatus(data);
-			}
+			const data = await authApiService.get2FAStatus();
+			setTwoFAStatus(data);
 		} catch (err) {
 			console.error("Error fetching 2FA status:", err);
 			toast.error("Failed to load 2FA status");
@@ -95,108 +83,71 @@ export default function SecurityPage() {
 	const handleEnableClick = async () => {
 		setIsProcessing(true);
 		try {
-			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-			const response = await fetch(`${backendUrl}/api/v1/auth/2fa/setup`, {
-				method: "POST",
-				credentials: "include",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-			});
-
-			if (response.ok) {
-				const data = await response.json();
-				setSetupData(data);
-				setShowSetupDialog(true);
-			} else {
-				const errorData = await response.json();
-				toast.error(errorData.detail || "Failed to start 2FA setup");
-			}
+			const data = await authApiService.setup2FA();
+			setSetupData(data);
+			setShowSetupDialog(true);
 		} catch (err) {
 			console.error("Error starting 2FA setup:", err);
-			toast.error("Failed to start 2FA setup");
+			if (err instanceof ValidationError) {
+				toast.error(err.message);
+			} else {
+				toast.error("Failed to start 2FA setup");
+			}
 		} finally {
 			setIsProcessing(false);
 		}
 	};
 
 	const handleVerifySetup = async () => {
-		if (verificationCode.length !== 6) {
-			toast.error("Please enter a valid 6-digit code");
+		if (!verificationCode.trim()) {
+			toast.error("Please enter a verification code");
 			return;
 		}
 
 		setIsProcessing(true);
 		try {
-			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-			const response = await fetch(`${backendUrl}/api/v1/auth/2fa/verify-setup`, {
-				method: "POST",
-				credentials: "include",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ code: verificationCode }),
-			});
-
-			if (response.ok) {
-				const data = await response.json();
+			const data = await authApiService.verifySetup2FA({ code: verificationCode });
+			if (data.backup_codes) {
 				setBackupCodes(data.backup_codes);
 				setShowBackupCodes(true);
-				setShowSetupDialog(false);
-				setVerificationCode("");
-				await fetch2FAStatus();
-				toast.success("Two-Factor Authentication enabled successfully!");
-			} else {
-				const errorData = await response.json();
-				toast.error(errorData.detail || "Invalid verification code");
 			}
+			setShowSetupDialog(false);
+			setVerificationCode("");
+			await fetch2FAStatus();
+			toast.success("Two-Factor Authentication enabled successfully!");
 		} catch (err) {
 			console.error("Error verifying 2FA setup:", err);
-			toast.error("Failed to verify code");
+			if (err instanceof ValidationError) {
+				toast.error(err.message);
+			} else {
+				toast.error("Invalid verification code");
+			}
 		} finally {
 			setIsProcessing(false);
 		}
 	};
 
 	const handleDisable2FA = async () => {
-		if (disableCode.length !== 6) {
-			toast.error("Please enter a valid 6-digit code");
+		// Allow both TOTP codes (6 digits) and backup codes (XXXX-XXXX format)
+		if (!disableCode.trim()) {
+			toast.error("Please enter a code");
 			return;
 		}
 
 		setIsProcessing(true);
 		try {
-			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-			const response = await fetch(`${backendUrl}/api/v1/auth/2fa/disable`, {
-				method: "POST",
-				credentials: "include",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ code: disableCode }),
-			});
-
-			if (response.ok) {
-				setShowDisableDialog(false);
-				setDisableCode("");
-				await fetch2FAStatus();
-				toast.success("Two-Factor Authentication disabled successfully");
-			} else {
-				const errorData = await response.json();
-				toast.error(errorData.detail || "Invalid code");
-			}
+			await authApiService.disable2FA({ code: disableCode });
+			setShowDisableDialog(false);
+			setDisableCode("");
+			await fetch2FAStatus();
+			toast.success("Two-Factor Authentication disabled successfully");
 		} catch (err) {
 			console.error("Error disabling 2FA:", err);
-			toast.error("Failed to disable 2FA");
+			if (err instanceof ValidationError) {
+				toast.error(err.message);
+			} else {
+				toast.error("Invalid code");
+			}
 		} finally {
 			setIsProcessing(false);
 		}
