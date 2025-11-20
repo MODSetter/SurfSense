@@ -49,7 +49,7 @@ class AuthApiService {
 		}
 
 		return baseApiService.post(`/auth/register`, registerResponse, {
-			body: JSON.stringify(parsedRequest.data),
+			body: parsedRequest.data,
 		});
 	};
 }
