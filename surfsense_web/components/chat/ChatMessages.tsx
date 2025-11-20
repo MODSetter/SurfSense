@@ -49,7 +49,7 @@ function ChatMessageUI({ message, isLast }: { message: Message; isLast: boolean 
 		<LlamaIndexChatMessage message={message} isLast={isLast} className="flex flex-col ">
 			{message.role === "assistant" ? (
 				<div className="flex-1 flex flex-col space-y-4">
-					<TerminalDisplay message={message} open={isLast} />
+					<TerminalDisplay message={message} />
 					<ChatSourcesDisplay message={message} />
 					<LlamaIndexChatMessage.Content className="flex-1">
 						<LlamaIndexChatMessage.Content.Markdown
