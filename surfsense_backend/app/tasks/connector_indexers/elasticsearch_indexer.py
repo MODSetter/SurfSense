@@ -19,25 +19,13 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
-from .base import check_document_by_unique_identifier, check_duplicate_document_by_hash
+from .base import (
+    check_document_by_unique_identifier,
+    check_duplicate_document_by_hash,
+    get_error_metadata,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _get_error_metadata(e: Exception) -> dict[str, Any]:
-	"""
-	Generate standard error metadata dictionary for structured logging
-
-	Args:
-		e: Exception instance
-
-	Returns:
-		Dictionary with error_type and error_message
-	"""
-	return {
-		"error_type": type(e).__name__,
-		"error_message": str(e),
-	}
 
 
 async def index_elasticsearch_documents(
@@ -305,7 +293,7 @@ async def index_elasticsearch_documents(
                         msg,
                         {
                             "document_id": hit.get("_id", "unknown"),
-                            **_get_error_metadata(e),
+                            **get_error_metadata(e),
                         },
                     )
                     continue
@@ -346,7 +334,7 @@ async def index_elasticsearch_documents(
         error_msg = "Error indexing Elasticsearch documents"
         logger.exception(error_msg)
         await task_logger.log_task_failure(
-            log_entry, "Indexing failed", error_msg, _get_error_metadata(e)
+            log_entry, "Indexing failed", error_msg, get_error_metadata(e)
         )
         await session.rollback()
         if es_connector:
