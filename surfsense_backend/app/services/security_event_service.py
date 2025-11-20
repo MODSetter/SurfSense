@@ -69,8 +69,8 @@ class SecurityEventService:
 
             return event
 
-        except Exception as e:
-            logger.error(f"Failed to log security event {event_type.value}: {e}")
+        except Exception:
+            logger.exception(f"Failed to log security event {event_type.value}")
             # Don't raise - logging failures shouldn't break the application flow
             return None
 

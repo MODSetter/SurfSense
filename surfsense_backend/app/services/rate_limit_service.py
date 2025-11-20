@@ -104,8 +104,8 @@ class RateLimitService:
 
             return False, attempts
 
-        except redis.RedisError as e:
-            logger.error(f"Failed to record failed attempt in Redis: {e}")
+        except redis.RedisError:
+            logger.exception("Failed to record failed attempt in Redis")
             return False, 0
 
     @staticmethod
@@ -168,8 +168,8 @@ class RateLimitService:
 
             return True
 
-        except redis.RedisError as e:
-            logger.error(f"Failed to block IP in Redis: {e}")
+        except redis.RedisError:
+            logger.exception("Failed to block IP in Redis")
             return False
 
     @staticmethod
@@ -214,8 +214,8 @@ class RateLimitService:
 
             return True, block
 
-        except (redis.RedisError, json.JSONDecodeError, KeyError) as e:
-            logger.error(f"Failed to check if IP is blocked: {e}")
+        except (redis.RedisError, json.JSONDecodeError, KeyError):
+            logger.exception("Failed to check if IP is blocked")
             return False, None
 
     @staticmethod
@@ -283,8 +283,8 @@ class RateLimitService:
 
             return blocked_ips
 
-        except redis.RedisError as e:
-            logger.error(f"Failed to get blocked IPs from Redis: {e}")
+        except redis.RedisError:
+            logger.exception("Failed to get blocked IPs from Redis")
             return []
 
     @staticmethod
@@ -325,8 +325,8 @@ class RateLimitService:
 
             return True
 
-        except redis.RedisError as e:
-            logger.error(f"Failed to unlock IP in Redis: {e}")
+        except redis.RedisError:
+            logger.exception("Failed to unlock IP in Redis")
             return False
 
     @staticmethod
@@ -414,8 +414,8 @@ class RateLimitService:
                 avg_lockout_duration=LOCKOUT_DURATION_MINUTES * 60,
             )
 
-        except redis.RedisError as e:
-            logger.error(f"Failed to get statistics from Redis: {e}")
+        except redis.RedisError:
+            logger.exception("Failed to get statistics from Redis")
             return RateLimitStats(
                 active_blocks=0,
                 blocks_24h=0,
@@ -431,8 +431,8 @@ class RateLimitService:
             block_key = f"{BLOCKED_IP_PREFIX}{ip_address}"
             client.delete(block_key)
             client.zrem(BLOCKED_IPS_SET, ip_address)
-        except redis.RedisError as e:
-            logger.error(f"Failed to cleanup expired block: {e}")
+        except redis.RedisError:
+            logger.exception("Failed to cleanup expired block")
 
     @staticmethod
     def cleanup_expired_blocks():
@@ -448,8 +448,8 @@ class RateLimitService:
             )
             if removed > 0:
                 logger.info(f"Cleaned up {removed} expired IP blocks")
-        except redis.RedisError as e:
-            logger.error(f"Failed to cleanup expired blocks: {e}")
+        except redis.RedisError:
+            logger.exception("Failed to cleanup expired blocks")
 
 
 # Create service instance
