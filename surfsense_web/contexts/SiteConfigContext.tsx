@@ -84,7 +84,13 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
 
 			const backendUrl =
 				process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const response = await fetch(`${backendUrl}/api/v1/site-config/public`);
+			const response = await fetch(`${backendUrl}/api/v1/site-config/public`, {
+				method: "GET",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+				},
+			});
 
 			if (!response.ok) {
 				throw new Error(`Failed to fetch site configuration: ${response.statusText}`);
