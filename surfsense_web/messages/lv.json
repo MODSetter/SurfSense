@@ -131,6 +131,7 @@
 		"book_a_call": "Rezervēt zvanu"
 	},
 	"nav_menu": {
+		"settings": "Iestatījumi",
 		"platform": "Platforma",
 		"researcher": "Pētnieks",
 		"manage_llms": "Pārvaldīt LLM",

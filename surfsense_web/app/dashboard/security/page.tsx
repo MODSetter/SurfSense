@@ -17,10 +17,11 @@ import { useUser } from "@/hooks";
 export default function SecurityPage() {
 	const { user, loading, error } = useUser();
 
+	// Defensive: Safely handle user data, including null/undefined cases
 	const customUser = {
 		name: user?.email ? user.email.split("@")[0] : "User",
 		email: user?.email || (error ? "Error loading user" : "Unknown User"),
-		avatar: "/icon-128.png",
+		avatar: user?.avatar || "/icon-128.png",
 	};
 
 	if (loading) {

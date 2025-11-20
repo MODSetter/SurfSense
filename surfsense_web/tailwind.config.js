@@ -69,11 +69,18 @@ module.exports = {
 					from: { transform: "rotate(0deg)" },
 					to: { transform: "rotate(360deg)" },
 				},
+				// Gentle pulse animation combining opacity and scale for loading indicator
+				"anchor-pulse": {
+					"0%, 100%": { opacity: "1", transform: "scale(1)" },
+					"50%": { opacity: "0.5", transform: "scale(0.95)" },
+				},
 			},
 			animation: {
 				"accordion-down": "accordion-down 0.2s ease-out",
 				"accordion-up": "accordion-up 0.2s ease-out",
 				"spin-slow": "spin-slow 2.5s linear infinite",
+				// Smooth 2s pulse for anchor icon - non-distracting
+				"anchor-pulse": "anchor-pulse 2s ease-in-out infinite",
 			},
 		},
 	},
