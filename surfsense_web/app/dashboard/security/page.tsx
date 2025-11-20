@@ -224,27 +224,217 @@ export default function SecurityPage() {
 					<CardContent className="space-y-4">
 						<div className="flex items-center justify-between p-4 border rounded-lg">
 							<div className="flex items-center gap-3">
-								<ShieldOff className="h-8 w-8 text-muted-foreground" />
+								{twoFAStatus?.enabled ? (
+									<ShieldCheck className="h-8 w-8 text-green-600" />
+								) : (
+									<ShieldOff className="h-8 w-8 text-muted-foreground" />
+								)}
 								<div>
 									<p className="font-medium">2FA Status</p>
 									<p className="text-sm text-muted-foreground">
-										Two-factor authentication is not enabled
+										{twoFAStatus?.enabled
+											? "Two-factor authentication is enabled"
+											: "Two-factor authentication is not enabled"}
 									</p>
 								</div>
 							</div>
-							<Button disabled>
-								Enable 2FA
-							</Button>
+							{twoFAStatus?.enabled ? (
+								<Button variant="destructive" onClick={() => setShowDisableDialog(true)}>
+									Disable 2FA
+								</Button>
+							) : (
+								<Button onClick={handleEnableClick} disabled={isProcessing}>
+									{isProcessing ? "Loading..." : "Enable 2FA"}
+								</Button>
+							)}
 						</div>
-						<Alert>
-							<ShieldCheck className="h-4 w-4" />
-							<AlertTitle>Coming Soon</AlertTitle>
-							<AlertDescription>
-								Two-factor authentication setup will be available in a future update.
-								This will allow you to use an authenticator app (like Google Authenticator or Authy)
-								to generate time-based codes for additional security.
-							</AlertDescription>
-						</Alert>
+
+						{/* Setup Dialog */}
+						<Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
+							<DialogContent className="sm:max-w-md">
+								<DialogHeader>
+									<DialogTitle>Setup Two-Factor Authentication</DialogTitle>
+									<DialogDescription>
+										Scan the QR code with your authenticator app (Google Authenticator, Authy, etc.)
+									</DialogDescription>
+								</DialogHeader>
+
+								{setupData && (
+									<div className="space-y-4">
+										<div className="flex justify-center p-4 bg-white rounded-lg">
+											<img
+												src={`data:image/png;base64,${setupData.qr_code}`}
+												alt="QR Code"
+												className="w-64 h-64"
+											/>
+										</div>
+
+										<div className="space-y-2">
+											<Label>Manual Entry Key (if you can't scan)</Label>
+											<div className="flex gap-2">
+												<Input value={setupData.secret} readOnly className="font-mono" />
+												<Button
+													type="button"
+													variant="outline"
+													size="icon"
+													onClick={() => copyToClipboard(setupData.secret)}
+												>
+													{copiedCode === setupData.secret ? (
+														<Check className="h-4 w-4" />
+													) : (
+														<Copy className="h-4 w-4" />
+													)}
+												</Button>
+											</div>
+										</div>
+
+										<div className="space-y-2">
+											<Label htmlFor="verification-code">Enter 6-digit code from app</Label>
+											<Input
+												id="verification-code"
+												type="text"
+												inputMode="numeric"
+												pattern="[0-9]{6}"
+												maxLength={6}
+												value={verificationCode}
+												onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))}
+												placeholder="000000"
+												className="text-center text-lg tracking-widest"
+											/>
+										</div>
+									</div>
+								)}
+
+								<DialogFooter>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setShowSetupDialog(false);
+											setVerificationCode("");
+										}}
+										disabled={isProcessing}
+									>
+										Cancel
+									</Button>
+									<Button
+										onClick={handleVerifySetup}
+										disabled={verificationCode.length !== 6 || isProcessing}
+									>
+										{isProcessing ? "Verifying..." : "Verify & Enable"}
+									</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
+
+						{/* Disable Dialog */}
+						<Dialog open={showDisableDialog} onOpenChange={setShowDisableDialog}>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+									<DialogDescription>
+										Enter your 6-digit code or a backup code to disable 2FA
+									</DialogDescription>
+								</DialogHeader>
+
+								<div className="space-y-2">
+									<Label htmlFor="disable-code">6-digit code or backup code</Label>
+									<Input
+										id="disable-code"
+										type="text"
+										value={disableCode}
+										onChange={(e) => setDisableCode(e.target.value)}
+										placeholder="Enter code"
+										className="text-center"
+									/>
+								</div>
+
+								<DialogFooter>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setShowDisableDialog(false);
+											setDisableCode("");
+										}}
+										disabled={isProcessing}
+									>
+										Cancel
+									</Button>
+									<Button
+										variant="destructive"
+										onClick={handleDisable2FA}
+										disabled={disableCode.length === 0 || isProcessing}
+									>
+										{isProcessing ? "Disabling..." : "Disable 2FA"}
+									</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
+
+						{/* Backup Codes Dialog */}
+						<Dialog open={showBackupCodes} onOpenChange={setShowBackupCodes}>
+							<DialogContent className="sm:max-w-md">
+								<DialogHeader>
+									<DialogTitle>Save Your Backup Codes</DialogTitle>
+									<DialogDescription>
+										Store these codes in a safe place. Each code can only be used once.
+									</DialogDescription>
+								</DialogHeader>
+
+								<div className="space-y-4">
+									<Alert>
+										<ShieldCheck className="h-4 w-4" />
+										<AlertTitle>Important!</AlertTitle>
+										<AlertDescription>
+											Save these backup codes now. You won't be able to see them again.
+										</AlertDescription>
+									</Alert>
+
+									<div className="space-y-2 max-h-64 overflow-y-auto">
+										{backupCodes.map((code, index) => (
+											<div key={index} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+												<code className="flex-1 font-mono text-sm">{code}</code>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													onClick={() => copyToClipboard(code)}
+												>
+													{copiedCode === code ? (
+														<Check className="h-4 w-4" />
+													) : (
+														<Copy className="h-4 w-4" />
+													)}
+												</Button>
+											</div>
+										))}
+									</div>
+
+									<Button
+										type="button"
+										onClick={downloadBackupCodes}
+										className="w-full"
+										variant="outline"
+									>
+										<Download className="h-4 w-4 mr-2" />
+										Download Backup Codes
+									</Button>
+								</div>
+
+								<DialogFooter>
+									<Button
+										onClick={() => {
+											setShowBackupCodes(false);
+											setBackupCodes([]);
+										}}
+										className="w-full"
+									>
+										I've Saved My Codes
+									</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
 					</CardContent>
 				</Card>
 			</div>
