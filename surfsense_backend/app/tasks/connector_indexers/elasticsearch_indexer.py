@@ -280,7 +280,7 @@ async def index_elasticsearch_documents(
                         )
                         await session.commit()
 
-                except Exception:
+                except Exception as e:
                     msg = f"Error processing Elasticsearch document {hit.get('_id', 'unknown')}"
                     logger.exception(msg)
                     await task_logger.log_task_failure(
@@ -289,7 +289,7 @@ async def index_elasticsearch_documents(
                         msg,
                         {
                             "document_id": hit.get("_id", "unknown"),
-                            "error_type": "Exception",
+                            "error_type": type(e).__name__,
                         },
                     )
                     continue
@@ -326,11 +326,11 @@ async def index_elasticsearch_documents(
             if es_connector:
                 await es_connector.close()
 
-    except Exception:
+    except Exception as e:
         error_msg = "Error indexing Elasticsearch documents"
         logger.exception(error_msg)
         await task_logger.log_task_failure(
-            log_entry, "Indexing failed", error_msg, {"error_type": "Exception"}
+            log_entry, "Indexing failed", error_msg, {"error_type": type(e).__name__}
         )
         await session.rollback()
         if es_connector:
