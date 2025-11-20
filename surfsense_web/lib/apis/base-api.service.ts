@@ -21,7 +21,7 @@ export class BaseApiService {
 	bearerToken: string;
 	baseUrl: string;
 
-	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh"]; // Add more endpoints as needed
+	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh", "/api/v1/auth/2fa/login", "/api/v1/auth/2fa/verify"]; // Add more endpoints as needed
 
 	constructor(bearerToken: string, baseUrl: string) {
 		this.bearerToken = bearerToken;

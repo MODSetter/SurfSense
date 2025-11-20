@@ -82,7 +82,10 @@ export default function SiteSettingsPage() {
 				}
 
 				const response = await fetch(`${backendUrl}/verify-token`, {
+					method: "GET",
+					credentials: "include",
 					headers: {
+						"Content-Type": "application/json",
 						Authorization: `Bearer ${token}`,
 					},
 				});
@@ -163,6 +166,7 @@ export default function SiteSettingsPage() {
 
 			const response = await fetch(`${backendUrl}/api/v1/site-config`, {
 				method: "PUT",
+				credentials: "include",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${token}`,

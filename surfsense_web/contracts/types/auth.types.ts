@@ -7,6 +7,18 @@ export const loginRequest = z.object({
 });
 
 export const loginResponse = z.object({
+	access_token: z.string().optional(),
+	token_type: z.string().optional(),
+	requires_2fa: z.boolean().optional(),
+	temporary_token: z.string().optional(),
+});
+
+export const verify2FARequest = z.object({
+	temporary_token: z.string(),
+	code: z.string().length(6, "Code must be exactly 6 digits"),
+});
+
+export const verify2FAResponse = z.object({
 	access_token: z.string(),
 	token_type: z.string(),
 });
@@ -26,5 +38,7 @@ export const registerResponse = registerRequest.omit({ password: true }).extend(
 
 export type LoginRequest = z.infer<typeof loginRequest>;
 export type LoginResponse = z.infer<typeof loginResponse>;
+export type Verify2FARequest = z.infer<typeof verify2FARequest>;
+export type Verify2FAResponse = z.infer<typeof verify2FAResponse>;
 export type RegisterRequest = z.infer<typeof registerRequest>;
 export type RegisterResponse = z.infer<typeof registerResponse>;

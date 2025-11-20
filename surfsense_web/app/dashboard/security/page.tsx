@@ -1,7 +1,9 @@
 "use client";
 
-import { ArrowLeft, Shield, ShieldCheck, ShieldOff } from "lucide-react";
+import { ArrowLeft, Shield, ShieldCheck, ShieldOff, Copy, Check, Download } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -12,10 +14,43 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useUser } from "@/hooks";
+import { AUTH_TOKEN_KEY } from "@/lib/constants";
+
+interface TwoFAStatus {
+	enabled: boolean;
+	has_backup_codes: boolean;
+}
+
+interface SetupData {
+	secret: string;
+	qr_code: string;
+	uri: string;
+}
 
 export default function SecurityPage() {
 	const { user, loading, error } = useUser();
+	const [twoFAStatus, setTwoFAStatus] = useState<TwoFAStatus | null>(null);
+	const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+	const [showSetupDialog, setShowSetupDialog] = useState(false);
+	const [showDisableDialog, setShowDisableDialog] = useState(false);
+	const [setupData, setSetupData] = useState<SetupData | null>(null);
+	const [verificationCode, setVerificationCode] = useState("");
+	const [disableCode, setDisableCode] = useState("");
+	const [backupCodes, setBackupCodes] = useState<string[]>([]);
+	const [showBackupCodes, setShowBackupCodes] = useState(false);
+	const [copiedCode, setCopiedCode] = useState<string | null>(null);
+	const [isProcessing, setIsProcessing] = useState(false);
 
 	const customUser = {
 		name: user?.email ? user.email.split("@")[0] : "User",
@@ -23,7 +58,170 @@ export default function SecurityPage() {
 		avatar: "/icon-128.png",
 	};
 
-	if (loading) {
+	// Fetch 2FA status
+	useEffect(() => {
+		if (user) {
+			fetch2FAStatus();
+		}
+	}, [user]);
+
+	const fetch2FAStatus = async () => {
+		try {
+			setIsLoadingStatus(true);
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
+
+			const response = await fetch(`${backendUrl}/api/v1/auth/2fa/status`, {
+				method: "GET",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				setTwoFAStatus(data);
+			}
+		} catch (err) {
+			console.error("Error fetching 2FA status:", err);
+			toast.error("Failed to load 2FA status");
+		} finally {
+			setIsLoadingStatus(false);
+		}
+	};
+
+	const handleEnableClick = async () => {
+		setIsProcessing(true);
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
+
+			const response = await fetch(`${backendUrl}/api/v1/auth/2fa/setup`, {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				setSetupData(data);
+				setShowSetupDialog(true);
+			} else {
+				const errorData = await response.json();
+				toast.error(errorData.detail || "Failed to start 2FA setup");
+			}
+		} catch (err) {
+			console.error("Error starting 2FA setup:", err);
+			toast.error("Failed to start 2FA setup");
+		} finally {
+			setIsProcessing(false);
+		}
+	};
+
+	const handleVerifySetup = async () => {
+		if (verificationCode.length !== 6) {
+			toast.error("Please enter a valid 6-digit code");
+			return;
+		}
+
+		setIsProcessing(true);
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
+
+			const response = await fetch(`${backendUrl}/api/v1/auth/2fa/verify-setup`, {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({ code: verificationCode }),
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				setBackupCodes(data.backup_codes);
+				setShowBackupCodes(true);
+				setShowSetupDialog(false);
+				setVerificationCode("");
+				await fetch2FAStatus();
+				toast.success("Two-Factor Authentication enabled successfully!");
+			} else {
+				const errorData = await response.json();
+				toast.error(errorData.detail || "Invalid verification code");
+			}
+		} catch (err) {
+			console.error("Error verifying 2FA setup:", err);
+			toast.error("Failed to verify code");
+		} finally {
+			setIsProcessing(false);
+		}
+	};
+
+	const handleDisable2FA = async () => {
+		if (disableCode.length !== 6) {
+			toast.error("Please enter a valid 6-digit code");
+			return;
+		}
+
+		setIsProcessing(true);
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
+
+			const response = await fetch(`${backendUrl}/api/v1/auth/2fa/disable`, {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({ code: disableCode }),
+			});
+
+			if (response.ok) {
+				setShowDisableDialog(false);
+				setDisableCode("");
+				await fetch2FAStatus();
+				toast.success("Two-Factor Authentication disabled successfully");
+			} else {
+				const errorData = await response.json();
+				toast.error(errorData.detail || "Invalid code");
+			}
+		} catch (err) {
+			console.error("Error disabling 2FA:", err);
+			toast.error("Failed to disable 2FA");
+		} finally {
+			setIsProcessing(false);
+		}
+	};
+
+	const copyToClipboard = (text: string) => {
+		navigator.clipboard.writeText(text);
+		setCopiedCode(text);
+		setTimeout(() => setCopiedCode(null), 2000);
+		toast.success("Copied to clipboard");
+	};
+
+	const downloadBackupCodes = () => {
+		const text = backupCodes.join("\n");
+		const blob = new Blob([text], { type: "text/plain" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "surfsense-2fa-backup-codes.txt";
+		a.click();
+		URL.revokeObjectURL(url);
+		toast.success("Backup codes downloaded");
+	};
+
+	if (loading || isLoadingStatus) {
 		return (
 			<div className="flex flex-col justify-center items-center min-h-screen">
 				<div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
