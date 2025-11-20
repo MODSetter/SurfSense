@@ -11,6 +11,8 @@ interface SearchSpace {
 	name: string;
 	description: string;
 	user_id: string;
+	citations_enabled: boolean;
+	qna_custom_instructions: string | null;
 }
 
 interface UseSearchSpaceOptions {
