@@ -244,7 +244,7 @@ class SearchSpace(BaseModel, TimestampMixin):
         Boolean, nullable=False, default=True
     )  # Enable/disable citations
     qna_custom_instructions = Column(
-        Text, nullable=True, default=""
+        Text, nullable=True
     )  # User's custom instructions
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
