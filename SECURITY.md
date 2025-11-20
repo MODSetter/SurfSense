@@ -17,29 +17,29 @@ This document tracks the security vulnerabilities addressed in the November 2025
 
 #### Critical & High Severity (CVSS ≥ 7.0)
 
-| Package | CVE | CVSS | Component | Previous Version | Fixed Version | Status |
-|---------|-----|------|-----------|------------------|---------------|--------|
-| glob | GHSA-5j98-mcp5-4vw2 | 7.5 | Web + Extension | 10.2.0-10.4.5 | 10.5.0 | ✅ Fixed |
-| base-x | CVE-2025-27611 | High | Extension | 3.0.10 | 3.0.11 | ✅ Fixed |
-| cross-spawn | CVE-2024-21538 | 7.5 | Web + Extension | 7.0.3 | 7.0.6 | ✅ Fixed |
-| css-what | CVE-2021-33587 | 7.5 | Extension | 4.0.0 | 5.0.1 | ⚠️ Transitive (linkedom) |
-| msgpackr | CVE-2023-52079 | 8.6 | Extension | 1.8.5 | 1.10.1 | ⚠️ Transitive (plasmo) |
+| Package | CVE | CVSS | Component | Vulnerable Versions | Fixed Version | Status |
+|---------|-----|------|-----------|---------------------|---------------|--------|
+| glob | GHSA-5j98-mcp5-4vw2 | 7.5 | Web + Extension | ≥10.2.0 <10.5.0 | 10.5.0+ | ✅ Fixed |
+| base-x | CVE-2025-27611 | High | Extension | ≤3.0.10 | 3.0.11+ | ✅ Fixed |
+| cross-spawn | CVE-2024-21538 | 7.5 | Web + Extension | ≥7.0.0 <7.0.5 | 7.0.6+ | ✅ Fixed |
+| css-what | CVE-2021-33587 | 7.5 | Extension | ≥4.0.0 ≤5.0.0 | 5.0.1+ | ⚠️ Transitive (linkedom) |
+| msgpackr | CVE-2023-52079 | 8.6 | Extension | <1.10.1 | 1.10.1+ | ⚠️ Transitive (plasmo) |
 
 #### Moderate Severity (CVSS 4.0-6.9)
 
-| Package | CVE | CVSS | Component | Previous Version | Fixed Version | Status |
-|---------|-----|------|-----------|------------------|---------------|--------|
-| next | GHSA-g5qg-72qw-gw5v | 6.2 | Web | 15.2.3 | 15.5.6 | ✅ Fixed |
-| next | GHSA-xv57-4mr9-wg8v | 4.3 | Web | 15.2.3 | 15.5.6 | ✅ Fixed |
-| next | GHSA-4342-x723-ch2f | 6.5 | Web | 15.2.3 | 15.5.6 | ✅ Fixed |
-| next | GHSA-223j-4rm8-mrmf | Low | Web | 15.2.3 | 15.5.6 | ✅ Fixed |
-| js-yaml | GHSA-mh29-5h37-fv8m | 5.3 | Web + Extension | 4.0.0-4.1.0 | 4.1.1 | ✅ Fixed |
-| esbuild | GHSA-67mh-4wv8-2f99 | 5.3 | Web + Extension | ≤0.24.2 | 0.25.0 | ⚠️ Transitive |
-| @babel/runtime | CVE-2025-27789 | 6.2 | Web + Extension | <7.26.10 | 7.28.4 | ✅ Fixed |
-| @babel/helpers | CVE-2025-27789 | 6.2 | Web + Extension | <7.26.10 | 7.28.4 | ✅ Fixed |
-| svelte | CVE-2024-45047 | 5.4 | Extension | 4.2.2 | 4.2.19 | ⚠️ Transitive (plasmo) |
-| tar-fs | Multiple | Moderate | Web + Extension | 2.1.1 | 2.1.4 | ✅ Fixed |
-| prismjs | GHSA-x7hr-w5r2-h6wg | 4.9 | Web | <1.30.0 | 1.30.0 | ⚠️ Transitive |
+| Package | CVE | CVSS | Component | Vulnerable Versions | Fixed Version | Status |
+|---------|-----|------|-----------|---------------------|---------------|--------|
+| next | GHSA-g5qg-72qw-gw5v | 6.2 | Web | ≥15.0.0 ≤15.4.4 | 15.5.6+ | ✅ Fixed |
+| next | GHSA-xv57-4mr9-wg8v | 4.3 | Web | ≥15.0.0 ≤15.4.4 | 15.5.6+ | ✅ Fixed |
+| next | GHSA-4342-x723-ch2f | 6.5 | Web | ≥15.0.0 <15.4.7 | 15.5.6+ | ✅ Fixed |
+| next | GHSA-223j-4rm8-mrmf | Low | Web | =15.2.3 | 15.5.6+ | ✅ Fixed |
+| js-yaml | GHSA-mh29-5h37-fv8m | 5.3 | Web + Extension | ≥4.0.0 <4.1.1 | 4.1.1+ | ✅ Fixed |
+| esbuild | GHSA-67mh-4wv8-2f99 | 5.3 | Web + Extension | ≤0.24.2 | 0.25.0+ | ⚠️ Transitive |
+| @babel/runtime | CVE-2025-27789 | 6.2 | Web + Extension | <7.26.10 | 7.28.4+ | ✅ Fixed |
+| @babel/helpers | CVE-2025-27789 | 6.2 | Web + Extension | <7.26.10 | 7.28.4+ | ✅ Fixed |
+| svelte | CVE-2024-45047 | 5.4 | Extension | <4.2.19 | 4.2.19+ | ⚠️ Transitive (plasmo) |
+| tar-fs | Multiple CVEs | Moderate | Web + Extension | ≥2.1.1 <2.1.4 | 2.1.4+ | ✅ Fixed |
+| prismjs | GHSA-x7hr-w5r2-h6wg | 4.9 | Web | <1.30.0 | 1.30.0+ | ⚠️ Transitive |
 
 #### Low Severity
 
@@ -116,13 +116,13 @@ Please do NOT open public issues for security vulnerabilities.
 
 ### References
 
-- [November 2025 Security Audit](./DEPLOYMENT_NOTES_2025-11-20.md)
 - [GitHub Security Advisories](https://github.com/okapteinis/SurfSense/security)
 - [Dependabot Alerts](https://github.com/okapteinis/SurfSense/security/dependabot)
+- [PR #87 - Security Vulnerability Fixes](https://github.com/okapteinis/SurfSense/pull/87)
 
 ---
 
 **Last Updated:** November 20, 2025
-**Audit Performed By:** Claude Code AI Assistant
+**Security Audit By:** Ojārs Kapteinis (with AI assistance)
 **Approved By:** Ojārs Kapteinis
 **Next Review:** December 2025

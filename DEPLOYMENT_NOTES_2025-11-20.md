@@ -101,7 +101,7 @@ To improve traceability and reduce human error, consider automating manual serve
 
 **Configuration Management:**
 - Use Ansible, Salt, or Chef to automate server configuration
-- Document all server changes as Infrastructure as Code (IaC)
+- Manage all server configurations as Infrastructure as Code (IaC)
 - Version control all deployment scripts and configurations
 
 **Deployment Automation:**
@@ -111,7 +111,7 @@ To improve traceability and reduce human error, consider automating manual serve
 
 **Database Management:**
 - Automate user creation and password resets via admin scripts or API endpoints
-- Implement secure credential rotation policies
+- Automate credential rotation according to secure policies
 - Use environment variables or secret management tools (HashiCorp Vault, AWS Secrets Manager)
 
 **Benefits:**
