@@ -142,6 +142,16 @@ export const getDocumentByChunkRequest = z.object({
 
 export const getDocumentByChunkResponse = documentWithChunks;
 
+/**
+ * Update document
+ */
+export const updateDocumentRequest = z.object({
+	id: z.number(),
+	data: document.pick({ search_space_id: true, document_type: true, content: true }),
+});
+
+export const updateDocumentResponse = document;
+
 export type GetDocumentsRequest = z.infer<typeof getDocumentsRequest>;
 export type GetDocumentsResponse = z.infer<typeof getDocumentsResponse>;
 export type GetDocumentRequest = z.infer<typeof getDocumentRequest>;
@@ -156,3 +166,5 @@ export type GetDocumentTypeCountsRequest = z.infer<typeof getDocumentTypeCountsR
 export type GetDocumentTypeCountsResponse = z.infer<typeof getDocumentTypeCountsResponse>;
 export type GetDocumentByChunkRequest = z.infer<typeof getDocumentByChunkRequest>;
 export type GetDocumentByChunkResponse = z.infer<typeof getDocumentByChunkResponse>;
+export type UpdateDocumentRequest = z.infer<typeof updateDocumentRequest>;
+export type UpdateDocumentResponse = z.infer<typeof updateDocumentResponse>;
