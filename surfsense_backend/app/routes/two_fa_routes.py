@@ -290,9 +290,7 @@ async def disable_2fa(
             code_request.code, valid_backup_codes
         )
         if is_valid and used_index is not None:
-            # Remove used backup code entirely (not replace with None)
-            valid_backup_codes.pop(used_index)
-            user.backup_codes = valid_backup_codes
+            # Mark that a backup code was used for logging (no need to update the list since we're deleting all codes)
             used_backup_code = True
 
     if not is_valid:
