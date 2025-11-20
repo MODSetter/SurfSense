@@ -23,7 +23,7 @@ from app.users import current_active_user, get_jwt_strategy
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/auth/2fa", tags=["2fa"])
+router = APIRouter(prefix="/auth/2fa", tags=["2fa"])
 
 # Password context for verifying user passwords
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
