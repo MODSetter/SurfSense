@@ -35,7 +35,7 @@ def _build_chat_history_section(chat_history: str | None = None):
     if chat_history:
         return f"""
 <chat_history>
-{chat_history if chat_history else "NO CHAT HISTORY PROVIDED"}
+{chat_history}
 </chat_history>
 """
     return """
@@ -189,20 +189,20 @@ async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any
     has_documents_initially = documents and len(documents) > 0
     chat_history_str = langchain_chat_history_to_str(state.chat_history)
 
-    if has_documents_initially:
-        # Compose the full citation prompt: base + citation instructions + custom instructions
-        full_citation_prompt_template = (
-            qna_base_prompt + qna_citation_instructions + qna_custom_instructions
-        )
+    # Compose the full citation prompt: base + citation instructions + custom instructions
+    full_citation_prompt_template = (
+        qna_base_prompt + qna_citation_instructions + qna_custom_instructions
+    )
 
+    if has_documents_initially:
         # Create base message template for token calculation (without documents)
         base_human_message_template = f"""
-        
+
         User's question:
         <user_query>
             {user_query}
         </user_query>
-        
+
         Please provide a detailed, comprehensive answer to the user's question using the information from their personal knowledge sources. Make sure to cite all information appropriately and engage in a conversational manner.
         """
 
@@ -230,9 +230,6 @@ async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any
     # With documents: use base + citation instructions + custom instructions
     # Without documents: use the default no-documents prompt from constants
     if has_documents:
-        full_citation_prompt_template = (
-            qna_base_prompt + qna_citation_instructions + qna_custom_instructions
-        )
         system_prompt = _format_system_prompt(
             full_citation_prompt_template, chat_history_str, language
         )
