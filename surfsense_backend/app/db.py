@@ -147,6 +147,21 @@ class SocialMediaPlatform(str, Enum):
     OTHER = "OTHER"
 
 
+class SecurityEventType(str, Enum):
+    """Security-related event types for audit logging."""
+    TWO_FA_ENABLED = "TWO_FA_ENABLED"
+    TWO_FA_DISABLED = "TWO_FA_DISABLED"
+    TWO_FA_SETUP_INITIATED = "TWO_FA_SETUP_INITIATED"
+    TWO_FA_VERIFICATION_SUCCESS = "TWO_FA_VERIFICATION_SUCCESS"
+    TWO_FA_VERIFICATION_FAILED = "TWO_FA_VERIFICATION_FAILED"
+    TWO_FA_LOGIN_SUCCESS = "TWO_FA_LOGIN_SUCCESS"
+    TWO_FA_LOGIN_FAILED = "TWO_FA_LOGIN_FAILED"
+    BACKUP_CODE_USED = "BACKUP_CODE_USED"
+    BACKUP_CODES_REGENERATED = "BACKUP_CODES_REGENERATED"
+    PASSWORD_LOGIN_SUCCESS = "PASSWORD_LOGIN_SUCCESS"
+    PASSWORD_LOGIN_FAILED = "PASSWORD_LOGIN_FAILED"
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -385,6 +400,20 @@ class Log(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
     search_space = relationship("SearchSpace", back_populates="logs")
+
+
+class SecurityEvent(BaseModel, TimestampMixin):
+    """Security audit log for tracking security-related events."""
+    __tablename__ = "security_events"
+
+    event_type = Column(SQLAlchemyEnum(SecurityEventType), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    ip_address = Column(String(45), nullable=True)  # IPv6 max length is 45
+    user_agent = Column(String(500), nullable=True)
+    success = Column(Boolean, nullable=False, default=True)
+    details = Column(JSON, nullable=True, default={})
+
+    user = relationship("User", backref="security_events")
 
 
 class SocialMediaLink(BaseModel, TimestampMixin):
