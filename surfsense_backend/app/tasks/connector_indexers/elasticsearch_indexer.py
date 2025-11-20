@@ -290,6 +290,7 @@ async def index_elasticsearch_documents(
                         {
                             "document_id": hit.get("_id", "unknown"),
                             "error_type": type(e).__name__,
+                            "error_message": str(e),
                         },
                     )
                     continue
@@ -330,7 +331,7 @@ async def index_elasticsearch_documents(
         error_msg = "Error indexing Elasticsearch documents"
         logger.exception(error_msg)
         await task_logger.log_task_failure(
-            log_entry, "Indexing failed", error_msg, {"error_type": type(e).__name__}
+            log_entry, "Indexing failed", error_msg, {"error_type": type(e).__name__, "error_message": str(e)}
         )
         await session.rollback()
         if es_connector:
