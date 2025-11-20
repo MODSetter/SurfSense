@@ -207,6 +207,9 @@ class DocumentHybridSearchRetriever:
         )
 
         # Final combined query using a FULL OUTER JOIN with RRF scoring
+        # Fix N+1 query problem by eager loading chunks with selectinload
+        from sqlalchemy.orm import selectinload
+
         final_query = (
             select(
                 Document,
@@ -227,7 +230,10 @@ class DocumentHybridSearchRetriever:
                 Document.id
                 == func.coalesce(semantic_search_cte.c.id, keyword_search_cte.c.id),
             )
-            .options(joinedload(Document.search_space))
+            .options(
+                joinedload(Document.search_space),
+                selectinload(Document.chunks)  # Eager load chunks to prevent N+1 queries
+            )
             .order_by(text("score DESC"))
             .limit(top_k)
         )
@@ -243,16 +249,8 @@ class DocumentHybridSearchRetriever:
         # Convert to serializable dictionaries - return individual chunks
         serialized_results = []
         for document, score in documents_with_scores:
-            # Fetch associated chunks for this document
-            from sqlalchemy import select
-
-            from app.db import Chunk
-
-            chunks_query = (
-                select(Chunk).where(Chunk.document_id == document.id).order_by(Chunk.id)
-            )
-            chunks_result = await self.db_session.execute(chunks_query)
-            chunks = chunks_result.scalars().all()
+            # Access pre-loaded chunks (no additional query needed due to selectinload)
+            chunks = document.chunks
 
             # Return individual chunks instead of concatenated content
             if chunks:

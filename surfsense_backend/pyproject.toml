@@ -58,6 +58,12 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ruff>=0.12.5",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+    "faker>=33.0.0",
+    "pytest-mock>=3.14.0",
 ]
 
 [tool.ruff]
@@ -148,3 +154,76 @@ line-ending = "auto"
 known-first-party = ["app"]
 force-single-line = false
 combine-as-imports = true
+
+[tool.pytest.ini_options]
+# Minimum version of pytest
+minversion = "8.0"
+
+# Test discovery patterns
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Test paths
+testpaths = ["tests"]
+
+# Async support
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+# Coverage options
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+    "--cov-branch",
+    "-v",
+    "-ra",
+]
+
+# Markers for organizing tests
+markers = [
+    "unit: Unit tests that test individual functions/methods",
+    "integration: Integration tests that test multiple components together",
+    "e2e: End-to-end tests that test full workflows",
+    "slow: Tests that take a long time to run",
+    "db: Tests that require database access",
+    "auth: Tests related to authentication and authorization",
+    "api: Tests for API endpoints",
+    "services: Tests for service layer",
+    "models: Tests for database models",
+]
+
+# Ignore warnings
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/alembic/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

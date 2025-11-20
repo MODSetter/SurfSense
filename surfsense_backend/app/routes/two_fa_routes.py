@@ -19,6 +19,7 @@ from sqlalchemy.future import select
 from app.db import User, get_async_session
 from app.services.two_fa_service import two_fa_service
 from app.services.security_event_service import security_event_service
+from app.services.rate_limit_service import RateLimitService
 from app.users import current_active_user, get_jwt_strategy
 
 logger = logging.getLogger(__name__)
@@ -200,8 +201,22 @@ async def verify_2fa_setup(
     Verify the 2FA setup by confirming the first TOTP code.
 
     This enables 2FA for the user and generates backup codes.
+
+    Rate Limiting:
+    - Max 5 failed attempts per IP within 15 minutes (shared with other 2FA endpoints)
+    - After exceeding limit, IP is blocked for 60 minutes
     """
     ip_address, user_agent = get_request_metadata(http_request)
+
+    # Check if IP is rate limited
+    if ip_address:
+        is_blocked, block_info = RateLimitService.is_ip_blocked(ip_address)
+        if is_blocked and block_info:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many failed attempts. Please try again in {block_info.remaining_seconds} seconds.",
+                headers={"Retry-After": str(block_info.remaining_seconds)},
+            )
 
     if user.two_fa_enabled:
         raise HTTPException(
@@ -228,6 +243,15 @@ async def verify_2fa_setup(
     )
 
     if not is_valid:
+        # Record failed attempt for rate limiting
+        if ip_address:
+            RateLimitService.record_failed_attempt(
+                ip_address=ip_address,
+                user_id=str(user.id),
+                username=user.email,
+                reason="failed_2fa_setup_verification",
+            )
+
         raise HTTPException(
             status_code=400,
             detail="Invalid verification code. Please try again.",
@@ -520,8 +544,23 @@ async def verify_2fa_login(
 
     Called after /login when 2FA is required. Accepts either a 6-digit TOTP code
     from the authenticator app or a single-use backup code (format: XXXX-XXXX).
+
+    Rate Limiting:
+    - Max 5 failed attempts per IP within 15 minutes
+    - After exceeding limit, IP is blocked for 60 minutes
+    - Prevents brute force attacks on 2FA codes
     """
     ip_address, user_agent = get_request_metadata(http_request)
+
+    # Check if IP is rate limited
+    if ip_address:
+        is_blocked, block_info = RateLimitService.is_ip_blocked(ip_address)
+        if is_blocked and block_info:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many failed attempts. Please try again in {block_info.remaining_seconds} seconds.",
+                headers={"Retry-After": str(block_info.remaining_seconds)},
+            )
 
     # Get user ID from temporary token
     user_id = get_user_id_from_token(login_request.temporary_token)
@@ -584,10 +623,46 @@ async def verify_2fa_login(
         )
 
     if not is_valid:
+        # Record failed 2FA attempt for rate limiting
+        if ip_address:
+            should_block, attempt_count = RateLimitService.record_failed_attempt(
+                ip_address=ip_address,
+                user_id=str(user.id),
+                username=user.email,
+                reason="failed_2fa_verification",
+            )
+            if should_block:
+                logger.warning(
+                    f"IP {ip_address} blocked after {attempt_count} failed 2FA attempts for user {user.email}"
+                )
+                # Log rate limit block event
+                await security_event_service.log_rate_limit_block(
+                    session=session,
+                    user_id=user.id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    details={"failed_attempts": attempt_count, "reason": "failed_2fa_verification"},
+                )
+
         raise HTTPException(
             status_code=400,
             detail="Invalid verification code",
         )
+
+    # Clear rate limit counters on successful verification
+    if ip_address:
+        # This IP successfully verified, so clear any failed attempt tracking
+        from app.services.rate_limit_service import (
+            FAILED_ATTEMPTS_PREFIX,
+            get_redis_client,
+        )
+
+        try:
+            redis_client = get_redis_client()
+            attempts_key = f"{FAILED_ATTEMPTS_PREFIX}{ip_address}"
+            redis_client.delete(attempts_key)
+        except Exception as e:
+            logger.warning(f"Failed to clear rate limit counter: {e}")
 
     # Invalidate temporary token
     invalidate_temporary_token(login_request.temporary_token)

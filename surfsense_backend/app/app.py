@@ -65,6 +65,16 @@ app.add_middleware(
     ],
 )
 
+# Add security headers middleware
+# Adds security headers to all responses to protect against common web vulnerabilities
+from app.middleware.security_headers import SecurityHeadersMiddleware
+
+app.add_middleware(
+    SecurityHeadersMiddleware,
+    enable_hsts=True,  # Enable HSTS in production
+    enable_csp=True,  # Enable Content Security Policy
+)
+
 app.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
 )
