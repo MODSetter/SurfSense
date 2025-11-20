@@ -84,12 +84,12 @@ class RateLimitService:
             client = get_redis_client()
             attempts_key = f"{FAILED_ATTEMPTS_PREFIX}{ip_address}"
 
-            # Increment attempt counter
-            attempts = client.incr(attempts_key)
-
-            # Set expiry on first attempt
-            if attempts == 1:
-                client.expire(attempts_key, ATTEMPT_WINDOW_MINUTES * 60)
+            # Use pipeline to make INCR and EXPIRE atomic
+            pipe = client.pipeline()
+            pipe.incr(attempts_key)
+            pipe.expire(attempts_key, ATTEMPT_WINDOW_MINUTES * 60)
+            results = pipe.execute()
+            attempts = results[0]
 
             # Check if should block
             if attempts >= MAX_FAILED_ATTEMPTS:
@@ -237,11 +237,46 @@ class RateLimitService:
                 "+inf",
             )
 
+            if not ip_addresses:
+                return []
+
+            # Batch fetch all block data with mget to avoid N+1 queries
+            block_keys = [f"{BLOCKED_IP_PREFIX}{ip}" for ip in ip_addresses]
+            block_data_list = client.mget(block_keys)
+
             blocked_ips = []
-            for ip_address in ip_addresses:
-                is_blocked, block = RateLimitService.is_ip_blocked(ip_address)
-                if is_blocked and block:
+            for ip_address, block_data in zip(ip_addresses, block_data_list):
+                if not block_data:
+                    continue
+
+                try:
+                    data = json.loads(block_data)
+                    blocked_at = datetime.fromisoformat(data["blocked_at"])
+                    expires_at = datetime.fromisoformat(data["expires_at"])
+
+                    # Skip if expired
+                    if now >= expires_at:
+                        RateLimitService._cleanup_expired_block(ip_address)
+                        continue
+
+                    remaining_seconds = int((expires_at - now).total_seconds())
+
+                    block = BlockedIP(
+                        ip_address=ip_address,
+                        user_id=data.get("user_id") or None,
+                        username=data.get("username", "Unknown"),
+                        blocked_at=blocked_at,
+                        expires_at=expires_at,
+                        remaining_seconds=remaining_seconds,
+                        failed_attempts=data.get("failed_attempts", 0),
+                        reason=data.get("reason", "exceeded_max_attempts"),
+                        lockout_type=data.get("lockout_type", "temporary"),
+                    )
                     blocked_ips.append(block)
+
+                except (json.JSONDecodeError, KeyError, ValueError) as e:
+                    logger.warning(f"Invalid block data for IP {ip_address}: {e}")
+                    continue
 
             # Sort by remaining time (descending)
             blocked_ips.sort(key=lambda x: x.remaining_seconds, reverse=True)
@@ -311,16 +346,45 @@ class RateLimitService:
         Returns:
             Tuple of (successful_count, failed_ips)
         """
-        successful = 0
-        failed = []
+        if not ip_addresses:
+            return 0, []
 
-        for ip_address in ip_addresses:
-            if RateLimitService.unlock_ip(ip_address, admin_user_id, reason):
-                successful += 1
-            else:
-                failed.append(ip_address)
+        try:
+            client = get_redis_client()
 
-        return successful, failed
+            # Use pipeline to batch all delete operations
+            pipe = client.pipeline()
+
+            # Queue all deletions
+            for ip_address in ip_addresses:
+                block_key = f"{BLOCKED_IP_PREFIX}{ip_address}"
+                attempts_key = f"{FAILED_ATTEMPTS_PREFIX}{ip_address}"
+
+                pipe.delete(block_key)
+                pipe.delete(attempts_key)
+                pipe.zrem(BLOCKED_IPS_SET, ip_address)
+
+            # Execute all operations at once
+            pipe.execute()
+
+            logger.info(
+                f"Bulk unlocked {len(ip_addresses)} IPs by admin {admin_user_id or 'Unknown'} "
+                f"(reason: {reason or 'Not specified'})"
+            )
+
+            return len(ip_addresses), []
+
+        except redis.RedisError as e:
+            logger.error(f"Failed to bulk unlock IPs in Redis: {e}")
+            # Fallback to individual unlocks on error
+            successful = 0
+            failed = []
+            for ip_address in ip_addresses:
+                if RateLimitService.unlock_ip(ip_address, admin_user_id, reason):
+                    successful += 1
+                else:
+                    failed.append(ip_address)
+            return successful, failed
 
     @staticmethod
     def get_statistics() -> RateLimitStats:
@@ -341,10 +405,11 @@ class RateLimitService:
                 "+inf",
             )
 
-            # For demo purposes, we'll use active blocks as approximation
-            # In production, you'd want to track this in a database
-            blocks_24h = active_blocks
-            blocks_7d = active_blocks
+            # Note: Historical statistics (24h/7d) are not yet implemented
+            # They require database storage. Setting to 0 to avoid misleading data.
+            # To implement: Store block events in database with timestamps and query accordingly.
+            blocks_24h = 0
+            blocks_7d = 0
 
             return RateLimitStats(
                 active_blocks=active_blocks,
