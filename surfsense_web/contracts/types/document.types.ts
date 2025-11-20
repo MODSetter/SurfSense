@@ -152,6 +152,15 @@ export const updateDocumentRequest = z.object({
 
 export const updateDocumentResponse = document;
 
+/**
+ * Delete document
+ */
+export const deleteDocumentRequest = document.pick({ id: true });
+
+export const deleteDocumentResponse = z.object({
+	message: z.literal("Document deleted successfully"),
+});
+
 export type GetDocumentsRequest = z.infer<typeof getDocumentsRequest>;
 export type GetDocumentsResponse = z.infer<typeof getDocumentsResponse>;
 export type GetDocumentRequest = z.infer<typeof getDocumentRequest>;
@@ -168,3 +177,5 @@ export type GetDocumentByChunkRequest = z.infer<typeof getDocumentByChunkRequest
 export type GetDocumentByChunkResponse = z.infer<typeof getDocumentByChunkResponse>;
 export type UpdateDocumentRequest = z.infer<typeof updateDocumentRequest>;
 export type UpdateDocumentResponse = z.infer<typeof updateDocumentResponse>;
+export type DeleteDocumentRequest = z.infer<typeof deleteDocumentRequest>;
+export type DeleteDocumentResponse = z.infer<typeof deleteDocumentResponse>;
