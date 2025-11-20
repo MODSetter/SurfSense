@@ -80,16 +80,24 @@ export default function RateLimitingPage() {
 		}
 	}, [user, fetchBlockedIPs]);
 
-	// Auto-refresh every 30 seconds
+	// Auto-refresh every 30 seconds (pause when user is interacting)
 	useEffect(() => {
-		if (!autoRefresh) return;
+		// Pause auto-refresh when:
+		// - Auto-refresh is disabled
+		// - User has selected IPs (preparing for bulk action)
+		// - Dialog is open
+		// - Currently unlocking
+		const shouldPause =
+			!autoRefresh || selectedIPs.size > 0 || showUnlockDialog || isUnlocking;
+
+		if (shouldPause) return;
 
 		const interval = setInterval(() => {
 			fetchBlockedIPs();
 		}, 30000);
 
 		return () => clearInterval(interval);
-	}, [autoRefresh, fetchBlockedIPs]);
+	}, [autoRefresh, selectedIPs.size, showUnlockDialog, isUnlocking, fetchBlockedIPs]);
 
 	// Handle manual refresh
 	const handleRefresh = () => {
@@ -270,6 +278,7 @@ export default function RateLimitingPage() {
 							</CardHeader>
 							<CardContent>
 								<div className="text-2xl font-bold">{statistics.active_blocks}</div>
+								<p className="text-xs text-muted-foreground mt-1">Currently blocked</p>
 							</CardContent>
 						</Card>
 						<Card>
@@ -277,7 +286,8 @@ export default function RateLimitingPage() {
 								<CardTitle className="text-sm font-medium">Blocks (24h)</CardTitle>
 							</CardHeader>
 							<CardContent>
-								<div className="text-2xl font-bold">{statistics.blocks_24h}</div>
+								<div className="text-2xl font-bold text-muted-foreground">—</div>
+								<p className="text-xs text-muted-foreground mt-1">Not yet available</p>
 							</CardContent>
 						</Card>
 						<Card>
@@ -285,7 +295,8 @@ export default function RateLimitingPage() {
 								<CardTitle className="text-sm font-medium">Blocks (7d)</CardTitle>
 							</CardHeader>
 							<CardContent>
-								<div className="text-2xl font-bold">{statistics.blocks_7d}</div>
+								<div className="text-2xl font-bold text-muted-foreground">—</div>
+								<p className="text-xs text-muted-foreground mt-1">Not yet available</p>
 							</CardContent>
 						</Card>
 						<Card>
@@ -296,6 +307,7 @@ export default function RateLimitingPage() {
 								<div className="text-2xl font-bold">
 									{Math.floor(statistics.avg_lockout_duration / 60)}m
 								</div>
+								<p className="text-xs text-muted-foreground mt-1">Default duration</p>
 							</CardContent>
 						</Card>
 					</div>
@@ -325,20 +337,27 @@ export default function RateLimitingPage() {
 										: `${blockedIPs.length} IP address(es) currently blocked`}
 								</CardDescription>
 							</div>
-							<div className="flex items-center gap-2">
-								{isAdmin && selectedIPs.size > 0 && (
-									<Button
-										variant="outline"
-										onClick={handleBulkUnlock}
-										disabled={isUnlocking}
-									>
-										<Unlock className="h-4 w-4 mr-2" />
-										Unlock Selected ({selectedIPs.size})
+							<div className="flex flex-col items-end gap-2">
+								<div className="flex items-center gap-2">
+									{isAdmin && selectedIPs.size > 0 && (
+										<Button
+											variant="outline"
+											onClick={handleBulkUnlock}
+											disabled={isUnlocking}
+										>
+											<Unlock className="h-4 w-4 mr-2" />
+											Unlock Selected ({selectedIPs.size})
+										</Button>
+									)}
+									<Button variant="outline" size="sm" onClick={handleRefresh}>
+										<RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
 									</Button>
+								</div>
+								{(selectedIPs.size > 0 || showUnlockDialog || isUnlocking) && (
+									<p className="text-xs text-muted-foreground">
+										Auto-refresh paused during interaction
+									</p>
 								)}
-								<Button variant="outline" size="sm" onClick={handleRefresh}>
-									<RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-								</Button>
 							</div>
 						</div>
 					</CardHeader>
