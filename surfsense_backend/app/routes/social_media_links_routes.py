@@ -11,7 +11,7 @@ from app.schemas.social_media_links import (
 )
 from app.users import current_active_user
 
-router = APIRouter(prefix="/api/v1/social-media-links", tags=["Social Media Links"])
+router = APIRouter(prefix="/social-media-links", tags=["Social Media Links"])
 
 
 @router.get("/public", response_model=list[SocialMediaLinkPublic])

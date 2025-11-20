@@ -52,6 +52,7 @@ dependencies = [
     "pyotp>=2.9.0",
     "qrcode[pil]>=7.4.2",
     "feedparser>=6.0.0",
+    "bcrypt==4.0.1",
 ]
 
 [dependency-groups]

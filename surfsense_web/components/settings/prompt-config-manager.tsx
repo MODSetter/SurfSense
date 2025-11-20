@@ -17,6 +17,11 @@ interface PromptConfigManagerProps {
 	searchSpaceId: number;
 }
 
+interface PromptConfigPayload {
+	citations_enabled: boolean;
+	qna_custom_instructions: string;
+}
+
 export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps) {
 	const { searchSpace, loading, fetchSearchSpace } = useSearchSpace({
 		searchSpaceId,
@@ -54,7 +59,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			setSaving(true);
 
 			// Prepare payload with simplified schema
-			const payload: any = {
+			const payload: PromptConfigPayload = {
 				citations_enabled: enableCitations,
 				qna_custom_instructions: customInstructions.trim() || "",
 			};

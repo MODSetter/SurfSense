@@ -1,217 +1,46 @@
-"use client";
+SECURITY PAGE UI UPDATE - TO BE APPLIED
 
-import { ArrowLeft, Shield, ShieldCheck, ShieldOff, Copy, Check, Download } from "lucide-react";
-import Link from "next/link";
-import { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { DashboardHeader } from "@/components/DashboardHeader";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useUser } from "@/hooks";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
-import { authApiService } from "@/lib/apis/auth-api.service";
-import { ValidationError } from "@/lib/error";
+Replace lines 240-273 in /home/user/SurfSense/surfsense_web/app/dashboard/security/page.tsx
 
-interface TwoFAStatus {
-	enabled: boolean;
-	has_backup_codes: boolean;
-}
+REMOVE (old code showing "Coming Soon"):
+				<Card>
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Shield className="h-5 w-5" />
+							Two-Factor Authentication (2FA)
+						</CardTitle>
+						<CardDescription>
+							Add an extra layer of security to your account by enabling two-factor authentication
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="flex items-center justify-between p-4 border rounded-lg">
+							<div className="flex items-center gap-3">
+								<ShieldOff className="h-8 w-8 text-muted-foreground" />
+								<div>
+									<p className="font-medium">2FA Status</p>
+									<p className="text-sm text-muted-foreground">
+										Two-factor authentication is not enabled
+									</p>
+								</div>
+							</div>
+							<Button disabled>
+								Enable 2FA
+							</Button>
+						</div>
+						<Alert>
+							<ShieldCheck className="h-4 w-4" />
+							<AlertTitle>Coming Soon</AlertTitle>
+							<AlertDescription>
+								Two-factor authentication setup will be available in a future update.
+								This will allow you to use an authenticator app (like Google Authenticator or Authy)
+								to generate time-based codes for additional security.
+							</AlertDescription>
+						</Alert>
+					</CardContent>
+				</Card>
 
-interface SetupData {
-	secret: string;
-	qr_code: string;
-	uri: string;
-}
-
-export default function SecurityPage() {
-	const { user, loading, error } = useUser();
-	const [twoFAStatus, setTwoFAStatus] = useState<TwoFAStatus | null>(null);
-	const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-	const [showSetupDialog, setShowSetupDialog] = useState(false);
-	const [showDisableDialog, setShowDisableDialog] = useState(false);
-	const [setupData, setSetupData] = useState<SetupData | null>(null);
-	const [verificationCode, setVerificationCode] = useState("");
-	const [disableCode, setDisableCode] = useState("");
-	const [backupCodes, setBackupCodes] = useState<string[]>([]);
-	const [showBackupCodes, setShowBackupCodes] = useState(false);
-	const [copiedCode, setCopiedCode] = useState<string | null>(null);
-	const [isProcessing, setIsProcessing] = useState(false);
-
-	// Defensive: Safely handle user data, including null/undefined cases
-	const customUser = {
-		name: user?.email ? user.email.split("@")[0] : "User",
-		email: user?.email || (error ? "Error loading user" : "Unknown User"),
-		avatar: user?.avatar || "/icon-128.png",
-	};
-
-	// Fetch 2FA status
-	useEffect(() => {
-		if (user) {
-			fetch2FAStatus();
-		}
-	}, [user]);
-
-	const fetch2FAStatus = async () => {
-		try {
-			setIsLoadingStatus(true);
-			const data = await authApiService.get2FAStatus();
-			setTwoFAStatus(data);
-		} catch (err) {
-			console.error("Error fetching 2FA status:", err);
-			toast.error("Failed to load 2FA status");
-		} finally {
-			setIsLoadingStatus(false);
-		}
-	};
-
-	const handleEnableClick = async () => {
-		setIsProcessing(true);
-		try {
-			const data = await authApiService.setup2FA();
-			setSetupData(data);
-			setShowSetupDialog(true);
-		} catch (err) {
-			console.error("Error starting 2FA setup:", err);
-			if (err instanceof ValidationError) {
-				toast.error(err.message);
-			} else {
-				toast.error("Failed to start 2FA setup");
-			}
-		} finally {
-			setIsProcessing(false);
-		}
-	};
-
-	const handleVerifySetup = async () => {
-		if (!verificationCode.trim()) {
-			toast.error("Please enter a verification code");
-			return;
-		}
-
-		setIsProcessing(true);
-		try {
-			const data = await authApiService.verifySetup2FA({ code: verificationCode });
-			if (data.backup_codes) {
-				setBackupCodes(data.backup_codes);
-				setShowBackupCodes(true);
-			}
-			setShowSetupDialog(false);
-			setVerificationCode("");
-			await fetch2FAStatus();
-			toast.success("Two-Factor Authentication enabled successfully!");
-		} catch (err) {
-			console.error("Error verifying 2FA setup:", err);
-			if (err instanceof ValidationError) {
-				toast.error(err.message);
-			} else {
-				toast.error("Invalid verification code");
-			}
-		} finally {
-			setIsProcessing(false);
-		}
-	};
-
-	const handleDisable2FA = async () => {
-		// Allow both TOTP codes (6 digits) and backup codes (XXXX-XXXX format)
-		if (!disableCode.trim()) {
-			toast.error("Please enter a code");
-			return;
-		}
-
-		setIsProcessing(true);
-		try {
-			await authApiService.disable2FA({ code: disableCode });
-			setShowDisableDialog(false);
-			setDisableCode("");
-			await fetch2FAStatus();
-			toast.success("Two-Factor Authentication disabled successfully");
-		} catch (err) {
-			console.error("Error disabling 2FA:", err);
-			if (err instanceof ValidationError) {
-				toast.error(err.message);
-			} else {
-				toast.error("Invalid code");
-			}
-		} finally {
-			setIsProcessing(false);
-		}
-	};
-
-	const copyToClipboard = (text: string) => {
-		navigator.clipboard.writeText(text);
-		setCopiedCode(text);
-		setTimeout(() => setCopiedCode(null), 2000);
-		toast.success("Copied to clipboard");
-	};
-
-	const downloadBackupCodes = () => {
-		const text = backupCodes.join("\n");
-		const blob = new Blob([text], { type: "text/plain" });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = "surfsense-2fa-backup-codes.txt";
-		a.click();
-		URL.revokeObjectURL(url);
-		toast.success("Backup codes downloaded");
-	};
-
-	if (loading || isLoadingStatus) {
-		return (
-			<div className="flex flex-col justify-center items-center min-h-screen">
-				<div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-				<p className="text-muted-foreground">Loading Security Settings...</p>
-			</div>
-		);
-	}
-
-	if (error) {
-		return (
-			<div className="container mx-auto py-10">
-				<Alert variant="destructive">
-					<AlertTitle>Error</AlertTitle>
-					<AlertDescription>{error}</AlertDescription>
-				</Alert>
-			</div>
-		);
-	}
-
-	return (
-		<div className="container mx-auto py-10">
-			<div className="flex flex-col space-y-6">
-				<DashboardHeader
-					title="Security Settings"
-					description="Manage your account security and two-factor authentication"
-					user={customUser}
-					isAdmin={user?.is_superuser ?? false}
-				/>
-
-				<div className="mb-4">
-					<Link href="/dashboard">
-						<Button variant="ghost" size="sm">
-							<ArrowLeft className="mr-2 h-4 w-4" />
-							Back to Dashboard
-						</Button>
-					</Link>
-				</div>
-
+REPLACE WITH (functional UI):
 				<Card>
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
@@ -438,7 +267,3 @@ export default function SecurityPage() {
 						</Dialog>
 					</CardContent>
 				</Card>
-			</div>
-		</div>
-	);
-}

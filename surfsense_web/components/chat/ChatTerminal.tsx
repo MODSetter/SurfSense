@@ -14,6 +14,16 @@ interface TerminalDisplayProps {
 	message: Message;
 }
 
+// Lookup map for status text based on keywords
+// Defined at module scope to avoid recreation on every render
+const STATUS_TEXT_MAP: Record<string, string> = {
+	research: "Researching...",
+	generat: "Generating answer...",
+	writ: "Writing response...",
+	analyz: "Analyzing...",
+	search: "Searching...",
+};
+
 /**
  * Loading indicator component that displays a pulsing anchor icon and dynamic status text
  * Respects user's motion preferences and provides proper accessibility support
@@ -33,26 +43,14 @@ export default function TerminalDisplay({ message }: TerminalDisplayProps) {
 
 	// Extract dynamic status text from the last event
 	const getStatusText = (): string => {
-		if (events.length === 0) return "Processing...";
-
 		const lastEvent = events[events.length - 1];
 		const text = lastEvent.text?.toLowerCase() || "";
 
-		// Match common process stages and return appropriate text
-		if (text.includes("research")) {
-			return "Researching...";
-		}
-		if (text.includes("generat")) {
-			return "Generating answer...";
-		}
-		if (text.includes("writ")) {
-			return "Writing response...";
-		}
-		if (text.includes("analyz")) {
-			return "Analyzing...";
-		}
-		if (text.includes("search")) {
-			return "Searching...";
+		// Find matching keyword and return corresponding status text
+		for (const [keyword, statusText] of Object.entries(STATUS_TEXT_MAP)) {
+			if (text.includes(keyword)) {
+				return statusText;
+			}
 		}
 
 		// Default fallback

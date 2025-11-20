@@ -10,7 +10,7 @@ from app.schemas.site_configuration import (
 )
 from app.users import current_active_user
 
-router = APIRouter(prefix="/api/v1/site-config", tags=["Site Configuration"])
+router = APIRouter(prefix="/site-config", tags=["Site Configuration"])
 
 
 async def get_or_create_config(db: AsyncSession) -> SiteConfiguration:

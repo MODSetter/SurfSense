@@ -9,7 +9,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 import redis
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -18,6 +18,7 @@ from sqlalchemy.future import select
 
 from app.db import User, get_async_session
 from app.services.two_fa_service import two_fa_service
+from app.services.security_event_service import security_event_service
 from app.users import current_active_user, get_jwt_strategy
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,24 @@ def get_redis_client() -> redis.Redis:
 
 # Key prefix for 2FA temporary tokens in Redis
 TEMP_TOKEN_PREFIX = "2fa_temp_token:"
+
+
+def get_request_metadata(request: Request | None) -> tuple[str | None, str | None]:
+    """Extract IP address and user agent from request."""
+    if not request:
+        return None, None
+
+    # Get IP address (handle proxy headers)
+    ip_address = request.client.host if request.client else None
+    if "x-forwarded-for" in request.headers:
+        ip_address = request.headers["x-forwarded-for"].split(",")[0].strip()
+    elif "x-real-ip" in request.headers:
+        ip_address = request.headers["x-real-ip"]
+
+    # Get user agent
+    user_agent = request.headers.get("user-agent")
+
+    return ip_address, user_agent
 
 
 class SetupResponse(BaseModel):
@@ -72,7 +91,11 @@ class StatusResponse(BaseModel):
 
 
 class DisableRequest(BaseModel):
-    """Request to disable 2FA."""
+    """Request to disable 2FA.
+
+    Attributes:
+        code: A 6-digit TOTP code from authenticator app or a backup code (format: XXXX-XXXX)
+    """
 
     code: str
 
@@ -84,7 +107,12 @@ class BackupCodesResponse(BaseModel):
 
 
 class TwoFALoginRequest(BaseModel):
-    """Request for 2FA verification during login."""
+    """Request for 2FA verification during login.
+
+    Attributes:
+        temporary_token: Temporary token received from /login endpoint
+        code: A 6-digit TOTP code from authenticator app or a backup code (format: XXXX-XXXX)
+    """
 
     temporary_token: str
     code: str
@@ -114,6 +142,7 @@ async def get_2fa_status(
 
 @router.post("/setup", response_model=SetupResponse)
 async def setup_2fa(
+    request: Request,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -142,6 +171,15 @@ async def setup_2fa(
     user.totp_secret = secret
     await session.commit()
 
+    # Log security event
+    ip_address, user_agent = get_request_metadata(request)
+    await security_event_service.log_2fa_setup_initiated(
+        session=session,
+        user_id=user.id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
     logger.info(f"2FA setup initiated for user {user.email}")
 
     return SetupResponse(
@@ -153,7 +191,8 @@ async def setup_2fa(
 
 @router.post("/verify-setup", response_model=VerifySetupResponse)
 async def verify_2fa_setup(
-    request: VerifyCodeRequest,
+    code_request: VerifyCodeRequest,
+    http_request: Request,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -162,6 +201,8 @@ async def verify_2fa_setup(
 
     This enables 2FA for the user and generates backup codes.
     """
+    ip_address, user_agent = get_request_metadata(http_request)
+
     if user.two_fa_enabled:
         raise HTTPException(
             status_code=400,
@@ -175,7 +216,18 @@ async def verify_2fa_setup(
         )
 
     # Verify the code
-    if not two_fa_service.verify_totp(user.totp_secret, request.code):
+    is_valid = two_fa_service.verify_totp(user.totp_secret, code_request.code)
+
+    # Log verification attempt
+    await security_event_service.log_2fa_verification(
+        session=session,
+        user_id=user.id,
+        success=is_valid,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
+    if not is_valid:
         raise HTTPException(
             status_code=400,
             detail="Invalid verification code. Please try again.",
@@ -189,6 +241,14 @@ async def verify_2fa_setup(
     user.backup_codes = hashed_codes
     await session.commit()
 
+    # Log 2FA enabled
+    await security_event_service.log_2fa_enabled(
+        session=session,
+        user_id=user.id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
     logger.info(f"2FA enabled for user {user.email}")
 
     return VerifySetupResponse(
@@ -199,15 +259,19 @@ async def verify_2fa_setup(
 
 @router.post("/disable")
 async def disable_2fa(
-    request: DisableRequest,
+    code_request: DisableRequest,
+    http_request: Request,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Disable 2FA for the user.
 
-    Requires a valid TOTP code or backup code for security.
+    Requires either a valid 6-digit TOTP code from the authenticator app
+    or a single-use backup code (format: XXXX-XXXX) for security verification.
     """
+    ip_address, user_agent = get_request_metadata(http_request)
+
     if not user.two_fa_enabled:
         raise HTTPException(
             status_code=400,
@@ -215,21 +279,33 @@ async def disable_2fa(
         )
 
     # Verify with TOTP code
-    is_valid = two_fa_service.verify_totp(user.totp_secret, request.code)
+    is_valid = two_fa_service.verify_totp(user.totp_secret, code_request.code)
+    used_backup_code = False
 
     # If not valid, try backup codes
-    if not is_valid and user.backup_codes:
+    # Filter out any None values from previous usage
+    valid_backup_codes = [c for c in (user.backup_codes or []) if c is not None]
+    if not is_valid and valid_backup_codes:
         is_valid, used_index = two_fa_service.verify_backup_code(
-            request.code, user.backup_codes
+            code_request.code, valid_backup_codes
         )
         if is_valid and used_index is not None:
-            # Remove used backup code
-            user.backup_codes[used_index] = None
+            # Mark that a backup code was used for logging (no need to update the list since we're deleting all codes)
+            used_backup_code = True
 
     if not is_valid:
         raise HTTPException(
             status_code=400,
             detail="Invalid code. Please provide a valid TOTP or backup code.",
+        )
+
+    # Log backup code usage if applicable
+    if used_backup_code:
+        await security_event_service.log_backup_code_used(
+            session=session,
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
         )
 
     # Disable 2FA
@@ -238,6 +314,14 @@ async def disable_2fa(
     user.backup_codes = None
     await session.commit()
 
+    # Log 2FA disabled
+    await security_event_service.log_2fa_disabled(
+        session=session,
+        user_id=user.id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
     logger.info(f"2FA disabled for user {user.email}")
 
     return {"success": True, "message": "2FA has been disabled."}
@@ -245,7 +329,8 @@ async def disable_2fa(
 
 @router.post("/backup-codes", response_model=BackupCodesResponse)
 async def regenerate_backup_codes(
-    request: VerifyCodeRequest,
+    code_request: VerifyCodeRequest,
+    http_request: Request,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -254,6 +339,8 @@ async def regenerate_backup_codes(
 
     Requires a valid TOTP code for security. This invalidates all previous backup codes.
     """
+    ip_address, user_agent = get_request_metadata(http_request)
+
     if not user.two_fa_enabled:
         raise HTTPException(
             status_code=400,
@@ -261,7 +348,7 @@ async def regenerate_backup_codes(
         )
 
     # Verify with TOTP code
-    if not two_fa_service.verify_totp(user.totp_secret, request.code):
+    if not two_fa_service.verify_totp(user.totp_secret, code_request.code):
         raise HTTPException(
             status_code=400,
             detail="Invalid verification code.",
@@ -273,6 +360,14 @@ async def regenerate_backup_codes(
     # Update backup codes
     user.backup_codes = hashed_codes
     await session.commit()
+
+    # Log backup codes regenerated
+    await security_event_service.log_backup_codes_regenerated(
+        session=session,
+        user_id=user.id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
 
     logger.info(f"Backup codes regenerated for user {user.email}")
 
@@ -333,6 +428,7 @@ class LoginResponse(BaseModel):
 
 @router.post("/login", response_model=LoginResponse)
 async def login_with_2fa(
+    http_request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -342,6 +438,8 @@ async def login_with_2fa(
     If 2FA is enabled, returns a temporary token that must be verified
     with /verify endpoint. Otherwise, returns the access token directly.
     """
+    ip_address, user_agent = get_request_metadata(http_request)
+
     # Find user by email
     result = await session.execute(
         select(User).where(User.email == form_data.username)
@@ -356,6 +454,14 @@ async def login_with_2fa(
 
     # Verify password
     if not pwd_context.verify(form_data.password, user.hashed_password):
+        # Log failed password login
+        await security_event_service.log_password_login(
+            session=session,
+            user_id=user.id,
+            success=False,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
         raise HTTPException(
             status_code=400,
             detail="Incorrect email or password",
@@ -385,6 +491,15 @@ async def login_with_2fa(
     jwt_strategy = get_jwt_strategy()
     token = await jwt_strategy.write_token(user)
 
+    # Log successful password login
+    await security_event_service.log_password_login(
+        session=session,
+        user_id=user.id,
+        success=True,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+
     logger.info(f"User {user.email} logged in successfully")
 
     return LoginResponse(
@@ -396,16 +511,20 @@ async def login_with_2fa(
 
 @router.post("/verify", response_model=TwoFALoginResponse)
 async def verify_2fa_login(
-    request: TwoFALoginRequest,
+    login_request: TwoFALoginRequest,
+    http_request: Request,
     session: AsyncSession = Depends(get_async_session),
 ):
     """
     Verify 2FA code and complete login.
 
-    Called after /login when 2FA is required.
+    Called after /login when 2FA is required. Accepts either a 6-digit TOTP code
+    from the authenticator app or a single-use backup code (format: XXXX-XXXX).
     """
+    ip_address, user_agent = get_request_metadata(http_request)
+
     # Get user ID from temporary token
-    user_id = get_user_id_from_token(request.temporary_token)
+    user_id = get_user_id_from_token(login_request.temporary_token)
 
     if not user_id:
         raise HTTPException(
@@ -420,28 +539,49 @@ async def verify_2fa_login(
     user = result.scalar_one_or_none()
 
     if not user:
-        invalidate_temporary_token(request.temporary_token)
+        invalidate_temporary_token(login_request.temporary_token)
         raise HTTPException(
             status_code=400,
             detail="User not found",
         )
 
     # Verify TOTP code
-    is_valid = two_fa_service.verify_totp(user.totp_secret, request.code)
+    is_valid = two_fa_service.verify_totp(user.totp_secret, login_request.code)
+    used_backup_code = False
 
     # If not valid, try backup codes
     # Filter out any None values from previous usage
     valid_backup_codes = [c for c in (user.backup_codes or []) if c is not None]
     if not is_valid and valid_backup_codes:
         is_valid, used_index = two_fa_service.verify_backup_code(
-            request.code, valid_backup_codes
+            login_request.code, valid_backup_codes
         )
         if is_valid and used_index is not None:
             # Remove used backup code entirely (not replace with None)
             valid_backup_codes.pop(used_index)
             user.backup_codes = valid_backup_codes
             await session.commit()
+            used_backup_code = True
             logger.info(f"Backup code used for user {user.email}")
+
+    # Log 2FA login attempt
+    await security_event_service.log_2fa_login(
+        session=session,
+        user_id=user.id,
+        success=is_valid,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        details={"used_backup_code": used_backup_code} if used_backup_code else None,
+    )
+
+    # Log backup code usage if applicable
+    if used_backup_code:
+        await security_event_service.log_backup_code_used(
+            session=session,
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
 
     if not is_valid:
         raise HTTPException(
@@ -450,7 +590,7 @@ async def verify_2fa_login(
         )
 
     # Invalidate temporary token
-    invalidate_temporary_token(request.temporary_token)
+    invalidate_temporary_token(login_request.temporary_token)
 
     # Generate JWT
     jwt_strategy = get_jwt_strategy()
