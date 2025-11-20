@@ -57,7 +57,6 @@ class BaseApiService {
 			 */
 			const defaultOptions: RequestOptions = {
 				headers: {
-					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.bearerToken || ""}`,
 				},
 				method: "GET",
@@ -210,6 +209,9 @@ class BaseApiService {
 		return this.request(url, responseSchema, {
 			...options,
 			method: "GET",
+			headers: {
+				"Content-Type": "application/json",
+			},
 			responseType: ResponseType.JSON,
 		});
 	}
@@ -222,6 +224,9 @@ class BaseApiService {
 		return this.request(url, responseSchema, {
 			method: "POST",
 			...options,
+			headers: {
+				"Content-Type": "application/json",
+			},
 			responseType: ResponseType.JSON,
 		});
 	}
@@ -234,6 +239,9 @@ class BaseApiService {
 		return this.request(url, responseSchema, {
 			method: "PUT",
 			...options,
+			headers: {
+				"Content-Type": "application/json",
+			},
 			responseType: ResponseType.JSON,
 		});
 	}
@@ -246,6 +254,9 @@ class BaseApiService {
 		return this.request(url, responseSchema, {
 			method: "DELETE",
 			...options,
+			headers: {
+				"Content-Type": "application/json",
+			},
 			responseType: ResponseType.JSON,
 		});
 	}
