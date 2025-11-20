@@ -234,6 +234,63 @@ class SecurityEventService:
             details=details,
         )
 
+    @staticmethod
+    async def log_rate_limit_auto_block(
+        session: AsyncSession,
+        user_id: UUID | str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> SecurityEvent | None:
+        """Log automatic IP block due to rate limiting."""
+        return await SecurityEventService.log_event(
+            session=session,
+            event_type=SecurityEventType.RATE_LIMIT_AUTO_BLOCK,
+            user_id=user_id,
+            success=True,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details=details,
+        )
+
+    @staticmethod
+    async def log_rate_limit_admin_unlock(
+        session: AsyncSession,
+        user_id: UUID | str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> SecurityEvent | None:
+        """Log admin manually unlocking a blocked IP."""
+        return await SecurityEventService.log_event(
+            session=session,
+            event_type=SecurityEventType.RATE_LIMIT_ADMIN_UNLOCK,
+            user_id=user_id,
+            success=True,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details=details,
+        )
+
+    @staticmethod
+    async def log_rate_limit_block_expired(
+        session: AsyncSession,
+        user_id: UUID | str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> SecurityEvent | None:
+        """Log natural expiration of an IP block."""
+        return await SecurityEventService.log_event(
+            session=session,
+            event_type=SecurityEventType.RATE_LIMIT_BLOCK_EXPIRED,
+            user_id=user_id,
+            success=True,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details=details,
+        )
+
 
 # Create a singleton instance
 security_event_service = SecurityEventService()

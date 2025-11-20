@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, LogOut, Settings, Shield } from "lucide-react";
+import { BadgeCheck, LogOut, Settings, Shield, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { baseApiService } from "@/lib/apis/base-api.service";
@@ -69,6 +69,10 @@ export function UserDropdown({ user, isAdmin = false }: UserDropdownProps) {
 					<DropdownMenuItem onClick={() => router.push(`/dashboard/security`)}>
 						<Shield className="mr-2 h-4 w-4" />
 						Security (2FA)
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => router.push(`/dashboard/rate-limiting`)}>
+						<ShieldAlert className="mr-2 h-4 w-4" />
+						Rate Limiting
 					</DropdownMenuItem>
 					{isAdmin && (
 						<DropdownMenuItem onClick={() => router.push(`/dashboard/site-settings`)}>
