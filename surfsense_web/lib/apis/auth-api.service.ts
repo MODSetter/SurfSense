@@ -46,7 +46,10 @@ export class AuthApiService {
 		if (!parsedRequest.success) {
 			console.error(`Invalid ${requestName}:`, parsedRequest.error);
 			const errorMessage = parsedRequest.error.errors
-				.map((err) => `${err.path.join(".")}: ${err.message}`)
+				.map((err) => {
+					const path = err.path.join(".");
+					return path ? `${path}: ${err.message}` : err.message;
+				})
 				.join(", ");
 			throw new ValidationError(`Invalid ${requestName}: ${errorMessage}`);
 		}
