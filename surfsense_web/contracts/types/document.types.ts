@@ -43,6 +43,16 @@ export const extensionDocumentContent = z.object({
 	pageContent: z.string(),
 });
 
+export const documentWithChunks = document.extend({
+	chunks: z.array(
+		z.object({
+			id: z.number(),
+			content: z.string(),
+			created_at: z.string(),
+		})
+	),
+});
+
 /**
  * Get documents
  */
@@ -116,6 +126,15 @@ export const getDocumentTypeCountsRequest = z.object({
 
 export const getDocumentTypeCountsResponse = z.record(z.string(), z.number());
 
+/**
+ * Get document by chunk
+ */
+export const getDocumentByChunkRequest = z.object({
+	chunk_id: z.number(),
+});
+
+export const getDocumentByChunkResponse = documentWithChunks;
+
 export type GetDocumentsRequest = z.infer<typeof getDocumentsRequest>;
 export type GetDocumentResponse = z.infer<typeof getDocumentResponse>;
 export type CreateDocumentRequest = z.infer<typeof createDocumentRequest>;
@@ -126,3 +145,5 @@ export type SearchDocumentsRequest = z.infer<typeof searchDocumentsRequest>;
 export type SearchDocumentsResponse = z.infer<typeof searchDocumentsResponse>;
 export type GetDocumentTypeCountsRequest = z.infer<typeof getDocumentTypeCountsRequest>;
 export type GetDocumentTypeCountsResponse = z.infer<typeof getDocumentTypeCountsResponse>;
+export type GetDocumentByChunkRequest = z.infer<typeof getDocumentByChunkRequest>;
+export type GetDocumentByChunkResponse = z.infer<typeof getDocumentByChunkResponse>;
