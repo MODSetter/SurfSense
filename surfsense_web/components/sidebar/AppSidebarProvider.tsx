@@ -1,8 +1,12 @@
 "use client";
 
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
+import { chatsAtom } from "@/atoms/chats/chat-query.atoms";
+import { globalChatsQueryParamsAtom } from "@/atoms/chats/ui.atoms";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +17,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useChats, useSearchSpace, useUser } from "@/hooks";
+import { useSearchSpace, useUser } from "@/hooks";
 
 interface AppSidebarProviderProps {
 	searchSpaceId: string;
@@ -41,15 +45,14 @@ export function AppSidebarProvider({
 }: AppSidebarProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
+	const setChatsQueryParams = useSetAtom(globalChatsQueryParamsAtom);
+	const { data: chats, error: chatError, isLoading: isLoadingChats } = useAtomValue(chatsAtom);
+	const [{ isPending: isDeletingChat, mutateAsync: deleteChat, error: deleteError }] =
+		useAtom(deleteChatMutationAtom);
 
-	// Use the new hooks
-	const {
-		chats,
-		loading: isLoadingChats,
-		error: chatError,
-		fetchChats: fetchRecentChats,
-		deleteChat,
-	} = useChats({ searchSpaceId, limit: 5, skip: 0 });
+	useEffect(() => {
+		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 5 }));
+	}, [searchSpaceId]);
 
 	const {
 		searchSpace,
@@ -62,7 +65,6 @@ export function AppSidebarProvider({
 
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
 	const [isClient, setIsClient] = useState(false);
 
 	// Set isClient to true when component mounts on the client
@@ -72,29 +74,30 @@ export function AppSidebarProvider({
 
 	// Retry function
 	const retryFetch = useCallback(() => {
-		fetchRecentChats();
 		fetchSearchSpace();
-	}, [fetchRecentChats, fetchSearchSpace]);
+	}, [fetchSearchSpace]);
 
 	// Transform API response to the format expected by AppSidebar
 	const recentChats = useMemo(() => {
-		return chats.map((chat) => ({
-			name: chat.title || `Chat ${chat.id}`,
-			url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
-			icon: "MessageCircleMore",
-			id: chat.id,
-			search_space_id: chat.search_space_id,
-			actions: [
-				{
-					name: "Delete",
-					icon: "Trash2",
-					onClick: () => {
-						setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
-						setShowDeleteDialog(true);
-					},
-				},
-			],
-		}));
+		return chats
+			? chats.map((chat) => ({
+					name: chat.title || `Chat ${chat.id}`,
+					url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
+					icon: "MessageCircleMore",
+					id: chat.id,
+					search_space_id: chat.search_space_id,
+					actions: [
+						{
+							name: "Delete",
+							icon: "Trash2",
+							onClick: () => {
+								setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
+								setShowDeleteDialog(true);
+							},
+						},
+					],
+				}))
+			: [];
 	}, [chats]);
 
 	// Handle delete chat with better error handling
@@ -102,13 +105,11 @@ export function AppSidebarProvider({
 		if (!chatToDelete) return;
 
 		try {
-			setIsDeleting(true);
-			await deleteChat(chatToDelete.id);
+			await deleteChat({ id: chatToDelete.id });
 		} catch (error) {
 			console.error("Error deleting chat:", error);
 			// You could show a toast notification here
 		} finally {
-			setIsDeleting(false);
 			setShowDeleteDialog(false);
 			setChatToDelete(null);
 		}
@@ -226,17 +227,17 @@ export function AppSidebarProvider({
 						<Button
 							variant="outline"
 							onClick={() => setShowDeleteDialog(false)}
-							disabled={isDeleting}
+							disabled={isDeletingChat}
 						>
 							{tCommon("cancel")}
 						</Button>
 						<Button
 							variant="destructive"
 							onClick={handleDeleteChat}
-							disabled={isDeleting}
+							disabled={isDeletingChat}
 							className="gap-2"
 						>
-							{isDeleting ? (
+							{isDeletingChat ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 									{t("deleting")}

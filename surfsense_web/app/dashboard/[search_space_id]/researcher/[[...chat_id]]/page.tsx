@@ -1,31 +1,35 @@
 "use client";
 
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
+import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
+import { createChatMutationAtom, updateChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
+import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
+import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
-import { useChatAPI, useChatState } from "@/hooks/use-chat";
+import { useChatState } from "@/hooks/use-chat";
 import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 export default function ResearcherPage() {
-	const { search_space_id, chat_id } = useParams();
+	const { search_space_id } = useParams();
 	const router = useRouter();
 	const hasSetInitialConnectors = useRef(false);
-
-	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
-	const isNewChat = !chatIdParam;
+	const activeChatId = useAtomValue(activeChatIdAtom);
+	const { data: activeChatState, isFetching: isChatLoading } = useAtomValue(activeChatAtom);
+	const { mutateAsync: createChat } = useAtomValue(createChatMutationAtom);
+	const { mutateAsync: updateChat } = useAtomValue(updateChatMutationAtom);
+	const isNewChat = !activeChatId;
 
 	// Reset the flag when chat ID changes
 	useEffect(() => {
 		hasSetInitialConnectors.current = false;
-	}, [chatIdParam]);
+	}, [activeChatId]);
 
 	const {
 		token,
-		isLoading,
-		setIsLoading,
 		searchMode,
 		setSearchMode,
 		researchMode,
@@ -37,12 +41,7 @@ export default function ResearcherPage() {
 		setTopK,
 	} = useChatState({
 		search_space_id: search_space_id as string,
-		chat_id: chatIdParam,
-	});
-
-	const { fetchChatDetails, updateChat, createChat } = useChatAPI({
-		token,
-		search_space_id: search_space_id as string,
+		chat_id: activeChatId ?? undefined,
 	});
 
 	// Fetch all available sources (document types + live search connectors)
@@ -126,32 +125,64 @@ export default function ResearcherPage() {
 		message: Message | CreateMessage,
 		chatRequestOptions?: { data?: any }
 	) => {
-		const newChatId = await createChat(message.content, researchMode, selectedConnectors);
-		if (newChatId) {
+		const newChat = await createChat({
+			type: researchMode,
+			title: "Untitled Chat",
+			initial_connectors: selectedConnectors,
+			messages: [
+				{
+					role: "user",
+					content: message.content,
+				},
+			],
+			search_space_id: Number(search_space_id),
+		});
+		if (newChat) {
 			// Store chat state before navigation
-			storeChatState(search_space_id as string, newChatId, {
+			storeChatState(search_space_id as string, String(newChat.id), {
 				selectedDocuments,
 				selectedConnectors,
 				searchMode,
 				researchMode,
 				topK,
 			});
-			router.replace(`/dashboard/${search_space_id}/researcher/${newChatId}`);
+			router.replace(`/dashboard/${search_space_id}/researcher/${newChat.id}`);
 		}
-		return newChatId;
+		return String(newChat.id);
 	};
 
 	useEffect(() => {
-		if (token && !isNewChat && chatIdParam) {
-			setIsLoading(true);
-			loadChatData(chatIdParam);
+		if (token && !isNewChat && activeChatId) {
+			const chatData = activeChatState?.chatDetails;
+			if (!chatData) return;
+
+			// Update configuration from chat data
+			// researchMode is always "QNA", no need to set from chat data
+
+			if (chatData.initial_connectors && Array.isArray(chatData.initial_connectors)) {
+				setSelectedConnectors(chatData.initial_connectors);
+			}
+
+			// Load existing messages
+			if (chatData.messages && Array.isArray(chatData.messages)) {
+				if (chatData.messages.length === 1 && chatData.messages[0].role === "user") {
+					// Single user message - append to trigger LLM response
+					handler.append({
+						role: "user",
+						content: chatData.messages[0].content,
+					});
+				} else if (chatData.messages.length > 1) {
+					// Multiple messages - set them all
+					handler.setMessages(chatData.messages);
+				}
+			}
 		}
-	}, [token, isNewChat, chatIdParam]);
+	}, [token, isNewChat, activeChatId, isChatLoading]);
 
 	// Restore chat state from localStorage on page load
 	useEffect(() => {
-		if (chatIdParam && search_space_id) {
-			const restoredState = restoreChatState(search_space_id as string, chatIdParam);
+		if (activeChatId && search_space_id) {
+			const restoredState = restoreChatState(search_space_id as string, activeChatId);
 			if (restoredState) {
 				setSelectedDocuments(restoredState.selectedDocuments);
 				setSelectedConnectors(restoredState.selectedConnectors);
@@ -161,7 +192,8 @@ export default function ResearcherPage() {
 			}
 		}
 	}, [
-		chatIdParam,
+		activeChatId,
+		isChatLoading,
 		search_space_id,
 		setSelectedDocuments,
 		setSelectedConnectors,
@@ -196,50 +228,31 @@ export default function ResearcherPage() {
 		setSelectedConnectors,
 	]);
 
-	const loadChatData = async (chatId: string) => {
-		try {
-			const chatData = await fetchChatDetails(chatId);
-			if (!chatData) return;
-
-			// Update configuration from chat data
-			// researchMode is always "QNA", no need to set from chat data
-
-			if (chatData.initial_connectors && Array.isArray(chatData.initial_connectors)) {
-				setSelectedConnectors(chatData.initial_connectors);
-			}
-
-			// Load existing messages
-			if (chatData.messages && Array.isArray(chatData.messages)) {
-				if (chatData.messages.length === 1 && chatData.messages[0].role === "user") {
-					// Single user message - append to trigger LLM response
-					handler.append({
-						role: "user",
-						content: chatData.messages[0].content,
-					});
-				} else if (chatData.messages.length > 1) {
-					// Multiple messages - set them all
-					handler.setMessages(chatData.messages);
-				}
-			}
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
 	// Auto-update chat when messages change (only for existing chats)
 	useEffect(() => {
 		if (
 			!isNewChat &&
-			chatIdParam &&
+			activeChatId &&
 			handler.status === "ready" &&
 			handler.messages.length > 0 &&
 			handler.messages[handler.messages.length - 1]?.role === "assistant"
 		) {
-			updateChat(chatIdParam, handler.messages, researchMode, selectedConnectors);
-		}
-	}, [handler.messages, handler.status, chatIdParam, isNewChat]);
+			const userMessages = handler.messages.filter((msg) => msg.role === "user");
+			if (userMessages.length === 0) return;
+			const title = userMessages[0].content;
 
-	if (isLoading) {
+			updateChat({
+				type: researchMode,
+				title: title,
+				initial_connectors: selectedConnectors,
+				messages: handler.messages,
+				search_space_id: Number(search_space_id),
+				id: Number(activeChatId),
+			});
+		}
+	}, [handler.messages, handler.status, activeChatId, isNewChat, isChatLoading]);
+
+	if (isChatLoading) {
 		return (
 			<div className="flex items-center justify-center h-full">
 				<div>Loading...</div>

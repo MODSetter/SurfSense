@@ -15,7 +15,7 @@ import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
-import { activeSearchSpaceChatsAtom } from "@/atoms/chats/chat-querie.atoms";
+import { chatsAtom } from "@/atoms/chats/chat-query.atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,11 +103,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 		id: number;
 		title: string;
 	} | null>(null);
-	const {
-		isFetching: isFetchingChats,
-		data: chats,
-		error: fetchError,
-	} = useAtomValue(activeSearchSpaceChatsAtom);
+	const { isFetching: isFetchingChats, data: chats, error: fetchError } = useAtomValue(chatsAtom);
 	const [{ isPending: isDeletingChat, mutateAsync: deleteChat, error: deleteError }] =
 		useAtom(deleteChatMutationAtom);
 
@@ -161,7 +157,7 @@ export default function ChatsPageClient({ searchSpaceId }: ChatsPageClientProps)
 	const handleDeleteChat = async () => {
 		if (!chatToDelete) return;
 
-		await deleteChat(chatToDelete.id);
+		await deleteChat({ id: chatToDelete.id });
 
 		setDeleteDialogOpen(false);
 		setChatToDelete(null);
