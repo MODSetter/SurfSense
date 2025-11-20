@@ -8,9 +8,9 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { verify2FAMutationAtom } from "@/atoms/auth/two-fa-mutation.atoms";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
-import { authApiService } from "@/lib/apis/auth-api.service";
 import { ValidationError } from "@/lib/error";
 
 export function LocalLoginForm() {
@@ -23,7 +23,6 @@ export function LocalLoginForm() {
 	const [requires2FA, setRequires2FA] = useState(false);
 	const [temporaryToken, setTemporaryToken] = useState("");
 	const [totpCode, setTotpCode] = useState("");
-	const [isVerifying2FA, setIsVerifying2FA] = useState(false);
 	const [error, setError] = useState<{
 		title: string | null;
 		message: string | null;
@@ -33,6 +32,7 @@ export function LocalLoginForm() {
 	});
 	const router = useRouter();
 	const [{ mutateAsync: login, isPending: isLoggingIn }] = useAtom(loginMutationAtom);
+	const [{ mutateAsync: verify2FA, isPending: isVerifying2FA }] = useAtom(verify2FAMutationAtom);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -136,10 +136,9 @@ export function LocalLoginForm() {
 
 		// Show loading toast
 		const loadingToast = toast.loading("Verifying 2FA code...");
-		setIsVerifying2FA(true);
 
 		try {
-			const data = await authApiService.verify2FA({
+			const data = await verify2FA({
 				temporary_token: temporaryToken,
 				code: totpCode,
 			});
@@ -156,8 +155,6 @@ export function LocalLoginForm() {
 				router.push(`/auth/callback?token=${data.access_token}`);
 			}, 500);
 		} catch (err) {
-			setIsVerifying2FA(false);
-
 			if (err instanceof ValidationError) {
 				setError({ title: err.name, message: err.message });
 				toast.error(err.name, {
