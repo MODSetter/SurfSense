@@ -1,3 +1,10 @@
-VPS_HOST="root@46.62.230.195"
-VPS_KEY="~/.ssh/id_ed25519_surfsense"
-PROJECT_DIR="/opt/SurfSense"
+# Deployment Configuration Template
+# Copy this file to .config and fill in your actual values
+# Example: cp .config.template .config
+
+# SSH connection details
+VPS_HOST="user@your-server-ip"
+VPS_KEY="~/.ssh/your_ssh_key"
+
+# Project directory on remote server
+PROJECT_DIR="/path/to/your/project"

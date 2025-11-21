@@ -215,9 +215,9 @@ export default function RateLimitingPage() {
 		avatar: user?.avatar || "/icon-128.png",
 	};
 
-	if (userLoading || isLoading) {
-		return (
-			<AdminGuard>
+	return (
+		<AdminGuard>
+			{(userLoading || isLoading) && (
 				<div>
 					<DashboardHeader
 						title="Rate Limiting"
@@ -239,13 +239,9 @@ export default function RateLimitingPage() {
 						</div>
 					</div>
 				</div>
-			</AdminGuard>
-		);
-	}
+			)}
 
-	if (userError || !user) {
-		return (
-			<AdminGuard>
+			{(userError || !user) && !userLoading && !isLoading && (
 				<div>
 					<DashboardHeader
 						title="Rate Limiting"
@@ -261,12 +257,9 @@ export default function RateLimitingPage() {
 						</Alert>
 					</div>
 				</div>
-			</AdminGuard>
-		);
-	}
+			)}
 
-	return (
-		<AdminGuard>
+			{!userLoading && !isLoading && !userError && user && (
 			<div>
 				<DashboardHeader
 					title="Rate Limiting"
@@ -502,6 +495,7 @@ export default function RateLimitingPage() {
 				</Dialog>
 			</div>
 		</div>
+			)}
 		</AdminGuard>
 	);
 }
