@@ -9,8 +9,8 @@
 
 ### Step 1: Install GitHub CLI
 ```bash
-# SSH into VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+# SSH into your VPS
+ssh -i ~/.ssh/your-ssh-key your-user@your-vps-ip-address
 
 # Install GitHub CLI
 curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
