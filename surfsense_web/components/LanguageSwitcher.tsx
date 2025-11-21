@@ -8,7 +8,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useLocaleContext, LANGUAGE_CONFIG, type Locale } from "@/contexts/LocaleContext";
+import { useLocaleContext, LANGUAGE_CONFIG, SUPPORTED_LOCALES, type Locale } from "@/contexts/LocaleContext";
+
+/**
+ * Validate if a string is a supported locale
+ */
+function isValidLocale(value: string): value is Locale {
+	return (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
 
 /**
  * Language switcher component
@@ -21,9 +28,12 @@ export function LanguageSwitcher() {
 	/**
 	 * Handle language change
 	 * Updates locale in context and localStorage
+	 * Validates the locale before setting it
 	 */
 	const handleLanguageChange = (newLocale: string) => {
-		setLocale(newLocale as Locale);
+		if (isValidLocale(newLocale)) {
+			setLocale(newLocale);
+		}
 	};
 
 	return (
