@@ -27,6 +27,7 @@ import { NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
 import { PageUsageDisplay } from "@/components/sidebar/page-usage-display";
+import { ModelStatusIndicator } from "@/components/sidebar/model-status-indicator";
 import {
 	Sidebar,
 	SidebarContent,
@@ -36,6 +37,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import type { LLMConfig } from "@/hooks/use-llm-configs";
 
 // Map of icon names to their components
 export const iconMap: Record<string, LucideIcon> = {
@@ -156,6 +158,9 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 		pagesUsed: number;
 		pagesLimit: number;
 	};
+	currentModel?: LLMConfig | null;
+	isModelStreaming?: boolean;
+	isModelThinking?: boolean;
 }
 
 // Memoized AppSidebar component for better performance
@@ -164,6 +169,9 @@ export const AppSidebar = memo(function AppSidebar({
 	navSecondary = defaultData.navSecondary,
 	RecentChats = defaultData.RecentChats,
 	pageUsage,
+	currentModel,
+	isModelStreaming = false,
+	isModelThinking = false,
 	...props
 }: AppSidebarProps) {
 	// Process navMain to resolve icon names to components
@@ -228,6 +236,12 @@ export const AppSidebar = memo(function AppSidebar({
 				)}
 			</SidebarContent>
 			<SidebarFooter>
+				{/* Model Status Indicator */}
+				<ModelStatusIndicator
+					currentModel={currentModel}
+					isStreaming={isModelStreaming}
+					isThinking={isModelThinking}
+				/>
 				{pageUsage && (
 					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
 				)}

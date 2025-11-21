@@ -1,42 +1,38 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { AUTH_TOKEN_KEY } from "@/lib/constants";
+import { useAuth } from "@/hooks/use-auth";
+import { useEffect } from "react";
 
 interface DashboardLayoutProps {
 	children: React.ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-	const router = useRouter();
-	const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+	const { isLoading, isAuthenticated } = useAuth();
 
+	// Sync token with baseApiService when authenticated
 	useEffect(() => {
-		// Check if user is authenticated
-		const token = localStorage.getItem(AUTH_TOKEN_KEY);
-		if (!token) {
-			router.push("/login");
-			return;
+		if (isAuthenticated && typeof window !== "undefined") {
+			const token = localStorage.getItem(AUTH_TOKEN_KEY);
+			if (token) {
+				baseApiService.setBearerToken(token);
+			}
 		}
-		// Ensure the baseApiService has the correct token
-		// This handles cases where the page is refreshed or navigated to directly
-		baseApiService.setBearerToken(token);
-		setIsCheckingAuth(false);
-	}, [router]);
+	}, [isAuthenticated]);
 
-	// Show loading screen while checking authentication
-	if (isCheckingAuth) {
+	// Show loading screen while verifying authentication
+	if (isLoading) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-xl font-medium">Loading Dashboard</CardTitle>
-						<CardDescription>Checking authentication...</CardDescription>
+						<CardDescription>Verifying authentication...</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center py-6">
 						<Loader2 className="h-12 w-12 text-primary animate-spin" />

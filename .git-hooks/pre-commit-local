@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+if command -v pre-commit &> /dev/null; then
+    pre-commit run --hook-stage pre-commit
+fi
+echo "Running secrets verification..."
+.git-hooks/verify-secrets

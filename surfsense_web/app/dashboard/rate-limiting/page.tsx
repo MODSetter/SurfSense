@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { AdminGuard } from "@/components/AdminGuard";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -207,46 +208,73 @@ export default function RateLimitingPage() {
 	// Check if user is admin
 	const isAdmin = user?.is_superuser || false;
 
+	// Defensive: Safely handle user data
+	const customUser = {
+		name: user?.email ? user.email.split("@")[0] : "User",
+		email: user?.email || "Loading...",
+		avatar: user?.avatar || "/icon-128.png",
+	};
+
 	if (userLoading || isLoading) {
 		return (
-			<div>
-				<DashboardHeader />
-				<div className="container mx-auto py-8">
-					<div className="flex items-center gap-2 mb-6">
-						<Link href="/dashboard">
-							<Button variant="ghost" size="sm">
-								<ArrowLeft className="h-4 w-4 mr-2" />
-								Back
-							</Button>
-						</Link>
-					</div>
-					<div className="flex items-center justify-center h-64">
-						<RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+			<AdminGuard>
+				<div>
+					<DashboardHeader
+						title="Rate Limiting"
+						description="Manage blocked IPs and rate limiting"
+						user={customUser}
+						isAdmin={isAdmin}
+					/>
+					<div className="container mx-auto py-8">
+						<div className="flex items-center gap-2 mb-6">
+							<Link href="/dashboard">
+								<Button variant="ghost" size="sm">
+									<ArrowLeft className="h-4 w-4 mr-2" />
+									Back
+								</Button>
+							</Link>
+						</div>
+						<div className="flex items-center justify-center h-64">
+							<RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+						</div>
 					</div>
 				</div>
-			</div>
+			</AdminGuard>
 		);
 	}
 
 	if (userError || !user) {
 		return (
-			<div>
-				<DashboardHeader />
-				<div className="container mx-auto py-8">
-					<Alert variant="destructive">
-						<AlertTriangle className="h-4 w-4" />
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>Failed to load user data. Please try again.</AlertDescription>
-					</Alert>
+			<AdminGuard>
+				<div>
+					<DashboardHeader
+						title="Rate Limiting"
+						description="Manage blocked IPs and rate limiting"
+						user={customUser}
+						isAdmin={isAdmin}
+					/>
+					<div className="container mx-auto py-8">
+						<Alert variant="destructive">
+							<AlertTriangle className="h-4 w-4" />
+							<AlertTitle>Error</AlertTitle>
+							<AlertDescription>Failed to load user data. Please try again.</AlertDescription>
+						</Alert>
+					</div>
 				</div>
-			</div>
+			</AdminGuard>
 		);
 	}
 
 	return (
-		<div>
-			<DashboardHeader />
-			<div className="container mx-auto py-8">
+		<AdminGuard>
+			<div>
+				<DashboardHeader
+					title="Rate Limiting"
+					description="Manage blocked IPs and rate limiting"
+					user={customUser}
+					isAdmin={isAdmin}
+				/>
+				<div className="container mx-auto py-8">
 				{/* Header */}
 				<div className="flex items-center gap-2 mb-6">
 					<Link href="/dashboard">
@@ -474,5 +502,6 @@ export default function RateLimitingPage() {
 				</Dialog>
 			</div>
 		</div>
+		</AdminGuard>
 	);
 }

@@ -72,3 +72,6 @@ DEPLOYMENT.md
 sync-from-production.sh
 MIGRATION_LOCAL_LLM.md
 PR_DESCRIPTION.md
+
+# Script configuration
+scripts/.config
