@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,8 @@ from app.db import SiteConfiguration, User, create_db_and_tables, get_async_sess
 from app.routes import router as crud_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -151,8 +154,6 @@ async def verify_token(
         HTTPException: 401 if token is invalid or expired
         HTTPException: 403 if user is inactive
     """
-    import logging
-    logger = logging.getLogger(__name__)
     logger.info(f"Token verified successfully for user ID: {user.id}")
 
     return {
