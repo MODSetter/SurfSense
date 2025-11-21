@@ -8,13 +8,14 @@ import svMessages from "../messages/sv.json";
 import {
 	LANGUAGE_CONFIG,
 	SUPPORTED_LOCALES,
+	isValidLocale,
 	type Locale,
 	type LanguageConfig,
 } from "@/lib/locale-config";
 
 // Re-export types and config for backward compatibility
 export type { Locale, LanguageConfig };
-export { LANGUAGE_CONFIG, SUPPORTED_LOCALES };
+export { LANGUAGE_CONFIG, SUPPORTED_LOCALES, isValidLocale };
 
 // Message map for type-safe locale selection
 const messageMap: Record<Locale, typeof enMessages> = {
@@ -32,11 +33,6 @@ interface LocaleContextType {
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
 
 const LOCALE_STORAGE_KEY = "surfsense-locale";
-
-// Validate if a string is a supported locale
-function isValidLocale(value: string | null): value is Locale {
-	return value !== null && (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
 	// Always start with 'en' to avoid hydration mismatch
