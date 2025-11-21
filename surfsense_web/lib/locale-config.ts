@@ -20,9 +20,10 @@ export type LanguageConfig = (typeof LANGUAGE_CONFIG)[number];
 
 // Supported locales array for validation (readonly with runtime immutability)
 // Using Object.freeze() for runtime protection in addition to TypeScript's 'as const'
+// TypeScript automatically infers the correct readonly tuple type
 export const SUPPORTED_LOCALES = Object.freeze(
 	LANGUAGE_CONFIG.map((lang) => lang.code)
-) as readonly Locale[];
+);
 
 // Default locale
 export const DEFAULT_LOCALE: Locale = "en";
@@ -35,8 +36,5 @@ export const DEFAULT_LOCALE: Locale = "en";
  * @returns true if the value is a valid Locale, false otherwise
  */
 export function isValidLocale(value: unknown): value is Locale {
-	return (
-		typeof value === "string" &&
-		(SUPPORTED_LOCALES as readonly string[]).includes(value)
-	);
+	return typeof value === "string" && SUPPORTED_LOCALES.some((locale) => locale === value);
 }
