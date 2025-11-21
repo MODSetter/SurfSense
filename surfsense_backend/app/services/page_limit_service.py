@@ -85,7 +85,9 @@ class PageLimitService:
         """
         Update user's page usage after successful processing.
 
-        Note: This method is subject to race conditions. For concurrent-safe updates,
+        This method uses pessimistic locking (SELECT FOR UPDATE) to ensure atomic updates.
+        However, when used with a separate check_page_limit() call, a race condition can
+        occur between the check and update. For fully atomic check-and-update operations,
         use check_and_update_page_limit() instead.
 
         Args:

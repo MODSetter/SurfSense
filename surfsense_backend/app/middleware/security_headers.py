@@ -144,9 +144,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Cache-Control for sensitive endpoints
         # Prevent caching of sensitive data
+        path = str(request.url.path)
         if any(
-            sensitive_path in str(request.url.path)
-            for sensitive_path in ["/auth/", "/api/", "/admin/"]
+            path.startswith(sensitive_path)
+            for sensitive_path in ["/auth/", "/api/", "/admin/", "/users/"]
         ):
             response.headers["Cache-Control"] = (
                 "no-store, no-cache, must-revalidate, private"

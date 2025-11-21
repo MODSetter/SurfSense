@@ -217,16 +217,16 @@ class TestPageLimitService:
             )
 
     @pytest.mark.slow
-    async def test_concurrent_updates_race_condition(
+    async def test_concurrent_updates_with_atomic_method(
         self,
         service: PageLimitService,
         async_session: AsyncSession,
     ):
         """
-        Test that demonstrates potential race condition with concurrent updates.
+        Test that atomic check_and_update_page_limit prevents race conditions.
 
-        This test should fail with current implementation (check-then-act pattern)
-        and pass after fixing with atomic updates.
+        When multiple concurrent requests try to update the same user's page usage,
+        only one should succeed while others should raise PageLimitExceededError.
         """
         # Create user with 90 pages used, limit 100
         user = User(
@@ -241,36 +241,39 @@ class TestPageLimitService:
         await async_session.commit()
         await async_session.refresh(user)
 
-        # Try to add 10 pages concurrently (both should pass the check, but only one should succeed)
-        async def try_update():
+        # Try to add 10 pages concurrently using the atomic method
+        async def try_atomic_update():
             # Each task gets its own service instance with same session
             task_service = PageLimitService(session=async_session)
             try:
-                # Check limit
-                await task_service.check_page_limit(user_id=user.id, estimated_pages=10)
-                # Small delay to make race condition more likely
-                await asyncio.sleep(0.01)
-                # Update usage
-                await task_service.update_page_usage(user_id=user.id, pages_to_add=10)
-                return True
+                # Use atomic check-and-update method
+                await task_service.check_and_update_page_limit(
+                    user_id=user.id,
+                    pages_to_add=10,
+                )
+                return "success"
             except PageLimitExceededError:
-                return False
+                return "failed"
 
         # Run two concurrent updates
         results = await asyncio.gather(
-            try_update(),
-            try_update(),
+            try_atomic_update(),
+            try_atomic_update(),
             return_exceptions=True,
         )
 
         # Verify final state
         await async_session.refresh(user)
 
-        # With race condition: both might succeed, leading to 110 pages (exceeds limit)
-        # After fix: only one should succeed, resulting in 100 pages
-        # For now, this test documents the issue
-        # After fixing, uncomment the assertion below:
-        # assert user.pages_used <= 100, "Race condition allowed exceeding limit!"
+        # With atomic updates: only one should succeed, exactly 100 pages
+        assert user.pages_used == 100, (
+            f"Expected exactly 100 pages (one success), got {user.pages_used}. "
+            "Race condition allowed both updates!"
+        )
+
+        # Verify that exactly one succeeded and one failed
+        assert results.count("success") == 1, "Expected exactly one successful update"
+        assert results.count("failed") == 1, "Expected exactly one failed update"
 
 
 @pytest.mark.unit
