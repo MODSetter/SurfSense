@@ -1,29 +1,21 @@
 # Global LLM Configuration for SurfSense
-# Three-tier architecture: Gemini Flash (primary) -> TildeOpen (grammar) -> Mistral (fallback)
-# 
-# SETUP INSTRUCTIONS:
-# 1. Copy this file to global_llm_config.yaml
-# 2. Update .env file with your API keys (e.g., GEMINI_API_KEY=your-key-here)
-# 3. The config will automatically expand environment variables like ${GEMINI_API_KEY}
-#
-# SECURITY: Never commit global_llm_config.yaml with real API keys!
-# Use environment variables in .env file instead.
+# Three-tier architecture: Mistral NeMo (primary) -> TildeOpen (grammar) -> Gemini (fallback)
 
 global_llm_configs:
-  # Google Gemini 2.0 Flash - PRIMARY: Main response generation from documents
-  # Fast, accurate, and cost-effective for most queries
+  # Mistral NeMo 12B - PRIMARY: Main response generation from documents
+  # French AI model with excellent multilingual capabilities
   - id: -1
-    name: "Gemini 2.0 Flash (Primary)"
-    provider: "GOOGLE"
-    model_name: "gemini-2.0-flash-exp"
-    api_key: "${GEMINI_API_KEY}"  # Set GEMINI_API_KEY in .env
-    api_base: ""
+    name: "Mistral NeMo 12B (Local)"
+    provider: "OLLAMA"
+    model_name: "mistral-nemo:128k"
+    api_key: ""
+    api_base: "${OLLAMA_BASE_URL:http://localhost:11434}"
     language: "auto"
-    system_prompt: "You are a helpful AI assistant. IMPORTANT: Always respond in the same language as the user's question. If the user asks in Latvian, respond in Latvian. If in English, respond in English. Provide accurate, well-researched answers based on available information."
+    system_prompt: "You are a knowledgeable research assistant. Answer questions accurately based on the provided documents. If the documents don't contain the answer, clearly state that. Always maintain context and cite sources when possible."
     litellm_params:
       temperature: 0.7
       max_tokens: 8000
-      
+
   # TildeOpen 30B - GRAMMAR CHECKER: Latvian language quality control
   # Latvian AI model specifically for grammar correction
   - id: -2
@@ -31,34 +23,23 @@ global_llm_configs:
     provider: "OLLAMA"
     model_name: "tildeopen:latest"
     api_key: ""
-    api_base: "http://localhost:11434"  # Or set OLLAMA_BASE_URL in .env
+    api_base: "${OLLAMA_BASE_URL:http://localhost:11434}"
     language: "Latvian"
     system_prompt: "You are a Latvian grammar correction assistant. Your ONLY task is to correct grammatical errors in Latvian text while preserving the original meaning, style, and formatting. Do not add explanations, commentary, or change the content. Only fix grammar mistakes."
     litellm_params:
       temperature: 0.3
       max_tokens: 8000
 
-  # Mistral NeMo 12B - FALLBACK: Used when Gemini API is unavailable or rate limited
-  # Local model for reliability and privacy
+  # Google Gemini 2.0 Flash - FALLBACK: Emergency only when local models fail
+  # Only used when Mistral NeMo cannot generate adequate responses
   - id: -3
-    name: "Mistral NeMo 12B (Fallback)"
-    provider: "OLLAMA"
-    model_name: "mistral-nemo:latest"
-    api_key: ""
-    api_base: "http://localhost:11434"  # Or set OLLAMA_BASE_URL in .env
+    name: "Gemini 2.0 Flash (API Fallback)"
+    provider: "GOOGLE"
+    model_name: "gemini-2.0-flash-exp"
+    api_key: "${GEMINI_API_KEY}"
+    api_base: ""
     language: "auto"
-    system_prompt: "You are a knowledgeable research assistant. Answer questions accurately based on the provided documents. If the documents don't contain the answer, clearly state that. Always maintain context and cite sources when possible."
+    system_prompt: "You are a helpful AI assistant. Provide accurate, well-researched answers based on available information."
     litellm_params:
       temperature: 0.7
       max_tokens: 8000
-
-# Environment Variables to Set in .env:
-# GEMINI_API_KEY=your-gemini-api-key-here
-# OLLAMA_BASE_URL=http://localhost:11434  # Optional, defaults shown above
-#
-# Notes:
-# - Use negative IDs to distinguish global configs from user configs  
-# - IDs should be unique and sequential (e.g., -1, -2, -3, etc.)
-# - The 'api_key' field will not be exposed to users via API
-# - Environment variables in format ${VAR_NAME} will be automatically expanded
-# - All standard LiteLLM providers are supported

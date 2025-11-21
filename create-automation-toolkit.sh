@@ -81,8 +81,7 @@ cat > scripts/deploy.sh << 'EOFSCRIPT'
 #!/bin/bash
 set -e
 if [ -f "$(dirname "$0")/.config" ]; then source "$(dirname "$0")/.config"; else
-VPS_HOST="root@46.62.230.195"; VPS_KEY="~/.ssh/id_ed25519_surfsense";
-PROJECT_DIR="/opt/SurfSense"; fi
+echo "ERROR: scripts/.config file not found. Please copy scripts/.config.template to scripts/.config and configure your VPS details."; exit 1; fi
 VPS_KEY="${VPS_KEY/#\~/$HOME}"
 run_vps_cmd() { ssh -i "$VPS_KEY" "$VPS_HOST" "$1"; }
 echo "🚀 Deploying..."
@@ -93,7 +92,7 @@ EOFSCRIPT
 cat > scripts/monitor-services.sh << 'EOFSCRIPT'
 #!/bin/bash
 if [ -f "$(dirname "$0")/.config" ]; then source "$(dirname "$0")/.config"; else
-VPS_HOST="root@46.62.230.195"; VPS_KEY="~/.ssh/id_ed25519_surfsense"; fi
+echo "ERROR: scripts/.config file not found. Please copy scripts/.config.template to scripts/.config and configure your VPS details."; exit 1; fi
 VPS_KEY="${VPS_KEY/#\~/$HOME}"
 ssh -i "$VPS_KEY" "$VPS_HOST" "systemctl status surfsense surfsense-celery surfsense-frontend"
 EOFSCRIPT
@@ -106,7 +105,7 @@ echo "✅ Done!"
 EOFSCRIPT
 
 cat > scripts/.config.template << 'EOF'
-VPS_HOST="root@46.62.230.195"
+VPS_HOST="user@<your-vps-ip-address>"
 VPS_KEY="~/.ssh/id_ed25519_surfsense"
 PROJECT_DIR="/opt/SurfSense"
 EOF
