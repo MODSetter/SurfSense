@@ -6,7 +6,18 @@ import enMessages from "../messages/en.json";
 import lvMessages from "../messages/lv.json";
 import svMessages from "../messages/sv.json";
 
-type Locale = "en" | "lv" | "sv";
+// Export Locale type for use in other components
+export type Locale = "en" | "lv" | "sv";
+
+// Supported locales array for validation
+export const SUPPORTED_LOCALES: Locale[] = ["en", "lv", "sv"];
+
+// Message map for type-safe locale selection
+const messageMap: Record<Locale, typeof enMessages> = {
+	en: enMessages,
+	lv: lvMessages,
+	sv: svMessages,
+};
 
 interface LocaleContextType {
 	locale: Locale;
@@ -18,22 +29,26 @@ const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
 
 const LOCALE_STORAGE_KEY = "surfsense-locale";
 
+// Validate if a string is a supported locale
+function isValidLocale(value: string | null): value is Locale {
+	return value !== null && SUPPORTED_LOCALES.includes(value as Locale);
+}
+
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
 	// Always start with 'en' to avoid hydration mismatch
 	// Then sync with localStorage after mount
 	const [locale, setLocaleState] = useState<Locale>("en");
 	const [mounted, setMounted] = useState(false);
 
-	// Get messages based on current locale
-	const messages =
-		locale === "lv" ? lvMessages : locale === "sv" ? svMessages : enMessages;
+	// Get messages based on current locale using map
+	const messages = messageMap[locale];
 
 	// Load locale from localStorage after component mounts (client-side only)
 	useEffect(() => {
 		setMounted(true);
 		if (typeof window !== "undefined") {
 			const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-			if (stored === "lv" || stored === "sv") {
+			if (isValidLocale(stored)) {
 				setLocaleState(stored);
 			}
 		}

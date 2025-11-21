@@ -8,7 +8,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useLocaleContext } from "@/contexts/LocaleContext";
+import { useLocaleContext, type Locale } from "@/contexts/LocaleContext";
 
 /**
  * Language switcher component
@@ -19,10 +19,10 @@ export function LanguageSwitcher() {
 	const { locale, setLocale } = useLocaleContext();
 
 	// Supported languages configuration
-	const languages = [
-		{ code: "en" as const, name: "English", flag: "🇺🇸" },
-		{ code: "lv" as const, name: "Latviešu", flag: "🇱🇻" },
-		{ code: "sv" as const, name: "Svenska", flag: "🇸🇪" },
+	const languages: Array<{ code: Locale; name: string; flag: string }> = [
+		{ code: "en", name: "English", flag: "🇺🇸" },
+		{ code: "lv", name: "Latviešu", flag: "🇱🇻" },
+		{ code: "sv", name: "Svenska", flag: "🇸🇪" },
 	];
 
 	/**
@@ -30,7 +30,7 @@ export function LanguageSwitcher() {
 	 * Updates locale in context and localStorage
 	 */
 	const handleLanguageChange = (newLocale: string) => {
-		setLocale(newLocale as "en" | "lv" | "sv");
+		setLocale(newLocale as Locale);
 	};
 
 	return (

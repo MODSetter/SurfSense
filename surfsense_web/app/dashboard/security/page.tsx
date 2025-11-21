@@ -174,32 +174,25 @@ export default function SecurityPage() {
 		toast.success("Backup codes downloaded");
 	};
 
-	if (loading || isLoadingStatus) {
-		return (
-			<AdminGuard>
+	return (
+		<AdminGuard>
+			{(loading || isLoadingStatus) && (
 				<div className="flex flex-col justify-center items-center min-h-screen">
 					<div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
 					<p className="text-muted-foreground">Loading Security Settings...</p>
 				</div>
-			</AdminGuard>
-		);
-	}
+			)}
 
-	if (error) {
-		return (
-			<AdminGuard>
+			{error && !loading && !isLoadingStatus && (
 				<div className="container mx-auto py-10">
 					<Alert variant="destructive">
 						<AlertTitle>Error</AlertTitle>
 						<AlertDescription>{error}</AlertDescription>
 					</Alert>
 				</div>
-			</AdminGuard>
-		);
-	}
+			)}
 
-	return (
-		<AdminGuard>
+			{!loading && !isLoadingStatus && !error && (
 			<div className="container mx-auto py-10">
 			<div className="flex flex-col space-y-6">
 				<DashboardHeader
@@ -446,6 +439,7 @@ export default function SecurityPage() {
 				</Card>
 			</div>
 		</div>
+			)}
 		</AdminGuard>
 	);
 }
