@@ -81,12 +81,15 @@ cat > scripts/deploy.sh << 'EOFSCRIPT'
 #!/bin/bash
 set -e
 
+# Configuration file path
+CONFIG_PATH="$(dirname "$0")/.config"
+
 # Load configuration or exit with error
-if [ -f "$(dirname "$0")/.config" ]; then
-    source "$(dirname "$0")/.config"
+if [ -f "$CONFIG_PATH" ]; then
+    source "$CONFIG_PATH"
 else
-    echo "ERROR: scripts/.config file not found." >&2
-    echo "Please copy scripts/.config.template to scripts/.config and configure your VPS details." >&2
+    echo "ERROR: Configuration file not found: $CONFIG_PATH" >&2
+    echo "Please copy scripts/.config.template to $CONFIG_PATH and configure your VPS details." >&2
     exit 1
 fi
 
@@ -106,12 +109,15 @@ EOFSCRIPT
 cat > scripts/monitor-services.sh << 'EOFSCRIPT'
 #!/bin/bash
 
+# Configuration file path
+CONFIG_PATH="$(dirname "$0")/.config"
+
 # Load configuration or exit with error
-if [ -f "$(dirname "$0")/.config" ]; then
-    source "$(dirname "$0")/.config"
+if [ -f "$CONFIG_PATH" ]; then
+    source "$CONFIG_PATH"
 else
-    echo "ERROR: scripts/.config file not found." >&2
-    echo "Please copy scripts/.config.template to scripts/.config and configure your VPS details." >&2
+    echo "ERROR: Configuration file not found: $CONFIG_PATH" >&2
+    echo "Please copy scripts/.config.template to $CONFIG_PATH and configure your VPS details." >&2
     exit 1
 fi
 
