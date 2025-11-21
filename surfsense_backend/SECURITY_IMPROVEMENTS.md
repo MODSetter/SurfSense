@@ -806,6 +806,239 @@ curl -X POST http://localhost:8000/admin/rate-limit/unlock \
 
 ---
 
+## Cloudflare Integration
+
+### Overview
+
+SurfSense includes comprehensive Cloudflare integration for enhanced security, performance, and global CDN delivery. When deployed behind Cloudflare, the application automatically detects and handles Cloudflare-specific headers for accurate IP detection and enhanced logging.
+
+### Quick Setup
+
+Enable Cloudflare integration with a single environment variable:
+
+```bash
+CLOUDFLARE_PROXIES=true
+```
+
+This automatically:
+- ✅ Trusts Cloudflare's IP ranges (300+ edge locations)
+- ✅ Uses `CF-Connecting-IP` header for real client IPs
+- ✅ Logs Cloudflare metadata (CF-Ray, CF-IPCountry, CF-Visitor, etc.)
+- ✅ Prevents IP spoofing (only trusts headers from Cloudflare IPs)
+
+### Cloudflare Headers Supported
+
+#### CF-Connecting-IP
+The most reliable header for determining the real client IP when behind Cloudflare. This header cannot be spoofed because it's only trusted when the immediate client IP is from Cloudflare's network.
+
+```python
+# Automatically used when CLOUDFLARE_PROXIES=true
+# Priority: CF-Connecting-IP > X-Forwarded-For > X-Real-IP > Direct Client
+```
+
+#### CF-Ray
+Unique request identifier for correlating logs across Cloudflare's network and your backend.
+
+**Example logged in security_events:**
+```json
+{
+  "event_type": "RATE_LIMIT_HIT",
+  "details": {
+    "cloudflare": {
+      "cf_ray": "8a1b2c3d4e5f-SJC",
+      "cf_country": "US"
+    }
+  }
+}
+```
+
+**Use Case:** Support requests
+```
+User: "I got an error at 2:30 PM"
+You: "What's the CF-Ray ID from the error page?"
+User: "8a1b2c3d4e5f-SJC"
+You: *Searches logs for that CF-Ray* "Found it! The issue was..."
+```
+
+#### CF-IPCountry
+ISO 3166-1 Alpha 2 country code of the client IP.
+
+**Use Cases:**
+- Geo-blocking for compliance (GDPR, sanctions, etc.)
+- Attack pattern analysis (identify coordinated attacks from specific regions)
+- Analytics and reporting
+
+**Example: Logging by Country**
+```sql
+-- Top countries with failed login attempts
+SELECT
+    details->>'cloudflare'->>'cf_country' as country,
+    COUNT(*) as failed_attempts
+FROM security_events
+WHERE event_type = 'PASSWORD_LOGIN_FAILED'
+  AND details->>'cloudflare'->>'cf_country' IS NOT NULL
+GROUP BY country
+ORDER BY failed_attempts DESC
+LIMIT 10;
+```
+
+#### CF-Visitor
+JSON object indicating whether the original request was HTTP or HTTPS before reaching Cloudflare.
+
+**Use Case:** Enforce HTTPS-only policies
+```python
+import json
+
+cf_visitor = request.headers.get("cf-visitor")
+if cf_visitor:
+    visitor_data = json.loads(cf_visitor)
+    if visitor_data.get("scheme") == "http":
+        # Log security event - someone accessed via HTTP
+        logger.warning(f"HTTP access attempt to {endpoint}")
+```
+
+### Cloudflare IP Ranges
+
+The application includes Cloudflare's current IP ranges (as of January 2025):
+
+**IPv4 Ranges:**
+- 173.245.48.0/20, 103.21.244.0/22, 103.22.200.0/22
+- 103.31.4.0/22, 141.101.64.0/18, 108.162.192.0/18
+- And 9 more ranges...
+
+**IPv6 Ranges:**
+- 2400:cb00::/32, 2606:4700::/32, 2803:f800::/32
+- And 4 more ranges...
+
+These ranges are automatically checked using the `is_cloudflare_ip()` function.
+
+### Benefits of Cloudflare Integration
+
+1. **Accurate Rate Limiting**: Individual user tracking instead of treating all users as a single Cloudflare IP
+2. **Enhanced Logging**: CF-Ray and CF-IPCountry for better security monitoring
+3. **Attack Attribution**: Identify attack patterns by country and trace requests end-to-end
+4. **Support Debugging**: Cloudflare support can investigate issues using CF-Ray ID
+5. **Geo-Intelligence**: Make security decisions based on geographic origin
+
+### Configuration Examples
+
+#### Production (Behind Cloudflare)
+```bash
+# Enable Cloudflare mode
+CLOUDFLARE_PROXIES=true
+
+# Rate limiting still applies per-user
+RATE_LIMIT_MAX_ATTEMPTS=5
+RATE_LIMIT_LOCKOUT_MINUTES=60
+```
+
+#### Production (Behind Nginx, not Cloudflare)
+```bash
+# Don't use Cloudflare mode
+CLOUDFLARE_PROXIES=false
+
+# Trust your Nginx proxy
+TRUSTED_PROXIES=10.0.0.1,10.0.0.2
+```
+
+#### Development (Direct Connection)
+```bash
+# No proxies
+# (Leave unset or explicitly disable)
+```
+
+### Health Checks
+
+The `/health` endpoints bypass rate limiting and are designed for Cloudflare Health Checks and load balancers:
+
+- `/health` - Basic liveness check (no dependencies)
+- `/health/ready` - Readiness check (verifies database, Redis)
+- `/health/live` - Kubernetes liveness probe
+
+**Cloudflare Load Balancer Configuration:**
+```yaml
+Health Check Settings:
+  - Path: /health/ready
+  - Expected Code: 200
+  - Method: GET
+  - Interval: 60 seconds
+  - Timeout: 5 seconds
+  - Retries: 2
+```
+
+### Security Logging with Cloudflare
+
+All security events include Cloudflare metadata when available:
+
+```python
+# Example security_events table entry
+{
+  "event_type": "RATE_LIMIT_HIT",
+  "ip_address": "203.0.113.1",
+  "user_agent": "Mozilla/5.0 ...",
+  "details": {
+    "endpoint": "/2fa/login",
+    "failed_attempts": 5,
+    "cloudflare": {
+      "cf_ray": "8a1b2c3d4e5f-SJC",
+      "cf_country": "US",
+      "cf_visitor": "{\"scheme\":\"https\"}"
+    }
+  }
+}
+```
+
+### Monitoring Queries
+
+#### Find Attacks by Country
+```sql
+SELECT
+    details->>'cloudflare'->>'cf_country' as country,
+    COUNT(*) as attack_count,
+    array_agg(DISTINCT ip_address) as attacker_ips
+FROM security_events
+WHERE event_type = 'RATE_LIMIT_AUTO_BLOCK'
+  AND created_at > NOW() - INTERVAL '24 hours'
+  AND details->>'cloudflare'->>'cf_country' IS NOT NULL
+GROUP BY country
+ORDER BY attack_count DESC;
+```
+
+#### Trace Request by CF-Ray
+```sql
+SELECT *
+FROM security_events
+WHERE details->>'cloudflare'->>'cf_ray' = '8a1b2c3d4e5f-SJC'
+ORDER BY created_at;
+```
+
+#### HTTP vs HTTPS Access Patterns
+```sql
+SELECT
+    details->>'cloudflare'->>'cf_visitor' as protocol,
+    COUNT(*) as count
+FROM security_events
+WHERE details->>'cloudflare'->>'cf_visitor' IS NOT NULL
+GROUP BY protocol;
+```
+
+### Complete Setup Guide
+
+For complete Cloudflare configuration including:
+- SSL/TLS settings
+- WAF rules
+- Edge rate limiting
+- Bot management
+- Performance optimization
+- Monitoring and analytics
+- Troubleshooting
+
+**See: [CLOUDFLARE_SETUP.md](./CLOUDFLARE_SETUP.md)**
+
+This comprehensive guide covers all aspects of deploying SurfSense behind Cloudflare, from basic setup to advanced features like Turnstile, Workers, and Waiting Rooms.
+
+---
+
 ## References
 
 - [OWASP Rate Limiting Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html)
@@ -826,6 +1059,14 @@ curl -X POST http://localhost:8000/admin/rate-limit/unlock \
 - Added full IPv6 support with comprehensive tests
 - Implemented timing attack prevention
 - Created comprehensive security documentation
+- **Cloudflare Integration**:
+  - Added automatic Cloudflare IP range detection
+  - Implemented CF-Connecting-IP header support
+  - Added CF-Ray logging for request correlation
+  - Added CF-IPCountry logging for geo-tracking
+  - Created health check endpoints (bypassing rate limiting)
+  - Created comprehensive Cloudflare setup guide (CLOUDFLARE_SETUP.md)
+  - Added Cloudflare-specific tests
 
 ---
 

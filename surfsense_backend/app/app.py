@@ -124,6 +124,10 @@ if config.AUTH_TYPE == "GOOGLE":
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 
+# Include health check routes (no rate limiting, for monitoring/load balancers)
+from app.routes.health_routes import router as health_router
+app.include_router(health_router)
+
 
 @app.get("/verify-token")
 async def authenticated_route(

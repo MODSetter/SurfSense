@@ -337,3 +337,155 @@ class TestIPv6Support:
 
         # Should return the leftmost IPv6 (original client)
         assert ip == "2001:db8::1"
+
+
+@pytest.mark.unit
+class TestCloudflareIntegration:
+    """Test cases for Cloudflare-specific functionality."""
+
+    def test_cloudflare_ip_detection_ipv4(self):
+        """Test detecting Cloudflare IPv4 addresses."""
+        from app.dependencies.rate_limit import is_cloudflare_ip
+
+        # Valid Cloudflare IPv4 (from 173.245.48.0/20 range)
+        assert is_cloudflare_ip("173.245.48.1") is True
+        assert is_cloudflare_ip("173.245.63.255") is True
+
+        # Valid Cloudflare IPv4 (from 104.16.0.0/13 range)
+        assert is_cloudflare_ip("104.16.0.1") is True
+        assert is_cloudflare_ip("104.23.255.255") is True
+
+        # Non-Cloudflare IP
+        assert is_cloudflare_ip("8.8.8.8") is False
+        assert is_cloudflare_ip("192.168.1.1") is False
+
+    def test_cloudflare_ip_detection_ipv6(self):
+        """Test detecting Cloudflare IPv6 addresses."""
+        from app.dependencies.rate_limit import is_cloudflare_ip
+
+        # Valid Cloudflare IPv6 (from 2606:4700::/32 range)
+        assert is_cloudflare_ip("2606:4700::1") is True
+        assert is_cloudflare_ip("2606:4700:ffff:ffff:ffff:ffff:ffff:ffff") is True
+
+        # Valid Cloudflare IPv6 (from 2400:cb00::/32 range)
+        assert is_cloudflare_ip("2400:cb00::1") is True
+
+        # Non-Cloudflare IPv6
+        assert is_cloudflare_ip("2001:db8::1") is False
+
+    def test_cf_connecting_ip_header(self, monkeypatch):
+        """Test CF-Connecting-IP header takes priority for Cloudflare requests."""
+        # Set environment to use Cloudflare proxies
+        monkeypatch.setenv("CLOUDFLARE_PROXIES", "true")
+
+        # Reload module to pick up env var
+        import importlib
+        import app.dependencies.rate_limit
+        importlib.reload(app.dependencies.rate_limit)
+        from app.dependencies.rate_limit import get_client_ip
+
+        request = MagicMock()
+        request.headers = {
+            "cf-connecting-ip": "203.0.113.1",
+            "x-forwarded-for": "203.0.113.1, 173.245.48.1",
+        }
+        request.client = MagicMock()
+        request.client.host = "173.245.48.1"  # Cloudflare IP
+
+        ip = get_client_ip(request)
+
+        # Should use CF-Connecting-IP since request is from Cloudflare
+        assert ip == "203.0.113.1"
+
+    def test_cf_connecting_ip_not_trusted_from_non_cloudflare(self, monkeypatch):
+        """Test CF-Connecting-IP is ignored when request doesn't come from Cloudflare."""
+        # Set environment to use Cloudflare proxies
+        monkeypatch.setenv("CLOUDFLARE_PROXIES", "true")
+
+        # Reload module
+        import importlib
+        import app.dependencies.rate_limit
+        importlib.reload(app.dependencies.rate_limit)
+        from app.dependencies.rate_limit import get_client_ip
+
+        request = MagicMock()
+        request.headers = {
+            "cf-connecting-ip": "1.2.3.4",  # Fake CF header
+            "x-forwarded-for": "5.6.7.8, 1.2.3.4",
+        }
+        request.client = MagicMock()
+        request.client.host = "10.0.0.1"  # NOT a Cloudflare IP
+
+        ip = get_client_ip(request)
+
+        # Should NOT use CF-Connecting-IP (not from Cloudflare)
+        # Should fall back to direct client
+        assert ip == "10.0.0.1"
+
+    def test_get_cloudflare_metadata(self):
+        """Test extracting Cloudflare metadata from headers."""
+        from app.dependencies.rate_limit import get_cloudflare_metadata
+
+        request = MagicMock()
+        request.headers = {
+            "cf-ray": "1234567890abc-SJC",
+            "cf-ipcountry": "US",
+            "cf-visitor": '{"scheme":"https"}',
+            "cf-request-id": "req-12345",
+        }
+
+        metadata = get_cloudflare_metadata(request)
+
+        assert metadata["cf_ray"] == "1234567890abc-SJC"
+        assert metadata["cf_country"] == "US"
+        assert metadata["cf_visitor"] == '{"scheme":"https"}'
+        assert metadata["cf_request_id"] == "req-12345"
+
+    def test_get_cloudflare_metadata_partial(self):
+        """Test extracting partial Cloudflare metadata."""
+        from app.dependencies.rate_limit import get_cloudflare_metadata
+
+        request = MagicMock()
+        request.headers = {
+            "cf-ray": "1234567890abc-SJC",
+            # Only CF-Ray present
+        }
+
+        metadata = get_cloudflare_metadata(request)
+
+        assert metadata["cf_ray"] == "1234567890abc-SJC"
+        assert "cf_country" not in metadata
+        assert "cf_visitor" not in metadata
+
+    def test_get_cloudflare_metadata_none(self):
+        """Test with no Cloudflare headers."""
+        from app.dependencies.rate_limit import get_cloudflare_metadata
+
+        request = MagicMock()
+        request.headers = {}
+
+        metadata = get_cloudflare_metadata(request)
+
+        assert metadata == {}
+
+    def test_invalid_ip_in_cf_connecting_ip(self, monkeypatch):
+        """Test invalid IP in CF-Connecting-IP is rejected."""
+        monkeypatch.setenv("CLOUDFLARE_PROXIES", "true")
+
+        import importlib
+        import app.dependencies.rate_limit
+        importlib.reload(app.dependencies.rate_limit)
+        from app.dependencies.rate_limit import get_client_ip
+
+        request = MagicMock()
+        request.headers = {
+            "cf-connecting-ip": "not-an-ip",
+            "x-forwarded-for": "203.0.113.1",
+        }
+        request.client = MagicMock()
+        request.client.host = "173.245.48.1"  # Cloudflare IP
+
+        ip = get_client_ip(request)
+
+        # Should fall back to X-Forwarded-For due to invalid CF-Connecting-IP
+        assert ip == "203.0.113.1"
