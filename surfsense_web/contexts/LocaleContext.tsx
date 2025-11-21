@@ -9,8 +9,22 @@ import svMessages from "../messages/sv.json";
 // Export Locale type for use in other components
 export type Locale = "en" | "lv" | "sv";
 
+// Language configuration with metadata
+export interface LanguageConfig {
+	code: Locale;
+	name: string;
+	flag: string;
+}
+
+// Centralized language configuration
+export const LANGUAGE_CONFIG: LanguageConfig[] = [
+	{ code: "en", name: "English", flag: "🇺🇸" },
+	{ code: "lv", name: "Latviešu", flag: "🇱🇻" },
+	{ code: "sv", name: "Svenska", flag: "🇸🇪" },
+];
+
 // Supported locales array for validation
-export const SUPPORTED_LOCALES: Locale[] = ["en", "lv", "sv"];
+export const SUPPORTED_LOCALES: Locale[] = LANGUAGE_CONFIG.map((lang) => lang.code);
 
 // Message map for type-safe locale selection
 const messageMap: Record<Locale, typeof enMessages> = {

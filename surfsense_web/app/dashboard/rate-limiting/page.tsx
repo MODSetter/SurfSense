@@ -241,7 +241,7 @@ export default function RateLimitingPage() {
 				</div>
 			)}
 
-			{(userError || !user) && !userLoading && !isLoading && (
+			{userError && !userLoading && !isLoading && (
 				<div>
 					<DashboardHeader
 						title="Rate Limiting"
@@ -259,7 +259,7 @@ export default function RateLimitingPage() {
 				</div>
 			)}
 
-			{!userLoading && !isLoading && !userError && user && (
+			{!userLoading && !isLoading && !userError && (
 			<div>
 				<DashboardHeader
 					title="Rate Limiting"
