@@ -80,7 +80,7 @@ load_dotenv(env_file)
 inject_secrets_to_env()
 
 
-def is_ffmpeg_installed():
+def is_ffmpeg_installed() -> bool:
     """
     Check if ffmpeg is installed on the current system.
 
@@ -90,56 +90,67 @@ def is_ffmpeg_installed():
     return shutil.which("ffmpeg") is not None
 
 
-def expand_env_vars(data):
+def expand_env_vars(data: Any) -> Any:
     """
-    Recursively expand environment variables in data structure.
-    Supports ${VAR_NAME} syntax for environment variable substitution.
+    Recursively expand environment variables in data structure with support for default values.
+
+    Supports two formats:
+    - ${VAR} - Expands to environment variable VAR
+    - ${VAR:default_value} - Expands to VAR if set, otherwise uses default_value
 
     Args:
-        data: Dictionary, list, string, or other data type
+        data: Dictionary, list, string, or other data type potentially containing
+              environment variable placeholders
 
     Returns:
         Data with environment variables expanded
 
-    Example:
+    Examples:
         >>> os.environ['API_KEY'] = 'secret123'
         >>> expand_env_vars({'key': '${API_KEY}'})
         {'key': 'secret123'}
+        >>> expand_env_vars("${MISSING_VAR:http://localhost:11434}")
+        "http://localhost:11434"
     """
     if isinstance(data, dict):
         return {key: expand_env_vars(value) for key, value in data.items()}
     elif isinstance(data, list):
         return [expand_env_vars(item) for item in data]
     elif isinstance(data, str):
-        # Replace ${VAR_NAME} with environment variable value
-        def replace_env_var(match):
-            var_name = match.group(1)
-            return os.getenv(var_name, match.group(0))  # Keep original if not found
-        return re.sub(r'\$\{([^}]+)\}', replace_env_var, data)
+        # Replace ${VAR} or ${VAR:default} with environment variable value
+        def replace_env_var(match: re.Match[str]) -> str:
+            var_with_default = match.group(1)
+            if ":" in var_with_default:
+                var_name, default = var_with_default.split(":", 1)
+                return os.getenv(var_name, default)
+            return os.getenv(var_with_default, match.group(0))  # Keep original if not found
+
+        return re.sub(r"\$\{([^}]+)\}", replace_env_var, data)
     else:
         return data
 
 
-def load_global_llm_configs():
+def load_global_llm_configs() -> list[dict[str, Any]]:
     """
     Load global LLM configurations from YAML file with environment variable expansion.
-    Falls back to example file if main file doesn't exist.
 
-    Environment variables in the format ${VAR_NAME} will be automatically expanded
-    to their values from the environment. This allows secure storage of API keys
-    in .env files instead of hardcoding them in the YAML configuration.
+    Environment variables in the YAML file are expanded using the ${VAR} or ${VAR:default} syntax.
+    This allows secure storage of API keys in .env files and flexible configuration with
+    sensible defaults for development.
 
     Returns:
         list: List of global LLM config dictionaries with env vars expanded,
               or empty list if file doesn't exist
 
-    Example:
+    Examples:
         In global_llm_config.yaml:
             api_key: "${GEMINI_API_KEY}"
+            api_base: "${OLLAMA_BASE_URL:http://localhost:11434}"
         In .env:
             GEMINI_API_KEY=actual-key-value
         Result:
             api_key: "actual-key-value"
+            api_base: "http://localhost:11434"  (uses default since OLLAMA_BASE_URL not set)
     """
     # Try main config file first
     global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
