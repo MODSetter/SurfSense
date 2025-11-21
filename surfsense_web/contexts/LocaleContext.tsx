@@ -5,23 +5,16 @@ import { createContext, useContext, useEffect, useState } from "react";
 import enMessages from "../messages/en.json";
 import lvMessages from "../messages/lv.json";
 import svMessages from "../messages/sv.json";
+import {
+	LANGUAGE_CONFIG,
+	SUPPORTED_LOCALES,
+	type Locale,
+	type LanguageConfig,
+} from "@/lib/locale-config";
 
-// Centralized language configuration with readonly type assertion
-export const LANGUAGE_CONFIG = [
-	{ code: "en", name: "English", flag: "🇺🇸" },
-	{ code: "lv", name: "Latviešu", flag: "🇱🇻" },
-	{ code: "sv", name: "Svenska", flag: "🇸🇪" },
-] as const;
-
-// Derive Locale type from LANGUAGE_CONFIG for single source of truth
-// When you add/remove a language, the Locale type updates automatically
-export type Locale = (typeof LANGUAGE_CONFIG)[number]["code"];
-
-// Language configuration type for external use
-export type LanguageConfig = (typeof LANGUAGE_CONFIG)[number];
-
-// Supported locales array for validation
-export const SUPPORTED_LOCALES: Locale[] = LANGUAGE_CONFIG.map((lang) => lang.code);
+// Re-export types and config for backward compatibility
+export type { Locale, LanguageConfig };
+export { LANGUAGE_CONFIG, SUPPORTED_LOCALES };
 
 // Message map for type-safe locale selection
 const messageMap: Record<Locale, typeof enMessages> = {
@@ -42,7 +35,7 @@ const LOCALE_STORAGE_KEY = "surfsense-locale";
 
 // Validate if a string is a supported locale
 function isValidLocale(value: string | null): value is Locale {
-	return value !== null && SUPPORTED_LOCALES.includes(value as Locale);
+	return value !== null && (SUPPORTED_LOCALES as readonly string[]).includes(value);
 }
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
