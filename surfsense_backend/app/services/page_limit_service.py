@@ -39,6 +39,9 @@ class PageLimitService:
         """
         Check if user has enough pages remaining for processing.
 
+        Note: This method now only performs a read check without locking.
+        For atomic check-and-update, use check_and_update_page_limit() instead.
+
         Args:
             user_id: The user's ID
             estimated_pages: Estimated number of pages to be processed
@@ -82,6 +85,9 @@ class PageLimitService:
         """
         Update user's page usage after successful processing.
 
+        Note: This method is subject to race conditions. For concurrent-safe updates,
+        use check_and_update_page_limit() instead.
+
         Args:
             user_id: The user's ID
             pages_to_add: Number of pages to add to usage
@@ -96,8 +102,10 @@ class PageLimitService:
         """
         from app.db import User
 
-        # Get user
-        result = await self.session.execute(select(User).where(User.id == user_id))
+        # Get user with pessimistic lock to prevent race conditions
+        result = await self.session.execute(
+            select(User).where(User.id == user_id).with_for_update()
+        )
         user = result.unique().scalar_one_or_none()
 
         if not user:
@@ -110,6 +118,58 @@ class PageLimitService:
                 message=f"Cannot update page usage. Would exceed limit. "
                 f"Current: {user.pages_used}/{user.pages_limit}, "
                 f"Trying to add: {pages_to_add}",
+                pages_used=user.pages_used,
+                pages_limit=user.pages_limit,
+                pages_to_add=pages_to_add,
+            )
+
+        # Update usage
+        user.pages_used = new_usage
+        await self.session.commit()
+        await self.session.refresh(user)
+
+        return user.pages_used
+
+    async def check_and_update_page_limit(
+        self, user_id: str, pages_to_add: int
+    ) -> int:
+        """
+        Atomically check page limit and update usage in a single transaction.
+
+        This method prevents race conditions by using pessimistic locking (SELECT FOR UPDATE)
+        to ensure no other concurrent requests can modify the user's page usage between
+        the check and update operations.
+
+        Args:
+            user_id: The user's ID
+            pages_to_add: Number of pages to add to usage
+
+        Returns:
+            New total pages_used value
+
+        Raises:
+            PageLimitExceededError: If adding pages would exceed limit
+            ValueError: If user not found
+        """
+        from app.db import User
+
+        # Lock the user row to prevent concurrent modifications
+        result = await self.session.execute(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        user = result.unique().scalar_one_or_none()
+
+        if not user:
+            raise ValueError(f"User with ID {user_id} not found")
+
+        # Check if adding pages would exceed limit
+        new_usage = user.pages_used + pages_to_add
+        if new_usage > user.pages_limit:
+            raise PageLimitExceededError(
+                message=f"Processing this document would exceed your page limit. "
+                f"Used: {user.pages_used}/{user.pages_limit} pages. "
+                f"Document has approximately {pages_to_add} page(s). "
+                f"Please contact admin to increase limits for your account.",
                 pages_used=user.pages_used,
                 pages_limit=user.pages_limit,
                 pages_to_add=pages_to_add,
