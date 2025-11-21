@@ -291,6 +291,52 @@ class SecurityEventService:
             details=details,
         )
 
+    @staticmethod
+    async def log_rate_limit_hit(
+        session: AsyncSession,
+        user_id: UUID | str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> SecurityEvent | None:
+        """
+        Log when a blocked IP tries to access an endpoint.
+
+        This helps identify potential attack patterns and persistent attackers.
+        """
+        return await SecurityEventService.log_event(
+            session=session,
+            event_type=SecurityEventType.RATE_LIMIT_HIT,
+            user_id=user_id,
+            success=False,  # Request was blocked
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details=details,
+        )
+
+    @staticmethod
+    async def log_rate_limit_attempt_recorded(
+        session: AsyncSession,
+        user_id: UUID | str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> SecurityEvent | None:
+        """
+        Log when a failed attempt is recorded (but IP not yet blocked).
+
+        This helps track escalating threats before they trigger automatic blocking.
+        """
+        return await SecurityEventService.log_event(
+            session=session,
+            event_type=SecurityEventType.RATE_LIMIT_ATTEMPT_RECORDED,
+            user_id=user_id,
+            success=False,  # Failed authentication attempt
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details=details,
+        )
+
 
 # Create a singleton instance
 security_event_service = SecurityEventService()

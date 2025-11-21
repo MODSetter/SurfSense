@@ -50,41 +50,71 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self.enable_csp = enable_csp
         self.csp_policy = csp_policy or self._get_default_csp()
 
+    def _build_csp_from_dict(self, csp_directives: dict[str, list[str]]) -> str:
+        """
+        Build a CSP string from a dictionary of directives.
+
+        Args:
+            csp_directives: Dictionary mapping directive names to lists of sources
+
+        Returns:
+            Formatted CSP policy string
+
+        Example:
+            {
+                "default-src": ["'self'"],
+                "script-src": ["'self'", "'unsafe-inline'"],
+            }
+            becomes:
+            "default-src 'self'; script-src 'self' 'unsafe-inline'"
+        """
+        policy_parts = []
+        for directive, sources in csp_directives.items():
+            sources_str = " ".join(sources)
+            policy_parts.append(f"{directive} {sources_str}")
+        return "; ".join(policy_parts)
+
     def _get_default_csp(self) -> str:
         """
         Get default Content Security Policy.
 
         This is a strict policy that can be customized based on application needs.
+        Uses a dictionary-based approach for better maintainability.
         """
         # For development, allow more sources; for production, be strict
         is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
 
         if is_production:
             # Strict production CSP
-            return (
-                "default-src 'self'; "
-                "script-src 'self'; "
-                "style-src 'self' 'unsafe-inline'; "
-                "img-src 'self' data: https:; "
-                "font-src 'self'; "
-                "connect-src 'self'; "
-                "frame-ancestors 'none'; "
-                "base-uri 'self'; "
-                "form-action 'self'"
-            )
+            csp_directives = {
+                "default-src": ["'self'"],
+                "script-src": ["'self'"],
+                "style-src": ["'self'", "'unsafe-inline'"],  # inline styles often needed for UI frameworks
+                "img-src": ["'self'", "data:", "https:"],
+                "font-src": ["'self'"],
+                "connect-src": ["'self'"],
+                "frame-ancestors": ["'none'"],
+                "base-uri": ["'self'"],
+                "form-action": ["'self'"],
+                "object-src": ["'none'"],  # Prevent Flash/plugins
+                "upgrade-insecure-requests": [],  # Force HTTPS
+            }
         else:
             # More permissive for development
-            return (
-                "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-                "style-src 'self' 'unsafe-inline'; "
-                "img-src 'self' data: https:; "
-                "font-src 'self'; "
-                "connect-src 'self' http://localhost:* ws://localhost:*; "
-                "frame-ancestors 'self'; "
-                "base-uri 'self'; "
-                "form-action 'self'"
-            )
+            csp_directives = {
+                "default-src": ["'self'"],
+                "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],  # Dev tools need eval
+                "style-src": ["'self'", "'unsafe-inline'"],
+                "img-src": ["'self'", "data:", "https:"],
+                "font-src": ["'self'"],
+                "connect-src": ["'self'", "http://localhost:*", "ws://localhost:*"],  # Dev server
+                "frame-ancestors": ["'self'"],
+                "base-uri": ["'self'"],
+                "form-action": ["'self'"],
+                "object-src": ["'none'"],
+            }
+
+        return self._build_csp_from_dict(csp_directives)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """

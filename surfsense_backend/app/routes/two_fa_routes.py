@@ -237,12 +237,27 @@ async def verify_2fa_setup(
     if not is_valid:
         # Record failed attempt for rate limiting
         if ip_address:
-            RateLimitService.record_failed_attempt(
+            should_block, attempt_count = RateLimitService.record_failed_attempt(
                 ip_address=ip_address,
                 user_id=str(user.id),
                 username=user.email,
                 reason="failed_2fa_setup_verification",
             )
+
+            # Log failed attempt to security events for monitoring
+            if not should_block:
+                # Only log ATTEMPT_RECORDED if not blocked (block gets its own event)
+                await security_event_service.log_rate_limit_attempt_recorded(
+                    session=session,
+                    user_id=user.id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    details={
+                        "attempt_count": attempt_count,
+                        "reason": "failed_2fa_setup_verification",
+                        "endpoint": "/2fa/verify-setup",
+                    },
+                )
 
         raise HTTPException(
             status_code=400,
@@ -447,14 +462,20 @@ async def login_with_2fa(
     http_request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_async_session),
+    ip_address: str | None = Depends(check_rate_limit),
 ):
     """
     Login endpoint that handles 2FA.
 
     If 2FA is enabled, returns a temporary token that must be verified
     with /verify endpoint. Otherwise, returns the access token directly.
+
+    Rate Limiting:
+    - Max 5 failed login attempts per IP within 15 minutes
+    - After exceeding limit, IP is blocked for 60 minutes
+    - Prevents password brute force attacks
     """
-    ip_address, user_agent = get_request_metadata(http_request)
+    _, user_agent = get_request_metadata(http_request)
 
     # Find user by email
     result = await session.execute(
@@ -463,6 +484,31 @@ async def login_with_2fa(
     user = result.scalar_one_or_none()
 
     if not user:
+        # Record failed attempt even when user doesn't exist (timing attack prevention)
+        if ip_address:
+            should_block, attempt_count = RateLimitService.record_failed_attempt(
+                ip_address=ip_address,
+                user_id=None,
+                username=form_data.username,
+                reason="failed_login_user_not_found",
+            )
+
+            # Log failed attempt to security events for monitoring
+            if not should_block:
+                # Use sentinel user_id since user doesn't exist
+                await security_event_service.log_rate_limit_attempt_recorded(
+                    session=session,
+                    user_id="00000000-0000-0000-0000-000000000000",
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    details={
+                        "attempt_count": attempt_count,
+                        "reason": "failed_login_user_not_found",
+                        "endpoint": "/2fa/login",
+                        "username_attempted": form_data.username,
+                    },
+                )
+
         raise HTTPException(
             status_code=400,
             detail="Incorrect email or password",
@@ -478,6 +524,41 @@ async def login_with_2fa(
             ip_address=ip_address,
             user_agent=user_agent,
         )
+
+        # Record failed login attempt for rate limiting
+        if ip_address:
+            should_block, attempt_count = RateLimitService.record_failed_attempt(
+                ip_address=ip_address,
+                user_id=str(user.id),
+                username=user.email,
+                reason="failed_password_login",
+            )
+            if should_block:
+                logger.warning(
+                    f"IP {ip_address} blocked after {attempt_count} failed login attempts for user {user.email}"
+                )
+                # Log rate limit block event
+                await security_event_service.log_rate_limit_block(
+                    session=session,
+                    user_id=user.id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    details={"failed_attempts": attempt_count, "reason": "failed_password_login"},
+                )
+            else:
+                # Log failed attempt for monitoring (not yet blocked)
+                await security_event_service.log_rate_limit_attempt_recorded(
+                    session=session,
+                    user_id=user.id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    details={
+                        "attempt_count": attempt_count,
+                        "reason": "failed_password_login",
+                        "endpoint": "/2fa/login",
+                    },
+                )
+
         raise HTTPException(
             status_code=400,
             detail="Incorrect email or password",
@@ -506,6 +587,19 @@ async def login_with_2fa(
     # No 2FA - generate JWT directly
     jwt_strategy = get_jwt_strategy()
     token = await jwt_strategy.write_token(user)
+
+    # Clear rate limit counters on successful login
+    if ip_address:
+        try:
+            from app.services.rate_limit_service import (
+                FAILED_ATTEMPTS_PREFIX,
+                get_redis_client,
+            )
+            redis_client = get_redis_client()
+            attempts_key = f"{FAILED_ATTEMPTS_PREFIX}{ip_address}"
+            redis_client.delete(attempts_key)
+        except Exception as e:
+            logger.warning(f"Failed to clear rate limit counter: {e}")
 
     # Log successful password login
     await security_event_service.log_password_login(
@@ -625,6 +719,19 @@ async def verify_2fa_login(
                     ip_address=ip_address,
                     user_agent=user_agent,
                     details={"failed_attempts": attempt_count, "reason": "failed_2fa_verification"},
+                )
+            else:
+                # Log failed attempt for monitoring (not yet blocked)
+                await security_event_service.log_rate_limit_attempt_recorded(
+                    session=session,
+                    user_id=user.id,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    details={
+                        "attempt_count": attempt_count,
+                        "reason": "failed_2fa_verification",
+                        "endpoint": "/2fa/verify",
+                    },
                 )
 
         raise HTTPException(
