@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db import User, get_async_session
+from app.dependencies import check_rate_limit
 from app.services.two_fa_service import two_fa_service
 from app.services.security_event_service import security_event_service
 from app.services.rate_limit_service import RateLimitService
@@ -196,6 +197,7 @@ async def verify_2fa_setup(
     http_request: Request,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
+    ip_address: str | None = Depends(check_rate_limit),
 ):
     """
     Verify the 2FA setup by confirming the first TOTP code.
@@ -206,17 +208,7 @@ async def verify_2fa_setup(
     - Max 5 failed attempts per IP within 15 minutes (shared with other 2FA endpoints)
     - After exceeding limit, IP is blocked for 60 minutes
     """
-    ip_address, user_agent = get_request_metadata(http_request)
-
-    # Check if IP is rate limited
-    if ip_address:
-        is_blocked, block_info = RateLimitService.is_ip_blocked(ip_address)
-        if is_blocked and block_info:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Too many failed attempts. Please try again in {block_info.remaining_seconds} seconds.",
-                headers={"Retry-After": str(block_info.remaining_seconds)},
-            )
+    _, user_agent = get_request_metadata(http_request)
 
     if user.two_fa_enabled:
         raise HTTPException(
@@ -538,6 +530,7 @@ async def verify_2fa_login(
     login_request: TwoFALoginRequest,
     http_request: Request,
     session: AsyncSession = Depends(get_async_session),
+    ip_address: str | None = Depends(check_rate_limit),
 ):
     """
     Verify 2FA code and complete login.
@@ -550,17 +543,7 @@ async def verify_2fa_login(
     - After exceeding limit, IP is blocked for 60 minutes
     - Prevents brute force attacks on 2FA codes
     """
-    ip_address, user_agent = get_request_metadata(http_request)
-
-    # Check if IP is rate limited
-    if ip_address:
-        is_blocked, block_info = RateLimitService.is_ip_blocked(ip_address)
-        if is_blocked and block_info:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Too many failed attempts. Please try again in {block_info.remaining_seconds} seconds.",
-                headers={"Retry-After": str(block_info.remaining_seconds)},
-            )
+    _, user_agent = get_request_metadata(http_request)
 
     # Get user ID from temporary token
     user_id = get_user_id_from_token(login_request.temporary_token)

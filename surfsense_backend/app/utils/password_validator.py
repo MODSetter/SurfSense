@@ -111,10 +111,13 @@ class PasswordValidator:
 
         Raises:
             PasswordValidationError: If password doesn't meet requirements
+            TypeError: If password is not a string
         """
-        # Convert to string if needed
+        # Ensure password is a string
         if not isinstance(password, str):
-            password = str(password)
+            raise TypeError(
+                f"Password must be a string, got {type(password).__name__}"
+            )
 
         errors = []
 
