@@ -262,9 +262,9 @@ def get_client_ip(request: Request) -> str | None:
     if not trust_proxy_headers and trusted_networks and immediate_client:
         trust_proxy_headers = is_trusted_proxy(immediate_client)
 
-    # Backward compatibility: if no configuration set, trust all headers
-    if not trust_proxy_headers and not trusted_networks and not USE_CLOUDFLARE_PROXIES:
-        trust_proxy_headers = True
+    # Security: Do NOT trust proxy headers unless explicitly configured
+    # If no TRUSTED_PROXIES or CLOUDFLARE_PROXIES are set, we use request.client.host
+    # This prevents IP spoofing attacks where attackers forge X-Forwarded-For headers
 
     # Priority 1: CF-Connecting-IP (Cloudflare specific)
     # This is the most reliable header for Cloudflare as it cannot be spoofed
