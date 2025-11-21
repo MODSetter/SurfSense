@@ -80,10 +80,24 @@ echo -e "${YELLOW}Creating scripts...${NC}"
 cat > scripts/deploy.sh << 'EOFSCRIPT'
 #!/bin/bash
 set -e
-if [ -f "$(dirname "$0")/.config" ]; then source "$(dirname "$0")/.config"; else
-echo "ERROR: scripts/.config file not found. Please copy scripts/.config.template to scripts/.config and configure your VPS details."; exit 1; fi
+
+# Load configuration or exit with error
+if [ -f "$(dirname "$0")/.config" ]; then
+    source "$(dirname "$0")/.config"
+else
+    echo "ERROR: scripts/.config file not found." >&2
+    echo "Please copy scripts/.config.template to scripts/.config and configure your VPS details." >&2
+    exit 1
+fi
+
+# Expand tilde in SSH key path
 VPS_KEY="${VPS_KEY/#\~/$HOME}"
-run_vps_cmd() { ssh -i "$VPS_KEY" "$VPS_HOST" "$1"; }
+
+# Helper function to run commands on VPS
+run_vps_cmd() {
+    ssh -i "$VPS_KEY" "$VPS_HOST" "$1"
+}
+
 echo "🚀 Deploying..."
 run_vps_cmd "cd $PROJECT_DIR && git pull origin nightly && systemctl restart surfsense surfsense-celery surfsense-frontend"
 echo "✅ Deployment complete!"
@@ -91,9 +105,20 @@ EOFSCRIPT
 
 cat > scripts/monitor-services.sh << 'EOFSCRIPT'
 #!/bin/bash
-if [ -f "$(dirname "$0")/.config" ]; then source "$(dirname "$0")/.config"; else
-echo "ERROR: scripts/.config file not found. Please copy scripts/.config.template to scripts/.config and configure your VPS details."; exit 1; fi
+
+# Load configuration or exit with error
+if [ -f "$(dirname "$0")/.config" ]; then
+    source "$(dirname "$0")/.config"
+else
+    echo "ERROR: scripts/.config file not found." >&2
+    echo "Please copy scripts/.config.template to scripts/.config and configure your VPS details." >&2
+    exit 1
+fi
+
+# Expand tilde in SSH key path
 VPS_KEY="${VPS_KEY/#\~/$HOME}"
+
+# Monitor service status on VPS
 ssh -i "$VPS_KEY" "$VPS_HOST" "systemctl status surfsense surfsense-celery surfsense-frontend"
 EOFSCRIPT
 
