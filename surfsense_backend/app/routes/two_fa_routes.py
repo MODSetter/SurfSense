@@ -20,7 +20,11 @@ from app.db import User, get_async_session
 from app.dependencies import check_rate_limit
 from app.services.two_fa_service import two_fa_service
 from app.services.security_event_service import security_event_service
-from app.services.rate_limit_service import RateLimitService
+from app.services.rate_limit_service import (
+    RateLimitService,
+    FAILED_ATTEMPTS_PREFIX,
+    get_redis_client as get_rate_limit_redis_client,
+)
 from app.users import current_active_user, get_jwt_strategy
 
 logger = logging.getLogger(__name__)
@@ -495,10 +499,11 @@ async def login_with_2fa(
 
             # Log failed attempt to security events for monitoring
             if not should_block:
-                # Use sentinel user_id since user doesn't exist
+                # Use None for user_id since user doesn't exist (anonymous attempt)
+                # Note: user_id column is nullable to handle such cases
                 await security_event_service.log_rate_limit_attempt_recorded(
                     session=session,
-                    user_id="00000000-0000-0000-0000-000000000000",
+                    user_id=None,
                     ip_address=ip_address,
                     user_agent=user_agent,
                     details={
@@ -538,7 +543,7 @@ async def login_with_2fa(
                     f"IP {ip_address} blocked after {attempt_count} failed login attempts for user {user.email}"
                 )
                 # Log rate limit block event
-                await security_event_service.log_rate_limit_block(
+                await security_event_service.log_rate_limit_auto_block(
                     session=session,
                     user_id=user.id,
                     ip_address=ip_address,
@@ -591,11 +596,7 @@ async def login_with_2fa(
     # Clear rate limit counters on successful login
     if ip_address:
         try:
-            from app.services.rate_limit_service import (
-                FAILED_ATTEMPTS_PREFIX,
-                get_redis_client,
-            )
-            redis_client = get_redis_client()
+            redis_client = get_rate_limit_redis_client()
             attempts_key = f"{FAILED_ATTEMPTS_PREFIX}{ip_address}"
             redis_client.delete(attempts_key)
         except Exception as e:
@@ -713,7 +714,7 @@ async def verify_2fa_login(
                     f"IP {ip_address} blocked after {attempt_count} failed 2FA attempts for user {user.email}"
                 )
                 # Log rate limit block event
-                await security_event_service.log_rate_limit_block(
+                await security_event_service.log_rate_limit_auto_block(
                     session=session,
                     user_id=user.id,
                     ip_address=ip_address,
@@ -742,13 +743,8 @@ async def verify_2fa_login(
     # Clear rate limit counters on successful verification
     if ip_address:
         # This IP successfully verified, so clear any failed attempt tracking
-        from app.services.rate_limit_service import (
-            FAILED_ATTEMPTS_PREFIX,
-            get_redis_client,
-        )
-
         try:
-            redis_client = get_redis_client()
+            redis_client = get_rate_limit_redis_client()
             attempts_key = f"{FAILED_ATTEMPTS_PREFIX}{ip_address}"
             redis_client.delete(attempts_key)
         except Exception as e:

@@ -20,11 +20,45 @@ from app.services.security_event_service import SecurityEventService
 logger = logging.getLogger(__name__)
 
 # Trusted proxy configuration
-# In production, set TRUSTED_PROXIES env var to comma-separated list of proxy IPs
+# In production, set TRUSTED_PROXIES env var to comma-separated list of proxy IPs or CIDR ranges
 # For Cloudflare, you can set CLOUDFLARE_PROXIES=true to automatically trust Cloudflare IPs
-TRUSTED_PROXIES = set(
-    filter(None, os.getenv("TRUSTED_PROXIES", "").split(","))
-)
+def _parse_trusted_proxies() -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    """
+    Parse TRUSTED_PROXIES environment variable into IP network objects.
+
+    Supports both individual IPs and CIDR notation:
+    - Single IP: "10.0.0.1"
+    - CIDR range: "192.168.1.0/24"
+    - Mixed: "10.0.0.1,192.168.1.0/24,172.16.0.0/16"
+
+    Returns:
+        List of ip_network objects for trusted proxies
+    """
+    proxies_str = os.getenv("TRUSTED_PROXIES", "")
+    if not proxies_str:
+        return []
+
+    networks = []
+    for proxy in proxies_str.split(","):
+        proxy = proxy.strip()
+        if not proxy:
+            continue
+
+        try:
+            # Try parsing as network (handles both single IPs and CIDR)
+            # strict=False allows "192.168.1.1" to be treated as "192.168.1.1/32"
+            network = ipaddress.ip_network(proxy, strict=False)
+            networks.append(network)
+        except ValueError as e:
+            logger.warning(
+                f"Invalid IP/CIDR in TRUSTED_PROXIES: '{proxy}' - {e}. Skipping."
+            )
+            continue
+
+    return networks
+
+
+TRUSTED_PROXY_NETWORKS = _parse_trusted_proxies()
 
 # Cloudflare IP ranges (updated as of January 2025)
 # Source: https://www.cloudflare.com/ips-v4 and https://www.cloudflare.com/ips-v6
@@ -78,6 +112,51 @@ def is_valid_ip(ip_str: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def is_ip_in_networks(
+    ip_str: str, networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network]
+) -> bool:
+    """
+    Check if an IP address is within any of the specified networks.
+
+    Args:
+        ip_str: IP address to check
+        networks: List of IP networks to check against
+
+    Returns:
+        True if IP is in any of the networks, False otherwise
+    """
+    if not is_valid_ip(ip_str):
+        return False
+
+    try:
+        ip_obj = ipaddress.ip_address(ip_str.strip())
+        for network in networks:
+            if ip_obj in network:
+                return True
+        return False
+    except (ValueError, TypeError):
+        return False
+
+
+def is_trusted_proxy(ip_str: str) -> bool:
+    """
+    Check if an IP address is a trusted proxy.
+
+    Trusted proxies are defined in TRUSTED_PROXIES environment variable
+    and can be either individual IPs or CIDR ranges.
+
+    Args:
+        ip_str: IP address to check
+
+    Returns:
+        True if IP is a trusted proxy, False otherwise
+    """
+    if not TRUSTED_PROXY_NETWORKS:
+        return False
+
+    return is_ip_in_networks(ip_str, TRUSTED_PROXY_NETWORKS)
 
 
 def is_cloudflare_ip(ip_str: str) -> bool:
@@ -155,12 +234,12 @@ def get_client_ip(request: Request) -> str | None:
         is_cloudflare_request = is_cloudflare_ip(immediate_client)
         trust_proxy_headers = is_cloudflare_request
 
-    # Check if immediate client is in TRUSTED_PROXIES
-    if not trust_proxy_headers and TRUSTED_PROXIES and immediate_client:
-        trust_proxy_headers = immediate_client in TRUSTED_PROXIES
+    # Check if immediate client is in TRUSTED_PROXIES (supports CIDR ranges)
+    if not trust_proxy_headers and TRUSTED_PROXY_NETWORKS and immediate_client:
+        trust_proxy_headers = is_trusted_proxy(immediate_client)
 
     # Backward compatibility: if no configuration set, trust all headers
-    if not trust_proxy_headers and not TRUSTED_PROXIES and not USE_CLOUDFLARE_PROXIES:
+    if not trust_proxy_headers and not TRUSTED_PROXY_NETWORKS and not USE_CLOUDFLARE_PROXIES:
         trust_proxy_headers = True
 
     # Priority 1: CF-Connecting-IP (Cloudflare specific)
@@ -302,9 +381,10 @@ async def check_rate_limit(
             user_agent = request.headers.get("user-agent")
             endpoint = str(request.url.path)
 
-            # Use the user_id from the block_info if available, otherwise use a sentinel value
+            # Use the user_id from the block_info if available, otherwise None
             # Note: Some rate limit hits occur before authentication, so user may not be known
-            user_id = block_info.user_id if block_info.user_id else "00000000-0000-0000-0000-000000000000"
+            # The user_id column in security_events is nullable to handle anonymous attempts
+            user_id = block_info.user_id if block_info.user_id else None
 
             # Extract Cloudflare metadata for enhanced logging
             cf_metadata = get_cloudflare_metadata(request)
