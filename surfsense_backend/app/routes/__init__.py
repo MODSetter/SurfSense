@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .auth_routes import router as auth_router
 from .chats_routes import router as chats_router
 from .documents_routes import router as documents_router
 from .google_calendar_add_connector_route import (
@@ -30,6 +31,7 @@ from .rate_limit_routes import router as rate_limit_router
 
 router = APIRouter()
 
+router.include_router(auth_router)
 router.include_router(search_spaces_router)
 router.include_router(documents_router)
 router.include_router(podcasts_router)
