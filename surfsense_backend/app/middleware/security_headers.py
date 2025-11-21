@@ -89,7 +89,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             csp_directives = {
                 "default-src": ["'self'"],
                 "script-src": ["'self'"],
-                "style-src": ["'self'", "'unsafe-inline'"],  # inline styles often needed for UI frameworks
+                "style-src": ["'self'"],  # No unsafe-inline in production for better XSS protection
                 "img-src": ["'self'", "data:", "https:"],
                 "font-src": ["'self'"],
                 "connect-src": ["'self'"],
@@ -99,6 +99,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "object-src": ["'none'"],  # Prevent Flash/plugins
                 "upgrade-insecure-requests": [],  # Force HTTPS
             }
+            # Note: If inline styles are needed, use nonce-based CSP:
+            # Generate nonce per-request and add to style-src: ["'self'", "'nonce-{nonce}'"]
+            # Then add nonce attribute to inline style tags: <style nonce="{nonce}">...</style>
         else:
             # More permissive for development
             csp_directives = {

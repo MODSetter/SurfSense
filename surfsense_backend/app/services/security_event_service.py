@@ -23,7 +23,7 @@ class SecurityEventService:
     async def log_event(
         session: AsyncSession,
         event_type: SecurityEventType,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         success: bool = True,
         ip_address: str | None = None,
         user_agent: str | None = None,
@@ -35,7 +35,7 @@ class SecurityEventService:
         Args:
             session: Database session
             event_type: Type of security event
-            user_id: ID of the user involved in the event
+            user_id: ID of the user involved in the event (None for anonymous events)
             success: Whether the event was successful (default: True)
             ip_address: IP address of the request (optional)
             user_agent: User agent string (optional)
@@ -45,7 +45,7 @@ class SecurityEventService:
             The created SecurityEvent object, or None if logging failed
         """
         try:
-            # Convert string user_id to UUID if needed
+            # Convert string user_id to UUID if needed, leave None as is
             if isinstance(user_id, str):
                 user_id = UUID(user_id)
 

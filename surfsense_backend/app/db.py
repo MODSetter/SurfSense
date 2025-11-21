@@ -412,7 +412,7 @@ class SecurityEvent(BaseModel, TimestampMixin):
     __tablename__ = "security_events"
 
     event_type = Column(SQLAlchemyEnum(SecurityEventType), nullable=False, index=True)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
     ip_address = Column(String(45), nullable=True)  # IPv6 max length is 45
     user_agent = Column(String(500), nullable=True)
     success = Column(Boolean, nullable=False, default=True)
