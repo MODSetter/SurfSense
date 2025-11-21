@@ -21,7 +21,7 @@ export type Locale = (typeof LANGUAGE_CONFIG)[number]["code"];
 export type LanguageConfig = (typeof LANGUAGE_CONFIG)[number];
 
 // Supported locales array for validation
-export const SUPPORTED_LOCALES: Locale[] = LANGUAGE_CONFIG.map((lang) => lang.code) as Locale[];
+export const SUPPORTED_LOCALES: Locale[] = LANGUAGE_CONFIG.map((lang) => lang.code);
 
 // Message map for type-safe locale selection
 const messageMap: Record<Locale, typeof enMessages> = {
