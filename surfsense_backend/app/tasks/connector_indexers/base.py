@@ -229,13 +229,15 @@ def get_error_metadata(e: Exception) -> dict[str, str]:
     Generate standard error metadata dictionary for structured logging.
 
     This helper provides consistent error metadata across all connector indexers,
-    making it easier to debug issues from database logs.
+    making it easier to debug issues from database logs. Includes full exception
+    traceback for enhanced debugging context.
 
     Args:
         e: Exception instance
 
     Returns:
-        Dictionary with error_type (exception class name) and error_message (string representation)
+        Dictionary with error_type (exception class name), error_message (string representation),
+        and error_traceback (full stack trace)
 
     Example:
         >>> try:
@@ -243,9 +245,12 @@ def get_error_metadata(e: Exception) -> dict[str, str]:
         ... except Exception as e:
         ...     metadata = get_error_metadata(e)
         >>> metadata
-        {'error_type': 'ValueError', 'error_message': 'Invalid input'}
+        {'error_type': 'ValueError', 'error_message': 'Invalid input', 'error_traceback': '...'}
     """
+    import traceback
+
     return {
         "error_type": type(e).__name__,
         "error_message": str(e),
+        "error_traceback": traceback.format_exc(),
     }

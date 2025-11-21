@@ -497,71 +497,64 @@ class TestTrustedProxies:
 
     def test_parse_single_ip(self, monkeypatch):
         """Test parsing single IP address."""
+        from app.dependencies.rate_limit import get_trusted_proxy_networks
+
+        # Clear cache and set environment
+        get_trusted_proxy_networks.cache_clear()
         monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1")
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import TRUSTED_PROXY_NETWORKS
-
-        assert len(TRUSTED_PROXY_NETWORKS) == 1
-        assert str(TRUSTED_PROXY_NETWORKS[0]) == "10.0.0.1/32"
+        networks = get_trusted_proxy_networks()
+        assert len(networks) == 1
+        assert str(networks[0]) == "10.0.0.1/32"
 
     def test_parse_cidr_range(self, monkeypatch):
         """Test parsing CIDR range."""
+        from app.dependencies.rate_limit import get_trusted_proxy_networks
+
+        get_trusted_proxy_networks.cache_clear()
         monkeypatch.setenv("TRUSTED_PROXIES", "192.168.1.0/24")
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import TRUSTED_PROXY_NETWORKS
-
-        assert len(TRUSTED_PROXY_NETWORKS) == 1
-        assert str(TRUSTED_PROXY_NETWORKS[0]) == "192.168.1.0/24"
+        networks = get_trusted_proxy_networks()
+        assert len(networks) == 1
+        assert str(networks[0]) == "192.168.1.0/24"
 
     def test_parse_multiple_mixed(self, monkeypatch):
         """Test parsing multiple IPs and CIDR ranges."""
+        from app.dependencies.rate_limit import get_trusted_proxy_networks
+
+        get_trusted_proxy_networks.cache_clear()
         monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1,192.168.1.0/24,172.16.0.0/16")
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import TRUSTED_PROXY_NETWORKS
-
-        assert len(TRUSTED_PROXY_NETWORKS) == 3
+        networks = get_trusted_proxy_networks()
+        assert len(networks) == 3
 
     def test_parse_invalid_ip(self, monkeypatch):
         """Test that invalid IPs are skipped with warning."""
+        from app.dependencies.rate_limit import get_trusted_proxy_networks
+
+        get_trusted_proxy_networks.cache_clear()
         monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1,invalid-ip,192.168.1.0/24")
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import TRUSTED_PROXY_NETWORKS
-
+        networks = get_trusted_proxy_networks()
         # Should have 2 valid networks, invalid one skipped
-        assert len(TRUSTED_PROXY_NETWORKS) == 2
+        assert len(networks) == 2
 
     def test_is_trusted_proxy_single_ip(self, monkeypatch):
         """Test is_trusted_proxy with single IP."""
-        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1")
+        from app.dependencies.rate_limit import get_trusted_proxy_networks, is_trusted_proxy
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import is_trusted_proxy
+        get_trusted_proxy_networks.cache_clear()
+        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1")
 
         assert is_trusted_proxy("10.0.0.1") is True
         assert is_trusted_proxy("10.0.0.2") is False
 
     def test_is_trusted_proxy_cidr_range(self, monkeypatch):
         """Test is_trusted_proxy with CIDR range."""
-        monkeypatch.setenv("TRUSTED_PROXIES", "192.168.1.0/24")
+        from app.dependencies.rate_limit import get_trusted_proxy_networks, is_trusted_proxy
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import is_trusted_proxy
+        get_trusted_proxy_networks.cache_clear()
+        monkeypatch.setenv("TRUSTED_PROXIES", "192.168.1.0/24")
 
         assert is_trusted_proxy("192.168.1.1") is True
         assert is_trusted_proxy("192.168.1.255") is True
@@ -570,12 +563,10 @@ class TestTrustedProxies:
 
     def test_get_client_ip_from_trusted_proxy(self, monkeypatch):
         """Test get_client_ip trusts headers from trusted proxy."""
-        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1")
+        from app.dependencies.rate_limit import get_trusted_proxy_networks, get_client_ip
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import get_client_ip
+        get_trusted_proxy_networks.cache_clear()
+        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1")
 
         request = MagicMock()
         request.headers = {"x-forwarded-for": "203.0.113.1, 10.0.0.1"}
@@ -589,12 +580,10 @@ class TestTrustedProxies:
 
     def test_get_client_ip_from_untrusted_proxy(self, monkeypatch):
         """Test get_client_ip ignores headers from untrusted proxy."""
-        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1")
+        from app.dependencies.rate_limit import get_trusted_proxy_networks, get_client_ip
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import get_client_ip
+        get_trusted_proxy_networks.cache_clear()
+        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.1")
 
         request = MagicMock()
         request.headers = {"x-forwarded-for": "203.0.113.1, 10.0.0.2"}
@@ -608,12 +597,10 @@ class TestTrustedProxies:
 
     def test_get_client_ip_from_cidr_trusted_proxy(self, monkeypatch):
         """Test get_client_ip with proxy in trusted CIDR range."""
-        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.0/24")
+        from app.dependencies.rate_limit import get_trusted_proxy_networks, get_client_ip
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import get_client_ip
+        get_trusted_proxy_networks.cache_clear()
+        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.0/24")
 
         request = MagicMock()
         request.headers = {"x-forwarded-for": "203.0.113.1"}
@@ -627,12 +614,11 @@ class TestTrustedProxies:
 
     def test_empty_trusted_proxies(self, monkeypatch):
         """Test behavior when TRUSTED_PROXIES is empty."""
+        from app.dependencies.rate_limit import get_trusted_proxy_networks, is_trusted_proxy
+
+        get_trusted_proxy_networks.cache_clear()
         monkeypatch.setenv("TRUSTED_PROXIES", "")
 
-        import importlib
-        import app.dependencies.rate_limit
-        importlib.reload(app.dependencies.rate_limit)
-        from app.dependencies.rate_limit import TRUSTED_PROXY_NETWORKS, is_trusted_proxy
-
-        assert len(TRUSTED_PROXY_NETWORKS) == 0
+        networks = get_trusted_proxy_networks()
+        assert len(networks) == 0
         assert is_trusted_proxy("10.0.0.1") is False

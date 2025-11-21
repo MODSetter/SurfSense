@@ -81,6 +81,56 @@ is_valid_ip("<script>alert('xss')</script>")                  # ✗ False
 
 ## Trusted Proxy Configuration
 
+### 🔴 CRITICAL SECURITY WARNING
+
+**IP Spoofing Vulnerability - READ THIS CAREFULLY**
+
+The application trusts `X-Forwarded-For`, `X-Real-IP`, and `CF-Connecting-IP` headers to determine client IP addresses. **This is ONLY safe if your reverse proxy is properly configured to strip/overwrite these headers.**
+
+#### The Attack Vector
+
+If an attacker can send HTTP requests directly to your application server (bypassing the proxy, or if the proxy doesn't strip headers), they can:
+1. **Forge any IP address** by setting `X-Forwarded-For: 1.2.3.4` to bypass rate limiting
+2. **Launch DoS attacks** by impersonating victim IPs to get them blocked
+3. **Evade security monitoring** by rotating through fake IPs
+
+#### Required Proxy Configuration
+
+Your reverse proxy **MUST** be configured to:
+- ✅ **Strip ALL incoming proxy headers** from external clients
+- ✅ **Overwrite headers** with the real client IP it sees
+- ✅ **Block direct access** to the application server (proxy-only access)
+
+**Example (Nginx):**
+```nginx
+# REQUIRED: Strip incoming headers and set our own
+proxy_set_header X-Forwarded-For $remote_addr;
+proxy_set_header X-Real-IP $remote_addr;
+
+# Block spoofed Cloudflare headers if not actually behind Cloudflare
+proxy_set_header CF-Connecting-IP "";
+```
+
+**Example (Cloudflare):**
+Cloudflare automatically strips and sets headers correctly - no configuration needed.
+
+#### Deployment Requirements
+
+- 🔒 **Production**: Application server MUST NOT be directly accessible from the internet
+- 🔒 **Firewall**: Only allow traffic from your reverse proxy/load balancer IPs
+- 🔒 **Network**: Use private networks (VPC) when possible
+- 🔒 **Monitoring**: Alert on direct access attempts to application server
+
+#### Testing Your Configuration
+
+```bash
+# Test 1: Try to spoof IP (should NOT work if properly configured)
+curl -H "X-Forwarded-For: 1.2.3.4" https://your-app.com/api/endpoint
+
+# Check logs - should show the proxy IP or real client IP, NOT 1.2.3.4
+# If logs show 1.2.3.4, YOUR PROXY IS MISCONFIGURED - FIX IMMEDIATELY
+```
+
 ### The Problem
 
 Attackers can forge HTTP headers like `X-Forwarded-For` to:
@@ -90,7 +140,7 @@ Attackers can forge HTTP headers like `X-Forwarded-For` to:
 
 ### The Solution
 
-Only trust proxy headers when the immediate client is a known, trusted proxy.
+Only trust proxy headers when the immediate client is a known, trusted proxy configured to strip incoming headers.
 
 ### Configuration
 
