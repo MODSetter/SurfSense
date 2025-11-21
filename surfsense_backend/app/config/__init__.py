@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import threading
 from pathlib import Path
@@ -89,13 +90,56 @@ def is_ffmpeg_installed():
     return shutil.which("ffmpeg") is not None
 
 
-def load_global_llm_configs():
+def expand_env_vars(data):
     """
-    Load global LLM configurations from YAML file.
-    Falls back to example file if main file doesn't exist.
+    Recursively expand environment variables in data structure.
+    Supports ${VAR_NAME} syntax for environment variable substitution.
+
+    Args:
+        data: Dictionary, list, string, or other data type
 
     Returns:
-        list: List of global LLM config dictionaries, or empty list if file doesn't exist
+        Data with environment variables expanded
+
+    Example:
+        >>> os.environ['API_KEY'] = 'secret123'
+        >>> expand_env_vars({'key': '${API_KEY}'})
+        {'key': 'secret123'}
+    """
+    if isinstance(data, dict):
+        return {key: expand_env_vars(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [expand_env_vars(item) for item in data]
+    elif isinstance(data, str):
+        # Replace ${VAR_NAME} with environment variable value
+        def replace_env_var(match):
+            var_name = match.group(1)
+            return os.getenv(var_name, match.group(0))  # Keep original if not found
+        return re.sub(r'\$\{([^}]+)\}', replace_env_var, data)
+    else:
+        return data
+
+
+def load_global_llm_configs():
+    """
+    Load global LLM configurations from YAML file with environment variable expansion.
+    Falls back to example file if main file doesn't exist.
+
+    Environment variables in the format ${VAR_NAME} will be automatically expanded
+    to their values from the environment. This allows secure storage of API keys
+    in .env files instead of hardcoding them in the YAML configuration.
+
+    Returns:
+        list: List of global LLM config dictionaries with env vars expanded,
+              or empty list if file doesn't exist
+
+    Example:
+        In global_llm_config.yaml:
+            api_key: "${GEMINI_API_KEY}"
+        In .env:
+            GEMINI_API_KEY=actual-key-value
+        Result:
+            api_key: "actual-key-value"
     """
     # Try main config file first
     global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
@@ -113,7 +157,9 @@ def load_global_llm_configs():
     try:
         with open(global_config_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
-            return data.get("global_llm_configs", [])
+            configs = data.get("global_llm_configs", [])
+            # Expand environment variables in the configuration
+            return expand_env_vars(configs)
     except Exception as e:
         print(f"Warning: Failed to load global LLM configs: {e}")
         return []

@@ -1,68 +1,64 @@
-# Global LLM Configuration
+# Global LLM Configuration for SurfSense
+# Three-tier architecture: Gemini Flash (primary) -> TildeOpen (grammar) -> Mistral (fallback)
 # 
 # SETUP INSTRUCTIONS:
-# 1. For production: Copy this file to global_llm_config.yaml and add your real API keys
-# 2. For testing: The system will use this example file automatically if global_llm_config.yaml doesn't exist
+# 1. Copy this file to global_llm_config.yaml
+# 2. Update .env file with your API keys (e.g., GEMINI_API_KEY=your-key-here)
+# 3. The config will automatically expand environment variables like ${GEMINI_API_KEY}
 #
-# NOTE: The example API keys below are placeholders and won't work.
-# Replace them with your actual API keys to enable global configurations.
-#
-# These configurations will be available to all users as a convenient option
-# Users can choose to use these global configs or add their own
+# SECURITY: Never commit global_llm_config.yaml with real API keys!
+# Use environment variables in .env file instead.
 
 global_llm_configs:
-  # Example: OpenAI GPT-4 Turbo
+  # Google Gemini 2.0 Flash - PRIMARY: Main response generation from documents
+  # Fast, accurate, and cost-effective for most queries
   - id: -1
-    name: "Global GPT-4 Turbo"
-    provider: "OPENAI"
-    model_name: "gpt-4-turbo-preview"
-    api_key: "sk-your-openai-api-key-here"
+    name: "Gemini 2.0 Flash (Primary)"
+    provider: "GOOGLE"
+    model_name: "gemini-2.0-flash-exp"
+    api_key: "${GEMINI_API_KEY}"  # Set GEMINI_API_KEY in .env
     api_base: ""
-    language: "English"
+    language: "auto"
+    system_prompt: "You are a helpful AI assistant. IMPORTANT: Always respond in the same language as the user's question. If the user asks in Latvian, respond in Latvian. If in English, respond in English. Provide accurate, well-researched answers based on available information."
     litellm_params:
       temperature: 0.7
-      max_tokens: 4000
-
-  # Example: Fast model - GPT-3.5 Turbo
+      max_tokens: 8000
+      
+  # TildeOpen 30B - GRAMMAR CHECKER: Latvian language quality control
+  # Latvian AI model specifically for grammar correction
   - id: -2
-    name: "Global GPT-3.5 Turbo"
-    provider: "OPENAI"
-    model_name: "gpt-3.5-turbo"
-    api_key: "sk-your-openai-api-key-here"
-    api_base: ""
-    language: "English"
+    name: "TildeOpen 30B (Grammar Checker)"
+    provider: "OLLAMA"
+    model_name: "tildeopen:latest"
+    api_key: ""
+    api_base: "http://localhost:11434"  # Or set OLLAMA_BASE_URL in .env
+    language: "Latvian"
+    system_prompt: "You are a Latvian grammar correction assistant. Your ONLY task is to correct grammatical errors in Latvian text while preserving the original meaning, style, and formatting. Do not add explanations, commentary, or change the content. Only fix grammar mistakes."
     litellm_params:
-      temperature: 0.5
-      max_tokens: 2000
+      temperature: 0.3
+      max_tokens: 8000
 
-  # Example: Chinese LLM - DeepSeek
+  # Mistral NeMo 12B - FALLBACK: Used when Gemini API is unavailable or rate limited
+  # Local model for reliability and privacy
   - id: -3
-    name: "Global DeepSeek Chat"
-    provider: "DEEPSEEK"
-    model_name: "deepseek-chat"
-    api_key: "your-deepseek-api-key-here"
-    api_base: "https://api.deepseek.com/v1"
-    language: "Chinese"
-    litellm_params:
-      temperature: 0.7
-      max_tokens: 4000
-
-  # Example: Groq - Fast inference
-  - id: -4
-    name: "Global Groq Llama 3"
-    provider: "GROQ"
-    model_name: "llama3-70b-8192"
-    api_key: "your-groq-api-key-here"
-    api_base: ""
-    language: "English"
+    name: "Mistral NeMo 12B (Fallback)"
+    provider: "OLLAMA"
+    model_name: "mistral-nemo:latest"
+    api_key: ""
+    api_base: "http://localhost:11434"  # Or set OLLAMA_BASE_URL in .env
+    language: "auto"
+    system_prompt: "You are a knowledgeable research assistant. Answer questions accurately based on the provided documents. If the documents don't contain the answer, clearly state that. Always maintain context and cite sources when possible."
     litellm_params:
       temperature: 0.7
       max_tokens: 8000
 
+# Environment Variables to Set in .env:
+# GEMINI_API_KEY=your-gemini-api-key-here
+# OLLAMA_BASE_URL=http://localhost:11434  # Optional, defaults shown above
+#
 # Notes:
-# - Use negative IDs to distinguish global configs from user configs
+# - Use negative IDs to distinguish global configs from user configs  
 # - IDs should be unique and sequential (e.g., -1, -2, -3, etc.)
 # - The 'api_key' field will not be exposed to users via API
-# - Users can select these configs for their long_context, fast, or strategic LLM roles
+# - Environment variables in format ${VAR_NAME} will be automatically expanded
 # - All standard LiteLLM providers are supported
-
