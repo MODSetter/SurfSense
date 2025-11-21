@@ -77,6 +77,12 @@ class RateLimitService:
         """
         Record a failed authentication attempt for an IP address.
 
+        Logs structured data for security monitoring including:
+        - IP address
+        - Number of attempts
+        - Whether the IP was blocked
+        - User information (if available)
+
         Returns:
             Tuple of (should_block, attempt_count)
         """
@@ -91,8 +97,23 @@ class RateLimitService:
             results = pipe.execute()
             attempts = results[0]
 
+            # Structured logging for security monitoring
+            logger.info(
+                f"Failed attempt recorded: IP {ip_address}, "
+                f"attempts: {attempts}/{MAX_FAILED_ATTEMPTS}, "
+                f"user: {username or 'Unknown'}, "
+                f"reason: {reason}"
+            )
+
             # Check if should block
             if attempts >= MAX_FAILED_ATTEMPTS:
+                logger.warning(
+                    f"Rate limit threshold reached: IP {ip_address} will be blocked. "
+                    f"Attempts: {attempts}, "
+                    f"user: {username or 'Unknown'}, "
+                    f"reason: {reason}"
+                )
+
                 RateLimitService.block_ip(
                     ip_address=ip_address,
                     user_id=user_id,

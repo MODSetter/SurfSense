@@ -163,6 +163,8 @@ class SecurityEventType(str, Enum):
     RATE_LIMIT_AUTO_BLOCK = "RATE_LIMIT_AUTO_BLOCK"
     RATE_LIMIT_ADMIN_UNLOCK = "RATE_LIMIT_ADMIN_UNLOCK"
     RATE_LIMIT_BLOCK_EXPIRED = "RATE_LIMIT_BLOCK_EXPIRED"
+    RATE_LIMIT_HIT = "RATE_LIMIT_HIT"  # When blocked IP tries to access
+    RATE_LIMIT_ATTEMPT_RECORDED = "RATE_LIMIT_ATTEMPT_RECORDED"  # Failed attempt recorded
 
 
 class Base(DeclarativeBase):

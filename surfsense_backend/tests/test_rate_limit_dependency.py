@@ -241,3 +241,99 @@ class TestProxyScenarios:
         ip = get_client_ip(request)
 
         assert ip == "203.0.113.1"
+
+
+@pytest.mark.unit
+class TestIPv6Support:
+    """Test cases for IPv6 address support."""
+
+    def test_get_ipv6_from_direct_client(self):
+        """Test extracting IPv6 address from direct client connection."""
+        request = MagicMock()
+        request.headers = {}
+        request.client = MagicMock()
+        request.client.host = "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+
+        ip = get_client_ip(request)
+
+        assert ip == "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+
+    def test_get_ipv6_from_x_forwarded_for(self):
+        """Test extracting IPv6 from X-Forwarded-For header."""
+        request = MagicMock()
+        request.headers = {"x-forwarded-for": "2001:db8::1, 2001:db8::2"}
+        request.client = None
+
+        ip = get_client_ip(request)
+
+        assert ip == "2001:db8::1"
+
+    def test_get_ipv6_from_x_real_ip(self):
+        """Test extracting IPv6 from X-Real-IP header."""
+        request = MagicMock()
+        request.headers = {"x-real-ip": "2001:db8::1"}
+        request.client = None
+
+        ip = get_client_ip(request)
+
+        assert ip == "2001:db8::1"
+
+    def test_compressed_ipv6(self):
+        """Test compressed IPv6 notation (::)."""
+        request = MagicMock()
+        request.headers = {}
+        request.client = MagicMock()
+        request.client.host = "::1"  # IPv6 loopback
+
+        ip = get_client_ip(request)
+
+        assert ip == "::1"
+
+    def test_ipv6_with_port_stripped(self):
+        """Test IPv6 address with port is properly handled."""
+        # Note: FastAPI's request.client.host should already strip the port
+        # This test ensures our validation handles IPv6 correctly
+        request = MagicMock()
+        request.headers = {}
+        request.client = MagicMock()
+        request.client.host = "2001:db8::1"  # Port already stripped by FastAPI
+
+        ip = get_client_ip(request)
+
+        assert ip == "2001:db8::1"
+
+    def test_invalid_ipv6(self):
+        """Test invalid IPv6 address is rejected."""
+        request = MagicMock()
+        request.headers = {"x-forwarded-for": "not:a:valid:ipv6:address"}
+        request.client = None
+
+        ip = get_client_ip(request)
+
+        # Should return None due to validation failure
+        assert ip is None
+
+    def test_mixed_ipv4_mapped_ipv6(self):
+        """Test IPv4-mapped IPv6 address."""
+        request = MagicMock()
+        request.headers = {}
+        request.client = MagicMock()
+        request.client.host = "::ffff:192.0.2.1"  # IPv4-mapped IPv6
+
+        ip = get_client_ip(request)
+
+        assert ip == "::ffff:192.0.2.1"
+
+    def test_ipv6_in_proxy_chain(self):
+        """Test IPv6 address through proxy chain."""
+        request = MagicMock()
+        request.headers = {
+            "x-forwarded-for": "2001:db8::1, 2001:db8::proxy1, 2001:db8::proxy2"
+        }
+        request.client = MagicMock()
+        request.client.host = "2001:db8::proxy2"
+
+        ip = get_client_ip(request)
+
+        # Should return the leftmost IPv6 (original client)
+        assert ip == "2001:db8::1"
