@@ -8,14 +8,12 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useLocaleContext, LANGUAGE_CONFIG, SUPPORTED_LOCALES, type Locale } from "@/contexts/LocaleContext";
-
-/**
- * Validate if a string is a supported locale
- */
-function isValidLocale(value: string): value is Locale {
-	return (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
+import {
+	useLocaleContext,
+	LANGUAGE_CONFIG,
+	isValidLocale,
+	type Locale,
+} from "@/contexts/LocaleContext";
 
 /**
  * Language switcher component

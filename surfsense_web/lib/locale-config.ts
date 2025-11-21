@@ -18,8 +18,25 @@ export type Locale = (typeof LANGUAGE_CONFIG)[number]["code"];
 // Language configuration type for external use
 export type LanguageConfig = (typeof LANGUAGE_CONFIG)[number];
 
-// Supported locales array for validation (readonly for immutability)
-export const SUPPORTED_LOCALES = LANGUAGE_CONFIG.map((lang) => lang.code) as const;
+// Supported locales array for validation (readonly with runtime immutability)
+// Using Object.freeze() for runtime protection in addition to TypeScript's 'as const'
+export const SUPPORTED_LOCALES = Object.freeze(
+	LANGUAGE_CONFIG.map((lang) => lang.code)
+) as readonly Locale[];
 
 // Default locale
 export const DEFAULT_LOCALE: Locale = "en";
+
+/**
+ * Type guard to validate if a value is a supported locale
+ * Centralized validation logic used across the application
+ *
+ * @param value - The value to check
+ * @returns true if the value is a valid Locale, false otherwise
+ */
+export function isValidLocale(value: unknown): value is Locale {
+	return (
+		typeof value === "string" &&
+		(SUPPORTED_LOCALES as readonly string[]).includes(value)
+	);
+}
