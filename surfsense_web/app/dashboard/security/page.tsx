@@ -4,6 +4,7 @@ import { ArrowLeft, Shield, ShieldCheck, ShieldOff, Copy, Check, Download } from
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { AdminGuard } from "@/components/AdminGuard";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -175,26 +176,31 @@ export default function SecurityPage() {
 
 	if (loading || isLoadingStatus) {
 		return (
-			<div className="flex flex-col justify-center items-center min-h-screen">
-				<div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-				<p className="text-muted-foreground">Loading Security Settings...</p>
-			</div>
+			<AdminGuard>
+				<div className="flex flex-col justify-center items-center min-h-screen">
+					<div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+					<p className="text-muted-foreground">Loading Security Settings...</p>
+				</div>
+			</AdminGuard>
 		);
 	}
 
 	if (error) {
 		return (
-			<div className="container mx-auto py-10">
-				<Alert variant="destructive">
-					<AlertTitle>Error</AlertTitle>
-					<AlertDescription>{error}</AlertDescription>
-				</Alert>
-			</div>
+			<AdminGuard>
+				<div className="container mx-auto py-10">
+					<Alert variant="destructive">
+						<AlertTitle>Error</AlertTitle>
+						<AlertDescription>{error}</AlertDescription>
+					</Alert>
+				</div>
+			</AdminGuard>
 		);
 	}
 
 	return (
-		<div className="container mx-auto py-10">
+		<AdminGuard>
+			<div className="container mx-auto py-10">
 			<div className="flex flex-col space-y-6">
 				<DashboardHeader
 					title="Security Settings"
@@ -440,5 +446,6 @@ export default function SecurityPage() {
 				</Card>
 			</div>
 		</div>
+		</AdminGuard>
 	);
 }

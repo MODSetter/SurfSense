@@ -1,0 +1,3 @@
+VPS_HOST="root@46.62.230.195"
+VPS_KEY="~/.ssh/id_ed25519_surfsense"
+PROJECT_DIR="/opt/SurfSense"

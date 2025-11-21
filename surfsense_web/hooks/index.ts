@@ -1,3 +1,5 @@
+export * from "./use-auth";
+export * from "./use-chat-performance";
 export * from "./use-chats";
 export * from "./use-document-by-chunk";
 export * from "./use-logs";

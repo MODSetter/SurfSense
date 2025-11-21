@@ -13,6 +13,7 @@ interface User {
 	is_verified: boolean;
 	pages_limit: number;
 	pages_used: number;
+	avatar?: string;
 }
 
 export function useUser() {
