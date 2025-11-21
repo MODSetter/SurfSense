@@ -22,6 +22,7 @@ export function LanguageSwitcher() {
 	const languages = [
 		{ code: "en" as const, name: "English", flag: "🇺🇸" },
 		{ code: "lv" as const, name: "Latviešu", flag: "🇱🇻" },
+		{ code: "sv" as const, name: "Svenska", flag: "🇸🇪" },
 	];
 
 	/**
@@ -29,7 +30,7 @@ export function LanguageSwitcher() {
 	 * Updates locale in context and localStorage
 	 */
 	const handleLanguageChange = (newLocale: string) => {
-		setLocale(newLocale as "en" | "lv");
+		setLocale(newLocale as "en" | "lv" | "sv");
 	};
 
 	return (
