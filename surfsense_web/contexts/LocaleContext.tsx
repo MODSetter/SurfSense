@@ -4,8 +4,9 @@ import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import enMessages from "../messages/en.json";
 import lvMessages from "../messages/lv.json";
+import svMessages from "../messages/sv.json";
 
-type Locale = "en" | "lv";
+type Locale = "en" | "lv" | "sv";
 
 interface LocaleContextType {
 	locale: Locale;
@@ -24,15 +25,16 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 	const [mounted, setMounted] = useState(false);
 
 	// Get messages based on current locale
-	const messages = locale === "lv" ? lvMessages : enMessages;
+	const messages =
+		locale === "lv" ? lvMessages : locale === "sv" ? svMessages : enMessages;
 
 	// Load locale from localStorage after component mounts (client-side only)
 	useEffect(() => {
 		setMounted(true);
 		if (typeof window !== "undefined") {
 			const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-			if (stored === "lv") {
-				setLocaleState("lv");
+			if (stored === "lv" || stored === "sv") {
+				setLocaleState(stored);
 			}
 		}
 	}, []);
