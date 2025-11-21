@@ -77,7 +77,7 @@ class SecurityEventService:
     @staticmethod
     async def log_2fa_enabled(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> SecurityEvent | None:
@@ -94,7 +94,7 @@ class SecurityEventService:
     @staticmethod
     async def log_2fa_disabled(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> SecurityEvent | None:
@@ -111,7 +111,7 @@ class SecurityEventService:
     @staticmethod
     async def log_2fa_setup_initiated(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> SecurityEvent | None:
@@ -128,7 +128,7 @@ class SecurityEventService:
     @staticmethod
     async def log_2fa_verification(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         success: bool,
         ip_address: str | None = None,
         user_agent: str | None = None,
@@ -153,7 +153,7 @@ class SecurityEventService:
     @staticmethod
     async def log_2fa_login(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         success: bool,
         ip_address: str | None = None,
         user_agent: str | None = None,
@@ -178,7 +178,7 @@ class SecurityEventService:
     @staticmethod
     async def log_backup_code_used(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> SecurityEvent | None:
@@ -195,7 +195,7 @@ class SecurityEventService:
     @staticmethod
     async def log_backup_codes_regenerated(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> SecurityEvent | None:
@@ -212,7 +212,7 @@ class SecurityEventService:
     @staticmethod
     async def log_password_login(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         success: bool,
         ip_address: str | None = None,
         user_agent: str | None = None,
@@ -237,7 +237,7 @@ class SecurityEventService:
     @staticmethod
     async def log_rate_limit_auto_block(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         details: dict[str, Any] | None = None,
@@ -256,7 +256,7 @@ class SecurityEventService:
     @staticmethod
     async def log_rate_limit_admin_unlock(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         details: dict[str, Any] | None = None,
@@ -275,7 +275,7 @@ class SecurityEventService:
     @staticmethod
     async def log_rate_limit_block_expired(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         details: dict[str, Any] | None = None,
@@ -294,7 +294,7 @@ class SecurityEventService:
     @staticmethod
     async def log_rate_limit_hit(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         details: dict[str, Any] | None = None,
@@ -317,7 +317,7 @@ class SecurityEventService:
     @staticmethod
     async def log_rate_limit_attempt_recorded(
         session: AsyncSession,
-        user_id: UUID | str,
+        user_id: UUID | str | None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         details: dict[str, Any] | None = None,

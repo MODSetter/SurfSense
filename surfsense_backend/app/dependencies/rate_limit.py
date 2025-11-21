@@ -8,6 +8,7 @@ across different endpoints to avoid code duplication.
 import ipaddress
 import logging
 import os
+from functools import lru_cache
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
@@ -22,9 +23,15 @@ logger = logging.getLogger(__name__)
 # Trusted proxy configuration
 # In production, set TRUSTED_PROXIES env var to comma-separated list of proxy IPs or CIDR ranges
 # For Cloudflare, you can set CLOUDFLARE_PROXIES=true to automatically trust Cloudflare IPs
-def _parse_trusted_proxies() -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+
+
+@lru_cache(maxsize=1)
+def get_trusted_proxy_networks() -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
     """
     Parse TRUSTED_PROXIES environment variable into IP network objects.
+
+    Uses @lru_cache to parse only once and cache the result. Returns tuple for hashability.
+    This design allows tests to mock this function rather than reloading the module.
 
     Supports both individual IPs and CIDR notation:
     - Single IP: "10.0.0.1"
@@ -32,11 +39,11 @@ def _parse_trusted_proxies() -> list[ipaddress.IPv4Network | ipaddress.IPv6Netwo
     - Mixed: "10.0.0.1,192.168.1.0/24,172.16.0.0/16"
 
     Returns:
-        List of ip_network objects for trusted proxies
+        Tuple of ip_network objects for trusted proxies (empty tuple if none configured)
     """
     proxies_str = os.getenv("TRUSTED_PROXIES", "")
     if not proxies_str:
-        return []
+        return ()
 
     networks = []
     for proxy in proxies_str.split(","):
@@ -55,10 +62,7 @@ def _parse_trusted_proxies() -> list[ipaddress.IPv4Network | ipaddress.IPv6Netwo
             )
             continue
 
-    return networks
-
-
-TRUSTED_PROXY_NETWORKS = _parse_trusted_proxies()
+    return tuple(networks)
 
 # Cloudflare IP ranges (updated as of January 2025)
 # Source: https://www.cloudflare.com/ips-v4 and https://www.cloudflare.com/ips-v6
@@ -153,10 +157,11 @@ def is_trusted_proxy(ip_str: str) -> bool:
     Returns:
         True if IP is a trusted proxy, False otherwise
     """
-    if not TRUSTED_PROXY_NETWORKS:
+    trusted_networks = get_trusted_proxy_networks()
+    if not trusted_networks:
         return False
 
-    return is_ip_in_networks(ip_str, TRUSTED_PROXY_NETWORKS)
+    return is_ip_in_networks(ip_str, list(trusted_networks))
 
 
 def is_cloudflare_ip(ip_str: str) -> bool:
@@ -215,12 +220,30 @@ def get_client_ip(request: Request) -> str | None:
     Returns:
         Valid IP address if available, None otherwise
 
-    Note:
+    Security Warning:
+        **CRITICAL**: This function trusts X-Forwarded-For, X-Real-IP, and CF-Connecting-IP
+        headers ONLY from trusted proxies. Your reverse proxy MUST be configured to:
+
+        1. Strip ALL incoming proxy headers from external clients
+        2. Overwrite headers with the real client IP the proxy sees
+        3. Block direct access to application (proxy-only access)
+
+        Without proper proxy configuration, attackers can forge these headers to:
+        - Bypass rate limiting by spoofing IPs
+        - Launch DoS attacks by impersonating victim IPs
+        - Evade security monitoring
+
+        See SECURITY_IMPROVEMENTS.md for detailed proxy configuration requirements.
+
+    Configuration:
         For Cloudflare deployments, set CLOUDFLARE_PROXIES=true:
         CLOUDFLARE_PROXIES=true
 
         For other reverse proxies, set TRUSTED_PROXIES:
         TRUSTED_PROXIES=10.0.0.1,172.16.0.1
+
+        Or use CIDR ranges:
+        TRUSTED_PROXIES=10.0.0.0/24,172.16.0.0/16
     """
     # Get the immediate client IP (could be proxy or end user)
     immediate_client = request.client.host if request.client else None
@@ -235,11 +258,12 @@ def get_client_ip(request: Request) -> str | None:
         trust_proxy_headers = is_cloudflare_request
 
     # Check if immediate client is in TRUSTED_PROXIES (supports CIDR ranges)
-    if not trust_proxy_headers and TRUSTED_PROXY_NETWORKS and immediate_client:
+    trusted_networks = get_trusted_proxy_networks()
+    if not trust_proxy_headers and trusted_networks and immediate_client:
         trust_proxy_headers = is_trusted_proxy(immediate_client)
 
     # Backward compatibility: if no configuration set, trust all headers
-    if not trust_proxy_headers and not TRUSTED_PROXY_NETWORKS and not USE_CLOUDFLARE_PROXIES:
+    if not trust_proxy_headers and not trusted_networks and not USE_CLOUDFLARE_PROXIES:
         trust_proxy_headers = True
 
     # Priority 1: CF-Connecting-IP (Cloudflare specific)
