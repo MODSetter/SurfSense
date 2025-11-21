@@ -3,6 +3,7 @@ Base functionality and shared imports for connector indexers.
 """
 
 import logging
+import traceback
 from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -247,8 +248,6 @@ def get_error_metadata(e: Exception) -> dict[str, str]:
         >>> metadata
         {'error_type': 'ValueError', 'error_message': 'Invalid input', 'error_traceback': '...'}
     """
-    import traceback
-
     return {
         "error_type": type(e).__name__,
         "error_message": str(e),
