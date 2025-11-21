@@ -2,9 +2,9 @@
 Base functionality and shared imports for connector indexers.
 """
 
+from datetime import datetime, timedelta
 import logging
 import traceback
-from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
