@@ -229,7 +229,7 @@ class ImageCompressionService:
 
         except Exception as e:
             logger.error(f"Error compressing image {input_path}: {e}")
-            raise ValueError(f"Failed to compress image: {e}") from e
+            raise ValueError(str(e)) from e
 
     def calculate_compression_ratio(
         self, original_size: int, compressed_size: int

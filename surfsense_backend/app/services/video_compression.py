@@ -368,7 +368,7 @@ class VideoCompressionService:
                     output_path.unlink()
                 except OSError as unlink_error:
                     logger.warning(f"Could not delete output file {output_path}: {unlink_error}")
-            raise RuntimeError(f"Failed to compress video: {e}") from e
+            raise RuntimeError(str(e)) from e
 
     def estimate_compression_time(self, duration_seconds: float, level: str) -> float:
         """
