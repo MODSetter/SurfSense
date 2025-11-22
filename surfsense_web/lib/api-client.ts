@@ -40,7 +40,7 @@ export interface ApiRequestOptions extends RequestInit {
 /**
  * Notification details for error handling
  */
-interface NotificationDetails {
+export interface NotificationDetails {
     title: string;
     description: string;
 }
