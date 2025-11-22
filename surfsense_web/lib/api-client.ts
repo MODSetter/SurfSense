@@ -38,6 +38,36 @@ export interface ApiRequestOptions extends RequestInit {
 }
 
 /**
+ * Handle and throw an API error with optional notifications
+ *
+ * @param error - The ApiError to handle
+ * @param skipErrorNotification - Whether to skip automatic error notifications
+ * @param onError - Optional custom error handler
+ * @param notificationTitle - Title for the toast notification
+ * @param notificationDescription - Description for the toast notification
+ * @throws {ApiError} Always throws the error after handling
+ */
+function handleAndThrowError(
+    error: ApiError,
+    skipErrorNotification: boolean,
+    onError: ((error: ApiError) => void) | undefined,
+    notificationTitle: string,
+    notificationDescription: string
+): never {
+    if (!skipErrorNotification && !onError) {
+        toast.error(notificationTitle, {
+            description: notificationDescription
+        });
+    }
+
+    if (onError) {
+        onError(error);
+    }
+
+    throw error;
+}
+
+/**
  * Make a type-safe API request with centralized error handling.
  *
  * @example
@@ -141,17 +171,13 @@ export async function apiRequest<T = any>(
                 parseError
             );
 
-            if (!skipErrorNotification && !onError) {
-                toast.error("Response Parse Error", {
-                    description: "The server returned an invalid response format."
-                });
-            }
-
-            if (onError) {
-                onError(error);
-            }
-
-            throw error;
+            handleAndThrowError(
+                error,
+                skipErrorNotification,
+                onError,
+                "Response Parse Error",
+                "The server returned an invalid response format."
+            );
         }
     } catch (error) {
         // Handle network errors
@@ -165,17 +191,13 @@ export async function apiRequest<T = any>(
             error
         );
 
-        if (!skipErrorNotification && !onError) {
-            toast.error("Network Error", {
-                description: "Could not connect to the server. Please check your connection."
-            });
-        }
-
-        if (onError) {
-            onError(apiError);
-        }
-
-        throw apiError;
+        handleAndThrowError(
+            apiError,
+            skipErrorNotification,
+            onError,
+            "Network Error",
+            "Could not connect to the server. Please check your connection."
+        );
     }
 }
 
