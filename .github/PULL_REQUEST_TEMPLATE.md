@@ -39,3 +39,23 @@ FIX #
 - [ ] Dependencies updated as needed
 - [ ] No lint/build errors or new warnings
 - [ ] All relevant tests are passing
+
+## Documentation Maintenance Checklist
+<!--- Ensure all relevant documentation is updated for this change -->
+- [ ] **README.md** - Updated if adding new features, dependencies, or setup steps
+- [ ] **SECURITY.md** - Updated if security-related changes (auth, permissions, audit logging, etc.)
+- [ ] **API Documentation** - Updated if API endpoints, request/response schemas, or error codes changed
+- [ ] **Architecture Docs** - Updated if significant architectural changes or new components added
+- [ ] **Code Comments** - Added/updated for complex logic, security-critical sections, or non-obvious implementations
+- [ ] **Migration Guide** - Created if breaking changes or major version updates
+- [ ] **Changelog** - Entry added describing user-facing changes
+- [ ] **Design Rationale** - Documented reasoning for major technical decisions in commit messages or docs
+- [ ] **Configuration Examples** - Updated if new environment variables or config options added
+- [ ] **Not Applicable** - Check this if documentation updates are not needed for this PR
+
+### Documentation Best Practices
+- Use clear, concise language
+- Include code examples for new features or APIs
+- Update screenshots if UI changes
+- Link to related issues/PRs in docs where relevant
+- Ensure documentation is accessible to both developers and users
