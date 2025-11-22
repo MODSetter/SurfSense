@@ -1,7 +1,9 @@
 from pathlib import Path
+import threading
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -22,34 +24,51 @@ router = APIRouter()
 # Cache community prompts at module startup for performance
 # Avoids reading and parsing YAML on every request
 _COMMUNITY_PROMPTS_CACHE: list[dict] | None = None
+_prompts_lock = threading.Lock()
 
 
 def _load_community_prompts() -> list[dict]:
     """
-    Load community prompts from YAML file at module startup.
+    Load community prompts from YAML file with thread-safe caching.
+
+    Uses double-checked locking pattern to prevent race conditions where
+    multiple concurrent requests could trigger redundant file reads before
+    the cache is populated.
 
     Returns cached prompts if already loaded, otherwise loads from disk.
     This eliminates redundant file I/O on every API request.
+
+    Raises:
+        FileNotFoundError: If prompts YAML file doesn't exist
+        yaml.YAMLError: If YAML parsing fails
     """
     global _COMMUNITY_PROMPTS_CACHE
 
+    # First check without lock (fast path for cached case)
     if _COMMUNITY_PROMPTS_CACHE is not None:
         return _COMMUNITY_PROMPTS_CACHE
 
-    prompts_file = (
-        Path(__file__).parent.parent
-        / "prompts"
-        / "public_search_space_prompts.yaml"
-    )
+    # Acquire lock for cache population
+    with _prompts_lock:
+        # Double-check after acquiring lock (another thread may have populated)
+        if _COMMUNITY_PROMPTS_CACHE is not None:
+            return _COMMUNITY_PROMPTS_CACHE
 
-    if not prompts_file.exists():
-        raise FileNotFoundError(f"Community prompts file not found: {prompts_file}")
+        # Load prompts from YAML file
+        prompts_file = (
+            Path(__file__).parent.parent
+            / "prompts"
+            / "public_search_space_prompts.yaml"
+        )
 
-    with open(prompts_file, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
+        if not prompts_file.exists():
+            raise FileNotFoundError(f"Community prompts file not found: {prompts_file}")
 
-    _COMMUNITY_PROMPTS_CACHE = data.get("prompts", [])
-    return _COMMUNITY_PROMPTS_CACHE
+        with open(prompts_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        _COMMUNITY_PROMPTS_CACHE = data.get("prompts", [])
+        return _COMMUNITY_PROMPTS_CACHE
 
 
 @router.post("/searchspaces", response_model=SearchSpaceRead)
@@ -119,12 +138,15 @@ async def get_community_prompts(
     including developer tools, productivity, creative tasks, and more.
 
     Prompts are cached at module startup for optimal performance.
+    File I/O is executed in a thread pool to avoid blocking the async event loop.
 
     Note: Requires authentication (unlike upstream which is public).
     This aligns with our security-conscious approach.
     """
     try:
-        return _load_community_prompts()
+        # Execute blocking file I/O in thread pool to avoid blocking event loop
+        # This ensures FastAPI server concurrency is not degraded
+        return await run_in_threadpool(_load_community_prompts)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
