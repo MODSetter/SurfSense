@@ -1,6 +1,6 @@
 """Schemas for media compression."""
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -56,7 +56,7 @@ class CompressionResponse(BaseModel):
     success: bool = Field(..., description="Whether the compression was successful")
     message: str = Field(..., description="Status message")
     file_path: Optional[str] = Field(None, description="Path to the compressed file")
-    metadata: Optional[CompressionMetadata] = Field(
+    metadata: Optional[Union[ImageCompressionMetadata, VideoCompressionMetadata, CompressionMetadata]] = Field(
         None, description="Compression metadata"
     )
 

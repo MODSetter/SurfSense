@@ -2,6 +2,7 @@
 
 import logging
 import os
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -41,6 +42,8 @@ async def compress_image(
     Returns:
         CompressionResponse with compression metadata
     """
+    temp_input_path = None
+
     try:
         # Determine compression level
         if level is None:
@@ -62,8 +65,11 @@ async def compress_image(
                 f"Allowed formats: {', '.join(allowed_extensions)}",
             )
 
+        # Generate safe filename using UUID to prevent path traversal
+        safe_filename = f"{uuid.uuid4()}{file_ext}"
+        temp_input_path = TEMP_UPLOAD_DIR / safe_filename
+
         # Save uploaded file temporarily
-        temp_input_path = TEMP_UPLOAD_DIR / f"upload_{user.id}_{file.filename}"
         with open(temp_input_path, "wb") as f:
             content = await file.read()
             f.write(content)
@@ -74,9 +80,6 @@ async def compress_image(
             str(temp_input_path), level=level
         )
 
-        # Clean up temporary input file
-        temp_input_path.unlink()
-
         return CompressionResponse(
             success=True,
             message=f"Image compressed successfully ({metadata['compression_ratio']:.1f}% reduction)",
@@ -86,19 +89,21 @@ async def compress_image(
 
     except ValueError as e:
         logger.error(f"Compression validation error: {e}")
-        # Clean up temporary file if it exists
-        if temp_input_path.exists():
-            temp_input_path.unlink()
         raise HTTPException(status_code=400, detail=str(e))
 
     except Exception as e:
         logger.error(f"Image compression error: {e}")
-        # Clean up temporary file if it exists
-        if temp_input_path.exists():
-            temp_input_path.unlink()
         raise HTTPException(
             status_code=500, detail=f"Failed to compress image: {str(e)}"
         )
+
+    finally:
+        # Clean up temporary file
+        if temp_input_path and temp_input_path.exists():
+            try:
+                temp_input_path.unlink()
+            except Exception as e:
+                logger.warning(f"Could not delete temp file {temp_input_path}: {e}")
 
 
 @router.post("/compress/video", response_model=CompressionResponse)
@@ -120,6 +125,8 @@ async def compress_video(
     Returns:
         CompressionResponse with compression metadata
     """
+    temp_input_path = None
+
     try:
         # Determine compression level
         if level is None:
@@ -143,14 +150,17 @@ async def compress_video(
 
         # Check if FFmpeg is installed
         compression_service = get_video_compression_service()
-        if not compression_service.check_ffmpeg_installed():
+        if not await compression_service.check_ffmpeg_installed():
             raise HTTPException(
                 status_code=500,
                 detail="FFmpeg is not installed on the server. Please contact the administrator.",
             )
 
+        # Generate safe filename using UUID to prevent path traversal
+        safe_filename = f"{uuid.uuid4()}{file_ext}"
+        temp_input_path = TEMP_UPLOAD_DIR / safe_filename
+
         # Save uploaded file temporarily
-        temp_input_path = TEMP_UPLOAD_DIR / f"upload_{user.id}_{file.filename}"
         with open(temp_input_path, "wb") as f:
             content = await file.read()
             f.write(content)
@@ -159,9 +169,6 @@ async def compress_video(
         output_path, metadata = await compression_service.compress_video(
             str(temp_input_path), level=level
         )
-
-        # Clean up temporary input file
-        temp_input_path.unlink()
 
         return CompressionResponse(
             success=True,
@@ -172,19 +179,21 @@ async def compress_video(
 
     except ValueError as e:
         logger.error(f"Compression validation error: {e}")
-        # Clean up temporary file if it exists
-        if "temp_input_path" in locals() and temp_input_path.exists():
-            temp_input_path.unlink()
         raise HTTPException(status_code=400, detail=str(e))
 
     except Exception as e:
         logger.error(f"Video compression error: {e}")
-        # Clean up temporary file if it exists
-        if "temp_input_path" in locals() and temp_input_path.exists():
-            temp_input_path.unlink()
         raise HTTPException(
             status_code=500, detail=f"Failed to compress video: {str(e)}"
         )
+
+    finally:
+        # Clean up temporary file
+        if temp_input_path and temp_input_path.exists():
+            try:
+                temp_input_path.unlink()
+            except Exception as e:
+                logger.warning(f"Could not delete temp file {temp_input_path}: {e}")
 
 
 @router.get("/settings", response_model=CompressionSettings)

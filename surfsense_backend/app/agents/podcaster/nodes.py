@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -21,6 +22,8 @@ from .prompts import get_podcast_generation_prompt
 from .state import PodcastTranscriptEntry, PodcastTranscripts, State
 from .utils import get_voice_for_provider
 
+logger = logging.getLogger(__name__)
+
 
 async def create_podcast_transcript(
     state: State, config: RunnableConfig
@@ -37,7 +40,7 @@ async def create_podcast_transcript(
     llm = await get_user_long_context_llm(state.db_session, user_id, search_space_id)
     if not llm:
         error_message = f"No long context LLM configured for user {user_id} in search space {search_space_id}"
-        print(error_message)
+        logger.error(error_message)
         raise RuntimeError(error_message)
 
     # Get the prompt
@@ -60,7 +63,7 @@ async def create_podcast_transcript(
             json.loads(llm_response.content)
         )
     except (json.JSONDecodeError, ValueError) as e:
-        print(f"Direct JSON parsing failed, trying fallback approach: {e!s}")
+        logger.warning(f"Direct JSON parsing failed, trying fallback approach: {e!s}")
 
         # Fallback: Parse the JSON response manually
         try:
@@ -79,18 +82,18 @@ async def create_podcast_transcript(
                 # Convert to Pydantic model
                 podcast_transcript = PodcastTranscripts.model_validate(parsed_data)
 
-                print("Successfully parsed podcast transcript using fallback approach")
+                logger.info("Successfully parsed podcast transcript using fallback approach")
             else:
                 # If JSON structure not found, raise a clear error
                 error_message = f"Could not find valid JSON in LLM response. Raw response: {content}"
-                print(error_message)
+                logger.error(error_message)
                 raise ValueError(error_message)
 
         except (json.JSONDecodeError, ValueError) as e2:
             # Log the error and re-raise it
             error_message = f"Error parsing LLM response (fallback also failed): {e2!s}"
-            print(f"Error parsing LLM response: {e2!s}")
-            print(f"Raw response: {llm_response.content}")
+            logger.error(f"Error parsing LLM response: {e2!s}")
+            logger.error(f"Raw response: {llm_response.content}")
             raise
 
     return {"podcast_transcript": podcast_transcript.podcast_transcripts}
@@ -169,10 +172,10 @@ async def create_merged_podcast_audio(
                         )
                         return audio_path
                     except Exception as e:
-                        print(f"Latvian TTS failed, falling back to default: {e!s}")
+                        logger.warning(f"Latvian TTS failed, falling back to default: {e!s}")
                         # Fall through to default TTS
                 else:
-                    print("Latvian TTS not available, using default TTS")
+                    logger.info("Latvian TTS not available, using default TTS")
                     # Fall through to default TTS
 
             if app_config.TTS_SERVICE == "local/kokoro":
@@ -211,7 +214,7 @@ async def create_merged_podcast_audio(
 
                 return filename
         except Exception as e:
-            print(f"Error generating speech for segment {index}: {e!s}")
+            logger.error(f"Error generating speech for segment {index}: {e!s}")
             raise
 
     # Generate all audio files concurrently
@@ -244,10 +247,10 @@ async def create_merged_podcast_audio(
         # Execute FFmpeg
         await ffmpeg.execute()
 
-        print(f"Successfully created podcast audio: {output_path}")
+        logger.info(f"Successfully created podcast audio: {output_path}")
 
     except Exception as e:
-        print(f"Error merging audio files: {e!s}")
+        logger.error(f"Error merging audio files: {e!s}")
         raise
     finally:
         # Clean up temporary files
@@ -255,7 +258,7 @@ async def create_merged_podcast_audio(
             try:
                 os.remove(audio_file)
             except Exception as e:
-                print(f"Error removing audio file {audio_file}: {e!s}")
+                logger.warning(f"Error removing audio file {audio_file}: {e!s}")
                 pass
 
     return {

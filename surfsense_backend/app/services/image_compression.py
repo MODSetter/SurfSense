@@ -6,6 +6,7 @@ Compresses images to reduce file size while maintaining quality.
 import hashlib
 import logging
 import os
+import uuid
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -167,10 +168,8 @@ class ImageCompressionService:
 
                 # Generate output path if not provided
                 if output_path is None:
-                    # Generate unique filename based on input and settings
-                    hash_input = f"{input_path.name}_{level}_{original_size}"
-                    file_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8]
-                    output_filename = f"compressed_{file_hash}.{settings['format']}"
+                    # Generate unique filename using UUID to avoid collisions
+                    output_filename = f"compressed_{uuid.uuid4().hex[:16]}.{settings['format']}"
                     output_path = self.temp_dir / output_filename
                 else:
                     output_path = Path(output_path)
