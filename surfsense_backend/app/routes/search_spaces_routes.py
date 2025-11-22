@@ -42,6 +42,11 @@ def _load_community_prompts() -> list[dict]:
     multiple concurrent requests could trigger redundant file reads before
     the cache is populated.
 
+    Uses EAFP (Easier to Ask for Forgiveness than Permission) approach:
+    reads and parses the file outside the lock to allow concurrent I/O,
+    then uses the lock only for brief cache validation and assignment.
+    This avoids TOCTOU race conditions and minimizes lock contention.
+
     Returns cached prompts if already loaded, otherwise loads from disk.
     This eliminates redundant file I/O on every API request.
 
@@ -55,20 +60,22 @@ def _load_community_prompts() -> list[dict]:
     if _COMMUNITY_PROMPTS_CACHE is not None:
         return _COMMUNITY_PROMPTS_CACHE
 
-    # Perform I/O operations outside lock to minimize critical section
-    if not _PROMPTS_FILE_PATH.exists():
+    # Read and parse file outside lock to allow concurrent I/O (EAFP approach)
+    # This avoids TOCTOU race condition and minimizes time in critical section
+    try:
+        with open(_PROMPTS_FILE_PATH, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        prompts = data.get("prompts", [])
+    except FileNotFoundError:
         raise FileNotFoundError(f"Community prompts file not found: {_PROMPTS_FILE_PATH}")
 
-    # Acquire lock for cache population
+    # Acquire lock only for cache assignment (minimal critical section)
     with _prompts_lock:
         # Double-check after acquiring lock (another thread may have populated)
         if _COMMUNITY_PROMPTS_CACHE is not None:
             return _COMMUNITY_PROMPTS_CACHE
 
-        with open(_PROMPTS_FILE_PATH, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
-        _COMMUNITY_PROMPTS_CACHE = data.get("prompts", [])
+        _COMMUNITY_PROMPTS_CACHE = prompts
         return _COMMUNITY_PROMPTS_CACHE
 
 
