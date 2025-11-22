@@ -23,6 +23,11 @@ interface AuthState {
 	error: string | null;
 }
 
+// Retry configuration constants
+const MAX_RETRIES = 2;
+const BASE_DELAY_MS = 1000;
+const JITTER_FACTOR = 0.5; // Jitter up to 50% of base delay
+
 /**
  * Enhanced authentication hook that verifies tokens with the backend
  * and provides user session state
@@ -40,9 +45,6 @@ export function useAuth(requireSuperuser = false): AuthState {
 	});
 
 	useEffect(() => {
-		const MAX_RETRIES = 2;
-		const BASE_DELAY_MS = 1000;
-
 		const verifyAuth = async (retryCount = 0) => {
 
 			try {
@@ -124,7 +126,7 @@ export function useAuth(requireSuperuser = false): AuthState {
 					console.log(`Retrying authentication verification (${retryCount + 1}/${MAX_RETRIES})...`);
 					// Exponential backoff with proportional jitter to prevent thundering herd
 					const baseBackoff = Math.pow(2, retryCount) * BASE_DELAY_MS;
-					const jitter = Math.random() * (baseBackoff / 2);
+					const jitter = Math.random() * baseBackoff * JITTER_FACTOR;
 					const backoffMs = baseBackoff + jitter;
 					setTimeout(() => verifyAuth(retryCount + 1), backoffMs);
 					return;
