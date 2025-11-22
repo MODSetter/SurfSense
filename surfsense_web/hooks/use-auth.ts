@@ -120,7 +120,9 @@ export function useAuth(requireSuperuser = false): AuthState {
 				// Retry on network errors (but not on 401)
 				if (retryCount < MAX_RETRIES && error.message !== "Session expired") {
 					console.log(`Retrying authentication verification (${retryCount + 1}/${MAX_RETRIES})...`);
-					setTimeout(() => verifyAuth(retryCount + 1), 1000 * (retryCount + 1));
+					// Exponential backoff with jitter to prevent thundering herd
+					const backoffMs = Math.pow(2, retryCount) * 1000 + Math.random() * 200;
+					setTimeout(() => verifyAuth(retryCount + 1), backoffMs);
 					return;
 				}
 
