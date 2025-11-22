@@ -12,6 +12,8 @@ from litellm import aspeech
 
 from app.config import config as app_config
 from app.services.kokoro_tts_service import get_kokoro_tts_service
+from app.services.language_detector import detect_language
+from app.services.latvian_tts_service import get_latvian_tts_service
 from app.services.llm_service import get_user_long_context_llm
 
 from .configuration import Configuration
@@ -149,6 +151,30 @@ async def create_merged_podcast_audio(
             filename = f"{temp_dir}/{session_id}_{index}.mp3"
 
         try:
+            # Detect language of the dialog
+            detected_lang = detect_language(dialog)
+
+            # Use Latvian TTS if Latvian language is detected
+            if detected_lang == "lv":
+                latvian_service = get_latvian_tts_service()
+                if latvian_service.check_tts_available():
+                    try:
+                        # Use WAV format for Latvian TTS
+                        filename = f"{temp_dir}/{session_id}_{index}.wav"
+                        audio_path = await latvian_service.generate_audio(
+                            text=dialog,
+                            speaker=voice if isinstance(voice, str) else None,
+                            output_path=filename,
+                            preprocess=True,
+                        )
+                        return audio_path
+                    except Exception as e:
+                        print(f"Latvian TTS failed, falling back to default: {e!s}")
+                        # Fall through to default TTS
+                else:
+                    print("Latvian TTS not available, using default TTS")
+                    # Fall through to default TTS
+
             if app_config.TTS_SERVICE == "local/kokoro":
                 # Use Kokoro TTS service
                 kokoro_service = await get_kokoro_tts_service(

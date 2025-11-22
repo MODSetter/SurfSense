@@ -60,6 +60,8 @@ ALLOWED_EXTENSIONS = {
     ".ppt", ".pptx", ".odp",
     # Images (for OCR)
     ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp",
+    # Videos (for media content)
+    ".mp4", ".mov", ".avi", ".webm", ".mkv", ".flv", ".wmv",
     # Web/markup (non-executable)
     ".html", ".htm", ".xml", ".json", ".md", ".markdown", ".rst",
     # E-books

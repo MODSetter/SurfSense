@@ -8,6 +8,14 @@ from .chats import (
     ChatUpdate,
 )
 from .chunks import ChunkBase, ChunkCreate, ChunkRead, ChunkUpdate
+from .compression import (
+    CompressionMetadata,
+    CompressionProgress,
+    CompressionResponse,
+    CompressionSettings,
+    ImageCompressionMetadata,
+    VideoCompressionMetadata,
+)
 from .documents import (
     DocumentBase,
     DocumentRead,
@@ -61,6 +69,10 @@ __all__ = [
     "ChunkCreate",
     "ChunkRead",
     "ChunkUpdate",
+    "CompressionMetadata",
+    "CompressionProgress",
+    "CompressionResponse",
+    "CompressionSettings",
     "DocumentBase",
     "DocumentRead",
     "DocumentUpdate",
@@ -69,6 +81,7 @@ __all__ = [
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
     "IDModel",
+    "ImageCompressionMetadata",
     "LLMConfigBase",
     "LLMConfigCreate",
     "LLMConfigRead",
@@ -100,4 +113,5 @@ __all__ = [
     "UserCreate",
     "UserRead",
     "UserUpdate",
+    "VideoCompressionMetadata",
 ]

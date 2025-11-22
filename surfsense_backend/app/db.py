@@ -493,6 +493,11 @@ if config.AUTH_TYPE == "GOOGLE":
         totp_secret = Column(String(255), nullable=True)
         backup_codes = Column(JSON, nullable=True)
 
+        # Media compression preferences
+        image_compression_level = Column(String(20), nullable=False, default="medium", server_default="medium")
+        video_compression_level = Column(String(20), nullable=False, default="medium", server_default="medium")
+        auto_compress_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+
 else:
 
     class User(SQLAlchemyBaseUserTable, Base):
@@ -507,6 +512,11 @@ else:
         two_fa_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
         totp_secret = Column(String(255), nullable=True)
         backup_codes = Column(JSON, nullable=True)
+
+        # Media compression preferences
+        image_compression_level = Column(String(20), nullable=False, default="medium", server_default="medium")
+        video_compression_level = Column(String(20), nullable=False, default="medium", server_default="medium")
+        auto_compress_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
 
 
 engine = create_async_engine(DATABASE_URL)
