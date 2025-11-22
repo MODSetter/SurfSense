@@ -57,6 +57,7 @@ from app.tasks.connector_indexers import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from app.utils.verify_space_write_permission import verify_space_write_permission
 from app.utils.periodic_scheduler import (
     create_periodic_schedule,
     delete_periodic_schedule,
@@ -117,8 +118,8 @@ async def create_search_source_connector(
     The config must contain the appropriate keys for the connector type.
     """
     try:
-        # Check if the search space belongs to the user
-        await check_ownership(session, SearchSpace, search_space_id, user)
+        # CRITICAL SECURITY: Verify user has write permission (public spaces are read-only for non-owners)
+        await verify_space_write_permission(session, search_space_id, user)
 
         # Check if a connector with the same type already exists for this search space and user
         result = await session.execute(
@@ -504,9 +505,9 @@ async def index_connector_content(
             session, SearchSourceConnector, connector_id, user
         )
 
-        # Check if the search space belongs to the user
-        _search_space = await check_ownership(
-            session, SearchSpace, search_space_id, user
+        # CRITICAL SECURITY: Verify user has write permission (public spaces are read-only for non-owners)
+        _search_space = await verify_space_write_permission(
+            session, search_space_id, user
         )
 
         # Handle different connector types

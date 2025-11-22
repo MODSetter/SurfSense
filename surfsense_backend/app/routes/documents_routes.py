@@ -26,6 +26,7 @@ from app.schemas import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from app.utils.verify_space_write_permission import verify_space_write_permission
 from app.tasks.celery_tasks.document_tasks import (
     process_crawled_url_task,
     process_extension_document_task,
@@ -182,8 +183,8 @@ async def create_documents(
     user: User = Depends(current_active_user),
 ):
     try:
-        # Check if the user owns the search space
-        await check_ownership(session, SearchSpace, request.search_space_id, user)
+        # CRITICAL SECURITY: Verify user has write permission (public spaces are read-only for non-owners)
+        await verify_space_write_permission(session, request.search_space_id, user)
 
         if request.document_type == DocumentType.EXTENSION:
             for individual_document in request.content:
@@ -231,7 +232,8 @@ async def create_documents_file_upload(
     user: User = Depends(current_active_user),
 ):
     try:
-        await check_ownership(session, SearchSpace, search_space_id, user)
+        # CRITICAL SECURITY: Verify user has write permission (public spaces are read-only for non-owners)
+        await verify_space_write_permission(session, search_space_id, user)
 
         if not files:
             raise HTTPException(status_code=400, detail="No files provided")
