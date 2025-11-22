@@ -33,8 +33,6 @@ async def create_search_space(
         await session.commit()
         await session.refresh(db_search_space)
         return db_search_space
-    except HTTPException:
-        raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(
@@ -88,11 +86,8 @@ async def read_search_space(
     - Space is public (is_public=True)
     """
     try:
-        # Fetch the search space
-        result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
-        )
-        search_space = result.scalars().first()
+        # Fetch the search space using session.get() for primary key lookup
+        search_space = await session.get(SearchSpace, search_space_id)
 
         if not search_space:
             raise HTTPException(
@@ -109,8 +104,6 @@ async def read_search_space(
 
         return search_space
 
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch search space: {e!s}"
@@ -134,8 +127,6 @@ async def update_search_space(
         await session.commit()
         await session.refresh(db_search_space)
         return db_search_space
-    except HTTPException:
-        raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(
@@ -174,11 +165,8 @@ async def share_search_space(
                 detail="Only administrators can share search spaces"
             )
 
-        # Get the search space and verify it exists
-        result = await session.execute(
-            select(SearchSpace).filter(SearchSpace.id == search_space_id)
-        )
-        space = result.scalars().first()
+        # Get the search space and verify it exists using session.get() for primary key lookup
+        space = await session.get(SearchSpace, search_space_id)
 
         if not space:
             raise HTTPException(
@@ -197,8 +185,6 @@ async def share_search_space(
             search_space_id=search_space_id
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(
@@ -220,8 +206,6 @@ async def delete_search_space(
         await session.delete(db_search_space)
         await session.commit()
         return {"message": "Search space deleted successfully"}
-    except HTTPException:
-        raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(
