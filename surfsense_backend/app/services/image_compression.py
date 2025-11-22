@@ -109,35 +109,35 @@ class ImageCompressionService:
         # Get compression settings
         settings = self.get_compression_settings(level)
 
-        # If level is "none", just copy the file
-        if level == "none":
-            if output_path is None:
-                output_path = self.temp_dir / f"no_compression_{input_path.name}"
-            else:
-                output_path = Path(output_path)
-
-            # Copy file without compression
-            with open(input_path, "rb") as src, open(output_path, "wb") as dst:
-                dst.write(src.read())
-
-            compressed_size = output_path.stat().st_size
-
-            # Open image to get dimensions
-            with Image.open(input_path) as img:
-                original_format = img.format
-                dimensions = img.size
-
-            return str(output_path), {
-                "original_size": original_size,
-                "compressed_size": compressed_size,
-                "compression_ratio": 0.0,
-                "original_format": original_format,
-                "compressed_format": original_format,
-                "original_dimensions": dimensions,
-                "compressed_dimensions": dimensions,
-            }
-
         try:
+            # If level is "none", just copy the file
+            if level == "none":
+                if output_path is None:
+                    output_path = self.temp_dir / f"no_compression_{input_path.name}"
+                else:
+                    output_path = Path(output_path)
+
+                # Copy file without compression
+                with open(input_path, "rb") as src, open(output_path, "wb") as dst:
+                    dst.write(src.read())
+
+                compressed_size = output_path.stat().st_size
+
+                # Open image to get dimensions (may raise UnidentifiedImageError)
+                with Image.open(input_path) as img:
+                    original_format = img.format
+                    dimensions = img.size
+
+                return str(output_path), {
+                    "original_size": original_size,
+                    "compressed_size": compressed_size,
+                    "compression_ratio": 0.0,
+                    "original_format": original_format,
+                    "compressed_format": original_format,
+                    "original_dimensions": dimensions,
+                    "compressed_dimensions": dimensions,
+                }
+
             # Open and process image
             with Image.open(input_path) as img:
                 original_format = img.format
