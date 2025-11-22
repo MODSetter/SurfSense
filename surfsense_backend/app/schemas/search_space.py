@@ -29,6 +29,7 @@ class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
     id: int
     created_at: datetime
     user_id: uuid.UUID
+    is_public: bool
     # QnA configuration
     citations_enabled: bool
     qna_custom_instructions: str | None = None

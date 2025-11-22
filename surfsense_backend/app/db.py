@@ -259,6 +259,9 @@ class SearchSpace(BaseModel, TimestampMixin):
 
     name = Column(String(100), nullable=False, index=True)
     description = Column(String(500), nullable=True)
+    is_public = Column(
+        Boolean, nullable=False, default=False, index=True
+    )  # Whether space is publicly accessible
 
     citations_enabled = Column(
         Boolean, nullable=False, default=True

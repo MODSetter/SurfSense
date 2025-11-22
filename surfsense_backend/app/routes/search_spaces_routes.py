@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -43,10 +44,21 @@ async def read_search_spaces(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    """
+    Get all search spaces accessible to the current user.
+    Returns:
+    - Spaces owned by the user
+    - Public spaces (is_public=True) from any user
+    """
     try:
         result = await session.execute(
             select(SearchSpace)
-            .filter(SearchSpace.user_id == user.id)
+            .filter(
+                or_(
+                    SearchSpace.user_id == user.id,
+                    SearchSpace.is_public == True
+                )
+            )
             .offset(skip)
             .limit(limit)
         )
@@ -100,6 +112,78 @@ async def update_search_space(
         await session.rollback()
         raise HTTPException(
             status_code=500, detail=f"Failed to update search space: {e!s}"
+        ) from e
+
+
+@router.post("/searchspaces/{search_space_id}/share", response_model=dict)
+async def share_search_space(
+    search_space_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Share a search space (make it publicly accessible).
+
+    SECURITY: Only superusers can share spaces.
+    Public spaces:
+    - Visible to all authenticated users in GET /searchspaces
+    - Read-only for non-owners (can query, cannot add sources)
+    - Full access for the owner
+
+    Returns:
+        dict: Success message with is_public status
+
+    Raises:
+        HTTPException 403: If user is not a superuser
+        HTTPException 404: If search space not found
+        HTTPException 403: If user doesn't own the space
+    """
+    try:
+        # CRITICAL SECURITY CHECK: Only superusers can share spaces
+        if not user.is_superuser:
+            raise HTTPException(
+                status_code=403,
+                detail="Only administrators can share search spaces"
+            )
+
+        # Get the search space and verify it exists
+        result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+        )
+        space = result.scalars().first()
+
+        if not space:
+            raise HTTPException(
+                status_code=404,
+                detail="Search space not found"
+            )
+
+        # Verify ownership (superusers can share any space, regular users only their own)
+        # This check is redundant since we already checked is_superuser, but included for defense in depth
+        if space.user_id != user.id and not user.is_superuser:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only share your own search spaces"
+            )
+
+        # Make space public
+        space.is_public = True
+        await session.commit()
+        await session.refresh(space)
+
+        return {
+            "message": "Search space shared successfully",
+            "is_public": True,
+            "search_space_id": search_space_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to share search space: {e!s}"
         ) from e
 
 
