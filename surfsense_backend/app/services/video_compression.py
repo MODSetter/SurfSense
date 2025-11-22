@@ -365,7 +365,10 @@ class VideoCompressionService:
             logger.error(f"Error compressing video {input_path}: {e}")
             # Clean up output file if it exists
             if output_path.exists():
-                output_path.unlink()
+                try:
+                    output_path.unlink()
+                except OSError as unlink_error:
+                    logger.warning(f"Could not delete output file {output_path}: {unlink_error}")
             raise ValueError(f"Failed to compress video: {e}") from e
 
     def estimate_compression_time(self, duration_seconds: float, level: str) -> float:

@@ -102,7 +102,7 @@ async def compress_image(
         if temp_input_path and temp_input_path.exists():
             try:
                 temp_input_path.unlink()
-            except Exception as e:
+            except OSError as e:
                 logger.warning(f"Could not delete temp file {temp_input_path}: {e}")
 
 
@@ -192,7 +192,7 @@ async def compress_video(
         if temp_input_path and temp_input_path.exists():
             try:
                 temp_input_path.unlink()
-            except Exception as e:
+            except OSError as e:
                 logger.warning(f"Could not delete temp file {temp_input_path}: {e}")
 
 
