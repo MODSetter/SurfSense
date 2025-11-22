@@ -130,10 +130,31 @@ export async function apiRequest<T = any>(
         }
 
         // Parse and return successful response
-        const data: T = await response.json();
-        return data;
+        try {
+            const data: T = await response.json();
+            return data;
+        } catch (parseError) {
+            // Handle JSON parsing errors while preserving HTTP status
+            const error = new ApiError(
+                response.status,
+                `Failed to parse response JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
+                parseError
+            );
+
+            if (!skipErrorNotification && !onError) {
+                toast.error("Response Parse Error", {
+                    description: "The server returned an invalid response format."
+                });
+            }
+
+            if (onError) {
+                onError(error);
+            }
+
+            throw error;
+        }
     } catch (error) {
-        // Handle network errors or JSON parsing errors
+        // Handle network errors
         if (error instanceof ApiError) {
             throw error; // Re-throw ApiError as-is
         }
