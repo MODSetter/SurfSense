@@ -26,6 +26,13 @@ router = APIRouter()
 _COMMUNITY_PROMPTS_CACHE: list[dict] | None = None
 _prompts_lock = threading.Lock()
 
+# Define prompts file path as module-level constant to avoid reconstruction
+_PROMPTS_FILE_PATH = (
+    Path(__file__).parent.parent
+    / "prompts"
+    / "public_search_space_prompts.yaml"
+)
+
 
 def _load_community_prompts() -> list[dict]:
     """
@@ -48,12 +55,9 @@ def _load_community_prompts() -> list[dict]:
     if _COMMUNITY_PROMPTS_CACHE is not None:
         return _COMMUNITY_PROMPTS_CACHE
 
-    # Construct path outside lock (doesn't need synchronization)
-    prompts_file = (
-        Path(__file__).parent.parent
-        / "prompts"
-        / "public_search_space_prompts.yaml"
-    )
+    # Perform I/O operations outside lock to minimize critical section
+    if not _PROMPTS_FILE_PATH.exists():
+        raise FileNotFoundError(f"Community prompts file not found: {_PROMPTS_FILE_PATH}")
 
     # Acquire lock for cache population
     with _prompts_lock:
@@ -61,10 +65,7 @@ def _load_community_prompts() -> list[dict]:
         if _COMMUNITY_PROMPTS_CACHE is not None:
             return _COMMUNITY_PROMPTS_CACHE
 
-        if not prompts_file.exists():
-            raise FileNotFoundError(f"Community prompts file not found: {prompts_file}")
-
-        with open(prompts_file, encoding="utf-8") as f:
+        with open(_PROMPTS_FILE_PATH, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         _COMMUNITY_PROMPTS_CACHE = data.get("prompts", [])
