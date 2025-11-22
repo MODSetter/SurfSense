@@ -48,18 +48,18 @@ def _load_community_prompts() -> list[dict]:
     if _COMMUNITY_PROMPTS_CACHE is not None:
         return _COMMUNITY_PROMPTS_CACHE
 
+    # Construct path outside lock (doesn't need synchronization)
+    prompts_file = (
+        Path(__file__).parent.parent
+        / "prompts"
+        / "public_search_space_prompts.yaml"
+    )
+
     # Acquire lock for cache population
     with _prompts_lock:
         # Double-check after acquiring lock (another thread may have populated)
         if _COMMUNITY_PROMPTS_CACHE is not None:
             return _COMMUNITY_PROMPTS_CACHE
-
-        # Load prompts from YAML file
-        prompts_file = (
-            Path(__file__).parent.parent
-            / "prompts"
-            / "public_search_space_prompts.yaml"
-        )
 
         if not prompts_file.exists():
             raise FileNotFoundError(f"Community prompts file not found: {prompts_file}")
