@@ -128,7 +128,7 @@ class ImageCompressionService:
                 try:
                     with open(input_path, "rb") as src, open(output_path, "wb") as dst:
                         shutil.copyfileobj(src, dst)
-                except (OSError, IOError) as e:
+                except OSError as e:
                     # Clean up partial output file if copy failed
                     if output_path.exists():
                         try:
@@ -191,7 +191,7 @@ class ImageCompressionService:
                 # Ensure output directory exists
                 output_path.parent.mkdir(parents=True, exist_ok=True)
 
-                # Save compressed image
+                # Save compressed image with error handling for partial file cleanup
                 save_kwargs = {}
                 if settings["format"] == "webp":
                     save_kwargs = {
@@ -211,7 +211,17 @@ class ImageCompressionService:
                         "optimize": True,
                     }
 
-                img.save(output_path, **save_kwargs)
+                try:
+                    img.save(output_path, **save_kwargs)
+                except OSError as e:
+                    # Clean up partial output file if save failed
+                    if output_path.exists():
+                        try:
+                            output_path.unlink()
+                        except OSError as unlink_error:
+                            logger.warning(f"Could not delete partial file {output_path}: {unlink_error}")
+                    logger.error(f"Failed to save compressed image {output_path}: {e}")
+                    raise RuntimeError(f"Image save operation failed: {e}") from e
 
             # Get compressed file size
             compressed_size = output_path.stat().st_size
