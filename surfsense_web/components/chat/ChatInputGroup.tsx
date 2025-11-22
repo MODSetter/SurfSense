@@ -626,20 +626,12 @@ const LLMSelector = React.memo(() => {
 		);
 	}
 
-	// Error state
-	if (error || globalConfigsError) {
-		return (
-			<div className="h-8 min-w-[100px] sm:min-w-[120px]">
-				<Button
-					variant="outline"
-					size="sm"
-					className="h-8 px-3 text-xs text-destructive border-destructive/50 hover:bg-destructive/10"
-					disabled
-				>
-					<span className="text-xs">Error</span>
-				</Button>
-			</div>
-		);
+	// Error state - only show if configs are empty AND error exists
+	// Don't show red error for auth failures - user will be redirected to login
+	if ((error || globalConfigsError) && !isLoading && allConfigs.length === 0) {
+		// Silently hide the selector if there's an error - don't show alarming red UI
+		// The user can still use the chat, just without LLM selection
+		return null;
 	}
 
 	return (
