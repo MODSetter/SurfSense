@@ -46,6 +46,7 @@ from .search_space import (
     SearchSpaceCreate,
     SearchSpaceRead,
     SearchSpaceUpdate,
+    ShareSpaceResponse,
 )
 from .users import UserCreate, UserRead, UserUpdate
 
@@ -94,6 +95,7 @@ __all__ = [
     "SearchSpaceCreate",
     "SearchSpaceRead",
     "SearchSpaceUpdate",
+    "ShareSpaceResponse",
     "TimestampModel",
     "UserCreate",
     "UserRead",

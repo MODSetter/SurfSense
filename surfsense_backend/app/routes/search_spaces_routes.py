@@ -4,7 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db import SearchSpace, User, get_async_session
-from app.schemas import SearchSpaceCreate, SearchSpaceRead, SearchSpaceUpdate
+from app.schemas import (
+    SearchSpaceCreate,
+    SearchSpaceRead,
+    SearchSpaceUpdate,
+    ShareSpaceResponse,
+)
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 
@@ -56,7 +61,7 @@ async def read_search_spaces(
             .filter(
                 or_(
                     SearchSpace.user_id == user.id,
-                    SearchSpace.is_public == True
+                    SearchSpace.is_public.is_(True)
                 )
             )
             .offset(skip)
@@ -75,10 +80,33 @@ async def read_search_space(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    """
+    Get a specific search space by ID.
+
+    Access is granted if:
+    - User owns the space, OR
+    - Space is public (is_public=True)
+    """
     try:
-        search_space = await check_ownership(
-            session, SearchSpace, search_space_id, user
+        # Fetch the search space
+        result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == search_space_id)
         )
+        search_space = result.scalars().first()
+
+        if not search_space:
+            raise HTTPException(
+                status_code=404,
+                detail="Search space not found"
+            )
+
+        # Check access: owner or public space
+        if search_space.user_id != user.id and not search_space.is_public:
+            raise HTTPException(
+                status_code=403,
+                detail="You don't have permission to access this search space"
+            )
+
         return search_space
 
     except HTTPException:
@@ -115,7 +143,7 @@ async def update_search_space(
         ) from e
 
 
-@router.post("/searchspaces/{search_space_id}/share", response_model=dict)
+@router.post("/searchspaces/{search_space_id}/share", response_model=ShareSpaceResponse)
 async def share_search_space(
     search_space_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -158,24 +186,16 @@ async def share_search_space(
                 detail="Search space not found"
             )
 
-        # Verify ownership (superusers can share any space, regular users only their own)
-        # This check is redundant since we already checked is_superuser, but included for defense in depth
-        if space.user_id != user.id and not user.is_superuser:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only share your own search spaces"
-            )
-
         # Make space public
         space.is_public = True
         await session.commit()
         await session.refresh(space)
 
-        return {
-            "message": "Search space shared successfully",
-            "is_public": True,
-            "search_space_id": search_space_id
-        }
+        return ShareSpaceResponse(
+            message="Search space shared successfully",
+            is_public=True,
+            search_space_id=search_space_id
+        )
 
     except HTTPException:
         raise

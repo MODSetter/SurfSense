@@ -35,3 +35,13 @@ class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
     qna_custom_instructions: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ShareSpaceResponse(BaseModel):
+    """Response model for sharing a search space."""
+
+    message: str
+    is_public: bool
+    search_space_id: int
+
+    model_config = ConfigDict(from_attributes=True)

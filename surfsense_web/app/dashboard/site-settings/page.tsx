@@ -8,6 +8,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react";
 import { AUTH_TOKEN_KEY, DEFAULT_CONTACT_EMAIL, DEFAULT_COPYRIGHT_TEXT } from "@/lib/constants";
 
+const SOCIAL_MEDIA_FIELDS = [
+	{
+		id: "social_twitter",
+		label: "Twitter / X URL",
+		placeholder: "https://twitter.com/yourusername",
+	},
+	{
+		id: "social_linkedin",
+		label: "LinkedIn URL",
+		placeholder: "https://linkedin.com/in/yourprofile",
+	},
+	{
+		id: "social_github",
+		label: "GitHub URL",
+		placeholder: "https://github.com/yourusername",
+	},
+	{
+		id: "social_discord",
+		label: "Discord URL",
+		placeholder: "https://discord.gg/yourinvite",
+	},
+] as const;
+
 interface SiteConfigForm {
 	// Header/Navbar toggles
 	show_pricing_link: boolean;
@@ -364,28 +387,7 @@ export default function SiteSettingsPage() {
 									enabled. Leave fields empty to hide specific social links.
 								</p>
 								<div className="space-y-4">
-									{[
-										{
-											id: "social_twitter",
-											label: "Twitter / X URL",
-											placeholder: "https://twitter.com/yourusername",
-										},
-										{
-											id: "social_linkedin",
-											label: "LinkedIn URL",
-											placeholder: "https://linkedin.com/in/yourprofile",
-										},
-										{
-											id: "social_github",
-											label: "GitHub URL",
-											placeholder: "https://github.com/yourusername",
-										},
-										{
-											id: "social_discord",
-											label: "Discord URL",
-											placeholder: "https://discord.gg/yourinvite",
-										},
-									].map((social) => (
+									{SOCIAL_MEDIA_FIELDS.map((social) => (
 										<div key={social.id}>
 											<label
 												htmlFor={social.id}
