@@ -38,6 +38,14 @@ export interface ApiRequestOptions extends RequestInit {
 }
 
 /**
+ * Notification details for error handling
+ */
+interface NotificationDetails {
+    title: string;
+    description: string;
+}
+
+/**
  * Handle and throw an API error with optional notifications
  *
  * @param error - The ApiError to handle
@@ -50,7 +58,7 @@ function handleAndThrowError(
     error: ApiError,
     skipErrorNotification: boolean,
     onError: ((error: ApiError) => void) | undefined,
-    notification: { title: string; description: string }
+    notification: NotificationDetails
 ): never {
     if (!skipErrorNotification && !onError) {
         toast.error(notification.title, {
