@@ -158,7 +158,7 @@ class WebCrawlerConnector:
 
     def format_to_structured_document(self, crawl_result: dict[str, Any]) -> str:
         """
-        Format crawl result as a structured document (similar to url_crawler.py format).
+        Format crawl result as a structured document.
 
         Args:
             crawl_result: Result from crawl_url method
