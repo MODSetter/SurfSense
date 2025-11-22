@@ -364,70 +364,47 @@ export default function SiteSettingsPage() {
 									enabled. Leave fields empty to hide specific social links.
 								</p>
 								<div className="space-y-4">
-									<div>
-										<label
-											htmlFor="social_twitter"
-											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-										>
-											Twitter / X URL
-										</label>
-										<input
-											type="url"
-											id="social_twitter"
-											value={formData.social_twitter}
-											onChange={(e) => handleTextChange("social_twitter", e.target.value)}
-											placeholder="https://twitter.com/yourusername"
-											className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-										/>
-									</div>
-									<div>
-										<label
-											htmlFor="social_linkedin"
-											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-										>
-											LinkedIn URL
-										</label>
-										<input
-											type="url"
-											id="social_linkedin"
-											value={formData.social_linkedin}
-											onChange={(e) => handleTextChange("social_linkedin", e.target.value)}
-											placeholder="https://linkedin.com/in/yourprofile"
-											className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-										/>
-									</div>
-									<div>
-										<label
-											htmlFor="social_github"
-											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-										>
-											GitHub URL
-										</label>
-										<input
-											type="url"
-											id="social_github"
-											value={formData.social_github}
-											onChange={(e) => handleTextChange("social_github", e.target.value)}
-											placeholder="https://github.com/yourusername"
-											className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-										/>
-									</div>
-									<div>
-										<label
-											htmlFor="social_discord"
-											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-										>
-											Discord URL
-										</label>
-										<input
-											type="url"
-											id="social_discord"
-											value={formData.social_discord}
-											onChange={(e) => handleTextChange("social_discord", e.target.value)}
-											placeholder="https://discord.gg/yourinvite"
-											className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-										/>
-									</div>
+									{[
+										{
+											id: "social_twitter",
+											label: "Twitter / X URL",
+											placeholder: "https://twitter.com/yourusername",
+										},
+										{
+											id: "social_linkedin",
+											label: "LinkedIn URL",
+											placeholder: "https://linkedin.com/in/yourprofile",
+										},
+										{
+											id: "social_github",
+											label: "GitHub URL",
+											placeholder: "https://github.com/yourusername",
+										},
+										{
+											id: "social_discord",
+											label: "Discord URL",
+											placeholder: "https://discord.gg/yourinvite",
+										},
+									].map((social) => (
+										<div key={social.id}>
+											<label
+												htmlFor={social.id}
+												className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+											>
+												{social.label}
+											</label>
+											<input
+												type="url"
+												id={social.id}
+												value={formData[social.id as keyof SiteConfigForm] as string}
+												onChange={(e) =>
+													handleTextChange(social.id as keyof SiteConfigForm, e.target.value)
+												}
+												placeholder={social.placeholder}
+												className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+											/>
+										</div>
+									))}
 								</div>
 							</section>
 
