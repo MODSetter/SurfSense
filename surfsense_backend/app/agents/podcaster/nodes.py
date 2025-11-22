@@ -257,9 +257,8 @@ async def create_merged_podcast_audio(
         for audio_file in audio_files:
             try:
                 os.remove(audio_file)
-            except Exception as e:
+            except OSError as e:
                 logger.warning(f"Error removing audio file {audio_file}: {e!s}")
-                pass
 
     return {
         "podcast_transcript": merged_transcript,
