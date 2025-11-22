@@ -97,6 +97,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			JIRA_API_TOKEN: "",
 			LUMA_API_KEY: "",
 			ELASTICSEARCH_API_KEY: "",
+			FIRECRAWL_API_KEY: "",
 		},
 	});
 
@@ -142,6 +143,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					JIRA_API_TOKEN: config.JIRA_API_TOKEN || "",
 					LUMA_API_KEY: config.LUMA_API_KEY || "",
 					ELASTICSEARCH_API_KEY: config.ELASTICSEARCH_API_KEY || "",
+					FIRECRAWL_API_KEY: config.FIRECRAWL_API_KEY || "",
 				});
 				if (currentConnector.connector_type === "GITHUB_CONNECTOR") {
 					const savedRepos = config.repo_full_names || [];
@@ -469,6 +471,19 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						newConfig = { ELASTICSEARCH_API_KEY: formData.ELASTICSEARCH_API_KEY };
 					}
 					break;
+				case "WEBCRAWLER_CONNECTOR":
+					if (formData.FIRECRAWL_API_KEY !== originalConfig.FIRECRAWL_API_KEY) {
+						if (formData.FIRECRAWL_API_KEY && formData.FIRECRAWL_API_KEY.trim()) {
+							if (!formData.FIRECRAWL_API_KEY.startsWith("fc-")) {
+								toast.warning("Firecrawl API keys typically start with 'fc-'. Please verify your key.");
+							}
+							newConfig = { FIRECRAWL_API_KEY: formData.FIRECRAWL_API_KEY };
+						} else {
+							newConfig = {};
+							toast.info("Firecrawl API key removed. Web crawler will use AsyncChromiumLoader as fallback.");
+						}
+					}
+					break;
 			}
 
 			if (newConfig !== null) {
@@ -562,6 +577,8 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							"ELASTICSEARCH_API_KEY",
 							newlySavedConfig.ELASTICSEARCH_API_KEY || ""
 						);
+					} else if (connector.connector_type == "WEBCRAWLER_CONNECTOR") {
+						editForm.setValue("FIRECRAWL_API_KEY",newlySavedConfig.FIRECRAWL_API_KEY || "");
 					}
 				}
 				if (connector.connector_type === "GITHUB_CONNECTOR") {

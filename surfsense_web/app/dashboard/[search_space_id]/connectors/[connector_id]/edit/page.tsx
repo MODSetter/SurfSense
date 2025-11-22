@@ -282,6 +282,18 @@ export default function EditConnectorPage() {
 										placeholder="Your Elasticsearch API Key"
 									/>
 								)}
+
+								{/* == Webcrawler == */}
+								{connector.connector_type === "WEBCRAWLER_CONNECTOR" && (
+									<EditSimpleTokenForm
+										control={editForm.control}
+										fieldName="FIRECRAWL_API_KEY"
+										fieldLabel="Firecrawl API Key (Optional)"
+										fieldDescription="Add a Firecrawl API key for enhanced crawling capabilities. If not provided, will use AsyncChromiumLoader as fallback."
+										placeholder="fc-xxxxxxxxxxxxx"
+									/>
+								)}
+								
 							</CardContent>
 							<CardFooter className="border-t pt-6">
 								<Button type="submit" disabled={isSaving} className="w-full sm:w-auto">

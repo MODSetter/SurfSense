@@ -18,6 +18,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		AIRTABLE_CONNECTOR: "Airtable",
 		LUMA_CONNECTOR: "Luma",
 		ELASTICSEARCH_CONNECTOR: "Elasticsearch",
+		WEBCRAWLER_CONNECTOR: "Web Crawler",
 	};
 	return typeMap[type] || type;
 };

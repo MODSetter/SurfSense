@@ -667,7 +667,7 @@ async def fetch_relevant_documents(
                             }
                         )
 
-                elif connector == "CRAWLED_URL":
+                elif connector == "WEBCRAWLER_CONNECTOR":
                     (
                         source_object,
                         crawled_urls_chunks,
@@ -689,7 +689,7 @@ async def fetch_relevant_documents(
                         writer(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
-                                    f"🌐 Found {len(crawled_urls_chunks)} Web Pages chunks related to your query"
+                                    f"🌐 Found {len(crawled_urls_chunks)} Web Page chunks related to your query"
                                 )
                             }
                         )
