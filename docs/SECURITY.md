@@ -324,7 +324,7 @@ Migration 43 adds `is_public` with:
 If you discover a security vulnerability:
 
 1. **DO NOT** create a public GitHub issue
-2. Email security contact: [security@surfsense.dev]
+2. Email security contact: [security@surfsense.dev](mailto:security@surfsense.dev)
 3. Include:
    - Description of vulnerability
    - Steps to reproduce

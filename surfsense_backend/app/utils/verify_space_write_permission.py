@@ -46,12 +46,8 @@ async def verify_space_write_permission(
             detail="Search space not found"
         )
 
-    # Owner always has write access
-    if space.user_id == current_user.id:
-        return space
-
-    # Superusers have write access to all spaces
-    if current_user.is_superuser:
+    # Owner or superuser has write access
+    if space.user_id == current_user.id or current_user.is_superuser:
         return space
 
     # Public spaces are read-only for non-owners

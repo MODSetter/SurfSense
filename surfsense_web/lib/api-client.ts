@@ -91,8 +91,7 @@ export async function apiRequest<T = any>(
             });
         }
 
-        // Redirect to login
-        window.location.href = '/login';
+        // Throw error for global handler to manage navigation (preserves SPA flow)
         throw error;
     }
 
@@ -120,6 +119,11 @@ export async function apiRequest<T = any>(
         // Handle non-OK responses
         if (!response.ok) {
             await handleErrorResponse(response, skipErrorNotification, onError);
+        }
+
+        // Handle 204 No Content responses (empty body)
+        if (response.status === 204) {
+            return undefined as T;
         }
 
         // Parse and return successful response
@@ -185,10 +189,7 @@ async function handleErrorResponse(
                 toast.error("Authentication Failed", {
                     description: "Your session has expired. Please log in again."
                 });
-                // Redirect to login after a brief delay
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 1500);
+                // Note: Navigation should be handled by global error handler to preserve SPA flow
                 break;
 
             case 403:
