@@ -124,8 +124,19 @@ class ImageCompressionService:
                     output_path = Path(output_path)
 
                 # Copy file without compression using chunk-based I/O for memory efficiency
-                with open(input_path, "rb") as src, open(output_path, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
+                # Wrap in try-except to clean up partial files on copy failure
+                try:
+                    with open(input_path, "rb") as src, open(output_path, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                except (OSError, IOError) as e:
+                    # Clean up partial output file if copy failed
+                    if output_path.exists():
+                        try:
+                            output_path.unlink()
+                        except OSError as unlink_error:
+                            logger.warning(f"Could not delete partial file {output_path}: {unlink_error}")
+                    logger.error(f"Failed to copy file {input_path}: {e}")
+                    raise RuntimeError(f"File copy operation failed: {e}") from e
 
                 # Reuse original_size since no compression occurred
                 compressed_size = original_size
