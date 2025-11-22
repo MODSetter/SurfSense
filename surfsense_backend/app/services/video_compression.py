@@ -208,8 +208,7 @@ class VideoCompressionService:
                 - compressed_metadata: Compressed video metadata
 
         Raises:
-            RuntimeError: If FFmpeg is not installed
-            ValueError: If the input file is not a valid video
+            RuntimeError: If FFmpeg is not installed or compression fails
             FileNotFoundError: If the input file doesn't exist
         """
         if not self.check_ffmpeg_installed():
@@ -369,7 +368,7 @@ class VideoCompressionService:
                     output_path.unlink()
                 except OSError as unlink_error:
                     logger.warning(f"Could not delete output file {output_path}: {unlink_error}")
-            raise ValueError(f"Failed to compress video: {e}") from e
+            raise RuntimeError(f"Failed to compress video: {e}") from e
 
     def estimate_compression_time(self, duration_seconds: float, level: str) -> float:
         """
