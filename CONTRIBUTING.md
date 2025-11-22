@@ -133,13 +133,161 @@ Use descriptive branch names:
 4. **Squash commits** if requested to keep history clean
 5. **Celebrate** when your PR gets merged! 🎉
 
-## 📚 Documentation
+## 📚 Documentation Maintenance
 
-When contributing, please:
-- Update relevant documentation for new features
-- Add or update code comments for complex logic
-- Update API documentation for backend changes
-- Add examples for new functionality
+Documentation is critical for project maintainability. Every PR should include appropriate documentation updates.
+
+### Required Documentation Updates
+
+When contributing code, update the following documentation as applicable:
+
+#### 1. **README.md**
+Update if your PR includes:
+- New features or capabilities
+- Changes to setup/installation steps
+- New dependencies or prerequisites
+- Changes to project structure
+
+#### 2. **SECURITY.md**
+Update if your PR involves:
+- Authentication or authorization changes
+- Permission model modifications
+- Audit logging additions
+- Security-critical code changes
+- Vulnerability fixes
+
+#### 3. **API Documentation**
+Update if your PR changes:
+- API endpoints (new, modified, or deprecated)
+- Request/response schemas
+- Query parameters or request bodies
+- Error codes or responses
+- Authentication requirements
+
+Include:
+- Clear endpoint descriptions
+- Request/response examples
+- Error scenarios
+- Rate limiting details
+
+#### 4. **Code Comments**
+Add or update comments for:
+- Complex algorithms or logic
+- Security-critical sections
+- Non-obvious implementation decisions
+- Performance optimizations
+- Workarounds or temporary solutions
+
+**Best Practices:**
+- Use docstrings for all public functions/classes
+- Explain the "why", not just the "what"
+- Keep comments up-to-date with code changes
+
+#### 5. **Architecture Documentation**
+Document significant changes:
+- New components or services
+- Database schema changes
+- Integration patterns
+- Caching strategies
+- Security models
+
+Create or update diagrams where helpful.
+
+#### 6. **Configuration Documentation**
+Update if adding:
+- Environment variables
+- Configuration file options
+- Feature flags
+- Service integrations
+
+Include:
+- Description of each setting
+- Valid values and defaults
+- Examples
+- Security considerations
+
+#### 7. **Migration Guides**
+Create migration guides for:
+- Breaking changes
+- Database migrations
+- Configuration changes requiring user action
+- Deprecated features
+
+Include:
+- Step-by-step migration instructions
+- Before/after examples
+- Troubleshooting tips
+
+#### 8. **CHANGELOG**
+Add entries for:
+- User-facing changes
+- New features
+- Bug fixes
+- Breaking changes
+- Deprecations
+
+Follow [Keep a Changelog](https://keepachangelog.com/) format:
+```markdown
+## [Unreleased]
+### Added
+- Community prompts feature with 31 curated prompts
+
+### Fixed
+- Image compression error handling now returns 400 for invalid files
+
+### Changed
+- Improved cache performance for community prompts endpoint
+```
+
+### Documentation Quality Standards
+
+#### Clarity
+- Write for developers unfamiliar with the code
+- Use simple, concise language
+- Define technical terms
+- Avoid jargon without explanation
+
+#### Completeness
+- Include all necessary information
+- Provide code examples for APIs
+- Document edge cases and limitations
+- List dependencies and prerequisites
+
+#### Accuracy
+- Keep docs synchronized with code
+- Test examples before committing
+- Update docs in the same PR as code changes
+- Review docs as carefully as code
+
+#### Accessibility
+- Use proper Markdown formatting
+- Include table of contents for long docs
+- Add screenshots for UI changes
+- Provide both high-level and detailed views
+
+### Documentation Review Checklist
+
+Before submitting your PR, verify:
+- [ ] All affected documentation files updated
+- [ ] Code examples tested and working
+- [ ] Links to related docs/issues included
+- [ ] Screenshots updated (if UI changed)
+- [ ] No broken links or formatting issues
+- [ ] Technical terms explained or linked
+- [ ] Spelling and grammar checked
+
+### Where to Find Documentation
+- **Main docs**: `/docs/` directory
+- **API docs**: `/surfsense_backend/app/routes/` (inline docstrings)
+- **Component docs**: Co-located with code in relevant directories
+- **User docs**: https://www.surfsense.net/docs/
+
+### Getting Documentation Help
+If unsure about documentation requirements:
+1. Check similar PRs for reference
+2. Ask in the PR discussion
+3. Request review from maintainers
+4. Join Discord for real-time help
 
 ## 🆘 Getting Help
 
