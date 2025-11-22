@@ -23,6 +23,7 @@ interface SiteConfigForm {
 	show_pages_section: boolean;
 	show_legal_section: boolean;
 	show_register_section: boolean;
+	show_socials_section: boolean;
 
 	// Route disabling
 	disable_pricing_route: boolean;
@@ -37,6 +38,12 @@ interface SiteConfigForm {
 	// Contact information
 	show_contact_email: boolean;
 	contact_email: string;
+
+	// Social media links
+	social_twitter: string;
+	social_linkedin: string;
+	social_github: string;
+	social_discord: string;
 
 	// Custom text
 	custom_copyright: string;
@@ -55,6 +62,7 @@ export default function SiteSettingsPage() {
 		show_pages_section: false,
 		show_legal_section: false,
 		show_register_section: false,
+		show_socials_section: false,
 		disable_pricing_route: true,
 		disable_docs_route: true,
 		disable_contact_route: true,
@@ -63,6 +71,10 @@ export default function SiteSettingsPage() {
 		disable_registration: false,
 		show_contact_email: true,
 		contact_email: DEFAULT_CONTACT_EMAIL,
+		social_twitter: "",
+		social_linkedin: "",
+		social_github: "",
+		social_discord: "",
 		custom_copyright: DEFAULT_COPYRIGHT_TEXT,
 	});
 	const [isSaving, setIsSaving] = useState(false);
@@ -155,6 +167,7 @@ export default function SiteSettingsPage() {
 				show_pages_section: config.show_pages_section,
 				show_legal_section: config.show_legal_section,
 				show_register_section: config.show_register_section,
+				show_socials_section: config.show_socials_section ?? false,
 				disable_pricing_route: config.disable_pricing_route,
 				disable_docs_route: config.disable_docs_route,
 				disable_contact_route: config.disable_contact_route,
@@ -163,6 +176,10 @@ export default function SiteSettingsPage() {
 				disable_registration: config.disable_registration,
 				show_contact_email: config.show_contact_email ?? true,
 				contact_email: config.contact_email || DEFAULT_CONTACT_EMAIL,
+				social_twitter: config.social_twitter || "",
+				social_linkedin: config.social_linkedin || "",
+				social_github: config.social_github || "",
+				social_discord: config.social_discord || "",
 				custom_copyright: config.custom_copyright || DEFAULT_COPYRIGHT_TEXT,
 			});
 		}
@@ -328,6 +345,89 @@ export default function SiteSettingsPage() {
 										checked={formData.show_register_section}
 										onChange={() => handleToggle("show_register_section")}
 									/>
+									<ToggleSwitch
+										label="Show Socials Section"
+										description="Display social media links in footer"
+										checked={formData.show_socials_section}
+										onChange={() => handleToggle("show_socials_section")}
+									/>
+								</div>
+							</section>
+
+							{/* Social Media Configuration */}
+							<section>
+								<h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+									Social Media Links
+								</h2>
+								<p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+									Configure social media links that will appear in the footer when the Socials Section is
+									enabled. Leave fields empty to hide specific social links.
+								</p>
+								<div className="space-y-4">
+									<div>
+										<label
+											htmlFor="social_twitter"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+										>
+											Twitter / X URL
+										</label>
+										<input
+											type="url"
+											id="social_twitter"
+											value={formData.social_twitter}
+											onChange={(e) => handleTextChange("social_twitter", e.target.value)}
+											placeholder="https://twitter.com/yourusername"
+											className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+										/>
+									</div>
+									<div>
+										<label
+											htmlFor="social_linkedin"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+										>
+											LinkedIn URL
+										</label>
+										<input
+											type="url"
+											id="social_linkedin"
+											value={formData.social_linkedin}
+											onChange={(e) => handleTextChange("social_linkedin", e.target.value)}
+											placeholder="https://linkedin.com/in/yourprofile"
+											className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+										/>
+									</div>
+									<div>
+										<label
+											htmlFor="social_github"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+										>
+											GitHub URL
+										</label>
+										<input
+											type="url"
+											id="social_github"
+											value={formData.social_github}
+											onChange={(e) => handleTextChange("social_github", e.target.value)}
+											placeholder="https://github.com/yourusername"
+											className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+										/>
+									</div>
+									<div>
+										<label
+											htmlFor="social_discord"
+											className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+										>
+											Discord URL
+										</label>
+										<input
+											type="url"
+											id="social_discord"
+											value={formData.social_discord}
+											onChange={(e) => handleTextChange("social_discord", e.target.value)}
+											placeholder="https://discord.gg/yourinvite"
+											className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+										/>
+									</div>
 								</div>
 							</section>
 
