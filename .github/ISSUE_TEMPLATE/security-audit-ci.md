@@ -41,13 +41,16 @@ jobs:
       - name: Run npm audit
         working-directory: ./surfsense_web
         run: |
+          # Save audit results to JSON for artifact upload
+          npm audit --audit-level=high --json > npm-audit.json || true
+          # Fail pipeline if high-severity vulnerabilities found
           npm audit --audit-level=high
       - name: Upload audit results
         if: failure()
         uses: actions/upload-artifact@v3
         with:
           name: npm-audit-results
-          path: npm-audit.json
+          path: surfsense_web/npm-audit.json
 ```
 
 ### Backend Security Audits (pip)
@@ -75,12 +78,16 @@ jobs:
       - name: Run pip audit
         working-directory: ./surfsense_backend
         run: |
+          # Save audit results to JSON for artifact upload
           pip-audit --requirement requirements.txt --format json > audit.json || true
-          pip-audit --requirement requirements.txt --desc
-      - name: Fail on high-severity vulnerabilities
-        run: |
-          # Exit with error if high/critical vulnerabilities found
-          pip-audit --requirement surfsense_backend/requirements.txt --vulnerability-service osv
+          # Fail pipeline if high/critical vulnerabilities found
+          pip-audit --requirement requirements.txt --desc --vulnerability-service osv
+      - name: Upload audit results
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pip-audit-results
+          path: surfsense_backend/audit.json
 ```
 
 ## Acceptance Criteria

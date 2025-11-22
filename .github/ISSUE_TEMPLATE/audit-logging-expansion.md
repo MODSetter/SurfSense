@@ -31,12 +31,12 @@ Current audit logging covers baseline actions (sharing, failed writes), but comp
 from app.utils.audit_logger import log_security_event
 
 @router.post("/login")
-async def login(credentials: LoginCredentials):
+async def login(credentials: LoginCredentials, request: Request):
     try:
         user = await authenticate_user(credentials)
 
         # Log successful login
-        log_security_event(
+        await log_security_event(
             event_type="auth.login.success",
             user_id=user.id,
             username=user.email,
@@ -49,7 +49,7 @@ async def login(credentials: LoginCredentials):
 
     except InvalidCredentialsError:
         # Log failed login attempt
-        log_security_event(
+        await log_security_event(
             event_type="auth.login.failed",
             username=credentials.email,  # No user_id available
             ip_address=request.client.host,
@@ -62,7 +62,7 @@ async def login(credentials: LoginCredentials):
 ### 2. Permission Denied Events
 ```python
 # surfsense_backend/app/utils/check_ownership.py
-def check_ownership(session, model, resource_id, user):
+async def check_ownership(session, model, resource_id, user, request: Request):
     resource = await session.get(model, resource_id)
 
     if not resource:
@@ -70,14 +70,14 @@ def check_ownership(session, model, resource_id, user):
 
     if resource.user_id != user.id and not user.is_superuser:
         # Log permission denied
-        log_security_event(
+        await log_security_event(
             event_type="authz.permission_denied",
             user_id=user.id,
             username=user.email,
             resource_type=model.__name__,
             resource_id=resource_id,
             attempted_action="access",
-            ip_address=get_client_ip(),
+            ip_address=request.client.host,  # Use request.client.host instead of undefined get_client_ip()
             metadata={
                 "owner_id": resource.user_id,
                 "is_superuser": user.is_superuser
@@ -115,10 +115,11 @@ class RateLimitTracker:
 
         # Check for suspicious patterns
         if len(attempts) >= 5:  # 5+ failures in 1 hour
-            log_security_event(
+            # Note: This is synchronous context, use asyncio.create_task() in production
+            await log_security_event(
                 event_type="security.suspicious_activity",
-                identifier=identifier,
                 metadata={
+                    "identifier": identifier,
                     "pattern": "repeated_failures",
                     "count": len(attempts),
                     "window": "1h",
@@ -132,16 +133,17 @@ class RateLimitTracker:
 ```python
 # surfsense_backend/app/routes/documents_routes.py
 @router.get("/documents/{document_id}")
-async def get_document(document_id: int, user: User = Depends(current_active_user)):
+async def get_document(document_id: int, request: Request, user: User = Depends(current_active_user)):
     document = await get_document_with_permission_check(document_id, user)
 
     # Log sensitive data access
     if document.contains_pii or document.is_confidential:
-        log_security_event(
+        await log_security_event(
             event_type="data.access.sensitive",
             user_id=user.id,
             resource_type="document",
             resource_id=document_id,
+            ip_address=request.client.host,
             metadata={
                 "contains_pii": document.contains_pii,
                 "is_confidential": document.is_confidential,
@@ -192,7 +194,8 @@ async def log_security_event(
     """
     timestamp = datetime.utcnow()
 
-    audit_entry = {
+    # Log entry for structured log file (JSON serializable)
+    log_entry = {
         "timestamp": timestamp.isoformat(),
         "event_type": event_type,
         "user_id": user_id,
@@ -209,12 +212,24 @@ async def log_security_event(
     # Log to structured log file
     logger.log(
         getattr(logging, severity.upper(), logging.INFO),
-        json.dumps(audit_entry)
+        json.dumps(log_entry)
     )
 
-    # Optionally store in database for querying
+    # Store in database for querying (use datetime object, not ISO string)
     async with get_async_session() as session:
-        db_audit = AuditLog(**audit_entry)
+        db_audit = AuditLog(
+            timestamp=timestamp,  # Use datetime object for database
+            event_type=event_type,
+            user_id=user_id,
+            username=username,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            attempted_action=attempted_action,
+            metadata=metadata or {},
+            severity=severity
+        )
         session.add(db_audit)
         await session.commit()
 ```

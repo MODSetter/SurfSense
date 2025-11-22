@@ -80,12 +80,17 @@ test.describe('Media Upload & Compression', () => {
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles('fixtures/test-image.jpg');
 
-    // Wait for compression
+    // Wait for compression to start
     await expect(page.locator('[data-testid="compression-progress"]')).toBeVisible();
-    await expect(page.locator('[data-testid="compression-success"]')).toBeVisible({ timeout: 30000 });
+
+    // Wait for successful compression (use waitFor for better reliability)
+    const successIndicator = page.locator('[data-testid="compression-success"]');
+    await successIndicator.waitFor({ state: 'visible', timeout: 30000 });
 
     // Verify compression metadata displayed
-    await expect(page.locator('[data-testid="compression-ratio"]')).toContainText('%');
+    const compressionRatio = page.locator('[data-testid="compression-ratio"]');
+    await expect(compressionRatio).toBeVisible();
+    await expect(compressionRatio).toContainText('%');
   });
 
   test('handles invalid file upload gracefully', async ({ page }) => {
@@ -105,10 +110,15 @@ test.describe('Media Upload & Compression', () => {
     const fileInput = page.locator('input[type="file"][accept="video/*"]');
     await fileInput.setInputFiles('fixtures/test-video.mp4');
 
-    // Verify progress bar appears and updates
-    await expect(page.locator('[data-testid="compression-progress"]')).toBeVisible();
-    const progressBar = page.locator('div[role="progressbar"]');
-    await expect(progressBar).toHaveAttribute('aria-valuenow', /[1-9][0-9]*/);
+    // Verify progress bar appears
+    const progressBar = page.locator('[data-testid="compression-progress"] div[role="progressbar"]');
+    await expect(progressBar).toBeVisible();
+
+    // Wait for progress to update (more resilient than checking exact value)
+    await expect(progressBar).toHaveAttribute('aria-valuenow', /\d+/);
+
+    // Optionally verify progress reaches completion
+    await expect(progressBar).toHaveAttribute('aria-valuenow', '100', { timeout: 60000 });
   });
 });
 ```
@@ -143,12 +153,26 @@ test.describe('Community Prompts', () => {
   test('prompts categorized correctly', async ({ page }) => {
     await page.goto('/dashboard/settings/prompts');
 
+    // Count total prompts before filtering
+    const allPrompts = page.locator('[data-testid="prompt-item"]');
+    const totalCount = await allPrompts.count();
+
     // Filter by category
     await page.selectOption('select[name="category"]', 'developer');
 
-    // Verify only developer prompts shown
-    const prompts = page.locator('[data-testid="prompt-item"]');
-    await expect(prompts).toHaveCount(12); // 12 developer prompts
+    // Verify developer prompts shown (should be subset of total)
+    const developerPrompts = page.locator('[data-testid="prompt-item"]');
+    const developerCount = await developerPrompts.count();
+
+    // Verify filtering worked (developer count > 0 and < total)
+    expect(developerCount).toBeGreaterThan(0);
+    expect(developerCount).toBeLessThanOrEqual(totalCount);
+
+    // Verify all visible prompts have 'developer' category
+    for (let i = 0; i < developerCount; i++) {
+      const categoryBadge = developerPrompts.nth(i).locator('[data-testid="prompt-category"]');
+      await expect(categoryBadge).toHaveText('developer', { ignoreCase: true });
+    }
   });
 });
 ```

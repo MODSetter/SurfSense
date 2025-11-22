@@ -68,15 +68,20 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 
         # Record metrics
         duration = time() - start_time
+
+        # Use route template to avoid cardinality explosion
+        # Instead of /api/v1/searchspaces/123, use /api/v1/searchspaces/{search_space_id}
+        endpoint = request.scope.get("route").path if request.scope.get("route") else request.url.path
+
         http_requests_total.labels(
             method=request.method,
-            endpoint=request.url.path,
+            endpoint=endpoint,
             status=response.status_code
         ).inc()
 
         http_request_duration_seconds.labels(
             method=request.method,
-            endpoint=request.url.path
+            endpoint=endpoint
         ).observe(duration)
 
         return response
@@ -207,13 +212,13 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=secure_password
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_INSTALL_PLUGINS=redis-datasource
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     environment:
-      - DATA_SOURCE_NAME=postgresql://user:pass@postgres:5432/surfsense?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
 
 volumes:
   prometheus-data:
@@ -375,7 +380,7 @@ groups:
   # Monitoring & Observability
 
   ## Accessing Dashboards
-  - Grafana: http://localhost:3001 (admin/secure_password)
+  - Grafana: http://localhost:3001 (admin/[use GRAFANA_ADMIN_PASSWORD from .env])
   - Prometheus: http://localhost:9090
 
   ## Key Metrics
