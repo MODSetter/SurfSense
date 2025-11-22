@@ -94,7 +94,7 @@ class ImageCompressionService:
                 - compressed_dimensions: Compressed image dimensions (width, height)
 
         Raises:
-            ValueError: If the input file is not a valid image
+            RuntimeError: If image compression fails
             FileNotFoundError: If the input file doesn't exist
         """
         input_path = Path(input_path)
@@ -229,7 +229,7 @@ class ImageCompressionService:
 
         except Exception as e:
             logger.error(f"Error compressing image {input_path}: {e}")
-            raise ValueError(str(e)) from e
+            raise RuntimeError(str(e)) from e
 
     def calculate_compression_ratio(
         self, original_size: int, compressed_size: int
