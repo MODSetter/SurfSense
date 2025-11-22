@@ -1,3 +1,6 @@
+from pathlib import Path
+
+import yaml
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -54,6 +57,37 @@ async def read_search_spaces(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch search spaces: {e!s}"
+        ) from e
+
+
+@router.get("/searchspaces/prompts/community")
+async def get_community_prompts():
+    """
+    Get community-curated prompts for SearchSpace System Instructions.
+    This endpoint does not require authentication as it serves public prompts.
+    """
+    try:
+        # Get the path to the prompts YAML file
+        prompts_file = (
+            Path(__file__).parent.parent
+            / "prompts"
+            / "public_search_space_prompts.yaml"
+        )
+
+        if not prompts_file.exists():
+            raise HTTPException(
+                status_code=404, detail="Community prompts file not found"
+            )
+
+        with open(prompts_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        return data.get("prompts", [])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to load community prompts: {e!s}"
         ) from e
 
 
