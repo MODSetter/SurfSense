@@ -44,6 +44,9 @@ export interface ApiRequestOptions extends RequestInit {
  * ```typescript
  * // Simple GET request
  * const spaces = await apiRequest<SearchSpace[]>('/api/v1/searchspaces');
+ * if (spaces) {
+ *   console.log(spaces.length); // Safe access after null check
+ * }
  *
  * // POST request with body
  * const newSpace = await apiRequest<SearchSpace>('/api/v1/searchspaces', {
@@ -63,13 +66,13 @@ export interface ApiRequestOptions extends RequestInit {
  *
  * @param endpoint - API endpoint path (e.g., '/api/v1/searchspaces')
  * @param options - Request options including method, body, headers, etc.
- * @returns Promise resolving to the typed response data
+ * @returns Promise resolving to the typed response data, or undefined for 204 No Content
  * @throws {ApiError} If the request fails
  */
 export async function apiRequest<T = any>(
     endpoint: string,
     options: ApiRequestOptions = {}
-): Promise<T> {
+): Promise<T | undefined> {
     const {
         skipAuth = false,
         skipErrorNotification = false,
@@ -247,7 +250,7 @@ async function handleErrorResponse(
 export async function apiGet<T = any>(
     endpoint: string,
     options?: Omit<ApiRequestOptions, 'method' | 'body'>
-): Promise<T> {
+): Promise<T | undefined> {
     return apiRequest<T>(endpoint, { ...options, method: 'GET' });
 }
 
@@ -258,7 +261,7 @@ export async function apiPost<T = any>(
     endpoint: string,
     body?: any,
     options?: Omit<ApiRequestOptions, 'method' | 'body'>
-): Promise<T> {
+): Promise<T | undefined> {
     return apiRequest<T>(endpoint, {
         ...options,
         method: 'POST',
@@ -273,7 +276,7 @@ export async function apiPut<T = any>(
     endpoint: string,
     body?: any,
     options?: Omit<ApiRequestOptions, 'method' | 'body'>
-): Promise<T> {
+): Promise<T | undefined> {
     return apiRequest<T>(endpoint, {
         ...options,
         method: 'PUT',
@@ -288,7 +291,7 @@ export async function apiPatch<T = any>(
     endpoint: string,
     body?: any,
     options?: Omit<ApiRequestOptions, 'method' | 'body'>
-): Promise<T> {
+): Promise<T | undefined> {
     return apiRequest<T>(endpoint, {
         ...options,
         method: 'PATCH',
@@ -302,6 +305,6 @@ export async function apiPatch<T = any>(
 export async function apiDelete<T = any>(
     endpoint: string,
     options?: Omit<ApiRequestOptions, 'method' | 'body'>
-): Promise<T> {
+): Promise<T | undefined> {
     return apiRequest<T>(endpoint, { ...options, method: 'DELETE' });
 }
