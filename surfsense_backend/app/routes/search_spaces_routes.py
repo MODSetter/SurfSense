@@ -19,6 +19,39 @@ from app.utils.check_ownership import check_ownership
 router = APIRouter()
 
 
+# Cache community prompts at module startup for performance
+# Avoids reading and parsing YAML on every request
+_COMMUNITY_PROMPTS_CACHE: list[dict] | None = None
+
+
+def _load_community_prompts() -> list[dict]:
+    """
+    Load community prompts from YAML file at module startup.
+
+    Returns cached prompts if already loaded, otherwise loads from disk.
+    This eliminates redundant file I/O on every API request.
+    """
+    global _COMMUNITY_PROMPTS_CACHE
+
+    if _COMMUNITY_PROMPTS_CACHE is not None:
+        return _COMMUNITY_PROMPTS_CACHE
+
+    prompts_file = (
+        Path(__file__).parent.parent
+        / "prompts"
+        / "public_search_space_prompts.yaml"
+    )
+
+    if not prompts_file.exists():
+        raise FileNotFoundError(f"Community prompts file not found: {prompts_file}")
+
+    with open(prompts_file, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    _COMMUNITY_PROMPTS_CACHE = data.get("prompts", [])
+    return _COMMUNITY_PROMPTS_CACHE
+
+
 @router.post("/searchspaces", response_model=SearchSpaceRead)
 async def create_search_space(
     search_space: SearchSpaceCreate,
@@ -85,28 +118,15 @@ async def get_community_prompts(
     Returns a list of pre-defined, high-quality prompts for various use cases
     including developer tools, productivity, creative tasks, and more.
 
+    Prompts are cached at module startup for optimal performance.
+
     Note: Requires authentication (unlike upstream which is public).
     This aligns with our security-conscious approach.
     """
     try:
-        # Get the path to the prompts YAML file
-        prompts_file = (
-            Path(__file__).parent.parent
-            / "prompts"
-            / "public_search_space_prompts.yaml"
-        )
-
-        if not prompts_file.exists():
-            raise HTTPException(
-                status_code=404, detail="Community prompts file not found"
-            )
-
-        with open(prompts_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
-        return data.get("prompts", [])
-    except HTTPException:
-        raise
+        return _load_community_prompts()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to load community prompts: {e!s}"

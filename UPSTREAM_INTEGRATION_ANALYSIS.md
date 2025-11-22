@@ -468,15 +468,15 @@ Our fork has diverged significantly from upstream, particularly in security and 
 70f3381 feat: Implement community prompts feature
 dff4b7a fix auth/register endpoint bug
 0ea9743 update generate podcast mutation
-ff73272 replace imperative fetch with tanstak
+ff73272 replace imperative fetch with tanstack
 373bd66 add update chat mutation atom
 684589f replace imperative fetch with tanstack query
 9101308 Add create chat mutation
-666b797 replace imperativ fetch with tanstack query
+666b797 replace imperative fetch with tanstack query
 d2fddd5 add getPodcasts query atom
 eca4580 Add get podcasts api service
 db58571 update chat api service
-68e4d9b improve ge chat by search cpace request type
+68e4d9b improve get chat by search space request type
 bf94903 fix hot reloads issue in dev mode
 20cd195 add podcast api service
 5361290 refactor podcast api calls

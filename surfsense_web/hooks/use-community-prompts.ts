@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiGet } from "@/lib/api-client";
 
 export interface CommunityPrompt {
 	key: string;
@@ -15,6 +16,7 @@ export interface CommunityPrompt {
  *
  * Features:
  * - Fetches prompts from the authenticated backend endpoint
+ * - Uses centralized API client for consistent error handling
  * - Provides loading and error states
  * - Supports manual refetch
  * - Categorized prompts (developer, general, creative, business, etc.)
@@ -44,31 +46,15 @@ export function useCommunityPrompts() {
 		try {
 			setLoading(true);
 
-			// Get auth token for authenticated request
-			const token = localStorage.getItem("surfsense_bearer_token");
-
-			if (!token) {
-				throw new Error("Authentication required to fetch community prompts");
-			}
-
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/prompts/community`,
+			// Use centralized API client with automatic auth handling
+			const data = await apiGet<CommunityPrompt[]>(
+				"/api/v1/searchspaces/prompts/community",
 				{
-					headers: {
-						Authorization: `Bearer ${token}`,
-					},
+					skipErrorNotification: true, // Handle errors in the hook
 				}
 			);
 
-			if (!response.ok) {
-				if (response.status === 401) {
-					throw new Error("Unauthorized: Please log in again");
-				}
-				throw new Error(`Failed to fetch community prompts: ${response.status}`);
-			}
-
-			const data = await response.json();
-			setPrompts(data);
+			setPrompts(data || []);
 			setError(null);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch community prompts");
