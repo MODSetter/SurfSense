@@ -6,6 +6,7 @@ Compresses images to reduce file size while maintaining quality.
 import hashlib
 import logging
 import os
+import shutil
 import uuid
 from pathlib import Path
 from typing import Optional, Tuple
@@ -112,21 +113,22 @@ class ImageCompressionService:
         try:
             # If level is "none", just copy the file
             if level == "none":
+                # Validate image first before file operations to prevent temp file creation on error
+                with Image.open(input_path) as img:
+                    original_format = img.format
+                    dimensions = img.size
+
                 if output_path is None:
                     output_path = self.temp_dir / f"no_compression_{input_path.name}"
                 else:
                     output_path = Path(output_path)
 
-                # Copy file without compression
+                # Copy file without compression using chunk-based I/O for memory efficiency
                 with open(input_path, "rb") as src, open(output_path, "wb") as dst:
-                    dst.write(src.read())
+                    shutil.copyfileobj(src, dst)
 
-                compressed_size = output_path.stat().st_size
-
-                # Open image to get dimensions (may raise UnidentifiedImageError)
-                with Image.open(input_path) as img:
-                    original_format = img.format
-                    dimensions = img.size
+                # Reuse original_size since no compression occurred
+                compressed_size = original_size
 
                 return str(output_path), {
                     "original_size": original_size,
