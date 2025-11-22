@@ -1,7 +1,7 @@
 """Add Webcrawler connector enums
 
-Revision ID: 37
-Revises: 36
+Revision ID: 38
+Revises: 37
 Create Date: 2025-11-17 17:00:00.000000
 
 """
@@ -10,8 +10,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "37"
-down_revision: str | None = "36"
+revision: str = "38"
+down_revision: str | None = "37"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
