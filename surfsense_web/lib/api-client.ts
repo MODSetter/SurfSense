@@ -126,7 +126,7 @@ export async function apiRequest<T = any>(
 
         // Handle 204 No Content responses (empty body)
         if (response.status === 204) {
-            return undefined as T;
+            return undefined;
         }
 
         // Parse and return successful response
