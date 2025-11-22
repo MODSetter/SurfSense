@@ -40,8 +40,10 @@ export function useAuth(requireSuperuser = false): AuthState {
 	});
 
 	useEffect(() => {
+		const MAX_RETRIES = 2;
+		const BASE_DELAY_MS = 1000;
+
 		const verifyAuth = async (retryCount = 0) => {
-			const MAX_RETRIES = 2;
 
 			try {
 				// Only run on client-side
@@ -120,8 +122,10 @@ export function useAuth(requireSuperuser = false): AuthState {
 				// Retry on network errors (but not on 401)
 				if (retryCount < MAX_RETRIES && error.message !== "Session expired") {
 					console.log(`Retrying authentication verification (${retryCount + 1}/${MAX_RETRIES})...`);
-					// Exponential backoff with jitter to prevent thundering herd
-					const backoffMs = Math.pow(2, retryCount) * 1000 + Math.random() * 200;
+					// Exponential backoff with proportional jitter to prevent thundering herd
+					const baseBackoff = Math.pow(2, retryCount) * BASE_DELAY_MS;
+					const jitter = Math.random() * (baseBackoff / 2);
+					const backoffMs = baseBackoff + jitter;
 					setTimeout(() => verifyAuth(retryCount + 1), backoffMs);
 					return;
 				}
