@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { AlertCircle, Loader2, Plus, Search, Share2, Trash2 } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -196,6 +196,37 @@ const DashboardPage = () => {
 		toast.success("Search space deleted successfully");
 	};
 
+	const handleShareSearchSpace = async (id: number, spaceName: string) => {
+		// Send request to make space public/shared
+		try {
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${id}/share`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+					},
+					body: JSON.stringify({ is_public: true }),
+				}
+			);
+
+			if (!response.ok) {
+				toast.error("Failed to share search space");
+				throw new Error("Failed to share search space");
+			}
+
+			// Refresh the search spaces list after successful sharing
+			refreshSearchSpaces();
+			toast.success("Search space shared successfully", {
+				description: `"${spaceName}" is now publicly accessible to all users.`,
+			});
+		} catch (error) {
+			console.error("Error sharing search space:", error);
+			toast.error("An error occurred while sharing the search space");
+		}
+	};
+
 	return (
 		<motion.div
 			className="container mx-auto py-10"
@@ -260,7 +291,40 @@ const DashboardPage = () => {
 													/>
 													<div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
 												</Link>
-												<div className="absolute top-2 right-2">
+												<div className="absolute top-2 right-2 flex gap-2">
+													{user?.is_superuser && (
+														<div>
+															<AlertDialog>
+																<AlertDialogTrigger asChild>
+																	<Button
+																		variant="ghost"
+																		size="icon"
+																		className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/90 cursor-pointer"
+																	>
+																		<Share2 className="h-4 w-4" />
+																	</Button>
+																</AlertDialogTrigger>
+																<AlertDialogContent>
+																	<AlertDialogHeader>
+																		<AlertDialogTitle>Share Search Space</AlertDialogTitle>
+																		<AlertDialogDescription>
+																			Make "{space.name}" publicly accessible to all users? They will be
+																			able to view and use this space but cannot add new sources.
+																		</AlertDialogDescription>
+																	</AlertDialogHeader>
+																	<AlertDialogFooter>
+																		<AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+																		<AlertDialogAction
+																			onClick={() => handleShareSearchSpace(space.id, space.name)}
+																			className="bg-primary hover:bg-primary/90"
+																		>
+																			Share
+																		</AlertDialogAction>
+																	</AlertDialogFooter>
+																</AlertDialogContent>
+															</AlertDialog>
+														</div>
+													)}
 													<div>
 														<AlertDialog>
 															<AlertDialogTrigger asChild>
