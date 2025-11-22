@@ -43,20 +43,18 @@ export interface ApiRequestOptions extends RequestInit {
  * @param error - The ApiError to handle
  * @param skipErrorNotification - Whether to skip automatic error notifications
  * @param onError - Optional custom error handler
- * @param notificationTitle - Title for the toast notification
- * @param notificationDescription - Description for the toast notification
+ * @param notification - Notification details with title and description
  * @throws {ApiError} Always throws the error after handling
  */
 function handleAndThrowError(
     error: ApiError,
     skipErrorNotification: boolean,
     onError: ((error: ApiError) => void) | undefined,
-    notificationTitle: string,
-    notificationDescription: string
+    notification: { title: string; description: string }
 ): never {
     if (!skipErrorNotification && !onError) {
-        toast.error(notificationTitle, {
-            description: notificationDescription
+        toast.error(notification.title, {
+            description: notification.description
         });
     }
 
@@ -175,8 +173,10 @@ export async function apiRequest<T = any>(
                 error,
                 skipErrorNotification,
                 onError,
-                "Response Parse Error",
-                "The server returned an invalid response format."
+                {
+                    title: "Response Parse Error",
+                    description: "The server returned an invalid response format."
+                }
             );
         }
     } catch (error) {
@@ -195,8 +195,10 @@ export async function apiRequest<T = any>(
             apiError,
             skipErrorNotification,
             onError,
-            "Network Error",
-            "Could not connect to the server. Please check your connection."
+            {
+                title: "Network Error",
+                description: "Could not connect to the server. Please check your connection."
+            }
         );
     }
 }
