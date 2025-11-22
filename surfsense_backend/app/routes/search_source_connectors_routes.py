@@ -483,6 +483,7 @@ async def index_connector_content(
     - DISCORD_CONNECTOR: Indexes messages from all accessible Discord channels
     - LUMA_CONNECTOR: Indexes events from Luma
     - ELASTICSEARCH_CONNECTOR: Indexes documents from Elasticsearch
+    - WEBCRAWLER_CONNECTOR: Indexes web pages from crawled websites
 
     Args:
         connector_id: ID of the connector to use
@@ -688,6 +689,17 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Elasticsearch indexing started in the background."
+
+        elif connector.connector_type == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR:
+            from app.tasks.celery_tasks.connector_tasks import index_webcrawler_urls_task
+
+            logger.info(
+                f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            index_webcrawler_urls_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "Web page indexing started in the background."
 
         else:
             raise HTTPException(
