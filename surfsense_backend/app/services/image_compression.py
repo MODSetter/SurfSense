@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Optional, Tuple
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,8 @@ class ImageCompressionService:
                 - compressed_dimensions: Compressed image dimensions (width, height)
 
         Raises:
-            RuntimeError: If image compression fails
+            ValueError: If the input file is not a valid image format
+            RuntimeError: If image compression fails for other reasons
             FileNotFoundError: If the input file doesn't exist
         """
         input_path = Path(input_path)
@@ -227,7 +228,12 @@ class ImageCompressionService:
 
             return str(output_path), metadata
 
+        except UnidentifiedImageError as e:
+            # Client error: uploaded file is not a valid/supported image format
+            logger.warning(f"Attempted to compress invalid image file: {input_path}")
+            raise ValueError("Invalid or unsupported image file format") from e
         except Exception as e:
+            # Server error: compression failed for reasons other than invalid format
             logger.error(f"Error compressing image {input_path}: {e}")
             raise RuntimeError(str(e)) from e
 
