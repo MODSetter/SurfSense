@@ -202,7 +202,7 @@ No specific environment variables required. The service uses default configurati
 
 You can customize the service by modifying:
 
-1. **Compression Settings** (in `latvian_text_preprocessing.py`):
+1. **Text Preprocessing Settings** (in `latvian_text_preprocessing.py`):
    - Add more abbreviations to `ABBREVIATIONS` dict
    - Modify number-to-words logic
    - Adjust special character replacements

@@ -4,11 +4,11 @@ Compresses videos using FFmpeg to reduce file size while maintaining quality.
 """
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Callable, Optional, Tuple
 
@@ -84,7 +84,7 @@ class VideoCompressionService:
 
         return self.COMPRESSION_SETTINGS[level]
 
-    def check_ffmpeg_installed(self) -> bool:
+    async def check_ffmpeg_installed(self) -> bool:
         """
         Check if FFmpeg is installed and accessible.
 
@@ -92,14 +92,15 @@ class VideoCompressionService:
             True if FFmpeg is available, False otherwise
         """
         try:
-            result = subprocess.run(
-                ["ffmpeg", "-version"],
-                capture_output=True,
-                text=True,
-                timeout=5,
+            process = await asyncio.create_subprocess_exec(
+                "ffmpeg",
+                "-version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            return result.returncode == 0
-        except (subprocess.SubprocessError, FileNotFoundError):
+            await asyncio.wait_for(process.wait(), timeout=5.0)
+            return process.returncode == 0
+        except (asyncio.TimeoutError, FileNotFoundError, Exception):
             return False
 
     async def extract_video_metadata(self, video_path: str) -> dict:
@@ -249,9 +250,8 @@ class VideoCompressionService:
 
         # Generate output path if not provided
         if output_path is None:
-            hash_input = f"{input_path.name}_{level}_{original_size}"
-            file_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8]
-            output_filename = f"compressed_{file_hash}.mp4"
+            # Generate unique filename using UUID to avoid collisions
+            output_filename = f"compressed_{uuid.uuid4().hex[:16]}.mp4"
             output_path = self.temp_dir / output_filename
         else:
             output_path = Path(output_path)

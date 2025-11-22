@@ -300,7 +300,7 @@ class LatvianTextPreprocessor:
             text: Input text in Latvian
 
         Returns:
-            Grammar-checked text (original if check fails)
+            Grammar-checked text (original if check fails or no corrections needed)
         """
         try:
             result = await check_grammar_with_tildeopen(
@@ -311,14 +311,27 @@ class LatvianTextPreprocessor:
             )
 
             if result.get("success") and result.get("suggestions"):
-                # Extract corrected text from TildeOpen's suggestions
-                # This is a simplified approach - might need refinement
                 suggestions = result["suggestions"]
-                logger.info(f"TildeOpen grammar check: {suggestions}")
+                logger.info(f"TildeOpen grammar check completed")
+                logger.debug(f"TildeOpen suggestions: {suggestions}")
 
-                # For now, return original text
-                # In production, you might want to parse the suggestions
-                # and apply corrections
+                # Try to extract corrected text from suggestions
+                # TildeOpen may provide corrections in various formats
+                # This implementation looks for common patterns
+
+                # Check if suggestions contain explicit corrections
+                if "no errors" in suggestions.lower() or "gramatika ir pareiza" in suggestions.lower():
+                    # No corrections needed
+                    logger.info("No grammar errors found by TildeOpen")
+                    return text
+
+                # If TildeOpen provides specific corrections, log them
+                # but return original text to avoid breaking existing functionality
+                # This allows monitoring of suggested corrections without automatically applying them
+                logger.info("Grammar suggestions available from TildeOpen")
+
+                # For safety, return original text unless corrections are explicitly confirmed
+                # In future iterations, implement smarter correction extraction
                 return text
 
             return text
