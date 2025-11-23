@@ -1,10 +1,10 @@
 "use client";
 
 import {
-	IconBrandDiscord,
 	IconBrandGithub,
-	IconBrandLinkedin,
-	IconBrandTwitter,
+	IconBrandMastodon,
+	IconBook,
+	IconCamera,
 } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,18 +45,25 @@ export function FooterNew() {
 	// Build socials array dynamically from config
 	const socials = React.useMemo(() => {
 		const socialsList = [];
-		if (config?.social_twitter) {
+		if (config?.social_mastodon) {
 			socialsList.push({
-				title: "Twitter",
-				href: config.social_twitter,
-				icon: IconBrandTwitter,
+				title: "Mastodon",
+				href: config.social_mastodon,
+				icon: IconBrandMastodon,
 			});
 		}
-		if (config?.social_linkedin) {
+		if (config?.social_pixelfed) {
 			socialsList.push({
-				title: "LinkedIn",
-				href: config.social_linkedin,
-				icon: IconBrandLinkedin,
+				title: "Pixelfed",
+				href: config.social_pixelfed,
+				icon: IconCamera,
+			});
+		}
+		if (config?.social_bookwyrm) {
+			socialsList.push({
+				title: "BookWyrm",
+				href: config.social_bookwyrm,
+				icon: IconBook,
 			});
 		}
 		if (config?.social_github) {
@@ -64,13 +71,6 @@ export function FooterNew() {
 				title: "GitHub",
 				href: config.social_github,
 				icon: IconBrandGithub,
-			});
-		}
-		if (config?.social_discord) {
-			socialsList.push({
-				title: "Discord",
-				href: config.social_discord,
-				icon: IconBrandDiscord,
 			});
 		}
 		return socialsList;

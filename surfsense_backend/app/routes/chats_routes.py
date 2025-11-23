@@ -56,6 +56,8 @@ async def handle_chat_data(
     )
     search_mode_str = validate_search_mode(request_data.get("search_mode"))
     top_k = validate_top_k(request_data.get("top_k"))
+    # Get user's UI language preference from request data (prioritized over LLM config language)
+    user_language = request_data.get("user_language")
     # print("RESQUEST DATA:", request_data)
     # print("SELECTED CONNECTORS:", selected_connectors)
 
@@ -128,6 +130,10 @@ async def handle_chat_data(
             status_code=403, detail="You don't have access to this search space"
         ) from None
 
+    # Prioritize user's UI language over LLM config language
+    # user_language comes from frontend locale (e.g., 'lv', 'en', 'sv')
+    final_language = user_language if user_language else language
+
     langchain_chat_history = []
     for message in messages[:-1]:
         if message["role"] == "user":
@@ -146,7 +152,7 @@ async def handle_chat_data(
             langchain_chat_history,
             search_mode_str,
             document_ids_to_add_in_context,
-            language,
+            final_language,
             top_k,
         )
     )

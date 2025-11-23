@@ -40,7 +40,7 @@ export function ModelStatusIndicator({
 
 	// Format model display name
 	const displayName = useMemo(() => {
-		if (!currentModel) return "No Model";
+		if (!currentModel) return "Select Model";
 
 		// For Gemini models, show a cleaner name
 		if (currentModel.provider === "gemini" || currentModel.provider === "google") {
