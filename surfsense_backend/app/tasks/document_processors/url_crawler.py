@@ -3,7 +3,7 @@ URL crawler document processor.
 """
 
 import logging
-from urllib.parse import unquote, quote
+from urllib.parse import quote, unquote, urlparse, urlunparse
 
 import validators
 from firecrawl import AsyncFirecrawlApp
@@ -62,7 +62,6 @@ async def add_crawled_url_document(
             decoded_url = unquote(url)
             # Re-encode only the path/query parts to ensure consistency
             # This handles URLs like https://lv.wikipedia.org/wiki/Vaira_Vīķe-Freiberga properly
-            from urllib.parse import urlparse, urlunparse
             parsed = urlparse(decoded_url)
             # Re-encode the path component to handle special characters
             normalized_url = urlunparse((

@@ -93,12 +93,24 @@ MAGIC_SIGNATURES = {
     b"\xff\xf3": [".mp3"],  # MP3 MPEG-1 Layer 3
     b"\xff\xf2": [".mp3"],  # MP3 MPEG-2 Layer 3
     b"RIFF": [".wav", ".avi"],  # WAV and AVI use RIFF
-    b"ftyp": [".mp4", ".m4a", ".mov"],  # MP4/M4A/MOV (at offset 4)
     b"OggS": [".ogg", ".opus"],  # Ogg Vorbis/Opus
     b"fLaC": [".flac"],  # FLAC
-    # Video formats handled by RIFF and ftyp above
+    # Video formats handled by RIFF and MP4 check separately
     # Note: WebP uses RIFF but requires additional WEBP check at offset 8, handled separately
     # Text-based formats (no magic bytes, validated by extension only)
+}
+
+# Dangerous executable signatures to block (SECURITY)
+# These indicate potentially malicious files that could be renamed to bypass validation
+DANGEROUS_SIGNATURES = {
+    b"MZ": "Windows executable (PE/EXE)",
+    b"\x7fELF": "Linux/Unix executable (ELF)",
+    b"\xca\xfe\xba\xbe": "Mach-O executable (macOS)",
+    b"\xfe\xed\xfa\xce": "Mach-O 32-bit executable",
+    b"\xfe\xed\xfa\xcf": "Mach-O 64-bit executable",
+    b"\xcf\xfa\xed\xfe": "Mach-O reverse byte order",
+    b"#!": "Shell script",
+    b"\x50\x4b\x05\x06": "ZIP file with executable content",
 }
 
 # Extensions that are text-based and don't have magic bytes
@@ -131,6 +143,12 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
+    # SECURITY: First check for dangerous executable signatures
+    # This prevents malicious executables renamed as media files
+    for dangerous_sig, description in DANGEROUS_SIGNATURES.items():
+        if content.startswith(dangerous_sig):
+            return False, f"Rejected: File contains {description} signature. Possible malicious file disguised as {file_ext}."
+
     # Text-based files don't have reliable magic bytes
     if file_ext in TEXT_BASED_EXTENSIONS:
         return True, ""
@@ -166,7 +184,8 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
                 return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
     # Media files (audio/video) can have complex or variable formats
-    # Allow them through if no signature matched, as they're already whitelisted
+    # Allow them through if no signature matched AND no dangerous signature detected
+    # The dangerous signature check above prevents executables from passing through
     if file_ext in MEDIA_EXTENSIONS:
         return True, ""
 
