@@ -140,7 +140,7 @@ export const connectorCategories: ConnectorCategory[] = [
 			},
 			{
 				id: "webcrawler-connector",
-				title: "Web Crawler",
+				title: "Web Pages",
 				description: "webcrawler_desc",
 				icon: getConnectorIcon(EnumConnectorName.WEBCRAWLER_CONNECTOR, "h-6 w-6"),
 				status: "available",

@@ -27,7 +27,7 @@ from .base import (
 )
 
 
-async def index_webcrawler_urls(
+async def index_crawled_urls(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
@@ -37,7 +37,7 @@ async def index_webcrawler_urls(
     update_last_indexed: bool = True,
 ) -> tuple[int, str | None]:
     """
-    Index webcrawler URLs.
+    Index web page URLs.
 
     Args:
         session: Database session
@@ -55,9 +55,9 @@ async def index_webcrawler_urls(
 
     # Log task start
     log_entry = await task_logger.log_task_start(
-        task_name="webcrawler_url_indexing",
+        task_name="crawled_url_indexing",
         source="connector_indexing_task",
-        message=f"Starting webcrawler URL indexing for connector {connector_id}",
+        message=f"Starting web page URL indexing for connector {connector_id}",
         metadata={
             "connector_id": connector_id,
             "user_id": str(user_id),
@@ -104,7 +104,7 @@ async def index_webcrawler_urls(
             urls = []
 
         logger.info(
-            f"Starting webcrawler indexing for connector {connector_id} with {len(urls)} URLs"
+            f"Starting crawled web page indexing for connector {connector_id} with {len(urls)} URLs"
         )
 
         # Initialize webcrawler client
@@ -367,7 +367,7 @@ async def index_webcrawler_urls(
 
         await task_logger.log_task_success(
             log_entry,
-            f"Successfully completed webcrawler indexing for connector {connector_id}",
+            f"Successfully completed crawled web page indexing for connector {connector_id}",
             {
                 "urls_processed": total_processed,
                 "documents_indexed": documents_indexed,
@@ -378,7 +378,7 @@ async def index_webcrawler_urls(
         )
 
         logger.info(
-            f"Webcrawler indexing completed: {documents_indexed} new, "
+            f"Web page indexing completed: {documents_indexed} new, "
             f"{documents_updated} updated, {documents_skipped} skipped, "
             f"{len(failed_urls)} failed"
         )
@@ -388,7 +388,7 @@ async def index_webcrawler_urls(
         await session.rollback()
         await task_logger.log_task_failure(
             log_entry,
-            f"Database error during webcrawler indexing for connector {connector_id}",
+            f"Database error during web page indexing for connector {connector_id}",
             str(db_error),
             {"error_type": "SQLAlchemyError"},
         )
@@ -398,12 +398,12 @@ async def index_webcrawler_urls(
         await session.rollback()
         await task_logger.log_task_failure(
             log_entry,
-            f"Failed to index webcrawler URLs for connector {connector_id}",
+            f"Failed to index web page URLs for connector {connector_id}",
             str(e),
             {"error_type": type(e).__name__},
         )
-        logger.error(f"Failed to index webcrawler URLs: {e!s}", exc_info=True)
-        return 0, f"Failed to index webcrawler URLs: {e!s}"
+        logger.error(f"Failed to index web page URLs: {e!s}", exc_info=True)
+        return 0, f"Failed to index web page URLs: {e!s}"
 
 
 async def get_crawled_url_documents(

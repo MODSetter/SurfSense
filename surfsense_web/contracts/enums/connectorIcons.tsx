@@ -62,6 +62,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 		case EnumConnectorName.WEBCRAWLER_CONNECTOR:
 			return <Globe {...iconProps} />;
 		// Additional cases for non-enum connector types
+		case "CRAWLED_URL":
+			return <Globe {...iconProps} />;
 		case "YOUTUBE_VIDEO":
 			return <IconBrandYoutube {...iconProps} />;
 		case "FILE":

@@ -602,8 +602,8 @@ async def _index_elasticsearch_documents(
         )
 
 
-@celery_app.task(name="index_webcrawler_urls", bind=True)
-def index_webcrawler_urls_task(
+@celery_app.task(name="index_crawled_urls", bind=True)
+def index_crawled_urls_task(
     self,
     connector_id: int,
     search_space_id: int,
@@ -611,7 +611,7 @@ def index_webcrawler_urls_task(
     start_date: str,
     end_date: str,
 ):
-    """Celery task to index Webcrawler Urls."""
+    """Celery task to index Web page Urls."""
     import asyncio
 
     loop = asyncio.new_event_loop()
@@ -619,7 +619,7 @@ def index_webcrawler_urls_task(
 
     try:
         loop.run_until_complete(
-            _index_webcrawler_urls(
+            _index_crawled_urls(
                 connector_id, search_space_id, user_id, start_date, end_date
             )
         )
@@ -627,19 +627,19 @@ def index_webcrawler_urls_task(
         loop.close()
 
 
-async def _index_webcrawler_urls(
+async def _index_crawled_urls(
     connector_id: int,
     search_space_id: int,
     user_id: str,
     start_date: str,
     end_date: str,
 ):
-    """Index Webcrawler Urls with new session."""
+    """Index Web page Urls with new session."""
     from app.routes.search_source_connectors_routes import (
-        run_webcrawler_indexing,
+        run_web_page_indexing,
     )
 
     async with get_celery_session_maker()() as session:
-        await run_webcrawler_indexing(
+        await run_web_page_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )

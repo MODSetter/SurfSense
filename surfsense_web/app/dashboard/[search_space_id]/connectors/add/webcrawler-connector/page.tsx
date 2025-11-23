@@ -64,7 +64,7 @@ export default function WebcrawlerConnectorPage() {
 	const form = useForm<WebcrawlerConnectorFormValues>({
 		resolver: zodResolver(webcrawlerConnectorFormSchema),
 		defaultValues: {
-			name: "Web Crawler",
+			name: "Web Pages",
 			api_key: "",
 			initial_urls: "",
 		},
@@ -150,7 +150,7 @@ export default function WebcrawlerConnectorPage() {
 							{getConnectorIcon(EnumConnectorName.WEBCRAWLER_CONNECTOR, "h-6 w-6")}
 						</div>
 						<div>
-							<h1 className="text-3xl font-bold tracking-tight">Connect Web Crawler</h1>
+							<h1 className="text-3xl font-bold tracking-tight">Connect Web Pages</h1>
 							<p className="text-muted-foreground">Crawl and index web pages for search.</p>
 						</div>
 					</div>
@@ -160,9 +160,9 @@ export default function WebcrawlerConnectorPage() {
 				{!doesConnectorExist ? (
 					<Card>
 						<CardHeader>
-							<CardTitle>Set Up Web Crawler</CardTitle>
+							<CardTitle>Set Up Web Page crawler</CardTitle>
 							<CardDescription>
-								Configure your web crawler to index web pages. Optionally add a Firecrawl API key
+								Configure your web page crawler to index web pages. Optionally add a Firecrawl API key
 								for enhanced crawling capabilities.
 							</CardDescription>
 						</CardHeader>
@@ -277,7 +277,7 @@ export default function WebcrawlerConnectorPage() {
 					/* Success Card */
 					<Card>
 						<CardHeader>
-							<CardTitle>✅ Your web crawler is successfully set up!</CardTitle>
+							<CardTitle>✅ Your web page crawler is successfully set up!</CardTitle>
 							<CardDescription>
 								You can now add URLs to crawl from the connector management page.
 							</CardDescription>

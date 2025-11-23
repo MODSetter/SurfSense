@@ -18,7 +18,16 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Form } from "@/components/ui/form";
+import {
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useConnectorEditPage } from "@/hooks/use-connector-edit-page";
 // Import Utils, Types, Hook, and Components
@@ -285,13 +294,35 @@ export default function EditConnectorPage() {
 
 								{/* == Webcrawler == */}
 								{connector.connector_type === "WEBCRAWLER_CONNECTOR" && (
-									<EditSimpleTokenForm
-										control={editForm.control}
-										fieldName="FIRECRAWL_API_KEY"
-										fieldLabel="Firecrawl API Key (Optional)"
-										fieldDescription="Add a Firecrawl API key for enhanced crawling capabilities. If not provided, will use AsyncChromiumLoader as fallback."
-										placeholder="fc-xxxxxxxxxxxxx"
-									/>
+									<div className="space-y-4">
+										<EditSimpleTokenForm
+											control={editForm.control}
+											fieldName="FIRECRAWL_API_KEY"
+											fieldLabel="Firecrawl API Key (Optional)"
+											fieldDescription="Add a Firecrawl API key for enhanced crawling capabilities. If not provided, will use AsyncChromiumLoader as fallback."
+											placeholder="fc-xxxxxxxxxxxxx"
+										/>
+										<FormField
+											control={editForm.control}
+											name="INITIAL_URLS"
+											render={({ field }) => (
+												<FormItem>
+													<FormLabel>URLs to Crawl</FormLabel>
+													<FormControl>
+														<Textarea
+															placeholder="https://example.com&#10;https://docs.example.com&#10;https://blog.example.com"
+															className="min-h-[150px] font-mono text-sm"
+															{...field}
+														/>
+													</FormControl>
+													<FormDescription>
+														Enter URLs to crawl (one per line). These URLs will be indexed when you trigger indexing.
+													</FormDescription>
+													<FormMessage />
+												</FormItem>
+											)}
+										/>
+									</div>
 								)}
 								
 							</CardContent>

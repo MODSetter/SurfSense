@@ -332,7 +332,7 @@
 		"calendar_desc": "Connect to Google Calendar to search events, meetings and schedules.",
 		"gmail_desc": "Connect to your Gmail account to search through your emails.",
 		"zoom_desc": "Connect to Zoom to access meeting recordings and transcripts.",
-		"webcrawler_desc": "Scrape web pages using FireCrawl."
+		"webcrawler_desc": "Crawl web pages"
 	},
 	"upload_documents": {
 		"title": "Upload Documents",

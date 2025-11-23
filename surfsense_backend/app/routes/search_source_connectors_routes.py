@@ -49,7 +49,7 @@ from app.tasks.connector_indexers import (
     index_luma_events,
     index_notion_pages,
     index_slack_messages,
-    index_webcrawler_urls,
+    index_crawled_urls,
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
@@ -691,12 +691,12 @@ async def index_connector_content(
             response_message = "Elasticsearch indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR:
-            from app.tasks.celery_tasks.connector_tasks import index_webcrawler_urls_task
+            from app.tasks.celery_tasks.connector_tasks import index_crawled_urls_task
 
             logger.info(
                 f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            index_webcrawler_urls_task.delay(
+            index_crawled_urls_task.delay(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Web page indexing started in the background."
@@ -1537,8 +1537,8 @@ async def run_elasticsearch_indexing(
             exc_info=True,
         )
 
-# Add new helper functions for webcrawler indexing
-async def run_webcrawler_indexing_with_new_session(
+# Add new helper functions for crawled web page indexing
+async def run_web_page_indexing_with_new_session(
     connector_id: int,
     search_space_id: int,
     user_id: str,
@@ -1546,16 +1546,16 @@ async def run_webcrawler_indexing_with_new_session(
     end_date: str,
 ):
     """
-    Create a new session and run the Webcrawler indexing task.
+    Create a new session and run the Web page indexing task.
     This prevents session leaks by creating a dedicated session for the background task.
     """
     async with async_session_maker() as session:
-        await run_webcrawler_indexing(
+        await run_web_page_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
 
 
-async def run_webcrawler_indexing(
+async def run_web_page_indexing(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
@@ -1564,7 +1564,7 @@ async def run_webcrawler_indexing(
     end_date: str,
 ):
     """
-    Background task to run Webcrawler indexing.
+    Background task to run Web page indexing.
     Args:
         session: Database session
         connector_id: ID of the webcrawler connector
@@ -1574,7 +1574,7 @@ async def run_webcrawler_indexing(
         end_date: End date for indexing
     """
     try:
-        documents_processed, error_or_warning = await index_webcrawler_urls(
+        documents_processed, error_or_warning = await index_crawled_urls(
             session=session,
             connector_id=connector_id,
             search_space_id=search_space_id,
@@ -1588,11 +1588,11 @@ async def run_webcrawler_indexing(
         if documents_processed > 0:
             await update_connector_last_indexed(session, connector_id)
             logger.info(
-                f"Webcrawler indexing completed successfully: {documents_processed} documents processed"
+                f"Web page indexing completed successfully: {documents_processed} documents processed"
             )
         else:
             logger.error(
-                f"Webcrawler indexing failed or no documents processed: {error_or_warning}"
+                f"Web page indexing failed or no documents processed: {error_or_warning}"
             )
     except Exception as e:
-        logger.error(f"Error in background Webcrawler indexing task: {e!s}")
+        logger.error(f"Error in background Web page indexing task: {e!s}")

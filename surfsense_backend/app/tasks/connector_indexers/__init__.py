@@ -42,7 +42,7 @@ from .luma_indexer import index_luma_events
 # Documentation and knowledge management
 from .notion_indexer import index_notion_pages
 from .slack_indexer import index_slack_messages
-from .webcrawler_indexer import index_webcrawler_urls
+from .webcrawler_indexer import index_crawled_urls
 
 __all__ = [  # noqa: RUF022
     "index_airtable_records",
@@ -60,7 +60,7 @@ __all__ = [  # noqa: RUF022
     "index_linear_issues",
     # Documentation and knowledge management
     "index_notion_pages",
-    "index_webcrawler_urls",
+    "index_crawled_urls",
     # Communication platforms
     "index_slack_messages",
     "index_google_gmail_messages",

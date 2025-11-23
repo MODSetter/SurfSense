@@ -55,7 +55,7 @@ const getConnectorTypeDisplay = (type: string): string => {
 		AIRTABLE_CONNECTOR: "Airtable Connector",
 		LUMA_CONNECTOR: "Luma Connector",
 		ELASTICSEARCH_CONNECTOR: "Elasticsearch Connector",
-		WEBCRAWLER_CONNECTOR: "Web Crawler Connector",
+		WEBCRAWLER_CONNECTOR: "Web Page Connector",
 		// Add other connector types here as needed
 	};
 	return typeMap[type] || type;

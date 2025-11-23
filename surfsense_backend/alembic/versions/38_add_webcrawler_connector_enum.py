@@ -44,9 +44,9 @@ def upgrade() -> None:
         IF NOT EXISTS (
             SELECT 1 FROM pg_type t
             JOIN pg_enum e ON t.oid = e.enumtypid
-            WHERE t.typname = 'documenttype' AND e.enumlabel = 'WEBCRAWLER_CONNECTOR'
+            WHERE t.typname = 'documenttype' AND e.enumlabel = 'CRAWLED_URL'
         ) THEN
-            ALTER TYPE documenttype ADD VALUE 'WEBCRAWLER_CONNECTOR';
+            ALTER TYPE documenttype ADD VALUE 'CRAWLED_URL';
         END IF;
     END
     $$;
