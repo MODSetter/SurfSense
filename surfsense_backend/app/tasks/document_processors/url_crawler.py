@@ -3,6 +3,7 @@ URL crawler document processor.
 """
 
 import logging
+from urllib.parse import quote, unquote, urlparse, urlunparse
 
 import validators
 from firecrawl import AsyncFirecrawlApp
@@ -54,18 +55,40 @@ async def add_crawled_url_document(
     )
 
     try:
+        # Normalize URL - handle percent-encoded UTF-8 characters (e.g., Latvian, other special chars)
+        # Decode percent-encoded characters and re-encode properly
+        try:
+            # First decode any percent-encoding
+            decoded_url = unquote(url)
+            # Re-encode only the path/query parts to ensure consistency
+            # This handles URLs like https://lv.wikipedia.org/wiki/Vaira_Vīķe-Freiberga properly
+            parsed = urlparse(decoded_url)
+            # Re-encode the path component to handle special characters
+            normalized_url = urlunparse((
+                parsed.scheme,
+                parsed.netloc,
+                quote(parsed.path.encode('utf-8'), safe='/'),
+                parsed.params,
+                parsed.query,
+                parsed.fragment
+            ))
+        except Exception as e:
+            # If normalization fails, use original URL
+            logger.warning(f"URL normalization failed, using original URL: {e}")
+            normalized_url = url
+
         # URL validation step
         await task_logger.log_task_progress(
-            log_entry, f"Validating URL: {url}", {"stage": "validation"}
+            log_entry, f"Validating URL: {normalized_url}", {"stage": "validation", "original_url": url}
         )
 
-        if not validators.url(url):
-            raise ValueError(f"Url {url} is not a valid URL address")
+        if not validators.url(normalized_url):
+            raise ValueError(f"Url {normalized_url} is not a valid URL address")
 
         # Set up crawler
         await task_logger.log_task_progress(
             log_entry,
-            f"Setting up crawler for URL: {url}",
+            f"Setting up crawler for URL: {normalized_url}",
             {
                 "stage": "crawler_setup",
                 "firecrawl_available": bool(config.FIRECRAWL_API_KEY),
@@ -78,12 +101,12 @@ async def add_crawled_url_document(
             # Use Firecrawl SDK directly
             firecrawl_app = AsyncFirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
         else:
-            crawl_loader = AsyncChromiumLoader(urls=[url], headless=True)
+            crawl_loader = AsyncChromiumLoader(urls=[normalized_url], headless=True)
 
         # Perform crawling
         await task_logger.log_task_progress(
             log_entry,
-            f"Crawling URL content: {url}",
+            f"Crawling URL content: {normalized_url}",
             {
                 "stage": "crawling",
                 "crawler_type": "AsyncFirecrawlApp"
@@ -95,7 +118,7 @@ async def add_crawled_url_document(
         if use_firecrawl:
             # Use async Firecrawl SDK with v1 API - properly awaited
             scrape_result = await firecrawl_app.scrape_url(
-                url=url, formats=["markdown"]
+                url=normalized_url, formats=["markdown"]
             )
 
             # scrape_result is a Pydantic ScrapeResponse object

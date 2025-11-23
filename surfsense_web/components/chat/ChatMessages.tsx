@@ -48,12 +48,12 @@ function ChatMessageUI({ message, isLast }: { message: Message; isLast: boolean 
 	}, [isLast]);
 
 	return (
-		<LlamaIndexChatMessage message={message} isLast={isLast} className="flex flex-col">
+		<LlamaIndexChatMessage message={message} isLast={isLast} className="flex flex-col items-start">
 			{message.role === "assistant" ? (
-				<div className="flex-1 flex flex-col space-y-4">
+				<div className="flex-1 flex flex-col space-y-4 items-start w-full">
 					<TerminalDisplay message={message} />
 					<ChatSourcesDisplay message={message} />
-					<LlamaIndexChatMessage.Content className="flex-1 text-left">
+					<LlamaIndexChatMessage.Content className="flex-1 text-left prose prose-sm max-w-none custom-markdown">
 						<LlamaIndexChatMessage.Content.Markdown
 							citationComponent={CitationDisplay}
 							languageRenderers={languageRenderers}

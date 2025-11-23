@@ -60,6 +60,8 @@ ALLOWED_EXTENSIONS = {
     ".ppt", ".pptx", ".odp",
     # Images (for OCR)
     ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp",
+    # Audio files
+    ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".wma", ".opus",
     # Videos (for media content)
     ".mp4", ".mov", ".avi", ".webm", ".mkv", ".flv", ".wmv",
     # Web/markup (non-executable)
@@ -85,12 +87,38 @@ MAGIC_SIGNATURES = {
     b"BM": [".bmp"],
     b"II*\x00": [".tiff"],  # Little-endian TIFF
     b"MM\x00*": [".tiff"],  # Big-endian TIFF
+    # Audio formats
+    b"ID3": [".mp3"],  # MP3 with ID3 tag
+    b"\xff\xfb": [".mp3"],  # MP3 without ID3
+    b"\xff\xf3": [".mp3"],  # MP3 MPEG-1 Layer 3
+    b"\xff\xf2": [".mp3"],  # MP3 MPEG-2 Layer 3
+    b"RIFF": [".wav", ".avi"],  # WAV and AVI use RIFF
+    b"OggS": [".ogg", ".opus"],  # Ogg Vorbis/Opus
+    b"fLaC": [".flac"],  # FLAC
+    # Video formats handled by RIFF and MP4 check separately
     # Note: WebP uses RIFF but requires additional WEBP check at offset 8, handled separately
     # Text-based formats (no magic bytes, validated by extension only)
 }
 
+# Dangerous executable signatures to block (SECURITY)
+# These indicate potentially malicious files that could be renamed to bypass validation
+DANGEROUS_SIGNATURES = {
+    b"MZ": "Windows executable (PE/EXE)",
+    b"\x7fELF": "Linux/Unix executable (ELF)",
+    b"\xca\xfe\xba\xbe": "Mach-O executable (macOS)",
+    b"\xfe\xed\xfa\xce": "Mach-O 32-bit executable",
+    b"\xfe\xed\xfa\xcf": "Mach-O 64-bit executable",
+    b"\xcf\xfa\xed\xfe": "Mach-O reverse byte order",
+    b"#!": "Shell script",
+    b"\x50\x4b\x05\x06": "ZIP file with executable content",
+}
+
 # Extensions that are text-based and don't have magic bytes
 TEXT_BASED_EXTENSIONS = {".txt", ".csv", ".html", ".htm", ".xml", ".json", ".md", ".markdown", ".rst", ".rtf"}
+
+# Media extensions that may have variable magic bytes or complex validation
+# These will skip strict magic byte validation but still check for known signatures if present
+MEDIA_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".wma", ".opus", ".mp4", ".mov", ".avi", ".webm", ".mkv", ".flv", ".wmv"}
 
 # MOBI file format constants
 MOBI_SIGNATURE = b"BOOKMOBI"
@@ -115,6 +143,12 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
     Returns:
         Tuple of (is_valid, error_message)
     """
+    # SECURITY: First check for dangerous executable signatures
+    # This prevents malicious executables renamed as media files
+    for dangerous_sig, description in DANGEROUS_SIGNATURES.items():
+        if content.startswith(dangerous_sig):
+            return False, f"Rejected: File contains {description} signature. Possible malicious file disguised as {file_ext}."
+
     # Text-based files don't have reliable magic bytes
     if file_ext in TEXT_BASED_EXTENSIONS:
         return True, ""
@@ -135,6 +169,11 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
             return True, ""
         return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
+    # Special handling for MP4/M4A/MOV files (ftyp at offset 4)
+    if file_ext in [".mp4", ".m4a", ".mov"] and len(content) >= 12:
+        if content[4:8] == b"ftyp":
+            return True, ""
+
     # Check against known magic signatures
     for magic, valid_extensions in MAGIC_SIGNATURES.items():
         if content.startswith(magic):
@@ -144,7 +183,13 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
                 # File content doesn't match claimed extension
                 return False, FILE_TYPE_SPOOFING_ERROR.format(file_ext)
 
-    # No matching signature found for non-text file
+    # Media files (audio/video) can have complex or variable formats
+    # Allow them through if no signature matched AND no dangerous signature detected
+    # The dangerous signature check above prevents executables from passing through
+    if file_ext in MEDIA_EXTENSIONS:
+        return True, ""
+
+    # No matching signature found for non-text, non-media file
     return False, f"Unable to verify file type for extension '{file_ext}'. File may be corrupted or spoofed."
 
 

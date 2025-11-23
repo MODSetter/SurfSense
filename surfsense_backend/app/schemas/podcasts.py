@@ -31,3 +31,4 @@ class PodcastGenerateRequest(BaseModel):
     search_space_id: int
     podcast_title: str | None = None
     user_prompt: str | None = None
+    user_language: str | None = None  # User's UI language (e.g., 'lv', 'en', 'sv')

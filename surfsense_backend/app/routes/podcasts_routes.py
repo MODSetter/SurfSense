@@ -220,6 +220,7 @@ async def generate_podcast(
                     user.id,
                     request.podcast_title,
                     request.user_prompt,
+                    request.user_language,
                 )
 
         return {

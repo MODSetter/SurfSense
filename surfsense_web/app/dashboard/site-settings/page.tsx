@@ -10,24 +10,24 @@ import { AUTH_TOKEN_KEY, DEFAULT_CONTACT_EMAIL, DEFAULT_COPYRIGHT_TEXT } from "@
 
 const SOCIAL_MEDIA_FIELDS = [
 	{
-		id: "social_twitter",
-		label: "Twitter / X URL",
-		placeholder: "https://twitter.com/yourusername",
+		id: "social_mastodon",
+		label: "Mastodon URL",
+		placeholder: "https://mastodon.social/@username",
 	},
 	{
-		id: "social_linkedin",
-		label: "LinkedIn URL",
-		placeholder: "https://linkedin.com/in/yourprofile",
+		id: "social_pixelfed",
+		label: "Pixelfed URL",
+		placeholder: "https://pixelfed.social/username",
+	},
+	{
+		id: "social_bookwyrm",
+		label: "BookWyrm URL",
+		placeholder: "https://bookwyrm.social/user/username",
 	},
 	{
 		id: "social_github",
 		label: "GitHub URL",
-		placeholder: "https://github.com/yourusername",
-	},
-	{
-		id: "social_discord",
-		label: "Discord URL",
-		placeholder: "https://discord.gg/yourinvite",
+		placeholder: "https://github.com/username",
 	},
 ] as const;
 
@@ -63,10 +63,10 @@ interface SiteConfigForm {
 	contact_email: string;
 
 	// Social media links
-	social_twitter: string;
-	social_linkedin: string;
+	social_mastodon: string;
+	social_pixelfed: string;
+	social_bookwyrm: string;
 	social_github: string;
-	social_discord: string;
 
 	// Custom text
 	custom_copyright: string;
@@ -94,10 +94,10 @@ export default function SiteSettingsPage() {
 		disable_registration: false,
 		show_contact_email: true,
 		contact_email: DEFAULT_CONTACT_EMAIL,
-		social_twitter: "",
-		social_linkedin: "",
+		social_mastodon: "",
+		social_pixelfed: "",
+		social_bookwyrm: "",
 		social_github: "",
-		social_discord: "",
 		custom_copyright: DEFAULT_COPYRIGHT_TEXT,
 	});
 	const [isSaving, setIsSaving] = useState(false);
@@ -199,10 +199,10 @@ export default function SiteSettingsPage() {
 				disable_registration: config.disable_registration,
 				show_contact_email: config.show_contact_email ?? true,
 				contact_email: config.contact_email || DEFAULT_CONTACT_EMAIL,
-				social_twitter: config.social_twitter || "",
-				social_linkedin: config.social_linkedin || "",
+				social_mastodon: config.social_mastodon || "",
+				social_pixelfed: config.social_pixelfed || "",
+				social_bookwyrm: config.social_bookwyrm || "",
 				social_github: config.social_github || "",
-				social_discord: config.social_discord || "",
 				custom_copyright: config.custom_copyright || DEFAULT_COPYRIGHT_TEXT,
 			});
 		}
