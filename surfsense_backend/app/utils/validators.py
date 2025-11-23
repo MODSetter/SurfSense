@@ -470,13 +470,12 @@ def validate_connector_config(
             raise ValueError(f"{field_name} must be a non-empty list of strings")
         
     def validate_firecrawl_api_key_format() -> None:
+        """Validate Firecrawl API key format if provided."""
         api_key = config.get("FIRECRAWL_API_KEY", "")
-        if api_key and api_key.strip():
-            # Firecrawl API keys typically start with "fc-"
-            if not api_key.strip().startswith("fc-"):
-                raise ValueError(
-                    "Firecrawl API key should start with 'fc-'. Please verify your API key."
-                )
+        if api_key and api_key.strip() and not api_key.strip().startswith("fc-"):
+            raise ValueError(
+                "Firecrawl API key should start with 'fc-'. Please verify your API key."
+            )
 
 
     def validate_initial_urls() -> None:
