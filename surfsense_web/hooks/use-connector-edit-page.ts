@@ -145,7 +145,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					LUMA_API_KEY: config.LUMA_API_KEY || "",
 					ELASTICSEARCH_API_KEY: config.ELASTICSEARCH_API_KEY || "",
 					FIRECRAWL_API_KEY: config.FIRECRAWL_API_KEY || "",
-					INTIAL_URLS: config.INITIAL_URLS || ""
+					INITIAL_URLS: config.INITIAL_URLS || ""
 				});
 				if (currentConnector.connector_type === "GITHUB_CONNECTOR") {
 					const savedRepos = config.repo_full_names || [];

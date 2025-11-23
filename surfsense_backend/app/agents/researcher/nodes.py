@@ -671,7 +671,7 @@ async def fetch_relevant_documents(
                     (
                         source_object,
                         crawled_urls_chunks,
-                    ) = await connector_service.search_webcrawler(
+                    ) = await connector_service.search_crawled_urls(
                         user_query=reformulated_query,
                         user_id=user_id,
                         search_space_id=search_space_id,
