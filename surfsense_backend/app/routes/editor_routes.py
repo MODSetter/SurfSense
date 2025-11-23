@@ -11,10 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Document, SearchSpace, User, get_async_session
 from app.users import current_active_user
-from app.utils.blocknote_converter import (
-    convert_blocknote_to_markdown,
-    convert_markdown_to_blocknote,
-)
+
+# from app.utils.blocknote_converter import (
+#     convert_blocknote_to_markdown,
+#     convert_markdown_to_blocknote,
+# )
 
 router = APIRouter()
 
