@@ -144,9 +144,9 @@ async def add_extension_received_document(
 
         # Process chunks
         chunks = await create_document_chunks(content.pageContent)
-        
+
         from app.utils.blocknote_converter import convert_markdown_to_blocknote
-        
+
         # Convert markdown to BlockNote JSON
         blocknote_json = await convert_markdown_to_blocknote(combined_document_string)
         if not blocknote_json:

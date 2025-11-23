@@ -99,14 +99,15 @@ async def add_received_file_document_using_unstructured(
 
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
-        
+
         from app.utils.blocknote_converter import convert_markdown_to_blocknote
-        
+
         # Convert markdown to BlockNote JSON
         blocknote_json = await convert_markdown_to_blocknote(file_in_markdown)
         if not blocknote_json:
-            logging.warning(f"Failed to convert {file_name} to BlockNote JSON, document will not be editable")
-            
+            logging.warning(
+                f"Failed to convert {file_name} to BlockNote JSON, document will not be editable"
+            )
 
         # Update or create document
         if existing_document:
@@ -223,14 +224,15 @@ async def add_received_file_document_using_llamacloud(
 
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
-        
+
         from app.utils.blocknote_converter import convert_markdown_to_blocknote
 
         # Convert markdown to BlockNote JSON
         blocknote_json = await convert_markdown_to_blocknote(file_in_markdown)
         if not blocknote_json:
-            logging.warning(f"Failed to convert {file_name} to BlockNote JSON, document will not be editable")
-            
+            logging.warning(
+                f"Failed to convert {file_name} to BlockNote JSON, document will not be editable"
+            )
 
         # Update or create document
         if existing_document:
@@ -372,14 +374,15 @@ async def add_received_file_document_using_docling(
 
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
-        
+
         from app.utils.blocknote_converter import convert_markdown_to_blocknote
-        
+
         # Convert markdown to BlockNote JSON
         blocknote_json = await convert_markdown_to_blocknote(file_in_markdown)
         if not blocknote_json:
-            logging.warning(f"Failed to convert {file_name} to BlockNote JSON, document will not be editable")
-
+            logging.warning(
+                f"Failed to convert {file_name} to BlockNote JSON, document will not be editable"
+            )
 
         # Update or create document
         if existing_document:

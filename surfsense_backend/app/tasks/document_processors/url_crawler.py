@@ -247,7 +247,7 @@ async def add_crawled_url_document(
             f"Processing content chunks for URL: {url}",
             {"stage": "chunk_processing"},
         )
-        
+
         from app.utils.blocknote_converter import convert_markdown_to_blocknote
 
         # Convert markdown to BlockNote JSON

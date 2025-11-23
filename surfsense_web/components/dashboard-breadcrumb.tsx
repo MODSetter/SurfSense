@@ -41,9 +41,8 @@ export function DashboardBreadcrumb() {
 	useEffect(() => {
 		if (segments[2] === "editor" && segments[3] && searchSpaceId) {
 			const documentId = segments[3];
-			const token = typeof window !== "undefined" 
-				? localStorage.getItem("surfsense_bearer_token") 
-				: null;
+			const token =
+				typeof window !== "undefined" ? localStorage.getItem("surfsense_bearer_token") : null;
 
 			if (token) {
 				fetch(
@@ -110,7 +109,7 @@ export function DashboardBreadcrumb() {
 				// Handle sub-sections
 				if (segments[3]) {
 					const subSection = segments[3];
-					
+
 					// Handle editor sub-sections (document ID)
 					if (section === "editor") {
 						const documentLabel = documentTitle || subSection;

@@ -24,18 +24,13 @@ const nextConfig: NextConfig = {
 		],
 	},
 	// Mark BlockNote server packages as external
-	serverExternalPackages: [
-		'@blocknote/server-util',
-	],
+	serverExternalPackages: ["@blocknote/server-util"],
 
 	// Configure webpack to handle blocknote packages
 	webpack: (config, { isServer }) => {
 		if (isServer) {
 			// Don't bundle these packages on the server
-			config.externals = [
-				...(config.externals || []),
-				'@blocknote/server-util',
-			];
+			config.externals = [...(config.externals || []), "@blocknote/server-util"];
 		}
 		return config;
 	},

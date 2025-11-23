@@ -290,7 +290,7 @@ async def add_youtube_video_document(
             f"Processing content chunks for video: {video_data.get('title', 'YouTube Video')}",
             {"stage": "chunk_processing"},
         )
-        
+
         from app.utils.blocknote_converter import convert_markdown_to_blocknote
 
         # Convert transcript to BlockNote JSON
