@@ -36,7 +36,7 @@ async def get_editor_content(
         .join(SearchSpace)
         .filter(Document.id == document_id, SearchSpace.user_id == user.id)
     )
-    document = result.scalars().first()  # ✅ Changed from scalar_one_or_none()
+    document = result.scalars().first()
     
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -74,7 +74,7 @@ async def update_blocknote_content(
         .join(SearchSpace)
         .filter(Document.id == document_id, SearchSpace.user_id == user.id)
     )
-    document = result.scalars().first()  # ✅ Changed from scalar_one_or_none()
+    document = result.scalars().first()
     
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")

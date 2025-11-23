@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
+import { useTheme } from "next-themes";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -15,6 +16,8 @@ export default function BlockNoteEditor({
   initialContent,
   onChange,
 }: BlockNoteEditorProps) {
+  const { resolvedTheme } = useTheme();
+  
   // Track the initial content to prevent re-initialization
   const initialContentRef = useRef<any>(null);
   const isInitializedRef = useRef(false);
@@ -48,6 +51,21 @@ export default function BlockNoteEditor({
     };
   }, [editor, onChange]);
 
+  // Determine theme for BlockNote with custom dark mode background
+  const blockNoteTheme = useMemo(() => {
+    if (resolvedTheme === "dark") {
+      // Custom dark theme - only override editor background, let BlockNote handle the rest
+      return {
+        colors: {
+          editor: {
+            background: "#0A0A0A", // Custom dark background
+          },
+        },
+      };
+    }
+    return "light" as const;
+  }, [resolvedTheme]);
+
   // Renders the editor instance
-  return <BlockNoteView editor={editor} />;
+  return <BlockNoteView editor={editor} theme={blockNoteTheme} />;
 }

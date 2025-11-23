@@ -2,7 +2,14 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
+import { Loader2, Save, X, FileText, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface EditorContent {
   document_id: number;
@@ -21,6 +28,7 @@ export default function EditorPage() {
   const [saving, setSaving] = useState(false);
   const [editorContent, setEditorContent] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Get auth token
   const token = typeof window !== "undefined" 
@@ -77,13 +85,20 @@ export default function EditorPage() {
     }
   }, [documentId, token]);
   
+  // Track changes to mark as unsaved
+  useEffect(() => {
+    if (editorContent && document) {
+      setHasUnsavedChanges(true);
+    }
+  }, [editorContent, document]);
+  
   // Auto-save every 30 seconds - DIRECT CALL TO FASTAPI
   useEffect(() => {
-    if (!editorContent || !token) return;
+    if (!editorContent || !token || !hasUnsavedChanges) return;
     
     const interval = setInterval(async () => {
       try {
-        await fetch(
+        const response = await fetch(
           `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}/blocknote-content`,
           {
             method: "PUT",
@@ -94,24 +109,28 @@ export default function EditorPage() {
             body: JSON.stringify({ blocknote_document: editorContent }),
           }
         );
-        console.log("Auto-saved");
+        
+        if (response.ok) {
+          setHasUnsavedChanges(false);
+          toast.success("Auto-saved", { duration: 2000 });
+        }
       } catch (error) {
         console.error("Auto-save failed:", error);
       }
     }, 30000); // 30 seconds
     
     return () => clearInterval(interval);
-  }, [editorContent, documentId, token]);
+  }, [editorContent, documentId, token, hasUnsavedChanges]);
   
   // Save and exit - DIRECT CALL TO FASTAPI
   const handleSave = async () => {
     if (!token) {
-      alert("Please login to save");
+      toast.error("Please login to save");
       return;
     }
     
     if (!editorContent) {
-      alert("No content to save");
+      toast.error("No content to save");
       return;
     }
     
@@ -135,75 +154,144 @@ export default function EditorPage() {
         throw new Error(errorData.detail || "Failed to save document");
       }
       
-      // Redirect back to documents list
-      router.push(`/dashboard/${params.search_space_id}/documents`);
+      setHasUnsavedChanges(false);
+      toast.success("Document saved successfully");
+      
+      // Small delay before redirect to show success message
+      setTimeout(() => {
+        router.push(`/dashboard/${params.search_space_id}/documents`);
+      }, 500);
     } catch (error) {
       console.error("Error saving document:", error);
-      alert(error instanceof Error ? error.message : "Failed to save document. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to save document. Please try again.");
     } finally {
       setSaving(false);
     }
   };
   
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      if (confirm("You have unsaved changes. Are you sure you want to leave?")) {
+        router.back();
+      }
+    } else {
+      router.back();
+    }
+  };
+  
   if (loading) {
-    return <div>Loading editor...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px] p-6">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <p className="text-muted-foreground">Loading editor...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
   
   if (error) {
     return (
-      // <div className="h-screen flex items-center justify-center">
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="max-w-md p-6 border border-red-300 rounded-lg bg-red-50">
-          <h2 className="text-xl font-bold text-red-800 mb-2">Error</h2>
-          <p className="text-red-700 mb-4">{error}</p>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Go Back
-          </button>
-        </div>
+      <div className="flex items-center justify-center min-h-[400px] p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md"
+        >
+          <Card className="border-destructive/50">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                <CardTitle className="text-destructive">Error</CardTitle>
+              </div>
+              <CardDescription>{error}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => router.back()} variant="outline" className="w-full">
+                <X className="mr-2 h-4 w-4" />
+                Go Back
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     );
   }
   
   if (!document) {
-    return <div>Document not found</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px] p-6">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Document not found</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
   
   return (
-    // <div className="h-screen flex flex-col">
-    <div className="flex flex-col h-full">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex flex-col h-full w-full"
+    >
       {/* Toolbar */}
-      <div className="border-b p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">{document.title}</h1>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 border rounded"
+      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-4 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-6">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <h1 className="text-lg font-semibold truncate">{document.title}</h1>
+            {hasUnsavedChanges && (
+              <p className="text-xs text-muted-foreground">Unsaved changes</p>
+            )}
+          </div>
+        </div>
+        <Separator orientation="vertical" className="h-6" />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleCancel}
+            disabled={saving}
+            className="gap-2"
           >
+            <X className="h-4 w-4" />
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+            className="gap-2"
           >
-            {saving ? "Saving..." : "Save & Exit"}
-          </button>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Save & Exit
+              </>
+            )}
+          </Button>
         </div>
       </div>
       
-      {/* Editor - Now using dynamic import */}
-      <div className="flex-1 overflow-auto">
-        <BlockNoteEditor
-          initialContent={editorContent}
-          onChange={setEditorContent}
-        />
+      {/* Editor Container */}
+      <div className="flex-1 overflow-hidden relative">
+        <div className="h-full w-full overflow-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            <BlockNoteEditor
+              initialContent={editorContent}
+              onChange={setEditorContent}
+            />
+          </div>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
