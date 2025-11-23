@@ -247,6 +247,16 @@ async def add_crawled_url_document(
             f"Processing content chunks for URL: {url}",
             {"stage": "chunk_processing"},
         )
+        
+        from app.utils.blocknote_converter import convert_markdown_to_blocknote
+
+        # Convert markdown to BlockNote JSON
+        blocknote_json = await convert_markdown_to_blocknote(combined_document_string)
+        if not blocknote_json:
+            logging.warning(
+                f"Failed to convert crawled URL '{url}' to BlockNote JSON, "
+                "document will not be editable"
+            )
 
         chunks = await create_document_chunks(content_in_markdown)
 
@@ -267,6 +277,7 @@ async def add_crawled_url_document(
             existing_document.embedding = summary_embedding
             existing_document.document_metadata = url_crawled[0].metadata
             existing_document.chunks = chunks
+            existing_document.blocknote_document = blocknote_json
 
             document = existing_document
         else:
@@ -289,6 +300,7 @@ async def add_crawled_url_document(
                 chunks=chunks,
                 content_hash=content_hash,
                 unique_identifier_hash=unique_identifier_hash,
+                blocknote_document=blocknote_json,
             )
 
             session.add(document)
