@@ -16,6 +16,21 @@ from PIL import Image, UnidentifiedImageError
 logger = logging.getLogger(__name__)
 
 
+def _try_delete_file(filepath: Path | str) -> None:
+    """
+    Clean up file if it exists, silently ignore if not.
+
+    Args:
+        filepath: Path to the file to delete
+    """
+    filepath = Path(filepath) if isinstance(filepath, str) else filepath
+    if filepath.exists():
+        try:
+            filepath.unlink()
+        except OSError as e:
+            logger.warning(f"Failed to delete file {filepath}: {e}")
+
+
 class ImageCompressionService:
     """Service for compressing images with configurable quality levels."""
 
@@ -130,11 +145,7 @@ class ImageCompressionService:
                         shutil.copyfileobj(src, dst)
                 except OSError as e:
                     # Clean up partial output file if copy failed
-                    if output_path.exists():
-                        try:
-                            output_path.unlink()
-                        except OSError as unlink_error:
-                            logger.warning(f"Could not delete partial file {output_path}: {unlink_error}")
+                    _try_delete_file(output_path)
                     logger.error(f"Failed to copy file {input_path}: {e}")
                     raise RuntimeError(f"File copy operation failed: {e}") from e
 
@@ -215,11 +226,7 @@ class ImageCompressionService:
                     img.save(output_path, **save_kwargs)
                 except OSError as e:
                     # Clean up partial output file if save failed
-                    if output_path.exists():
-                        try:
-                            output_path.unlink()
-                        except OSError as unlink_error:
-                            logger.warning(f"Could not delete partial file {output_path}: {unlink_error}")
+                    _try_delete_file(output_path)
                     logger.error(f"Failed to save compressed image {output_path}: {e}")
                     raise RuntimeError(f"Image save operation failed: {e}") from e
 

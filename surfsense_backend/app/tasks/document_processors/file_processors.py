@@ -4,8 +4,10 @@ File document processors for different ETL services (Unstructured, LlamaCloud, D
 
 import contextlib
 import logging
+import os
 import warnings
 from logging import ERROR, getLogger
+from pathlib import Path
 
 from fastapi import HTTPException
 from langchain_core.documents import Document as LangChainDocument
@@ -29,6 +31,23 @@ from .base import (
     check_document_by_unique_identifier,
 )
 from .markdown_processor import add_received_markdown_file_document
+
+logger = logging.getLogger(__name__)
+
+
+def _try_delete_file(filepath: Path | str) -> None:
+    """
+    Clean up file if it exists, silently ignore if not.
+
+    Args:
+        filepath: Path to the file to delete
+    """
+    filepath = Path(filepath) if isinstance(filepath, str) else filepath
+    if filepath.exists():
+        try:
+            filepath.unlink()
+        except OSError as e:
+            logger.warning(f"Failed to delete file {filepath}: {e}")
 
 
 async def add_received_file_document_using_unstructured(
@@ -424,13 +443,7 @@ async def process_file_in_background(
                 markdown_content = f.read()
 
             # Clean up the temp file
-            import os
-
-            try:
-                os.unlink(file_path)
-            except Exception as e:
-                print("Error deleting temp file", e)
-                pass
+            _try_delete_file(file_path)
 
             await task_logger.log_task_progress(
                 log_entry,
@@ -551,11 +564,7 @@ async def process_file_in_background(
             )
 
             # Clean up the temp file
-            try:
-                os.unlink(file_path)
-            except Exception as e:
-                print("Error deleting temp file", e)
-                pass
+            _try_delete_file(file_path)
 
             # Process transcription as markdown document
             result = await add_received_markdown_file_document(
@@ -633,10 +642,7 @@ async def process_file_in_background(
                     },
                 )
                 # Clean up the temp file
-                import os
-
-                with contextlib.suppress(Exception):
-                    os.unlink(file_path)
+                _try_delete_file(file_path)
 
                 raise HTTPException(
                     status_code=403,
@@ -694,13 +700,7 @@ async def process_file_in_background(
                     )
 
                 # Clean up the temp file
-                import os
-
-                try:
-                    os.unlink(file_path)
-                except Exception as e:
-                    print("Error deleting temp file", e)
-                    pass
+                _try_delete_file(file_path)
 
                 # Pass the documents to the existing background task
                 result = await add_received_file_document_using_unstructured(
@@ -763,13 +763,7 @@ async def process_file_in_background(
                 result = await parser.aparse(file_path)
 
                 # Clean up the temp file
-                import os
-
-                try:
-                    os.unlink(file_path)
-                except Exception as e:
-                    print("Error deleting temp file", e)
-                    pass
+                _try_delete_file(file_path)
 
                 # Get markdown documents from the result
                 markdown_documents = await result.aget_markdown_documents(
@@ -922,13 +916,7 @@ async def process_file_in_background(
                         pdfminer_logger.setLevel(original_level)
 
                 # Clean up the temp file
-                import os
-
-                try:
-                    os.unlink(file_path)
-                except Exception as e:
-                    print("Error deleting temp file", e)
-                    pass
+                _try_delete_file(file_path)
 
                 await task_logger.log_task_progress(
                     log_entry,

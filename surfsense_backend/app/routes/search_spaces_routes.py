@@ -66,7 +66,7 @@ def _load_community_prompts() -> list[dict]:
         with open(_PROMPTS_FILE_PATH, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         # Handle empty YAML files: yaml.safe_load() returns None for empty files
-        prompts = data.get("prompts", []) if data else []
+        prompts = (data or {}).get("prompts", [])
     except FileNotFoundError:
         raise FileNotFoundError(f"Community prompts file not found: {_PROMPTS_FILE_PATH}")
 
