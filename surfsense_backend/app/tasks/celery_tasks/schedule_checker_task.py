@@ -77,6 +77,7 @@ async def _check_and_trigger_schedules():
                 index_luma_events_task,
                 index_notion_pages_task,
                 index_slack_messages_task,
+                index_crawled_urls_task
             )
 
             # Map connector types to their tasks
@@ -94,6 +95,7 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.DISCORD_CONNECTOR: index_discord_messages_task,
                 SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
+                SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
             }
 
             # Trigger indexing for each due connector

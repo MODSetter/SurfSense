@@ -52,5 +52,7 @@ export const editConnectorSchema = z.object({
 	GOOGLE_CALENDAR_CALENDAR_IDS: z.string().optional(),
 	LUMA_API_KEY: z.string().optional(),
 	ELASTICSEARCH_API_KEY: z.string().optional(),
+	FIRECRAWL_API_KEY: z.string().optional(),
+	INITIAL_URLS: z.string().optional()
 });
 export type EditConnectorFormValues = z.infer<typeof editConnectorSchema>;

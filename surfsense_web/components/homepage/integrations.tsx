@@ -29,6 +29,7 @@ const INTEGRATIONS: Integration[] = [
 	// Documentation & Knowledge
 	{ name: "Confluence", icon: "https://cdn.simpleicons.org/confluence/172B4D" },
 	{ name: "Notion", icon: "https://cdn.simpleicons.org/notion/000000/ffffff" },
+	{ name: "Web Pages", icon: "https://cdn.jsdelivr.net/npm/lucide-static@0.294.0/icons/globe.svg"},
 
 	// Cloud Storage
 	{ name: "Google Drive", icon: "https://cdn.simpleicons.org/googledrive/4285F4" },

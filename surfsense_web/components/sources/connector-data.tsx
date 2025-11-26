@@ -138,6 +138,13 @@ export const connectorCategories: ConnectorCategory[] = [
 				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
+			{
+				id: "webcrawler-connector",
+				title: "Web Pages",
+				description: "webcrawler_desc",
+				icon: getConnectorIcon(EnumConnectorName.WEBCRAWLER_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
 		],
 	},
 	{

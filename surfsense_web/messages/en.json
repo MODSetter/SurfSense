@@ -331,7 +331,8 @@
 		"luma_desc": "Connect to Luma to search events",
 		"calendar_desc": "Connect to Google Calendar to search events, meetings and schedules.",
 		"gmail_desc": "Connect to your Gmail account to search through your emails.",
-		"zoom_desc": "Connect to Zoom to access meeting recordings and transcripts."
+		"zoom_desc": "Connect to Zoom to access meeting recordings and transcripts.",
+		"webcrawler_desc": "Crawl web pages"
 	},
 	"upload_documents": {
 		"title": "Upload Documents",

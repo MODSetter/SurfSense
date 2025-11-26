@@ -70,6 +70,13 @@ class ConnectorService:
         """
         Search for crawled URLs and return both the source information and langchain documents
 
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
         Returns:
             tuple: (sources_info, langchain_documents)
         """
@@ -109,15 +116,41 @@ class ConnectorService:
                 document = chunk.get("document", {})
                 metadata = document.get("metadata", {})
 
-                # Create a source entry
+                # Extract webcrawler-specific metadata
+                url = metadata.get("source", metadata.get("url", ""))
+                title = document.get("title", metadata.get("title", "Untitled Document"))
+                description = metadata.get("description", "")
+                language = metadata.get("language", "")
+                last_crawled_at = metadata.get("last_crawled_at", "")
+
+                # Build description with crawler info
+                content_preview = chunk.get("content", "")
+                if not description and content_preview:
+                    # Use content preview if no description
+                    description = content_preview[:200]
+                    if len(content_preview) > 200:
+                        description += "..."
+
+                # Add crawler metadata to description if available
+                info_parts = []
+                if language:
+                    info_parts.append(f"Language: {language}")
+                if last_crawled_at:
+                    info_parts.append(f"Last crawled: {last_crawled_at}")
+
+                if info_parts:
+                    if description:
+                        description += f" | {' | '.join(info_parts)}"
+                    else:
+                        description = " | ".join(info_parts)
+
                 source = {
                     "id": chunk.get("chunk_id", self.source_id_counter),
-                    "title": document.get("title", "Untitled Document"),
-                    "description": metadata.get(
-                        "og:description",
-                        metadata.get("ogDescription", chunk.get("content", "")),
-                    ),
-                    "url": metadata.get("url", ""),
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                    "language": language,
+                    "last_crawled_at": last_crawled_at,
                 }
 
                 self.source_id_counter += 1

@@ -97,6 +97,8 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			JIRA_API_TOKEN: "",
 			LUMA_API_KEY: "",
 			ELASTICSEARCH_API_KEY: "",
+			FIRECRAWL_API_KEY: "",
+			INITIAL_URLS: ""
 		},
 	});
 
@@ -142,6 +144,8 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					JIRA_API_TOKEN: config.JIRA_API_TOKEN || "",
 					LUMA_API_KEY: config.LUMA_API_KEY || "",
 					ELASTICSEARCH_API_KEY: config.ELASTICSEARCH_API_KEY || "",
+					FIRECRAWL_API_KEY: config.FIRECRAWL_API_KEY || "",
+					INITIAL_URLS: config.INITIAL_URLS || ""
 				});
 				if (currentConnector.connector_type === "GITHUB_CONNECTOR") {
 					const savedRepos = config.repo_full_names || [];
@@ -469,6 +473,31 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						newConfig = { ELASTICSEARCH_API_KEY: formData.ELASTICSEARCH_API_KEY };
 					}
 					break;
+				case "WEBCRAWLER_CONNECTOR":
+					if (
+						formData.FIRECRAWL_API_KEY !== originalConfig.FIRECRAWL_API_KEY ||
+						formData.INITIAL_URLS !== originalConfig.INITIAL_URLS
+					) {
+						newConfig = {};
+						
+						if (formData.FIRECRAWL_API_KEY && formData.FIRECRAWL_API_KEY.trim()) {
+							if (!formData.FIRECRAWL_API_KEY.startsWith("fc-")) {
+								toast.warning("Firecrawl API keys typically start with 'fc-'. Please verify your key.");
+							}
+							newConfig.FIRECRAWL_API_KEY = formData.FIRECRAWL_API_KEY.trim();
+						} else if (originalConfig.FIRECRAWL_API_KEY) {
+							toast.info("Firecrawl API key removed. Web crawler will use AsyncChromiumLoader as fallback.");
+						}
+
+						if (formData.INITIAL_URLS !== undefined) {
+							if (formData.INITIAL_URLS && formData.INITIAL_URLS.trim()) {
+								newConfig.INITIAL_URLS = formData.INITIAL_URLS.trim();
+							} else if (originalConfig.INITIAL_URLS) {
+								toast.info("URLs removed from crawler configuration.");
+							}
+						}
+					}
+					break;
 			}
 
 			if (newConfig !== null) {
@@ -562,6 +591,9 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							"ELASTICSEARCH_API_KEY",
 							newlySavedConfig.ELASTICSEARCH_API_KEY || ""
 						);
+					} else if (connector.connector_type == "WEBCRAWLER_CONNECTOR") {
+						editForm.setValue("FIRECRAWL_API_KEY",newlySavedConfig.FIRECRAWL_API_KEY || "");
+						editForm.setValue("INITIAL_URLS", newlySavedConfig.INITIAL_URLS || "");
 					}
 				}
 				if (connector.connector_type === "GITHUB_CONNECTOR") {

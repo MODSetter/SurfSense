@@ -55,6 +55,7 @@ const getConnectorTypeDisplay = (type: string): string => {
 		AIRTABLE_CONNECTOR: "Airtable Connector",
 		LUMA_CONNECTOR: "Luma Connector",
 		ELASTICSEARCH_CONNECTOR: "Elasticsearch Connector",
+		WEBCRAWLER_CONNECTOR: "Web Page Connector",
 		// Add other connector types here as needed
 	};
 	return typeMap[type] || type;
@@ -75,6 +76,7 @@ const getApiKeyFieldName = (connectorType: string): string => {
 		LINKUP_API: "LINKUP_API_KEY",
 		LUMA_CONNECTOR: "LUMA_API_KEY",
 		ELASTICSEARCH_CONNECTOR: "ELASTICSEARCH_API_KEY",
+		WEBCRAWLER_CONNECTOR: "FIRECRAWL_API_KEY",
 	};
 	return fieldMap[connectorType] || "";
 };

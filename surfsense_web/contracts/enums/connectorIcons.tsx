@@ -59,11 +59,13 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconSparkles {...iconProps} />;
 		case EnumConnectorName.ELASTICSEARCH_CONNECTOR:
 			return <IconBrandElastic {...iconProps} />;
+		case EnumConnectorName.WEBCRAWLER_CONNECTOR:
+			return <Globe {...iconProps} />;
 		// Additional cases for non-enum connector types
-		case "YOUTUBE_VIDEO":
-			return <IconBrandYoutube {...iconProps} />;
 		case "CRAWLED_URL":
 			return <Globe {...iconProps} />;
+		case "YOUTUBE_VIDEO":
+			return <IconBrandYoutube {...iconProps} />;
 		case "FILE":
 			return <File {...iconProps} />;
 		case "EXTENSION":
