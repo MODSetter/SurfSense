@@ -98,7 +98,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			LUMA_API_KEY: "",
 			ELASTICSEARCH_API_KEY: "",
 			FIRECRAWL_API_KEY: "",
-			INITIAL_URLS: ""
+			INITIAL_URLS: "",
 		},
 	});
 
@@ -145,7 +145,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					LUMA_API_KEY: config.LUMA_API_KEY || "",
 					ELASTICSEARCH_API_KEY: config.ELASTICSEARCH_API_KEY || "",
 					FIRECRAWL_API_KEY: config.FIRECRAWL_API_KEY || "",
-					INITIAL_URLS: config.INITIAL_URLS || ""
+					INITIAL_URLS: config.INITIAL_URLS || "",
 				});
 				if (currentConnector.connector_type === "GITHUB_CONNECTOR") {
 					const savedRepos = config.repo_full_names || [];
@@ -479,14 +479,18 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						formData.INITIAL_URLS !== originalConfig.INITIAL_URLS
 					) {
 						newConfig = {};
-						
+
 						if (formData.FIRECRAWL_API_KEY && formData.FIRECRAWL_API_KEY.trim()) {
 							if (!formData.FIRECRAWL_API_KEY.startsWith("fc-")) {
-								toast.warning("Firecrawl API keys typically start with 'fc-'. Please verify your key.");
+								toast.warning(
+									"Firecrawl API keys typically start with 'fc-'. Please verify your key."
+								);
 							}
 							newConfig.FIRECRAWL_API_KEY = formData.FIRECRAWL_API_KEY.trim();
 						} else if (originalConfig.FIRECRAWL_API_KEY) {
-							toast.info("Firecrawl API key removed. Web crawler will use AsyncChromiumLoader as fallback.");
+							toast.info(
+								"Firecrawl API key removed. Web crawler will use AsyncChromiumLoader as fallback."
+							);
 						}
 
 						if (formData.INITIAL_URLS !== undefined) {
@@ -592,7 +596,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							newlySavedConfig.ELASTICSEARCH_API_KEY || ""
 						);
 					} else if (connector.connector_type == "WEBCRAWLER_CONNECTOR") {
-						editForm.setValue("FIRECRAWL_API_KEY",newlySavedConfig.FIRECRAWL_API_KEY || "");
+						editForm.setValue("FIRECRAWL_API_KEY", newlySavedConfig.FIRECRAWL_API_KEY || "");
 						editForm.setValue("INITIAL_URLS", newlySavedConfig.INITIAL_URLS || "");
 					}
 				}

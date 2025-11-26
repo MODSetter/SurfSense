@@ -316,7 +316,8 @@ export default function EditConnectorPage() {
 														/>
 													</FormControl>
 													<FormDescription>
-														Enter URLs to crawl (one per line). These URLs will be indexed when you trigger indexing.
+														Enter URLs to crawl (one per line). These URLs will be indexed when you
+														trigger indexing.
 													</FormDescription>
 													<FormMessage />
 												</FormItem>
@@ -324,7 +325,6 @@ export default function EditConnectorPage() {
 										/>
 									</div>
 								)}
-								
 							</CardContent>
 							<CardFooter className="border-t pt-6">
 								<Button type="submit" disabled={isSaving} className="w-full sm:w-auto">

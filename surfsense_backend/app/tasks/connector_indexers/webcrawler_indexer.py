@@ -187,6 +187,7 @@ async def index_crawled_urls(
                 )
 
                 # Generate content hash
+                # TODO: To fix this by not including dynamic content like date, time, etc.
                 content_hash = generate_content_hash(
                     structured_document, search_space_id
                 )

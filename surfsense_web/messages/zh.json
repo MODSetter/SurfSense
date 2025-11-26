@@ -304,11 +304,14 @@
 	"add_connector": {
 		"title": "连接您的工具",
 		"subtitle": "集成您喜欢的服务以增强研究能力。",
-		"search_engines": "搜索引擎",
-		"team_chats": "团队聊天",
+		"web_search": "网络搜索",
+		"messaging": "即时通讯",
 		"project_management": "项目管理",
-		"knowledge_bases": "知识库",
-		"communication": "通讯",
+		"documentation": "文档协作",
+		"development": "开发工具",
+		"databases": "数据库",
+		"productivity": "效率工具",
+		"web_crawling": "网页爬取",
 		"connect": "连接",
 		"coming_soon": "即将推出",
 		"connected": "已连接",
@@ -328,10 +331,11 @@
 		"github_desc": "连接 GitHub PAT 以索引可访问存储库的代码和文档。",
 		"confluence_desc": "连接到 Confluence 以搜索页面、评论和文档。",
 		"airtable_desc": "连接到 Airtable 以搜索记录、表格和数据库内容。",
-		"luma_desc": "连接到 Luma 以搜索活动",
+		"luma_desc": "连接到 Luma 以搜索活动、聚会和集会。",
 		"calendar_desc": "连接到 Google 日历以搜索活动、会议和日程。",
 		"gmail_desc": "连接到您的 Gmail 账户以搜索您的电子邮件。",
-		"zoom_desc": "连接到 Zoom 以访问会议录制和转录。"
+		"zoom_desc": "连接到 Zoom 以访问会议录制和转录。",
+		"webcrawler_desc": "爬取和索引任何公开网页的内容。"
 	},
 	"upload_documents": {
 		"title": "上传文档",

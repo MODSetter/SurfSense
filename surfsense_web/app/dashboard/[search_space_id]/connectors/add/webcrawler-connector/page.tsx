@@ -75,7 +75,8 @@ export default function WebcrawlerConnectorPage() {
 			.then((data) => {
 				if (data && Array.isArray(data)) {
 					const connector = data.find(
-						(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR
+						(c: SearchSourceConnector) =>
+							c.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR
 					);
 					if (connector) {
 						setDoesConnectorExist(true);
@@ -92,7 +93,7 @@ export default function WebcrawlerConnectorPage() {
 		setIsSubmitting(true);
 		try {
 			const config: Record<string, string> = {};
-			
+
 			// Only add API key to config if provided
 			if (values.api_key && values.api_key.trim()) {
 				config.FIRECRAWL_API_KEY = values.api_key;
@@ -162,8 +163,8 @@ export default function WebcrawlerConnectorPage() {
 						<CardHeader>
 							<CardTitle>Set Up Web Page crawler</CardTitle>
 							<CardDescription>
-								Configure your web page crawler to index web pages. Optionally add a Firecrawl API key
-								for enhanced crawling capabilities.
+								Configure your web page crawler to index web pages. Optionally add a Firecrawl API
+								key for enhanced crawling capabilities.
 							</CardDescription>
 						</CardHeader>
 						<Form {...form}>
@@ -193,11 +194,7 @@ export default function WebcrawlerConnectorPage() {
 											<FormItem>
 												<FormLabel>Firecrawl API Key (Optional)</FormLabel>
 												<FormControl>
-													<Input 
-														type="password" 
-														placeholder="fc-xxxxxxxxxxxxx" 
-														{...field} 
-													/>
+													<Input type="password" placeholder="fc-xxxxxxxxxxxxx" {...field} />
 												</FormControl>
 												<FormDescription>
 													Add a Firecrawl API key for enhanced crawling. If not provided, will use
@@ -215,10 +212,10 @@ export default function WebcrawlerConnectorPage() {
 											<FormItem>
 												<FormLabel>Initial URLs (Optional)</FormLabel>
 												<FormControl>
-													<Textarea 
+													<Textarea
 														placeholder="https://example.com&#10;https://docs.example.com&#10;https://blog.example.com"
 														className="min-h-[100px] font-mono text-sm"
-														{...field} 
+														{...field}
 													/>
 												</FormControl>
 												<FormDescription>
@@ -296,9 +293,9 @@ export default function WebcrawlerConnectorPage() {
 								<h4 className="font-medium mb-2">1. Choose Your Crawler Method</h4>
 								<p className="text-sm text-muted-foreground">
 									<strong>With Firecrawl (Recommended):</strong> Get your API key from{" "}
-									<a 
-										href="https://firecrawl.dev" 
-										target="_blank" 
+									<a
+										href="https://firecrawl.dev"
+										target="_blank"
 										rel="noopener noreferrer"
 										className="text-primary hover:underline"
 									>
