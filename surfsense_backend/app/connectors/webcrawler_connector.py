@@ -93,21 +93,18 @@ class WebCrawlerConnector:
         if formats is None:
             formats = ["markdown"]
 
-        scrape_result = await firecrawl_app.scrape_url(url=url, formats=formats)
+        # v2 API returns Document directly and raises an exception on failure
+        scrape_result = await firecrawl_app.scrape(url, formats=formats)
 
-        if not scrape_result or not scrape_result.success:
-            error_msg = (
-                scrape_result.error
-                if scrape_result and hasattr(scrape_result, "error")
-                else "Unknown error"
-            )
-            raise ValueError(f"Firecrawl failed to scrape URL: {error_msg}")
+        if not scrape_result:
+            raise ValueError("Firecrawl returned no result")
 
         # Extract content based on format
         content = scrape_result.markdown or scrape_result.html or ""
 
-        # Extract metadata
-        metadata = scrape_result.metadata if scrape_result.metadata else {}
+        # Extract metadata - v2 returns DocumentMetadata object
+        metadata_obj = scrape_result.metadata
+        metadata = metadata_obj.model_dump() if metadata_obj else {}
 
         return {
             "content": content,
@@ -116,7 +113,7 @@ class WebCrawlerConnector:
                 "title": metadata.get("title", url),
                 "description": metadata.get("description", ""),
                 "language": metadata.get("language", ""),
-                "sourceURL": metadata.get("sourceURL", url),
+                "sourceURL": metadata.get("source_url", url),
                 **metadata,
             },
             "crawler_type": "firecrawl",
