@@ -595,7 +595,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							"ELASTICSEARCH_API_KEY",
 							newlySavedConfig.ELASTICSEARCH_API_KEY || ""
 						);
-					} else if (connector.connector_type == "WEBCRAWLER_CONNECTOR") {
+					} else if (connector.connector_type === "WEBCRAWLER_CONNECTOR") {
 						editForm.setValue("FIRECRAWL_API_KEY", newlySavedConfig.FIRECRAWL_API_KEY || "");
 						editForm.setValue("INITIAL_URLS", newlySavedConfig.INITIAL_URLS || "");
 					}
