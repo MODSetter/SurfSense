@@ -304,11 +304,14 @@
 	"add_connector": {
 		"title": "Connect Your Tools",
 		"subtitle": "Integrate with your favorite services to enhance your research capabilities.",
-		"search_engines": "Search Engines",
-		"team_chats": "Team Chats",
+		"web_search": "Web Search",
+		"messaging": "Messaging",
 		"project_management": "Project Management",
-		"knowledge_bases": "Knowledge Bases",
-		"communication": "Communication",
+		"documentation": "Documentation",
+		"development": "Development",
+		"databases": "Databases",
+		"productivity": "Productivity",
+		"web_crawling": "Web Crawling",
 		"connect": "Connect",
 		"coming_soon": "Coming Soon",
 		"connected": "Connected",
@@ -328,10 +331,11 @@
 		"github_desc": "Connect a GitHub PAT to index code and docs from accessible repositories.",
 		"confluence_desc": "Connect to Confluence to search pages, comments and documentation.",
 		"airtable_desc": "Connect to Airtable to search records, tables and database content.",
-		"luma_desc": "Connect to Luma to search events",
+		"luma_desc": "Connect to Luma to search events, meetups and gatherings.",
 		"calendar_desc": "Connect to Google Calendar to search events, meetings and schedules.",
 		"gmail_desc": "Connect to your Gmail account to search through your emails.",
-		"zoom_desc": "Connect to Zoom to access meeting recordings and transcripts."
+		"zoom_desc": "Connect to Zoom to access meeting recordings and transcripts.",
+		"webcrawler_desc": "Crawl and index content from any public web pages."
 	},
 	"upload_documents": {
 		"title": "Upload Documents",

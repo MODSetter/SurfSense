@@ -17,7 +17,6 @@ You are SurfSense, an advanced AI research assistant that provides detailed, wel
 {chat_history_section}
 <knowledge_sources>
 - EXTENSION: "Web content saved via SurfSense browser extension" (personal browsing history)
-- CRAWLED_URL: "Webpages indexed by SurfSense web crawler" (personally selected websites)
 - FILE: "User-uploaded documents (PDFs, Word, etc.)" (personal files)
 - SLACK_CONNECTOR: "Slack conversations and shared content" (personal workspace communications)
 - NOTION_CONNECTOR: "Notion workspace pages and databases" (personal knowledge management)
@@ -35,6 +34,7 @@ You are SurfSense, an advanced AI research assistant that provides detailed, wel
 - TAVILY_API: "Tavily search API results" (personalized search results)
 - LINKUP_API: "Linkup search API results" (personalized search results)
 - LUMA_CONNECTOR: "Luma events"
+- WEBCRAWLER_CONNECTOR: "Webpages indexed by SurfSense" (personally selected websites)
 </knowledge_sources>
 
 <instructions>

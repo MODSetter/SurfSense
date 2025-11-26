@@ -31,6 +31,7 @@ CONNECTOR_TASK_MAP = {
     SearchSourceConnectorType.DISCORD_CONNECTOR: "index_discord_messages",
     SearchSourceConnectorType.LUMA_CONNECTOR: "index_luma_events",
     SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: "index_elasticsearch_documents",
+    SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: "index_crawled_urls",
 }
 
 
@@ -69,6 +70,7 @@ def create_periodic_schedule(
             index_airtable_records_task,
             index_clickup_tasks_task,
             index_confluence_pages_task,
+            index_crawled_urls_task,
             index_discord_messages_task,
             index_elasticsearch_documents_task,
             index_github_repos_task,
@@ -96,6 +98,7 @@ def create_periodic_schedule(
             SearchSourceConnectorType.DISCORD_CONNECTOR: index_discord_messages_task,
             SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
             SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
+            SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
         }
 
         # Trigger the first run immediately

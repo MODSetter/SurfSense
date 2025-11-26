@@ -5,8 +5,21 @@ import type { ConnectorCategory } from "./types";
 
 export const connectorCategories: ConnectorCategory[] = [
 	{
-		id: "search-engines",
-		title: "search_engines",
+		id: "web-crawling",
+		title: "web_crawling",
+		connectors: [
+			{
+				id: "webcrawler-connector",
+				title: "Web Pages",
+				description: "webcrawler_desc",
+				icon: getConnectorIcon(EnumConnectorName.WEBCRAWLER_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
+		],
+	},
+	{
+		id: "web-search",
+		title: "web_search",
 		connectors: [
 			{
 				id: "tavily-api",
@@ -30,13 +43,6 @@ export const connectorCategories: ConnectorCategory[] = [
 				status: "available",
 			},
 			{
-				id: "elasticsearch-connector",
-				title: "Elasticsearch",
-				description: "elasticsearch_desc",
-				icon: getConnectorIcon(EnumConnectorName.ELASTICSEARCH_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
-			{
 				id: "baidu-search-api",
 				title: "Baidu Search",
 				description: "baidu_desc",
@@ -46,8 +52,8 @@ export const connectorCategories: ConnectorCategory[] = [
 		],
 	},
 	{
-		id: "team-chats",
-		title: "team_chats",
+		id: "messaging",
+		title: "messaging",
 		connectors: [
 			{
 				id: "slack-connector",
@@ -57,18 +63,18 @@ export const connectorCategories: ConnectorCategory[] = [
 				status: "available",
 			},
 			{
-				id: "ms-teams",
-				title: "Microsoft Teams",
-				description: "teams_desc",
-				icon: <IconBrandWindows className="h-6 w-6" />,
-				status: "coming-soon",
-			},
-			{
 				id: "discord-connector",
 				title: "Discord",
 				description: "discord_desc",
 				icon: getConnectorIcon(EnumConnectorName.DISCORD_CONNECTOR, "h-6 w-6"),
 				status: "available",
+			},
+			{
+				id: "ms-teams",
+				title: "Microsoft Teams",
+				description: "teams_desc",
+				icon: <IconBrandWindows className="h-6 w-6" />,
+				status: "coming-soon",
 			},
 		],
 	},
@@ -100,8 +106,8 @@ export const connectorCategories: ConnectorCategory[] = [
 		],
 	},
 	{
-		id: "knowledge-bases",
-		title: "knowledge_bases",
+		id: "documentation",
+		title: "documentation",
 		connectors: [
 			{
 				id: "notion-connector",
@@ -111,17 +117,36 @@ export const connectorCategories: ConnectorCategory[] = [
 				status: "available",
 			},
 			{
+				id: "confluence-connector",
+				title: "Confluence",
+				description: "confluence_desc",
+				icon: getConnectorIcon(EnumConnectorName.CONFLUENCE_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
+		],
+	},
+	{
+		id: "development",
+		title: "development",
+		connectors: [
+			{
 				id: "github-connector",
 				title: "GitHub",
 				description: "github_desc",
 				icon: getConnectorIcon(EnumConnectorName.GITHUB_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
+		],
+	},
+	{
+		id: "databases",
+		title: "databases",
+		connectors: [
 			{
-				id: "confluence-connector",
-				title: "Confluence",
-				description: "confluence_desc",
-				icon: getConnectorIcon(EnumConnectorName.CONFLUENCE_CONNECTOR, "h-6 w-6"),
+				id: "elasticsearch-connector",
+				title: "Elasticsearch",
+				description: "elasticsearch_desc",
+				icon: getConnectorIcon(EnumConnectorName.ELASTICSEARCH_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
@@ -131,18 +156,11 @@ export const connectorCategories: ConnectorCategory[] = [
 				icon: getConnectorIcon(EnumConnectorName.AIRTABLE_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
-			{
-				id: "luma-connector",
-				title: "Luma",
-				description: "luma_desc",
-				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
 		],
 	},
 	{
-		id: "communication",
-		title: "communication",
+		id: "productivity",
+		title: "productivity",
 		connectors: [
 			{
 				id: "google-calendar-connector",
@@ -156,6 +174,13 @@ export const connectorCategories: ConnectorCategory[] = [
 				title: "Gmail",
 				description: "gmail_desc",
 				icon: getConnectorIcon(EnumConnectorName.GOOGLE_GMAIL_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
+			{
+				id: "luma-connector",
+				title: "Luma",
+				description: "luma_desc",
+				icon: getConnectorIcon(EnumConnectorName.LUMA_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
 			{
