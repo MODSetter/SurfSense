@@ -667,7 +667,7 @@ async def fetch_relevant_documents(
                             }
                         )
 
-                elif connector == "WEBCRAWLER_CONNECTOR":
+                elif connector == "CRAWLED_URL":
                     (
                         source_object,
                         crawled_urls_chunks,
