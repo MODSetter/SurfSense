@@ -105,7 +105,7 @@ class WebCrawlerConnector:
 
         # Extract content based on format
         content = scrape_result.markdown or scrape_result.html or ""
-        
+
         # Extract metadata
         metadata = scrape_result.metadata if scrape_result.metadata else {}
 

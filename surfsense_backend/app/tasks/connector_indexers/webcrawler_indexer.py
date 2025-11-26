@@ -93,7 +93,7 @@ async def index_crawled_urls(
 
         # Get the Firecrawl API key from the connector config (optional)
         api_key = connector.config.get("FIRECRAWL_API_KEY")
-        
+
         # Get URLs from connector config
         initial_urls = connector.config.get("INITIAL_URLS", "")
         if isinstance(initial_urls, str):
@@ -177,7 +177,9 @@ async def index_crawled_urls(
                     continue
 
                 # Format content as structured document
-                structured_document = crawler.format_to_structured_document(crawl_result)
+                structured_document = crawler.format_to_structured_document(
+                    crawl_result
+                )
 
                 # Generate unique identifier hash for this URL
                 unique_identifier_hash = generate_unique_identifier_hash(
@@ -185,7 +187,9 @@ async def index_crawled_urls(
                 )
 
                 # Generate content hash
-                content_hash = generate_content_hash(structured_document, search_space_id)
+                content_hash = generate_content_hash(
+                    structured_document, search_space_id
+                )
 
                 # Check if document with this unique identifier already exists
                 existing_document = await check_document_by_unique_identifier(
@@ -205,7 +209,9 @@ async def index_crawled_urls(
                         continue
                     else:
                         # Content has changed - update the existing document
-                        logger.info(f"Content changed for URL {url}. Updating document.")
+                        logger.info(
+                            f"Content changed for URL {url}. Updating document."
+                        )
 
                         # Generate summary with metadata
                         user_llm = await get_user_long_context_llm(
@@ -236,7 +242,7 @@ async def index_crawled_urls(
                             if language:
                                 summary_content += f"Language: {language}\n"
                             summary_content += f"Crawler: {crawler_type}\n\n"
-                            
+
                             # Add content preview
                             content_preview = content[:1000]
                             if len(content) > 1000:
@@ -298,7 +304,7 @@ async def index_crawled_urls(
                     if language:
                         summary_content += f"Language: {language}\n"
                     summary_content += f"Crawler: {crawler_type}\n\n"
-                    
+
                     # Add content preview
                     content_preview = content[:1000]
                     if len(content) > 1000:
@@ -347,7 +353,7 @@ async def index_crawled_urls(
                 continue
 
         total_processed = documents_indexed + documents_updated
-        
+
         if total_processed > 0:
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
@@ -360,10 +366,14 @@ async def index_crawled_urls(
         # Build result message
         result_message = None
         if failed_urls:
-            failed_summary = "; ".join([f"{url}: {error}" for url, error in failed_urls[:5]])
+            failed_summary = "; ".join(
+                [f"{url}: {error}" for url, error in failed_urls[:5]]
+            )
             if len(failed_urls) > 5:
                 failed_summary += f" (and {len(failed_urls) - 5} more)"
-            result_message = f"Completed with {len(failed_urls)} failures: {failed_summary}"
+            result_message = (
+                f"Completed with {len(failed_urls)} failures: {failed_summary}"
+            )
 
         await task_logger.log_task_success(
             log_entry,

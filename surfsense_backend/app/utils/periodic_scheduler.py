@@ -70,6 +70,7 @@ def create_periodic_schedule(
             index_airtable_records_task,
             index_clickup_tasks_task,
             index_confluence_pages_task,
+            index_crawled_urls_task,
             index_discord_messages_task,
             index_elasticsearch_documents_task,
             index_github_repos_task,
@@ -80,7 +81,6 @@ def create_periodic_schedule(
             index_luma_events_task,
             index_notion_pages_task,
             index_slack_messages_task,
-            index_crawled_urls_task,
         )
 
         # Map connector type to task

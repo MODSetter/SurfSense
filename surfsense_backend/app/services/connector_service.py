@@ -118,7 +118,9 @@ class ConnectorService:
 
                 # Extract webcrawler-specific metadata
                 url = metadata.get("source", metadata.get("url", ""))
-                title = document.get("title", metadata.get("title", "Untitled Document"))
+                title = document.get(
+                    "title", metadata.get("title", "Untitled Document")
+                )
                 description = metadata.get("description", "")
                 language = metadata.get("language", "")
                 last_crawled_at = metadata.get("last_crawled_at", "")

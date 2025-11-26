@@ -8,8 +8,9 @@ Create Date: 2025-11-13 23:20:12.912741
 
 from collections.abc import Sequence
 
-from alembic import op
 from sqlalchemy import text
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "36"
@@ -49,7 +50,9 @@ def upgrade() -> None:
     ]
 
     for constraint_name in constraints_to_drop:
-        if constraint_exists(connection, "user_search_space_preferences", constraint_name):
+        if constraint_exists(
+            connection, "user_search_space_preferences", constraint_name
+        ):
             op.drop_constraint(
                 constraint_name,
                 "user_search_space_preferences",
@@ -67,13 +70,18 @@ def downgrade() -> None:
 
     # Re-add the foreign key constraints if they don't exist
     constraints_to_create = [
-        ("user_search_space_preferences_long_context_llm_id_fkey", "long_context_llm_id"),
+        (
+            "user_search_space_preferences_long_context_llm_id_fkey",
+            "long_context_llm_id",
+        ),
         ("user_search_space_preferences_fast_llm_id_fkey", "fast_llm_id"),
         ("user_search_space_preferences_strategic_llm_id_fkey", "strategic_llm_id"),
     ]
 
     for constraint_name, column_name in constraints_to_create:
-        if not constraint_exists(connection, "user_search_space_preferences", constraint_name):
+        if not constraint_exists(
+            connection, "user_search_space_preferences", constraint_name
+        ):
             op.create_foreign_key(
                 constraint_name,
                 "user_search_space_preferences",

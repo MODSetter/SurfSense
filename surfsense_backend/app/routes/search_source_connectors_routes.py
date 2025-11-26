@@ -39,6 +39,7 @@ from app.tasks.connector_indexers import (
     index_airtable_records,
     index_clickup_tasks,
     index_confluence_pages,
+    index_crawled_urls,
     index_discord_messages,
     index_elasticsearch_documents,
     index_github_repos,
@@ -49,7 +50,6 @@ from app.tasks.connector_indexers import (
     index_luma_events,
     index_notion_pages,
     index_slack_messages,
-    index_crawled_urls,
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
@@ -1536,6 +1536,7 @@ async def run_elasticsearch_indexing(
             f"Critical error in run_elasticsearch_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
+
 
 # Add new helper functions for crawled web page indexing
 async def run_web_page_indexing_with_new_session(
