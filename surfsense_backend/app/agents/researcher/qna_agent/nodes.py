@@ -142,13 +142,12 @@ async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any
     Returns:
         Dict containing the final answer in the "final_answer" key.
     """
-    from app.services.llm_service import get_user_fast_llm
+    from app.services.llm_service import get_fast_llm
 
     # Get configuration and relevant documents from configuration
     configuration = Configuration.from_runnable_config(config)
     documents = state.reranked_documents
     user_query = configuration.user_query
-    user_id = configuration.user_id
     search_space_id = configuration.search_space_id
     language = configuration.language
 
@@ -178,10 +177,10 @@ async def answer_question(state: State, config: RunnableConfig) -> dict[str, Any
         else ""
     )
 
-    # Get user's fast LLM
-    llm = await get_user_fast_llm(state.db_session, user_id, search_space_id)
+    # Get search space's fast LLM
+    llm = await get_fast_llm(state.db_session, search_space_id)
     if not llm:
-        error_message = f"No fast LLM configured for user {user_id} in search space {search_space_id}"
+        error_message = f"No fast LLM configured for search space {search_space_id}"
         print(error_message)
         raise RuntimeError(error_message)
 

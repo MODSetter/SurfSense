@@ -4,7 +4,7 @@ from typing import Any
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.llm_service import get_user_strategic_llm
+from app.services.llm_service import get_strategic_llm
 
 
 class QueryService:
@@ -16,19 +16,17 @@ class QueryService:
     async def reformulate_query_with_chat_history(
         user_query: str,
         session: AsyncSession,
-        user_id: str,
         search_space_id: int,
         chat_history_str: str | None = None,
     ) -> str:
         """
-        Reformulate the user query using the user's strategic LLM to make it more
+        Reformulate the user query using the search space's strategic LLM to make it more
         effective for information retrieval and research purposes.
 
         Args:
             user_query: The original user query
-            session: Database session for accessing user LLM configs
-            user_id: User ID to get their specific LLM configuration
-            search_space_id: Search Space ID to get user's LLM preferences
+            session: Database session for accessing LLM configs
+            search_space_id: Search Space ID to get LLM preferences
             chat_history_str: Optional chat history string
 
         Returns:
@@ -38,11 +36,11 @@ class QueryService:
             return user_query
 
         try:
-            # Get the user's strategic LLM instance
-            llm = await get_user_strategic_llm(session, user_id, search_space_id)
+            # Get the search space's strategic LLM instance
+            llm = await get_strategic_llm(session, search_space_id)
             if not llm:
                 print(
-                    f"Warning: No strategic LLM configured for user {user_id} in search space {search_space_id}. Using original query."
+                    f"Warning: No strategic LLM configured for search space {search_space_id}. Using original query."
                 )
                 return user_query
 
