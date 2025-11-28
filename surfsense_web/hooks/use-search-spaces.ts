@@ -10,6 +10,8 @@ interface SearchSpace {
 	created_at: string;
 	citations_enabled: boolean;
 	qna_custom_instructions: string | null;
+	member_count: number;
+	is_owner: boolean;
 }
 
 export function useSearchSpaces() {

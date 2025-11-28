@@ -43,6 +43,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
 			Podcasts: "podcasts",
 			Logs: "logs",
 			Platform: "platform",
+			Team: "team",
 		};
 
 		const key = titleMap[title];

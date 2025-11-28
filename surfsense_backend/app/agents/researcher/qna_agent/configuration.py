@@ -18,7 +18,6 @@ class Configuration:
     relevant_documents: list[
         Any
     ]  # Documents provided directly to the agent for answering
-    user_id: str  # User identifier
     search_space_id: int  # Search space identifier
     language: str | None = None  # Language for responses
 

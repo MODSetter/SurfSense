@@ -12,8 +12,7 @@ class DocumentHybridSearchRetriever:
         self,
         query_text: str,
         top_k: int,
-        user_id: str,
-        search_space_id: int | None = None,
+        search_space_id: int,
     ) -> list:
         """
         Perform vector similarity search on documents.
@@ -21,8 +20,7 @@ class DocumentHybridSearchRetriever:
         Args:
             query_text: The search query text
             top_k: Number of results to return
-            user_id: The ID of the user performing the search
-            search_space_id: Optional search space ID to filter results
+            search_space_id: The search space ID to search within
 
         Returns:
             List of documents sorted by vector similarity
@@ -31,23 +29,18 @@ class DocumentHybridSearchRetriever:
         from sqlalchemy.orm import joinedload
 
         from app.config import config
-        from app.db import Document, SearchSpace
+        from app.db import Document
 
         # Get embedding for the query
         embedding_model = config.embedding_model_instance
         query_embedding = embedding_model.embed(query_text)
 
-        # Build the base query with user ownership check
+        # Build the query filtered by search space
         query = (
             select(Document)
             .options(joinedload(Document.search_space))
-            .join(SearchSpace, Document.search_space_id == SearchSpace.id)
-            .where(SearchSpace.user_id == user_id)
+            .where(Document.search_space_id == search_space_id)
         )
-
-        # Add search space filter if provided
-        if search_space_id is not None:
-            query = query.where(Document.search_space_id == search_space_id)
 
         # Add vector similarity ordering
         query = query.order_by(Document.embedding.op("<=>")(query_embedding)).limit(
@@ -64,8 +57,7 @@ class DocumentHybridSearchRetriever:
         self,
         query_text: str,
         top_k: int,
-        user_id: str,
-        search_space_id: int | None = None,
+        search_space_id: int,
     ) -> list:
         """
         Perform full-text keyword search on documents.
@@ -73,8 +65,7 @@ class DocumentHybridSearchRetriever:
         Args:
             query_text: The search query text
             top_k: Number of results to return
-            user_id: The ID of the user performing the search
-            search_space_id: Optional search space ID to filter results
+            search_space_id: The search space ID to search within
 
         Returns:
             List of documents sorted by text relevance
@@ -82,26 +73,21 @@ class DocumentHybridSearchRetriever:
         from sqlalchemy import func, select
         from sqlalchemy.orm import joinedload
 
-        from app.db import Document, SearchSpace
+        from app.db import Document
 
         # Create tsvector and tsquery for PostgreSQL full-text search
         tsvector = func.to_tsvector("english", Document.content)
         tsquery = func.plainto_tsquery("english", query_text)
 
-        # Build the base query with user ownership check
+        # Build the query filtered by search space
         query = (
             select(Document)
             .options(joinedload(Document.search_space))
-            .join(SearchSpace, Document.search_space_id == SearchSpace.id)
-            .where(SearchSpace.user_id == user_id)
+            .where(Document.search_space_id == search_space_id)
             .where(
                 tsvector.op("@@")(tsquery)
             )  # Only include results that match the query
         )
-
-        # Add search space filter if provided
-        if search_space_id is not None:
-            query = query.where(Document.search_space_id == search_space_id)
 
         # Add text search ranking
         query = query.order_by(func.ts_rank_cd(tsvector, tsquery).desc()).limit(top_k)
@@ -116,8 +102,7 @@ class DocumentHybridSearchRetriever:
         self,
         query_text: str,
         top_k: int,
-        user_id: str,
-        search_space_id: int | None = None,
+        search_space_id: int,
         document_type: str | None = None,
     ) -> list:
         """
@@ -126,8 +111,7 @@ class DocumentHybridSearchRetriever:
         Args:
             query_text: The search query text
             top_k: Number of results to return
-            user_id: The ID of the user performing the search
-            search_space_id: Optional search space ID to filter results
+            search_space_id: The search space ID to search within
             document_type: Optional document type to filter results (e.g., "FILE", "CRAWLED_URL")
 
         """
@@ -135,7 +119,7 @@ class DocumentHybridSearchRetriever:
         from sqlalchemy.orm import joinedload
 
         from app.config import config
-        from app.db import Document, DocumentType, SearchSpace
+        from app.db import Document, DocumentType
 
         # Get embedding for the query
         embedding_model = config.embedding_model_instance
@@ -149,12 +133,8 @@ class DocumentHybridSearchRetriever:
         tsvector = func.to_tsvector("english", Document.content)
         tsquery = func.plainto_tsquery("english", query_text)
 
-        # Base conditions for document filtering
-        base_conditions = [SearchSpace.user_id == user_id]
-
-        # Add search space filter if provided
-        if search_space_id is not None:
-            base_conditions.append(Document.search_space_id == search_space_id)
+        # Base conditions for document filtering - search space is required
+        base_conditions = [Document.search_space_id == search_space_id]
 
         # Add document type filter if provided
         if document_type is not None:
@@ -169,17 +149,13 @@ class DocumentHybridSearchRetriever:
             else:
                 base_conditions.append(Document.document_type == document_type)
 
-        # CTE for semantic search with user ownership check
-        semantic_search_cte = (
-            select(
-                Document.id,
-                func.rank()
-                .over(order_by=Document.embedding.op("<=>")(query_embedding))
-                .label("rank"),
-            )
-            .join(SearchSpace, Document.search_space_id == SearchSpace.id)
-            .where(*base_conditions)
-        )
+        # CTE for semantic search filtered by search space
+        semantic_search_cte = select(
+            Document.id,
+            func.rank()
+            .over(order_by=Document.embedding.op("<=>")(query_embedding))
+            .label("rank"),
+        ).where(*base_conditions)
 
         semantic_search_cte = (
             semantic_search_cte.order_by(Document.embedding.op("<=>")(query_embedding))
@@ -187,7 +163,7 @@ class DocumentHybridSearchRetriever:
             .cte("semantic_search")
         )
 
-        # CTE for keyword search with user ownership check
+        # CTE for keyword search filtered by search space
         keyword_search_cte = (
             select(
                 Document.id,
@@ -195,7 +171,6 @@ class DocumentHybridSearchRetriever:
                 .over(order_by=func.ts_rank_cd(tsvector, tsquery).desc())
                 .label("rank"),
             )
-            .join(SearchSpace, Document.search_space_id == SearchSpace.id)
             .where(*base_conditions)
             .where(tsvector.op("@@")(tsquery))
         )

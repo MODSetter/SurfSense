@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useUserAccess } from "@/hooks/use-rbac";
 import { cn } from "@/lib/utils";
 
 export function DashboardClientLayout({
@@ -60,10 +61,14 @@ export function DashboardClientLayout({
 	}, [activeChatId, isChatPannelOpen]);
 
 	const { loading, error, isOnboardingComplete } = useLLMPreferences(searchSpaceIdNum);
+	const { access, loading: accessLoading } = useUserAccess(searchSpaceIdNum);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
 	// Skip onboarding check if we're already on the onboarding page
 	const isOnboardingPage = pathname?.includes("/onboard");
+
+	// Only owners should see onboarding - invited members use existing config
+	const isOwner = access?.is_owner ?? false;
 
 	// Translate navigation items
 	const tNavMenu = useTranslations("nav_menu");
@@ -102,11 +107,13 @@ export function DashboardClientLayout({
 			return;
 		}
 
-		// Only check once after preferences have loaded
-		if (!loading && !hasCheckedOnboarding) {
+		// Wait for both preferences and access data to load
+		if (!loading && !accessLoading && !hasCheckedOnboarding) {
 			const onboardingComplete = isOnboardingComplete();
 
-			if (!onboardingComplete) {
+			// Only redirect to onboarding if user is the owner and onboarding is not complete
+			// Invited members (non-owners) should skip onboarding and use existing config
+			if (!onboardingComplete && isOwner) {
 				router.push(`/dashboard/${searchSpaceId}/onboard`);
 			}
 
@@ -114,8 +121,10 @@ export function DashboardClientLayout({
 		}
 	}, [
 		loading,
+		accessLoading,
 		isOnboardingComplete,
 		isOnboardingPage,
+		isOwner,
 		router,
 		searchSpaceId,
 		hasCheckedOnboarding,
@@ -145,7 +154,7 @@ export function DashboardClientLayout({
 	}, [chat_id, search_space_id]);
 
 	// Show loading screen while checking onboarding status (only on first load)
-	if (!hasCheckedOnboarding && loading && !isOnboardingPage) {
+	if (!hasCheckedOnboarding && (loading || accessLoading) && !isOnboardingPage) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">

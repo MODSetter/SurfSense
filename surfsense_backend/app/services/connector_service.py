@@ -15,18 +15,17 @@ from app.db import (
     Document,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
 )
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
 
 
 class ConnectorService:
-    def __init__(self, session: AsyncSession, user_id: str | None = None):
+    def __init__(self, session: AsyncSession, search_space_id: int | None = None):
         self.session = session
         self.chunk_retriever = ChucksHybridSearchRetriever(session)
         self.document_retriever = DocumentHybridSearchRetriever(session)
-        self.user_id = user_id
+        self.search_space_id = search_space_id
         self.source_id_counter = (
             100000  # High starting value to avoid collisions with existing IDs
         )
@@ -36,23 +35,22 @@ class ConnectorService:
 
     async def initialize_counter(self):
         """
-        Initialize the source_id_counter based on the total number of chunks for the user.
+        Initialize the source_id_counter based on the total number of chunks for the search space.
         This ensures unique IDs across different sessions.
         """
-        if self.user_id:
+        if self.search_space_id:
             try:
-                # Count total chunks for documents belonging to this user
+                # Count total chunks for documents belonging to this search space
 
                 result = await self.session.execute(
                     select(func.count(Chunk.id))
                     .join(Document)
-                    .join(SearchSpace)
-                    .filter(SearchSpace.user_id == self.user_id)
+                    .filter(Document.search_space_id == self.search_space_id)
                 )
                 chunk_count = result.scalar() or 0
                 self.source_id_counter = chunk_count + 1
                 print(
-                    f"Initialized source_id_counter to {self.source_id_counter} for user {self.user_id}"
+                    f"Initialized source_id_counter to {self.source_id_counter} for search space {self.search_space_id}"
                 )
             except Exception as e:
                 print(f"Error initializing source_id_counter: {e!s}")
@@ -62,7 +60,6 @@ class ConnectorService:
     async def search_crawled_urls(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -72,7 +69,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -84,7 +80,6 @@ class ConnectorService:
             crawled_urls_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="CRAWLED_URL",
             )
@@ -92,7 +87,6 @@ class ConnectorService:
             crawled_urls_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="CRAWLED_URL",
             )
@@ -171,7 +165,6 @@ class ConnectorService:
     async def search_files(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -186,7 +179,6 @@ class ConnectorService:
             files_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="FILE",
             )
@@ -194,7 +186,6 @@ class ConnectorService:
             files_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="FILE",
             )
@@ -274,43 +265,35 @@ class ConnectorService:
 
     async def get_connector_by_type(
         self,
-        user_id: str,
         connector_type: SearchSourceConnectorType,
-        search_space_id: int | None = None,
+        search_space_id: int,
     ) -> SearchSourceConnector | None:
         """
-        Get a connector by type for a specific user and optionally a search space
+        Get a connector by type for a specific search space
 
         Args:
-            user_id: The user's ID
             connector_type: The connector type to retrieve
-            search_space_id: Optional search space ID to filter by
+            search_space_id: The search space ID to filter by
 
         Returns:
             Optional[SearchSourceConnector]: The connector if found, None otherwise
         """
         query = select(SearchSourceConnector).filter(
-            SearchSourceConnector.user_id == user_id,
+            SearchSourceConnector.search_space_id == search_space_id,
             SearchSourceConnector.connector_type == connector_type,
         )
-
-        if search_space_id is not None:
-            query = query.filter(
-                SearchSourceConnector.search_space_id == search_space_id
-            )
 
         result = await self.session.execute(query)
         return result.scalars().first()
 
     async def search_tavily(
-        self, user_query: str, user_id: str, search_space_id: int, top_k: int = 20
+        self, user_query: str, search_space_id: int, top_k: int = 20
     ) -> tuple:
         """
         Search using Tavily API and return both the source information and documents
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID
             top_k: Maximum number of results to return
 
@@ -319,7 +302,7 @@ class ConnectorService:
         """
         # Get Tavily connector configuration
         tavily_connector = await self.get_connector_by_type(
-            user_id, SearchSourceConnectorType.TAVILY_API, search_space_id
+            SearchSourceConnectorType.TAVILY_API, search_space_id
         )
 
         if not tavily_connector:
@@ -412,7 +395,6 @@ class ConnectorService:
     async def search_searxng(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
     ) -> tuple:
@@ -420,7 +402,7 @@ class ConnectorService:
         Search using a configured SearxNG instance and return both sources and documents.
         """
         searx_connector = await self.get_connector_by_type(
-            user_id, SearchSourceConnectorType.SEARXNG_API, search_space_id
+            SearchSourceConnectorType.SEARXNG_API, search_space_id
         )
 
         if not searx_connector:
@@ -598,7 +580,6 @@ class ConnectorService:
     async def search_baidu(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
     ) -> tuple:
@@ -610,7 +591,6 @@ class ConnectorService:
 
         Args:
             user_query: User's search query
-            user_id: User ID
             search_space_id: Search space ID
             top_k: Maximum number of results to return
 
@@ -619,7 +599,7 @@ class ConnectorService:
         """
         # Get Baidu connector configuration
         baidu_connector = await self.get_connector_by_type(
-            user_id, SearchSourceConnectorType.BAIDU_SEARCH_API, search_space_id
+            SearchSourceConnectorType.BAIDU_SEARCH_API, search_space_id
         )
 
         if not baidu_connector:
@@ -824,7 +804,6 @@ class ConnectorService:
     async def search_slack(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -839,7 +818,6 @@ class ConnectorService:
             slack_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="SLACK_CONNECTOR",
             )
@@ -847,7 +825,6 @@ class ConnectorService:
             slack_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="SLACK_CONNECTOR",
             )
@@ -912,7 +889,6 @@ class ConnectorService:
     async def search_notion(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -922,7 +898,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
 
@@ -933,7 +908,6 @@ class ConnectorService:
             notion_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="NOTION_CONNECTOR",
             )
@@ -941,7 +915,6 @@ class ConnectorService:
             notion_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="NOTION_CONNECTOR",
             )
@@ -1009,7 +982,6 @@ class ConnectorService:
     async def search_extension(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1019,7 +991,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
 
@@ -1030,7 +1001,6 @@ class ConnectorService:
             extension_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="EXTENSION",
             )
@@ -1038,7 +1008,6 @@ class ConnectorService:
             extension_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="EXTENSION",
             )
@@ -1130,7 +1099,6 @@ class ConnectorService:
     async def search_youtube(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1140,7 +1108,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
 
@@ -1151,7 +1118,6 @@ class ConnectorService:
             youtube_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="YOUTUBE_VIDEO",
             )
@@ -1159,7 +1125,6 @@ class ConnectorService:
             youtube_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="YOUTUBE_VIDEO",
             )
@@ -1227,7 +1192,6 @@ class ConnectorService:
     async def search_github(
         self,
         user_query: str,
-        user_id: int,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1242,7 +1206,6 @@ class ConnectorService:
             github_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="GITHUB_CONNECTOR",
             )
@@ -1250,7 +1213,6 @@ class ConnectorService:
             github_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="GITHUB_CONNECTOR",
             )
@@ -1302,7 +1264,6 @@ class ConnectorService:
     async def search_linear(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1312,7 +1273,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
 
@@ -1323,7 +1283,6 @@ class ConnectorService:
             linear_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="LINEAR_CONNECTOR",
             )
@@ -1331,7 +1290,6 @@ class ConnectorService:
             linear_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="LINEAR_CONNECTOR",
             )
@@ -1411,7 +1369,6 @@ class ConnectorService:
     async def search_jira(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1421,7 +1378,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -1433,7 +1389,6 @@ class ConnectorService:
             jira_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="JIRA_CONNECTOR",
             )
@@ -1441,7 +1396,6 @@ class ConnectorService:
             jira_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="JIRA_CONNECTOR",
             )
@@ -1532,7 +1486,6 @@ class ConnectorService:
     async def search_google_calendar(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1542,7 +1495,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -1554,7 +1506,6 @@ class ConnectorService:
             calendar_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="GOOGLE_CALENDAR_CONNECTOR",
             )
@@ -1562,7 +1513,6 @@ class ConnectorService:
             calendar_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="GOOGLE_CALENDAR_CONNECTOR",
             )
@@ -1665,7 +1615,6 @@ class ConnectorService:
     async def search_airtable(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1675,7 +1624,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -1687,7 +1635,6 @@ class ConnectorService:
             airtable_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="AIRTABLE_CONNECTOR",
             )
@@ -1695,7 +1642,6 @@ class ConnectorService:
             airtable_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="AIRTABLE_CONNECTOR",
             )
@@ -1753,7 +1699,6 @@ class ConnectorService:
     async def search_google_gmail(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1763,7 +1708,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -1775,7 +1719,6 @@ class ConnectorService:
             gmail_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="GOOGLE_GMAIL_CONNECTOR",
             )
@@ -1783,7 +1726,6 @@ class ConnectorService:
             gmail_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="GOOGLE_GMAIL_CONNECTOR",
             )
@@ -1877,7 +1819,6 @@ class ConnectorService:
     async def search_confluence(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1887,7 +1828,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -1899,7 +1839,6 @@ class ConnectorService:
             confluence_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="CONFLUENCE_CONNECTOR",
             )
@@ -1907,7 +1846,6 @@ class ConnectorService:
             confluence_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="CONFLUENCE_CONNECTOR",
             )
@@ -1972,7 +1910,6 @@ class ConnectorService:
     async def search_clickup(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -1982,7 +1919,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -1994,7 +1930,6 @@ class ConnectorService:
             clickup_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="CLICKUP_CONNECTOR",
             )
@@ -2002,7 +1937,6 @@ class ConnectorService:
             clickup_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="CLICKUP_CONNECTOR",
             )
@@ -2088,7 +2022,6 @@ class ConnectorService:
     async def search_linkup(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         mode: str = "standard",
     ) -> tuple:
@@ -2097,7 +2030,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID
             mode: Search depth mode, can be "standard" or "deep"
 
@@ -2106,7 +2038,7 @@ class ConnectorService:
         """
         # Get Linkup connector configuration
         linkup_connector = await self.get_connector_by_type(
-            user_id, SearchSourceConnectorType.LINKUP_API, search_space_id
+            SearchSourceConnectorType.LINKUP_API, search_space_id
         )
 
         if not linkup_connector:
@@ -2211,7 +2143,6 @@ class ConnectorService:
     async def search_discord(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -2221,7 +2152,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
 
@@ -2232,7 +2162,6 @@ class ConnectorService:
             discord_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="DISCORD_CONNECTOR",
             )
@@ -2240,7 +2169,6 @@ class ConnectorService:
             discord_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="DISCORD_CONNECTOR",
             )
@@ -2308,7 +2236,6 @@ class ConnectorService:
     async def search_luma(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -2318,7 +2245,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -2330,7 +2256,6 @@ class ConnectorService:
             luma_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="LUMA_CONNECTOR",
             )
@@ -2338,7 +2263,6 @@ class ConnectorService:
             luma_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="LUMA_CONNECTOR",
             )
@@ -2466,7 +2390,6 @@ class ConnectorService:
     async def search_elasticsearch(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
@@ -2476,7 +2399,6 @@ class ConnectorService:
 
         Args:
             user_query: The user's query
-            user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
@@ -2488,7 +2410,6 @@ class ConnectorService:
             elasticsearch_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="ELASTICSEARCH_CONNECTOR",
             )
@@ -2496,7 +2417,6 @@ class ConnectorService:
             elasticsearch_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="ELASTICSEARCH_CONNECTOR",
             )
