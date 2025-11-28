@@ -1268,33 +1268,33 @@ function CreateRoleDialog({
 
 									return (
 										<div key={category} className="space-y-2">
-											<div
-												className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+											<button
+												type="button"
+												className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded w-full text-left"
 												onClick={() => toggleCategory(category)}
 											>
 												<Checkbox
 													checked={allSelected}
 													onCheckedChange={() => toggleCategory(category)}
 												/>
-												<Label className="text-sm font-medium capitalize cursor-pointer">
+												<span className="text-sm font-medium capitalize">
 													{category} ({categorySelected}/{perms.length})
-												</Label>
-											</div>
+												</span>
+											</button>
 											<div className="grid grid-cols-2 gap-2 ml-6">
 												{perms.map((perm) => (
-													<div
+													<button
+														type="button"
 														key={perm.value}
-														className="flex items-center gap-2 cursor-pointer"
+														className="flex items-center gap-2 cursor-pointer text-left"
 														onClick={() => togglePermission(perm.value)}
 													>
 														<Checkbox
 															checked={selectedPermissions.includes(perm.value)}
 															onCheckedChange={() => togglePermission(perm.value)}
 														/>
-														<Label className="text-xs cursor-pointer">
-															{perm.value.split(":")[1]}
-														</Label>
-													</div>
+														<span className="text-xs">{perm.value.split(":")[1]}</span>
+													</button>
 												))}
 											</div>
 										</div>
