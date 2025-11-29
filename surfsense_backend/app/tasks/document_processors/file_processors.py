@@ -122,6 +122,8 @@ async def add_received_file_document_using_unstructured(
             }
             existing_document.chunks = chunks
             existing_document.blocknote_document = blocknote_json
+            existing_document.content_needs_reindexing = False
+            existing_document.last_edited_at = None
 
             await session.commit()
             await session.refresh(existing_document)
@@ -142,6 +144,8 @@ async def add_received_file_document_using_unstructured(
                 content_hash=content_hash,
                 unique_identifier_hash=unique_identifier_hash,
                 blocknote_document=blocknote_json,
+                content_needs_reindexing=False,
+                last_edited_at=None,
             )
 
             session.add(document)
@@ -247,6 +251,8 @@ async def add_received_file_document_using_llamacloud(
             }
             existing_document.chunks = chunks
             existing_document.blocknote_document = blocknote_json
+            existing_document.content_needs_reindexing = False
+            existing_document.last_edited_at = None
 
             await session.commit()
             await session.refresh(existing_document)
@@ -267,6 +273,8 @@ async def add_received_file_document_using_llamacloud(
                 content_hash=content_hash,
                 unique_identifier_hash=unique_identifier_hash,
                 blocknote_document=blocknote_json,
+                content_needs_reindexing=False,
+                last_edited_at=None,
             )
 
             session.add(document)
@@ -396,7 +404,7 @@ async def add_received_file_document_using_docling(
                 "ETL_SERVICE": "DOCLING",
             }
             existing_document.chunks = chunks
-            existing_document.blocknote_document = None
+            existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
             existing_document.last_edited_at = None
 
@@ -418,7 +426,7 @@ async def add_received_file_document_using_docling(
                 chunks=chunks,
                 content_hash=content_hash,
                 unique_identifier_hash=unique_identifier_hash,
-                blocknote_document=None,
+                blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
                 last_edited_at=None,
             )

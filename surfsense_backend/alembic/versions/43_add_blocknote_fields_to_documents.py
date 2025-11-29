@@ -1,8 +1,13 @@
-"""38_add_blocknote_fields_to_documents
+"""43_add_blocknote_fields_to_documents
 
-Revision ID: 38
-Revises: 37
+Revision ID: 43
+Revises: 42
+Create Date: 2025-11-30
 
+Adds fields for live document editing:
+- blocknote_document: JSONB editor state
+- content_needs_reindexing: Flag for regenerating chunks/summary
+- last_edited_at: Last edit timestamp
 """
 
 from collections.abc import Sequence
@@ -13,8 +18,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "38"
-down_revision: str | None = "37"
+revision: str = "43"
+down_revision: str | None = "42"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
