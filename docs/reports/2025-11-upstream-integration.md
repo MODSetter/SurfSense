@@ -501,22 +501,17 @@ The implementation serves as a successful pilot for our selective upstream integ
 **Author:** Claude Code
 **Review Status:** Awaiting team review
 
-
 ---
 
-# Detailed Analysis and Technical Considerations
+## Part 2: Detailed Analysis and Technical Considerations
 
-# Upstream Integration Analysis and Strategy
-## SurfSense: MODSetter/main → okapteinis/nightly
+This section provides an in-depth technical analysis of the upstream integration strategy, examining compatibility, risk assessment, and implementation approaches for merging changes from the MODSetter/main branch into okapteinis/nightly.
 
-**Date:** November 22, 2025
 **Analysis Period:** Last ~25 upstream commits
 **Upstream Repository:** MODSetter/SurfSense (main branch)
 **Target Branch:** okapteinis/SurfSense (nightly branch)
 
----
-
-## Executive Summary
+### Executive Summary
 
 This document analyzes recent features and architectural improvements in the upstream SurfSense repository and provides a strategic plan for selectively integrating valuable enhancements into our nightly branch while preserving our custom security hardening, space sharing features, and other critical customizations.
 
