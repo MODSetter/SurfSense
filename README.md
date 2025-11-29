@@ -284,7 +284,20 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
  Manifest v3 on Plasmo
 
 
-## Contribute 
+## Documentation
+
+- [Deployment Guide](docs/deployment/DEPLOYMENT_GUIDE.md)
+- [Feature Documentation](docs/features/)
+- [Development Guide](docs/development/)
+- [AI Assistant Context](claude.md)
+
+### Key Documents
+- [Two-Factor Authentication](docs/features/authentication/2FA_GUIDE.md)
+- [Secrets Management](docs/development/SECRETS_MANAGEMENT.md)
+- [Local LLM Setup](docs/deployment/LOCAL_LLM_SETUP.md)
+- [Security Guidelines](docs/development/SECURITY.md)
+
+## Contribute
 
 Contributions are very welcome! A contribution can be as small as a ⭐ or even finding and creating issues.
 Fine-tuning the Backend is always desired.
