@@ -154,7 +154,7 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 							</button>
 							{/* ConfigModal positioned absolutely to avoid nesting buttons */}
 							<div className="absolute top-4 right-4 z-20">
-								<ConfigModal generatePodcast={generatePodcast} />
+								<ConfigModal generatePodcast={generatePodcast} locale={locale} />
 							</div>
 						</motion.div>
 					</div>

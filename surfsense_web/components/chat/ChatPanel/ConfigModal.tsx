@@ -2,7 +2,6 @@
 
 import { useAtomValue } from "jotai";
 import { Pencil } from "lucide-react";
-import { useLocale } from "next-intl";
 import { useCallback, useContext, useState } from "react";
 import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -10,16 +9,15 @@ import type { GeneratePodcastRequest } from "./ChatPanelContainer";
 
 interface ConfigModalProps {
 	generatePodcast: (request: GeneratePodcastRequest) => Promise<void>;
+	locale: string; // UI language passed from parent (e.g., 'en', 'lv', 'sv')
 }
 
 export function ConfigModal(props: ConfigModalProps) {
 	const { data: activeChatState } = useAtomValue(activeChatAtom);
-	const locale = useLocale(); // Get current UI language (e.g., 'en', 'lv', 'sv')
+	const { generatePodcast, locale } = props;
 
 	const chatDetails = activeChatState?.chatDetails;
 	const podcast = activeChatState?.podcast;
-
-	const { generatePodcast } = props;
 
 	const [userPromt, setUserPrompt] = useState("");
 
@@ -33,7 +31,7 @@ export function ConfigModal(props: ConfigModalProps) {
 			user_prompt: userPromt,
 			user_language: locale, // Pass UI language for podcast generation
 		});
-	}, [chatDetails, userPromt, locale]);
+	}, [chatDetails, podcast, userPromt, locale, generatePodcast]);
 
 	return (
 		<Popover>
