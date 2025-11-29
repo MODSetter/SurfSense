@@ -378,7 +378,18 @@ async def bulk_retry_logs(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Retry multiple failed logs/tasks."""
+    """Retry multiple failed logs/tasks.
+
+    Returns:
+        dict: Response containing:
+            - retried: List of successfully retried log IDs
+            - skipped: List of skipped logs with reasons (not eligible for retry)
+            - total: Total count of retried + skipped logs
+
+    Note:
+        Logs may be skipped if they are not found, not owned by the user,
+        or have reached the maximum retry limit (3 retries).
+    """
     try:
         # Validate input
         if not log_ids:
@@ -434,7 +445,19 @@ async def bulk_dismiss_logs(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Dismiss multiple failed logs/tasks."""
+    """Dismiss multiple failed logs/tasks.
+
+    Returns:
+        dict: Response containing:
+            - dismissed: List of successfully dismissed log IDs
+            - skipped: List of skipped logs with reasons (not found or not owned)
+            - total: Total count of dismissed + skipped logs
+
+    Note:
+        Breaking change: The 'total' field now includes both dismissed and skipped logs,
+        whereas previously it only counted dismissed logs. This aligns with the
+        bulk_retry_logs endpoint for API consistency.
+    """
     try:
         # Validate input
         if not log_ids:

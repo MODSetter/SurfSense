@@ -348,7 +348,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 			const result = await response.json();
 			toast.success(`Successfully retried ${result.retried.length} log(s)`);
 			if (result.skipped.length > 0) {
-				toast.info(`Skipped ${result.skipped.length} log(s) (retry limit reached)`);
+				toast.info(`${result.skipped.length} log(s) not eligible for retry`);
 			}
 			return result;
 		} catch (err: any) {
@@ -381,7 +381,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 			const result = await response.json();
 			toast.success(`Successfully dismissed ${result.dismissed.length} log(s)`);
 			if (result.skipped && result.skipped.length > 0) {
-				toast.info(`Skipped ${result.skipped.length} log(s) (not found or not owned)`);
+				toast.info(`${result.skipped.length} log(s) could not be dismissed`);
 			}
 			return result;
 		} catch (err: any) {
