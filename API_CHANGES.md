@@ -59,10 +59,10 @@ const totalProcessed = result.total; // Total attempted (dismissed + skipped)
 ## Related Changes
 
 ### Consistent Skip Reason Messaging
-Both bulk operations now use generic, user-friendly skip reasons:
-- **bulk-retry**: "Log not eligible for retry"
+Both bulk operations now use generic, user-friendly skip reasons defined as constants:
+- **bulk-retry**: `"Log not eligible for retry"` (constant: `SKIP_REASON_NOT_ELIGIBLE_RETRY`)
   - Covers: not found, not owned, or retry limit reached
-- **bulk-dismiss**: "Log could not be dismissed"
+- **bulk-dismiss**: `"Log could not be dismissed"` (constant: `SKIP_REASON_COULD_NOT_DISMISS`)
   - Covers: not found or not owned by user
 
 This generic messaging approach:
@@ -70,6 +70,7 @@ This generic messaging approach:
 - Simplifies frontend internationalization (i18n)
 - Avoids exposing internal implementation details
 - Provides clear user-facing feedback
+- Uses constants to eliminate magic strings and improve maintainability
 
 ### Improved Input Validation
 - Empty `log_ids` arrays now return `400 Bad Request` instead of `404 Not Found`
