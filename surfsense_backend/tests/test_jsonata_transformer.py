@@ -233,3 +233,145 @@ class TestJSONataTransformer:
 
         assert result["name"] == "John Doe"
         assert result["email"] == "john@example.com"
+
+    def test_malformed_input_empty_dict(self):
+        """Test transformation handles empty dictionary gracefully."""
+        transformer = JSONataTransformer()
+
+        template = """
+        {
+            "title": $exists(title) ? title : "Untitled",
+            "content": $exists(body) ? body : "",
+            "document_type": "TEST_CONNECTOR"
+        }
+        """
+        transformer.register_template("test", template)
+
+        result = transformer.transform("test", {})
+
+        assert result["title"] == "Untitled"
+        assert result["content"] == ""
+        assert result["document_type"] == "TEST_CONNECTOR"
+
+    def test_malformed_input_missing_nested_fields(self):
+        """Test transformation handles missing nested fields without crashing."""
+        transformer = JSONataTransformer()
+
+        template = """
+        {
+            "title": title,
+            "author": $exists(user.name) ? user.name : "Unknown",
+            "email": $exists(user.contact.email) ? user.contact.email : null
+        }
+        """
+        transformer.register_template("test", template)
+
+        # Data with partial structure - user exists but no nested contact
+        incomplete_data = {"title": "Test Document", "user": {"name": "John"}}
+
+        result = transformer.transform("test", incomplete_data)
+
+        assert result["title"] == "Test Document"
+        assert result["author"] == "John"
+        assert result["email"] is None
+
+    def test_malformed_input_null_values(self):
+        """Test transformation handles explicit null values correctly."""
+        transformer = JSONataTransformer()
+
+        template = """
+        {
+            "title": $exists(title) ? title : "Untitled",
+            "assignee": $exists(assignee) ? assignee : null,
+            "status": $exists(status) ? status : "unknown"
+        }
+        """
+        transformer.register_template("test", template)
+
+        data = {"title": "Task", "assignee": None, "status": None}
+
+        result = transformer.transform("test", data)
+
+        assert result["title"] == "Task"
+        # $exists() returns false for null values
+        assert result["assignee"] is None
+        assert result["status"] == "unknown"
+
+    def test_malformed_input_array_instead_of_object(self):
+        """Test transformation handles unexpected array input."""
+        transformer = JSONataTransformer()
+
+        template = '{ "items": $count($) }'
+        transformer.register_template("test", template)
+
+        # Passing array instead of object
+        array_data = [{"id": 1}, {"id": 2}, {"id": 3}]
+
+        result = transformer.transform("test", array_data)
+
+        assert result["items"] == 3
+
+    def test_malformed_input_string_instead_of_array(self):
+        """Test transformation handles string where array expected."""
+        transformer = JSONataTransformer()
+
+        template = """
+        {
+            "tags": $type(labels) = "array" ? labels : [labels]
+        }
+        """
+        transformer.register_template("test", template)
+
+        # String instead of array for labels
+        data = {"labels": "bug"}
+
+        result = transformer.transform("test", data)
+
+        # Should wrap string in array
+        assert result["tags"] == ["bug"]
+
+    def test_invalid_template_registration(self):
+        """Test that registering invalid template raises ValueError."""
+        transformer = JSONataTransformer()
+
+        # Invalid JSONata syntax - unclosed brace
+        invalid_template = '{ "title": title'
+
+        with pytest.raises(ValueError) as exc_info:
+            transformer.register_template("invalid", invalid_template)
+
+        assert "Invalid JSONata expression" in str(exc_info.value)
+        assert "invalid" in str(exc_info.value)
+
+    def test_transformation_with_unicode_characters(self):
+        """Test transformation handles unicode characters correctly."""
+        transformer = JSONataTransformer()
+
+        template = '{ "title": title, "content": content }'
+        transformer.register_template("test", template)
+
+        data = {
+            "title": "Unicode Test: 你好世界 🌍",
+            "content": "Emoji support: ✅ 🚀 🎉",
+        }
+
+        result = transformer.transform("test", data)
+
+        assert result["title"] == "Unicode Test: 你好世界 🌍"
+        assert result["content"] == "Emoji support: ✅ 🚀 🎉"
+
+    def test_transformation_with_very_large_array(self):
+        """Test transformation performance with large arrays."""
+        transformer = JSONataTransformer()
+
+        template = '{ "total": $sum(items.value), "count": $count(items) }'
+        transformer.register_template("test", template)
+
+        # Create large array
+        large_array = [{"value": i} for i in range(1000)]
+        data = {"items": large_array}
+
+        result = transformer.transform("test", data)
+
+        assert result["count"] == 1000
+        assert result["total"] == sum(range(1000))
