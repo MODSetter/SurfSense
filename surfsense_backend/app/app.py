@@ -13,7 +13,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.config import config
 from app.config.jsonata_templates import CONNECTOR_TEMPLATES
 from app.db import SiteConfiguration, User, create_db_and_tables, get_async_session
-from app.dependencies.rate_limit import secure_rate_limit_key
+from app.dependencies.limiter import limiter
 from app.routes import router as crud_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.services.jsonata_transformer import transformer
@@ -25,10 +25,6 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 configure_logging(LOG_LEVEL)
 
 logger = get_logger(__name__)
-
-# Get Redis URL for rate limiter shared storage
-# Uses same Redis instance as Celery for rate limit counters
-REDIS_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 
 
 @asynccontextmanager
@@ -72,11 +68,7 @@ async def registration_allowed(session: AsyncSession = Depends(get_async_session
 
 app = FastAPI(lifespan=lifespan)
 
-# Initialize rate limiter with shared Redis storage
-# Uses secure_rate_limit_key which validates proxy headers against trusted proxies
-# This prevents IP spoofing attacks via forged X-Forwarded-For headers
-# storage_uri ensures all Limiter instances share the same rate limit counters
-limiter = Limiter(key_func=secure_rate_limit_key, storage_uri=REDIS_URL)
+# Register shared rate limiter with FastAPI app
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

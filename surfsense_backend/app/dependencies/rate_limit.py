@@ -5,6 +5,8 @@ This module provides reusable dependencies for checking rate limits
 across different endpoints to avoid code duplication.
 """
 
+from __future__ import annotations
+
 import ipaddress
 import logging
 import os
