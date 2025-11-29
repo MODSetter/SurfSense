@@ -64,7 +64,7 @@ class LogFilter(BaseModel):
 class SkippedLog(BaseModel):
     """Model for a skipped log in bulk operations."""
     id: int
-    reason: str
+    reason: Literal[SKIP_REASON_NOT_ELIGIBLE_RETRY, SKIP_REASON_COULD_NOT_DISMISS]
 
     model_config = ConfigDict(from_attributes=True)
 
