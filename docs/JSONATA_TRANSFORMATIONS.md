@@ -62,11 +62,11 @@ ASANA_TASK_TEMPLATE = """
     "document_type": "ASANA_CONNECTOR",
     "document_metadata": {
         "task_id": gid,
-        "project": projects[0].name,
-        "assignee": assignee.name,
-        "due_date": due_on,
+        "project": $exists(projects[0]) ? projects[0].name : null,
+        "assignee": $exists(assignee) ? assignee.name : null,
+        "due_date": $exists(due_on) ? due_on : null,
         "completed": completed,
-        "tags": tags.name
+        "tags": $exists(tags) ? tags.name : []
     }
 }
 """

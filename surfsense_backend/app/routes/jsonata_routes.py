@@ -107,10 +107,12 @@ async def transform_data(
         )
         return TransformResponse(result=result)
     except Exception as e:
+        # Log full error details server-side for debugging
         logger.error(f"JSONata transformation failed: {e}", exc_info=True)
+        # Return generic user-friendly message (no internal details)
         raise HTTPException(
             status_code=400,
-            detail=f"JSONata transformation failed: {str(e)}",
+            detail="Transformation failed. Please check your JSONata expression syntax and data structure.",
         ) from e
 
 

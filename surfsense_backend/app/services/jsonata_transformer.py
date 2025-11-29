@@ -21,15 +21,6 @@ Usage:
 from typing import Any
 
 import pyjsonata
-from pydantic import BaseModel
-
-
-class TransformationTemplate(BaseModel):
-    """JSONata transformation template configuration."""
-
-    name: str
-    jsonata_expression: str
-    description: str | None = None
 
 
 class JSONataTransformer:
@@ -37,15 +28,22 @@ class JSONataTransformer:
 
     def __init__(self):
         """Initialize the transformer with an empty template registry."""
-        self.templates: dict[str, str] = {}
+        # Store compiled expressions instead of raw strings for performance
+        self.templates: dict[str, Any] = {}
 
     def register_template(self, connector_type: str, jsonata_expression: str) -> None:
         """
-        Register a JSONata transformation template for a connector.
+        Register and pre-compile a JSONata transformation template for a connector.
+
+        Templates are compiled once during registration to eliminate redundant
+        compilation overhead on every transform() call.
 
         Args:
             connector_type: Identifier for the connector (e.g., 'github', 'gmail')
             jsonata_expression: JSONata expression to transform the data
+
+        Raises:
+            ValueError: If the JSONata expression is invalid
 
         Example:
             >>> transformer.register_template(
@@ -53,13 +51,20 @@ class JSONataTransformer:
             ...     '{ "title": title, "content": body }'
             ... )
         """
-        self.templates[connector_type] = jsonata_expression
+        try:
+            # Pre-compile the expression for performance
+            compiled_expression = pyjsonata.compile_jsonata(jsonata_expression)
+            self.templates[connector_type] = compiled_expression
+        except Exception as e:
+            raise ValueError(
+                f"Invalid JSONata expression for connector '{connector_type}': {str(e)}"
+            ) from e
 
     def transform(
         self, connector_type: str, data: dict[str, Any]
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """
-        Transform connector response using registered template.
+        Transform connector response using pre-compiled template.
 
         Args:
             connector_type: The connector type to use for transformation
@@ -69,7 +74,6 @@ class JSONataTransformer:
             Transformed data according to the template
 
         Raises:
-            KeyError: If no template is registered for the connector type
             Exception: If JSONata transformation fails
 
         Example:
@@ -82,8 +86,9 @@ class JSONataTransformer:
             # Fallback: return original data if no template registered
             return data
 
-        expression = pyjsonata.compile_jsonata(self.templates[connector_type])
-        return expression.evaluate(data)
+        # Use pre-compiled expression (no compilation overhead)
+        compiled_expression = self.templates[connector_type]
+        return compiled_expression.evaluate(data)
 
     def transform_custom(
         self, jsonata_expression: str, data: dict[str, Any]

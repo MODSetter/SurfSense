@@ -149,21 +149,57 @@ DISCORD_MESSAGE_TEMPLATE = """
 
 # Notion Page Template
 # Transforms Notion API page responses
+# Handles complex block structure with proper null safety and nested content extraction
 NOTION_PAGE_TEMPLATE = """
 {
-    "title": properties.title.title[0].plain_text,
-    "content": $join(properties.*.rich_text[].plain_text, "\\n"),
+    "title": (
+        $exists(properties.Name.title[0].plain_text) ?
+        properties.Name.title[0].plain_text :
+        $exists(properties.title.title[0].plain_text) ?
+        properties.title.title[0].plain_text :
+        "Untitled"
+    ),
+    "content": $join([
+        /* Extract title */
+        $exists(properties.Name.title[0]) ?
+            "# " & properties.Name.title[0].plain_text & "\\n\\n" : "",
+
+        /* Extract rich text from various property types */
+        properties.$spread().(
+            $value.type = "rich_text" ?
+                $join($value.rich_text[].plain_text, " ") & "\\n" :
+            $value.type = "title" ?
+                $join($value.title[].plain_text, " ") & "\\n" :
+            ""
+        ),
+
+        /* Extract content from blocks if available */
+        $exists(blocks) ? $join(
+            blocks[].(
+                type = "paragraph" ? paragraph.rich_text[].plain_text & "\\n" :
+                type = "heading_1" ? "# " & heading_1.rich_text[].plain_text & "\\n" :
+                type = "heading_2" ? "## " & heading_2.rich_text[].plain_text & "\\n" :
+                type = "heading_3" ? "### " & heading_3.rich_text[].plain_text & "\\n" :
+                type = "bulleted_list_item" ? "- " & bulleted_list_item.rich_text[].plain_text & "\\n" :
+                type = "numbered_list_item" ? "1. " & numbered_list_item.rich_text[].plain_text & "\\n" :
+                type = "code" ? "```\\n" & code.rich_text[].plain_text & "\\n```\\n" :
+                type = "quote" ? "> " & quote.rich_text[].plain_text & "\\n" :
+                ""
+            )
+        ) : ""
+    ]),
     "document_type": "NOTION_CONNECTOR",
     "document_metadata": {
-        "id": id,
-        "url": url,
+        "page_id": id,
         "created_time": created_time,
         "last_edited_time": last_edited_time,
-        "created_by": created_by.id,
-        "last_edited_by": last_edited_by.id,
-        "icon": icon.emoji,
-        "cover": cover.external.url,
-        "archived": archived
+        "url": url,
+        "archived": $exists(archived) ? archived : false,
+        "created_by": $exists(created_by.id) ? created_by.id : null,
+        "last_edited_by": $exists(last_edited_by.id) ? last_edited_by.id : null,
+        "icon": $exists(icon.emoji) ? icon.emoji : null,
+        "cover": $exists(cover.external.url) ? cover.external.url : null,
+        "properties": properties
     }
 }
 """
@@ -217,6 +253,7 @@ GOOGLE_CALENDAR_EVENT_TEMPLATE = """
 
 # Linear Issue Template
 # Transforms Linear API issue responses
+# Includes null safety checks for optional fields
 LINEAR_ISSUE_TEMPLATE = """
 {
     "title": title,
@@ -225,16 +262,16 @@ LINEAR_ISSUE_TEMPLATE = """
     "document_metadata": {
         "id": id,
         "identifier": identifier,
-        "state": state.name,
+        "state": $exists(state) ? state.name : "No Status",
         "priority": priority,
-        "assignee": assignee.name,
-        "creator": creator.name,
+        "assignee": $exists(assignee) ? assignee.name : null,
+        "creator": $exists(creator) ? creator.name : null,
         "created_at": createdAt,
         "updated_at": updatedAt,
-        "completed_at": completedAt,
-        "project": project.name,
-        "team": team.name,
-        "labels": labels.nodes.name,
+        "completed_at": $exists(completedAt) ? completedAt : null,
+        "project": $exists(project) ? project.name : null,
+        "team": $exists(team) ? team.name : null,
+        "labels": $exists(labels.nodes) ? labels.nodes.name : [],
         "url": url
     }
 }
