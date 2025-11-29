@@ -293,3 +293,168 @@ async def get_logs_summary(
         raise HTTPException(
             status_code=500, detail=f"Failed to generate logs summary: {e!s}"
         ) from e
+
+
+@router.post("/logs/{log_id}/retry", response_model=LogRead)
+async def retry_log(
+    log_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Retry a failed log/task."""
+    try:
+        # Get log and verify user owns the search space
+        result = await session.execute(
+            select(Log)
+            .join(SearchSpace)
+            .filter(Log.id == log_id, SearchSpace.user_id == user.id)
+        )
+        db_log = result.scalars().first()
+
+        if not db_log:
+            raise HTTPException(status_code=404, detail="Log not found")
+
+        # Check retry count limit (max 3 retries)
+        if db_log.retry_count >= 3:
+            raise HTTPException(
+                status_code=400,
+                detail="Maximum retry limit reached (3). Cannot retry this task.",
+            )
+
+        # Increment retry count and reset status to IN_PROGRESS
+        db_log.retry_count += 1
+        db_log.status = LogStatus.IN_PROGRESS
+        db_log.message = f"Retrying task (attempt {db_log.retry_count + 1})..."
+
+        await session.commit()
+        await session.refresh(db_log)
+        return db_log
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retry log: {e!s}"
+        ) from e
+
+
+@router.patch("/logs/{log_id}/dismiss", response_model=LogRead)
+async def dismiss_log(
+    log_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Dismiss a failed log/task."""
+    try:
+        # Get log and verify user owns the search space
+        result = await session.execute(
+            select(Log)
+            .join(SearchSpace)
+            .filter(Log.id == log_id, SearchSpace.user_id == user.id)
+        )
+        db_log = result.scalars().first()
+
+        if not db_log:
+            raise HTTPException(status_code=404, detail="Log not found")
+
+        # Set status to DISMISSED
+        db_log.status = LogStatus.DISMISSED
+
+        await session.commit()
+        await session.refresh(db_log)
+        return db_log
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to dismiss log: {e!s}"
+        ) from e
+
+
+@router.post("/logs/bulk-retry")
+async def bulk_retry_logs(
+    log_ids: list[int],
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Retry multiple failed logs/tasks."""
+    try:
+        # Get logs and verify user owns the search spaces
+        result = await session.execute(
+            select(Log)
+            .join(SearchSpace)
+            .filter(Log.id.in_(log_ids), SearchSpace.user_id == user.id)
+        )
+        db_logs = result.scalars().all()
+
+        if not db_logs:
+            raise HTTPException(status_code=404, detail="No logs found")
+
+        retried = []
+        skipped = []
+
+        for db_log in db_logs:
+            # Check retry count limit
+            if db_log.retry_count >= 3:
+                skipped.append(
+                    {"id": db_log.id, "reason": "Maximum retry limit reached"}
+                )
+                continue
+
+            # Increment retry count and reset status
+            db_log.retry_count += 1
+            db_log.status = LogStatus.IN_PROGRESS
+            db_log.message = f"Retrying task (attempt {db_log.retry_count + 1})..."
+            retried.append(db_log.id)
+
+        await session.commit()
+
+        return {
+            "retried": retried,
+            "skipped": skipped,
+            "total": len(retried) + len(skipped),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retry logs: {e!s}"
+        ) from e
+
+
+@router.post("/logs/bulk-dismiss")
+async def bulk_dismiss_logs(
+    log_ids: list[int],
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Dismiss multiple failed logs/tasks."""
+    try:
+        # Get logs and verify user owns the search spaces
+        result = await session.execute(
+            select(Log)
+            .join(SearchSpace)
+            .filter(Log.id.in_(log_ids), SearchSpace.user_id == user.id)
+        )
+        db_logs = result.scalars().all()
+
+        if not db_logs:
+            raise HTTPException(status_code=404, detail="No logs found")
+
+        dismissed = []
+        for db_log in db_logs:
+            db_log.status = LogStatus.DISMISSED
+            dismissed.append(db_log.id)
+
+        await session.commit()
+
+        return {"dismissed": dismissed, "total": len(dismissed)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to dismiss logs: {e!s}"
+        ) from e

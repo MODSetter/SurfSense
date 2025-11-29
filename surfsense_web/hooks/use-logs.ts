@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
-export type LogStatus = "IN_PROGRESS" | "SUCCESS" | "FAILED";
+export type LogStatus = "IN_PROGRESS" | "SUCCESS" | "FAILED" | "DISMISSED";
 
 export interface Log {
 	id: number;
@@ -13,6 +13,7 @@ export interface Log {
 	message: string;
 	source?: string;
 	log_metadata?: Record<string, any>;
+	retry_count: number;
 	created_at: string;
 	search_space_id: number;
 }
@@ -264,6 +265,129 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 		}
 	}, []);
 
+	// Function to retry a log
+	const retryLog = useCallback(async (logId: number) => {
+		try {
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}/retry`,
+				{
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+					},
+					method: "POST",
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.detail || "Failed to retry log");
+			}
+
+			const updatedLog = await response.json();
+			setLogs((prevLogs) => prevLogs.map((log) => (log.id === logId ? updatedLog : log)));
+			toast.success("Log retry initiated successfully");
+			return updatedLog;
+		} catch (err: any) {
+			toast.error(err.message || "Failed to retry log");
+			console.error("Error retrying log:", err);
+			throw err;
+		}
+	}, []);
+
+	// Function to dismiss a log
+	const dismissLog = useCallback(async (logId: number) => {
+		try {
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}/dismiss`,
+				{
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+					},
+					method: "PATCH",
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.detail || "Failed to dismiss log");
+			}
+
+			const updatedLog = await response.json();
+			setLogs((prevLogs) => prevLogs.map((log) => (log.id === logId ? updatedLog : log)));
+			toast.success("Log dismissed successfully");
+			return updatedLog;
+		} catch (err: any) {
+			toast.error(err.message || "Failed to dismiss log");
+			console.error("Error dismissing log:", err);
+			throw err;
+		}
+	}, []);
+
+	// Function to bulk retry logs
+	const bulkRetryLogs = useCallback(async (logIds: number[]) => {
+		try {
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/bulk-retry`,
+				{
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+					},
+					method: "POST",
+					body: JSON.stringify(logIds),
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.detail || "Failed to retry logs");
+			}
+
+			const result = await response.json();
+			toast.success(`Successfully retried ${result.retried.length} log(s)`);
+			if (result.skipped.length > 0) {
+				toast.info(`Skipped ${result.skipped.length} log(s) (retry limit reached)`);
+			}
+			return result;
+		} catch (err: any) {
+			toast.error(err.message || "Failed to retry logs");
+			console.error("Error retrying logs:", err);
+			throw err;
+		}
+	}, []);
+
+	// Function to bulk dismiss logs
+	const bulkDismissLogs = useCallback(async (logIds: number[]) => {
+		try {
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/bulk-dismiss`,
+				{
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
+					},
+					method: "POST",
+					body: JSON.stringify(logIds),
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.detail || "Failed to dismiss logs");
+			}
+
+			const result = await response.json();
+			toast.success(`Successfully dismissed ${result.dismissed.length} log(s)`);
+			return result;
+		} catch (err: any) {
+			toast.error(err.message || "Failed to dismiss logs");
+			console.error("Error dismissing logs:", err);
+			throw err;
+		}
+	}, []);
+
 	return {
 		logs,
 		loading,
@@ -274,6 +398,10 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 		deleteLog,
 		getLog,
 		fetchLogs,
+		retryLog,
+		dismissLog,
+		bulkRetryLogs,
+		bulkDismissLogs,
 	};
 }
 

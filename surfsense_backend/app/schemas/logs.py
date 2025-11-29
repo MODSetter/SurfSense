@@ -14,6 +14,7 @@ class LogBase(BaseModel):
     message: str
     source: str | None = None
     log_metadata: dict[str, Any] | None = None
+    retry_count: int = 0
 
 
 class LogCreate(BaseModel):
@@ -23,6 +24,7 @@ class LogCreate(BaseModel):
     source: str | None = None
     log_metadata: dict[str, Any] | None = None
     search_space_id: int
+    retry_count: int = 0
 
 
 class LogUpdate(BaseModel):
@@ -31,12 +33,14 @@ class LogUpdate(BaseModel):
     message: str | None = None
     source: str | None = None
     log_metadata: dict[str, Any] | None = None
+    retry_count: int | None = None
 
 
 class LogRead(LogBase, IDModel, TimestampModel):
     id: int
     created_at: datetime
     search_space_id: int
+    retry_count: int
 
     model_config = ConfigDict(from_attributes=True)
 
