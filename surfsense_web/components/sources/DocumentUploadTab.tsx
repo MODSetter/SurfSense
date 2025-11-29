@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { CheckCircle2, FileType, Info, Loader2, Tag, Upload, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
-
+import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,8 +25,10 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
 	const router = useRouter();
 	const [files, setFiles] = useState<File[]>([]);
-	const [isUploading, setIsUploading] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
+	const { mutateAsync: uploadDocument, isPending: isUploading } = useAtomValue(
+		uploadDocumentMutationAtom
+	);
 
 	const audioFileTypes = {
 		"audio/mpeg": [".mp3", ".mpeg", ".mpga"],
@@ -147,14 +150,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 	};
 
 	const handleUpload = async () => {
-		setIsUploading(true);
 		setUploadProgress(0);
-
-		const formData = new FormData();
-		files.forEach((file) => {
-			formData.append("files", file);
-		});
-		formData.append("search_space_id", searchSpaceId);
 
 		try {
 			const progressInterval = setInterval(() => {
@@ -164,25 +160,10 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				});
 			}, 200);
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/fileupload`,
-				{
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${window.localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					body: formData,
-				}
-			);
+			await uploadDocument({ files, search_space_id: parseInt(searchSpaceId) });
 
 			clearInterval(progressInterval);
 			setUploadProgress(100);
-
-			if (!response.ok) {
-				throw new Error("Upload failed");
-			}
-
-			await response.json();
 
 			toast(t("upload_initiated"), {
 				description: t("upload_initiated_desc"),
@@ -190,7 +171,6 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 
 			router.push(`/dashboard/${searchSpaceId}/documents`);
 		} catch (error: any) {
-			setIsUploading(false);
 			setUploadProgress(0);
 			toast(t("upload_error"), {
 				description: `${t("upload_error_desc")}: ${error.message}`,

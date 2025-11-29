@@ -1,4 +1,3 @@
-import { th } from "date-fns/locale";
 import type z from "zod";
 import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
 
@@ -58,7 +57,6 @@ class BaseApiService {
 			 */
 			const defaultOptions: RequestOptions = {
 				headers: {
-					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.bearerToken || ""}`,
 				},
 				method: "GET",
@@ -211,6 +209,9 @@ class BaseApiService {
 		return this.request(url, responseSchema, {
 			...options,
 			method: "GET",
+			headers: {
+				"Content-Type": "application/json",
+			},
 			responseType: ResponseType.JSON,
 		});
 	}
@@ -223,6 +224,9 @@ class BaseApiService {
 		return this.request(url, responseSchema, {
 			method: "POST",
 			...options,
+			headers: {
+				"Content-Type": "application/json",
+			},
 			responseType: ResponseType.JSON,
 		});
 	}
@@ -235,6 +239,9 @@ class BaseApiService {
 		return this.request(url, responseSchema, {
 			method: "PUT",
 			...options,
+			headers: {
+				"Content-Type": "application/json",
+			},
 			responseType: ResponseType.JSON,
 		});
 	}
@@ -247,6 +254,9 @@ class BaseApiService {
 		return this.request(url, responseSchema, {
 			method: "DELETE",
 			...options,
+			headers: {
+				"Content-Type": "application/json",
+			},
 			responseType: ResponseType.JSON,
 		});
 	}
@@ -256,6 +266,26 @@ class BaseApiService {
 			...options,
 			method: "GET",
 			responseType: ResponseType.BLOB,
+		});
+	}
+
+	async postFormData<T>(
+		url: string,
+		responseSchema?: z.ZodSchema<T>,
+		options?: Omit<RequestOptions, "method" | "responseType" | "body"> & { body: FormData }
+	) {
+		// Remove Content-Type from options headers if present
+		const { "Content-Type": _, ...headersWithoutContentType } = options?.headers ?? {};
+
+		return this.request(url, responseSchema, {
+			method: "POST",
+			...options,
+			headers: {
+				// Don't set Content-Type - let browser set it with multipart boundary
+				Authorization: `Bearer ${this.bearerToken}`,
+				...headersWithoutContentType,
+			},
+			responseType: ResponseType.JSON,
 		});
 	}
 }
