@@ -5,32 +5,22 @@ These endpoints allow testing JSONata transformations interactively and
 inspecting registered transformation templates.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
-import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from slowapi import Limiter
 
-from app.dependencies.rate_limit import secure_rate_limit_key
+from app.dependencies.limiter import limiter
 from app.services.jsonata_transformer import transformer
 from app.users import User, current_active_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/jsonata", tags=["jsonata"])
-
-# Get Redis URL for rate limiter shared storage
-# Uses same Redis instance as Celery for rate limit counters
-REDIS_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-
-# Rate limiter for JSONata endpoints with shared Redis storage
-# Uses secure_rate_limit_key which validates proxy headers against trusted proxies
-# This prevents IP spoofing attacks via forged X-Forwarded-For headers
-# storage_uri ensures all Limiter instances share the same rate limit counters
-limiter = Limiter(key_func=secure_rate_limit_key, storage_uri=REDIS_URL)
 
 
 class TransformRequest(BaseModel):

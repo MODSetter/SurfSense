@@ -1,4 +1,6 @@
 # Force asyncio to use standard event loop before unstructured imports
+from __future__ import annotations
+
 import asyncio
 import os
 import string
@@ -7,7 +9,6 @@ from pathlib import Path
 
 import aiofiles
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
-from slowapi import Limiter
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -20,6 +21,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.dependencies.limiter import limiter
 from app.schemas import (
     DocumentRead,
     DocumentsCreate,
@@ -27,7 +29,6 @@ from app.schemas import (
     DocumentWithChunksRead,
     PaginatedResponse,
 )
-from app.dependencies.rate_limit import secure_rate_limit_key
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 from app.utils.verify_space_write_permission import verify_space_write_permission
@@ -48,16 +49,6 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 
 router = APIRouter()
-
-# Get Redis URL for rate limiter shared storage
-# Uses same Redis instance as Celery for rate limit counters
-REDIS_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-
-# Rate limiting for API endpoints with shared Redis storage
-# Uses secure_rate_limit_key which validates proxy headers against trusted proxies
-# This prevents IP spoofing attacks via forged X-Forwarded-For headers
-# storage_uri ensures all Limiter instances share the same rate limit counters
-limiter = Limiter(key_func=secure_rate_limit_key, storage_uri=REDIS_URL)
 
 # File upload security settings
 MAX_FILE_SIZE_MB = 1024  # Maximum file size in MB (1GB)
