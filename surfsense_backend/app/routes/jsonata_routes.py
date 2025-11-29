@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 
-from app.dependencies.rate_limit import get_client_ip
+from app.dependencies.rate_limit import secure_rate_limit_key
 from app.services.jsonata_transformer import transformer
 from app.users import User, current_active_user
 
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/jsonata", tags=["jsonata"])
 
 # Rate limiter for JSONata endpoints
-# Uses secure get_client_ip which validates proxy headers against trusted proxies
+# Uses secure_rate_limit_key which validates proxy headers against trusted proxies
 # This prevents IP spoofing attacks via forged X-Forwarded-For headers
-limiter = Limiter(key_func=lambda request: get_client_ip(request) or "unknown")
+limiter = Limiter(key_func=secure_rate_limit_key)
 
 
 class TransformRequest(BaseModel):
