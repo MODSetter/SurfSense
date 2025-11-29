@@ -65,24 +65,42 @@ Both bulk operations now use specific skip reasons defined as an Enum for better
 - `LOG_NOT_FOUND` - "Log not found"
 - `NOT_OWNER` - "Not authorized to modify this log"
 - `RETRY_LIMIT_REACHED` - "Maximum retry limit reached"
+- `INVALID_STATUS` - "Log status not eligible for this operation"
+- `ALREADY_DISMISSED` - "Log already dismissed"
 
 **bulk-retry skip reasons:**
 - `LOG_NOT_FOUND`: Log ID does not exist in database
 - `NOT_OWNER`: User does not have permission to modify this log
-- `RETRY_LIMIT_REACHED`: Log has already been retried 3 times
+- `RETRY_LIMIT_REACHED`: Log has already been retried 3 times (maximum)
+- `INVALID_STATUS`: Log status is not FAILED (e.g., IN_PROGRESS, SUCCESS, DISMISSED)
 
 **bulk-dismiss skip reasons:**
 - `LOG_NOT_FOUND`: Log ID does not exist in database
 - `NOT_OWNER`: User does not have permission to modify this log
+- `ALREADY_DISMISSED`: Log is already in DISMISSED status
 
-**Example Response:**
+**Example bulk-retry Response:**
 ```json
 {
   "retried": [1, 2],
   "skipped": [
     {"id": 3, "reason": "Log not found"},
     {"id": 4, "reason": "Not authorized to modify this log"},
-    {"id": 5, "reason": "Maximum retry limit reached"}
+    {"id": 5, "reason": "Maximum retry limit reached"},
+    {"id": 6, "reason": "Log status not eligible for this operation"}
+  ],
+  "total": 6
+}
+```
+
+**Example bulk-dismiss Response:**
+```json
+{
+  "dismissed": [1, 2],
+  "skipped": [
+    {"id": 3, "reason": "Log not found"},
+    {"id": 4, "reason": "Not authorized to modify this log"},
+    {"id": 5, "reason": "Log already dismissed"}
   ],
   "total": 5
 }
@@ -90,7 +108,11 @@ Both bulk operations now use specific skip reasons defined as an Enum for better
 
 This granular categorization:
 - Enables precise client-side debugging and error handling
-- Distinguishes between "not found", "permission denied", and "limit reached" scenarios
+- Distinguishes between multiple failure scenarios:
+  - "not found" vs "permission denied" vs "limit reached" vs "invalid status"
+  - "already dismissed" for idempotent operations
+- Prevents incorrect categorization (e.g., marking invalid status logs as not found)
+- Adds status checks to UPDATE operations for correctness
 - Uses type-safe Enum pattern aligned with existing codebase (LogLevel, LogStatus)
 - Provides clear, actionable feedback to users and developers
 - Maintains API consistency between bulk operations

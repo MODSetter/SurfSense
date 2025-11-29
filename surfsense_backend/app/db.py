@@ -138,6 +138,8 @@ class SkipReason(str, Enum):
     LOG_NOT_FOUND = "Log not found"
     NOT_OWNER = "Not authorized to modify this log"
     RETRY_LIMIT_REACHED = "Maximum retry limit reached"
+    INVALID_STATUS = "Log status not eligible for this operation"
+    ALREADY_DISMISSED = "Log already dismissed"
 
 
 class SocialMediaPlatform(str, Enum):
