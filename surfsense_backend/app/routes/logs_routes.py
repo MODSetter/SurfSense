@@ -390,12 +390,17 @@ async def bulk_retry_logs(
     Returns:
         BulkRetryResponse: Response containing:
             - retried: List of successfully retried log IDs
-            - skipped: List of skipped logs with reasons (not eligible for retry)
+            - skipped: List of skipped logs with specific reasons for debugging
             - total: Total count of retried + skipped logs
 
+    Skip Reasons:
+        - LOG_NOT_FOUND: Log ID does not exist in the database
+        - NOT_OWNER: User does not have permission to modify this log
+        - RETRY_LIMIT_REACHED: Log has already been retried 3 times (maximum)
+
     Note:
-        Logs may be skipped if they are not found, not owned by the user,
-        or have reached the maximum retry limit (3 retries).
+        Skipped logs are categorized by specific reasons to enable better
+        client-side debugging and error handling.
     """
     try:
         # Validate input
@@ -426,12 +431,50 @@ async def bulk_retry_logs(
         retried_ids = [row[0] for row in result.all()]
 
         # Determine which logs were skipped (those in log_ids but not in retried_ids)
-        # Logs can be skipped for multiple reasons: not found, not owned by user, or retry limit reached
+        # Categorize skipped logs by specific reasons for better debugging
         skipped_ids = set(log_ids) - set(retried_ids)
-        skipped = [
-            SkippedLog(id=log_id, reason=SkipReason.NOT_ELIGIBLE_RETRY)
-            for log_id in skipped_ids
-        ]
+        skipped = []
+
+        if skipped_ids:
+            # Find logs that exist but user doesn't own (NOT_OWNER)
+            not_owned_result = await session.execute(
+                select(Log.id)
+                .filter(
+                    and_(
+                        Log.id.in_(skipped_ids),
+                        ~Log.search_space_id.in_(
+                            select(SearchSpace.id).where(SearchSpace.user_id == user.id)
+                        )
+                    )
+                )
+            )
+            not_owned_ids = {row[0] for row in not_owned_result.all()}
+
+            # Find logs that exist, user owns, but retry limit reached (RETRY_LIMIT_REACHED)
+            retry_limit_result = await session.execute(
+                select(Log.id)
+                .filter(
+                    and_(
+                        Log.id.in_(skipped_ids),
+                        Log.retry_count >= 3,
+                        Log.search_space_id.in_(
+                            select(SearchSpace.id).where(SearchSpace.user_id == user.id)
+                        )
+                    )
+                )
+            )
+            retry_limit_ids = {row[0] for row in retry_limit_result.all()}
+
+            # Remaining logs are not found (LOG_NOT_FOUND)
+            not_found_ids = skipped_ids - not_owned_ids - retry_limit_ids
+
+            # Build skipped list with specific reasons
+            for log_id in not_found_ids:
+                skipped.append(SkippedLog(id=log_id, reason=SkipReason.LOG_NOT_FOUND))
+            for log_id in not_owned_ids:
+                skipped.append(SkippedLog(id=log_id, reason=SkipReason.NOT_OWNER))
+            for log_id in retry_limit_ids:
+                skipped.append(SkippedLog(id=log_id, reason=SkipReason.RETRY_LIMIT_REACHED))
 
         await session.commit()
 
@@ -460,15 +503,20 @@ async def bulk_dismiss_logs(
     Returns:
         BulkDismissResponse: Response containing:
             - dismissed: List of successfully dismissed log IDs
-            - skipped: List of skipped logs with generic reason
+            - skipped: List of skipped logs with specific reasons for debugging
             - total: Total count of dismissed + skipped logs
+
+    Skip Reasons:
+        - LOG_NOT_FOUND: Log ID does not exist in the database
+        - NOT_OWNER: User does not have permission to modify this log
 
     Note:
         Breaking change: The 'total' field now includes both dismissed and skipped logs,
         whereas previously it only counted dismissed logs. This aligns with the
         bulk_retry_logs endpoint for API consistency.
 
-        Logs may be skipped if they are not found or not owned by the user.
+        Skipped logs are categorized by specific reasons to enable better
+        client-side debugging and error handling.
     """
     try:
         # Validate input
@@ -494,12 +542,33 @@ async def bulk_dismiss_logs(
         dismissed_ids = [row[0] for row in result.all()]
 
         # Determine which logs were skipped (those in log_ids but not in dismissed_ids)
-        # Logs can be skipped if they are not found or not owned by the user
+        # Categorize skipped logs by specific reasons for better debugging
         skipped_ids = set(log_ids) - set(dismissed_ids)
-        skipped = [
-            SkippedLog(id=log_id, reason=SkipReason.COULD_NOT_DISMISS)
-            for log_id in skipped_ids
-        ]
+        skipped = []
+
+        if skipped_ids:
+            # Find logs that exist but user doesn't own (NOT_OWNER)
+            not_owned_result = await session.execute(
+                select(Log.id)
+                .filter(
+                    and_(
+                        Log.id.in_(skipped_ids),
+                        ~Log.search_space_id.in_(
+                            select(SearchSpace.id).where(SearchSpace.user_id == user.id)
+                        )
+                    )
+                )
+            )
+            not_owned_ids = {row[0] for row in not_owned_result.all()}
+
+            # Remaining logs are not found (LOG_NOT_FOUND)
+            not_found_ids = skipped_ids - not_owned_ids
+
+            # Build skipped list with specific reasons
+            for log_id in not_found_ids:
+                skipped.append(SkippedLog(id=log_id, reason=SkipReason.LOG_NOT_FOUND))
+            for log_id in not_owned_ids:
+                skipped.append(SkippedLog(id=log_id, reason=SkipReason.NOT_OWNER))
 
         await session.commit()
 

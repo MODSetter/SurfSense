@@ -135,8 +135,9 @@ class LogStatus(str, Enum):
 
 class SkipReason(str, Enum):
     """Skip reasons for bulk log operations."""
-    NOT_ELIGIBLE_RETRY = "Log not eligible for retry"
-    COULD_NOT_DISMISS = "Log could not be dismissed"
+    LOG_NOT_FOUND = "Log not found"
+    NOT_OWNER = "Not authorized to modify this log"
+    RETRY_LIMIT_REACHED = "Maximum retry limit reached"
 
 
 class SocialMediaPlatform(str, Enum):
