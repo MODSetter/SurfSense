@@ -20,7 +20,7 @@ Usage:
 
 from typing import Any
 
-import pyjsonata
+import jsonata
 
 
 class JSONataTransformer:
@@ -53,7 +53,7 @@ class JSONataTransformer:
         """
         try:
             # Pre-compile the expression for performance
-            compiled_expression = pyjsonata.compile_jsonata(jsonata_expression)
+            compiled_expression = jsonata.Jsonata(jsonata_expression)
             self.templates[connector_type] = compiled_expression
         except Exception as e:
             raise ValueError(
@@ -115,7 +115,7 @@ class JSONataTransformer:
             ...     {"user": {"name": "John", "email": "john@example.com"}}
             ... )
         """
-        expression = pyjsonata.compile_jsonata(jsonata_expression)
+        expression = jsonata.Jsonata(jsonata_expression)
         return expression.evaluate(data)
 
     def has_template(self, connector_type: str) -> bool:
