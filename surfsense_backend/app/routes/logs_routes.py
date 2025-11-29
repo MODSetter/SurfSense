@@ -12,6 +12,10 @@ from app.utils.check_ownership import check_ownership
 
 router = APIRouter()
 
+# Skip reason constants for bulk operations
+SKIP_REASON_NOT_ELIGIBLE_RETRY = "Log not eligible for retry"
+SKIP_REASON_COULD_NOT_DISMISS = "Log could not be dismissed"
+
 
 @router.post("/logs", response_model=LogRead)
 async def create_log(
@@ -421,7 +425,7 @@ async def bulk_retry_logs(
         # Determine which logs were skipped (those in log_ids but not in retried_ids)
         # Logs can be skipped for multiple reasons: not found, not owned by user, or retry limit reached
         skipped_ids = set(log_ids) - set(retried_ids)
-        skipped = [{"id": log_id, "reason": "Log not eligible for retry"} for log_id in skipped_ids]
+        skipped = [{"id": log_id, "reason": SKIP_REASON_NOT_ELIGIBLE_RETRY} for log_id in skipped_ids]
 
         await session.commit()
 
@@ -486,7 +490,7 @@ async def bulk_dismiss_logs(
         # Determine which logs were skipped (those in log_ids but not in dismissed_ids)
         # Logs can be skipped if they are not found or not owned by the user
         skipped_ids = set(log_ids) - set(dismissed_ids)
-        skipped = [{"id": log_id, "reason": "Log could not be dismissed"} for log_id in skipped_ids]
+        skipped = [{"id": log_id, "reason": SKIP_REASON_COULD_NOT_DISMISS} for log_id in skipped_ids]
 
         await session.commit()
 
