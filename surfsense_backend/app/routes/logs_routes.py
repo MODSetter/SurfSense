@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import and_, desc, update
+from sqlalchemy import and_, desc, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -380,40 +380,42 @@ async def bulk_retry_logs(
 ):
     """Retry multiple failed logs/tasks."""
     try:
-        # Get logs and verify user owns the search spaces
-        result = await session.execute(
-            select(Log)
-            .join(SearchSpace)
-            .filter(Log.id.in_(log_ids), SearchSpace.user_id == user.id)
+        # Use bulk UPDATE with conditions to retry eligible logs atomically
+        # Only update logs where retry_count < 3 and user owns the search space
+        stmt = (
+            update(Log)
+            .where(
+                and_(
+                    Log.id.in_(log_ids),
+                    Log.retry_count < 3,
+                    Log.search_space_id.in_(
+                        select(SearchSpace.id).where(SearchSpace.user_id == user.id)
+                    )
+                )
+            )
+            .values(
+                retry_count=Log.retry_count + 1,
+                status=LogStatus.IN_PROGRESS,
+                message=func.concat("Retrying task (retry #", Log.retry_count + 1, ")...")
+            )
+            .returning(Log.id)
         )
-        db_logs = result.scalars().all()
+        result = await session.execute(stmt)
+        retried_ids = [row[0] for row in result.all()]
 
-        if not db_logs:
+        if not retried_ids and not log_ids:
             raise HTTPException(status_code=404, detail="No logs found")
 
-        retried = []
-        skipped = []
-
-        for db_log in db_logs:
-            # Check retry count limit
-            if db_log.retry_count >= 3:
-                skipped.append(
-                    {"id": db_log.id, "reason": "Maximum retry limit reached"}
-                )
-                continue
-
-            # Increment retry count and reset status
-            db_log.retry_count += 1
-            db_log.status = LogStatus.IN_PROGRESS
-            db_log.message = f"Retrying task (retry #{db_log.retry_count})..."
-            retried.append(db_log.id)
+        # Determine which logs were skipped (those in log_ids but not in retried_ids)
+        skipped_ids = set(log_ids) - set(retried_ids)
+        skipped = [{"id": log_id, "reason": "Maximum retry limit reached"} for log_id in skipped_ids]
 
         await session.commit()
 
         return {
-            "retried": retried,
+            "retried": retried_ids,
             "skipped": skipped,
-            "total": len(retried) + len(skipped),
+            "total": len(retried_ids) + len(skipped),
         }
     except HTTPException:
         raise
@@ -432,27 +434,30 @@ async def bulk_dismiss_logs(
 ):
     """Dismiss multiple failed logs/tasks."""
     try:
-        # First verify user owns all the logs
-        result = await session.execute(
-            select(Log.id)
-            .join(SearchSpace)
-            .filter(Log.id.in_(log_ids), SearchSpace.user_id == user.id)
-        )
-        verified_log_ids = [row[0] for row in result.all()]
-
-        if not verified_log_ids:
-            raise HTTPException(status_code=404, detail="No logs found")
-
-        # Use a single UPDATE statement for better performance
+        # Use a single UPDATE with subquery to verify ownership and update atomically
+        # This combines verification and update into one database operation
         stmt = (
             update(Log)
-            .where(Log.id.in_(verified_log_ids))
+            .where(
+                and_(
+                    Log.id.in_(log_ids),
+                    Log.search_space_id.in_(
+                        select(SearchSpace.id).where(SearchSpace.user_id == user.id)
+                    )
+                )
+            )
             .values(status=LogStatus.DISMISSED)
+            .returning(Log.id)
         )
-        await session.execute(stmt)
+        result = await session.execute(stmt)
+        dismissed_ids = [row[0] for row in result.all()]
+
+        if not dismissed_ids:
+            raise HTTPException(status_code=404, detail="No logs found")
+
         await session.commit()
 
-        return {"dismissed": verified_log_ids, "total": len(verified_log_ids)}
+        return {"dismissed": dismissed_ids, "total": len(dismissed_ids)}
     except HTTPException:
         raise
     except Exception as e:
