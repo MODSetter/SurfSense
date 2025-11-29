@@ -58,19 +58,42 @@ const totalProcessed = result.total; // Total attempted (dismissed + skipped)
 
 ## Related Changes
 
-### Consistent Skip Reason Messaging
-Both bulk operations now use generic, user-friendly skip reasons defined as constants:
-- **bulk-retry**: `"Log not eligible for retry"` (constant: `SKIP_REASON_NOT_ELIGIBLE_RETRY`)
-  - Covers: not found, not owned, or retry limit reached
-- **bulk-dismiss**: `"Log could not be dismissed"` (constant: `SKIP_REASON_COULD_NOT_DISMISS`)
-  - Covers: not found or not owned by user
+### Granular Skip Reason Categorization
+Both bulk operations now use specific skip reasons defined as an Enum for better debugging:
 
-This generic messaging approach:
-- Improves API predictability and consistency
-- Simplifies frontend internationalization (i18n)
-- Avoids exposing internal implementation details
-- Provides clear user-facing feedback
-- Uses constants to eliminate magic strings and improve maintainability
+**SkipReason Enum Values:**
+- `LOG_NOT_FOUND` - "Log not found"
+- `NOT_OWNER` - "Not authorized to modify this log"
+- `RETRY_LIMIT_REACHED` - "Maximum retry limit reached"
+
+**bulk-retry skip reasons:**
+- `LOG_NOT_FOUND`: Log ID does not exist in database
+- `NOT_OWNER`: User does not have permission to modify this log
+- `RETRY_LIMIT_REACHED`: Log has already been retried 3 times
+
+**bulk-dismiss skip reasons:**
+- `LOG_NOT_FOUND`: Log ID does not exist in database
+- `NOT_OWNER`: User does not have permission to modify this log
+
+**Example Response:**
+```json
+{
+  "retried": [1, 2],
+  "skipped": [
+    {"id": 3, "reason": "Log not found"},
+    {"id": 4, "reason": "Not authorized to modify this log"},
+    {"id": 5, "reason": "Maximum retry limit reached"}
+  ],
+  "total": 5
+}
+```
+
+This granular categorization:
+- Enables precise client-side debugging and error handling
+- Distinguishes between "not found", "permission denied", and "limit reached" scenarios
+- Uses type-safe Enum pattern aligned with existing codebase (LogLevel, LogStatus)
+- Provides clear, actionable feedback to users and developers
+- Maintains API consistency between bulk operations
 
 ### Improved Input Validation
 - Empty `log_ids` arrays now return `400 Bad Request` instead of `404 Not Found`
