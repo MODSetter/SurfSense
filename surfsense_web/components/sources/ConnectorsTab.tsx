@@ -19,11 +19,14 @@ interface ConnectorsTabProps {
 export function ConnectorsTab({ searchSpaceId }: ConnectorsTabProps) {
 	const t = useTranslations("add_connector");
 	const [expandedCategories, setExpandedCategories] = useState<string[]>([
-		"search-engines",
-		"knowledge-bases",
+		"web-search",
+		"messaging",
 		"project-management",
-		"team-chats",
-		"communication",
+		"documentation",
+		"development",
+		"databases",
+		"productivity",
+		"web-crawling",
 	]);
 
 	const toggleCategory = (categoryId: string) => {

@@ -73,6 +73,7 @@ class SearchSourceConnectorType(str, Enum):
     AIRTABLE_CONNECTOR = "AIRTABLE_CONNECTOR"
     LUMA_CONNECTOR = "LUMA_CONNECTOR"
     ELASTICSEARCH_CONNECTOR = "ELASTICSEARCH_CONNECTOR"
+    WEBCRAWLER_CONNECTOR = "WEBCRAWLER_CONNECTOR"
 
 
 class ChatType(str, Enum):
@@ -128,6 +129,169 @@ class LogStatus(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+
+
+class Permission(str, Enum):
+    """
+    Granular permissions for search space resources.
+    Use '*' (FULL_ACCESS) to grant all permissions.
+    """
+
+    # Documents
+    DOCUMENTS_CREATE = "documents:create"
+    DOCUMENTS_READ = "documents:read"
+    DOCUMENTS_UPDATE = "documents:update"
+    DOCUMENTS_DELETE = "documents:delete"
+
+    # Chats
+    CHATS_CREATE = "chats:create"
+    CHATS_READ = "chats:read"
+    CHATS_UPDATE = "chats:update"
+    CHATS_DELETE = "chats:delete"
+
+    # LLM Configs
+    LLM_CONFIGS_CREATE = "llm_configs:create"
+    LLM_CONFIGS_READ = "llm_configs:read"
+    LLM_CONFIGS_UPDATE = "llm_configs:update"
+    LLM_CONFIGS_DELETE = "llm_configs:delete"
+
+    # Podcasts
+    PODCASTS_CREATE = "podcasts:create"
+    PODCASTS_READ = "podcasts:read"
+    PODCASTS_UPDATE = "podcasts:update"
+    PODCASTS_DELETE = "podcasts:delete"
+
+    # Connectors
+    CONNECTORS_CREATE = "connectors:create"
+    CONNECTORS_READ = "connectors:read"
+    CONNECTORS_UPDATE = "connectors:update"
+    CONNECTORS_DELETE = "connectors:delete"
+
+    # Logs
+    LOGS_READ = "logs:read"
+    LOGS_DELETE = "logs:delete"
+
+    # Members
+    MEMBERS_INVITE = "members:invite"
+    MEMBERS_VIEW = "members:view"
+    MEMBERS_REMOVE = "members:remove"
+    MEMBERS_MANAGE_ROLES = "members:manage_roles"
+
+    # Roles
+    ROLES_CREATE = "roles:create"
+    ROLES_READ = "roles:read"
+    ROLES_UPDATE = "roles:update"
+    ROLES_DELETE = "roles:delete"
+
+    # Search Space Settings
+    SETTINGS_VIEW = "settings:view"
+    SETTINGS_UPDATE = "settings:update"
+    SETTINGS_DELETE = "settings:delete"  # Delete the entire search space
+
+    # Full access wildcard
+    FULL_ACCESS = "*"
+
+
+# Predefined role permission sets for convenience
+DEFAULT_ROLE_PERMISSIONS = {
+    "Owner": [Permission.FULL_ACCESS.value],
+    "Admin": [
+        # Documents
+        Permission.DOCUMENTS_CREATE.value,
+        Permission.DOCUMENTS_READ.value,
+        Permission.DOCUMENTS_UPDATE.value,
+        Permission.DOCUMENTS_DELETE.value,
+        # Chats
+        Permission.CHATS_CREATE.value,
+        Permission.CHATS_READ.value,
+        Permission.CHATS_UPDATE.value,
+        Permission.CHATS_DELETE.value,
+        # LLM Configs
+        Permission.LLM_CONFIGS_CREATE.value,
+        Permission.LLM_CONFIGS_READ.value,
+        Permission.LLM_CONFIGS_UPDATE.value,
+        Permission.LLM_CONFIGS_DELETE.value,
+        # Podcasts
+        Permission.PODCASTS_CREATE.value,
+        Permission.PODCASTS_READ.value,
+        Permission.PODCASTS_UPDATE.value,
+        Permission.PODCASTS_DELETE.value,
+        # Connectors
+        Permission.CONNECTORS_CREATE.value,
+        Permission.CONNECTORS_READ.value,
+        Permission.CONNECTORS_UPDATE.value,
+        Permission.CONNECTORS_DELETE.value,
+        # Logs
+        Permission.LOGS_READ.value,
+        Permission.LOGS_DELETE.value,
+        # Members
+        Permission.MEMBERS_INVITE.value,
+        Permission.MEMBERS_VIEW.value,
+        Permission.MEMBERS_REMOVE.value,
+        Permission.MEMBERS_MANAGE_ROLES.value,
+        # Roles
+        Permission.ROLES_CREATE.value,
+        Permission.ROLES_READ.value,
+        Permission.ROLES_UPDATE.value,
+        Permission.ROLES_DELETE.value,
+        # Settings (no delete)
+        Permission.SETTINGS_VIEW.value,
+        Permission.SETTINGS_UPDATE.value,
+    ],
+    "Editor": [
+        # Documents
+        Permission.DOCUMENTS_CREATE.value,
+        Permission.DOCUMENTS_READ.value,
+        Permission.DOCUMENTS_UPDATE.value,
+        Permission.DOCUMENTS_DELETE.value,
+        # Chats
+        Permission.CHATS_CREATE.value,
+        Permission.CHATS_READ.value,
+        Permission.CHATS_UPDATE.value,
+        Permission.CHATS_DELETE.value,
+        # LLM Configs (read only)
+        Permission.LLM_CONFIGS_READ.value,
+        Permission.LLM_CONFIGS_CREATE.value,
+        Permission.LLM_CONFIGS_UPDATE.value,
+        # Podcasts
+        Permission.PODCASTS_CREATE.value,
+        Permission.PODCASTS_READ.value,
+        Permission.PODCASTS_UPDATE.value,
+        Permission.PODCASTS_DELETE.value,
+        # Connectors (full access for editors)
+        Permission.CONNECTORS_CREATE.value,
+        Permission.CONNECTORS_READ.value,
+        Permission.CONNECTORS_UPDATE.value,
+        # Logs
+        Permission.LOGS_READ.value,
+        # Members (view only)
+        Permission.MEMBERS_VIEW.value,
+        # Roles (read only)
+        Permission.ROLES_READ.value,
+        # Settings (view only)
+        Permission.SETTINGS_VIEW.value,
+    ],
+    "Viewer": [
+        # Documents (read only)
+        Permission.DOCUMENTS_READ.value,
+        # Chats (read only)
+        Permission.CHATS_READ.value,
+        # LLM Configs (read only)
+        Permission.LLM_CONFIGS_READ.value,
+        # Podcasts (read only)
+        Permission.PODCASTS_READ.value,
+        # Connectors (read only)
+        Permission.CONNECTORS_READ.value,
+        # Logs (read only)
+        Permission.LOGS_READ.value,
+        # Members (view only)
+        Permission.MEMBERS_VIEW.value,
+        # Roles (read only)
+        Permission.ROLES_READ.value,
+        # Settings (view only)
+        Permission.SETTINGS_VIEW.value,
+    ],
+}
 
 
 class Base(DeclarativeBase):
@@ -240,6 +404,13 @@ class SearchSpace(BaseModel, TimestampMixin):
     qna_custom_instructions = Column(
         Text, nullable=True, default=""
     )  # User's custom instructions
+
+    # Search space-level LLM preferences (shared by all members)
+    # Note: These can be negative IDs for global configs (from YAML) or positive IDs for custom configs (from DB)
+    long_context_llm_id = Column(Integer, nullable=True)
+    fast_llm_id = Column(Integer, nullable=True)
+    strategic_llm_id = Column(Integer, nullable=True)
+
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
@@ -281,9 +452,24 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="LLMConfig.id",
         cascade="all, delete-orphan",
     )
-    user_preferences = relationship(
-        "UserSearchSpacePreference",
+
+    # RBAC relationships
+    roles = relationship(
+        "SearchSpaceRole",
         back_populates="search_space",
+        order_by="SearchSpaceRole.id",
+        cascade="all, delete-orphan",
+    )
+    memberships = relationship(
+        "SearchSpaceMembership",
+        back_populates="search_space",
+        order_by="SearchSpaceMembership.id",
+        cascade="all, delete-orphan",
+    )
+    invites = relationship(
+        "SearchSpaceInvite",
+        back_populates="search_space",
+        order_by="SearchSpaceInvite.id",
         cascade="all, delete-orphan",
     )
 
@@ -347,45 +533,6 @@ class LLMConfig(BaseModel, TimestampMixin):
     search_space = relationship("SearchSpace", back_populates="llm_configs")
 
 
-class UserSearchSpacePreference(BaseModel, TimestampMixin):
-    __tablename__ = "user_search_space_preferences"
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "search_space_id",
-            name="uq_user_searchspace",
-        ),
-    )
-
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
-    )
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-
-    # User-specific LLM preferences for this search space
-    # Note: These can be negative IDs for global configs (from YAML) or positive IDs for custom configs (from DB)
-    # Foreign keys removed to support global configs with negative IDs
-    long_context_llm_id = Column(Integer, nullable=True)
-    fast_llm_id = Column(Integer, nullable=True)
-    strategic_llm_id = Column(Integer, nullable=True)
-
-    # Future RBAC fields can be added here
-    # role = Column(String(50), nullable=True)  # e.g., 'owner', 'editor', 'viewer'
-    # permissions = Column(JSON, nullable=True)
-
-    user = relationship("User", back_populates="search_space_preferences")
-    search_space = relationship("SearchSpace", back_populates="user_preferences")
-
-    # Note: Relationships removed because foreign keys no longer exist
-    # Global configs (negative IDs) don't exist in llm_configs table
-    # Application code manually fetches configs when needed
-    # long_context_llm = relationship("LLMConfig", foreign_keys=[long_context_llm_id], post_update=True)
-    # fast_llm = relationship("LLMConfig", foreign_keys=[fast_llm_id], post_update=True)
-    # strategic_llm = relationship("LLMConfig", foreign_keys=[strategic_llm_id], post_update=True)
-
-
 class Log(BaseModel, TimestampMixin):
     __tablename__ = "logs"
 
@@ -403,6 +550,140 @@ class Log(BaseModel, TimestampMixin):
     search_space = relationship("SearchSpace", back_populates="logs")
 
 
+class SearchSpaceRole(BaseModel, TimestampMixin):
+    """
+    Custom roles that can be defined per search space.
+    Each search space can have multiple roles with different permission sets.
+    """
+
+    __tablename__ = "search_space_roles"
+    __table_args__ = (
+        UniqueConstraint(
+            "search_space_id",
+            "name",
+            name="uq_searchspace_role_name",
+        ),
+    )
+
+    name = Column(String(100), nullable=False, index=True)
+    description = Column(String(500), nullable=True)
+    # List of Permission enum values (e.g., ["documents:read", "chats:create"])
+    permissions = Column(ARRAY(String), nullable=False, default=[])
+    # Whether this role is assigned to new members by default when they join via invite
+    is_default = Column(Boolean, nullable=False, default=False)
+    # System roles (Owner, Admin, Editor, Viewer) cannot be deleted
+    is_system_role = Column(Boolean, nullable=False, default=False)
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship("SearchSpace", back_populates="roles")
+
+    memberships = relationship(
+        "SearchSpaceMembership", back_populates="role", passive_deletes=True
+    )
+    invites = relationship(
+        "SearchSpaceInvite", back_populates="role", passive_deletes=True
+    )
+
+
+class SearchSpaceMembership(BaseModel, TimestampMixin):
+    """
+    Tracks user membership in search spaces with their assigned role.
+    Each user can be a member of multiple search spaces with different roles.
+    """
+
+    __tablename__ = "search_space_memberships"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "search_space_id",
+            name="uq_user_searchspace_membership",
+        ),
+    )
+
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    role_id = Column(
+        Integer,
+        ForeignKey("search_space_roles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Indicates if this user is the original creator/owner of the search space
+    is_owner = Column(Boolean, nullable=False, default=False)
+    # Timestamp when the user joined (via invite or as creator)
+    joined_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+    # Reference to the invite used to join (null if owner/creator)
+    invited_by_invite_id = Column(
+        Integer,
+        ForeignKey("search_space_invites.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    user = relationship("User", back_populates="search_space_memberships")
+    search_space = relationship("SearchSpace", back_populates="memberships")
+    role = relationship("SearchSpaceRole", back_populates="memberships")
+    invited_by_invite = relationship(
+        "SearchSpaceInvite", back_populates="used_by_memberships"
+    )
+
+
+class SearchSpaceInvite(BaseModel, TimestampMixin):
+    """
+    Invite links for search spaces.
+    Users can create invite links with specific roles that others can use to join.
+    """
+
+    __tablename__ = "search_space_invites"
+
+    # Unique invite code (used in invite URLs)
+    invite_code = Column(String(64), nullable=False, unique=True, index=True)
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    # Role to assign when invite is used (null means use default role)
+    role_id = Column(
+        Integer,
+        ForeignKey("search_space_roles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # User who created this invite
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Expiration timestamp (null means never expires)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    # Maximum number of times this invite can be used (null means unlimited)
+    max_uses = Column(Integer, nullable=True)
+    # Number of times this invite has been used
+    uses_count = Column(Integer, nullable=False, default=0)
+    # Whether this invite is currently active
+    is_active = Column(Boolean, nullable=False, default=True)
+    # Optional custom name/label for the invite
+    name = Column(String(100), nullable=True)
+
+    search_space = relationship("SearchSpace", back_populates="invites")
+    role = relationship("SearchSpaceRole", back_populates="invites")
+    created_by = relationship("User", back_populates="created_invites")
+    used_by_memberships = relationship(
+        "SearchSpaceMembership",
+        back_populates="invited_by_invite",
+        passive_deletes=True,
+    )
+
+
 if config.AUTH_TYPE == "GOOGLE":
 
     class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
@@ -413,10 +694,17 @@ if config.AUTH_TYPE == "GOOGLE":
             "OAuthAccount", lazy="joined"
         )
         search_spaces = relationship("SearchSpace", back_populates="user")
-        search_space_preferences = relationship(
-            "UserSearchSpacePreference",
+
+        # RBAC relationships
+        search_space_memberships = relationship(
+            "SearchSpaceMembership",
             back_populates="user",
             cascade="all, delete-orphan",
+        )
+        created_invites = relationship(
+            "SearchSpaceInvite",
+            back_populates="created_by",
+            passive_deletes=True,
         )
 
         # Page usage tracking for ETL services
@@ -427,10 +715,17 @@ else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
         search_spaces = relationship("SearchSpace", back_populates="user")
-        search_space_preferences = relationship(
-            "UserSearchSpacePreference",
+
+        # RBAC relationships
+        search_space_memberships = relationship(
+            "SearchSpaceMembership",
             back_populates="user",
             cascade="all, delete-orphan",
+        )
+        created_invites = relationship(
+            "SearchSpaceInvite",
+            back_populates="created_by",
+            passive_deletes=True,
         )
 
         # Page usage tracking for ETL services
@@ -502,3 +797,109 @@ async def get_documents_hybrid_search_retriever(
     session: AsyncSession = Depends(get_async_session),
 ):
     return DocumentHybridSearchRetriever(session)
+
+
+def has_permission(user_permissions: list[str], required_permission: str) -> bool:
+    """
+    Check if the user has the required permission.
+    Supports wildcard (*) for full access.
+
+    Args:
+        user_permissions: List of permission strings the user has
+        required_permission: The permission string to check for
+
+    Returns:
+        True if user has the permission, False otherwise
+    """
+    if not user_permissions:
+        return False
+
+    # Full access wildcard grants all permissions
+    if Permission.FULL_ACCESS.value in user_permissions:
+        return True
+
+    return required_permission in user_permissions
+
+
+def has_any_permission(
+    user_permissions: list[str], required_permissions: list[str]
+) -> bool:
+    """
+    Check if the user has any of the required permissions.
+
+    Args:
+        user_permissions: List of permission strings the user has
+        required_permissions: List of permission strings to check for (any match)
+
+    Returns:
+        True if user has at least one of the permissions, False otherwise
+    """
+    if not user_permissions:
+        return False
+
+    if Permission.FULL_ACCESS.value in user_permissions:
+        return True
+
+    return any(perm in user_permissions for perm in required_permissions)
+
+
+def has_all_permissions(
+    user_permissions: list[str], required_permissions: list[str]
+) -> bool:
+    """
+    Check if the user has all of the required permissions.
+
+    Args:
+        user_permissions: List of permission strings the user has
+        required_permissions: List of permission strings to check for (all must match)
+
+    Returns:
+        True if user has all of the permissions, False otherwise
+    """
+    if not user_permissions:
+        return False
+
+    if Permission.FULL_ACCESS.value in user_permissions:
+        return True
+
+    return all(perm in user_permissions for perm in required_permissions)
+
+
+def get_default_roles_config() -> list[dict]:
+    """
+    Get the configuration for default system roles.
+    These roles are created automatically when a search space is created.
+
+    Returns:
+        List of role configurations with name, description, permissions, and flags
+    """
+    return [
+        {
+            "name": "Owner",
+            "description": "Full access to all search space resources and settings",
+            "permissions": DEFAULT_ROLE_PERMISSIONS["Owner"],
+            "is_default": False,
+            "is_system_role": True,
+        },
+        {
+            "name": "Admin",
+            "description": "Can manage most resources except deleting the search space",
+            "permissions": DEFAULT_ROLE_PERMISSIONS["Admin"],
+            "is_default": False,
+            "is_system_role": True,
+        },
+        {
+            "name": "Editor",
+            "description": "Can create and edit documents, chats, and podcasts",
+            "permissions": DEFAULT_ROLE_PERMISSIONS["Editor"],
+            "is_default": True,  # Default role for new members via invite
+            "is_system_role": True,
+        },
+        {
+            "name": "Viewer",
+            "description": "Read-only access to search space resources",
+            "permissions": DEFAULT_ROLE_PERMISSIONS["Viewer"],
+            "is_default": False,
+            "is_system_role": True,
+        },
+    ]

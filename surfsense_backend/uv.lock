@@ -1541,19 +1541,20 @@ wheels = [
 
 [[package]]
 name = "firecrawl-py"
-version = "2.8.0"
+version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
+    { name = "httpx" },
     { name = "nest-asyncio" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/83/64127a0faafb027c2870c3919aae13fd6f8f8066d000bea93c880ab9772a/firecrawl_py-2.8.0.tar.gz", hash = "sha256:657795b6ddd63f0bd38b38bf0571187e0a66becda23d97c032801895257403c9", size = 37941 }
+sdist = { url = "https://files.pythonhosted.org/packages/a5/2e/e4112ebd229bc03202584f5ad2ece81c26cb2a7bad0cd4773b8705d996e9/firecrawl_py-4.9.0.tar.gz", hash = "sha256:8e5740ed923c89e6066dfd63b0449f049bbd274652dfac3d735c9ae0572c4b0c", size = 153395 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/74/e6/e69bd2156856f2b1849244ca3b1d993676175b16acbf704ad85580ebaa3c/firecrawl_py-2.8.0-py3-none-any.whl", hash = "sha256:f2e148086aa1ca42f603a56009577b4f66a2c23893eaa71f7c9c0082b4fdcf60", size = 173118 },
+    { url = "https://files.pythonhosted.org/packages/3a/cf/99848233303ca9c9d84cf22de08adc1051e8b6df672aeed14f32272df86b/firecrawl_py-4.9.0-py3-none-any.whl", hash = "sha256:adb027ed8bdda712201dc9727ead1a051dc3d114c2a0051de1f159c420703684", size = 190971 },
 ]
 
 [[package]]
@@ -5926,7 +5927,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115.8" },
     { name = "fastapi-users", extras = ["oauth", "sqlalchemy"], specifier = ">=14.0.1" },
     { name = "faster-whisper", specifier = ">=1.1.0" },
-    { name = "firecrawl-py", specifier = ">=1.12.0" },
+    { name = "firecrawl-py", specifier = ">=4.9.0" },
     { name = "flower", specifier = ">=2.0.1" },
     { name = "github3-py", specifier = "==4.0.1" },
     { name = "google-api-python-client", specifier = ">=2.156.0" },

@@ -1,9 +1,9 @@
 "use client";
 
 import { IconBrandYoutube } from "@tabler/icons-react";
-import { Cable, Database, Upload } from "lucide-react";
+import { Cable, Database, Globe, Upload } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ConnectorsTab } from "@/components/sources/ConnectorsTab";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AddSourcesPage() {
 	const params = useParams();
+	const router = useRouter();
 	const searchParams = useSearchParams();
 	const search_space_id = params.search_space_id as string;
 	const [activeTab, setActiveTab] = useState("documents");
@@ -23,6 +24,14 @@ export default function AddSourcesPage() {
 			setActiveTab(tabParam);
 		}
 	}, [searchParams]);
+
+	const handleTabChange = (value: string) => {
+		if (value === "webpages") {
+			router.push(`/dashboard/${search_space_id}/connectors/add/webcrawler-connector`);
+		} else {
+			setActiveTab(value);
+		}
+	};
 
 	return (
 		<div className="container mx-auto py-8 px-4">
@@ -42,19 +51,26 @@ export default function AddSourcesPage() {
 				</div>
 
 				{/* Tabs */}
-				<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-					<TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 h-12">
+				<Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+					<TabsList className="grid w-full max-w-3xl mx-auto grid-cols-4 h-12">
 						<TabsTrigger value="documents" className="flex items-center gap-2">
 							<Upload className="h-4 w-4" />
-							Documents
+							<span className="hidden sm:inline">Documents</span>
+							<span className="sm:hidden">Docs</span>
 						</TabsTrigger>
 						<TabsTrigger value="youtube" className="flex items-center gap-2">
 							<IconBrandYoutube className="h-4 w-4" />
 							YouTube
 						</TabsTrigger>
+						<TabsTrigger value="webpages" className="flex items-center gap-2">
+							<Globe className="h-4 w-4" />
+							<span className="hidden sm:inline">Web Pages</span>
+							<span className="sm:hidden">Web</span>
+						</TabsTrigger>
 						<TabsTrigger value="connectors" className="flex items-center gap-2">
 							<Cable className="h-4 w-4" />
-							Connectors
+							<span className="hidden sm:inline">Connectors</span>
+							<span className="sm:hidden">More</span>
 						</TabsTrigger>
 					</TabsList>
 

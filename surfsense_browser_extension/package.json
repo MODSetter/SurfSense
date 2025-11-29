@@ -4,6 +4,15 @@
 	"version": "0.0.8",
 	"description": "Extension to collect Browsing History for SurfSense.",
 	"author": "https://github.com/MODSetter",
+	"engines": {
+		"node": ">=18.0.0 <23.0.0",
+		"pnpm": ">=8.0.0"
+	},
+	"pnpm": {
+		"overrides": {
+			"sharp": "^0.33.5"
+		}
+	},
 	"scripts": {
 		"dev": "plasmo dev",
 		"build": "plasmo build",
@@ -24,13 +33,14 @@
 		"dom-to-semantic-markdown": "^1.2.11",
 		"linkedom": "0.1.34",
 		"lucide-react": "^0.454.0",
-		"plasmo": "0.89.4",
+		"plasmo": "0.90.5",
 		"postcss-loader": "^8.1.1",
 		"radix-ui": "^1.0.1",
 		"react": "18.2.0",
 		"react-dom": "18.2.0",
 		"react-hooks-global-state": "^2.1.0",
 		"react-router-dom": "^6.26.1",
+		"sharp": "^0.33.5",
 		"tailwind-merge": "^2.5.4",
 		"tailwindcss-animate": "^1.0.7"
 	},

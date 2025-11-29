@@ -67,6 +67,7 @@ async def _check_and_trigger_schedules():
                 index_airtable_records_task,
                 index_clickup_tasks_task,
                 index_confluence_pages_task,
+                index_crawled_urls_task,
                 index_discord_messages_task,
                 index_elasticsearch_documents_task,
                 index_github_repos_task,
@@ -94,6 +95,7 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.DISCORD_CONNECTOR: index_discord_messages_task,
                 SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
+                SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
             }
 
             # Trigger indexing for each due connector

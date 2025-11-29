@@ -1126,7 +1126,7 @@ function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }
 		setIsDeleting(true);
 		try {
 			await deleteLog(log.id);
-			toast.success(t("log_deleted_success"));
+			// toast.success(t("log_deleted_success"));
 			await refreshLogs();
 		} catch (error) {
 			console.error("Error deleting log:", error);

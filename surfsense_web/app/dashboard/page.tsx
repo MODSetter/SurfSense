@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { AlertCircle, Loader2, Plus, Search, Trash2, UserCheck, Users } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -308,16 +309,30 @@ const DashboardPage = () => {
 											>
 												<div className="flex flex-1 flex-col justify-between p-1">
 													<div>
-														<h3 className="font-medium text-lg">{space.name}</h3>
+														<div className="flex items-center gap-2">
+															<h3 className="font-medium text-lg">{space.name}</h3>
+															{!space.is_owner && (
+																<Badge variant="secondary" className="text-xs font-normal">
+																	{t("shared")}
+																</Badge>
+															)}
+														</div>
 														<p className="mt-1 text-sm text-muted-foreground">
 															{space.description}
 														</p>
 													</div>
-													<div className="mt-4  text-xs text-muted-foreground">
-														{/* <span>{space.title}</span> */}
+													<div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
 														<span>
 															{t("created")} {formatDate(space.created_at)}
 														</span>
+														<div className="flex items-center gap-1">
+															{space.is_owner ? (
+																<UserCheck className="h-3.5 w-3.5" />
+															) : (
+																<Users className="h-3.5 w-3.5" />
+															)}
+															<span>{space.member_count}</span>
+														</div>
 													</div>
 												</div>
 											</Link>

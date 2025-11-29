@@ -22,9 +22,9 @@ from sqlalchemy.future import select
 
 from app.connectors.github_connector import GitHubConnector
 from app.db import (
+    Permission,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
     User,
     async_session_maker,
     get_async_session,
@@ -39,6 +39,7 @@ from app.tasks.connector_indexers import (
     index_airtable_records,
     index_clickup_tasks,
     index_confluence_pages,
+    index_crawled_urls,
     index_discord_messages,
     index_elasticsearch_documents,
     index_github_repos,
@@ -51,12 +52,12 @@ from app.tasks.connector_indexers import (
     index_slack_messages,
 )
 from app.users import current_active_user
-from app.utils.check_ownership import check_ownership
 from app.utils.periodic_scheduler import (
     create_periodic_schedule,
     delete_periodic_schedule,
     update_periodic_schedule,
 )
+from app.utils.rbac import check_permission
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -107,19 +108,25 @@ async def create_search_source_connector(
 ):
     """
     Create a new search source connector.
+    Requires CONNECTORS_CREATE permission.
 
-    Each search space can have only one connector of each type per user (based on search_space_id, user_id, and connector_type).
+    Each search space can have only one connector of each type (based on search_space_id and connector_type).
     The config must contain the appropriate keys for the connector type.
     """
     try:
-        # Check if the search space belongs to the user
-        await check_ownership(session, SearchSpace, search_space_id, user)
+        # Check if user has permission to create connectors
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.CONNECTORS_CREATE.value,
+            "You don't have permission to create connectors in this search space",
+        )
 
-        # Check if a connector with the same type already exists for this search space and user
+        # Check if a connector with the same type already exists for this search space
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.search_space_id == search_space_id,
-                SearchSourceConnector.user_id == user.id,
                 SearchSourceConnector.connector_type == connector.connector_type,
             )
         )
@@ -127,7 +134,7 @@ async def create_search_source_connector(
         if existing_connector:
             raise HTTPException(
                 status_code=409,
-                detail=f"A connector with type {connector.connector_type} already exists in this search space. Each search space can have only one connector of each type per user.",
+                detail=f"A connector with type {connector.connector_type} already exists in this search space.",
             )
 
         # Prepare connector data
@@ -197,22 +204,34 @@ async def read_search_source_connectors(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """List all search source connectors for the current user, optionally filtered by search space."""
+    """
+    List all search source connectors for a search space.
+    Requires CONNECTORS_READ permission.
+    """
     try:
-        query = select(SearchSourceConnector).filter(
-            SearchSourceConnector.user_id == user.id
+        if search_space_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="search_space_id is required",
+            )
+
+        # Check if user has permission to read connectors
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.CONNECTORS_READ.value,
+            "You don't have permission to view connectors in this search space",
         )
 
-        # Filter by search_space_id if provided
-        if search_space_id is not None:
-            # Verify the search space belongs to the user
-            await check_ownership(session, SearchSpace, search_space_id, user)
-            query = query.filter(
-                SearchSourceConnector.search_space_id == search_space_id
-            )
+        query = select(SearchSourceConnector).filter(
+            SearchSourceConnector.search_space_id == search_space_id
+        )
 
         result = await session.execute(query.offset(skip).limit(limit))
         return result.scalars().all()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -228,9 +247,32 @@ async def read_search_source_connector(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Get a specific search source connector by ID."""
+    """
+    Get a specific search source connector by ID.
+    Requires CONNECTORS_READ permission.
+    """
     try:
-        return await check_ownership(session, SearchSourceConnector, connector_id, user)
+        # Get the connector first
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id
+            )
+        )
+        connector = result.scalars().first()
+
+        if not connector:
+            raise HTTPException(status_code=404, detail="Connector not found")
+
+        # Check permission
+        await check_permission(
+            session,
+            user,
+            connector.search_space_id,
+            Permission.CONNECTORS_READ.value,
+            "You don't have permission to view this connector",
+        )
+
+        return connector
     except HTTPException:
         raise
     except Exception as e:
@@ -250,10 +292,25 @@ async def update_search_source_connector(
 ):
     """
     Update a search source connector.
+    Requires CONNECTORS_UPDATE permission.
     Handles partial updates, including merging changes into the 'config' field.
     """
-    db_connector = await check_ownership(
-        session, SearchSourceConnector, connector_id, user
+    # Get the connector first
+    result = await session.execute(
+        select(SearchSourceConnector).filter(SearchSourceConnector.id == connector_id)
+    )
+    db_connector = result.scalars().first()
+
+    if not db_connector:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    # Check permission
+    await check_permission(
+        session,
+        user,
+        db_connector.search_space_id,
+        Permission.CONNECTORS_UPDATE.value,
+        "You don't have permission to update this connector",
     )
 
     # Convert the sparse update data (only fields present in request) to a dict
@@ -348,20 +405,19 @@ async def update_search_source_connector(
     for key, value in update_data.items():
         # Prevent changing connector_type if it causes a duplicate (check moved here)
         if key == "connector_type" and value != db_connector.connector_type:
-            result = await session.execute(
+            check_result = await session.execute(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.search_space_id
                     == db_connector.search_space_id,
-                    SearchSourceConnector.user_id == user.id,
                     SearchSourceConnector.connector_type == value,
                     SearchSourceConnector.id != connector_id,
                 )
             )
-            existing_connector = result.scalars().first()
+            existing_connector = check_result.scalars().first()
             if existing_connector:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"A connector with type {value} already exists in this search space. Each search space can have only one connector of each type per user.",
+                    detail=f"A connector with type {value} already exists in this search space.",
                 )
 
         setattr(db_connector, key, value)
@@ -424,10 +480,29 @@ async def delete_search_source_connector(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Delete a search source connector."""
+    """
+    Delete a search source connector.
+    Requires CONNECTORS_DELETE permission.
+    """
     try:
-        db_connector = await check_ownership(
-            session, SearchSourceConnector, connector_id, user
+        # Get the connector first
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id
+            )
+        )
+        db_connector = result.scalars().first()
+
+        if not db_connector:
+            raise HTTPException(status_code=404, detail="Connector not found")
+
+        # Check permission
+        await check_permission(
+            session,
+            user,
+            db_connector.search_space_id,
+            Permission.CONNECTORS_DELETE.value,
+            "You don't have permission to delete this connector",
         )
 
         # Delete any periodic schedule associated with this connector
@@ -472,6 +547,7 @@ async def index_connector_content(
 ):
     """
     Index content from a connector to a search space.
+    Requires CONNECTORS_UPDATE permission (to trigger indexing).
 
     Currently supports:
     - SLACK_CONNECTOR: Indexes messages from all accessible Slack channels
@@ -482,24 +558,34 @@ async def index_connector_content(
     - DISCORD_CONNECTOR: Indexes messages from all accessible Discord channels
     - LUMA_CONNECTOR: Indexes events from Luma
     - ELASTICSEARCH_CONNECTOR: Indexes documents from Elasticsearch
+    - WEBCRAWLER_CONNECTOR: Indexes web pages from crawled websites
 
     Args:
         connector_id: ID of the connector to use
         search_space_id: ID of the search space to store indexed content
-        background_tasks: FastAPI background tasks
 
     Returns:
         Dictionary with indexing status
     """
     try:
-        # Check if the connector belongs to the user
-        connector = await check_ownership(
-            session, SearchSourceConnector, connector_id, user
+        # Get the connector first
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id
+            )
         )
+        connector = result.scalars().first()
 
-        # Check if the search space belongs to the user
-        _search_space = await check_ownership(
-            session, SearchSpace, search_space_id, user
+        if not connector:
+            raise HTTPException(status_code=404, detail="Connector not found")
+
+        # Check if user has permission to update connectors (indexing is an update operation)
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.CONNECTORS_UPDATE.value,
+            "You don't have permission to index content in this search space",
         )
 
         # Handle different connector types
@@ -687,6 +773,17 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Elasticsearch indexing started in the background."
+
+        elif connector.connector_type == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR:
+            from app.tasks.celery_tasks.connector_tasks import index_crawled_urls_task
+
+            logger.info(
+                f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            index_crawled_urls_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "Web page indexing started in the background."
 
         else:
             raise HTTPException(
@@ -1523,3 +1620,64 @@ async def run_elasticsearch_indexing(
             f"Critical error in run_elasticsearch_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
+
+
+# Add new helper functions for crawled web page indexing
+async def run_web_page_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Create a new session and run the Web page indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    async with async_session_maker() as session:
+        await run_web_page_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+
+async def run_web_page_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Background task to run Web page indexing.
+    Args:
+        session: Database session
+        connector_id: ID of the webcrawler connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    try:
+        documents_processed, error_or_warning = await index_crawled_urls(
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            update_last_indexed=False,  # Don't update timestamp in the indexing function
+        )
+
+        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
+        if documents_processed > 0:
+            await update_connector_last_indexed(session, connector_id)
+            logger.info(
+                f"Web page indexing completed successfully: {documents_processed} documents processed"
+            )
+        else:
+            logger.error(
+                f"Web page indexing failed or no documents processed: {error_or_warning}"
+            )
+    except Exception as e:
+        logger.error(f"Error in background Web page indexing task: {e!s}")

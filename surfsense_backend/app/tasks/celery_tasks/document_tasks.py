@@ -9,7 +9,6 @@ from app.celery_app import celery_app
 from app.config import config
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.document_processors import (
-    add_crawled_url_document,
     add_extension_received_document,
     add_youtube_video_document,
 )
@@ -117,71 +116,6 @@ async def _process_extension_document(
                 {"error_type": type(e).__name__},
             )
             logger.error(f"Error processing extension document: {e!s}")
-            raise
-
-
-@celery_app.task(name="process_crawled_url", bind=True)
-def process_crawled_url_task(self, url: str, search_space_id: int, user_id: str):
-    """
-    Celery task to process crawled URL.
-
-    Args:
-        url: URL to crawl and process
-        search_space_id: ID of the search space
-        user_id: ID of the user
-    """
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(_process_crawled_url(url, search_space_id, user_id))
-    finally:
-        loop.close()
-
-
-async def _process_crawled_url(url: str, search_space_id: int, user_id: str):
-    """Process crawled URL with new session."""
-    async with get_celery_session_maker()() as session:
-        task_logger = TaskLoggingService(session, search_space_id)
-
-        log_entry = await task_logger.log_task_start(
-            task_name="process_crawled_url",
-            source="document_processor",
-            message=f"Starting URL crawling and processing for: {url}",
-            metadata={"document_type": "CRAWLED_URL", "url": url, "user_id": user_id},
-        )
-
-        try:
-            result = await add_crawled_url_document(
-                session, url, search_space_id, user_id
-            )
-
-            if result:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"Successfully crawled and processed URL: {url}",
-                    {
-                        "document_id": result.id,
-                        "title": result.title,
-                        "content_hash": result.content_hash,
-                    },
-                )
-            else:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"URL document already exists (duplicate): {url}",
-                    {"duplicate_detected": True},
-                )
-        except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to crawl URL: {url}",
-                str(e),
-                {"error_type": type(e).__name__},
-            )
-            logger.error(f"Error processing crawled URL: {e!s}")
             raise
 
 

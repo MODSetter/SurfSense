@@ -208,9 +208,6 @@ class Config:
         # LlamaCloud API Key
         LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
 
-    # Firecrawl API Key
-    FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY", None)
-
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")
     TTS_SERVICE_API_BASE = os.getenv("TTS_SERVICE_API_BASE")
