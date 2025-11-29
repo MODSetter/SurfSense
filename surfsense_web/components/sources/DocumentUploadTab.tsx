@@ -130,7 +130,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: acceptedFileTypes,
-		maxSize: 50 * 1024 * 1024,
+		maxSize: 1024 * 1024 * 1024, // 1GB
 		noClick: false,
 		noKeyboard: false,
 	});
