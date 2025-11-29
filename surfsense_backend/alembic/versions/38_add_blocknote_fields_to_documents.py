@@ -48,15 +48,19 @@ def upgrade() -> None:
         from app.tasks.celery_tasks.blocknote_migration_tasks import (
             populate_blocknote_for_documents_task,
         )
-        
+
         # Queue the task to run asynchronously
         populate_blocknote_for_documents_task.apply_async()
-        print("✓ Queued Celery task to populate blocknote_document for existing documents")
+        print(
+            "✓ Queued Celery task to populate blocknote_document for existing documents"
+        )
     except Exception as e:
         # If Celery is not available or task queueing fails, log but don't fail the migration
         print(f"⚠ Warning: Could not queue blocknote population task: {e}")
         print("  You can manually trigger it later with:")
-        print("  celery -A app.celery_app call app.tasks.celery_tasks.blocknote_migration_tasks.populate_blocknote_for_documents_task")
+        print(
+            "  celery -A app.celery_app call app.tasks.celery_tasks.blocknote_migration_tasks.populate_blocknote_for_documents_task"
+        )
 
 
 def downgrade() -> None:
