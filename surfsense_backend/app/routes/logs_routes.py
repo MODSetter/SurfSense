@@ -380,6 +380,10 @@ async def bulk_retry_logs(
 ):
     """Retry multiple failed logs/tasks."""
     try:
+        # Validate input
+        if not log_ids:
+            raise HTTPException(status_code=400, detail="No log IDs provided")
+
         # Use bulk UPDATE with conditions to retry eligible logs atomically
         # Only update logs where retry_count < 3 and user owns the search space
         stmt = (
@@ -403,12 +407,10 @@ async def bulk_retry_logs(
         result = await session.execute(stmt)
         retried_ids = [row[0] for row in result.all()]
 
-        if not retried_ids and not log_ids:
-            raise HTTPException(status_code=404, detail="No logs found")
-
         # Determine which logs were skipped (those in log_ids but not in retried_ids)
+        # Logs can be skipped for multiple reasons: not found, not owned by user, or retry limit reached
         skipped_ids = set(log_ids) - set(retried_ids)
-        skipped = [{"id": log_id, "reason": "Maximum retry limit reached"} for log_id in skipped_ids]
+        skipped = [{"id": log_id, "reason": "Log not eligible for retry"} for log_id in skipped_ids]
 
         await session.commit()
 
@@ -434,6 +436,10 @@ async def bulk_dismiss_logs(
 ):
     """Dismiss multiple failed logs/tasks."""
     try:
+        # Validate input
+        if not log_ids:
+            raise HTTPException(status_code=400, detail="No log IDs provided")
+
         # Use a single UPDATE with subquery to verify ownership and update atomically
         # This combines verification and update into one database operation
         stmt = (
@@ -452,12 +458,18 @@ async def bulk_dismiss_logs(
         result = await session.execute(stmt)
         dismissed_ids = [row[0] for row in result.all()]
 
-        if not dismissed_ids:
-            raise HTTPException(status_code=404, detail="No logs found")
+        # Determine which logs were skipped (those in log_ids but not in dismissed_ids)
+        # Logs can be skipped if they are not found or not owned by the user
+        skipped_ids = set(log_ids) - set(dismissed_ids)
+        skipped = [{"id": log_id, "reason": "Log not found or not owned by user"} for log_id in skipped_ids]
 
         await session.commit()
 
-        return {"dismissed": dismissed_ids, "total": len(dismissed_ids)}
+        return {
+            "dismissed": dismissed_ids,
+            "skipped": skipped,
+            "total": len(dismissed_ids) + len(skipped),
+        }
     except HTTPException:
         raise
     except Exception as e:
