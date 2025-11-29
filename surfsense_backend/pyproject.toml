@@ -50,6 +50,7 @@ dependencies = [
     "celery[redis]>=5.5.3",
     "flower>=2.0.1",
     "redis>=5.2.1",
+    "slowapi>=0.1.9",
     "chonkie[all]>=1.4.0",
     "pyotp>=2.9.0",
     "qrcode[pil]>=7.4.2",

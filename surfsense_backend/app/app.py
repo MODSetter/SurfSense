@@ -3,6 +3,9 @@ import logging
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -57,6 +60,11 @@ async def registration_allowed(session: AsyncSession = Depends(get_async_session
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
 # This ensures FastAPI uses HTTPS in redirects when behind a proxy

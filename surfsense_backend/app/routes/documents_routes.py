@@ -6,7 +6,9 @@ import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -46,6 +48,9 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 
 router = APIRouter()
+
+# Rate limiting for API endpoints
+limiter = Limiter(key_func=get_remote_address)
 
 # File upload security settings
 MAX_FILE_SIZE_MB = 1024  # Maximum file size in MB (1GB)
@@ -322,7 +327,9 @@ async def create_documents(
 
 
 @router.post("/documents/fileupload")
+@limiter.limit("10/minute")  # 10 uploads per minute per IP
 async def create_documents_file_upload(
+    request: Request,
     files: list[UploadFile],
     search_space_id: int = Form(...),
     session: AsyncSession = Depends(get_async_session),
