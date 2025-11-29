@@ -1,7 +1,7 @@
 """add_compression_preferences
 
-Revision ID: 44_add_compression_preferences
-Revises: 43_add_is_public_to_searchspaces
+Revision ID: 44
+Revises: 43
 Create Date: 2025-11-22
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '44_add_compression_preferences'
-down_revision: Union[str, None] = '43_add_is_public_to_searchspaces'
+revision: str = '44'
+down_revision: Union[str, None] = '43'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
