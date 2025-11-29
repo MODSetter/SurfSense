@@ -2,6 +2,7 @@
 
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
 import { useParams, useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { useChatAPI, useChatState } from "@/hooks/use-chat";
@@ -12,6 +13,7 @@ import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors"
 export default function ResearcherPage() {
 	const { search_space_id, chat_id } = useParams();
 	const router = useRouter();
+	const locale = useLocale(); // Get current UI language (e.g., 'en', 'lv', 'sv')
 	const hasSetInitialConnectors = useRef(false);
 
 	const chatIdParam = Array.isArray(chat_id) ? chat_id[0] : chat_id;
@@ -115,6 +117,7 @@ export default function ResearcherPage() {
 				search_mode: searchMode,
 				document_ids_to_add_in_context: documentIds,
 				top_k: topK,
+				user_language: locale, // Pass UI language to backend (e.g., 'en', 'lv', 'sv')
 			},
 		},
 		onError: (error) => {
