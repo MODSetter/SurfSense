@@ -4,6 +4,7 @@ import os
 import uuid
 from pathlib import Path
 
+import aiofiles
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -48,6 +49,7 @@ router = APIRouter()
 # File upload security settings
 MAX_FILE_SIZE_MB = 1024  # Maximum file size in MB (1GB)
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+CHUNK_SIZE = 4 * 1024 * 1024  # 4MB chunks for streaming uploads
 
 # Restricted allowlist of document file extensions
 # SECURITY: Excludes executable script files (.py, .js, .java, etc.) to prevent code execution risks
@@ -295,7 +297,15 @@ async def create_documents_file_upload(
                 )
 
         for file in files:
+            temp_path = None
             try:
+                # Validate file size from headers before reading (prevent DoS)
+                if file.size and file.size > MAX_FILE_SIZE_BYTES:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
+                    )
+
                 # Get file extension for unique filename
                 file_ext = os.path.splitext(file.filename)[1].lower()
 
@@ -303,34 +313,51 @@ async def create_documents_file_upload(
                 uploads_dir = Path(os.getenv("UPLOADS_DIR", "./uploads"))
                 uploads_dir.mkdir(parents=True, exist_ok=True)
                 unique_filename = f"{uuid.uuid4()}{file_ext}"
-                temp_path = str(uploads_dir / unique_filename)
+                temp_path = uploads_dir / unique_filename
 
-                # Read file content and check size
-                content = await file.read()
-                if len(content) > MAX_FILE_SIZE_BYTES:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
-                    )
+                # Stream file to disk in chunks (constant memory usage)
+                total_bytes = 0
+                first_chunk = None
 
-                # Validate magic bytes to prevent file type spoofing
-                is_valid, error_msg = validate_magic_bytes(content, file_ext)
-                if not is_valid:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Invalid file '{file.filename}': {error_msg}",
-                    )
+                async with aiofiles.open(temp_path, 'wb') as f:
+                    while chunk := await file.read(CHUNK_SIZE):
+                        # Store first chunk for magic byte validation
+                        if first_chunk is None:
+                            first_chunk = chunk
 
-                # Write uploaded file to persistent location
-                with open(temp_path, "wb") as f:
-                    f.write(content)
+                        await f.write(chunk)
+                        total_bytes += len(chunk)
 
+                        # Safety check during streaming (prevent size limit bypass)
+                        if total_bytes > MAX_FILE_SIZE_BYTES:
+                            raise HTTPException(
+                                status_code=400,
+                                detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
+                            )
+
+                # Validate magic bytes using first chunk
+                if first_chunk:
+                    is_valid, error_msg = validate_magic_bytes(first_chunk, file_ext)
+                    if not is_valid:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid file '{file.filename}': {error_msg}",
+                        )
+
+                # File successfully streamed to disk, queue for processing
                 process_file_upload_task.delay(
-                    temp_path, file.filename, search_space_id, str(user.id)
+                    str(temp_path), file.filename, search_space_id, str(user.id)
                 )
+
             except HTTPException:
+                # Clean up temp file on validation errors
+                if temp_path and temp_path.exists():
+                    temp_path.unlink()
                 raise
             except Exception as e:
+                # Clean up temp file on unexpected errors
+                if temp_path and temp_path.exists():
+                    temp_path.unlink()
                 raise HTTPException(
                     status_code=422,
                     detail=f"Failed to process file {file.filename}: {e!s}",
