@@ -1,0 +1,29 @@
+[bandit]
+# Bandit security linter configuration for SurfSense backend
+# Scans Python code for common security issues
+
+# Paths to exclude from scanning
+exclude_dirs = [
+    '/tests/',
+    '/alembic/',
+    '/.venv/',
+    '/venv/',
+    '/.pytest_cache/',
+    '/__pycache__/'
+]
+
+# Security tests to skip (with justification)
+skips = [
+    # B101: assert_used - asserts are acceptable in tests and type checking
+    'B101',
+    # B601: paramiko_calls - not using paramiko
+    'B601'
+]
+
+# Severity level (LOW, MEDIUM, HIGH)
+# Only report MEDIUM and HIGH severity issues
+level = MEDIUM
+
+# Confidence level (LOW, MEDIUM, HIGH)
+# Only report MEDIUM and HIGH confidence issues
+confidence = MEDIUM

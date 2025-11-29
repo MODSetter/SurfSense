@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import logging
+import os
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,8 +18,13 @@ from app.routes import router as crud_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.services.jsonata_transformer import transformer
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
+from app.utils.logger import configure_logging, get_logger
 
-logger = logging.getLogger(__name__)
+# Configure structured logging at startup
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+configure_logging(LOG_LEVEL)
+
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -31,8 +37,9 @@ async def lifespan(app: FastAPI):
         transformer.register_template(connector_type, template)
 
     logger.info(
-        f"Registered {len(CONNECTOR_TEMPLATES)} JSONata transformation templates: "
-        f"{', '.join(CONNECTOR_TEMPLATES.keys())}"
+        "jsonata_templates_registered",
+        template_count=len(CONNECTOR_TEMPLATES),
+        connectors=list(CONNECTOR_TEMPLATES.keys()),
     )
 
     yield
@@ -179,7 +186,12 @@ async def verify_token(
         HTTPException: 401 if token is invalid or expired
         HTTPException: 403 if user is inactive
     """
-    logger.info(f"Token verified successfully for user ID: {user.id}")
+    logger.info(
+        "token_verified",
+        user_id=str(user.id),
+        user_email=user.email,
+        is_superuser=user.is_superuser,
+    )
 
     return {
         "valid": True,
