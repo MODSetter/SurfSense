@@ -65,7 +65,7 @@ class TemplatesListResponse(BaseModel):
 @router.post("/transform", response_model=TransformResponse)
 @limiter.limit("5/minute")  # Rate limit to prevent abuse
 async def transform_data(
-    http_request: Request,
+    _http_request: Request,
     request: TransformRequest,
     _user: User = Depends(current_active_user),
 ):
@@ -103,7 +103,7 @@ async def transform_data(
     ```
 
     Args:
-        http_request: FastAPI request object (required by rate limiter)
+        _http_request: FastAPI request object (required by rate limiter)
         request: Transform request containing JSONata expression and data
         _user: Currently authenticated user (required for access)
 
