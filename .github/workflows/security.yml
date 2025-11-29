@@ -1,0 +1,150 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, nightly]
+  pull_request:
+    branches: [main, nightly]
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+
+jobs:
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install backend dependencies
+        run: |
+          cd surfsense_backend
+          poetry install --no-root
+
+      - name: Run Safety check for known CVEs
+        run: |
+          cd surfsense_backend
+          poetry run pip install safety
+          poetry run safety check --json --output safety-report.json || true
+        continue-on-error: true
+
+      - name: Run Bandit security linter
+        run: |
+          cd surfsense_backend
+          poetry run pip install bandit[toml]
+          poetry run bandit -r app/ -f json -o bandit-report.json || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            surfsense_backend/safety-report.json
+            surfsense_backend/bandit-report.json
+          retention-days: 30
+
+      - name: Parse Safety results
+        if: always()
+        run: |
+          cd surfsense_backend
+          if [ -f safety-report.json ]; then
+            echo "::group::Safety Security Report"
+            cat safety-report.json | python3 -m json.tool || echo "No vulnerabilities found or report is empty"
+            echo "::endgroup::"
+          fi
+
+      - name: Parse Bandit results
+        if: always()
+        run: |
+          cd surfsense_backend
+          if [ -f bandit-report.json ]; then
+            echo "::group::Bandit Security Report"
+            cat bandit-report.json | python3 -m json.tool || echo "No issues found or report is empty"
+            echo "::endgroup::"
+          fi
+
+  frontend-scan:
+    name: Frontend Dependency Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Run npm audit
+        run: |
+          cd surfsense_web
+          pnpm audit --json > npm-audit-report.json || true
+        continue-on-error: true
+
+      - name: Upload npm audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: surfsense_web/npm-audit-report.json
+          retention-days: 30
+
+      - name: Parse npm audit results
+        if: always()
+        run: |
+          cd surfsense_web
+          if [ -f npm-audit-report.json ]; then
+            echo "::group::NPM Audit Report"
+            cat npm-audit-report.json | python3 -m json.tool || echo "No vulnerabilities found"
+            echo "::endgroup::"
+          fi
+
+  codeql-analysis:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    strategy:
+      matrix:
+        language: ['python', 'javascript']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

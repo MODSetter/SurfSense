@@ -1,11 +1,14 @@
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
 import os
+import string
 import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -46,10 +49,17 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 router = APIRouter()
 
+# Rate limiting for API endpoints
+limiter = Limiter(key_func=get_remote_address)
+
 # File upload security settings
 MAX_FILE_SIZE_MB = 1024  # Maximum file size in MB (1GB)
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 CHUNK_SIZE = 4 * 1024 * 1024  # 4MB chunks for streaming uploads
+
+# Pagination limits
+MAX_PAGE_SIZE = 1000  # Maximum documents per page (prevents memory exhaustion)
+DEFAULT_PAGE_SIZE = 50  # Default page size when not specified
 
 # Restricted allowlist of document file extensions
 # SECURITY: Excludes executable script files (.py, .js, .java, etc.) to prevent code execution risks
@@ -195,6 +205,115 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
     return False, f"Unable to verify file type for extension '{file_ext}'. File may be corrupted or spoofed."
 
 
+def normalize_page_size(page_size: int) -> int:
+    """
+    Normalize page_size parameter to safe limits.
+
+    Args:
+        page_size: Requested page size (-1 for all, or positive integer)
+
+    Returns:
+        Normalized page size between 1 and MAX_PAGE_SIZE
+
+    Example:
+        >>> normalize_page_size(-1)
+        1000  # MAX_PAGE_SIZE
+        >>> normalize_page_size(5000)
+        1000  # MAX_PAGE_SIZE
+        >>> normalize_page_size(25)
+        25
+        >>> normalize_page_size(0)
+        50  # DEFAULT_PAGE_SIZE
+    """
+    if page_size == -1 or page_size > MAX_PAGE_SIZE:
+        return MAX_PAGE_SIZE
+    elif page_size < 1:
+        return DEFAULT_PAGE_SIZE
+    return page_size
+
+
+def validate_document_types(document_types: str | None) -> list[str]:
+    """
+    Validate and parse document types parameter.
+
+    Args:
+        document_types: Comma-separated string of document types
+
+    Returns:
+        List of valid DocumentType enum values
+
+    Raises:
+        HTTPException: If invalid types are provided
+
+    Example:
+        >>> validate_document_types("FILE,CRAWLED_URL")
+        ['FILE', 'CRAWLED_URL']
+        >>> validate_document_types("INVALID")
+        HTTPException(400, "Invalid document types: INVALID. Valid types: ...")
+    """
+    if not document_types or not document_types.strip():
+        return []
+
+    # Get valid enum values
+    valid_types = {e.value for e in DocumentType}
+
+    # Parse and validate
+    type_list = [t.strip() for t in document_types.split(",") if t.strip()]
+    invalid_types = [t for t in type_list if t not in valid_types]
+
+    if invalid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid document types: {', '.join(invalid_types)}. "
+            f"Valid types: {', '.join(sorted(valid_types))}",
+        )
+
+    return type_list
+
+
+def sanitize_file_extension(filename: str) -> str:
+    """
+    Sanitize file extension to prevent path traversal attacks.
+
+    Extracts the file extension and removes any dangerous characters
+    that could be used for directory traversal or other attacks.
+
+    Args:
+        filename: Original filename from upload
+
+    Returns:
+        Sanitized file extension (e.g., ".pdf", ".txt")
+        Returns ".bin" if extension is invalid or suspicious
+
+    Security:
+        - Strips all characters except alphanumeric and dot
+        - Prevents path traversal attempts like "../../etc/passwd%00.pdf"
+        - Prevents null byte injection
+        - Returns safe default for suspicious extensions
+
+    Example:
+        >>> sanitize_file_extension("../../etc/passwd%00.pdf")
+        '.pdf'
+        >>> sanitize_file_extension("document.pdf")
+        '.pdf'
+        >>> sanitize_file_extension("file")
+        '.bin'
+    """
+    # Extract extension and convert to lowercase
+    raw_file_ext = os.path.splitext(filename)[1].lower()
+
+    # Only allow safe characters: alphanumeric and dot
+    allowed_chars = string.ascii_lowercase + string.digits + "."
+    file_ext = "".join(c for c in raw_file_ext if c in allowed_chars)
+
+    # Validate the sanitized extension
+    if not file_ext or file_ext == "." or file_ext not in ALLOWED_EXTENSIONS:
+        # Default to .bin for invalid or suspicious extensions
+        return ".bin"
+
+    return file_ext
+
+
 def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
     """
     Validate a file upload for security.
@@ -206,8 +325,12 @@ def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
     if not file.filename:
         return False, "File must have a filename"
 
-    # Check file extension
-    file_ext = os.path.splitext(file.filename)[1].lower()
+    # Sanitize and check file extension (prevents path traversal)
+    file_ext = sanitize_file_extension(file.filename)
+    if file_ext == ".bin":
+        # Suspicious or invalid extension was sanitized to .bin
+        raw_ext = os.path.splitext(file.filename)[1]
+        return False, f"File extension '{raw_ext}' is invalid or not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
     if file_ext not in ALLOWED_EXTENSIONS:
         return False, f"File type '{file_ext}' is not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
 
@@ -274,7 +397,9 @@ async def create_documents(
 
 
 @router.post("/documents/fileupload")
+@limiter.limit("10/minute")  # 10 uploads per minute per IP
 async def create_documents_file_upload(
+    request: Request,
     files: list[UploadFile],
     search_space_id: int = Form(...),
     session: AsyncSession = Depends(get_async_session),
@@ -306,8 +431,8 @@ async def create_documents_file_upload(
                         detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
                     )
 
-                # Get file extension for unique filename
-                file_ext = os.path.splitext(file.filename)[1].lower()
+                # Sanitize file extension to prevent path traversal attacks
+                file_ext = sanitize_file_extension(file.filename)
 
                 # Create uploads directory if it doesn't exist
                 uploads_dir = Path(os.getenv("UPLOADS_DIR", "./uploads"))
@@ -406,6 +531,9 @@ async def read_documents(
     try:
         from sqlalchemy import func
 
+        # Normalize page_size to prevent memory exhaustion
+        page_size = normalize_page_size(page_size)
+
         query = (
             select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
         )
@@ -414,11 +542,10 @@ async def read_documents(
         if search_space_id is not None:
             query = query.filter(Document.search_space_id == search_space_id)
 
-        # Filter by document_types if provided
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
-                query = query.filter(Document.document_type.in_(type_list))
+        # Validate and filter by document_types if provided
+        type_list = validate_document_types(document_types)
+        if type_list:
+            query = query.filter(Document.document_type.in_(type_list))
 
         # Get total count
         count_query = (
@@ -431,10 +558,8 @@ async def read_documents(
             count_query = count_query.filter(
                 Document.search_space_id == search_space_id
             )
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
-                count_query = count_query.filter(Document.document_type.in_(type_list))
+        if type_list:
+            count_query = count_query.filter(Document.document_type.in_(type_list))
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -445,11 +570,8 @@ async def read_documents(
         elif page is not None:
             offset = page * page_size
 
-        # Get paginated results
-        if page_size == -1:
-            result = await session.execute(query.offset(offset))
-        else:
-            result = await session.execute(query.offset(offset).limit(page_size))
+        # Get paginated results (page_size is already normalized to MAX_PAGE_SIZE)
+        result = await session.execute(query.offset(offset).limit(page_size))
 
         db_documents = result.scalars().all()
 
@@ -509,6 +631,9 @@ async def search_documents(
     try:
         from sqlalchemy import func
 
+        # Normalize page_size to prevent memory exhaustion
+        page_size = normalize_page_size(page_size)
+
         query = (
             select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
         )
@@ -518,11 +643,10 @@ async def search_documents(
         # Only search by title (case-insensitive)
         query = query.filter(Document.title.ilike(f"%{title}%"))
 
-        # Filter by document_types if provided
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
-                query = query.filter(Document.document_type.in_(type_list))
+        # Validate and filter by document_types if provided
+        type_list = validate_document_types(document_types)
+        if type_list:
+            query = query.filter(Document.document_type.in_(type_list))
 
         # Get total count
         count_query = (
@@ -536,10 +660,8 @@ async def search_documents(
                 Document.search_space_id == search_space_id
             )
         count_query = count_query.filter(Document.title.ilike(f"%{title}%"))
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
-                count_query = count_query.filter(Document.document_type.in_(type_list))
+        if type_list:
+            count_query = count_query.filter(Document.document_type.in_(type_list))
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -550,11 +672,8 @@ async def search_documents(
         elif page is not None:
             offset = page * page_size
 
-        # Get paginated results
-        if page_size == -1:
-            result = await session.execute(query.offset(offset))
-        else:
-            result = await session.execute(query.offset(offset).limit(page_size))
+        # Get paginated results (page_size is already normalized to MAX_PAGE_SIZE)
+        result = await session.execute(query.offset(offset).limit(page_size))
 
         db_documents = result.scalars().all()
 
