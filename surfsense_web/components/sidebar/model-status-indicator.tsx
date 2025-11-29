@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import type { LLMConfig } from "@/hooks/use-llm-configs";
 
 interface ModelStatusIndicatorProps {
@@ -34,7 +35,8 @@ export function ModelStatusIndicator({
 }: ModelStatusIndicatorProps) {
 	const router = useRouter();
 	const params = useParams();
-	const searchSpaceId = params?.search_space_id as string;
+	// Safely extract searchSpaceId handling both string and array cases
+	const searchSpaceId = [params?.search_space_id].flat()[0];
 
 	// Determine current status
 	const status = useMemo(() => {
@@ -99,18 +101,24 @@ export function ModelStatusIndicator({
 
 	const isClickable = !currentModel;
 
+	// Extract Settings icon to reduce duplication
+	const settingsIcon = <Settings className="h-4 w-4 text-amber-500 animate-pulse" />;
+
 	if (collapsed) {
 		return (
 			<TooltipProvider>
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<div
-							className={`flex items-center justify-center p-2 rounded-md hover:bg-accent/50 transition-colors ${isClickable ? "cursor-pointer" : ""}`}
+							className={cn(
+								"flex items-center justify-center p-2 rounded-md hover:bg-accent/50 transition-colors",
+								isClickable && "cursor-pointer"
+							)}
 							onClick={handleClick}
 						>
 							<div className="relative">
 								{isClickable ? (
-									<Settings className="h-4 w-4 text-amber-500 animate-pulse" />
+									settingsIcon
 								) : (
 									<>
 										<StatusIcon
@@ -146,14 +154,17 @@ export function ModelStatusIndicator({
 
 	return (
 		<div
-			className={`px-3 py-2 rounded-lg border bg-card/50 hover:bg-accent/30 transition-all group ${isClickable ? "cursor-pointer" : ""}`}
+			className={cn(
+				"px-3 py-2 rounded-lg border bg-card/50 hover:bg-accent/30 transition-all group",
+				isClickable && "cursor-pointer"
+			)}
 			onClick={handleClick}
 		>
 			<div className="flex items-center gap-2">
 				{/* Status Icon with Animation */}
 				<div className="relative flex-shrink-0">
 					{isClickable ? (
-						<Settings className="h-4 w-4 text-amber-500 animate-pulse" />
+						settingsIcon
 					) : (
 						<>
 							<StatusIcon
