@@ -245,6 +245,15 @@ pnpm build    # Production build
 # Celery
 celery -A app.celery_app worker --loglevel=info
 celery -A app.celery_app beat --loglevel=info
+
+# Security Testing
+pytest -m security -v                    # Run security tests only
+pytest tests/test_file_upload_security.py  # File upload security suite
+poetry run safety check                  # Check for CVEs
+poetry run bandit -r app/                # Security linting
+
+# View structured logs
+journalctl -u surfsense -o json | jq .   # JSON formatted logs
 ```
 
 ## Files NOT to Commit
@@ -256,6 +265,8 @@ These are in `.gitignore`:
 - `global_llm_config.yaml` (contains API keys)
 - `uploads/` directory
 - Python cache (`__pycache__`, `.pyc`)
+- `bandit-report.json` (security scan results)
+- `safety-report.json` (CVE scan results)
 
 ## Recent Changes (November 2025)
 
@@ -270,7 +281,149 @@ These are in `.gitignore`:
 9. **Automatic LLM Fallback** - Bidirectional fallback between Gemini (primary) and Mistral (backup)
 10. **Gemini as Primary** - Switched to Gemini Flash as main LLM for speed and large context support
 11. **Reranking Enabled** - FlashRank reranker for better document relevance scoring
+12. **Security Hardening** - File upload streaming, rate limiting, input validation
+13. **JSONata Transformation Layer** - Declarative connector data transformations
+14. **Automated Security Scanning** - GitHub Actions workflow for dependency CVE scanning
+15. **Structured Logging** - JSON-formatted logs with structlog for production observability
+
+## Security Improvements (November 29, 2025)
+
+Comprehensive security hardening:
+
+### File Upload Security
+- **Streaming with aiofiles** - Prevents DoS attacks by reading files in chunks instead of loading entirely into memory
+- **Path Traversal Protection** - File extension sanitization strips malicious characters (e.g., `../../etc/passwd%00.pdf` → `.pdf`)
+- **Magic Byte Validation** - Verifies file type by checking file header signatures, not just extensions
+- **Size Limits** - Maximum page size limits prevent memory exhaustion
+
+### Rate Limiting
+- **File Upload Endpoint** - 10 uploads per minute per IP address
+- **JSONata Transformation** - 5 transformations per minute per IP address
+- **Implementation** - slowapi library with Redis-backed rate limiting
+
+### Input Validation
+- **Document Types** - Validates against DocumentType enum to prevent SQL injection
+- **Pagination Limits** - Maximum 1000 documents per page (default: 50)
+- **JSONata Timeout** - 5-second timeout prevents infinite loops or resource exhaustion
+
+### Automated Security Scanning
+- **GitHub Actions Workflow** - `.github/workflows/security.yml`
+- **Safety** - Scans Python dependencies for known CVEs
+- **Bandit** - Security linting of Python code for common vulnerabilities
+- **CodeQL** - Semantic code analysis for Python and JavaScript
+- **Schedule** - Runs on push to main/nightly, pull requests, and weekly on Sundays
+- **Artifact Reports** - Security scan results uploaded for review
+
+### Structured Logging
+- **Library** - structlog for JSON-formatted logs
+- **Benefits** - Machine-parsable logs for production observability
+- **Integration** - CloudWatch, Datadog, ELK compatible
+- **Context** - Request IDs, user info, timestamps in ISO format
+
+## JSONata Integration
+
+Declarative transformation layer for connector data standardization:
+
+### Overview
+- **Library** - pyjsonata for JSONata query language
+- **Purpose** - Transform raw connector JSON into standardized Document format without writing Python code
+- **Performance** - Templates are pre-compiled at startup and stored in memory
+
+### Implemented Connectors
+9 connector templates with declarative transformations:
+1. **GitHub** - Issues and pull requests
+2. **Gmail** - Email messages
+3. **Slack** - Channel messages
+4. **Jira** - Issues and comments
+5. **Discord** - Server messages
+6. **Notion** - Pages and databases
+7. **Confluence** - Pages and spaces
+8. **Google Calendar** - Events
+9. **Linear** - Issues and projects
+
+### Template Structure
+Templates define JSON-to-Document mappings:
+```jsonata
+{
+  "title": title,
+  "content": $join([body, $join(comments[].body, "\n")], "\n\n"),
+  "metadata": {
+    "author": author.name,
+    "created_at": created_at,
+    "url": html_url
+  }
+}
+```
+
+### Location
+- **Templates** - `surfsense_backend/app/config/jsonata_templates.py`
+- **Service** - `surfsense_backend/app/services/jsonata_transformer.py`
+- **API** - `surfsense_backend/app/routes/jsonata_routes.py`
+
+## Testing Framework
+
+pytest-based testing with security focus:
+
+### Test Organization
+- **Unit Tests** - Individual component testing
+- **Integration Tests** - End-to-end workflow testing
+- **Security Tests** - Vulnerability and attack vector testing (marked with `@pytest.mark.security`)
+
+### File Upload Security Suite
+Comprehensive security testing in `tests/test_file_upload_security.py`:
+- **30+ tests** covering:
+  - Executable detection (Windows PE, ELF, Mach-O)
+  - Magic byte validation for all supported formats
+  - Path traversal attempts (`../../`, null bytes, Unicode tricks)
+  - Empty file handling
+  - Extension sanitization
+  - Malformed file uploads
+
+### Running Tests
+```bash
+pytest tests/                              # All tests
+pytest -m security -v                      # Security tests only
+pytest tests/test_file_upload_security.py  # File upload security suite
+pytest --cov=app --cov-report=html         # Coverage report
+```
+
+### Coverage Reporting
+- **HTML Report** - `htmlcov/index.html`
+- **XML Report** - `coverage.xml` (for CI/CD)
+- **Configuration** - `pyproject.toml` under `[tool.pytest.ini_options]`
+
+## CI/CD Pipeline
+
+GitHub Actions workflow for automated security scanning:
+
+### Workflow File
+`.github/workflows/security.yml`
+
+### Trigger Events
+- Push to `main` or `nightly` branches
+- Pull requests to `main` or `nightly`
+- Weekly schedule (Sundays at midnight UTC)
+
+### Scan Types
+1. **Backend Dependency Scan**
+   - **Safety** - Python dependency CVE scanning
+   - **Bandit** - Security linting for Python code
+   - **Reports** - JSON artifacts uploaded for review
+
+2. **Frontend Dependency Scan**
+   - **npm audit** - JavaScript/Node.js vulnerability scanning
+   - **Reports** - JSON artifacts uploaded for review
+
+3. **CodeQL Analysis**
+   - **Languages** - Python and JavaScript
+   - **Queries** - Standard security queries
+   - **SARIF Output** - Security findings uploaded to GitHub Security tab
+
+### Artifact Storage
+- Security reports retained for 30 days
+- Available for download from Actions tab
+- JSON format for automated processing
 
 ---
 
-*Last updated: November 19, 2025*
+*Last updated: November 29, 2025*
