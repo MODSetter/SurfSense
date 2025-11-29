@@ -57,6 +57,10 @@ MAX_FILE_SIZE_MB = 1024  # Maximum file size in MB (1GB)
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 CHUNK_SIZE = 4 * 1024 * 1024  # 4MB chunks for streaming uploads
 
+# Pagination limits
+MAX_PAGE_SIZE = 1000  # Maximum documents per page (prevents memory exhaustion)
+DEFAULT_PAGE_SIZE = 50  # Default page size when not specified
+
 # Restricted allowlist of document file extensions
 # SECURITY: Excludes executable script files (.py, .js, .java, etc.) to prevent code execution risks
 ALLOWED_EXTENSIONS = {
@@ -199,6 +203,72 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
 
     # No matching signature found for non-text, non-media file
     return False, f"Unable to verify file type for extension '{file_ext}'. File may be corrupted or spoofed."
+
+
+def normalize_page_size(page_size: int) -> int:
+    """
+    Normalize page_size parameter to safe limits.
+
+    Args:
+        page_size: Requested page size (-1 for all, or positive integer)
+
+    Returns:
+        Normalized page size between 1 and MAX_PAGE_SIZE
+
+    Example:
+        >>> normalize_page_size(-1)
+        1000  # MAX_PAGE_SIZE
+        >>> normalize_page_size(5000)
+        1000  # MAX_PAGE_SIZE
+        >>> normalize_page_size(25)
+        25
+        >>> normalize_page_size(0)
+        50  # DEFAULT_PAGE_SIZE
+    """
+    if page_size == -1 or page_size > MAX_PAGE_SIZE:
+        return MAX_PAGE_SIZE
+    elif page_size < 1:
+        return DEFAULT_PAGE_SIZE
+    return page_size
+
+
+def validate_document_types(document_types: str | None) -> list[str]:
+    """
+    Validate and parse document types parameter.
+
+    Args:
+        document_types: Comma-separated string of document types
+
+    Returns:
+        List of valid DocumentType enum values
+
+    Raises:
+        HTTPException: If invalid types are provided
+
+    Example:
+        >>> validate_document_types("FILE,CRAWLED_URL")
+        ['FILE', 'CRAWLED_URL']
+        >>> validate_document_types("INVALID")
+        HTTPException(400, "Invalid document types: INVALID. Valid types: ...")
+    """
+    if not document_types or not document_types.strip():
+        return []
+
+    # Get valid enum values
+    valid_types = {e.value for e in DocumentType}
+
+    # Parse and validate
+    type_list = [t.strip() for t in document_types.split(",") if t.strip()]
+    invalid_types = [t for t in type_list if t not in valid_types]
+
+    if invalid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid document types: {', '.join(invalid_types)}. "
+            f"Valid types: {', '.join(sorted(valid_types))}",
+        )
+
+    return type_list
 
 
 def sanitize_file_extension(filename: str) -> str:
@@ -461,6 +531,9 @@ async def read_documents(
     try:
         from sqlalchemy import func
 
+        # Normalize page_size to prevent memory exhaustion
+        page_size = normalize_page_size(page_size)
+
         query = (
             select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
         )
@@ -469,11 +542,10 @@ async def read_documents(
         if search_space_id is not None:
             query = query.filter(Document.search_space_id == search_space_id)
 
-        # Filter by document_types if provided
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
-                query = query.filter(Document.document_type.in_(type_list))
+        # Validate and filter by document_types if provided
+        type_list = validate_document_types(document_types)
+        if type_list:
+            query = query.filter(Document.document_type.in_(type_list))
 
         # Get total count
         count_query = (
@@ -486,10 +558,8 @@ async def read_documents(
             count_query = count_query.filter(
                 Document.search_space_id == search_space_id
             )
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
-                count_query = count_query.filter(Document.document_type.in_(type_list))
+        if type_list:
+            count_query = count_query.filter(Document.document_type.in_(type_list))
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -500,11 +570,8 @@ async def read_documents(
         elif page is not None:
             offset = page * page_size
 
-        # Get paginated results
-        if page_size == -1:
-            result = await session.execute(query.offset(offset))
-        else:
-            result = await session.execute(query.offset(offset).limit(page_size))
+        # Get paginated results (page_size is already normalized to MAX_PAGE_SIZE)
+        result = await session.execute(query.offset(offset).limit(page_size))
 
         db_documents = result.scalars().all()
 
@@ -564,6 +631,9 @@ async def search_documents(
     try:
         from sqlalchemy import func
 
+        # Normalize page_size to prevent memory exhaustion
+        page_size = normalize_page_size(page_size)
+
         query = (
             select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
         )
@@ -573,11 +643,10 @@ async def search_documents(
         # Only search by title (case-insensitive)
         query = query.filter(Document.title.ilike(f"%{title}%"))
 
-        # Filter by document_types if provided
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
-                query = query.filter(Document.document_type.in_(type_list))
+        # Validate and filter by document_types if provided
+        type_list = validate_document_types(document_types)
+        if type_list:
+            query = query.filter(Document.document_type.in_(type_list))
 
         # Get total count
         count_query = (
@@ -591,10 +660,8 @@ async def search_documents(
                 Document.search_space_id == search_space_id
             )
         count_query = count_query.filter(Document.title.ilike(f"%{title}%"))
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
-                count_query = count_query.filter(Document.document_type.in_(type_list))
+        if type_list:
+            count_query = count_query.filter(Document.document_type.in_(type_list))
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -605,11 +672,8 @@ async def search_documents(
         elif page is not None:
             offset = page * page_size
 
-        # Get paginated results
-        if page_size == -1:
-            result = await session.execute(query.offset(offset))
-        else:
-            result = await session.execute(query.offset(offset).limit(page_size))
+        # Get paginated results (page_size is already normalized to MAX_PAGE_SIZE)
+        result = await session.execute(query.offset(offset).limit(page_size))
 
         db_documents = result.scalars().all()
 
