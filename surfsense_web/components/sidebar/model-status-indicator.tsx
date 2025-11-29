@@ -20,6 +20,9 @@ interface ModelStatusIndicatorProps {
 	collapsed?: boolean;
 }
 
+// Static icon for unconfigured model state (prevents recreation on each render)
+const settingsIcon = <Settings className="h-4 w-4 text-amber-500 animate-pulse" />;
+
 /**
  * ModelStatusIndicator displays the current AI model status in the sidebar
  * Similar to Claude.ai's model indicator, showing:
@@ -100,9 +103,6 @@ export function ModelStatusIndicator({
 	};
 
 	const isClickable = !currentModel;
-
-	// Extract Settings icon to reduce duplication
-	const settingsIcon = <Settings className="h-4 w-4 text-amber-500 animate-pulse" />;
 
 	if (collapsed) {
 		return (

@@ -29,9 +29,15 @@ class TestJSONataTransformer:
 
         transformer.register_template("test_connector", template)
 
+        # Verify template is registered
         assert "test_connector" in transformer.templates
-        assert transformer.templates["test_connector"] == template
         assert transformer.has_template("test_connector") is True
+        # Templates are now stored as compiled expressions, not raw strings
+        assert transformer.templates["test_connector"] is not None
+        # Verify the compiled template can be used for transformation
+        result = transformer.transform("test_connector", {"title": "Test", "body": "Content"})
+        assert result["title"] == "Test"
+        assert result["content"] == "Content"
 
     def test_transform_with_registered_template(self):
         """Test transformation using a registered template."""
