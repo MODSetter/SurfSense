@@ -335,14 +335,14 @@ async def create_documents_file_upload(
                                 detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
                             )
 
-                # Validate magic bytes using first chunk (handle empty files explicitly)
-                content_to_validate = first_chunk if first_chunk is not None else b""
-                is_valid, error_msg = validate_magic_bytes(content_to_validate, file_ext)
-                if not is_valid:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Invalid file '{file.filename}': {error_msg}",
-                    )
+                # Validate magic bytes using first chunk (skip for empty files)
+                if first_chunk:
+                    is_valid, error_msg = validate_magic_bytes(first_chunk, file_ext)
+                    if not is_valid:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid file '{file.filename}': {error_msg}",
+                        )
 
                 # File successfully streamed to disk, queue for processing
                 process_file_upload_task.delay(
