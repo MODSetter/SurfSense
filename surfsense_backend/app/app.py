@@ -26,6 +26,10 @@ configure_logging(LOG_LEVEL)
 
 logger = get_logger(__name__)
 
+# Get Redis URL for rate limiter shared storage
+# Uses same Redis instance as Celery for rate limit counters
+REDIS_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -68,10 +72,11 @@ async def registration_allowed(session: AsyncSession = Depends(get_async_session
 
 app = FastAPI(lifespan=lifespan)
 
-# Initialize rate limiter
+# Initialize rate limiter with shared Redis storage
 # Uses secure_rate_limit_key which validates proxy headers against trusted proxies
 # This prevents IP spoofing attacks via forged X-Forwarded-For headers
-limiter = Limiter(key_func=secure_rate_limit_key)
+# storage_uri ensures all Limiter instances share the same rate limit counters
+limiter = Limiter(key_func=secure_rate_limit_key, storage_uri=REDIS_URL)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

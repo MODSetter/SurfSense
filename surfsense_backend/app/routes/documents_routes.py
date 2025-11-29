@@ -49,10 +49,15 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 router = APIRouter()
 
-# Rate limiting for API endpoints
+# Get Redis URL for rate limiter shared storage
+# Uses same Redis instance as Celery for rate limit counters
+REDIS_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+
+# Rate limiting for API endpoints with shared Redis storage
 # Uses secure_rate_limit_key which validates proxy headers against trusted proxies
 # This prevents IP spoofing attacks via forged X-Forwarded-For headers
-limiter = Limiter(key_func=secure_rate_limit_key)
+# storage_uri ensures all Limiter instances share the same rate limit counters
+limiter = Limiter(key_func=secure_rate_limit_key, storage_uri=REDIS_URL)
 
 # File upload security settings
 MAX_FILE_SIZE_MB = 1024  # Maximum file size in MB (1GB)
