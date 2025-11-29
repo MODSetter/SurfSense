@@ -41,8 +41,6 @@ from .logs import (
     LogFilter,
     LogRead,
     LogUpdate,
-    SKIP_REASON_COULD_NOT_DISMISS,
-    SKIP_REASON_NOT_ELIGIBLE_RETRY,
     SkippedLog,
 )
 from .podcasts import (
@@ -116,8 +114,6 @@ __all__ = [
     "SearchSourceConnectorRead",
     "SearchSourceConnectorReadSafe",
     "SearchSourceConnectorUpdate",
-    "SKIP_REASON_COULD_NOT_DISMISS",
-    "SKIP_REASON_NOT_ELIGIBLE_RETRY",
     "SkippedLog",
     "sanitize_connector_config",
     "SearchSpaceBase",
