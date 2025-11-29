@@ -33,7 +33,18 @@ from .llm_config import (
     LLMConfigReadSafe,
     LLMConfigUpdate,
 )
-from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
+from .logs import (
+    BulkDismissResponse,
+    BulkRetryResponse,
+    LogBase,
+    LogCreate,
+    LogFilter,
+    LogRead,
+    LogUpdate,
+    SKIP_REASON_COULD_NOT_DISMISS,
+    SKIP_REASON_NOT_ELIGIBLE_RETRY,
+    SkippedLog,
+)
 from .podcasts import (
     PodcastBase,
     PodcastCreate,
@@ -60,6 +71,8 @@ from .users import UserCreate, UserRead, UserUpdate
 
 __all__ = [
     "AISDKChatRequest",
+    "BulkDismissResponse",
+    "BulkRetryResponse",
     "ChatBase",
     "ChatCreate",
     "ChatRead",
@@ -103,6 +116,9 @@ __all__ = [
     "SearchSourceConnectorRead",
     "SearchSourceConnectorReadSafe",
     "SearchSourceConnectorUpdate",
+    "SKIP_REASON_COULD_NOT_DISMISS",
+    "SKIP_REASON_NOT_ELIGIBLE_RETRY",
+    "SkippedLog",
     "sanitize_connector_config",
     "SearchSpaceBase",
     "SearchSpaceCreate",

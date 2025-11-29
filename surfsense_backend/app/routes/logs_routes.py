@@ -6,15 +6,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db import Log, LogLevel, LogStatus, SearchSpace, User, get_async_session
-from app.schemas import LogCreate, LogRead, LogUpdate
+from app.schemas import (
+    BulkDismissResponse,
+    BulkRetryResponse,
+    LogCreate,
+    LogRead,
+    LogUpdate,
+    SKIP_REASON_COULD_NOT_DISMISS,
+    SKIP_REASON_NOT_ELIGIBLE_RETRY,
+    SkippedLog,
+)
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 
 router = APIRouter()
-
-# Skip reason constants for bulk operations
-SKIP_REASON_NOT_ELIGIBLE_RETRY = "Log not eligible for retry"
-SKIP_REASON_COULD_NOT_DISMISS = "Log could not be dismissed"
 
 
 @router.post("/logs", response_model=LogRead)
@@ -376,16 +381,16 @@ async def dismiss_log(
         ) from e
 
 
-@router.post("/logs/bulk-retry")
+@router.post("/logs/bulk-retry", response_model=BulkRetryResponse)
 async def bulk_retry_logs(
     log_ids: list[int],
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
-):
+) -> BulkRetryResponse:
     """Retry multiple failed logs/tasks.
 
     Returns:
-        dict: Response containing:
+        BulkRetryResponse: Response containing:
             - retried: List of successfully retried log IDs
             - skipped: List of skipped logs with reasons (not eligible for retry)
             - total: Total count of retried + skipped logs
@@ -425,15 +430,18 @@ async def bulk_retry_logs(
         # Determine which logs were skipped (those in log_ids but not in retried_ids)
         # Logs can be skipped for multiple reasons: not found, not owned by user, or retry limit reached
         skipped_ids = set(log_ids) - set(retried_ids)
-        skipped = [{"id": log_id, "reason": SKIP_REASON_NOT_ELIGIBLE_RETRY} for log_id in skipped_ids]
+        skipped = [
+            SkippedLog(id=log_id, reason=SKIP_REASON_NOT_ELIGIBLE_RETRY)
+            for log_id in skipped_ids
+        ]
 
         await session.commit()
 
-        return {
-            "retried": retried_ids,
-            "skipped": skipped,
-            "total": len(retried_ids) + len(skipped),
-        }
+        return BulkRetryResponse(
+            retried=retried_ids,
+            skipped=skipped,
+            total=len(retried_ids) + len(skipped),
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -443,16 +451,16 @@ async def bulk_retry_logs(
         ) from e
 
 
-@router.post("/logs/bulk-dismiss")
+@router.post("/logs/bulk-dismiss", response_model=BulkDismissResponse)
 async def bulk_dismiss_logs(
     log_ids: list[int],
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
-):
+) -> BulkDismissResponse:
     """Dismiss multiple failed logs/tasks.
 
     Returns:
-        dict: Response containing:
+        BulkDismissResponse: Response containing:
             - dismissed: List of successfully dismissed log IDs
             - skipped: List of skipped logs with generic reason
             - total: Total count of dismissed + skipped logs
@@ -490,15 +498,18 @@ async def bulk_dismiss_logs(
         # Determine which logs were skipped (those in log_ids but not in dismissed_ids)
         # Logs can be skipped if they are not found or not owned by the user
         skipped_ids = set(log_ids) - set(dismissed_ids)
-        skipped = [{"id": log_id, "reason": SKIP_REASON_COULD_NOT_DISMISS} for log_id in skipped_ids]
+        skipped = [
+            SkippedLog(id=log_id, reason=SKIP_REASON_COULD_NOT_DISMISS)
+            for log_id in skipped_ids
+        ]
 
         await session.commit()
 
-        return {
-            "dismissed": dismissed_ids,
-            "skipped": skipped,
-            "total": len(dismissed_ids) + len(skipped),
-        }
+        return BulkDismissResponse(
+            dismissed=dismissed_ids,
+            skipped=skipped,
+            total=len(dismissed_ids) + len(skipped),
+        )
     except HTTPException:
         raise
     except Exception as e:
