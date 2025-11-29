@@ -1,3 +1,31 @@
+"""
+GitHub Connector for SurfSense.
+
+JSONata Integration:
+    This connector can use JSONata transformations to convert GitHub API
+    responses into standardized document format. To use JSONata:
+
+    Example:
+        from app.services.jsonata_transformer import transformer
+
+        # Transform GitHub issue response
+        github_data = {
+            "title": "Bug in feature X",
+            "body": "Description...",
+            "html_url": "https://github.com/org/repo/issues/123",
+            ...
+        }
+
+        # Apply registered template
+        transformed = transformer.transform("github", github_data)
+
+        # Result will be in standardized format with:
+        # - title: str
+        # - content: str
+        # - document_type: str
+        # - document_metadata: dict
+"""
+
 import base64
 import logging
 from typing import Any

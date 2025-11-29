@@ -8,9 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.config import config
+from app.config.jsonata_templates import CONNECTOR_TEMPLATES
 from app.db import SiteConfiguration, User, create_db_and_tables, get_async_session
 from app.routes import router as crud_router
 from app.schemas import UserCreate, UserRead, UserUpdate
+from app.services.jsonata_transformer import transformer
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 
 logger = logging.getLogger(__name__)
@@ -20,6 +22,16 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Not needed if you setup a migration system like Alembic
     await create_db_and_tables()
+
+    # Register JSONata transformation templates for connectors
+    for connector_type, template in CONNECTOR_TEMPLATES.items():
+        transformer.register_template(connector_type, template)
+
+    logger.info(
+        f"Registered {len(CONNECTOR_TEMPLATES)} JSONata transformation templates: "
+        f"{', '.join(CONNECTOR_TEMPLATES.keys())}"
+    )
+
     yield
 
 
@@ -126,6 +138,11 @@ if config.AUTH_TYPE == "GOOGLE":
     )
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
+
+# Include JSONata transformation routes
+from app.routes.jsonata_routes import router as jsonata_router
+
+app.include_router(jsonata_router)
 
 # Include health check routes (no rate limiting, for monitoring/load balancers)
 from app.routes.health_routes import router as health_router
