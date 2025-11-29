@@ -38,19 +38,24 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 ## Key Features
 
 ### 💡 **Idea**: 
-Have your own highly customizable private NotebookLM and Perplexity integrated with external sources.
+- Have your own highly customizable private NotebookLM and Perplexity integrated with external sources.
 ### 📁 **Multiple File Format Uploading Support**
-Save content from your own personal files *(Documents, images, videos and supports **50+ file extensions**)* to your own personal knowledge base .
+- Save content from your own personal files *(Documents, images, videos and supports **50+ file extensions**)* to your own personal knowledge base .
 ### 🔍 **Powerful Search**
-Quickly research or find anything in your saved content .
+- Quickly research or find anything in your saved content .
 ### 💬 **Chat with your Saved Content**
- Interact in Natural Language and get cited answers.
+- Interact in Natural Language and get cited answers.
 ### 📄 **Cited Answers**
-Get Cited answers just like Perplexity.
+- Get Cited answers just like Perplexity.
 ### 🔔 **Privacy & Local LLM Support**
-Works Flawlessly with Ollama local LLMs.
+- Works Flawlessly with Ollama local LLMs.
 ### 🏠 **Self Hostable**
-Open source and easy to deploy locally.
+- Open source and easy to deploy locally.
+### 👥 **Team Collaboration with RBAC**
+- Role-Based Access Control for Search Spaces
+- Invite team members with customizable roles (Owner, Admin, Editor, Viewer)
+- Granular permissions for documents, chats, connectors, and settings
+- Share knowledge bases securely within your organization
 ### 🎙️ Podcasts 
 - Blazingly fast podcast generation agent. (Creates a 3-minute podcast in under 20 seconds.)
 - Convert your chat conversations into engaging audio content
