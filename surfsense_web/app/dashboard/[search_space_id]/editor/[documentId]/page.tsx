@@ -9,7 +9,6 @@ import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 
 interface EditorContent {
 	document_id: number;
@@ -97,35 +96,7 @@ export default function EditorPage() {
 		}
 	}, [editorContent, document]);
 
-	// Auto-save every 30 seconds - DIRECT CALL TO FASTAPI
-	useEffect(() => {
-		if (!editorContent || !token || !hasUnsavedChanges) return;
-
-		const interval = setInterval(async () => {
-			try {
-				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}/blocknote-content`,
-					{
-						method: "PUT",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({ blocknote_document: editorContent }),
-					}
-				);
-
-				if (response.ok) {
-					setHasUnsavedChanges(false);
-					toast.success("Auto-saved", { duration: 2000 });
-				}
-			} catch (error) {
-				console.error("Auto-save failed:", error);
-			}
-		}, 30000); // 30 seconds
-
-		return () => clearInterval(interval);
-	}, [editorContent, documentId, token, hasUnsavedChanges]);
+	// TODO: Auto-save every 30 seconds - DIRECT CALL TO FASTAPI
 
 	// Save and exit - DIRECT CALL TO FASTAPI
 	const handleSave = async () => {
