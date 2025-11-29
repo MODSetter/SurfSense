@@ -30,12 +30,23 @@ def downgrade():
     op.create_table(
         "user_search_space_preferences",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("user_id", sa.UUID(), sa.ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("search_space_id", sa.Integer(), sa.ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "user_id",
+            sa.UUID(),
+            sa.ForeignKey("user.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "search_space_id",
+            sa.Integer(),
+            sa.ForeignKey("searchspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("long_context_llm_id", sa.Integer(), nullable=True),
         sa.Column("fast_llm_id", sa.Integer(), nullable=True),
         sa.Column("strategic_llm_id", sa.Integer(), nullable=True),
         sa.UniqueConstraint("user_id", "search_space_id", name="uq_user_searchspace"),
     )
-

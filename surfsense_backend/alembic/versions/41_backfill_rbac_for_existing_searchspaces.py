@@ -31,16 +31,40 @@ DEFAULT_ROLES = [
         "name": "Admin",
         "description": "Can manage members, roles, and all content",
         "permissions": [
-            "documents:create", "documents:read", "documents:update", "documents:delete",
-            "chats:create", "chats:read", "chats:update", "chats:delete",
-            "llm_configs:create", "llm_configs:read", "llm_configs:update", "llm_configs:delete",
-            "logs:read", "logs:delete",
-            "podcasts:create", "podcasts:read", "podcasts:update", "podcasts:delete",
-            "connectors:create", "connectors:read", "connectors:update", "connectors:delete",
-            "members:read", "members:update", "members:delete",
-            "roles:create", "roles:read", "roles:update", "roles:delete",
-            "invites:create", "invites:read", "invites:delete",
-            "settings:read", "settings:update",
+            "documents:create",
+            "documents:read",
+            "documents:update",
+            "documents:delete",
+            "chats:create",
+            "chats:read",
+            "chats:update",
+            "chats:delete",
+            "llm_configs:create",
+            "llm_configs:read",
+            "llm_configs:update",
+            "llm_configs:delete",
+            "logs:read",
+            "logs:delete",
+            "podcasts:create",
+            "podcasts:read",
+            "podcasts:update",
+            "podcasts:delete",
+            "connectors:create",
+            "connectors:read",
+            "connectors:update",
+            "connectors:delete",
+            "members:read",
+            "members:update",
+            "members:delete",
+            "roles:create",
+            "roles:read",
+            "roles:update",
+            "roles:delete",
+            "invites:create",
+            "invites:read",
+            "invites:delete",
+            "settings:read",
+            "settings:update",
         ],
         "is_system_role": True,
         "is_default": False,
@@ -49,12 +73,20 @@ DEFAULT_ROLES = [
         "name": "Editor",
         "description": "Can create and edit content",
         "permissions": [
-            "documents:create", "documents:read", "documents:update",
-            "chats:create", "chats:read", "chats:update",
+            "documents:create",
+            "documents:read",
+            "documents:update",
+            "chats:create",
+            "chats:read",
+            "chats:update",
             "llm_configs:read",
             "logs:read",
-            "podcasts:create", "podcasts:read", "podcasts:update",
-            "connectors:create", "connectors:read", "connectors:update",
+            "podcasts:create",
+            "podcasts:read",
+            "podcasts:update",
+            "connectors:create",
+            "connectors:read",
+            "connectors:update",
             "members:read",
             "roles:read",
         ],
@@ -101,8 +133,10 @@ def upgrade():
         # Create default roles for each search space
         for role in DEFAULT_ROLES:
             # Convert permissions list to PostgreSQL array literal format for raw SQL
-            perms_literal = "ARRAY[" + ",".join(f"'{p}'" for p in role["permissions"]) + "]::TEXT[]"
-            
+            perms_literal = (
+                "ARRAY[" + ",".join(f"'{p}'" for p in role["permissions"]) + "]::TEXT[]"
+            )
+
             result = connection.execute(
                 sa.text(f"""
                     INSERT INTO search_space_roles 
@@ -116,10 +150,10 @@ def upgrade():
                     "is_default": role["is_default"],
                     "is_system_role": role["is_system_role"],
                     "search_space_id": ss_id,
-                }
+                },
             )
             role_id = result.fetchone()[0]
-            
+
             # Keep track of Owner role ID
             if role["name"] == "Owner":
                 owner_role_id = role_id
@@ -132,7 +166,7 @@ def upgrade():
                     SELECT 1 FROM search_space_memberships 
                     WHERE user_id = :user_id AND search_space_id = :search_space_id
                 """),
-                {"user_id": owner_user_id, "search_space_id": ss_id}
+                {"user_id": owner_user_id, "search_space_id": ss_id},
             ).fetchone()
 
             if not existing:
@@ -146,7 +180,7 @@ def upgrade():
                         "user_id": owner_user_id,
                         "search_space_id": ss_id,
                         "role_id": owner_role_id,
-                    }
+                    },
                 )
 
 
@@ -156,7 +190,7 @@ def downgrade():
     # However, this is destructive and may affect manually created data
     # So we only remove system roles and owner memberships that were auto-created
     connection = op.get_bind()
-    
+
     # Remove memberships where user is owner and role is system Owner role
     connection.execute(
         sa.text("""
@@ -168,7 +202,7 @@ def downgrade():
             AND ssr.name = 'Owner'
         """)
     )
-    
+
     # Remove system roles
     connection.execute(
         sa.text("""
@@ -176,4 +210,3 @@ def downgrade():
             WHERE is_system_role = TRUE
         """)
     )
-

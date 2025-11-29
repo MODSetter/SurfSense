@@ -522,8 +522,6 @@ class LLMConfig(BaseModel, TimestampMixin):
     search_space = relationship("SearchSpace", back_populates="llm_configs")
 
 
-
-
 class Log(BaseModel, TimestampMixin):
     __tablename__ = "logs"
 
