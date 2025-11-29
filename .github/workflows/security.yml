@@ -152,6 +152,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python (for Python analysis only)
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies (for Python analysis only)
+        if: matrix.language == 'python'
+        run: |
+          cd surfsense_backend
+          python -m pip install --upgrade pip
+          pip install -e . || echo "Warning: Some dependencies failed but continuing"
+        continue-on-error: true
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
