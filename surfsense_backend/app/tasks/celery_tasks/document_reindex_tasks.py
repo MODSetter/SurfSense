@@ -2,21 +2,20 @@
 
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
-from sqlalchemy import delete
 from sqlalchemy.orm import selectinload
+from sqlalchemy.pool import NullPool
 
 from app.celery_app import celery_app
 from app.config import config
 from app.db import Document
+from app.services.llm_service import get_user_long_context_llm
 from app.utils.blocknote_converter import convert_blocknote_to_markdown
 from app.utils.document_converters import (
     create_document_chunks,
     generate_document_summary,
 )
-from app.services.llm_service import get_user_long_context_llm
 
 logger = logging.getLogger(__name__)
 

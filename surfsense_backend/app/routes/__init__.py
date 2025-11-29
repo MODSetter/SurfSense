@@ -24,6 +24,7 @@ router = APIRouter()
 
 router.include_router(search_spaces_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
+router.include_router(editor_router)
 router.include_router(documents_router)
 router.include_router(podcasts_router)
 router.include_router(chats_router)
