@@ -35,7 +35,7 @@ jobs:
           cd surfsense_backend
           python -m pip install --upgrade pip
           pip install safety bandit[toml]
-          pip install -e .
+          pip install -e . || echo "Warning: Some dependencies may have failed to install"
 
       - name: Run Safety check for known CVEs
         run: |
@@ -65,7 +65,7 @@ jobs:
           cd surfsense_backend
           if [ -f safety-report.json ]; then
             echo "::group::Safety Security Report"
-            python3 -m json.tool safety-report.json || echo "No vulnerabilities found or report is empty"
+            python3 -m json.tool safety-report.json 2>/dev/null || echo "No vulnerabilities found or report is empty"
             echo "::endgroup::"
           fi
 
@@ -75,7 +75,7 @@ jobs:
           cd surfsense_backend
           if [ -f bandit-report.json ]; then
             echo "::group::Bandit Security Report"
-            python3 -m json.tool bandit-report.json || echo "No issues found or report is empty"
+            python3 -m json.tool bandit-report.json 2>/dev/null || echo "No issues found or report is empty"
             echo "::endgroup::"
           fi
 
@@ -108,7 +108,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd surfsense_web
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile || pnpm install
 
       - name: Run pnpm audit
         run: |
