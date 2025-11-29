@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main, nightly]
   schedule:
-    # Run weekly on Sunday at midnight UTC
     - cron: '0 0 * * 0'
 
 jobs:
@@ -23,35 +22,38 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('surfsense_backend/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-      - name: Install backend dependencies
+      - name: Install dependencies with pip
         run: |
           cd surfsense_backend
-          poetry install --no-root
+          python -m pip install --upgrade pip
+          pip install safety bandit[toml]
+          pip install -e .
 
       - name: Run Safety check for known CVEs
         run: |
           cd surfsense_backend
-          poetry run pip install safety
-          poetry run safety check --json > safety-report.json 2>&1 || echo '{"vulnerabilities": []}' > safety-report.json
+          safety check --json > safety-report.json 2>&1 || echo '{"vulnerabilities": []}' > safety-report.json
         continue-on-error: true
 
       - name: Run Bandit security linter
         run: |
           cd surfsense_backend
-          poetry run pip install bandit[toml]
-          poetry run bandit -r app/ -f json -o bandit-report.json 2>&1 || echo '{"results": []}' > bandit-report.json
+          bandit -r app/ -f json -o bandit-report.json 2>&1 || echo '{"results": []}' > bandit-report.json
         continue-on-error: true
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: security-reports
+          name: backend-security-reports
           path: |
             surfsense_backend/safety-report.json
             surfsense_backend/bandit-report.json
@@ -63,7 +65,7 @@ jobs:
           cd surfsense_backend
           if [ -f safety-report.json ]; then
             echo "::group::Safety Security Report"
-            cat safety-report.json | python3 -m json.tool || echo "No vulnerabilities found or report is empty"
+            python3 -m json.tool safety-report.json || echo "No vulnerabilities found or report is empty"
             echo "::endgroup::"
           fi
 
@@ -73,7 +75,7 @@ jobs:
           cd surfsense_backend
           if [ -f bandit-report.json ]; then
             echo "::group::Bandit Security Report"
-            cat bandit-report.json | python3 -m json.tool || echo "No issues found or report is empty"
+            python3 -m json.tool bandit-report.json || echo "No issues found or report is empty"
             echo "::endgroup::"
           fi
 
@@ -95,17 +97,30 @@ jobs:
         with:
           version: 8
 
-      - name: Run npm audit
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
         run: |
           cd surfsense_web
-          pnpm audit --json > npm-audit-report.json || true
+          pnpm install --frozen-lockfile
+
+      - name: Run pnpm audit
+        run: |
+          cd surfsense_web
+          pnpm audit --json > npm-audit-report.json 2>&1 || true
         continue-on-error: true
 
       - name: Upload npm audit report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: npm-audit-report
+          name: frontend-security-reports
           path: surfsense_web/npm-audit-report.json
           retention-days: 30
 
@@ -114,20 +129,22 @@ jobs:
         run: |
           cd surfsense_web
           if [ -f npm-audit-report.json ]; then
-            echo "::group::NPM Audit Report"
-            cat npm-audit-report.json | python3 -m json.tool || echo "No vulnerabilities found"
+            echo "::group::PNPM Audit Report"
+            python3 -m json.tool npm-audit-report.json 2>/dev/null || cat npm-audit-report.json || echo "No vulnerabilities found"
             echo "::endgroup::"
           fi
 
   codeql-analysis:
     name: CodeQL Security Analysis
     runs-on: ubuntu-latest
+    if: github.repository == 'okapteinis/SurfSense' && github.event_name != 'pull_request_target'
     permissions:
       security-events: write
       actions: read
       contents: read
 
     strategy:
+      fail-fast: false
       matrix:
         language: ['python', 'javascript']
 
@@ -139,6 +156,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+          queries: security-extended
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
