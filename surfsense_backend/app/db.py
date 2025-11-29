@@ -133,6 +133,12 @@ class LogStatus(str, Enum):
     DISMISSED = "DISMISSED"
 
 
+class SkipReason(str, Enum):
+    """Skip reasons for bulk log operations."""
+    NOT_ELIGIBLE_RETRY = "Log not eligible for retry"
+    COULD_NOT_DISMISS = "Log could not be dismissed"
+
+
 class SocialMediaPlatform(str, Enum):
     MASTODON = "MASTODON"
     PIXELFED = "PIXELFED"

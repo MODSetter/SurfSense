@@ -1,15 +1,11 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from app.db import LogLevel, LogStatus
+from app.db import LogLevel, LogStatus, SkipReason
 
 from .base import IDModel, TimestampModel
-
-# Skip reason constants for bulk operations
-SKIP_REASON_NOT_ELIGIBLE_RETRY = "Log not eligible for retry"
-SKIP_REASON_COULD_NOT_DISMISS = "Log could not be dismissed"
 
 
 class LogBase(BaseModel):
@@ -64,7 +60,7 @@ class LogFilter(BaseModel):
 class SkippedLog(BaseModel):
     """Model for a skipped log in bulk operations."""
     id: int
-    reason: Literal[SKIP_REASON_NOT_ELIGIBLE_RETRY, SKIP_REASON_COULD_NOT_DISMISS]
+    reason: SkipReason
 
     model_config = ConfigDict(from_attributes=True)
 

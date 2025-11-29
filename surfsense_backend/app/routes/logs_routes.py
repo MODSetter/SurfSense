@@ -5,15 +5,13 @@ from sqlalchemy import and_, desc, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db import Log, LogLevel, LogStatus, SearchSpace, User, get_async_session
+from app.db import Log, LogLevel, LogStatus, SearchSpace, SkipReason, User, get_async_session
 from app.schemas import (
     BulkDismissResponse,
     BulkRetryResponse,
     LogCreate,
     LogRead,
     LogUpdate,
-    SKIP_REASON_COULD_NOT_DISMISS,
-    SKIP_REASON_NOT_ELIGIBLE_RETRY,
     SkippedLog,
 )
 from app.users import current_active_user
@@ -431,7 +429,7 @@ async def bulk_retry_logs(
         # Logs can be skipped for multiple reasons: not found, not owned by user, or retry limit reached
         skipped_ids = set(log_ids) - set(retried_ids)
         skipped = [
-            SkippedLog(id=log_id, reason=SKIP_REASON_NOT_ELIGIBLE_RETRY)
+            SkippedLog(id=log_id, reason=SkipReason.NOT_ELIGIBLE_RETRY)
             for log_id in skipped_ids
         ]
 
@@ -499,7 +497,7 @@ async def bulk_dismiss_logs(
         # Logs can be skipped if they are not found or not owned by the user
         skipped_ids = set(log_ids) - set(dismissed_ids)
         skipped = [
-            SkippedLog(id=log_id, reason=SKIP_REASON_COULD_NOT_DISMISS)
+            SkippedLog(id=log_id, reason=SkipReason.COULD_NOT_DISMISS)
             for log_id in skipped_ids
         ]
 
