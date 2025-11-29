@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -398,7 +398,7 @@ async def create_documents(
 @limiter.limit("10/minute")  # 10 uploads per minute per IP
 async def create_documents_file_upload(
     request: Request,
-    files: list[UploadFile],
+    files: list[UploadFile] = File(...),
     search_space_id: int = Form(...),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
