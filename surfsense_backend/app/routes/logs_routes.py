@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import and_, desc
+from sqlalchemy import and_, desc, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -324,7 +324,7 @@ async def retry_log(
         # Increment retry count and reset status to IN_PROGRESS
         db_log.retry_count += 1
         db_log.status = LogStatus.IN_PROGRESS
-        db_log.message = f"Retrying task (attempt {db_log.retry_count + 1})..."
+        db_log.message = f"Retrying task (retry #{db_log.retry_count})..."
 
         await session.commit()
         await session.refresh(db_log)
@@ -405,7 +405,7 @@ async def bulk_retry_logs(
             # Increment retry count and reset status
             db_log.retry_count += 1
             db_log.status = LogStatus.IN_PROGRESS
-            db_log.message = f"Retrying task (attempt {db_log.retry_count + 1})..."
+            db_log.message = f"Retrying task (retry #{db_log.retry_count})..."
             retried.append(db_log.id)
 
         await session.commit()
@@ -432,25 +432,27 @@ async def bulk_dismiss_logs(
 ):
     """Dismiss multiple failed logs/tasks."""
     try:
-        # Get logs and verify user owns the search spaces
+        # First verify user owns all the logs
         result = await session.execute(
-            select(Log)
+            select(Log.id)
             .join(SearchSpace)
             .filter(Log.id.in_(log_ids), SearchSpace.user_id == user.id)
         )
-        db_logs = result.scalars().all()
+        verified_log_ids = [row[0] for row in result.all()]
 
-        if not db_logs:
+        if not verified_log_ids:
             raise HTTPException(status_code=404, detail="No logs found")
 
-        dismissed = []
-        for db_log in db_logs:
-            db_log.status = LogStatus.DISMISSED
-            dismissed.append(db_log.id)
-
+        # Use a single UPDATE statement for better performance
+        stmt = (
+            update(Log)
+            .where(Log.id.in_(verified_log_ids))
+            .values(status=LogStatus.DISMISSED)
+        )
+        await session.execute(stmt)
         await session.commit()
 
-        return {"dismissed": dismissed, "total": len(dismissed)}
+        return {"dismissed": verified_log_ids, "total": len(verified_log_ids)}
     except HTTPException:
         raise
     except Exception as e:

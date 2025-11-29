@@ -22,22 +22,13 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Update page limits for all users to 1,000,000."""
-    # Update all users with the old limit of 1000 to the new limit of 1,000,000
+    # Update all users with old limits (500 or 1000) to the new limit of 1,000,000
     # This ensures existing users get the increased limit
     op.execute(
         """
         UPDATE "user"
         SET pages_limit = 1000000
-        WHERE pages_limit = 1000
-        """
-    )
-
-    # Also update any users with the even older limit of 500
-    op.execute(
-        """
-        UPDATE "user"
-        SET pages_limit = 1000000
-        WHERE pages_limit = 500
+        WHERE pages_limit IN (500, 1000)
         """
     )
 
