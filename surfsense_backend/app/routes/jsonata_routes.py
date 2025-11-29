@@ -5,11 +5,14 @@ These endpoints allow testing JSONata transformations interactively and
 inspecting registered transformation templates.
 """
 
+import asyncio
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.services.jsonata_transformer import transformer
 from app.users import User, current_active_user
@@ -17,6 +20,9 @@ from app.users import User, current_active_user
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/jsonata", tags=["jsonata"])
+
+# Rate limiter for JSONata endpoints
+limiter = Limiter(key_func=get_remote_address)
 
 
 class TransformRequest(BaseModel):
@@ -57,8 +63,11 @@ class TemplatesListResponse(BaseModel):
 
 
 @router.post("/transform", response_model=TransformResponse)
+@limiter.limit("5/minute")  # Rate limit to prevent abuse
 async def transform_data(
-    request: TransformRequest, _user: User = Depends(current_active_user)
+    http_request: Request,
+    request: TransformRequest,
+    _user: User = Depends(current_active_user),
 ):
     """
     Test a custom JSONata transformation.
@@ -66,6 +75,9 @@ async def transform_data(
     This endpoint allows testing JSONata expressions interactively without
     needing to register them as templates. Useful for developing and debugging
     new transformations.
+
+    **SECURITY:** This endpoint is rate-limited to 5 requests per minute per IP.
+    A 5-second timeout prevents infinite loops or resource exhaustion.
 
     **Example request:**
     ```json
@@ -91,6 +103,7 @@ async def transform_data(
     ```
 
     Args:
+        http_request: FastAPI request object (required by rate limiter)
         request: Transform request containing JSONata expression and data
         _user: Currently authenticated user (required for access)
 
@@ -98,14 +111,24 @@ async def transform_data(
         TransformResponse containing the transformed data
 
     Raises:
-        HTTPException: If JSONata transformation fails
+        HTTPException: If JSONata transformation fails or times out
     """
     try:
-        result = transformer.transform_custom(request.jsonata_expression, request.data)
-        logger.info(
-            f"User {_user.email} tested JSONata transformation successfully"
-        )
+        # Add timeout to prevent infinite loops (5 second limit)
+        async with asyncio.timeout(5.0):
+            result = transformer.transform_custom(
+                request.jsonata_expression, request.data
+            )
+        logger.info(f"User {_user.email} tested JSONata transformation successfully")
         return TransformResponse(result=result)
+    except asyncio.TimeoutError:
+        logger.error(
+            f"JSONata transformation timed out for user {_user.email}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=408,
+            detail="Transformation timed out after 5 seconds. Please simplify your expression or reduce data size.",
+        )
     except Exception as e:
         # Log full error details server-side for debugging
         logger.error(f"JSONata transformation failed: {e}", exc_info=True)
