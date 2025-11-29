@@ -380,6 +380,9 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 
 			const result = await response.json();
 			toast.success(`Successfully dismissed ${result.dismissed.length} log(s)`);
+			if (result.skipped && result.skipped.length > 0) {
+				toast.info(`Skipped ${result.skipped.length} log(s) (not found or not owned)`);
+			}
 			return result;
 		} catch (err: any) {
 			toast.error(err.message || "Failed to dismiss logs");
