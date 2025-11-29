@@ -130,6 +130,7 @@ class LogStatus(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+    DISMISSED = "DISMISSED"
 
 
 class SocialMediaPlatform(str, Enum):
@@ -403,6 +404,7 @@ class Log(BaseModel, TimestampMixin):
     message = Column(Text, nullable=False)
     source = Column(String(200), nullable=True, index=True)
     log_metadata = Column(JSON, nullable=True, default={})
+    retry_count = Column(Integer, nullable=False, default=0, server_default="0")
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
@@ -486,7 +488,7 @@ if config.AUTH_TYPE == "GOOGLE":
         search_space_preferences = relationship(
             "UserSearchSpacePreference", back_populates="user", cascade="all, delete-orphan"
         )
-        pages_limit = Column(Integer, nullable=False, default=1000, server_default="1000")
+        pages_limit = Column(Integer, nullable=False, default=1000000, server_default="1000000")
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
         # Two-factor authentication fields
         two_fa_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
@@ -506,7 +508,7 @@ else:
         search_space_preferences = relationship(
             "UserSearchSpacePreference", back_populates="user", cascade="all, delete-orphan"
         )
-        pages_limit = Column(Integer, nullable=False, default=1000, server_default="1000")
+        pages_limit = Column(Integer, nullable=False, default=1000000, server_default="1000000")
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
         # Two-factor authentication fields
         two_fa_enabled = Column(Boolean, nullable=False, default=False, server_default="false")

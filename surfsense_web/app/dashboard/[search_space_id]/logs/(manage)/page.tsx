@@ -325,6 +325,10 @@ const columns: ColumnDef<Log>[] = createColumns((key) => key);
 // Create a context to share functions
 const LogsContext = React.createContext<{
 	deleteLog: (id: number) => Promise<boolean>;
+	retryLog: (id: number) => Promise<any>;
+	dismissLog: (id: number) => Promise<any>;
+	bulkRetryLogs: (ids: number[]) => Promise<any>;
+	bulkDismissLogs: (ids: number[]) => Promise<any>;
 	refreshLogs: () => Promise<void>;
 } | null>(null);
 
@@ -340,6 +344,10 @@ export default function LogsManagePage() {
 		error: logsError,
 		refreshLogs,
 		deleteLog,
+		retryLog,
+		dismissLog,
+		bulkRetryLogs,
+		bulkDismissLogs,
 	} = useLogs(searchSpaceId);
 	const {
 		summary,
@@ -428,6 +436,44 @@ export default function LogsManagePage() {
 		}
 	};
 
+	const handleRetryRows = async () => {
+		const selectedRows = table.getSelectedRowModel().rows;
+
+		if (selectedRows.length === 0) {
+			toast.error("No rows selected");
+			return;
+		}
+
+		const logIds = selectedRows.map((row) => row.original.id);
+
+		try {
+			await bulkRetryLogs(logIds);
+			await refreshLogs();
+			table.resetRowSelection();
+		} catch (error: any) {
+			console.error("Error retrying logs:", error);
+		}
+	};
+
+	const handleDismissRows = async () => {
+		const selectedRows = table.getSelectedRowModel().rows;
+
+		if (selectedRows.length === 0) {
+			toast.error("No rows selected");
+			return;
+		}
+
+		const logIds = selectedRows.map((row) => row.original.id);
+
+		try {
+			await bulkDismissLogs(logIds);
+			await refreshLogs();
+			table.resetRowSelection();
+		} catch (error: any) {
+			console.error("Error dismissing logs:", error);
+		}
+	};
+
 	const handleRefresh = async () => {
 		await Promise.all([refreshLogs(), refreshSummary()]);
 		toast.success("Logs refreshed");
@@ -437,6 +483,10 @@ export default function LogsManagePage() {
 		<LogsContext.Provider
 			value={{
 				deleteLog: deleteLog || (() => Promise.resolve(false)),
+				retryLog: retryLog || (() => Promise.resolve(null)),
+				dismissLog: dismissLog || (() => Promise.resolve(null)),
+				bulkRetryLogs: bulkRetryLogs || (() => Promise.resolve(null)),
+				bulkDismissLogs: bulkDismissLogs || (() => Promise.resolve(null)),
 				refreshLogs: refreshLogs || (() => Promise.resolve()),
 			}}
 		>
@@ -480,14 +530,33 @@ export default function LogsManagePage() {
 					id={id}
 				/>
 
-				{/* Delete Button */}
+				{/* Bulk Action Buttons */}
 				{table.getSelectedRowModel().rows.length > 0 && (
 					<motion.div
 						initial={{ opacity: 0, y: -10 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
-						className="flex justify-end"
+						className="flex justify-end gap-2"
 					>
+						{/* Retry Selected */}
+						<Button variant="outline" onClick={handleRetryRows}>
+							<RefreshCw className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} />
+							Retry Selected
+							<span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
+								{table.getSelectedRowModel().rows.length}
+							</span>
+						</Button>
+
+						{/* Dismiss Selected */}
+						<Button variant="outline" onClick={handleDismissRows}>
+							<X className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} />
+							Dismiss Selected
+							<span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
+								{table.getSelectedRowModel().rows.length}
+							</span>
+						</Button>
+
+						{/* Delete Selected */}
 						<AlertDialog>
 							<AlertDialogTrigger asChild>
 								<Button variant="outline">
@@ -1119,7 +1188,9 @@ function LogsPagination({ table, id, t }: { table: any; id: string; t: (key: str
 function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const { deleteLog, refreshLogs } = useContext(LogsContext)!;
+	const [isRetrying, setIsRetrying] = useState(false);
+	const [isDismissing, setIsDismissing] = useState(false);
+	const { deleteLog, retryLog, dismissLog, refreshLogs } = useContext(LogsContext)!;
 	const log = row.original;
 
 	const handleDelete = async () => {
@@ -1134,6 +1205,30 @@ function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }
 		} finally {
 			setIsDeleting(false);
 			setIsOpen(false);
+		}
+	};
+
+	const handleRetry = async () => {
+		setIsRetrying(true);
+		try {
+			await retryLog(log.id);
+			await refreshLogs();
+		} catch (error) {
+			console.error("Error retrying log:", error);
+		} finally {
+			setIsRetrying(false);
+		}
+	};
+
+	const handleDismiss = async () => {
+		setIsDismissing(true);
+		try {
+			await dismissLog(log.id);
+			await refreshLogs();
+		} catch (error) {
+			console.error("Error dismissing log:", error);
+		} finally {
+			setIsDismissing(false);
 		}
 	};
 
@@ -1156,6 +1251,33 @@ function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }
 						}
 					/>
 					<DropdownMenuSeparator />
+					{/* Retry option - only show for failed logs */}
+					{log.status === "FAILED" && log.retry_count < 3 && (
+						<DropdownMenuItem
+							onSelect={(e) => {
+								e.preventDefault();
+								handleRetry();
+							}}
+							disabled={isRetrying}
+						>
+							<RefreshCw className="mr-2 h-4 w-4" />
+							{isRetrying ? "Retrying..." : "Retry"}
+						</DropdownMenuItem>
+					)}
+					{/* Dismiss option - show for failed logs */}
+					{log.status === "FAILED" && (
+						<DropdownMenuItem
+							onSelect={(e) => {
+								e.preventDefault();
+								handleDismiss();
+							}}
+							disabled={isDismissing}
+						>
+							<X className="mr-2 h-4 w-4" />
+							{isDismissing ? "Dismissing..." : "Dismiss"}
+						</DropdownMenuItem>
+					)}
+					{(log.status === "FAILED") && <DropdownMenuSeparator />}
 					<AlertDialog open={isOpen} onOpenChange={setIsOpen}>
 						<AlertDialogTrigger asChild>
 							<DropdownMenuItem
