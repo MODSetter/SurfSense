@@ -1,6 +1,7 @@
 # Force asyncio to use standard event loop before unstructured imports
 import asyncio
 import os
+import string
 import uuid
 from pathlib import Path
 
@@ -195,6 +196,49 @@ def validate_magic_bytes(content: bytes, file_ext: str) -> tuple[bool, str]:
     return False, f"Unable to verify file type for extension '{file_ext}'. File may be corrupted or spoofed."
 
 
+def sanitize_file_extension(filename: str) -> str:
+    """
+    Sanitize file extension to prevent path traversal attacks.
+
+    Extracts the file extension and removes any dangerous characters
+    that could be used for directory traversal or other attacks.
+
+    Args:
+        filename: Original filename from upload
+
+    Returns:
+        Sanitized file extension (e.g., ".pdf", ".txt")
+        Returns ".bin" if extension is invalid or suspicious
+
+    Security:
+        - Strips all characters except alphanumeric and dot
+        - Prevents path traversal attempts like "../../etc/passwd%00.pdf"
+        - Prevents null byte injection
+        - Returns safe default for suspicious extensions
+
+    Example:
+        >>> sanitize_file_extension("../../etc/passwd%00.pdf")
+        '.pdf'
+        >>> sanitize_file_extension("document.pdf")
+        '.pdf'
+        >>> sanitize_file_extension("file")
+        '.bin'
+    """
+    # Extract extension and convert to lowercase
+    raw_file_ext = os.path.splitext(filename)[1].lower()
+
+    # Only allow safe characters: alphanumeric and dot
+    allowed_chars = string.ascii_lowercase + string.digits + "."
+    file_ext = "".join(c for c in raw_file_ext if c in allowed_chars)
+
+    # Validate the sanitized extension
+    if not file_ext or file_ext == "." or file_ext not in ALLOWED_EXTENSIONS:
+        # Default to .bin for invalid or suspicious extensions
+        return ".bin"
+
+    return file_ext
+
+
 def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
     """
     Validate a file upload for security.
@@ -206,8 +250,12 @@ def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
     if not file.filename:
         return False, "File must have a filename"
 
-    # Check file extension
-    file_ext = os.path.splitext(file.filename)[1].lower()
+    # Sanitize and check file extension (prevents path traversal)
+    file_ext = sanitize_file_extension(file.filename)
+    if file_ext == ".bin":
+        # Suspicious or invalid extension was sanitized to .bin
+        raw_ext = os.path.splitext(file.filename)[1]
+        return False, f"File extension '{raw_ext}' is invalid or not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
     if file_ext not in ALLOWED_EXTENSIONS:
         return False, f"File type '{file_ext}' is not allowed. Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
 
@@ -306,8 +354,8 @@ async def create_documents_file_upload(
                         detail=f"File '{file.filename}' exceeds maximum size of {MAX_FILE_SIZE_MB}MB",
                     )
 
-                # Get file extension for unique filename
-                file_ext = os.path.splitext(file.filename)[1].lower()
+                # Sanitize file extension to prevent path traversal attacks
+                file_ext = sanitize_file_extension(file.filename)
 
                 # Create uploads directory if it doesn't exist
                 uploads_dir = Path(os.getenv("UPLOADS_DIR", "./uploads"))
