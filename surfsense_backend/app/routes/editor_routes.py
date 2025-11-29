@@ -30,11 +30,13 @@ async def get_editor_content(
     Get document content for editing.
 
     Returns BlockNote JSON document. If blocknote_document is NULL,
-    attempts to convert from `content` - though this won't work well
-    for old documents that only have summaries.
+    attempts to generate it from chunks (lazy migration).
     """
+    from sqlalchemy.orm import selectinload
+    
     result = await session.execute(
         select(Document)
+        .options(selectinload(Document.chunks))
         .join(SearchSpace)
         .filter(Document.id == document_id, SearchSpace.user_id == user.id)
     )
@@ -54,12 +56,47 @@ async def get_editor_content(
             else None,
         }
 
-    # For old documents without blocknote_document, return error
-    # (Can't convert summary back to full document)
-    raise HTTPException(
-        status_code=400,
-        detail="This document was uploaded before editing was enabled. Please re-upload to enable editing.",
-    )
+    # Lazy migration: Try to generate blocknote_document from chunks
+    from app.utils.blocknote_converter import convert_markdown_to_blocknote
+    
+    chunks = sorted(document.chunks, key=lambda c: c.id)
+    
+    if not chunks:
+        raise HTTPException(
+            status_code=400,
+            detail="This document has no chunks and cannot be edited. Please re-upload to enable editing.",
+        )
+    
+    # Reconstruct markdown from chunks
+    markdown_content = "\n\n".join(chunk.content for chunk in chunks)
+    
+    if not markdown_content.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="This document has empty content and cannot be edited.",
+        )
+    
+    # Convert to BlockNote
+    blocknote_json = await convert_markdown_to_blocknote(markdown_content)
+    
+    if not blocknote_json:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to convert document to editable format. Please try again later.",
+        )
+    
+    # Save the generated blocknote_document (lazy migration)
+    document.blocknote_document = blocknote_json
+    document.content_needs_reindexing = False
+    document.last_edited_at = None
+    await session.commit()
+    
+    return {
+        "document_id": document.id,
+        "title": document.title,
+        "blocknote_document": blocknote_json,
+        "last_edited_at": None,
+    }
 
 
 @router.put("/documents/{document_id}/blocknote-content")

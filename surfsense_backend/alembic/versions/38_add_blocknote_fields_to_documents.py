@@ -20,8 +20,9 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Upgrade schema - Add BlockNote fields only."""
+    """Upgrade schema - Add BlockNote fields and trigger population task."""
 
+    # Add the columns
     op.add_column(
         "documents",
         sa.Column(
@@ -41,6 +42,21 @@ def upgrade() -> None:
         "documents",
         sa.Column("last_edited_at", sa.TIMESTAMP(timezone=True), nullable=True),
     )
+
+    # Trigger the Celery task to populate blocknote_document for existing documents
+    try:
+        from app.tasks.celery_tasks.blocknote_migration_tasks import (
+            populate_blocknote_for_documents_task,
+        )
+        
+        # Queue the task to run asynchronously
+        populate_blocknote_for_documents_task.apply_async()
+        print("✓ Queued Celery task to populate blocknote_document for existing documents")
+    except Exception as e:
+        # If Celery is not available or task queueing fails, log but don't fail the migration
+        print(f"⚠ Warning: Could not queue blocknote population task: {e}")
+        print("  You can manually trigger it later with:")
+        print("  celery -A app.celery_app call app.tasks.celery_tasks.blocknote_migration_tasks.populate_blocknote_for_documents_task")
 
 
 def downgrade() -> None:

@@ -96,7 +96,7 @@ export default function EditorPage() {
 		}
 	}, [editorContent, document]);
 
-	// TODO: Auto-save every 30 seconds - DIRECT CALL TO FASTAPI
+	// TODO: Maybe add Auto-save every 30 seconds - DIRECT CALL TO FASTAPI
 
 	// Save and exit - DIRECT CALL TO FASTAPI
 	const handleSave = async () => {

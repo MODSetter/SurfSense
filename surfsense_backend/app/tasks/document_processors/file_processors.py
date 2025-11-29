@@ -396,7 +396,9 @@ async def add_received_file_document_using_docling(
                 "ETL_SERVICE": "DOCLING",
             }
             existing_document.chunks = chunks
-            existing_document.blocknote_document = blocknote_json
+            existing_document.blocknote_document = None
+            existing_document.content_needs_reindexing = False
+            existing_document.last_edited_at = None
 
             await session.commit()
             await session.refresh(existing_document)
@@ -416,7 +418,9 @@ async def add_received_file_document_using_docling(
                 chunks=chunks,
                 content_hash=content_hash,
                 unique_identifier_hash=unique_identifier_hash,
-                blocknote_document=blocknote_json,
+                blocknote_document=None,
+                content_needs_reindexing=False,
+                last_edited_at=None,
             )
 
         session.add(document)
