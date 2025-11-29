@@ -246,9 +246,7 @@ pnpm build    # Production build
 celery -A app.celery_app worker --loglevel=info
 celery -A app.celery_app beat --loglevel=info
 
-# Security Testing
-pytest -m security -v                    # Run security tests only
-pytest tests/test_file_upload_security.py  # File upload security suite
+# Security Scanning (for testing commands see Testing Framework section)
 poetry run safety check                  # Check for CVEs
 poetry run bandit -r app/                # Security linting
 

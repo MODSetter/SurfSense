@@ -14,7 +14,7 @@ This document consolidates the comprehensive security audit findings for SurfSen
 ## CRITICAL SECURITY ISSUES
 
 ### 1. Token Exposure in Console Logs (CRITICAL)
-**Location:** `/home/user/SurfSense/surfsense_backend/app/users.py` (lines 39, 44, 49)
+**Location:** `surfsense_backend/app/users.py` (lines 39, 44, 49)
 **Severity:** CRITICAL
 **Issue:** Reset and verification tokens are being printed to console, exposing sensitive authentication tokens.
 
@@ -41,7 +41,7 @@ logger.info(f"Verification requested for user {user.id}")
 ---
 
 ### 2. API Keys Exposed in Response (CRITICAL)
-**Location:** `/home/user/SurfSense/surfsense_backend/app/schemas/llm_config.py` (lines 22, 51, 63)
+**Location:** `surfsense_backend/app/schemas/llm_config.py` (lines 22, 51, 63)
 **Severity:** CRITICAL
 **Issue:** LLMConfigRead schema includes api_key field, which returns API keys to clients.
 
@@ -77,7 +77,7 @@ class LLMConfigRead(IDModel, TimestampModel):
 ---
 
 ### 3. Connector Credentials Exposed in Response (CRITICAL)
-**Location:** `/home/user/SurfSense/surfsense_backend/app/schemas/search_source_connector.py` (line 18, 63)
+**Location:** `surfsense_backend/app/schemas/search_source_connector.py` (line 18, 63)
 **Severity:** CRITICAL
 **Issue:** SearchSourceConnectorRead includes full config dict with API keys and credentials.
 
@@ -110,7 +110,7 @@ class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampMod
 ---
 
 ### 4. JWT Token Passed in URL Query Parameter (CRITICAL)
-**Location:** `/home/user/SurfSense/surfsense_backend/app/users.py` (line 84)
+**Location:** `surfsense_backend/app/users.py` (line 84)
 **Severity:** CRITICAL
 **Issue:** Access token exposed in redirect URL as query parameter.
 
@@ -140,7 +140,7 @@ class CustomBearerTransport(BearerTransport):
 ## HIGH SEVERITY ISSUES
 
 ### 5. Overly Permissive CORS Configuration
-**Location:** `/home/user/SurfSense/surfsense_backend/app/app.py` (lines 51-57)
+**Location:** `surfsense_backend/app/app.py` (lines 51-57)
 **Severity:** HIGH
 **Issue:** CORS middleware allows all HTTP methods and headers.
 
@@ -174,7 +174,7 @@ app.add_middleware(
 ---
 
 ### 6. Untrusted Proxy Headers
-**Location:** `/home/user/SurfSense/surfsense_backend/app/app.py` (line 48)
+**Location:** `surfsense_backend/app/app.py` (line 48)
 **Severity:** HIGH
 **Issue:** ProxyHeadersMiddleware trusting all proxy hosts.
 
@@ -196,7 +196,7 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1", "10.0.0.0
 ---
 
 ### 7. Excessive JWT Token Lifetime
-**Location:** `/home/user/SurfSense/surfsense_backend/app/users.py` (line 57)
+**Location:** `surfsense_backend/app/users.py` (line 57)
 **Severity:** HIGH
 **Issue:** JWT tokens valid for 24 hours without refresh mechanism.
 
@@ -223,7 +223,7 @@ lifetime_seconds=3600  # 1 hour max, prefer 15-30 mins
 ---
 
 ### 8. In-Memory 2FA Token Storage Without Persistence
-**Location:** `/home/user/SurfSense/surfsense_backend/app/routes/two_fa_routes.py` (lines 27-29)
+**Location:** `surfsense_backend/app/routes/two_fa_routes.py` (lines 27-29)
 **Severity:** HIGH
 **Issue:** Temporary tokens for 2FA stored in-memory dictionary without persistence or Redis backend.
 
@@ -252,7 +252,7 @@ def store_temporary_token(token: str, user_id: str, expires_in_minutes: int = 5)
 ---
 
 ### 9. No File Upload Type Validation
-**Location:** `/home/user/SurfSense/surfsense_backend/app/routes/documents_routes.py` (lines 96-142)
+**Location:** `surfsense_backend/app/routes/documents_routes.py` (lines 96-142)
 **Severity:** HIGH
 **Issue:** File uploads accept any file extension without validation.
 
@@ -329,7 +329,7 @@ async def verify_2fa_login(...):
 ## MEDIUM SEVERITY ISSUES
 
 ### 11. Unsafe Dynamic Attribute Setting
-**Location:** `/home/user/SurfSense/surfsense_backend/app/routes/llm_config_routes.py` (lines 293-294)
+**Location:** `surfsense_backend/app/routes/llm_config_routes.py` (lines 293-294)
 **Severity:** MEDIUM
 **Issue:** Using setattr() with user-controlled keys could allow setting arbitrary fields.
 
@@ -356,7 +356,7 @@ for key, value in update_data.items():
 ---
 
 ### 12. Inconsistent Backup Code Removal Logic
-**Location:** `/home/user/SurfSense/surfsense_backend/app/routes/two_fa_routes.py` (lines 213, 418)
+**Location:** `surfsense_backend/app/routes/two_fa_routes.py` (lines 213, 418)
 **Severity:** MEDIUM
 **Issue:** Inconsistent backup code removal between disable_2fa and verify_2fa_login endpoints.
 
@@ -443,7 +443,7 @@ logger.info(f"User {user.id} logged in successfully")  # Use ID instead
 ## LOW SEVERITY ISSUES
 
 ### 15. Print Statements Should Use Logging
-**Location:** `/home/user/SurfSense/surfsense_backend/app/routes/documents_routes.py` (line 39)
+**Location:** `surfsense_backend/app/routes/documents_routes.py` (line 39)
 **Severity:** LOW
 **Issue:** Print statement instead of logging framework.
 
@@ -555,7 +555,7 @@ The SurfSense backend has several critical security vulnerabilities that need im
 
 ## CRITICAL ISSUE #1: Token Exposure in Console Logs
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/users.py`
+**File:** `surfsense_backend/app/users.py`
 
 ```python
 Line 38-49: UserManager class
@@ -600,7 +600,7 @@ async def on_after_request_verify(self, user: User, token: str, request: Request
 
 ## CRITICAL ISSUE #2: API Keys Exposed in Response
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/schemas/llm_config.py`
+**File:** `surfsense_backend/app/schemas/llm_config.py`
 
 ```python
 Line 11-31: LLMConfigBase includes api_key
@@ -659,7 +659,7 @@ class LLMConfigRead(IDModel, TimestampModel):
 
 ## CRITICAL ISSUE #3: Connector Credentials Exposed
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/schemas/search_source_connector.py`
+**File:** `surfsense_backend/app/schemas/search_source_connector.py`
 
 ```python
 Line 13-45: SearchSourceConnectorBase includes config
@@ -734,7 +734,7 @@ class SearchSourceConnectorRead(IDModel, TimestampModel):
 
 ## CRITICAL ISSUE #4: JWT Token in URL
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/users.py`
+**File:** `surfsense_backend/app/users.py`
 
 ```python
 Line 81-88: CustomBearerTransport
@@ -785,7 +785,7 @@ return RedirectResponse(redirect_url, status_code=302)
 
 ## HIGH ISSUE #5: CORS Misconfiguration
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/app.py`
+**File:** `surfsense_backend/app/app.py`
 
 ```python
 Line 50-57: CORSMiddleware configuration
@@ -819,7 +819,7 @@ app.add_middleware(
 
 ## HIGH ISSUE #6: Untrusted Proxy Headers
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/app.py`
+**File:** `surfsense_backend/app/app.py`
 
 ```python
 Line 46-48: ProxyHeadersMiddleware
@@ -850,7 +850,7 @@ app.add_middleware(
 
 ## HIGH ISSUE #7: Long JWT Lifetime
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/users.py`
+**File:** `surfsense_backend/app/users.py`
 
 ```python
 Line 56-57: JWT Strategy
@@ -888,7 +888,7 @@ lifetime_seconds = 3600     # 1 hour - MAXIMUM
 
 ## HIGH ISSUE #8: In-Memory 2FA Token Storage
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/routes/two_fa_routes.py`
+**File:** `surfsense_backend/app/routes/two_fa_routes.py`
 
 ```python
 Line 27-29: Global in-memory store
@@ -950,7 +950,7 @@ def invalidate_temporary_token(token: str):
 
 ## HIGH ISSUE #9: No File Upload Validation
 
-**File:** `/home/user/SurfSense/surfsense_backend/app/routes/documents_routes.py`
+**File:** `surfsense_backend/app/routes/documents_routes.py`
 
 ```python
 Line 96-142: File upload endpoint

@@ -287,15 +287,17 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 ## Documentation
 
 - [Deployment Guide](docs/deployment/DEPLOYMENT_GUIDE.md)
-- [Feature Documentation](docs/features/)
-- [Development Guide](docs/development/)
-- [AI Assistant Context](claude.md)
+- [Feature Documentation](docs/features/README.md)
+- [Development Guide](docs/development/README.md)
 
 ### Key Documents
 - [Two-Factor Authentication](docs/features/authentication/2FA_GUIDE.md)
 - [Secrets Management](docs/development/SECRETS_MANAGEMENT.md)
 - [Local LLM Setup](docs/deployment/LOCAL_LLM_SETUP.md)
 - [Security Guidelines](docs/development/SECURITY.md)
+
+### For Developers
+- [AI Assistant Context (claude.md)](claude.md) - Internal context for AI coding assistants
 
 ## Contribute
 
