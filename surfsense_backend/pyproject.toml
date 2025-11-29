@@ -193,6 +193,7 @@ markers = [
     "integration: Integration tests that test multiple components together",
     "e2e: End-to-end tests that test full workflows",
     "slow: Tests that take a long time to run",
+    "security: Security-focused tests for vulnerabilities and attack vectors",
     "db: Tests that require database access",
     "auth: Tests related to authentication and authorization",
     "api: Tests for API endpoints",
