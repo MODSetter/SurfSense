@@ -414,19 +414,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 											</CardHeader>
 											<CardContent className="space-y-4">
 												<div className="space-y-2">
-													<div className="text-sm text-muted-foreground">
-														<strong>Use cases:</strong> {role.examples}
-													</div>
-													<div className="flex flex-wrap gap-1">
-														{role.characteristics.map((char, idx) => (
-															<Badge key={idx} variant="outline" className="text-xs">
-																{char}
-															</Badge>
-														))}
-													</div>
-												</div>
-
-												<div className="space-y-2">
 													<Label className="text-sm font-medium">Assign LLM Configuration:</Label>
 													<Select
 														value={currentAssignment?.toString() || "unassigned"}

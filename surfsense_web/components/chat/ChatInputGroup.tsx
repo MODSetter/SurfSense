@@ -1,8 +1,8 @@
 "use client";
 
 import { ChatInput } from "@llamaindex/chat-ui";
-import { Brain, Check, FolderOpen, Minus, Plus, Zap } from "lucide-react";
-import { useParams } from "next/navigation";
+import { Brain, Check, FolderOpen, Minus, Plus, PlusCircle, Zap } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import React, { Suspense, useCallback, useState } from "react";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Badge } from "@/components/ui/badge";
@@ -115,6 +115,7 @@ const ConnectorSelector = React.memo(
 		selectedConnectors?: string[];
 	}) => {
 		const { search_space_id } = useParams();
+		const router = useRouter();
 		const [isOpen, setIsOpen] = useState(false);
 
 		// Fetch immediately (not lazy) so the button can show the correct count
@@ -247,9 +248,19 @@ const ConnectorSelector = React.memo(
 									<Brain className="h-8 w-8 text-muted-foreground" />
 								</div>
 								<h4 className="text-sm font-medium mb-1">No sources found</h4>
-								<p className="text-xs text-muted-foreground max-w-xs">
+								<p className="text-xs text-muted-foreground max-w-xs mb-4">
 									Add documents or configure search connectors for this search space
 								</p>
+								<Button
+									onClick={() => {
+										setIsOpen(false);
+										router.push(`/dashboard/${search_space_id}/sources/add`);
+									}}
+									className="gap-2"
+								>
+									<PlusCircle className="h-4 w-4" />
+									Add Sources
+								</Button>
 							</div>
 						) : (
 							<>
