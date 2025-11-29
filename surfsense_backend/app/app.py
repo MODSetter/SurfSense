@@ -6,7 +6,6 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -14,6 +13,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.config import config
 from app.config.jsonata_templates import CONNECTOR_TEMPLATES
 from app.db import SiteConfiguration, User, create_db_and_tables, get_async_session
+from app.dependencies.rate_limit import secure_rate_limit_key
 from app.routes import router as crud_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.services.jsonata_transformer import transformer
@@ -69,7 +69,9 @@ async def registration_allowed(session: AsyncSession = Depends(get_async_session
 app = FastAPI(lifespan=lifespan)
 
 # Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
+# Uses secure_rate_limit_key which validates proxy headers against trusted proxies
+# This prevents IP spoofing attacks via forged X-Forwarded-For headers
+limiter = Limiter(key_func=secure_rate_limit_key)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

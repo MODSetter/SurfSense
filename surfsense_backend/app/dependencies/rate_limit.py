@@ -460,3 +460,33 @@ async def check_rate_limit(
             )
 
     return ip_address
+
+
+def secure_rate_limit_key(request: Request) -> str:
+    """
+    Secure key function for slowapi rate limiting.
+
+    This function uses get_client_ip to extract the real client IP address,
+    which validates proxy headers against trusted proxies to prevent IP spoofing.
+
+    Args:
+        request: The FastAPI request object
+
+    Returns:
+        Client IP address if available, "unknown" otherwise
+
+    Usage:
+        ```python
+        from slowapi import Limiter
+        from app.dependencies.rate_limit import secure_rate_limit_key
+
+        limiter = Limiter(key_func=secure_rate_limit_key)
+        ```
+
+    Security Note:
+        This function prevents IP spoofing attacks by only trusting proxy headers
+        from configured trusted proxies (TRUSTED_PROXIES env var) or Cloudflare IPs.
+        See get_client_ip() documentation for proxy configuration requirements.
+    """
+    client_ip = get_client_ip(request)
+    return client_ip or "unknown"
