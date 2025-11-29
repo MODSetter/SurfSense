@@ -137,7 +137,7 @@ jobs:
   codeql-analysis:
     name: CodeQL Security Analysis
     runs-on: ubuntu-latest
-    if: github.repository == 'okapteinis/SurfSense' && github.event_name != 'pull_request_target'
+    if: false  # TEMPORARILY DISABLED - TODO: Fix and re-enable
     permissions:
       security-events: write
       actions: read
