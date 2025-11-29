@@ -341,7 +341,7 @@
 	"upload_documents": {
 		"title": "Augšupielādēt dokumentus",
 		"subtitle": "Augšupielādējiet savus failus, lai padarītu tos meklējamus un pieejamus caur AI sarunām.",
-		"file_size_limit": "Maksimālais faila izmērs: 50MB failam. Atbalstītie formāti atšķiras atkarībā no jūsu ETL pakalpojuma konfigurācijas.",
+		"file_size_limit": "Maksimālais faila izmērs: 1GB failam. Atbalstītie formāti atšķiras atkarībā no jūsu ETL pakalpojuma konfigurācijas.",
 		"drop_files": "Nometiet failus šeit",
 		"drag_drop": "Velciet un nometiet failus šeit",
 		"or_browse": "vai noklikšķiniet, lai pārlūkotu",

@@ -46,7 +46,7 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 router = APIRouter()
 
 # File upload security settings
-MAX_FILE_SIZE_MB = 100  # Maximum file size in MB
+MAX_FILE_SIZE_MB = 1024  # Maximum file size in MB (1GB)
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 # Restricted allowlist of document file extensions

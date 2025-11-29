@@ -341,7 +341,7 @@
 	"upload_documents": {
 		"title": "Upload Documents",
 		"subtitle": "Upload your files to make them searchable and accessible through AI-powered conversations.",
-		"file_size_limit": "Maximum file size: 50MB per file. Supported formats vary based on your ETL service configuration.",
+		"file_size_limit": "Maximum file size: 1GB per file. Supported formats vary based on your ETL service configuration.",
 		"drop_files": "Drop files here",
 		"drag_drop": "Drag & drop files here",
 		"or_browse": "or click to browse",

@@ -341,7 +341,7 @@
 	"upload_documents": {
 		"title": "Ladda upp dokument",
 		"subtitle": "Ladda upp dina filer för att göra dem sökbara och tillgängliga genom AI-drivna konversationer.",
-		"file_size_limit": "Maximal filstorlek: 50MB per fil. Stödda format varierar beroende på din ETL-tjänstkonfiguration.",
+		"file_size_limit": "Maximal filstorlek: 1GB per fil. Stödda format varierar beroende på din ETL-tjänstkonfiguration.",
 		"drop_files": "Släpp filer här",
 		"drag_drop": "Dra och släpp filer här",
 		"or_browse": "eller klicka för att bläddra",
