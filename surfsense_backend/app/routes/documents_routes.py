@@ -8,7 +8,6 @@ from pathlib import Path
 import aiofiles
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -28,6 +27,7 @@ from app.schemas import (
     DocumentWithChunksRead,
     PaginatedResponse,
 )
+from app.dependencies.rate_limit import get_client_ip
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
 from app.utils.verify_space_write_permission import verify_space_write_permission
@@ -50,7 +50,9 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 router = APIRouter()
 
 # Rate limiting for API endpoints
-limiter = Limiter(key_func=get_remote_address)
+# Uses secure get_client_ip which validates proxy headers against trusted proxies
+# This prevents IP spoofing attacks via forged X-Forwarded-For headers
+limiter = Limiter(key_func=lambda request: get_client_ip(request) or "unknown")
 
 # File upload security settings
 MAX_FILE_SIZE_MB = 1024  # Maximum file size in MB (1GB)
