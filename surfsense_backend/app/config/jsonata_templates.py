@@ -160,16 +160,14 @@ NOTION_PAGE_TEMPLATE = """
         "Untitled"
     ),
     "content": $join([
-        /* Extract title */
+        /* Extract title as H1 heading */
         $exists(properties.Name.title[0]) ?
             "# " & properties.Name.title[0].plain_text & "\\n\\n" : "",
 
-        /* Extract rich text from various property types */
+        /* Extract rich text from non-title property types */
         properties.$spread().(
             $value.type = "rich_text" ?
                 $join($value.rich_text[].plain_text, " ") & "\\n" :
-            $value.type = "title" ?
-                $join($value.title[].plain_text, " ") & "\\n" :
             ""
         ),
 
