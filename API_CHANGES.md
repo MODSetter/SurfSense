@@ -24,7 +24,7 @@ The `total` field in the response now includes both successfully processed items
 {
   "dismissed": [1, 2],
   "skipped": [
-    {"id": 3, "reason": "Log not found or not owned by user"}
+    {"id": 3, "reason": "Log could not be dismissed"}
   ],
   "total": 3
 }
@@ -58,10 +58,18 @@ const totalProcessed = result.total; // Total attempted (dismissed + skipped)
 
 ## Related Changes
 
-### Enhanced Error Reporting
-Both bulk operations now provide detailed skip reasons:
-- **bulk-retry**: "Log not eligible for retry" (covers: not found, not owned, or retry limit reached)
-- **bulk-dismiss**: "Log not found or not owned by user"
+### Consistent Skip Reason Messaging
+Both bulk operations now use generic, user-friendly skip reasons:
+- **bulk-retry**: "Log not eligible for retry"
+  - Covers: not found, not owned, or retry limit reached
+- **bulk-dismiss**: "Log could not be dismissed"
+  - Covers: not found or not owned by user
+
+This generic messaging approach:
+- Improves API predictability and consistency
+- Simplifies frontend internationalization (i18n)
+- Avoids exposing internal implementation details
+- Provides clear user-facing feedback
 
 ### Improved Input Validation
 - Empty `log_ids` arrays now return `400 Bad Request` instead of `404 Not Found`

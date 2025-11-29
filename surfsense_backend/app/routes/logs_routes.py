@@ -450,13 +450,15 @@ async def bulk_dismiss_logs(
     Returns:
         dict: Response containing:
             - dismissed: List of successfully dismissed log IDs
-            - skipped: List of skipped logs with reasons (not found or not owned)
+            - skipped: List of skipped logs with generic reason
             - total: Total count of dismissed + skipped logs
 
     Note:
         Breaking change: The 'total' field now includes both dismissed and skipped logs,
         whereas previously it only counted dismissed logs. This aligns with the
         bulk_retry_logs endpoint for API consistency.
+
+        Logs may be skipped if they are not found or not owned by the user.
     """
     try:
         # Validate input
@@ -484,7 +486,7 @@ async def bulk_dismiss_logs(
         # Determine which logs were skipped (those in log_ids but not in dismissed_ids)
         # Logs can be skipped if they are not found or not owned by the user
         skipped_ids = set(log_ids) - set(dismissed_ids)
-        skipped = [{"id": log_id, "reason": "Log not found or not owned by user"} for log_id in skipped_ids]
+        skipped = [{"id": log_id, "reason": "Log could not be dismissed"} for log_id in skipped_ids]
 
         await session.commit()
 
