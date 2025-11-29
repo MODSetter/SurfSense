@@ -15,6 +15,7 @@ export interface GeneratePodcastRequest {
 	search_space_id: number;
 	podcast_title?: string;
 	user_prompt?: string;
+	user_language?: string; // UI language for podcast generation (e.g., 'en', 'lv', 'sv')
 }
 
 export function ChatPanelContainer() {

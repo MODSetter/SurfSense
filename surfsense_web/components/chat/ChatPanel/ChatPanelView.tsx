@@ -3,6 +3,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { AlertCircle, Play, RefreshCw, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
+import { useLocale } from "next-intl";
 import { useCallback } from "react";
 import { activeChatAtom } from "@/atoms/chats/chat-querie.atoms";
 import { activeChathatUIAtom } from "@/atoms/chats/ui.atoms";
@@ -19,6 +20,7 @@ interface ChatPanelViewProps {
 export function ChatPanelView(props: ChatPanelViewProps) {
 	const [chatUIState, setChatUIState] = useAtom(activeChathatUIAtom);
 	const { data: activeChatState } = useAtomValue(activeChatAtom);
+	const locale = useLocale(); // Get current UI language (e.g., 'en', 'lv', 'sv')
 
 	const { isChatPannelOpen } = chatUIState;
 	const podcast = activeChatState?.podcast;
@@ -37,8 +39,9 @@ export function ChatPanelView(props: ChatPanelViewProps) {
 			ids: [chatDetails.id],
 			search_space_id: chatDetails.search_space_id,
 			podcast_title: chatDetails.title,
+			user_language: locale, // Pass UI language for podcast generation
 		});
-	}, [chatDetails, generatePodcast]);
+	}, [chatDetails, generatePodcast, locale]);
 
 	// biome-ignore-start lint/a11y/useSemanticElements: using div for custom layout — will convert later
 	return (
