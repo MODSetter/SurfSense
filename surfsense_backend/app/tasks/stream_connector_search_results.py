@@ -16,6 +16,10 @@ from app.services.grammar_check import auto_grammar_check
 
 logger = logging.getLogger(__name__)
 
+# Configuration constants
+STREAM_GENERATION_TIMEOUT_SECONDS = 120  # 2 minute timeout for stream generation
+GRAMMAR_CHECK_TIMEOUT_SECONDS = 8  # 8 second timeout for grammar check
+
 
 async def stream_connector_search_results(
     user_query: str,
@@ -82,9 +86,9 @@ async def stream_connector_search_results(
         # Collect response text for grammar checking
         response_chunks = []
 
-        # Add timeout for the entire streaming process (2 minutes)
+        # Add timeout for the entire streaming process
         try:
-            async with asyncio.timeout(120):  # 2 minute timeout
+            async with asyncio.timeout(STREAM_GENERATION_TIMEOUT_SECONDS):
                 # Use streaming with config parameter
                 async for chunk in researcher_graph.astream(
                     initial_state,
@@ -109,7 +113,7 @@ async def stream_connector_search_results(
                             # Ignore parsing errors, not all chunks contain text
                             pass
         except asyncio.TimeoutError:
-            logger.error("Stream generation timed out after 2 minutes")
+            logger.error(f"Stream generation timed out after {STREAM_GENERATION_TIMEOUT_SECONDS} seconds")
             yield streaming_service.format_error("Response generation timed out. Please try again with a simpler query.")
 
         # Run grammar check asynchronously with timeout
@@ -123,7 +127,7 @@ async def stream_connector_search_results(
                 # Run grammar check with timeout
                 grammar_result = await asyncio.wait_for(
                     auto_grammar_check(user_query, full_response, ollama_url),
-                    timeout=8.0
+                    timeout=GRAMMAR_CHECK_TIMEOUT_SECONDS
                 )
 
                 # If grammar check returned a result, stream it
@@ -138,7 +142,10 @@ async def stream_connector_search_results(
 
     except Exception as e:
         logger.error(f"Stream error: {e}", exc_info=True)
-        yield streaming_service.format_error(f"An error occurred while generating the response: {str(e)}")
+        # Don't expose raw exception details to client for security
+        yield streaming_service.format_error(
+            "An error occurred while generating the response. Please try again or contact support if the issue persists."
+        )
 
     finally:
         # CRITICAL: Always send completion signal, even if there was an error
