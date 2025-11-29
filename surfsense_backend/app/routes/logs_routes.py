@@ -397,6 +397,7 @@ async def bulk_retry_logs(
         - LOG_NOT_FOUND: Log ID does not exist in the database
         - NOT_OWNER: User does not have permission to modify this log
         - RETRY_LIMIT_REACHED: Log has already been retried 3 times (maximum)
+        - INVALID_STATUS: Log status is not FAILED (e.g., IN_PROGRESS, SUCCESS, DISMISSED)
 
     Note:
         Skipped logs are categorized by specific reasons to enable better
@@ -408,12 +409,13 @@ async def bulk_retry_logs(
             raise HTTPException(status_code=400, detail="No log IDs provided")
 
         # Use bulk UPDATE with conditions to retry eligible logs atomically
-        # Only update logs where retry_count < 3 and user owns the search space
+        # Only update logs where status is FAILED, retry_count < 3, and user owns the search space
         stmt = (
             update(Log)
             .where(
                 and_(
                     Log.id.in_(log_ids),
+                    Log.status == LogStatus.FAILED,
                     Log.retry_count < 3,
                     Log.search_space_id.in_(
                         select(SearchSpace.id).where(SearchSpace.user_id == user.id)
@@ -465,8 +467,24 @@ async def bulk_retry_logs(
             )
             retry_limit_ids = {row[0] for row in retry_limit_result.all()}
 
+            # Find logs that exist, user owns, but have invalid status (INVALID_STATUS)
+            # These are logs not in FAILED status (e.g., IN_PROGRESS, SUCCESS, DISMISSED)
+            invalid_status_result = await session.execute(
+                select(Log.id)
+                .filter(
+                    and_(
+                        Log.id.in_(skipped_ids),
+                        Log.status != LogStatus.FAILED,
+                        Log.search_space_id.in_(
+                            select(SearchSpace.id).where(SearchSpace.user_id == user.id)
+                        )
+                    )
+                )
+            )
+            invalid_status_ids = {row[0] for row in invalid_status_result.all()}
+
             # Remaining logs are not found (LOG_NOT_FOUND)
-            not_found_ids = skipped_ids - not_owned_ids - retry_limit_ids
+            not_found_ids = skipped_ids - not_owned_ids - retry_limit_ids - invalid_status_ids
 
             # Build skipped list with specific reasons
             for log_id in not_found_ids:
@@ -475,6 +493,8 @@ async def bulk_retry_logs(
                 skipped.append(SkippedLog(id=log_id, reason=SkipReason.NOT_OWNER))
             for log_id in retry_limit_ids:
                 skipped.append(SkippedLog(id=log_id, reason=SkipReason.RETRY_LIMIT_REACHED))
+            for log_id in invalid_status_ids:
+                skipped.append(SkippedLog(id=log_id, reason=SkipReason.INVALID_STATUS))
 
         await session.commit()
 
@@ -509,6 +529,7 @@ async def bulk_dismiss_logs(
     Skip Reasons:
         - LOG_NOT_FOUND: Log ID does not exist in the database
         - NOT_OWNER: User does not have permission to modify this log
+        - ALREADY_DISMISSED: Log is already in DISMISSED status
 
     Note:
         Breaking change: The 'total' field now includes both dismissed and skipped logs,
@@ -524,12 +545,13 @@ async def bulk_dismiss_logs(
             raise HTTPException(status_code=400, detail="No log IDs provided")
 
         # Use a single UPDATE with subquery to verify ownership and update atomically
-        # This combines verification and update into one database operation
+        # Only dismiss logs that are not already in DISMISSED status
         stmt = (
             update(Log)
             .where(
                 and_(
                     Log.id.in_(log_ids),
+                    Log.status != LogStatus.DISMISSED,
                     Log.search_space_id.in_(
                         select(SearchSpace.id).where(SearchSpace.user_id == user.id)
                     )
@@ -561,14 +583,31 @@ async def bulk_dismiss_logs(
             )
             not_owned_ids = {row[0] for row in not_owned_result.all()}
 
+            # Find logs that exist, user owns, but are already dismissed (ALREADY_DISMISSED)
+            already_dismissed_result = await session.execute(
+                select(Log.id)
+                .filter(
+                    and_(
+                        Log.id.in_(skipped_ids),
+                        Log.status == LogStatus.DISMISSED,
+                        Log.search_space_id.in_(
+                            select(SearchSpace.id).where(SearchSpace.user_id == user.id)
+                        )
+                    )
+                )
+            )
+            already_dismissed_ids = {row[0] for row in already_dismissed_result.all()}
+
             # Remaining logs are not found (LOG_NOT_FOUND)
-            not_found_ids = skipped_ids - not_owned_ids
+            not_found_ids = skipped_ids - not_owned_ids - already_dismissed_ids
 
             # Build skipped list with specific reasons
             for log_id in not_found_ids:
                 skipped.append(SkippedLog(id=log_id, reason=SkipReason.LOG_NOT_FOUND))
             for log_id in not_owned_ids:
                 skipped.append(SkippedLog(id=log_id, reason=SkipReason.NOT_OWNER))
+            for log_id in already_dismissed_ids:
+                skipped.append(SkippedLog(id=log_id, reason=SkipReason.ALREADY_DISMISSED))
 
         await session.commit()
 
