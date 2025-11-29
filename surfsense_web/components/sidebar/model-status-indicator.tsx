@@ -1,8 +1,9 @@
 "use client";
 
-import { Brain, Loader2, Sparkles } from "lucide-react";
+import { Brain, Loader2, Sparkles, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { LLMConfig } from "@/hooks/use-llm-configs";
@@ -31,6 +32,10 @@ export function ModelStatusIndicator({
 	isThinking = false,
 	collapsed = false,
 }: ModelStatusIndicatorProps) {
+	const router = useRouter();
+	const params = useParams();
+	const searchSpaceId = params?.search_space_id as string;
+
 	// Determine current status
 	const status = useMemo(() => {
 		if (isStreaming) return "streaming";
@@ -40,7 +45,7 @@ export function ModelStatusIndicator({
 
 	// Format model display name
 	const displayName = useMemo(() => {
-		if (!currentModel) return "Select Model";
+		if (!currentModel) return "No Model Configured";
 
 		// For Gemini models, show a cleaner name
 		if (currentModel.provider === "gemini" || currentModel.provider === "google") {
@@ -85,23 +90,41 @@ export function ModelStatusIndicator({
 
 	const StatusIcon = statusConfig.icon;
 
+	// Handle click to navigate to settings when no model is configured
+	const handleClick = () => {
+		if (!currentModel && searchSpaceId) {
+			router.push(`/dashboard/${searchSpaceId}/settings`);
+		}
+	};
+
+	const isClickable = !currentModel;
+
 	if (collapsed) {
 		return (
 			<TooltipProvider>
 				<Tooltip>
 					<TooltipTrigger asChild>
-						<div className="flex items-center justify-center p-2 rounded-md hover:bg-accent/50 transition-colors">
+						<div
+							className={`flex items-center justify-center p-2 rounded-md hover:bg-accent/50 transition-colors ${isClickable ? "cursor-pointer" : ""}`}
+							onClick={handleClick}
+						>
 							<div className="relative">
-								<StatusIcon
-									className={`h-4 w-4 ${statusConfig.color} ${status !== "idle" ? "animate-pulse" : ""}`}
-								/>
-								{status !== "idle" && (
-									<motion.div
-										className={`absolute inset-0 rounded-full ${statusConfig.bgColor}`}
-										initial={{ scale: 1, opacity: 0.5 }}
-										animate={{ scale: 1.5, opacity: 0 }}
-										transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
-									/>
+								{isClickable ? (
+									<Settings className="h-4 w-4 text-amber-500 animate-pulse" />
+								) : (
+									<>
+										<StatusIcon
+											className={`h-4 w-4 ${statusConfig.color} ${status !== "idle" ? "animate-pulse" : ""}`}
+										/>
+										{status !== "idle" && (
+											<motion.div
+												className={`absolute inset-0 rounded-full ${statusConfig.bgColor}`}
+												initial={{ scale: 1, opacity: 0.5 }}
+												animate={{ scale: 1.5, opacity: 0 }}
+												transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
+											/>
+										)}
+									</>
 								)}
 							</div>
 						</div>
@@ -109,7 +132,11 @@ export function ModelStatusIndicator({
 					<TooltipContent side="right" className="max-w-[200px]">
 						<div className="text-xs space-y-1">
 							<p className="font-medium">{displayName}</p>
-							<p className="text-muted-foreground">{statusConfig.label}</p>
+							{isClickable ? (
+								<p className="text-muted-foreground">Click to configure</p>
+							) : (
+								<p className="text-muted-foreground">{statusConfig.label}</p>
+							)}
 						</div>
 					</TooltipContent>
 				</Tooltip>
@@ -118,28 +145,37 @@ export function ModelStatusIndicator({
 	}
 
 	return (
-		<div className="px-3 py-2 rounded-lg border bg-card/50 hover:bg-accent/30 transition-all group">
+		<div
+			className={`px-3 py-2 rounded-lg border bg-card/50 hover:bg-accent/30 transition-all group ${isClickable ? "cursor-pointer" : ""}`}
+			onClick={handleClick}
+		>
 			<div className="flex items-center gap-2">
 				{/* Status Icon with Animation */}
 				<div className="relative flex-shrink-0">
-					<StatusIcon
-						className={`h-4 w-4 ${statusConfig.color} ${status === "thinking" ? "animate-spin" : status === "streaming" ? "animate-pulse" : ""}`}
-					/>
-					<AnimatePresence>
-						{status !== "idle" && (
-							<motion.div
-								className={`absolute inset-0 rounded-full ${statusConfig.bgColor}`}
-								initial={{ scale: 1, opacity: 0.5 }}
-								animate={{ scale: 2, opacity: 0 }}
-								exit={{ scale: 1, opacity: 0 }}
-								transition={{
-									duration: 1.5,
-									repeat: Number.POSITIVE_INFINITY,
-									ease: "easeOut"
-								}}
+					{isClickable ? (
+						<Settings className="h-4 w-4 text-amber-500 animate-pulse" />
+					) : (
+						<>
+							<StatusIcon
+								className={`h-4 w-4 ${statusConfig.color} ${status === "thinking" ? "animate-spin" : status === "streaming" ? "animate-pulse" : ""}`}
 							/>
-						)}
-					</AnimatePresence>
+							<AnimatePresence>
+								{status !== "idle" && (
+									<motion.div
+										className={`absolute inset-0 rounded-full ${statusConfig.bgColor}`}
+										initial={{ scale: 1, opacity: 0.5 }}
+										animate={{ scale: 2, opacity: 0 }}
+										exit={{ scale: 1, opacity: 0 }}
+										transition={{
+											duration: 1.5,
+											repeat: Number.POSITIVE_INFINITY,
+											ease: "easeOut"
+										}}
+									/>
+								)}
+							</AnimatePresence>
+						</>
+					)}
 				</div>
 
 				{/* Model Info */}
@@ -148,7 +184,7 @@ export function ModelStatusIndicator({
 						<p className="text-xs font-medium truncate">
 							{displayName}
 						</p>
-						{status !== "idle" && (
+						{status !== "idle" && !isClickable && (
 							<Badge
 								variant="secondary"
 								className={`h-5 px-1.5 text-[10px] ${statusConfig.bgColor} ${statusConfig.color} border-none`}
@@ -157,9 +193,13 @@ export function ModelStatusIndicator({
 							</Badge>
 						)}
 					</div>
-					{currentModel && (
+					{currentModel ? (
 						<p className="text-[10px] text-muted-foreground truncate">
 							{currentModel.provider}
+						</p>
+					) : (
+						<p className="text-[10px] text-amber-500 truncate">
+							Click to configure
 						</p>
 					)}
 				</div>
