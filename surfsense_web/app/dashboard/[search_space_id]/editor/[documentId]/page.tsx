@@ -112,11 +112,11 @@ export default function EditorPage() {
 
 		setSaving(true);
 		try {
-			// Save blocknote_document to database (without finalizing/reindexing)
+			// Save blocknote_document and trigger reindexing in background
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}/blocknote-content`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}/save`,
 				{
-					method: "PUT",
+					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${token}`,
@@ -133,7 +133,7 @@ export default function EditorPage() {
 			}
 
 			setHasUnsavedChanges(false);
-			toast.success("Document saved successfully");
+			toast.success("Document saved! Reindexing in background...");
 
 			// Small delay before redirect to show success message
 			setTimeout(() => {

@@ -99,103 +99,47 @@ async def get_editor_content(
     }
 
 
-@router.put("/documents/{document_id}/blocknote-content")
-async def update_blocknote_content(
+@router.post("/documents/{document_id}/save")
+async def save_document(
     document_id: int,
     data: dict[str, Any],
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     """
-    Auto-save BlockNote document during editing.
-    Only updates blocknote_document field, not content.
+    Save BlockNote document and trigger reindexing.
+    Called when user clicks 'Save & Exit'.
     """
+    from app.tasks.celery_tasks.document_reindex_tasks import reindex_document_task
+    
+    # Verify ownership
     result = await session.execute(
         select(Document)
         .join(SearchSpace)
         .filter(Document.id == document_id, SearchSpace.user_id == user.id)
     )
     document = result.scalars().first()
-
+    
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-
+    
     blocknote_document = data.get("blocknote_document")
     if not blocknote_document:
         raise HTTPException(status_code=400, detail="blocknote_document is required")
-
-    # Update only blocknote_document and last_edited_at
+    
+    # Save BlockNote document
     document.blocknote_document = blocknote_document
     document.last_edited_at = datetime.now(UTC)
-
+    document.content_needs_reindexing = True
+    
     await session.commit()
-    await session.refresh(document)
-
-    return {"status": "saved", "last_edited_at": document.last_edited_at.isoformat()}
-
-
-# did not implement reindexing (for now)
-# @router.post("/documents/{document_id}/finalize-edit")
-# async def finalize_edit(
-#     document_id: int,
-#     session: AsyncSession = Depends(get_async_session),
-#     user: User = Depends(current_active_user),
-# ):
-#     """
-#     Finalize document editing: convert BlockNote to markdown,
-#     update content (summary), and trigger reindexing.
-#     """
-#     result = await session.execute(
-#         select(Document)
-#         .join(SearchSpace)
-#         .filter(Document.id == document_id, SearchSpace.user_id == user.id)
-#     )
-#     document = result.scalars().first()
-
-#     if not document:
-#         raise HTTPException(status_code=404, detail="Document not found")
-
-#     if not document.blocknote_document:
-#         raise HTTPException(
-#             status_code=400,
-#             detail="Document has no BlockNote content to finalize"
-#         )
-
-#     # 1. Convert BlockNote JSON → Markdown
-#     full_markdown = await convert_blocknote_to_markdown(document.blocknote_document)
-
-#     if not full_markdown:
-#         raise HTTPException(
-#             status_code=500,
-#             detail="Failed to convert BlockNote document to markdown"
-#         )
-
-#     # 2. Generate new summary from full markdown
-#     from app.services.llm_service import get_user_long_context_llm
-#     from app.utils.document_converters import generate_document_summary
-
-#     user_llm = await get_user_long_context_llm(session, str(user.id), document.search_space_id)
-#     if not user_llm:
-#         raise HTTPException(
-#             status_code=500,
-#             detail="No LLM configured for summary generation"
-#         )
-
-#     document_metadata = document.document_metadata or {}
-#     summary_content, summary_embedding = await generate_document_summary(
-#         full_markdown, user_llm, document_metadata
-#     )
-
-#     # 3. Update document fields
-#     document.content = summary_content
-#     document.embedding = summary_embedding
-#     document.content_needs_reindexing = True  # Trigger chunk regeneration
-#     document.last_edited_at = datetime.now(UTC)
-
-#     await session.commit()
-
-#     return {
-#         "status": "finalized",
-#         "message": "Document saved. Summary and chunks will be regenerated in the background.",
-#         "content_needs_reindexing": True,
-#     }
+    
+    # Queue reindex task
+    reindex_document_task.delay(document_id, str(user.id))
+    
+    return {
+        "status": "saved",
+        "document_id": document_id,
+        "message": "Document saved and will be reindexed in the background",
+        "last_edited_at": document.last_edited_at.isoformat()
+    }
