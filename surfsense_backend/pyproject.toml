@@ -55,7 +55,7 @@ dependencies = [
     "pyotp>=2.9.0",
     "qrcode[pil]>=7.4.2",
     "feedparser>=6.0.0",
-    "bcrypt==4.0.1",
+    "bcrypt>=4.2.1,<5.0.0",
     "structlog>=24.1.0",
 ]
 
@@ -128,7 +128,6 @@ select = [
 ignore = [
     "E501",   # Line too long (handled by formatter)
     "B008",   # Do not perform function calls in argument defaults
-    "T201",   # Print found (allow print statements)
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
 ]
 

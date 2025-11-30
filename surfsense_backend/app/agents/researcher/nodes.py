@@ -26,6 +26,9 @@ from .utils import (
     get_connector_result_name,
 )
 
+# Initialize logger for this module
+logger = logging.getLogger(__name__)
+
 
 async def search_single_connector(
     connector: str,
@@ -729,15 +732,23 @@ async def fetch_documents_by_ids(
             source_objects.append(source_object)
             connector_id_counter += 1
 
-        print(
-            f"Fetched {len(formatted_documents)} user-selected chunks from {len(document_ids)} requested document IDs"
+        logger.info(
+            "Fetched user-selected chunks and created source objects",
+            extra={
+                "formatted_documents_count": len(formatted_documents),
+                "requested_document_ids_count": len(document_ids),
+                "source_objects_count": len(source_objects),
+            },
         )
-        print(f"Created {len(source_objects)} source objects for UI display")
 
         return source_objects, formatted_documents
 
     except Exception as e:
-        print(f"Error fetching documents by IDs: {e!s}")
+        logger.error(
+            "Error fetching documents by IDs",
+            extra={"error": str(e)},
+            exc_info=True,
+        )
         return [], []
 
 
@@ -792,7 +803,7 @@ async def fetch_relevant_documents(
                     )
                 }
             )
-        print("No connectors selected for research. Returning empty document list.")
+        logger.info("No connectors selected for research, returning empty document list")
         return []  # Return empty list gracefully
 
     # Stream initial status update
@@ -919,8 +930,14 @@ async def fetch_relevant_documents(
             if source_key not in seen_source_keys:
                 seen_source_keys.add(source_key)
                 deduplicated_sources.append(source_obj)
-                print(
-                    f"Debug: Added source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {current_sources_count}"
+                logger.debug(
+                    "Added source for deduplication",
+                    extra={
+                        "source_id": source_id,
+                        "source_type": source_type,
+                        "source_key": source_key,
+                        "sources_count": current_sources_count,
+                    },
                 )
             else:
                 # Check if this source object has more sources than the existing one
@@ -939,22 +956,42 @@ async def fetch_relevant_documents(
                     if current_sources_count > existing_sources_count:
                         # Replace the existing source object with the new one that has more sources
                         deduplicated_sources[existing_index] = source_obj
-                        print(
-                            f"Debug: Replaced source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {existing_sources_count} -> {current_sources_count}"
+                        logger.debug(
+                            "Replaced source with one having more sources",
+                            extra={
+                                "source_id": source_id,
+                                "source_type": source_type,
+                                "source_key": source_key,
+                                "old_count": existing_sources_count,
+                                "new_count": current_sources_count,
+                            },
                         )
                     else:
-                        print(
-                            f"Debug: Skipped duplicate source - ID: {source_id}, Type: {source_type}, Key: {source_key}, Sources count: {current_sources_count} <= {existing_sources_count}"
+                        logger.debug(
+                            "Skipped duplicate source",
+                            extra={
+                                "source_id": source_id,
+                                "source_type": source_type,
+                                "source_key": source_key,
+                                "current_count": current_sources_count,
+                                "existing_count": existing_sources_count,
+                            },
                         )
                 else:
-                    print(
-                        f"Debug: Skipped duplicate source - ID: {source_id}, Type: {source_type}, Key: {source_key} (couldn't find existing)"
+                    logger.debug(
+                        "Skipped duplicate source (couldn't find existing)",
+                        extra={
+                            "source_id": source_id,
+                            "source_type": source_type,
+                            "source_key": source_key,
+                        },
                     )
         else:
             # If there's no ID or type, just add it to be safe
             deduplicated_sources.append(source_obj)
-            print(
-                f"Debug: Added source without ID/type - {source_obj.get('name', 'UNKNOWN')}"
+            logger.debug(
+                "Added source without ID/type",
+                extra={"source_name": source_obj.get('name', 'UNKNOWN')},
             )
 
     # Stream info about deduplicated sources
@@ -1134,7 +1171,11 @@ async def handle_qna_workflow(
         )
     except Exception as e:
         error_message = f"Error fetching relevant documents for QNA: {e!s}"
-        print(error_message)
+        logger.error(
+            "Error fetching relevant documents for QNA",
+            extra={"error": str(e)},
+            exc_info=True,
+        )
         writer({"yield_value": streaming_service.format_error(error_message)})
         # Continue with empty documents - the QNA agent will handle this gracefully
         relevant_documents = []
@@ -1142,9 +1183,14 @@ async def handle_qna_workflow(
     # Combine user-selected documents with connector-fetched documents
     all_documents = user_selected_documents + relevant_documents
 
-    print(f"Fetched {len(relevant_documents)} relevant documents for QNA")
-    print(f"Added {len(user_selected_documents)} user-selected documents for QNA")
-    print(f"Total documents for QNA: {len(all_documents)}")
+    logger.info(
+        "Prepared documents for QNA",
+        extra={
+            "relevant_documents_count": len(relevant_documents),
+            "user_selected_documents_count": len(user_selected_documents),
+            "total_documents_count": len(all_documents),
+        },
+    )
 
     # Extract and stream sources from all_documents
     if all_documents:
@@ -1240,7 +1286,11 @@ async def handle_qna_workflow(
 
     except Exception as e:
         error_message = f"Error generating QNA answer: {e!s}"
-        print(error_message)
+        logger.error(
+            "Error generating QNA answer",
+            extra={"error": str(e)},
+            exc_info=True,
+        )
         writer({"yield_value": streaming_service.format_error(error_message)})
 
         return {"final_written_report": f"Error generating answer: {e!s}"}
@@ -1283,7 +1333,10 @@ async def generate_further_questions(
     llm = await get_user_fast_llm(state.db_session, user_id, search_space_id)
     if not llm:
         error_message = f"No fast LLM configured for user {user_id} in search space {search_space_id}"
-        print(error_message)
+        logger.error(
+            "No fast LLM configured for further questions",
+            extra={"user_id": user_id, "search_space_id": search_space_id},
+        )
         writer({"yield_value": streaming_service.format_error(error_message)})
 
         # Stream empty further questions to UI
@@ -1395,7 +1448,10 @@ async def generate_further_questions(
                 }
             )
 
-            print(f"Successfully generated {len(further_questions)} further questions")
+            logger.info(
+                "Successfully generated further questions",
+                extra={"count": len(further_questions)},
+            )
 
             return {"further_questions": further_questions}
         else:
@@ -1403,7 +1459,7 @@ async def generate_further_questions(
             error_message = (
                 "Could not find valid JSON in LLM response for further questions"
             )
-            print(error_message)
+            logger.warning("Could not find valid JSON in LLM response for further questions")
             writer(
                 {
                     "yield_value": streaming_service.format_error(
@@ -1421,7 +1477,11 @@ async def generate_further_questions(
     except (json.JSONDecodeError, ValueError) as e:
         # Log the error and return empty list
         error_message = f"Error parsing further questions response: {e!s}"
-        print(error_message)
+        logger.error(
+            "Error parsing further questions response",
+            extra={"error": str(e)},
+            exc_info=True,
+        )
         writer(
             {"yield_value": streaming_service.format_error(f"Warning: {error_message}")}
         )
@@ -1433,7 +1493,11 @@ async def generate_further_questions(
     except Exception as e:
         # Handle any other errors
         error_message = f"Error generating further questions: {e!s}"
-        print(error_message)
+        logger.error(
+            "Error generating further questions",
+            extra={"error": str(e)},
+            exc_info=True,
+        )
         writer(
             {"yield_value": streaming_service.format_error(f"Warning: {error_message}")}
         )
