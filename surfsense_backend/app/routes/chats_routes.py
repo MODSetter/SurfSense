@@ -135,7 +135,7 @@ async def handle_chat_data(
     user_query = messages[-1]["content"]
 
     # Extract and validate data from request
-    request_data = request.data or {}
+    request_data = data.data or {}
     search_space_id = validate_search_space_id(request_data.get("search_space_id"))
     research_mode = validate_research_mode(request_data.get("research_mode"))
     selected_connectors = validate_connectors(request_data.get("selected_connectors"))
