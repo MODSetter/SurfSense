@@ -1,7 +1,6 @@
 """Celery tasks for populating blocknote_document for existing documents."""
 
 import logging
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -10,7 +9,7 @@ from sqlalchemy.pool import NullPool
 
 from app.celery_app import celery_app
 from app.config import config
-from app.db import Chunk, Document
+from app.db import Document
 from app.utils.blocknote_converter import convert_markdown_to_blocknote
 
 logger = logging.getLogger(__name__)
