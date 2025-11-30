@@ -211,11 +211,13 @@ class TestJSONataTransformer:
         assert transformer.has_template("slack") is False
 
     def test_invalid_jsonata_expression(self):
-        """Test that invalid JSONata expression raises exception."""
+        """Test that invalid JSONata expression raises ValueError."""
         transformer = JSONataTransformer()
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError) as exc_info:
             transformer.transform_custom("{ invalid syntax }", {"data": "test"})
+
+        assert "Invalid JSONata expression or transformation failed" in str(exc_info.value)
 
     def test_nested_data_extraction(self):
         """Test extracting deeply nested data."""
