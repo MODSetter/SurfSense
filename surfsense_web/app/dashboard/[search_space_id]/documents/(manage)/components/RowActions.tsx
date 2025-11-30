@@ -1,6 +1,7 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
@@ -28,13 +29,16 @@ export function RowActions({
 	document,
 	deleteDocument,
 	refreshDocuments,
+	searchSpaceId,
 }: {
 	document: Document;
 	deleteDocument: (id: number) => Promise<boolean>;
 	refreshDocuments: () => Promise<void>;
+	searchSpaceId: string;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const router = useRouter();
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
@@ -52,6 +56,10 @@ export function RowActions({
 		}
 	};
 
+	const handleEdit = () => {
+		router.push(`/dashboard/${searchSpaceId}/editor/${document.id}`);
+	};
+
 	return (
 		<div className="flex justify-end">
 			<DropdownMenu>
@@ -62,11 +70,17 @@ export function RowActions({
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
+					<DropdownMenuItem onClick={handleEdit}>
+						<Pencil className="mr-0 h-4 w-4" />
+						Edit Document
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
 					<JsonMetadataViewer
 						title={document.title}
 						metadata={document.document_metadata}
 						trigger={
 							<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+								<FileText className="mr-0 h-4 w-4" />
 								View Metadata
 							</DropdownMenuItem>
 						}
@@ -81,6 +95,7 @@ export function RowActions({
 									setIsOpen(true);
 								}}
 							>
+								<Trash2 className="mr-0 h-4 w-4 text-destructive" />
 								Delete
 							</DropdownMenuItem>
 						</AlertDialogTrigger>

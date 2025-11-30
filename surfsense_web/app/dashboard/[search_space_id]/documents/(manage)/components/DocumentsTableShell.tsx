@@ -309,6 +309,7 @@ export function DocumentsTableShell({
 													refreshDocuments={async () => {
 														await onRefresh();
 													}}
+													searchSpaceId={searchSpaceId as string}
 												/>
 											</TableCell>
 										</motion.tr>
@@ -340,6 +341,7 @@ export function DocumentsTableShell({
 													refreshDocuments={async () => {
 														await onRefresh();
 													}}
+													searchSpaceId={searchSpaceId as string}
 												/>
 											</div>
 											<div className="mt-1 flex flex-wrap items-center gap-2">
