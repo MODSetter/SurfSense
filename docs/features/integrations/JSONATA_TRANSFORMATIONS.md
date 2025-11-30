@@ -422,7 +422,7 @@ def transform_data(self, api_response):
 - [JSONata Documentation](https://docs.jsonata.org/)
 - [JSONata Online Playground](https://try.jsonata.org/)
 - [JSONata Cheat Sheet](https://docs.jsonata.org/overview)
-- [pyjsonata GitHub](https://github.com/qntfy/pyjsonata)
+- [jsonata-python GitHub](https://github.com/rayokota/jsonata-python)
 
 ## Support
 
