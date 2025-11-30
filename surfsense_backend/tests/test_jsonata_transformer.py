@@ -13,18 +13,22 @@ import pytest
 from app.services.jsonata_transformer import JSONataTransformer
 
 
+@pytest.fixture
+def transformer():
+    """Fixture that provides a fresh JSONataTransformer instance for each test."""
+    return JSONataTransformer()
+
+
 class TestJSONataTransformer:
     """Test suite for JSONataTransformer class."""
 
-    def test_transformer_initialization(self):
+    def test_transformer_initialization(self, transformer):
         """Test that transformer initializes with empty template registry."""
-        transformer = JSONataTransformer()
         assert transformer.templates == {}
         assert transformer.list_templates() == []
 
-    def test_register_template(self):
+    def test_register_template(self, transformer):
         """Test registering a transformation template."""
-        transformer = JSONataTransformer()
         template = '{ "title": title, "content": body }'
 
         transformer.register_template("test_connector", template)
@@ -39,9 +43,8 @@ class TestJSONataTransformer:
         assert result["title"] == "Test"
         assert result["content"] == "Content"
 
-    def test_transform_with_registered_template(self):
+    def test_transform_with_registered_template(self, transformer):
         """Test transformation using a registered template."""
-        transformer = JSONataTransformer()
         template = '{ "title": title, "content": body }'
         transformer.register_template("github", template)
 
@@ -57,19 +60,16 @@ class TestJSONataTransformer:
         assert result["content"] == "Login fails when..."
         assert "extra_field" not in result
 
-    def test_transform_without_registered_template(self):
+    def test_transform_without_registered_template(self, transformer):
         """Test that transform returns original data when no template exists."""
-        transformer = JSONataTransformer()
         original_data = {"title": "Test", "body": "Content"}
 
         result = transformer.transform("unknown_connector", original_data)
 
         assert result == original_data
 
-    def test_transform_custom(self):
+    def test_transform_custom(self, transformer):
         """Test transformation with custom JSONata expression."""
-        transformer = JSONataTransformer()
-
         data = {
             "user": {"name": "John Doe", "email": "john@example.com"},
             "timestamp": "2025-11-29T10:00:00Z",
@@ -82,10 +82,8 @@ class TestJSONataTransformer:
         assert result["email"] == "john@example.com"
         assert "timestamp" not in result
 
-    def test_github_issue_transformation(self):
+    def test_github_issue_transformation(self, transformer):
         """Test GitHub issue transformation with realistic data."""
-        transformer = JSONataTransformer()
-
         template = """
         {
             "title": title,
@@ -118,10 +116,8 @@ class TestJSONataTransformer:
         assert result["document_metadata"]["author"] == "testuser"
         assert result["document_metadata"]["state"] == "open"
 
-    def test_slack_message_transformation(self):
+    def test_slack_message_transformation(self, transformer):
         """Test Slack message transformation with metadata extraction."""
-        transformer = JSONataTransformer()
-
         template = """
         {
             "title": $substring(text, 0, 50),
@@ -150,10 +146,8 @@ class TestJSONataTransformer:
         assert result["document_type"] == "SLACK_CONNECTOR"
         assert result["document_metadata"]["channel"] == "C12345"
 
-    def test_jsonata_array_transformation(self):
+    def test_jsonata_array_transformation(self, transformer):
         """Test JSONata transformation that returns an array."""
-        transformer = JSONataTransformer()
-
         data = {
             "issues": [
                 {"title": "Issue 1", "state": "open"},
@@ -168,10 +162,8 @@ class TestJSONataTransformer:
         assert len(result) == 1
         assert result[0]["title"] == "Issue 1"
 
-    def test_jsonata_aggregation(self):
+    def test_jsonata_aggregation(self, transformer):
         """Test JSONata with aggregation functions."""
-        transformer = JSONataTransformer()
-
         data = {
             "items": [
                 {"name": "Item 1", "price": 10},
@@ -186,10 +178,8 @@ class TestJSONataTransformer:
         assert result["total"] == 60
         assert result["count"] == 3
 
-    def test_list_templates(self):
+    def test_list_templates(self, transformer):
         """Test listing all registered templates."""
-        transformer = JSONataTransformer()
-
         transformer.register_template("github", "{ }")
         transformer.register_template("slack", "{ }")
         transformer.register_template("jira", "{ }")
@@ -201,28 +191,22 @@ class TestJSONataTransformer:
         assert "slack" in templates
         assert "jira" in templates
 
-    def test_has_template(self):
+    def test_has_template(self, transformer):
         """Test checking if template exists."""
-        transformer = JSONataTransformer()
-
         transformer.register_template("github", "{ }")
 
         assert transformer.has_template("github") is True
         assert transformer.has_template("slack") is False
 
-    def test_invalid_jsonata_expression(self):
+    def test_invalid_jsonata_expression(self, transformer):
         """Test that invalid JSONata expression raises ValueError."""
-        transformer = JSONataTransformer()
-
         with pytest.raises(ValueError) as exc_info:
             transformer.transform_custom("{ invalid syntax }", {"data": "test"})
 
         assert "Invalid JSONata expression or transformation failed" in str(exc_info.value)
 
-    def test_nested_data_extraction(self):
+    def test_nested_data_extraction(self, transformer):
         """Test extracting deeply nested data."""
-        transformer = JSONataTransformer()
-
         data = {
             "response": {
                 "data": {
@@ -242,10 +226,8 @@ class TestJSONataTransformer:
         assert result["name"] == "John Doe"
         assert result["email"] == "john@example.com"
 
-    def test_malformed_input_empty_dict(self):
+    def test_malformed_input_empty_dict(self, transformer):
         """Test transformation handles empty dictionary gracefully."""
-        transformer = JSONataTransformer()
-
         template = """
         {
             "title": $exists(title) ? title : "Untitled",
@@ -261,10 +243,8 @@ class TestJSONataTransformer:
         assert result["content"] == ""
         assert result["document_type"] == "TEST_CONNECTOR"
 
-    def test_malformed_input_missing_nested_fields(self):
+    def test_malformed_input_missing_nested_fields(self, transformer):
         """Test transformation handles missing nested fields without crashing."""
-        transformer = JSONataTransformer()
-
         template = """
         {
             "title": title,
@@ -283,10 +263,8 @@ class TestJSONataTransformer:
         assert result["author"] == "John"
         assert result["email"] is None
 
-    def test_malformed_input_null_values(self):
+    def test_malformed_input_null_values(self, transformer):
         """Test transformation handles explicit null values correctly."""
-        transformer = JSONataTransformer()
-
         template = """
         {
             "title": $exists(title) ? title : "Untitled",
@@ -305,10 +283,8 @@ class TestJSONataTransformer:
         assert result["assignee"] is None
         assert result["status"] == "unknown"
 
-    def test_malformed_input_array_instead_of_object(self):
+    def test_malformed_input_array_instead_of_object(self, transformer):
         """Test transformation handles unexpected array input."""
-        transformer = JSONataTransformer()
-
         template = '{ "items": $count($) }'
         transformer.register_template("test", template)
 
@@ -319,10 +295,8 @@ class TestJSONataTransformer:
 
         assert result["items"] == 3
 
-    def test_malformed_input_string_instead_of_array(self):
+    def test_malformed_input_string_instead_of_array(self, transformer):
         """Test transformation handles string where array expected."""
-        transformer = JSONataTransformer()
-
         template = """
         {
             "tags": $type(labels) = "array" ? labels : [labels]
@@ -338,10 +312,8 @@ class TestJSONataTransformer:
         # Should wrap string in array
         assert result["tags"] == ["bug"]
 
-    def test_invalid_template_registration(self):
+    def test_invalid_template_registration(self, transformer):
         """Test that registering invalid template raises ValueError."""
-        transformer = JSONataTransformer()
-
         # Invalid JSONata syntax - unclosed brace
         invalid_template = '{ "title": title'
 
@@ -351,10 +323,8 @@ class TestJSONataTransformer:
         assert "Invalid JSONata expression" in str(exc_info.value)
         assert "invalid" in str(exc_info.value)
 
-    def test_transform_evaluation_error(self):
+    def test_transform_evaluation_error(self, transformer):
         """Test that transform raises ValueError when evaluation fails."""
-        transformer = JSONataTransformer()
-
         # Register a valid template that will fail during evaluation
         # Using $number() with non-numeric string causes evaluation error
         template = '{ "result": $number(value) }'
@@ -369,10 +339,8 @@ class TestJSONataTransformer:
         # Verify the error message includes the connector type
         assert "JSONata transformation failed for connector 'test_connector'" in str(exc_info.value)
 
-    def test_transformation_with_unicode_characters(self):
+    def test_transformation_with_unicode_characters(self, transformer):
         """Test transformation handles unicode characters correctly."""
-        transformer = JSONataTransformer()
-
         template = '{ "title": title, "content": content }'
         transformer.register_template("test", template)
 
@@ -386,10 +354,8 @@ class TestJSONataTransformer:
         assert result["title"] == "Unicode Test: 你好世界 🌍"
         assert result["content"] == "Emoji support: ✅ 🚀 🎉"
 
-    def test_transformation_with_very_large_array(self):
+    def test_transformation_with_very_large_array(self, transformer):
         """Test transformation performance with large arrays."""
-        transformer = JSONataTransformer()
-
         template = '{ "total": $sum(items.value), "count": $count(items) }'
         transformer.register_template("test", template)
 
