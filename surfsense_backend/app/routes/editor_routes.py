@@ -17,9 +17,7 @@ from app.utils.rbac import check_permission
 router = APIRouter()
 
 
-@router.get(
-    "/search-spaces/{search_space_id}/documents/{document_id}/editor-content"
-)
+@router.get("/search-spaces/{search_space_id}/documents/{document_id}/editor-content")
 async def get_editor_content(
     search_space_id: int,
     document_id: int,
