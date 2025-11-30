@@ -75,7 +75,7 @@ class JSONataTransformer:
             Transformed data according to the template
 
         Raises:
-            Exception: If JSONata transformation fails
+            ValueError: If JSONata transformation fails
 
         Example:
             >>> result = transformer.transform("github", {
@@ -89,7 +89,12 @@ class JSONataTransformer:
 
         # Use pre-compiled expression (no compilation overhead)
         compiled_expression = self.templates[connector_type]
-        return compiled_expression.evaluate(data)
+        try:
+            return compiled_expression.evaluate(data)
+        except JsonataError as e:
+            raise ValueError(
+                f"JSONata transformation failed for connector '{connector_type}': {str(e)}"
+            ) from e
 
     def transform_custom(
         self, jsonata_expression: str, data: dict[str, Any]
