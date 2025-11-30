@@ -351,6 +351,24 @@ class TestJSONataTransformer:
         assert "Invalid JSONata expression" in str(exc_info.value)
         assert "invalid" in str(exc_info.value)
 
+    def test_transform_evaluation_error(self):
+        """Test that transform raises ValueError when evaluation fails."""
+        transformer = JSONataTransformer()
+
+        # Register a valid template that will fail during evaluation
+        # Using $number() with non-numeric string causes evaluation error
+        template = '{ "result": $number(value) }'
+        transformer.register_template("test_connector", template)
+
+        # Data that will cause evaluation to fail
+        invalid_data = {"value": "not-a-number"}
+
+        with pytest.raises(ValueError) as exc_info:
+            transformer.transform("test_connector", invalid_data)
+
+        # Verify the error message includes the connector type
+        assert "JSONata transformation failed for connector 'test_connector'" in str(exc_info.value)
+
     def test_transformation_with_unicode_characters(self):
         """Test transformation handles unicode characters correctly."""
         transformer = JSONataTransformer()
