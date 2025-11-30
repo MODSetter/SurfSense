@@ -347,6 +347,7 @@ def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
 
 
 @router.post("/documents")
+@limiter.limit("20/minute")  # Limit document creation to prevent spam
 async def create_documents(
     request: DocumentsCreate,
     session: AsyncSession = Depends(get_async_session),
@@ -830,6 +831,7 @@ async def read_document(
 
 
 @router.put("/documents/{document_id}", response_model=DocumentRead)
+@limiter.limit("30/minute")  # Limit document updates
 async def update_document(
     document_id: int,
     document_update: DocumentUpdate,
@@ -876,6 +878,7 @@ async def update_document(
 
 
 @router.delete("/documents/{document_id}", response_model=dict)
+@limiter.limit("20/minute")  # Limit document deletion to prevent abuse
 async def delete_document(
     document_id: int,
     session: AsyncSession = Depends(get_async_session),

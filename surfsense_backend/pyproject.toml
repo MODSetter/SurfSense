@@ -55,7 +55,7 @@ dependencies = [
     "pyotp>=2.9.0",
     "qrcode[pil]>=7.4.2",
     "feedparser>=6.0.0",
-    "bcrypt==4.0.1",
+    "bcrypt>=4.2.1,<5.0.0",
     "structlog>=24.1.0",
 ]
 
@@ -112,7 +112,7 @@ target-version = "py312"
 [tool.ruff.lint]
 select = [
     "E4",     # pycodestyle errors
-    "E7",     # pycodestyle errors  
+    "E7",     # pycodestyle errors
     "E9",     # pycodestyle errors
     "F",      # Pyflakes
     "I",      # isort
@@ -120,6 +120,7 @@ select = [
     "UP",     # pyupgrade
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
+    "C90",    # mccabe complexity
     "T20",    # flake8-print
     "SIM",    # flake8-simplify
     "RUF",    # Ruff-specific rules
@@ -128,7 +129,6 @@ select = [
 ignore = [
     "E501",   # Line too long (handled by formatter)
     "B008",   # Do not perform function calls in argument defaults
-    "T201",   # Print found (allow print statements)
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
 ]
 
@@ -160,6 +160,10 @@ line-ending = "auto"
 known-first-party = ["app"]
 force-single-line = false
 combine-as-imports = true
+
+[tool.ruff.lint.mccabe]
+# Maximum cyclomatic complexity allowed
+max-complexity = 10
 
 [tool.pytest.ini_options]
 # Minimum version of pytest
