@@ -46,7 +46,7 @@ export function DashboardBreadcrumb() {
 
 			if (token) {
 				fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}/editor-content`,
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
 					{
 						headers: {
 							Authorization: `Bearer ${token}`,
