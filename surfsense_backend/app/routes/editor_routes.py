@@ -8,15 +8,20 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.db import Document, SearchSpace, User, get_async_session
+from app.db import Document, Permission, User, get_async_session
 from app.users import current_active_user
+from app.utils.rbac import check_permission
 
 router = APIRouter()
 
 
-@router.get("/documents/{document_id}/editor-content")
+@router.get(
+    "/search-spaces/{search_space_id}/documents/{document_id}/editor-content"
+)
 async def get_editor_content(
+    search_space_id: int,
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
@@ -26,14 +31,25 @@ async def get_editor_content(
 
     Returns BlockNote JSON document. If blocknote_document is NULL,
     attempts to generate it from chunks (lazy migration).
+
+    Requires DOCUMENTS_READ permission.
     """
-    from sqlalchemy.orm import selectinload
+    # Check RBAC permission
+    await check_permission(
+        session,
+        user,
+        search_space_id,
+        Permission.DOCUMENTS_READ.value,
+        "You don't have permission to read documents in this search space",
+    )
 
     result = await session.execute(
         select(Document)
         .options(selectinload(Document.chunks))
-        .join(SearchSpace)
-        .filter(Document.id == document_id, SearchSpace.user_id == user.id)
+        .filter(
+            Document.id == document_id,
+            Document.search_space_id == search_space_id,
+        )
     )
     document = result.scalars().first()
 
@@ -94,8 +110,9 @@ async def get_editor_content(
     }
 
 
-@router.post("/documents/{document_id}/save")
+@router.post("/search-spaces/{search_space_id}/documents/{document_id}/save")
 async def save_document(
+    search_space_id: int,
     document_id: int,
     data: dict[str, Any],
     session: AsyncSession = Depends(get_async_session),
@@ -104,14 +121,25 @@ async def save_document(
     """
     Save BlockNote document and trigger reindexing.
     Called when user clicks 'Save & Exit'.
+
+    Requires DOCUMENTS_UPDATE permission.
     """
     from app.tasks.celery_tasks.document_reindex_tasks import reindex_document_task
 
-    # Verify ownership
+    # Check RBAC permission
+    await check_permission(
+        session,
+        user,
+        search_space_id,
+        Permission.DOCUMENTS_UPDATE.value,
+        "You don't have permission to update documents in this search space",
+    )
+
     result = await session.execute(
-        select(Document)
-        .join(SearchSpace)
-        .filter(Document.id == document_id, SearchSpace.user_id == user.id)
+        select(Document).filter(
+            Document.id == document_id,
+            Document.search_space_id == search_space_id,
+        )
     )
     document = result.scalars().first()
 

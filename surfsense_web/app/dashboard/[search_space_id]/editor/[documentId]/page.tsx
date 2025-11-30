@@ -45,7 +45,7 @@ export default function EditorPage() {
 
 			try {
 				const response = await fetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}/editor-content`,
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${params.search_space_id}/documents/${documentId}/editor-content`,
 					{
 						headers: {
 							Authorization: `Bearer ${token}`,
@@ -114,7 +114,7 @@ export default function EditorPage() {
 		try {
 			// Save blocknote_document and trigger reindexing in background
 			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}/save`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${params.search_space_id}/documents/${documentId}/save`,
 				{
 					method: "POST",
 					headers: {
