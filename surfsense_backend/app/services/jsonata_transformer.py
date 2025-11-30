@@ -21,6 +21,7 @@ Usage:
 from typing import Any
 
 import jsonata
+from jsonata import JsonataError
 
 
 class JSONataTransformer:
@@ -55,7 +56,7 @@ class JSONataTransformer:
             # Pre-compile the expression for performance
             compiled_expression = jsonata.Jsonata(jsonata_expression)
             self.templates[connector_type] = compiled_expression
-        except Exception as e:
+        except JsonataError as e:
             raise ValueError(
                 f"Invalid JSONata expression for connector '{connector_type}': {str(e)}"
             ) from e
@@ -107,7 +108,7 @@ class JSONataTransformer:
             Transformed data
 
         Raises:
-            Exception: If JSONata transformation fails
+            ValueError: If JSONata expression is invalid or transformation fails
 
         Example:
             >>> result = transformer.transform_custom(
@@ -115,8 +116,13 @@ class JSONataTransformer:
             ...     {"user": {"name": "John", "email": "john@example.com"}}
             ... )
         """
-        expression = jsonata.Jsonata(jsonata_expression)
-        return expression.evaluate(data)
+        try:
+            expression = jsonata.Jsonata(jsonata_expression)
+            return expression.evaluate(data)
+        except JsonataError as e:
+            raise ValueError(
+                f"Invalid JSONata expression or transformation failed: {str(e)}"
+            ) from e
 
     def has_template(self, connector_type: str) -> bool:
         """
