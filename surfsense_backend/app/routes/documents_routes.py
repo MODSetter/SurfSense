@@ -349,16 +349,17 @@ def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
 @router.post("/documents")
 @limiter.limit("20/minute")  # Limit document creation to prevent spam
 async def create_documents(
-    request: DocumentsCreate,
+    request: Request,
+    data: DocumentsCreate,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     try:
         # CRITICAL SECURITY: Verify user has write permission (public spaces are read-only for non-owners)
-        await verify_space_write_permission(session, request.search_space_id, user)
+        await verify_space_write_permission(session, data.search_space_id, user)
 
-        if request.document_type == DocumentType.EXTENSION:
-            for individual_document in request.content:
+        if data.document_type == DocumentType.EXTENSION:
+            for individual_document in data.content:
                 # Convert document to dict for Celery serialization
                 document_dict = {
                     "metadata": {
@@ -368,18 +369,18 @@ async def create_documents(
                     "content": individual_document.content,
                 }
                 process_extension_document_task.delay(
-                    document_dict, request.search_space_id, str(user.id)
+                    document_dict, data.search_space_id, str(user.id)
                 )
-        elif request.document_type == DocumentType.CRAWLED_URL:
-            for url in request.content:
+        elif data.document_type == DocumentType.CRAWLED_URL:
+            for url in data.content:
                 process_crawled_url_task.delay(
-                    url, request.search_space_id, str(user.id)
+                    url, data.search_space_id, str(user.id)
                 )
-        elif request.document_type == DocumentType.YOUTUBE_VIDEO:
+        elif data.document_type == DocumentType.YOUTUBE_VIDEO:
 
-            for url in request.content:
+            for url in data.content:
                 process_youtube_video_task.delay(
-                    url, request.search_space_id, str(user.id)
+                    url, data.search_space_id, str(user.id)
                 )
         else:
             raise HTTPException(status_code=400, detail="Invalid document type")
@@ -833,6 +834,7 @@ async def read_document(
 @router.put("/documents/{document_id}", response_model=DocumentRead)
 @limiter.limit("30/minute")  # Limit document updates
 async def update_document(
+    request: Request,
     document_id: int,
     document_update: DocumentUpdate,
     session: AsyncSession = Depends(get_async_session),
@@ -880,6 +882,7 @@ async def update_document(
 @router.delete("/documents/{document_id}", response_model=dict)
 @limiter.limit("20/minute")  # Limit document deletion to prevent abuse
 async def delete_document(
+    request: Request,
     document_id: int,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),

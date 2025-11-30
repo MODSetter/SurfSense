@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from langchain.schema import AIMessage, HumanMessage
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -119,12 +119,13 @@ async def _get_language_for_search_space(
 @router.post("/chat")
 @limiter.limit("30/minute")  # Limit chat interactions to prevent abuse
 async def handle_chat_data(
-    request: AISDKChatRequest,
+    request: Request,
+    data: AISDKChatRequest,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     # Validate and sanitize all input data
-    messages = validate_messages(request.messages)
+    messages = validate_messages(data.messages)
 
     if messages[-1]["role"] != "user":
         raise HTTPException(
@@ -191,6 +192,7 @@ async def handle_chat_data(
 @router.post("/chats", response_model=ChatRead)
 @limiter.limit("20/minute")  # Limit chat creation
 async def create_chat(
+    request: Request,
     chat: ChatCreate,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),

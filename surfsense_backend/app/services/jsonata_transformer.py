@@ -21,7 +21,7 @@ Usage:
 from typing import Any
 
 import jsonata
-from jsonata import JsonataError
+from jsonata import JException as JsonataError
 
 
 class JSONataTransformer:
