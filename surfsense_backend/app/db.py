@@ -20,7 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, relationship
 
@@ -342,6 +342,17 @@ class Document(BaseModel, TimestampMixin):
     content_hash = Column(String, nullable=False, index=True, unique=True)
     unique_identifier_hash = Column(String, nullable=True, index=True, unique=True)
     embedding = Column(Vector(config.embedding_model_instance.dimension))
+
+    # BlockNote live editing state (NULL when never edited)
+    blocknote_document = Column(JSONB, nullable=True)
+
+    # blocknote background reindex flag
+    content_needs_reindexing = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
+    # Track when blocknote document was last edited
+    last_edited_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False

@@ -291,6 +291,16 @@ async def add_youtube_video_document(
             {"stage": "chunk_processing"},
         )
 
+        from app.utils.blocknote_converter import convert_markdown_to_blocknote
+
+        # Convert transcript to BlockNote JSON
+        blocknote_json = await convert_markdown_to_blocknote(combined_document_string)
+        if not blocknote_json:
+            logging.warning(
+                f"Failed to convert YouTube video '{video_id}' to BlockNote JSON, "
+                "document will not be editable"
+            )
+
         chunks = await create_document_chunks(combined_document_string)
 
         # Update or create document
@@ -314,6 +324,7 @@ async def add_youtube_video_document(
                 "thumbnail": video_data.get("thumbnail_url", ""),
             }
             existing_document.chunks = chunks
+            existing_document.blocknote_document = blocknote_json
 
             await session.commit()
             await session.refresh(existing_document)
@@ -342,6 +353,7 @@ async def add_youtube_video_document(
                 search_space_id=search_space_id,
                 content_hash=content_hash,
                 unique_identifier_hash=unique_identifier_hash,
+                blocknote_document=blocknote_json,
             )
 
             session.add(document)
