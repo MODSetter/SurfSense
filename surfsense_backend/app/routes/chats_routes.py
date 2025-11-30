@@ -20,6 +20,7 @@ from app.schemas import (
 from app.tasks.stream_connector_search_results import stream_connector_search_results
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from app.config import config as app_config
 from app.utils.validators import (
     validate_connectors,
     validate_document_ids,
@@ -77,9 +78,15 @@ async def _get_language_for_search_space(
     ):
         llm_configs = user_preference.search_space.llm_configs
 
-        # Check fast_llm, long_context_llm, and strategic_llm IDs
-        from app.config import config as app_config
+        # Create dictionaries for O(1) lookup performance
+        global_llm_configs_by_id = {
+            cfg.get("id"): cfg for cfg in app_config.GLOBAL_LLM_CONFIGS
+        }
+        custom_llm_configs_by_id = {
+            cfg.id: cfg for cfg in llm_configs if hasattr(cfg, "id")
+        }
 
+        # Check fast_llm, long_context_llm, and strategic_llm IDs
         for llm_id in [
             user_preference.fast_llm_id,
             user_preference.long_context_llm_id,
@@ -88,22 +95,19 @@ async def _get_language_for_search_space(
             if llm_id is not None:
                 # Check if it's a global config (negative ID)
                 if llm_id < 0:
-                    # Look in global configs
-                    for global_cfg in app_config.GLOBAL_LLM_CONFIGS:
-                        if global_cfg.get("id") == llm_id:
-                            language = global_cfg.get("language")
-                            if language:
-                                break
-                else:
-                    # Look in custom configs
-                    for llm_config in llm_configs:
-                        if llm_config.id == llm_id and getattr(
-                            llm_config, "language", None
-                        ):
-                            language = llm_config.language
+                    # Look in global configs using O(1) dictionary lookup
+                    global_cfg = global_llm_configs_by_id.get(llm_id)
+                    if global_cfg:
+                        language = global_cfg.get("language")
+                        if language:
                             break
-                if language:
-                    break
+                else:
+                    # Look in custom configs using O(1) dictionary lookup
+                    llm_config = custom_llm_configs_by_id.get(llm_id)
+                    if llm_config:
+                        language = getattr(llm_config, "language", None)
+                        if language:
+                            break
 
     # Fallback to first LLM config if no language found yet
     if not language and llm_configs:
