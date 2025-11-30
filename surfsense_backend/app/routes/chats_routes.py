@@ -34,6 +34,85 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+async def _get_language_for_search_space(
+    session: AsyncSession,
+    search_space_id: int,
+    user: User,
+) -> str | None:
+    """
+    Extract language preference for a search space.
+
+    Checks user preferences and LLM configs to determine the appropriate language.
+    Looks through fast_llm, long_context_llm, and strategic_llm configurations.
+
+    Args:
+        session: Database session
+        search_space_id: ID of the search space
+        user: Current user
+
+    Returns:
+        Language code (e.g., 'en', 'lv') or None if not found
+    """
+    language_result = await session.execute(
+        select(UserSearchSpacePreference)
+        .options(
+            selectinload(UserSearchSpacePreference.search_space).selectinload(
+                SearchSpace.llm_configs
+            ),
+        )
+        .filter(
+            UserSearchSpacePreference.search_space_id == search_space_id,
+            UserSearchSpacePreference.user_id == user.id,
+        )
+    )
+    user_preference = language_result.scalars().first()
+
+    language = None
+    llm_configs = []
+
+    if (
+        user_preference
+        and user_preference.search_space
+        and user_preference.search_space.llm_configs
+    ):
+        llm_configs = user_preference.search_space.llm_configs
+
+        # Check fast_llm, long_context_llm, and strategic_llm IDs
+        from app.config import config as app_config
+
+        for llm_id in [
+            user_preference.fast_llm_id,
+            user_preference.long_context_llm_id,
+            user_preference.strategic_llm_id,
+        ]:
+            if llm_id is not None:
+                # Check if it's a global config (negative ID)
+                if llm_id < 0:
+                    # Look in global configs
+                    for global_cfg in app_config.GLOBAL_LLM_CONFIGS:
+                        if global_cfg.get("id") == llm_id:
+                            language = global_cfg.get("language")
+                            if language:
+                                break
+                else:
+                    # Look in custom configs
+                    for llm_config in llm_configs:
+                        if llm_config.id == llm_id and getattr(
+                            llm_config, "language", None
+                        ):
+                            language = llm_config.language
+                            break
+                if language:
+                    break
+
+    # Fallback to first LLM config if no language found yet
+    if not language and llm_configs:
+        first_llm_config = llm_configs[0]
+        language = getattr(first_llm_config, "language", None)
+
+    return language
+
+
 @router.post("/chat")
 @limiter.limit("30/minute")  # Limit chat interactions to prevent abuse
 async def handle_chat_data(
@@ -66,70 +145,10 @@ async def handle_chat_data(
     # print("RESQUEST DATA:", request_data)
     # print("SELECTED CONNECTORS:", selected_connectors)
 
-    # Check if the search space belongs to the current user
+    # Check if the search space belongs to the current user and get language preference
     try:
         await check_ownership(session, SearchSpace, search_space_id, user)
-        language_result = await session.execute(
-            select(UserSearchSpacePreference)
-            .options(
-                selectinload(UserSearchSpacePreference.search_space).selectinload(
-                    SearchSpace.llm_configs
-                ),
-                # Note: Removed selectinload for LLM relationships as they no longer exist
-                # Global configs (negative IDs) don't have foreign keys
-                # LLM configs are now fetched manually when needed
-            )
-            .filter(
-                UserSearchSpacePreference.search_space_id == search_space_id,
-                UserSearchSpacePreference.user_id == user.id,
-            )
-        )
-        user_preference = language_result.scalars().first()
-        # print("UserSearchSpacePreference:", user_preference)
-
-        language = None
-        llm_configs = []  # Initialize to empty list
-
-        if (
-            user_preference
-            and user_preference.search_space
-            and user_preference.search_space.llm_configs
-        ):
-            llm_configs = user_preference.search_space.llm_configs
-
-            # Manually fetch LLM configs since relationships no longer exist
-            # Check fast_llm, long_context_llm, and strategic_llm IDs
-            from app.config import config as app_config
-
-            for llm_id in [
-                user_preference.fast_llm_id,
-                user_preference.long_context_llm_id,
-                user_preference.strategic_llm_id,
-            ]:
-                if llm_id is not None:
-                    # Check if it's a global config (negative ID)
-                    if llm_id < 0:
-                        # Look in global configs
-                        for global_cfg in app_config.GLOBAL_LLM_CONFIGS:
-                            if global_cfg.get("id") == llm_id:
-                                language = global_cfg.get("language")
-                                if language:
-                                    break
-                    else:
-                        # Look in custom configs
-                        for llm_config in llm_configs:
-                            if llm_config.id == llm_id and getattr(
-                                llm_config, "language", None
-                            ):
-                                language = llm_config.language
-                                break
-                    if language:
-                        break
-
-        if not language and llm_configs:
-            first_llm_config = llm_configs[0]
-            language = getattr(first_llm_config, "language", None)
-
+        language = await _get_language_for_search_space(session, search_space_id, user)
     except HTTPException:
         raise HTTPException(
             status_code=403, detail="You don't have access to this search space"
