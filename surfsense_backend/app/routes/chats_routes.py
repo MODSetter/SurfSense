@@ -9,6 +9,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.db import Chat, SearchSpace, User, UserSearchSpacePreference, get_async_session
+from app.dependencies.limiter import limiter
 from app.schemas import (
     AISDKChatRequest,
     ChatCreate,
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/chat")
+@limiter.limit("30/minute")  # Limit chat interactions to prevent abuse
 async def handle_chat_data(
     request: AISDKChatRequest,
     session: AsyncSession = Depends(get_async_session),
@@ -165,6 +167,7 @@ async def handle_chat_data(
 
 
 @router.post("/chats", response_model=ChatRead)
+@limiter.limit("20/minute")  # Limit chat creation
 async def create_chat(
     chat: ChatCreate,
     session: AsyncSession = Depends(get_async_session),

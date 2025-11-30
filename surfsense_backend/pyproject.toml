@@ -112,7 +112,7 @@ target-version = "py312"
 [tool.ruff.lint]
 select = [
     "E4",     # pycodestyle errors
-    "E7",     # pycodestyle errors  
+    "E7",     # pycodestyle errors
     "E9",     # pycodestyle errors
     "F",      # Pyflakes
     "I",      # isort
@@ -120,6 +120,7 @@ select = [
     "UP",     # pyupgrade
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
+    "C90",    # mccabe complexity
     "T20",    # flake8-print
     "SIM",    # flake8-simplify
     "RUF",    # Ruff-specific rules
@@ -159,6 +160,10 @@ line-ending = "auto"
 known-first-party = ["app"]
 force-single-line = false
 combine-as-imports = true
+
+[tool.ruff.lint.mccabe]
+# Maximum cyclomatic complexity allowed
+max-complexity = 10
 
 [tool.pytest.ini_options]
 # Minimum version of pytest
