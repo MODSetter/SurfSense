@@ -34,6 +34,12 @@ from app.utils.validators import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# Pre-compute global LLM configs dictionary at module level for O(1) lookups
+# This is constant after application startup, so we compute it once
+GLOBAL_LLM_CONFIGS_BY_ID = {
+    cfg.get("id"): cfg for cfg in app_config.GLOBAL_LLM_CONFIGS
+}
+
 
 async def _get_language_for_search_space(
     session: AsyncSession,
@@ -78,13 +84,8 @@ async def _get_language_for_search_space(
     ):
         llm_configs = user_preference.search_space.llm_configs
 
-        # Create dictionaries for O(1) lookup performance
-        global_llm_configs_by_id = {
-            cfg.get("id"): cfg for cfg in app_config.GLOBAL_LLM_CONFIGS
-        }
-        custom_llm_configs_by_id = {
-            cfg.id: cfg for cfg in llm_configs if hasattr(cfg, "id")
-        }
+        # Create custom configs dictionary for O(1) lookup performance
+        custom_llm_configs_by_id = {cfg.id: cfg for cfg in llm_configs}
 
         # Check fast_llm, long_context_llm, and strategic_llm IDs
         for llm_id in [
@@ -96,7 +97,7 @@ async def _get_language_for_search_space(
                 # Check if it's a global config (negative ID)
                 if llm_id < 0:
                     # Look in global configs using O(1) dictionary lookup
-                    global_cfg = global_llm_configs_by_id.get(llm_id)
+                    global_cfg = GLOBAL_LLM_CONFIGS_BY_ID.get(llm_id)
                     if global_cfg:
                         language = global_cfg.get("language")
                         if language:
@@ -104,15 +105,13 @@ async def _get_language_for_search_space(
                 else:
                     # Look in custom configs using O(1) dictionary lookup
                     llm_config = custom_llm_configs_by_id.get(llm_id)
-                    if llm_config:
-                        language = getattr(llm_config, "language", None)
-                        if language:
-                            break
+                    if llm_config and llm_config.language:
+                        language = llm_config.language
+                        break
 
     # Fallback to first LLM config if no language found yet
     if not language and llm_configs:
-        first_llm_config = llm_configs[0]
-        language = getattr(first_llm_config, "language", None)
+        language = llm_configs[0].language
 
     return language
 
