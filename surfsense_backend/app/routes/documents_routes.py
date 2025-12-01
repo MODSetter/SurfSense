@@ -401,7 +401,7 @@ async def create_documents(
 @limiter.limit("10/minute")  # 10 uploads per minute per IP
 async def create_documents_file_upload(
     request: Request,
-    files: Annotated[List[UploadFile], File()],
+    files: Annotated[List[UploadFile], File(...)],
     search_space_id: int = Form(...),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
