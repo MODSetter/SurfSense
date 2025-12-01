@@ -343,20 +343,67 @@ async def retry_log(
         await session.refresh(db_log)
 
         # Re-submit the task to Celery queue
-        if db_log.log_metadata:
-            task_name = db_log.log_metadata.get('task_name')
-            user_id = db_log.log_metadata.get('user_id')
-            url = db_log.log_metadata.get('url')
-            document_dict = db_log.log_metadata.get('document')
+        if not db_log.log_metadata:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot retry task: log metadata not available"
+            )
 
-            if task_name == 'process_crawled_url' and url and user_id:
-                process_crawled_url_task.delay(url, db_log.search_space_id, user_id)
-            elif task_name == 'process_youtube_video' and url and user_id:
-                process_youtube_video_task.delay(url, db_log.search_space_id, user_id)
-            elif task_name == 'process_extension_document' and document_dict and user_id:
-                process_extension_document_task.delay(document_dict, db_log.search_space_id, user_id)
-            elif task_name == 'process_file_upload' and document_dict and user_id:
-                process_file_upload_task.delay(document_dict, db_log.search_space_id, user_id)
+        task_name = db_log.log_metadata.get('task_name')
+        if not task_name:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot retry task: task_name not found in log metadata"
+            )
+
+        user_id = db_log.log_metadata.get('user_id')
+        if not user_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot retry task: user_id not found in log metadata"
+            )
+
+        url = db_log.log_metadata.get('url')
+        file_path = db_log.log_metadata.get('file_path')
+        filename = db_log.log_metadata.get('filename')
+
+        # Resubmit task based on task type
+        if task_name == 'process_crawled_url':
+            if not url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot retry task: URL not found in log metadata"
+                )
+            process_crawled_url_task.delay(url, db_log.search_space_id, user_id)
+
+        elif task_name == 'process_youtube_video':
+            if not url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot retry task: URL not found in log metadata"
+                )
+            process_youtube_video_task.delay(url, db_log.search_space_id, user_id)
+
+        elif task_name == 'process_file_upload':
+            if not file_path or not filename:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot retry task: file_path or filename not found in log metadata"
+                )
+            process_file_upload_task.delay(file_path, filename, db_log.search_space_id, user_id)
+
+        elif task_name == 'process_extension_document':
+            # Extension documents require the full document dict which is not stored in metadata
+            # We only store URL, title, and document_type in metadata
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot retry extension document tasks: full document data not available in logs. Extension documents must be resubmitted from the browser extension."
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot retry task: unknown task type '{task_name}'"
+            )
 
         return db_log
     except HTTPException:
