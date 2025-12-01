@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -351,7 +351,7 @@ def validate_file_upload(file: UploadFile) -> tuple[bool, str]:
 @limiter.limit("20/minute")  # Limit document creation to prevent spam
 async def create_documents(
     request: Request,
-    data: DocumentsCreate,
+    data: DocumentsCreate = Body(...),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
