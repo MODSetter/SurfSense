@@ -1,6 +1,6 @@
 # Force asyncio to use standard event loop before unstructured imports
 
-from typing import Annotated, List
+from typing import Annotated
 import asyncio
 import os
 import string
@@ -400,7 +400,7 @@ async def create_documents(
 @limiter.limit("10/minute")  # 10 uploads per minute per IP
 async def create_documents_file_upload(
     request: Request,
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     search_space_id: int = Form(...),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
@@ -836,7 +836,7 @@ async def read_document(
 async def update_document(
     request: Request,
     document_id: int,
-    document_update: DocumentUpdate,
+    document_update: DocumentUpdate = Body(...),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
