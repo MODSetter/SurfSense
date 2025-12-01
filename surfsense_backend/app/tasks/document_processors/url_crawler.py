@@ -67,7 +67,7 @@ async def add_crawled_url_document(
             normalized_url = urlunparse((
                 parsed.scheme,
                 parsed.netloc,
-                quote(parsed.path.encode('utf-8'), safe='/'),
+                quote(parsed.path, safe='/'),
                 parsed.params,
                 parsed.query,
                 parsed.fragment
