@@ -121,6 +121,7 @@ const logStatusConfig = {
 	IN_PROGRESS: { icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50" },
 	SUCCESS: { icon: CheckCircle2, color: "text-green-600", bgColor: "bg-green-50" },
 	FAILED: { icon: X, color: "text-red-600", bgColor: "bg-red-50" },
+	DISMISSED: { icon: CircleX, color: "text-gray-600", bgColor: "bg-gray-50" },
 } as const;
 
 function MessageDetails({
