@@ -1,3 +1,4 @@
+import browser from "webextension-polyfill";
 import type { PlasmoMessaging } from "@plasmohq/messaging";
 
 import { Storage } from "@plasmohq/storage";
@@ -21,13 +22,14 @@ global.Node = {
 
 const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 	try {
-		chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+		{
 			const storage = new Storage({ area: "local" });
 			const tab = tabs[0];
 			if (tab.id) {
 				const tabId: number = tab.id;
 				console.log("tabs", tabs);
-				const result = await chrome.scripting.executeScript({
+				const result = await browser.scripting.executeScript({
 					// @ts-ignore
 					target: { tabId: tab.id },
 					// @ts-ignore
@@ -133,7 +135,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 					});
 				}
 			}
-		});
+		}
 	} catch (error) {
 		console.log(error);
 	}

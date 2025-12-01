@@ -1,3 +1,4 @@
+import browser from "webextension-polyfill";
 import brain from "data-base64:~assets/brain.png";
 import icon from "data-base64:~assets/icon.png";
 import { sendToBackground } from "@plasmohq/messaging";
@@ -76,7 +77,7 @@ const HomePage = () => {
 	useEffect(() => {
 		async function onLoad() {
 			try {
-				chrome.storage.onChanged.addListener((changes: any, areaName: string) => {
+				browser.storage.onChanged.addListener((changes: any, areaName: string) => {
 					if (changes.webhistory) {
 						const webhistory = JSON.parse(changes.webhistory.newValue);
 						console.log("webhistory", webhistory);
@@ -134,7 +135,8 @@ const HomePage = () => {
 			}
 
 			//Main Cleanup COde
-			chrome.tabs.query({}, async (tabs) => {
+			const tabs = await browser.tabs.query({});
+			{
 				//Get Active Tabs Ids
 				let actives = tabs.map((tab) => {
 					if (tab.id) {
@@ -178,19 +180,20 @@ const HomePage = () => {
 					description: "Inactive history sessions have been removed",
 					variant: "destructive",
 				});
-			});
+			}
 		} catch (error) {
 			console.log(error);
 		}
 	}
 
 	async function saveCurrSnapShot(): Promise<void> {
-		chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+		{
 			const storage = new Storage({ area: "local" });
 			const tab = tabs[0];
 			if (tab.id) {
 				const tabId: number = tab.id;
-				const result = await chrome.scripting.executeScript({
+				const result = await browser.scripting.executeScript({
 					// @ts-ignore
 					target: { tabId: tab.id },
 					// @ts-ignore

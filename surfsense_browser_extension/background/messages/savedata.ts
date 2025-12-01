@@ -1,3 +1,4 @@
+import browser from "webextension-polyfill";
 import type { PlasmoMessaging } from "@plasmohq/messaging";
 import { Storage } from "@plasmohq/storage";
 
@@ -16,7 +17,8 @@ const clearMemory = async () => {
 		}
 
 		//Main Cleanup COde
-		chrome.tabs.query({}, async (tabs) => {
+		const tabs = await browser.tabs.query({});
+		{
 			//Get Active Tabs Ids
 			// console.log("Event Tabs",tabs)
 			let actives = tabs.map((tab) => {
@@ -58,7 +60,7 @@ const clearMemory = async () => {
 			await storage.set("timeQueueList", {
 				timeQueueList: newTimeQueue.filter((item: any) => item),
 			});
-		});
+		}
 	} catch (error) {
 		console.log(error);
 	}

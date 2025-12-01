@@ -1,8 +1,9 @@
+import browser from "webextension-polyfill";
 import { Storage } from "@plasmohq/storage";
 import { getRenderedHtml, initQueues, initWebHistory } from "~utils/commons";
 import type { WebHistory } from "~utils/interfaces";
 
-chrome.tabs.onCreated.addListener(async (tab: any) => {
+browser.tabs.onCreated.addListener(async (tab: any) => {
 	try {
 		await initWebHistory(tab.id);
 		await initQueues(tab.id);
@@ -11,13 +12,13 @@ chrome.tabs.onCreated.addListener(async (tab: any) => {
 	}
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId: number, changeInfo: any, tab: any) => {
+browser.tabs.onUpdated.addListener(async (tabId: number, changeInfo: any, tab: any) => {
 	if (changeInfo.status === "complete" && tab.url) {
 		const storage = new Storage({ area: "local" });
 		await initWebHistory(tab.id);
 		await initQueues(tab.id);
 
-		const result = await chrome.scripting.executeScript({
+		const result = await browser.scripting.executeScript({
 			// @ts-ignore
 			target: { tabId: tab.id },
 			// @ts-ignore
@@ -45,7 +46,7 @@ chrome.tabs.onUpdated.addListener(async (tabId: number, changeInfo: any, tab: an
 	}
 });
 
-chrome.tabs.onRemoved.addListener(async (tabId: number, removeInfo: object) => {
+browser.tabs.onRemoved.addListener(async (tabId: number, removeInfo: object) => {
 	const storage = new Storage({ area: "local" });
 	const urlQueueListObj: any = await storage.get("urlQueueList");
 	const timeQueueListObj: any = await storage.get("timeQueueList");
