@@ -16,6 +16,12 @@ from app.schemas import (
 )
 from app.users import current_active_user
 from app.utils.check_ownership import check_ownership
+from app.tasks.celery_tasks.document_tasks import (
+    process_crawled_url_task,
+    process_extension_document_task,
+    process_file_upload_task,
+    process_youtube_video_task,
+)
 
 router = APIRouter()
 
@@ -335,6 +341,23 @@ async def retry_log(
 
         await session.commit()
         await session.refresh(db_log)
+
+        # Re-submit the task to Celery queue
+        if db_log.log_metadata:
+            task_name = db_log.log_metadata.get('task_name')
+            user_id = db_log.log_metadata.get('user_id')
+            url = db_log.log_metadata.get('url')
+            document_dict = db_log.log_metadata.get('document')
+
+            if task_name == 'process_crawled_url' and url and user_id:
+                process_crawled_url_task.delay(url, db_log.search_space_id, user_id)
+            elif task_name == 'process_youtube_video' and url and user_id:
+                process_youtube_video_task.delay(url, db_log.search_space_id, user_id)
+            elif task_name == 'process_extension_document' and document_dict and user_id:
+                process_extension_document_task.delay(document_dict, db_log.search_space_id, user_id)
+            elif task_name == 'process_file_upload' and document_dict and user_id:
+                process_file_upload_task.delay(document_dict, db_log.search_space_id, user_id)
+
         return db_log
     except HTTPException:
         raise
