@@ -36,19 +36,19 @@ import { cn } from "@/lib/utils";
 
 // Define the form schema with Zod
 const searchSpaceFormSchema = z.object({
-	name: z.string().min(3, "Name is required"),
-	description: z.string().min(10, "Description is required"),
+	name: z.string().min(3, "Name must be at least 3 characters"),
+	description: z.string().optional(),
 });
 
 // Define the type for the form values
 type SearchSpaceFormValues = z.infer<typeof searchSpaceFormSchema>;
 
 interface SearchSpaceFormProps {
-	onSubmit?: (data: { name: string; description: string }) => void;
+	onSubmit?: (data: { name: string; description?: string }) => void;
 	onDelete?: () => void;
 	className?: string;
 	isEditing?: boolean;
-	initialData?: { name: string; description: string };
+	initialData?: { name: string; description?: string };
 }
 
 export function SearchSpaceForm({
@@ -229,7 +229,9 @@ export function SearchSpaceForm({
 						name="description"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>Description</FormLabel>
+								<FormLabel>
+									Description <span className="text-muted-foreground font-normal">(optional)</span>
+								</FormLabel>
 								<FormControl>
 									<Input placeholder="Enter search space description" {...field} />
 								</FormControl>

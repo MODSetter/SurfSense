@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { SearchSpaceForm } from "@/components/search-space-form";
 export default function SearchSpacesPage() {
 	const router = useRouter();
-	const handleCreateSearchSpace = async (data: { name: string; description: string }) => {
+	const handleCreateSearchSpace = async (data: { name: string; description?: string }) => {
 		try {
 			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
@@ -16,7 +16,10 @@ export default function SearchSpacesPage() {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
 					},
-					body: JSON.stringify(data),
+					body: JSON.stringify({
+						name: data.name,
+						description: data.description || "",
+					}),
 				}
 			);
 
@@ -31,7 +34,8 @@ export default function SearchSpacesPage() {
 				description: `"${data.name}" has been created.`,
 			});
 
-			router.push(`/dashboard`);
+			// Redirect to the newly created search space's onboarding
+			router.push(`/dashboard/${result.id}/onboard`);
 
 			return result;
 		} catch (error) {
