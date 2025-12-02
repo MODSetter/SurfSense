@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface SearchSpace {
 	created_at: string;
@@ -29,22 +30,10 @@ export function useSearchSpace({ searchSpaceId, autoFetch = true }: UseSearchSpa
 			if (typeof window === "undefined") return;
 
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
-
-			if (response.status === 401) {
-				// Clear token and redirect to home
-				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
-				throw new Error("Unauthorized: Redirecting to login page");
-			}
 
 			if (!response.ok) {
 				throw new Error(`Failed to fetch search space: ${response.status}`);

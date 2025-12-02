@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 export interface DocumentTypeCount {
 	type: string;
@@ -23,11 +24,6 @@ export const useDocumentTypes = (searchSpaceId?: number, lazy: boolean = false) 
 			try {
 				setIsLoading(true);
 				setError(null);
-				const token = localStorage.getItem("surfsense_bearer_token");
-
-				if (!token) {
-					throw new Error("No authentication token found");
-				}
 
 				// Build URL with optional search_space_id query parameter
 				const url = new URL(
@@ -37,12 +33,9 @@ export const useDocumentTypes = (searchSpaceId?: number, lazy: boolean = false) 
 					url.searchParams.append("search_space_id", spaceId.toString());
 				}
 
-				const response = await fetch(url.toString(), {
+				const response = await authenticatedFetch(url.toString(), {
 					method: "GET",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers: { "Content-Type": "application/json" },
 				});
 
 				if (!response.ok) {

@@ -36,6 +36,7 @@ import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
 import { useUser } from "@/hooks";
 import { useSearchSpaces } from "@/hooks/use-search-spaces";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 /**
  * Formats a date string into a readable format
@@ -173,14 +174,9 @@ const DashboardPage = () => {
 	const handleDeleteSearchSpace = async (id: number) => {
 		// Send DELETE request to the API
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-				}
+				{ method: "DELETE" }
 			);
 
 			if (!response.ok) {

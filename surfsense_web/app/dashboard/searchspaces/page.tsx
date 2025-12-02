@@ -4,18 +4,17 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SearchSpaceForm } from "@/components/search-space-form";
+import { authenticatedFetch } from "@/lib/auth-utils";
+
 export default function SearchSpacesPage() {
 	const router = useRouter();
 	const handleCreateSearchSpace = async (data: { name: string; description?: string }) => {
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
 				{
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						name: data.name,
 						description: data.description || "",
