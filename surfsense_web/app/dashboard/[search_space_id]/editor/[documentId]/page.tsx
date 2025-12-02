@@ -9,6 +9,7 @@ import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 interface EditorContent {
 	document_id: number;
@@ -29,28 +30,21 @@ export default function EditorPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-	// Get auth token
-	const token =
-		typeof window !== "undefined" ? localStorage.getItem("surfsense_bearer_token") : null;
-
 	// Fetch document content - DIRECT CALL TO FASTAPI
 	useEffect(() => {
 		async function fetchDocument() {
+			const token = getBearerToken();
 			if (!token) {
 				console.error("No auth token found");
-				setError("Please login to access the editor");
-				setLoading(false);
+				// Redirect to login with current path saved
+				redirectToLogin();
 				return;
 			}
 
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${params.search_space_id}/documents/${documentId}/editor-content`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-						},
-					}
+					{ method: "GET" }
 				);
 
 				if (!response.ok) {
@@ -84,10 +78,10 @@ export default function EditorPage() {
 			}
 		}
 
-		if (documentId && token) {
+		if (documentId) {
 			fetchDocument();
 		}
-	}, [documentId, token]);
+	}, [documentId, params.search_space_id]);
 
 	// Track changes to mark as unsaved
 	useEffect(() => {
@@ -100,8 +94,10 @@ export default function EditorPage() {
 
 	// Save and exit - DIRECT CALL TO FASTAPI
 	const handleSave = async () => {
+		const token = getBearerToken();
 		if (!token) {
 			toast.error("Please login to save");
+			redirectToLogin();
 			return;
 		}
 
@@ -113,14 +109,11 @@ export default function EditorPage() {
 		setSaving(true);
 		try {
 			// Save blocknote_document and trigger reindexing in background
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${params.search_space_id}/documents/${documentId}/save`,
 				{
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({ blocknote_document: editorContent }),
 				}
 			);

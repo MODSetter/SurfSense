@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 export interface LLMConfig {
 	id: number;
@@ -61,14 +62,9 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs?search_space_id=${searchSpaceId}`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
 
 			if (!response.ok) {
@@ -92,14 +88,11 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 
 	const createLLMConfig = async (config: CreateLLMConfig): Promise<LLMConfig | null> => {
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs`,
 				{
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(config),
 				}
 			);
@@ -122,14 +115,9 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 
 	const deleteLLMConfig = async (id: number): Promise<boolean> => {
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/${id}`,
-				{
-					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-				}
+				{ method: "DELETE" }
 			);
 
 			if (!response.ok) {
@@ -151,14 +139,11 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 		config: UpdateLLMConfig
 	): Promise<LLMConfig | null> => {
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/${id}`,
 				{
 					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(config),
 				}
 			);
@@ -203,14 +188,9 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
 
 			if (!response.ok) {
@@ -239,14 +219,11 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 		}
 
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
 				{
 					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(newPreferences),
 				}
 			);
@@ -293,14 +270,9 @@ export function useGlobalLLMConfigs() {
 	const fetchGlobalConfigs = async () => {
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/global-llm-configs`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
 
 			if (!response.ok) {

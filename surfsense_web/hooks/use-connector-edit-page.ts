@@ -15,6 +15,7 @@ import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
 } from "@/hooks/use-search-source-connectors";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 const normalizeListInput = (value: unknown): string[] => {
 	if (Array.isArray(value)) {
@@ -178,16 +179,11 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			setIsFetchingRepos(true);
 			setFetchedRepos(null);
 			try {
-				const token = localStorage.getItem("surfsense_bearer_token");
-				if (!token) throw new Error("No auth token");
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories`,
 					{
 						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
-						},
+						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({ github_pat: values.github_pat }),
 					}
 				);

@@ -13,6 +13,7 @@ import { OnboardLLMSetup } from "@/components/onboard/onboard-llm-setup";
 import { OnboardLoading } from "@/components/onboard/onboard-loading";
 import { OnboardStats } from "@/components/onboard/onboard-stats";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 const OnboardPage = () => {
 	const t = useTranslations("onboard");
@@ -44,12 +45,13 @@ const OnboardPage = () => {
 
 	// Check if user is authenticated
 	useEffect(() => {
-		const token = localStorage.getItem("surfsense_bearer_token");
+		const token = getBearerToken();
 		if (!token) {
-			router.push("/login");
+			// Save current path and redirect to login
+			redirectToLogin();
 			return;
 		}
-	}, [router]);
+	}, []);
 
 	// Capture onboarding state on first load
 	useEffect(() => {

@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 export interface Chunk {
 	id: number;
@@ -49,13 +50,10 @@ export function useDocumentByChunk() {
 			setError(null);
 			setDocument(null);
 
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/by-chunk/${chunkId}`,
 				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						"Content-Type": "application/json",
-					},
+					headers: { "Content-Type": "application/json" },
 					method: "GET",
 				}
 			);

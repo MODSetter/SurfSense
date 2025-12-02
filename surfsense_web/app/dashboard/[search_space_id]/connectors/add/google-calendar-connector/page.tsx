@@ -24,6 +24,7 @@ import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
 } from "@/hooks/use-search-source-connectors";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 export default function GoogleCalendarConnectorPage() {
 	const router = useRouter();
@@ -51,14 +52,9 @@ export default function GoogleCalendarConnectorPage() {
 		try {
 			setIsConnecting(true);
 			// Call backend to initiate authorization flow
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/auth/google/calendar/connector/add/?space_id=${searchSpaceId}`,
-				{
-					method: "GET",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-				}
+				{ method: "GET" }
 			);
 
 			if (!response.ok) {
