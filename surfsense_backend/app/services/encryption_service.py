@@ -5,7 +5,7 @@ Provides Fernet symmetric encryption for API keys and other sensitive data
 import base64
 import os
 from typing import Optional
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
@@ -86,7 +86,7 @@ class EncryptionService:
         try:
             decrypted_bytes = self._fernet.decrypt(ciphertext.encode())
             return decrypted_bytes.decode()
-        except Exception as e:
+        except InvalidToken as e:
             # If decryption fails, it might be plaintext (for migration purposes)
             # In production, this should raise an error
             return ciphertext

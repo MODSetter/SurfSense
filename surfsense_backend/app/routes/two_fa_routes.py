@@ -8,6 +8,7 @@ import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
+from fastapi.responses import JSONResponse
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
@@ -25,7 +26,7 @@ from app.services.rate_limit_service import (
     FAILED_ATTEMPTS_PREFIX,
     get_redis_client as get_rate_limit_redis_client,
 )
-from app.users import current_active_user, get_jwt_strategy
+from app.users import current_active_user, get_jwt_strategy, cookie_transport
 
 logger = logging.getLogger(__name__)
 

@@ -118,7 +118,7 @@ class CSRFProtection:
                 body = json.loads(response.body)
                 body['csrf_token'] = token
                 response.body = json.dumps(body).encode()
-            except:
+            except (json.JSONDecodeError, TypeError):
                 pass  # If body is not JSON, skip
         
         return response

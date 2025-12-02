@@ -90,7 +90,7 @@ cookie_transport = CustomCookieTransport(
     cookie_name="surfsense_auth",
     cookie_httponly=True,  # SECURITY: Prevents JavaScript access (XSS protection)
     cookie_secure=True,     # SECURITY: Only send over HTTPS
-    cookie_samesite="strict",  # SECURITY: CSRF protection
+    cookie_samesite="lax",  # SECURITY: CSRF protection
 )
 
 auth_backend = AuthenticationBackend(
