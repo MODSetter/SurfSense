@@ -91,6 +91,7 @@ app.add_middleware(
         "Accept",
         "Origin",
         "X-Requested-With",
+        "X-CSRF-Token",
     ],
 )
 
@@ -129,6 +130,8 @@ app.include_router(
     tags=["users"],
 )
 
+# SECURITY: OAuth CSRF protection via state parameter is automatically handled by fastapi-users
+# The get_oauth_router generates a JWT state token during authorization and validates it in the callback
 if config.AUTH_TYPE == "GOOGLE":
     from app.users import google_oauth_client
 
@@ -160,7 +163,9 @@ app.include_router(jsonata_router)
 
 # Include health check routes (no rate limiting, for monitoring/load balancers)
 from app.routes.health_routes import router as health_router
+from app.routes.csrf_routes import router as csrf_router
 app.include_router(health_router)
+app.include_router(csrf_router)
 
 
 @app.get("/verify-token")

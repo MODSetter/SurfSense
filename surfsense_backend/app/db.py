@@ -27,7 +27,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, relationship
 
 from app.config import config
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
+from sqlalchemy import event
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
+from app.services.encryption_service import encryption_service
 
 DATABASE_URL = config.DATABASE_URL
 
@@ -379,6 +381,23 @@ class LLMConfig(BaseModel, TimestampMixin):
     )
     search_space = relationship("SearchSpace", back_populates="llm_configs")
 
+
+# SECURITY: Automatic encryption/decryption of LLM API keys
+# These event listeners ensure API keys are always encrypted at rest in the database
+
+@event.listens_for(LLMConfig, 'before_insert')
+@event.listens_for(LLMConfig, 'before_update')
+def encrypt_api_key_before_save(mapper, connection, target):
+    """Encrypt API key before saving to database"""
+    if target.api_key and not encryption_service.is_encrypted(target.api_key):
+        target.api_key = encryption_service.encrypt(target.api_key)
+
+
+@event.listens_for(LLMConfig, 'load')
+def decrypt_api_key_after_load(target, context):
+    """Decrypt API key after loading from database"""
+    if target.api_key and encryption_service.is_encrypted(target.api_key):
+        target.api_key = encryption_service.decrypt(target.api_key)
 
 class UserSearchSpacePreference(BaseModel, TimestampMixin):
     __tablename__ = "user_search_space_preferences"

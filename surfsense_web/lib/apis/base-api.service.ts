@@ -6,7 +6,7 @@ import {
 	NotFoundError,
 	ValidationError,
 } from "../error";
-import { AUTH_TOKEN_KEY } from "../constants";
+import { getCSRFTokenFromCookie, getCSRFHeaderName, ensureCSRFToken } from "../csrf-utils";
 
 export type RequestOptions = {
 	method: "GET" | "POST" | "PUT" | "DELETE";
@@ -18,18 +18,21 @@ export type RequestOptions = {
 };
 
 export class BaseApiService {
-	bearerToken: string;
 	baseUrl: string;
 
-	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh", "/api/v1/auth/2fa/login", "/api/v1/auth/2fa/verify"]; // Add more endpoints as needed
+	noAuthEndpoints: string[] = [
+		"/auth/jwt/login", 
+		"/auth/register", 
+		"/auth/refresh", 
+		"/api/v1/auth/2fa/login", 
+		"/api/v1/auth/2fa/verify"
+	];
+	
+	// Methods that require CSRF protection
+	csrfProtectedMethods = ["POST", "PUT", "DELETE", "PATCH"];
 
-	constructor(bearerToken: string, baseUrl: string) {
-		this.bearerToken = bearerToken;
+	constructor(baseUrl: string) {
 		this.baseUrl = baseUrl;
-	}
-
-	setBearerToken(bearerToken: string) {
-		this.bearerToken = bearerToken;
 	}
 
 	async request<T>(
@@ -41,7 +44,6 @@ export class BaseApiService {
 			const defaultOptions: RequestOptions = {
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.bearerToken || ""}`,
 				},
 				method: "GET",
 			};
@@ -55,17 +57,28 @@ export class BaseApiService {
 				},
 			};
 
+			// SECURITY: Add CSRF token for state-changing requests
+			if (mergedOptions.method && this.csrfProtectedMethods.includes(mergedOptions.method)) {
+				const csrfToken = getCSRFTokenFromCookie();
+				if (csrfToken) {
+					mergedOptions.headers![getCSRFHeaderName()] = csrfToken;
+				}
+			}
+
+			// SECURITY: Include credentials to send HttpOnly cookies
+			// Cookies are automatically sent by the browser - no manual token handling needed
+			const fetchOptions: RequestInit = {
+				...mergedOptions,
+				credentials: 'include',  // Critical for HttpOnly cookies and CSRF
+			};
+
 			if (!this.baseUrl) {
 				throw new AppError("Base URL is not set.");
 			}
 
-			if (!this.bearerToken && !this.noAuthEndpoints.includes(url)) {
-				throw new AuthenticationError("You are not authenticated. Please login again.");
-			}
-
 			const fullUrl = new URL(url, this.baseUrl).toString();
 
-			const response = await fetch(fullUrl, mergedOptions);
+			const response = await fetch(fullUrl, fetchOptions);
 
 			if (!response.ok) {
 				// biome-ignore lint/suspicious: Unknown
@@ -92,6 +105,24 @@ export class BaseApiService {
 							response.statusText
 						);
 					case 403:
+						// Check if it's a CSRF error
+						if (data.detail && data.detail.includes("CSRF")) {
+							// Try to fetch a new CSRF token and retry the request
+							if (mergedOptions.method && this.csrfProtectedMethods.includes(mergedOptions.method)) {
+								try {
+									const newToken = await ensureCSRFToken();
+									mergedOptions.headers![getCSRFHeaderName()] = newToken;
+									// Retry the request once with new token
+									return this.request(url, responseSchema, mergedOptions);
+								} catch (csrfError) {
+									throw new AuthorizationError(
+										"CSRF validation failed. Please refresh the page.",
+										response.status,
+										response.statusText
+									);
+								}
+							}
+						}
 						throw new AuthorizationError(
 							"You don't have permission to access this resource.",
 							response.status,
@@ -182,7 +213,9 @@ export class BaseApiService {
 	}
 }
 
+// SECURITY NOTE: No longer reading from localStorage - using HttpOnly cookies instead
+// Cookies are automatically included in requests via credentials: 'include'
+// CSRF protection via double-submit cookie pattern
 export const baseApiService = new BaseApiService(
-	typeof window !== "undefined" ? localStorage.getItem(AUTH_TOKEN_KEY) || "" : "",
 	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || ""
 );

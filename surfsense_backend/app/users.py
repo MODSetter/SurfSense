@@ -7,6 +7,7 @@ from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, models
 from fastapi_users.authentication import (
     AuthenticationBackend,
     BearerTransport,
+    CookieTransport,
     JWTStrategy,
 )
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
@@ -64,43 +65,46 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 
 
 def get_jwt_strategy() -> JWTStrategy[models.UP, models.ID]:
-    # SECURITY: Reduced from 24 hours to 1 hour to limit exposure window
-    # Consider implementing refresh tokens for better security
+    # SECURITY: Token lifetime set to 1 hour for better security
     return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
 
 
-# # COOKIE AUTH | Uncomment if you want to use cookie auth.
-# from fastapi_users.authentication import (
-#     CookieTransport,
-# )
-# class CustomCookieTransport(CookieTransport):
-#     async def get_login_response(self, token: str) -> Response:
-#         response = RedirectResponse(config.OAUTH_REDIRECT_URL, status_code=302)
-#         return self._set_login_cookie(response, token)
-
-# cookie_transport = CustomCookieTransport(
-#     cookie_max_age=3600,
-# )
-
-# auth_backend = AuthenticationBackend(
-#     name="jwt",
-#     transport=cookie_transport,
-#     get_strategy=get_jwt_strategy,
-# )
+# SECURE COOKIE AUTH - HttpOnly cookies prevent XSS attacks
+class CustomCookieTransport(CookieTransport):
+    async def get_login_response(self, token: str) -> Response:
+        if config.AUTH_TYPE == "GOOGLE":
+            # For OAuth, redirect to frontend callback
+            response = RedirectResponse(config.OAUTH_REDIRECT_URL, status_code=302)
+        else:
+            # For regular login, return JSON success
+            response = JSONResponse({"success": True, "message": "Login successful"})
+        return self._set_login_cookie(response, token)
+    
+    async def get_logout_response(self) -> Response:
+        response = JSONResponse({"success": True, "message": "Logout successful"})
+        return self._set_logout_cookie(response)
 
 
-# BEARER AUTH CODE.
-# SECURITY WARNING: Passing JWT tokens in URL query parameters is not recommended
-# as they can be exposed in browser history, server logs, and referrer headers.
-# Consider using:
-# 1. HTTP-only cookies (see commented CookieTransport above)
-# 2. A short-lived authorization code that can be exchanged for a token
-# 3. POST-based token exchange with the frontend
+cookie_transport = CustomCookieTransport(
+    cookie_max_age=3600,  # 1 hour
+    cookie_name="surfsense_auth",
+    cookie_httponly=True,  # SECURITY: Prevents JavaScript access (XSS protection)
+    cookie_secure=True,     # SECURITY: Only send over HTTPS
+    cookie_samesite="strict",  # SECURITY: CSRF protection
+)
+
+auth_backend = AuthenticationBackend(
+    name="jwt",
+    transport=cookie_transport,
+    get_strategy=get_jwt_strategy,
+)
+
+
+# LEGACY BEARER AUTH - Keeping for backward compatibility during transition
+# TODO: Remove after all clients migrate to cookie auth
 class CustomBearerTransport(BearerTransport):
     async def get_login_response(self, token: str) -> Response:
         bearer_response = BearerResponse(access_token=token, token_type="bearer")
-        # Using URL fragment (#) instead of query parameter (?) to prevent token exposure
-        # in browser history, server logs, and referrer headers
         redirect_url = f"{config.NEXT_FRONTEND_URL}/auth/callback#token={bearer_response.access_token}"
         if config.AUTH_TYPE == "GOOGLE":
             return RedirectResponse(redirect_url, status_code=302)
@@ -110,13 +114,17 @@ class CustomBearerTransport(BearerTransport):
 
 bearer_transport = CustomBearerTransport(tokenUrl="auth/jwt/login")
 
-
-auth_backend = AuthenticationBackend(
-    name="jwt",
+# Bearer backend for backward compatibility (to be deprecated)
+bearer_auth_backend = AuthenticationBackend(
+    name="jwt-bearer",
     transport=bearer_transport,
     get_strategy=get_jwt_strategy,
 )
 
-fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
+# Support both cookie and bearer auth during transition
+fastapi_users = FastAPIUsers[User, uuid.UUID](
+    get_user_manager, 
+    [auth_backend, bearer_auth_backend]  # Cookie auth is primary, bearer for backward compatibility
+)
 
 current_active_user = fastapi_users.current_user(active=True)

@@ -461,7 +461,7 @@ class LoginResponse(BaseModel):
     temporary_token: str | None = None
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login")
 async def login_with_2fa(
     http_request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -613,14 +613,13 @@ async def login_with_2fa(
 
     logger.info(f"User {user.email} logged in successfully")
 
-    return LoginResponse(
-        access_token=token,
-        token_type="bearer",
-        requires_2fa=False,
-    )
+    # SECURITY: Set HttpOnly cookie and return token for backward compatibility
+    response = JSONResponse({"access_token": token, "token_type": "bearer", "requires_2fa": False})
+    cookie_transport._set_login_cookie(response, token)
+    return response
 
 
-@router.post("/verify", response_model=TwoFALoginResponse)
+@router.post("/verify")
 async def verify_2fa_login(
     login_request: TwoFALoginRequest,
     http_request: Request,
@@ -759,7 +758,7 @@ async def verify_2fa_login(
 
     logger.info(f"User {user.email} completed 2FA login")
 
-    return TwoFALoginResponse(
-        access_token=token,
-        token_type="bearer",
-    )
+    # SECURITY: Set HttpOnly cookie and return token for backward compatibility
+    response = JSONResponse({"access_token": token, "token_type": "bearer"})
+    cookie_transport._set_login_cookie(response, token)
+    return response
