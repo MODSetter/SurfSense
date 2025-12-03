@@ -71,8 +71,12 @@ async def create_documents(
                     "metadata": {
                         "VisitedWebPageTitle": individual_document.metadata.VisitedWebPageTitle,
                         "VisitedWebPageURL": individual_document.metadata.VisitedWebPageURL,
+                        "BrowsingSessionId": individual_document.metadata.BrowsingSessionId,
+                        "VisitedWebPageDateWithTimeInISOString": individual_document.metadata.VisitedWebPageDateWithTimeInISOString,
+                        "VisitedWebPageVisitDurationInMilliseconds": individual_document.metadata.VisitedWebPageVisitDurationInMilliseconds,
+                        "VisitedWebPageReffererURL": individual_document.metadata.VisitedWebPageReffererURL,
                     },
-                    "content": individual_document.content,
+                    "pageContent": individual_document.content,
                 }
                 process_extension_document_task.delay(
                     document_dict, request.search_space_id, str(user.id)
