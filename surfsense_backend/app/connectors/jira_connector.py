@@ -178,19 +178,23 @@ class JiraConnector:
             "project",
         ]
 
-        params = {
-            "jql": jql,
-            "fields": ",".join(fields),
-            "maxResults": 100,
-            "startAt": 0,
-        }
+        all_issues = []
+        start_at = 0
+        max_results = 100
 
         all_issues = []
         start_at = 0
 
         while True:
-            params["startAt"] = start_at
-            result = self.make_api_request("search", params)
+            json_payload = {
+                "jql": jql,
+                "fields": fields,  # API accepts list
+                "maxResults": max_results,
+                "startAt": start_at,
+            }
+            result = self.make_api_request(
+                "search/jql", json_payload=json_payload, method="POST"
+            )
 
             if not isinstance(result, dict) or "issues" not in result:
                 raise Exception("Invalid response from Jira API")
