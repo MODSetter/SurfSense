@@ -69,10 +69,14 @@ async def _process_extension_document(
     class DocumentMetadata(BaseModel):
         VisitedWebPageTitle: str
         VisitedWebPageURL: str
+        BrowsingSessionId: str
+        VisitedWebPageDateWithTimeInISOString: str
+        VisitedWebPageReffererURL: str
+        VisitedWebPageVisitDurationInMilliseconds: str
 
     class IndividualDocument(BaseModel):
         metadata: DocumentMetadata
-        content: str
+        pageContent: str
 
     individual_document = IndividualDocument(**individual_document_dict)
 
