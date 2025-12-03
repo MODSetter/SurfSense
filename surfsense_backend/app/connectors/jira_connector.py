@@ -6,7 +6,6 @@ Allows fetching issue lists and their comments, projects and more.
 """
 
 import base64
-import re
 from datetime import datetime
 from typing import Any
 
@@ -221,7 +220,7 @@ class JiraConnector:
         project_key: str | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
         """
-        Fetch issues created OR updated within a date range using /search/jql.
+        Fetch issues within a date range.
 
         Args:
             start_date: Start date in YYYY-MM-DD format
@@ -233,20 +232,20 @@ class JiraConnector:
             Tuple containing (issues list, error message or None)
         """
         try:
-            # Validate date format (simple YYYY-MM-DD check)
-            for d in (start_date, end_date):
-                if not re.match(r"^\d{4}-\d{2}-\d{2}$", d):
-                    return [], f"Invalid date format: {d}. Expected YYYY-MM-DD."
-
-            # Build JQL: issues created OR updated within date range
-            date_jql = (
-                f'(created >= "{start_date}" AND created <= "{end_date}") '
-                f'OR (updated >= "{start_date}" AND updated <= "{end_date}")'
+            # Build JQL query for date range
+            # Query issues that were either created OR updated within the date range
+            date_filter = (
+                f"(createdDate >= '{start_date}' AND createdDate <= '{end_date}')"
             )
-            jql = f"({date_jql}) ORDER BY created DESC"
-            if project_key:
-                jql = f'project = "{project_key}" AND {jql}'
+            # TODO : This JQL needs some improvement to work as expected
 
+            _jql = f"{date_filter}"
+            if project_key:
+                _jql = (
+                    f'project = "{project_key}" AND {date_filter} ORDER BY created DESC'
+                )
+
+            # Define fields to retrieve
             fields = [
                 "summary",
                 "description",
@@ -259,25 +258,26 @@ class JiraConnector:
                 "issuetype",
                 "project",
             ]
+
             if include_comments:
                 fields.append("comment")
 
-            all_issues: list[dict[str, Any]] = []
+            print(f"JQL query: {_jql}")
+
+            params = {
+                "jql": _jql,
+                "fields": ",".join(fields),
+                "maxResults": 100,
+                "startAt": 0,
+            }
+
+            all_issues = []
             start_at = 0
-            max_results = 100
 
             while True:
-                json_payload = {
-                    "jql": jql,
-                    "fields": fields,  # pass as list
-                    "maxResults": max_results,
-                    "startAt": start_at,
-                }
+                params["startAt"] = start_at
 
-                # Call new endpoint with POST
-                result = self.make_api_request(
-                    "search/jql", json_payload=json_payload, method="POST"
-                )
+                result = self.make_api_request("search/jql", params)
 
                 if not isinstance(result, dict) or "issues" not in result:
                     return [], "Invalid response from Jira API"
@@ -285,8 +285,9 @@ class JiraConnector:
                 issues = result["issues"]
                 all_issues.extend(issues)
 
+                # Check if there are more issues to fetch
                 total = result.get("total", 0)
-                if start_at + len(issues) >= total or len(issues) == 0:
+                if start_at + len(issues) >= total:
                     break
 
                 start_at += len(issues)
