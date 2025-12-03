@@ -92,7 +92,11 @@ class JiraConnector:
         }
 
     def make_api_request(
-        self, endpoint: str, params: dict[str, Any] | None = None
+        self,
+        endpoint: str,
+        params: dict[str, Any] | None = None,
+        method: str = "GET",
+        json_payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Make a request to the Jira API.
@@ -116,7 +120,12 @@ class JiraConnector:
         url = f"{self.base_url}/rest/api/{self.api_version}/{endpoint}"
         headers = self.get_headers()
 
-        response = requests.get(url, headers=headers, params=params, timeout=500)
+        if method.upper() == "POST":
+            response = requests.post(
+                url, headers=headers, json=json_payload, timeout=500
+            )
+        else:
+            response = requests.get(url, headers=headers, params=params, timeout=500)
 
         if response.status_code == 200:
             return response.json()
