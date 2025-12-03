@@ -88,13 +88,13 @@ class DocumentsApiService {
 	 * Create documents (extension, crawled URL, or YouTube video)
 	 */
 	createDocument = async (request: CreateDocumentRequest) => {
-		// Validate the request
+		
 		const parsedRequest = createDocumentRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			// Format a user friendly error message
+			
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
