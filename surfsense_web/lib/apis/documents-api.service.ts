@@ -135,13 +135,13 @@ class DocumentsApiService {
 	 * Search documents by title
 	 */
 	searchDocuments = async (request: SearchDocumentsRequest) => {
-		// Validate the request
+		
 		const parsedRequest = searchDocumentsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			// Format a user friendly error message
+			
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
