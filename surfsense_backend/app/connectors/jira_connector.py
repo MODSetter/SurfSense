@@ -262,8 +262,6 @@ class JiraConnector:
             if include_comments:
                 fields.append("comment")
 
-            print(f"JQL query: {jql}")
-
             params = {
                 "jql": jql,
                 "fields": ",".join(fields),
