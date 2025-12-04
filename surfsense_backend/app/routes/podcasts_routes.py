@@ -8,8 +8,6 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-logger = logging.getLogger(__name__)
-
 from app.db import (
     Chat,
     Permission,
@@ -28,6 +26,8 @@ from app.schemas import (
 from app.tasks.podcast_tasks import generate_chat_podcast
 from app.users import current_active_user
 from app.utils.rbac import check_permission
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

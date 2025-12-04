@@ -11,8 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from tavily import TavilyClient
 
-logger = logging.getLogger(__name__)
-
 from app.agents.researcher.configuration import SearchMode
 from app.db import (
     Chunk,
@@ -22,6 +20,8 @@ from app.db import (
 )
 from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
 from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectorService:

@@ -13,8 +13,6 @@ from litellm import atranscription
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
-
 from app.config import config as app_config
 from app.db import Document, DocumentType, Log
 from app.services.llm_service import get_user_long_context_llm
@@ -31,6 +29,8 @@ from .base import (
     check_document_by_unique_identifier,
 )
 from .markdown_processor import add_received_markdown_file_document
+
+logger = logging.getLogger(__name__)
 
 
 async def add_received_file_document_using_unstructured(

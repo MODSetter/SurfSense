@@ -3,7 +3,6 @@ Tests for the connector configuration validation in validators module.
 """
 
 import pytest
-from fastapi import HTTPException
 
 from app.utils.validators import validate_connector_config
 

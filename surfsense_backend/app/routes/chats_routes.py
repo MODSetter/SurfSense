@@ -8,8 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-logger = logging.getLogger(__name__)
-
 from app.db import (
     Chat,
     Permission,
@@ -37,6 +35,8 @@ from app.utils.validators import (
     validate_search_space_id,
     validate_top_k,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

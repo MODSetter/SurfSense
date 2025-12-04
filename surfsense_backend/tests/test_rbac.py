@@ -25,8 +25,6 @@ from app.utils.rbac import (
     generate_invite_code,
     get_default_role,
     get_owner_role,
-    get_search_space_with_access_check,
-    get_user_membership,
     get_user_permissions,
     is_search_space_owner,
 )

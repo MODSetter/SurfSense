@@ -3,7 +3,6 @@ Shared test fixtures and configuration for SurfSense Backend tests.
 """
 
 import uuid
-from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
