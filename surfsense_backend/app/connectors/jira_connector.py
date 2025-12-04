@@ -239,9 +239,9 @@ class JiraConnector:
             )
             # TODO : This JQL needs some improvement to work as expected
 
-            _jql = f"{date_filter}"
+            jql = f"{date_filter}"
             if project_key:
-                _jql = (
+                jql = (
                     f'project = "{project_key}" AND {date_filter} ORDER BY created DESC'
                 )
 
@@ -262,10 +262,10 @@ class JiraConnector:
             if include_comments:
                 fields.append("comment")
 
-            print(f"JQL query: {_jql}")
+            print(f"JQL query: {jql}")
 
             params = {
-                "jql": _jql,
+                "jql": jql,
                 "fields": ",".join(fields),
                 "maxResults": 100,
                 "startAt": 0,
