@@ -12,6 +12,7 @@ Available indexers:
 - Linear: Index issues from Linear workspaces
 - Jira: Index issues from Jira projects
 - Confluence: Index pages from Confluence spaces
+- BookStack: Index pages from BookStack wiki instances
 - Discord: Index messages from Discord servers
 - ClickUp: Index tasks from ClickUp workspaces
 - Google Gmail: Index messages from Google Gmail
@@ -24,6 +25,7 @@ Available indexers:
 # Communication platforms
 # Calendar and scheduling
 from .airtable_indexer import index_airtable_records
+from .bookstack_indexer import index_bookstack_pages
 from .clickup_indexer import index_clickup_tasks
 from .confluence_indexer import index_confluence_pages
 from .discord_indexer import index_discord_messages
@@ -46,6 +48,7 @@ from .webcrawler_indexer import index_crawled_urls
 
 __all__ = [  # noqa: RUF022
     "index_airtable_records",
+    "index_bookstack_pages",
     "index_clickup_tasks",
     "index_confluence_pages",
     "index_discord_messages",

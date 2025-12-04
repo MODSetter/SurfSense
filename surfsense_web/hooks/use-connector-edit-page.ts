@@ -92,6 +92,9 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			CONFLUENCE_BASE_URL: "",
 			CONFLUENCE_EMAIL: "",
 			CONFLUENCE_API_TOKEN: "",
+			BOOKSTACK_BASE_URL: "",
+			BOOKSTACK_TOKEN_ID: "",
+			BOOKSTACK_TOKEN_SECRET: "",
 			JIRA_BASE_URL: "",
 			JIRA_EMAIL: "",
 			JIRA_API_TOKEN: "",
@@ -139,6 +142,9 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					CONFLUENCE_BASE_URL: config.CONFLUENCE_BASE_URL || "",
 					CONFLUENCE_EMAIL: config.CONFLUENCE_EMAIL || "",
 					CONFLUENCE_API_TOKEN: config.CONFLUENCE_API_TOKEN || "",
+					BOOKSTACK_BASE_URL: config.BOOKSTACK_BASE_URL || "",
+					BOOKSTACK_TOKEN_ID: config.BOOKSTACK_TOKEN_ID || "",
+					BOOKSTACK_TOKEN_SECRET: config.BOOKSTACK_TOKEN_SECRET || "",
 					JIRA_BASE_URL: config.JIRA_BASE_URL || "",
 					JIRA_EMAIL: config.JIRA_EMAIL || "",
 					JIRA_API_TOKEN: config.JIRA_API_TOKEN || "",
@@ -435,6 +441,28 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						};
 					}
 					break;
+				case "BOOKSTACK_CONNECTOR":
+					if (
+						formData.BOOKSTACK_BASE_URL !== originalConfig.BOOKSTACK_BASE_URL ||
+						formData.BOOKSTACK_TOKEN_ID !== originalConfig.BOOKSTACK_TOKEN_ID ||
+						formData.BOOKSTACK_TOKEN_SECRET !== originalConfig.BOOKSTACK_TOKEN_SECRET
+					) {
+						if (
+							!formData.BOOKSTACK_BASE_URL ||
+							!formData.BOOKSTACK_TOKEN_ID ||
+							!formData.BOOKSTACK_TOKEN_SECRET
+						) {
+							toast.error("All BookStack fields are required.");
+							setIsSaving(false);
+							return;
+						}
+						newConfig = {
+							BOOKSTACK_BASE_URL: formData.BOOKSTACK_BASE_URL,
+							BOOKSTACK_TOKEN_ID: formData.BOOKSTACK_TOKEN_ID,
+							BOOKSTACK_TOKEN_SECRET: formData.BOOKSTACK_TOKEN_SECRET,
+						};
+					}
+					break;
 				case "JIRA_CONNECTOR":
 					if (
 						formData.JIRA_BASE_URL !== originalConfig.JIRA_BASE_URL ||
@@ -584,6 +612,10 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						editForm.setValue("CONFLUENCE_BASE_URL", newlySavedConfig.CONFLUENCE_BASE_URL || "");
 						editForm.setValue("CONFLUENCE_EMAIL", newlySavedConfig.CONFLUENCE_EMAIL || "");
 						editForm.setValue("CONFLUENCE_API_TOKEN", newlySavedConfig.CONFLUENCE_API_TOKEN || "");
+					} else if (connector.connector_type === "BOOKSTACK_CONNECTOR") {
+						editForm.setValue("BOOKSTACK_BASE_URL", newlySavedConfig.BOOKSTACK_BASE_URL || "");
+						editForm.setValue("BOOKSTACK_TOKEN_ID", newlySavedConfig.BOOKSTACK_TOKEN_ID || "");
+						editForm.setValue("BOOKSTACK_TOKEN_SECRET", newlySavedConfig.BOOKSTACK_TOKEN_SECRET || "");
 					} else if (connector.connector_type === "JIRA_CONNECTOR") {
 						editForm.setValue("JIRA_BASE_URL", newlySavedConfig.JIRA_BASE_URL || "");
 						editForm.setValue("JIRA_EMAIL", newlySavedConfig.JIRA_EMAIL || "");

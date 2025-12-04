@@ -128,6 +128,7 @@ export function DashboardBreadcrumb() {
 								"github-connector": "GitHub",
 								"jira-connector": "Jira",
 								"confluence-connector": "Confluence",
+								"bookstack-connector": "BookStack",
 								"discord-connector": "Discord",
 								"linear-connector": "Linear",
 								"clickup-connector": "ClickUp",

@@ -330,6 +330,7 @@
 		"notion_desc": "Connect to your Notion workspace to access pages and databases.",
 		"github_desc": "Connect a GitHub PAT to index code and docs from accessible repositories.",
 		"confluence_desc": "Connect to Confluence to search pages, comments and documentation.",
+		"bookstack_desc": "Connect to BookStack to search wiki pages and documentation.",
 		"airtable_desc": "Connect to Airtable to search records, tables and database content.",
 		"luma_desc": "Connect to Luma to search events, meetups and gatherings.",
 		"calendar_desc": "Connect to Google Calendar to search events, meetings and schedules.",

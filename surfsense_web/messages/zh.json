@@ -330,6 +330,7 @@
 		"notion_desc": "连接到您的 Notion 工作区以访问页面和数据库。",
 		"github_desc": "连接 GitHub PAT 以索引可访问存储库的代码和文档。",
 		"confluence_desc": "连接到 Confluence 以搜索页面、评论和文档。",
+		"bookstack_desc": "连接到 BookStack 以搜索 Wiki 页面和文档。",
 		"airtable_desc": "连接到 Airtable 以搜索记录、表格和数据库内容。",
 		"luma_desc": "连接到 Luma 以搜索活动、聚会和集会。",
 		"calendar_desc": "连接到 Google 日历以搜索活动、会议和日程。",
