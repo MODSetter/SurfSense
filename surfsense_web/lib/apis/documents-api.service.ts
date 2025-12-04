@@ -35,13 +35,11 @@ class DocumentsApiService {
 	 * Get a list of documents with optional filtering and pagination
 	 */
 	getDocuments = async (request: GetDocumentsRequest) => {
-	
 		const parsedRequest = getDocumentsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
@@ -70,13 +68,11 @@ class DocumentsApiService {
 	 * Get a single document by ID
 	 */
 	getDocument = async (request: GetDocumentRequest) => {
-		
 		const parsedRequest = getDocumentRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
@@ -88,13 +84,11 @@ class DocumentsApiService {
 	 * Create documents (extension, crawled URL, or YouTube video)
 	 */
 	createDocument = async (request: CreateDocumentRequest) => {
-		
 		const parsedRequest = createDocumentRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
@@ -108,13 +102,11 @@ class DocumentsApiService {
 	 * Upload document files
 	 */
 	uploadDocument = async (request: UploadDocumentRequest) => {
-		
 		const parsedRequest = uploadDocumentRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
@@ -135,13 +127,11 @@ class DocumentsApiService {
 	 * Search documents by title
 	 */
 	searchDocuments = async (request: SearchDocumentsRequest) => {
-		
 		const parsedRequest = searchDocumentsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
