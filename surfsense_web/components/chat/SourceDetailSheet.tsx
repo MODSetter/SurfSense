@@ -3,6 +3,9 @@
 import { ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
 import type React from "react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -50,6 +53,14 @@ export function SourceDetailSheet({
 	const chunksContainerRef = useRef<HTMLDivElement>(null);
 	const highlightedChunkRef = useRef<HTMLDivElement>(null);
 	const [summaryOpen, setSummaryOpen] = useState(false);
+
+	// Add useQuery to fetch document by chunk
+	const { data: queryDocument, isLoading: queryLoading, error: queryError } = useQuery({
+		queryKey: cacheKeys.documents.byChunk(chunkId.toString()),
+		queryFn: () => documentsApiService.getDocumentByChunk({ chunk_id: chunkId }),
+		enabled: !!chunkId && open,
+		staleTime: 5 * 60 * 1000, // 5 minutes
+	});
 
 	// Check if this is a source type that should render directly from node
 	const isDirectRenderSource =
