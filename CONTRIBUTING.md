@@ -71,7 +71,11 @@ For detailed setup instructions, refer to our [Installation Guide](https://www.s
 SurfSense consists of three main components:
 
 - **`surfsense_backend/`** - Python/FastAPI backend service
+  - `app/` - Main application code
+  - `tests/` - Test suite (pytest)
+  - `alembic/` - Database migrations
 - **`surfsense_web/`** - Next.js web application
+  - `tests/` - Frontend tests (vitest)
 - **`surfsense_browser_extension/`** - Browser extension for data collection
 
 ## 🧪 Development Guidelines
@@ -98,9 +102,48 @@ refactor: improve error handling in connectors
 ```
 
 ### Testing
+
+We use Docker Compose to run tests with all dependencies (PostgreSQL, Redis, etc.).
+
+#### Running Backend Tests
+
+```bash
+# Start the test dependencies
+docker compose up -d db redis
+
+# Build the backend (pytest is included in the Docker image)
+docker compose build backend
+
+# Run all tests
+docker compose run --rm -e TESTING=true backend pytest tests/ -v --tb=short
+
+# Run tests with coverage
+docker compose run --rm -e TESTING=true backend pytest tests/ -v --tb=short --cov=app --cov-report=html
+
+# Run a specific test file
+docker compose run --rm -e TESTING=true backend pytest tests/test_celery_tasks.py -v
+
+# Run tests matching a pattern
+docker compose run --rm -e TESTING=true backend pytest tests/ -v -k "test_slack"
+
+# Stop services when done
+docker compose down -v
+```
+
+#### Running Frontend Tests
+
+```bash
+cd surfsense_web
+pnpm install
+pnpm test
+```
+
+#### Test Guidelines
 - Write tests for new features and bug fixes
 - Ensure existing tests pass before submitting
 - Include integration tests for API endpoints
+- Use `pytest-asyncio` for async tests in the backend
+- Mock external services and APIs appropriately
 
 ### Branch Naming
 Use descriptive branch names:

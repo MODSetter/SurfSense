@@ -29,40 +29,55 @@ jobs:
             backend:
               - 'surfsense_backend/**'
 
-      - name: Set up Python
+      - name: Set up Docker Buildx
         if: steps.backend-changes.outputs.backend == 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        uses: docker/setup-buildx-action@v3
 
-      - name: Install UV
-        if: steps.backend-changes.outputs.backend == 'true'
-        uses: astral-sh/setup-uv@v4
-
-      - name: Cache dependencies
+      - name: Cache Docker layers
         if: steps.backend-changes.outputs.backend == 'true'
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/uv
-            surfsense_backend/.venv
-          key: python-deps-${{ hashFiles('surfsense_backend/pyproject.toml') }}
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('surfsense_backend/Dockerfile', 'surfsense_backend/pyproject.toml') }}
           restore-keys: |
-            python-deps-
+            ${{ runner.os }}-buildx-
 
-      - name: Install dependencies
+      - name: Create test environment file
         if: steps.backend-changes.outputs.backend == 'true'
-        working-directory: surfsense_backend
         run: |
-          uv sync --extra test
+          cat > surfsense_backend/.env << 'EOF'
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/surfsense
+          CELERY_BROKER_URL=redis://redis:6379/0
+          CELERY_RESULT_BACKEND=redis://redis:6379/0
+          SECRET_KEY=test-secret-key-for-ci
+          TESTING=true
+          EOF
 
-      - name: Run tests with coverage
+      - name: Build and run tests with Docker Compose
         if: steps.backend-changes.outputs.backend == 'true'
-        working-directory: surfsense_backend
-        env:
-          TESTING: "true"
         run: |
-          uv run pytest tests/ -v --tb=short
+          # Start dependencies
+          docker compose up -d db redis
+          
+          # Wait for services to be ready
+          echo "Waiting for PostgreSQL..."
+          timeout 60 bash -c 'until docker compose exec -T db pg_isready -U postgres; do sleep 2; done'
+          
+          echo "Waiting for Redis..."
+          timeout 30 bash -c 'until docker compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
+          
+          # Build backend (pytest is already in Dockerfile)
+          docker compose build backend
+          
+          # Run tests (pytest is baked into the image)
+          docker compose run --rm -e TESTING=true backend pytest tests/ -v --tb=short --cov=app --cov-report=xml
+          
+          # Copy coverage report from the container
+          docker compose run --rm backend cat /app/coverage.xml > surfsense_backend/coverage.xml || true
+
+      - name: Stop Docker Compose services
+        if: always() && steps.backend-changes.outputs.backend == 'true'
+        run: docker compose down -v
 
       - name: Upload coverage reports
         if: steps.backend-changes.outputs.backend == 'true'
