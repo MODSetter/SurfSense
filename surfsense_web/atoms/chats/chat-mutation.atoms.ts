@@ -7,6 +7,7 @@ import type {
 	UpdateChatRequest,
 } from "@/contracts/types/chat.types";
 import { chatsApiService } from "@/lib/apis/chats-api.service";
+import { getBearerToken } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import { activeSearchSpaceIdAtom } from "../seach-spaces/seach-space-queries.atom";
@@ -14,7 +15,7 @@ import { globalChatsQueryParamsAtom } from "./ui.atoms";
 
 export const deleteChatMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = getBearerToken();
 	const chatsQueryParams = get(globalChatsQueryParamsAtom);
 
 	return {
@@ -38,7 +39,7 @@ export const deleteChatMutationAtom = atomWithMutation((get) => {
 
 export const createChatMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = getBearerToken();
 	const chatsQueryParams = get(globalChatsQueryParamsAtom);
 
 	return {
@@ -58,7 +59,7 @@ export const createChatMutationAtom = atomWithMutation((get) => {
 
 export const updateChatMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = getBearerToken();
 	const chatsQueryParams = get(globalChatsQueryParamsAtom);
 
 	return {

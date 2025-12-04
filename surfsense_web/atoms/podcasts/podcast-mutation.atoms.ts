@@ -7,13 +7,14 @@ import type {
 	Podcast,
 } from "@/contracts/types/podcast.types";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
+import { getBearerToken } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import { globalPodcastsQueryParamsAtom } from "./ui.atoms";
 
 export const deletePodcastMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = getBearerToken();
 	const podcastsQueryParams = get(globalPodcastsQueryParamsAtom);
 
 	return {
@@ -37,7 +38,7 @@ export const deletePodcastMutationAtom = atomWithMutation((get) => {
 
 export const generatePodcastMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = getBearerToken();
 	const podcastsQueryParams = get(globalPodcastsQueryParamsAtom);
 
 	return {

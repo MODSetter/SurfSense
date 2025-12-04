@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface User {
 	id: string;
@@ -25,19 +26,10 @@ export function useUser() {
 				if (typeof window === "undefined") return;
 
 				setLoading(true);
-				const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/users/me`, {
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				});
-
-				if (response.status === 401) {
-					// Clear token and redirect to home
-					localStorage.removeItem("surfsense_bearer_token");
-					window.location.href = "/";
-					throw new Error("Unauthorized: Redirecting to login page");
-				}
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/users/me`,
+					{ method: "GET" }
+				);
 
 				if (!response.ok) {
 					throw new Error(`Failed to fetch user: ${response.status}`);

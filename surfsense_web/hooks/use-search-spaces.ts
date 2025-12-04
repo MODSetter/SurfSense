@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface SearchSpace {
 	id: number;
@@ -23,19 +24,14 @@ export function useSearchSpaces() {
 		const fetchSearchSpaces = async () => {
 			try {
 				setLoading(true);
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
+					{ method: "GET" }
 				);
 
 				if (!response.ok) {
-					toast.error("Not authenticated");
-					throw new Error("Not authenticated");
+					toast.error("Failed to fetch search spaces");
+					throw new Error("Failed to fetch search spaces");
 				}
 
 				const data = await response.json();
@@ -56,19 +52,14 @@ export function useSearchSpaces() {
 	const refreshSearchSpaces = async () => {
 		setLoading(true);
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
 
 			if (!response.ok) {
-				toast.error("Not authenticated");
-				throw new Error("Not authenticated");
+				toast.error("Failed to fetch search spaces");
+				throw new Error("Failed to fetch search spaces");
 			}
 
 			const data = await response.json();

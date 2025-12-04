@@ -14,6 +14,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useSearchSpace } from "@/hooks/use-search-space";
+import { authenticatedFetch, getBearerToken } from "@/lib/auth-utils";
 
 interface BreadcrumbItemInterface {
 	label: string;
@@ -41,17 +42,12 @@ export function DashboardBreadcrumb() {
 	useEffect(() => {
 		if (segments[2] === "editor" && segments[3] && searchSpaceId) {
 			const documentId = segments[3];
-			const token =
-				typeof window !== "undefined" ? localStorage.getItem("surfsense_bearer_token") : null;
+			const token = getBearerToken();
 
 			if (token) {
-				fetch(
+				authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-						},
-					}
+					{ method: "GET" }
 				)
 					.then((res) => res.json())
 					.then((data) => {

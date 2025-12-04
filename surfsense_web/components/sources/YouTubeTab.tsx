@@ -19,6 +19,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 const youtubeRegex =
 	/^(https:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
@@ -66,14 +67,11 @@ export function YouTubeTab({ searchSpaceId }: YouTubeTabProps) {
 
 			const videoUrls = videoTags.map((tag) => tag.text);
 
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`,
 				{
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						document_type: "YOUTUBE_VIDEO",
 						content: videoUrls,

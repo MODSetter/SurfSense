@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { authenticatedFetch } from "@/lib/auth-utils";
 import { normalizeListResponse } from "@/lib/pagination";
 
 export interface Document {
@@ -78,14 +79,9 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					params.append("document_types", effectiveDocumentTypes.join(","));
 				}
 
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?${params.toString()}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
+					{ method: "GET" }
 				);
 
 				if (!response.ok) {
@@ -159,14 +155,9 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					params.append("document_types", effectiveDocumentTypes.join(","));
 				}
 
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/search?${params.toString()}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "GET",
-					}
+					{ method: "GET" }
 				);
 
 				if (!response.ok) {
@@ -193,14 +184,9 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 	const deleteDocument = useCallback(
 		async (documentId: number) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "DELETE",
-					}
+					{ method: "DELETE" }
 				);
 
 				if (!response.ok) {
@@ -228,14 +214,9 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 				search_space_id: searchSpaceId.toString(),
 			});
 
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/type-counts?${params.toString()}`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
 
 			if (!response.ok) {

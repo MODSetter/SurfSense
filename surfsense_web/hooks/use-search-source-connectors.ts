@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { authenticatedFetch, getBearerToken, handleUnauthorized } from "@/lib/auth-utils";
 
 export interface SearchSourceConnector {
 	id: number;
@@ -66,11 +67,6 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			try {
 				setIsLoading(true);
 				setError(null);
-				const token = localStorage.getItem("surfsense_bearer_token");
-
-				if (!token) {
-					throw new Error("No authentication token found");
-				}
 
 				// Build URL with optional search_space_id query parameter
 				const url = new URL(
@@ -80,12 +76,9 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 					url.searchParams.append("search_space_id", spaceId.toString());
 				}
 
-				const response = await fetch(url.toString(), {
+				const response = await authenticatedFetch(url.toString(), {
 					method: "GET",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers: { "Content-Type": "application/json" },
 				});
 
 				if (!response.ok) {
@@ -176,24 +169,15 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		spaceId: number
 	) => {
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
 			// Add search_space_id as a query parameter
 			const url = new URL(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`
 			);
 			url.searchParams.append("search_space_id", spaceId.toString());
 
-			const response = await fetch(url.toString(), {
+			const response = await authenticatedFetch(url.toString(), {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(connectorData),
 			});
 
@@ -222,20 +206,11 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		>
 	) => {
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{
 					method: "PUT",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(connectorData),
 				}
 			);
@@ -262,20 +237,11 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	 */
 	const deleteConnector = async (connectorId: number) => {
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{
 					method: "DELETE",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers: { "Content-Type": "application/json" },
 				}
 			);
 
@@ -302,12 +268,6 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		endDate?: string
 	) => {
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
 			// Build query parameters
 			const params = new URLSearchParams({
 				search_space_id: searchSpaceId.toString(),
@@ -319,16 +279,13 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 				params.append("end_date", endDate);
 			}
 
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${
 					process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL
 				}/api/v1/search-source-connectors/${connectorId}/index?${params.toString()}`,
 				{
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers: { "Content-Type": "application/json" },
 				}
 			);
 

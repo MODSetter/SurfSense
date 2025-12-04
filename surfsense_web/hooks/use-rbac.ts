@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { authenticatedFetch, getBearerToken, handleUnauthorized } from "@/lib/auth-utils";
 
 // ============ Types ============
 
@@ -105,21 +106,10 @@ export function useMembers(searchSpaceId: number) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/members`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
-
-			if (response.status === 401) {
-				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
-				throw new Error("Unauthorized");
-			}
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
@@ -145,13 +135,10 @@ export function useMembers(searchSpaceId: number) {
 	const updateMemberRole = useCallback(
 		async (membershipId: number, roleId: number | null) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/members/${membershipId}`,
 					{
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
+						headers: { "Content-Type": "application/json" },
 						method: "PUT",
 						body: JSON.stringify({ role_id: roleId }),
 					}
@@ -177,14 +164,9 @@ export function useMembers(searchSpaceId: number) {
 	const removeMember = useCallback(
 		async (membershipId: number) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/members/${membershipId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "DELETE",
-					}
+					{ method: "DELETE" }
 				);
 
 				if (!response.ok) {
@@ -205,14 +187,9 @@ export function useMembers(searchSpaceId: number) {
 
 	const leaveSearchSpace = useCallback(async () => {
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/members/me`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "DELETE",
-				}
+				{ method: "DELETE" }
 			);
 
 			if (!response.ok) {
@@ -251,21 +228,10 @@ export function useRoles(searchSpaceId: number) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/roles`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
-
-			if (response.status === 401) {
-				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
-				throw new Error("Unauthorized");
-			}
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
@@ -291,13 +257,10 @@ export function useRoles(searchSpaceId: number) {
 	const createRole = useCallback(
 		async (roleData: RoleCreate) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/roles`,
 					{
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
+						headers: { "Content-Type": "application/json" },
 						method: "POST",
 						body: JSON.stringify(roleData),
 					}
@@ -323,13 +286,10 @@ export function useRoles(searchSpaceId: number) {
 	const updateRole = useCallback(
 		async (roleId: number, roleData: RoleUpdate) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/roles/${roleId}`,
 					{
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
+						headers: { "Content-Type": "application/json" },
 						method: "PUT",
 						body: JSON.stringify(roleData),
 					}
@@ -355,14 +315,9 @@ export function useRoles(searchSpaceId: number) {
 	const deleteRole = useCallback(
 		async (roleId: number) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/roles/${roleId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "DELETE",
-					}
+					{ method: "DELETE" }
 				);
 
 				if (!response.ok) {
@@ -404,21 +359,10 @@ export function useInvites(searchSpaceId: number) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/invites`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
-
-			if (response.status === 401) {
-				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
-				throw new Error("Unauthorized");
-			}
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
@@ -444,13 +388,10 @@ export function useInvites(searchSpaceId: number) {
 	const createInvite = useCallback(
 		async (inviteData: InviteCreate) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/invites`,
 					{
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
+						headers: { "Content-Type": "application/json" },
 						method: "POST",
 						body: JSON.stringify(inviteData),
 					}
@@ -476,13 +417,10 @@ export function useInvites(searchSpaceId: number) {
 	const updateInvite = useCallback(
 		async (inviteId: number, inviteData: InviteUpdate) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/invites/${inviteId}`,
 					{
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
+						headers: { "Content-Type": "application/json" },
 						method: "PUT",
 						body: JSON.stringify(inviteData),
 					}
@@ -508,14 +446,9 @@ export function useInvites(searchSpaceId: number) {
 	const revokeInvite = useCallback(
 		async (inviteId: number) => {
 			try {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/invites/${inviteId}`,
-					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
-						method: "DELETE",
-					}
+					{ method: "DELETE" }
 				);
 
 				if (!response.ok) {
@@ -555,14 +488,9 @@ export function usePermissions() {
 	const fetchPermissions = useCallback(async () => {
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/permissions`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
 
 			if (!response.ok) {
@@ -619,21 +547,10 @@ export function useUserAccess(searchSpaceId: number) {
 
 		try {
 			setLoading(true);
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}/my-access`,
-				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
-					method: "GET",
-				}
+				{ method: "GET" }
 			);
-
-			if (response.status === 401) {
-				localStorage.removeItem("surfsense_bearer_token");
-				window.location.href = "/";
-				throw new Error("Unauthorized");
-			}
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
@@ -737,13 +654,10 @@ export function useInviteInfo(inviteCode: string | null) {
 		}
 
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/invites/accept`,
 				{
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					method: "POST",
 					body: JSON.stringify({ invite_code: inviteCode }),
 				}

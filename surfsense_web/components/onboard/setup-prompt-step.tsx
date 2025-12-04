@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type CommunityPrompt, useCommunityPrompts } from "@/hooks/use-community-prompts";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface SetupPromptStepProps {
 	searchSpaceId: number;
@@ -74,14 +75,11 @@ export function SetupPromptStep({ searchSpaceId, onComplete }: SetupPromptStepPr
 
 			// Only send update if there's something to update
 			if (Object.keys(payload).length > 0) {
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
 					{
 						method: "PUT",
-						headers: {
-							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-						},
+						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify(payload),
 					}
 				);

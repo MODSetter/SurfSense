@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { getBearerToken } from "@/lib/auth-utils";
 
 interface UseApiKeyReturn {
 	apiKey: string | null;
@@ -17,7 +18,7 @@ export function useApiKey(): UseApiKeyReturn {
 		// Load API key from localStorage
 		const loadApiKey = () => {
 			try {
-				const token = localStorage.getItem("surfsense_bearer_token");
+				const token = getBearerToken();
 				setApiKey(token);
 			} catch (error) {
 				console.error("Error loading API key:", error);

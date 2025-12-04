@@ -2,22 +2,25 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
 
 interface TokenHandlerProps {
-	redirectPath?: string; // Path to redirect after storing token
+	redirectPath?: string; // Default path to redirect after storing token (if no saved path)
 	tokenParamName?: string; // Name of the URL parameter containing the token
-	storageKey?: string; // Key to use when storing in localStorage
+	storageKey?: string; // Key to use when storing in localStorage (kept for backwards compatibility)
 }
 
 /**
  * Client component that extracts a token from URL parameters and stores it in localStorage
+ * After storing the token, it redirects the user back to the page they were on before
+ * being redirected to login (if available), or to the default redirectPath.
  *
- * @param redirectPath - Path to redirect after storing token (default: '/')
+ * @param redirectPath - Default path to redirect after storing token (default: '/dashboard')
  * @param tokenParamName - Name of the URL parameter containing the token (default: 'token')
- * @param storageKey - Key to use when storing in localStorage (default: 'auth_token')
+ * @param storageKey - Key to use when storing in localStorage (default: 'surfsense_bearer_token')
  */
 const TokenHandler = ({
-	redirectPath = "/",
+	redirectPath = "/dashboard",
 	tokenParamName = "token",
 	storageKey = "surfsense_bearer_token",
 }: TokenHandlerProps) => {
@@ -33,14 +36,22 @@ const TokenHandler = ({
 
 		if (token) {
 			try {
-				// Store token in localStorage
+				// Store token in localStorage using both methods for compatibility
 				localStorage.setItem(storageKey, token);
-				// console.log(`Token stored in localStorage with key: ${storageKey}`);
+				setBearerToken(token);
 
-				// Redirect to specified path
-				router.push(redirectPath);
+				// Check if there's a saved redirect path from before the auth flow
+				const savedRedirectPath = getAndClearRedirectPath();
+
+				// Use the saved path if available, otherwise use the default redirectPath
+				const finalRedirectPath = savedRedirectPath || redirectPath;
+
+				// Redirect to the appropriate path
+				router.push(finalRedirectPath);
 			} catch (error) {
 				console.error("Error storing token in localStorage:", error);
+				// Even if there's an error, try to redirect to the default path
+				router.push(redirectPath);
 			}
 		}
 	}, [searchParams, tokenParamName, storageKey, redirectPath, router]);

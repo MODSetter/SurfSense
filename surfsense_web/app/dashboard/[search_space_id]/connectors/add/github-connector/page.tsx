@@ -40,6 +40,7 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 // Assuming useSearchSourceConnectors hook exists and works similarly
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
+import { authenticatedFetch, redirectToLogin } from "@/lib/auth-utils";
 
 // Define the form schema with Zod for GitHub PAT entry step
 const githubPatFormSchema = z.object({
@@ -101,19 +102,11 @@ export default function GithubConnectorPage() {
 		setConnectorName(values.name); // Store the name
 		setValidatedPat(values.github_pat); // Store the PAT temporarily
 		try {
-			const token = localStorage.getItem("surfsense_bearer_token");
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories`,
 				{
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({ github_pat: values.github_pat }),
 				}
 			);

@@ -27,6 +27,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { useInviteInfo } from "@/hooks/use-rbac";
+import { getBearerToken } from "@/lib/auth-utils";
 
 export default function InviteAcceptPage() {
 	const params = useParams();
@@ -47,7 +48,7 @@ export default function InviteAcceptPage() {
 	// Check if user is logged in
 	useEffect(() => {
 		if (typeof window !== "undefined") {
-			const token = localStorage.getItem("surfsense_bearer_token");
+			const token = getBearerToken();
 			setIsLoggedIn(!!token);
 		}
 	}, []);
@@ -71,7 +72,10 @@ export default function InviteAcceptPage() {
 	const handleLoginRedirect = () => {
 		// Store the invite code to redirect back after login
 		localStorage.setItem("pending_invite_code", inviteCode);
-		router.push("/auth");
+		// Save the current invite page URL so we can return after authentication
+		localStorage.setItem("surfsense_redirect_path", `/invite/${inviteCode}`);
+		// Redirect to login (we manually set the path above since invite pages need special handling)
+		window.location.href = "/login";
 	};
 
 	// Check for pending invite after login

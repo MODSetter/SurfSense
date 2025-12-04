@@ -1,3 +1,5 @@
+import { authenticatedFetch } from "@/lib/auth-utils";
+
 // Types for connector API
 export interface ConnectorConfig {
 	[key: string]: string;
@@ -32,14 +34,11 @@ export const getConnectorTypeDisplay = (type: string): string => {
 export const ConnectorService = {
 	// Create a new connector
 	async createConnector(data: CreateConnectorRequest): Promise<Connector> {
-		const response = await fetch(
+		const response = await authenticatedFetch(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`,
 			{
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(data),
 			}
 		);
@@ -54,13 +53,9 @@ export const ConnectorService = {
 
 	// Get all connectors
 	async getConnectors(skip = 0, limit = 100): Promise<Connector[]> {
-		const response = await fetch(
+		const response = await authenticatedFetch(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors?skip=${skip}&limit=${limit}`,
-			{
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
-			}
+			{ method: "GET" }
 		);
 
 		if (!response.ok) {
@@ -73,13 +68,9 @@ export const ConnectorService = {
 
 	// Get a specific connector
 	async getConnector(connectorId: number): Promise<Connector> {
-		const response = await fetch(
+		const response = await authenticatedFetch(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
-			{
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
-			}
+			{ method: "GET" }
 		);
 
 		if (!response.ok) {
@@ -92,14 +83,11 @@ export const ConnectorService = {
 
 	// Update a connector
 	async updateConnector(connectorId: number, data: CreateConnectorRequest): Promise<Connector> {
-		const response = await fetch(
+		const response = await authenticatedFetch(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 			{
 				method: "PUT",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(data),
 			}
 		);
@@ -114,14 +102,9 @@ export const ConnectorService = {
 
 	// Delete a connector
 	async deleteConnector(connectorId: number): Promise<void> {
-		const response = await fetch(
+		const response = await authenticatedFetch(
 			`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
-			{
-				method: "DELETE",
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
-				},
-			}
+			{ method: "DELETE" }
 		);
 
 		if (!response.ok) {

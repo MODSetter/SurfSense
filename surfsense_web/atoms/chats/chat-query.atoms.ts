@@ -2,12 +2,13 @@ import { atomWithQuery } from "jotai-tanstack-query";
 import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { chatsApiService } from "@/lib/apis/chats-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
+import { getBearerToken } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { activeChatIdAtom, globalChatsQueryParamsAtom } from "./ui.atoms";
 
 export const activeChatAtom = atomWithQuery((get) => {
 	const activeChatId = get(activeChatIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = getBearerToken();
 
 	return {
 		queryKey: cacheKeys.chats.activeChat(activeChatId ?? ""),
@@ -32,7 +33,7 @@ export const activeChatAtom = atomWithQuery((get) => {
 
 export const chatsAtom = atomWithQuery((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
+	const authToken = getBearerToken();
 	const queryParams = get(globalChatsQueryParamsAtom);
 
 	return {
