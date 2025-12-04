@@ -1,8 +1,7 @@
 """Comprehensive tests for Celery tasks module."""
 
-import asyncio
 from datetime import datetime, timedelta, UTC
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

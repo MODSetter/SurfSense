@@ -8,7 +8,7 @@
  * 4. Auth headers are correctly constructed
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
 	getBearerToken,
 	setBearerToken,

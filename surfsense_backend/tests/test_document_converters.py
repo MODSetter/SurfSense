@@ -6,7 +6,7 @@ content hash generation, markdown conversion, and chunking utilities.
 """
 
 import hashlib
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

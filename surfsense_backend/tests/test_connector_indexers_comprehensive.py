@@ -1,10 +1,7 @@
 """Comprehensive tests for connector indexers module."""
 
 import pytest
-from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
-
-from app.db import SearchSourceConnectorType, DocumentType
 
 
 # ============================================================================

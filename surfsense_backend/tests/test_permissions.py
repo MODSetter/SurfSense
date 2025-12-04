@@ -4,8 +4,6 @@ Tests for permission functions in db.py.
 This module tests the permission checking functions used in RBAC.
 """
 
-import pytest
-
 from app.db import (
     DEFAULT_ROLE_PERMISSIONS,
     Permission,

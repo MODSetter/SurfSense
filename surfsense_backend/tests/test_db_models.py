@@ -2,10 +2,6 @@
 Tests for database models and functions.
 Tests SQLAlchemy models, enums, and database utility functions.
 """
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-from uuid import uuid4
 
 from app.db import (
     DocumentType,

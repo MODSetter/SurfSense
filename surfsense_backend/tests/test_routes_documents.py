@@ -315,7 +315,7 @@ class TestUpdateDocument:
         with patch("app.routes.documents_routes.check_permission") as mock_check:
             mock_check.return_value = None
             
-            result = await update_document(
+            _result = await update_document(
                 document_id=1,
                 document_update=update_data,
                 session=mock_session,

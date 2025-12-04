@@ -3,7 +3,7 @@ Extended tests for connector service.
 Tests the ConnectorService class with mocked database and external dependencies.
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from app.services.connector_service import ConnectorService
 from app.agents.researcher.configuration import SearchMode

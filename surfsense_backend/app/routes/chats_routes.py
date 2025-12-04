@@ -204,6 +204,13 @@ async def create_chat(
             status_code=500,
             detail="An unexpected error occurred while creating the chat.",
         ) from None
+    except Exception as e:
+        await session.rollback()
+        logger.error("Unexpected error during chat creation: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while creating the chat.",
+        ) from None
 
 
 @router.get("/chats", response_model=list[ChatReadWithoutMessages])
@@ -283,6 +290,11 @@ async def read_chats(
         raise HTTPException(
             status_code=500, detail="An unexpected error occurred while fetching chats."
         ) from None
+    except Exception as e:
+        logger.error("Unexpected error while fetching chats: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="An unexpected error occurred while fetching chats."
+        ) from None
 
 
 @router.get("/chats/{chat_id}", response_model=ChatRead)
@@ -324,6 +336,12 @@ async def read_chat(
         ) from None
     except SQLAlchemyError as e:
         logger.error("Database error while fetching chat %d: %s", chat_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while fetching the chat.",
+        ) from None
+    except Exception as e:
+        logger.error("Unexpected error while fetching chat %d: %s", chat_id, e, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while fetching the chat.",
@@ -388,6 +406,13 @@ async def update_chat(
             status_code=500,
             detail="An unexpected error occurred while updating the chat.",
         ) from None
+    except Exception as e:
+        await session.rollback()
+        logger.error("Unexpected error while updating chat %d: %s", chat_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while updating the chat.",
+        ) from None
 
 
 @router.delete("/chats/{chat_id}", response_model=dict)
@@ -436,6 +461,13 @@ async def delete_chat(
     except SQLAlchemyError as e:
         await session.rollback()
         logger.error("Database error while deleting chat %d: %s", chat_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while deleting the chat.",
+        ) from None
+    except Exception as e:
+        await session.rollback()
+        logger.error("Unexpected error while deleting chat %d: %s", chat_id, e, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while deleting the chat.",

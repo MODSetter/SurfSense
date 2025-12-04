@@ -6,7 +6,7 @@ This module tests the page limit service used for tracking user document process
 
 import os
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

@@ -2,9 +2,6 @@
 Tests for config module.
 Tests application configuration and environment variable handling.
 """
-import pytest
-from unittest.mock import patch, MagicMock
-import os
 
 
 class TestConfigEnvironmentVariables:
