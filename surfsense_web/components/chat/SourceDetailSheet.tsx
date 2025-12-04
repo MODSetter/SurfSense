@@ -18,7 +18,6 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useDocumentByChunk } from "@/hooks/use-document-by-chunk";
 import { cn } from "@/lib/utils";
 
 interface SourceDetailSheetProps {
@@ -49,13 +48,12 @@ export function SourceDetailSheet({
 	url,
 	children,
 }: SourceDetailSheetProps) {
-	const { document, loading, error, fetchDocumentByChunk, clearDocument } = useDocumentByChunk();
 	const chunksContainerRef = useRef<HTMLDivElement>(null);
 	const highlightedChunkRef = useRef<HTMLDivElement>(null);
 	const [summaryOpen, setSummaryOpen] = useState(false);
 
 	// Add useQuery to fetch document by chunk
-	const { data: documentFromChunkQuery, isLoading: isLoadingDocumentFromChunk, error: documentFetchError } = useQuery({
+	const { data: document, isLoading: isDocumentByChunkFetching, error: documentByChunkFetchingError } = useQuery({
 		queryKey: cacheKeys.documents.byChunk(chunkId.toString()),
 		queryFn: () => documentsApiService.getDocumentByChunk({ chunk_id: chunkId }),
 		enabled: !!chunkId && open,
@@ -68,14 +66,6 @@ export function SourceDetailSheet({
 		sourceType === "LINKUP_API" ||
 		sourceType === "SEARXNG_API" ||
 		sourceType === "BAIDU_SEARCH_API";
-
-	useEffect(() => {
-		if (open && chunkId && !isDirectRenderSource) {
-			fetchDocumentByChunk(chunkId);
-		} else if (!open && !isDirectRenderSource) {
-			clearDocument();
-		}
-	}, [open, chunkId, isDirectRenderSource, fetchDocumentByChunk, clearDocument]);
 
 	useEffect(() => {
 		// Scroll to highlighted chunk when document loads
@@ -111,15 +101,15 @@ export function SourceDetailSheet({
 					</SheetDescription>
 				</SheetHeader>
 
-				{!isDirectRenderSource && loading && (
+				{!isDirectRenderSource && isDocumentByChunkFetching && (
 					<div className="flex items-center justify-center h-64 px-6">
 						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
 					</div>
 				)}
 
-				{!isDirectRenderSource && error && (
+				{!isDirectRenderSource && documentByChunkFetchingError && (
 					<div className="flex items-center justify-center h-64 px-6">
-						<p className="text-sm text-destructive">{error}</p>
+						<p className="text-sm text-destructive">{documentByChunkFetchingError.message || "Failed to load document"}</p>
 					</div>
 				)}
 
