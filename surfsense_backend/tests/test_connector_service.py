@@ -125,7 +125,7 @@ class TestSearchResultTransformation:
         # Nested document structure must be correct
         assert "id" in transformed["document"]
         assert "title" in transformed["document"]
-        assert "type" in transformed["document"]
+        assert "document_type" in transformed["document"]
         assert "metadata" in transformed["document"]
 
     def test_transform_uses_chunks_content_over_content(self, mock_session):
