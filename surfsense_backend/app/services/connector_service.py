@@ -1,13 +1,17 @@
 import asyncio
+import logging
 from typing import Any
 from urllib.parse import urljoin
 
 import httpx
 from linkup import LinkupClient
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from tavily import TavilyClient
+
+logger = logging.getLogger(__name__)
 
 from app.agents.researcher.configuration import SearchMode
 from app.db import (
@@ -49,11 +53,17 @@ class ConnectorService:
                 )
                 chunk_count = result.scalar() or 0
                 self.source_id_counter = chunk_count + 1
-                print(
-                    f"Initialized source_id_counter to {self.source_id_counter} for search space {self.search_space_id}"
+                logger.debug(
+                    "Initialized source_id_counter to %d for search space %d",
+                    self.source_id_counter,
+                    self.search_space_id,
                 )
-            except Exception as e:
-                print(f"Error initializing source_id_counter: {e!s}")
+            except SQLAlchemyError as e:
+                logger.warning(
+                    "Database error initializing source_id_counter for search space %d: %s",
+                    self.search_space_id,
+                    e,
+                )
                 # Fallback to default value
                 self.source_id_counter = 1
 

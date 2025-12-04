@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -6,6 +7,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+logger = logging.getLogger(__name__)
 
 from app.db import (
     Chat,
@@ -54,21 +57,18 @@ async def create_podcast(
         return db_podcast
     except HTTPException as he:
         raise he
-    except IntegrityError:
+    except IntegrityError as e:
         await session.rollback()
+        logger.warning("Podcast creation failed due to integrity error: %s", e)
         raise HTTPException(
             status_code=400,
             detail="Podcast creation failed due to constraint violation",
         ) from None
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         await session.rollback()
+        logger.error("Database error while creating podcast: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500, detail="Database error occurred while creating podcast"
-        ) from None
-    except Exception:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail="An unexpected error occurred"
         ) from None
 
 
