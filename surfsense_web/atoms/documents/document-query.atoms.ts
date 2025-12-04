@@ -20,21 +20,6 @@ export const documentsAtom = atomWithQuery((get) => {
 	};
 });
 
-export const getDocumentAtom = (documentId: number) =>
-	atomWithQuery(() => {
-		return {
-			queryKey: cacheKeys.documents.document(String(documentId)),
-			enabled: !!documentId,
-			queryFn: async () => {
-				if (!documentId) {
-					throw new Error("No active document id found");
-				}
-
-				return documentsApiService.getDocument({ id: documentId });
-			},
-		};
-	});
-
 export const documentTypeCountsAtom = atomWithQuery((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
 
@@ -50,37 +35,3 @@ export const documentTypeCountsAtom = atomWithQuery((get) => {
 		},
 	};
 });
-
-export const getDocumentByChunkAtom = (chunkId: number) =>
-	atomWithQuery(() => {
-		return {
-			queryKey: cacheKeys.documents.byChunk(String(chunkId)),
-			enabled: !!chunkId,
-			queryFn: async () => {
-				if (!chunkId) {
-					throw new Error("No active chunk id found");
-				}
-
-				return documentsApiService.getDocumentByChunk({ chunk_id: chunkId });
-			},
-		};
-	});
-
-export const searchDocumentsAtom = (request: SearchDocumentsRequest) =>
-	atomWithQuery((get) => {
-		const searchSpaceId = get(activeSearchSpaceIdAtom);
-
-		return {
-			queryKey: cacheKeys.documents.globalQueryParams(request.queryParams),
-			enabled: !!searchSpaceId,
-			queryFn: async () => {
-				return documentsApiService.searchDocuments({
-					...request,
-					queryParams: {
-						...request.queryParams,
-						search_space_id: searchSpaceId ?? undefined,
-					},
-				});
-			},
-		};
-	});
