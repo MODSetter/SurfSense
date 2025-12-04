@@ -1,4 +1,5 @@
 import z from "zod";
+import { logger } from "@/lib/logger";
 import {
 	type DeletePodcastRequest,
 	deletePodcastRequest,
@@ -23,7 +24,7 @@ class PodcastsApiService {
 		const parsedRequest = getPodcastsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -49,7 +50,7 @@ class PodcastsApiService {
 		const parsedRequest = getPodcastByChatIdRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -67,7 +68,7 @@ class PodcastsApiService {
 		const parsedRequest = generatePodcastRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -90,7 +91,7 @@ class PodcastsApiService {
 		const parsedRequest = loadPodcastRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -107,7 +108,7 @@ class PodcastsApiService {
 		const parsedRequest = deletePodcastRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");

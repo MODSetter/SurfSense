@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { logger } from "@/lib/logger";
 import { useAtom, useAtomValue } from "jotai";
 import {
 	Calendar,
@@ -116,7 +117,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 		if (isFetchingPodcasts) return;
 
 		if (fetchError) {
-			console.error("Error fetching podcasts:", fetchError);
+			logger.error("Error fetching podcasts:", fetchError);
 			setFilteredPodcasts([]);
 			return;
 		}
@@ -324,7 +325,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				clearTimeout(timeoutId);
 			}
 		} catch (error) {
-			console.error("Error fetching or playing podcast:", error);
+			logger.error("Error fetching or playing podcast:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to load podcast audio.");
 			// Reset state on error
 			setCurrentPodcast(null);
@@ -354,7 +355,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				setIsPlaying(false);
 			}
 		} catch (error) {
-			console.error("Error deleting podcast:", error);
+			logger.error("Error deleting podcast:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to delete podcast");
 		}
 	};
@@ -923,7 +924,7 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 										setIsPlaying(true);
 									})
 									.catch((error) => {
-										console.error("Error playing audio:", error);
+										logger.error("Error playing audio:", error);
 										// Don't show error if it's just the user navigating away
 										if (error.name !== "AbortError") {
 											toast.error("Failed to play audio.");
@@ -936,10 +937,10 @@ export default function PodcastsPageClient({ searchSpaceId }: PodcastsPageClient
 				}}
 				onEnded={() => setIsPlaying(false)}
 				onError={(e) => {
-					console.error("Audio error:", e);
+					logger.error("Audio error:", e);
 					if (audioRef.current?.error) {
 						// Log the specific error code for debugging
-						console.error("Audio error code:", audioRef.current.error.code);
+						logger.error("Audio error code:", audioRef.current.error.code);
 
 						// Don't show error message for aborted loads
 						if (audioRef.current.error.code !== audioRef.current.error.MEDIA_ERR_ABORTED) {

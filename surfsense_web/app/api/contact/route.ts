@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 import { z } from "zod";
 import { db } from "@/app/db";
 import { usersTable } from "@/app/db/schema";
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		console.error("Error submitting contact form:", error);
+		logger.error("Error submitting contact form:", error);
 		return NextResponse.json(
 			{
 				success: false,

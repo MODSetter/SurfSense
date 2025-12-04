@@ -3,6 +3,7 @@
 import { BadgeCheck, LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -32,7 +33,7 @@ export function UserDropdown({
 				router.push("/");
 			}
 		} catch (error) {
-			console.error("Error during logout:", error);
+			logger.error("Error during logout:", error);
 			// Optionally, provide user feedback
 			if (typeof window !== "undefined") {
 				alert("Logout failed. Please try again.");

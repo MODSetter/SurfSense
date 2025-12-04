@@ -7,6 +7,7 @@ import {
 	registerResponse,
 } from "@/contracts/types/auth.types";
 import { ValidationError } from "../error";
+import { logger } from "@/lib/logger";
 import { baseApiService } from "./base-api.service";
 
 class AuthApiService {
@@ -15,7 +16,7 @@ class AuthApiService {
 		const parsedRequest = loginRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -41,7 +42,7 @@ class AuthApiService {
 		const parsedRequest = registerRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");

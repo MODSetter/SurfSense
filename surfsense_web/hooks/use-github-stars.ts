@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 
 export const useGithubStars = () => {
 	const [stars, setStars] = useState<number | null>(null);
@@ -26,7 +27,7 @@ export const useGithubStars = () => {
 				setStars(data?.stargazers_count);
 			} catch (err) {
 				if (err instanceof Error) {
-					console.error("Error fetching stars:", err);
+					logger.error("Error fetching stars:", err);
 					setError(err.message);
 				}
 			} finally {

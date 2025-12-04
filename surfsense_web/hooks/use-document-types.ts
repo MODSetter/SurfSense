@@ -56,7 +56,7 @@ export const useDocumentTypes = (searchSpaceId?: number, lazy: boolean = false) 
 				return typeCounts;
 			} catch (err) {
 				setError(err instanceof Error ? err : new Error("An unknown error occurred"));
-				console.error("Error fetching document types:", err);
+				logger.error("Error fetching document types:", err);
 			} finally {
 				setIsLoading(false);
 			}

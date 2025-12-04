@@ -1,6 +1,7 @@
 import type { PlasmoMessaging } from "@plasmohq/messaging";
 import { Storage } from "@plasmohq/storage";
 
+import { logger } from "~/lib/logger";
 import { emptyArr, webhistoryToLangChainDocument } from "~utils/commons";
 
 const clearMemory = async () => {
@@ -18,7 +19,6 @@ const clearMemory = async () => {
 		//Main Cleanup COde
 		chrome.tabs.query({}, async (tabs) => {
 			//Get Active Tabs Ids
-			// console.log("Event Tabs",tabs)
 			let actives = tabs.map((tab) => {
 				if (tab.id) {
 					return tab.id;
@@ -60,7 +60,7 @@ const clearMemory = async () => {
 			});
 		});
 	} catch (error) {
-		console.log(error);
+		logger.error("Error clearing memory", error);
 	}
 };
 
@@ -90,7 +90,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
 			// Log first item to debug metadata structure
 			if (toSaveFinally.length > 0) {
-				console.log("First item metadata:", toSaveFinally[0].metadata);
+				logger.debug("First item metadata:", toSaveFinally[0].metadata);
 			}
 
 			// Create content array for documents in the format expected by the new API
@@ -119,7 +119,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 				search_space_id: search_space_id,
 			};
 
-			console.log("toSend", toSend);
+			logger.debug("toSend", toSend);
 
 			const requestOptions = {
 				method: "POST",
@@ -143,7 +143,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 			}
 		}
 	} catch (error) {
-		console.log(error);
+		logger.error("Error in savedata handler", error);
 	}
 };
 

@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -196,7 +197,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 				setNewSelectedRepos(currentSelectedRepos);
 				toast.success(`Found ${data.length} repos.`);
 			} catch (error) {
-				console.error("Error fetching GitHub repositories:", error);
+				logger.error("Error fetching GitHub repositories:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to fetch repositories.");
 			} finally {
 				setIsFetchingRepos(false);
@@ -602,7 +603,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 				}
 				// Resetting simple form values is handled by useEffect if connector state updates
 			} catch (error) {
-				console.error("Error updating connector:", error);
+				logger.error("Error updating connector:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to update connector.");
 			} finally {
 				setIsSaving(false);

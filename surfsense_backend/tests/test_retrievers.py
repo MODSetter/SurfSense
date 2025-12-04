@@ -5,8 +5,8 @@ Tests the ChucksHybridSearchRetriever and DocumentHybridSearchRetriever classes.
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
-from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
+from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
+from app.retriever.documents_hybrid_search import DocumentHybridSearchRetriever
 
 
 class TestChunksHybridSearchRetriever:

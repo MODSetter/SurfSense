@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getBearerToken } from "@/lib/auth-utils";
+import { logger } from "@/lib/logger";
 
 interface UseApiKeyReturn {
 	apiKey: string | null;
@@ -21,7 +22,7 @@ export function useApiKey(): UseApiKeyReturn {
 				const token = getBearerToken();
 				setApiKey(token);
 			} catch (error) {
-				console.error("Error loading API key:", error);
+				logger.error("Error loading API key:", error);
 				toast.error("Failed to load API key");
 			} finally {
 				setIsLoading(false);
@@ -45,7 +46,7 @@ export function useApiKey(): UseApiKeyReturn {
 				setCopied(false);
 			}, 2000);
 		} catch (err) {
-			console.error("Failed to copy:", err);
+			logger.error("Failed to copy:", err);
 			toast.error("Failed to copy API key");
 		}
 	}, [apiKey]);

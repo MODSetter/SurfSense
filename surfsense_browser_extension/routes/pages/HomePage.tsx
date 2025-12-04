@@ -14,6 +14,7 @@ import { convertHtmlToMarkdown } from "dom-to-semantic-markdown";
 import { Check, ChevronsUpDown } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { logger } from "~/lib/logger";
 import { cn } from "~/lib/utils";
 import { Button } from "~/routes/ui/button";
 import {
@@ -59,7 +60,7 @@ const HomePage = () => {
 					throw new Error("Token verification failed");
 				} else {
 					const res = await response.json();
-					console.log(res);
+					logger.debug("Search spaces response", res);
 					setSearchSpaces(res);
 				}
 			} catch (error) {
@@ -79,7 +80,7 @@ const HomePage = () => {
 				chrome.storage.onChanged.addListener((changes: any, areaName: string) => {
 					if (changes.webhistory) {
 						const webhistory = JSON.parse(changes.webhistory.newValue);
-						console.log("webhistory", webhistory);
+						logger.debug("webhistory changed", webhistory);
 
 						let sum = 0;
 						webhistory.webhistory.forEach((element: any) => {
@@ -114,7 +115,7 @@ const HomePage = () => {
 					setNoOfWebPages(0);
 				}
 			} catch (error) {
-				console.log(error);
+				logger.error("Error in onLoad", error);
 			}
 		}
 
@@ -180,7 +181,7 @@ const HomePage = () => {
 				});
 			});
 		} catch (error) {
-			console.log(error);
+			logger.error("Error clearing memory", error);
 		}
 	}
 

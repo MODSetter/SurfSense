@@ -39,7 +39,7 @@ export function useSearchSpaces() {
 				setError(null);
 			} catch (err: any) {
 				setError(err.message || "Failed to fetch search spaces");
-				console.error("Error fetching search spaces:", err);
+				logger.error("Error fetching search spaces:", err);
 			} finally {
 				setLoading(false);
 			}

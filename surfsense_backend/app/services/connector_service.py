@@ -18,8 +18,8 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
-from app.retriver.chunks_hybrid_search import ChucksHybridSearchRetriever
-from app.retriver.documents_hybrid_search import DocumentHybridSearchRetriever
+from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
+from app.retriever.documents_hybrid_search import DocumentHybridSearchRetriever
 
 logger = logging.getLogger(__name__)
 

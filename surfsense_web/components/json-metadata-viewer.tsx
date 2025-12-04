@@ -1,4 +1,5 @@
 import { FileJson } from "lucide-react";
+import { logger } from "@/lib/logger";
 import React from "react";
 import { defaultStyles, JsonView } from "react-json-view-lite";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ export function JsonMetadataViewer({
 			// Otherwise, use it as is
 			return metadata;
 		} catch (error) {
-			console.error("Error parsing JSON metadata:", error);
+			logger.error("Error parsing JSON metadata:", error);
 			return { error: "Invalid JSON metadata" };
 		}
 	}, [metadata]);

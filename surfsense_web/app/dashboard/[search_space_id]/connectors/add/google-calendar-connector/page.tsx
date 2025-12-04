@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { logger } from "@/lib/logger";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -66,7 +67,7 @@ export default function GoogleCalendarConnectorPage() {
 			// Redirect to Google for authentication
 			window.location.href = data.auth_url;
 		} catch (error) {
-			console.error("Error connecting to Google:", error);
+			logger.error("Error connecting to Google:", error);
 			toast.error("Failed to connect to Google Calendar");
 		} finally {
 			setIsConnecting(false);

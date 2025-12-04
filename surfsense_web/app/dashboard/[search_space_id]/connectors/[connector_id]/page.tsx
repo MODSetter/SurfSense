@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { logger } from "@/lib/logger";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -91,7 +92,7 @@ export default function EditConnectorPage() {
 	const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	// console.log("connector", connector);
+	// logger.info("connector", connector);
 	// Initialize the form
 	const form = useForm<ApiConnectorFormValues>({
 		resolver: zodResolver(apiConnectorFormSchema),
@@ -154,7 +155,7 @@ export default function EditConnectorPage() {
 			toast.success("Connector updated successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		} catch (error) {
-			console.error("Error updating connector:", error);
+			logger.error("Error updating connector:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to update connector");
 		} finally {
 			setIsSubmitting(false);

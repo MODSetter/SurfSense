@@ -1,6 +1,7 @@
 "use client";
 
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
+import { logger } from "@/lib/logger";
 import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
@@ -92,7 +93,7 @@ export default function ResearcherPage() {
 			try {
 				return JSON.parse(stored);
 			} catch (error) {
-				console.error("Error parsing stored chat state:", error);
+				logger.error("Error parsing stored chat state:", error);
 				return null;
 			}
 		}
@@ -117,7 +118,7 @@ export default function ResearcherPage() {
 			},
 		},
 		onError: (error) => {
-			console.error("Chat error:", error);
+			logger.error("Chat error:", error);
 		},
 	});
 

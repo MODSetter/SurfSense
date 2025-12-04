@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { logger } from "@/lib/logger";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SearchSpaceForm } from "@/components/search-space-form";
@@ -38,7 +39,7 @@ export default function SearchSpacesPage() {
 
 			return result;
 		} catch (error) {
-			console.error("Error creating search space:", error);
+			logger.error("Error creating search space:", error);
 			throw error;
 		}
 	};
