@@ -30,7 +30,7 @@ class TestDocumentType:
 
     def test_all_document_types_are_strings(self):
         """Test all document types have string values."""
-        for doc_type in DocumentType:
+        for doc_type in list(DocumentType):
             assert isinstance(doc_type.value, str)
 
     def test_extension_type(self):
@@ -86,7 +86,7 @@ class TestLiteLLMProvider:
 
     def test_all_providers_are_strings(self):
         """Test all providers have string values."""
-        for provider in LiteLLMProvider:
+        for provider in list(LiteLLMProvider):
             assert isinstance(provider.value, str)
 
 
@@ -111,7 +111,7 @@ class TestSearchSourceConnectorType:
 
     def test_all_connector_types_are_strings(self):
         """Test all connector types have string values."""
-        for conn_type in SearchSourceConnectorType:
+        for conn_type in list(SearchSourceConnectorType):
             assert isinstance(conn_type.value, str)
 
 

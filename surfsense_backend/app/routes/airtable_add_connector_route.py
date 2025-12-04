@@ -24,8 +24,9 @@ from app.db import (
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.users import current_active_user
 
-# Re-export for backward compatibility
-from app.utils.connector_auth import refresh_airtable_token  # noqa: F401
+# Re-export for backward compatibility - this import is used by other modules
+# that import refresh_airtable_token from this module
+from app.utils.connector_auth import refresh_airtable_token as refresh_airtable_token  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

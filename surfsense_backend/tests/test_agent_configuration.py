@@ -26,8 +26,10 @@ class TestSearchMode:
 
     def test_can_compare_modes(self):
         """Test enum comparison."""
-        assert SearchMode.CHUNKS == SearchMode.CHUNKS
-        assert SearchMode.CHUNKS != SearchMode.DOCUMENTS
+        chunks_mode = SearchMode.CHUNKS
+        documents_mode = SearchMode.DOCUMENTS
+        assert chunks_mode == SearchMode.CHUNKS
+        assert chunks_mode != documents_mode
 
 
 class TestConfiguration:

@@ -58,7 +58,7 @@ export const DEFAULT_CONNECTORS = [
   },
   {
     id: CONNECTOR_IDS.YOUTUBE_VIDEO,
-    name: "Youtube Video",
+    name: "YouTube Video",
     type: "YOUTUBE_VIDEO",
   },
 ] as const;

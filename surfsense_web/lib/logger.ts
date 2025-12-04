@@ -3,6 +3,8 @@
  * 
  * In development mode: Uses console.log for debugging
  * In production mode: Suppresses debug logs, only shows warnings and errors
+ * In test environment (NODE_ENV === 'test'): Logs may be suppressed or mocked
+ *   depending on the test setup configuration.
  * 
  * Usage:
  *   import { logger } from '@/lib/logger';

@@ -132,7 +132,7 @@ class TestCreateLLMConfig:
                     mock_config.name = "Test LLM"
                     MockLLMConfig.return_value = mock_config
                     
-                    _result = await create_llm_config(
+                    await create_llm_config(
                         llm_config=llm_config_data,
                         session=mock_session,
                         user=mock_user,

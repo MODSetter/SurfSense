@@ -133,7 +133,7 @@ class TestPermissionEnum:
 
     def test_permission_values_are_strings(self):
         """Test all permission values are strings."""
-        for perm in Permission:
+        for perm in list(Permission):
             assert isinstance(perm.value, str)
 
     def test_permission_document_values(self):

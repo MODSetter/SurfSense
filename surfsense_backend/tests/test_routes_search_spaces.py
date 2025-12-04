@@ -83,7 +83,7 @@ class TestCreateSearchSpace:
                 mock_search_space.name = "Test Space"
                 MockSearchSpace.return_value = mock_search_space
                 
-                _result = await create_search_space(
+                await create_search_space(
                     search_space=search_space_data,
                     session=mock_session,
                     user=mock_user,
@@ -256,7 +256,7 @@ class TestUpdateSearchSpace:
         with patch("app.routes.search_spaces_routes.check_permission") as mock_check:
             mock_check.return_value = None
             
-            _result = await update_search_space(
+            await update_search_space(
                 search_space_id=1,
                 search_space_update=update_data,
                 session=mock_session,
