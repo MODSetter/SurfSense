@@ -1,11 +1,9 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
 import type React from "react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -18,6 +16,8 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
 interface SourceDetailSheetProps {
@@ -53,7 +53,11 @@ export function SourceDetailSheet({
 	const [summaryOpen, setSummaryOpen] = useState(false);
 
 	// Add useQuery to fetch document by chunk
-	const { data: document, isLoading: isDocumentByChunkFetching, error: documentByChunkFetchingError } = useQuery({
+	const {
+		data: document,
+		isLoading: isDocumentByChunkFetching,
+		error: documentByChunkFetchingError,
+	} = useQuery({
 		queryKey: cacheKeys.documents.byChunk(chunkId.toString()),
 		queryFn: () => documentsApiService.getDocumentByChunk({ chunk_id: chunkId }),
 		enabled: !!chunkId && open,
@@ -109,7 +113,9 @@ export function SourceDetailSheet({
 
 				{!isDirectRenderSource && documentByChunkFetchingError && (
 					<div className="flex items-center justify-center h-64 px-6">
-						<p className="text-sm text-destructive">{documentByChunkFetchingError.message || "Failed to load document"}</p>
+						<p className="text-sm text-destructive">
+							{documentByChunkFetchingError.message || "Failed to load document"}
+						</p>
 					</div>
 				)}
 
