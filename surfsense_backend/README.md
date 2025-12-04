@@ -128,7 +128,7 @@ surfsense_backend/
 │   ├── config/         # Configuration management
 │   ├── connectors/     # External service connectors
 │   ├── prompts/        # LLM prompts
-│   ├── retriver/       # Search and retrieval logic
+│   ├── retriever/      # Search and retrieval logic
 │   ├── routes/         # API endpoints
 │   ├── schemas/        # Pydantic models
 │   ├── services/       # Business logic services
