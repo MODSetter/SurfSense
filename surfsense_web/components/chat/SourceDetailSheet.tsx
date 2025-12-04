@@ -55,7 +55,7 @@ export function SourceDetailSheet({
 	const [summaryOpen, setSummaryOpen] = useState(false);
 
 	// Add useQuery to fetch document by chunk
-	const { data: queryDocument, isLoading: queryLoading, error: queryError } = useQuery({
+	const { data: documentFromChunkQuery, isLoading: isLoadingDocumentFromChunk, error: documentFetchError } = useQuery({
 		queryKey: cacheKeys.documents.byChunk(chunkId.toString()),
 		queryFn: () => documentsApiService.getDocumentByChunk({ chunk_id: chunkId }),
 		enabled: !!chunkId && open,
