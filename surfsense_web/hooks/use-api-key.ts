@@ -33,17 +33,58 @@ export function useApiKey(): UseApiKeyReturn {
 		return () => clearTimeout(timer);
 	}, []);
 
+	const fallbackCopyTextToClipboard = (text: string) => {
+		const textArea = document.createElement("textarea");
+		textArea.value = text;
+		
+		// Avoid scrolling to bottom
+		textArea.style.top = "0";
+		textArea.style.left = "0";
+		textArea.style.position = "fixed";
+		textArea.style.opacity = "0";
+		
+		document.body.appendChild(textArea);
+		textArea.focus();
+		textArea.select();
+		
+		try {
+			const successful = document.execCommand('copy');
+			document.body.removeChild(textArea);
+			
+			if (successful) {
+				setCopied(true);
+				toast.success("API key copied to clipboard");
+				
+				setTimeout(() => {
+					setCopied(false);
+				}, 2000);
+			} else {
+				toast.error("Failed to copy API key");
+			}
+		} catch (err) {
+			console.error("Fallback: Oops, unable to copy", err);
+			document.body.removeChild(textArea);
+			toast.error("Failed to copy API key");
+		}
+	};
+
 	const copyToClipboard = useCallback(async () => {
 		if (!apiKey) return;
 
 		try {
-			await navigator.clipboard.writeText(apiKey);
-			setCopied(true);
-			toast.success("API key copied to clipboard");
-
-			setTimeout(() => {
-				setCopied(false);
-			}, 2000);
+			if (navigator.clipboard && window.isSecureContext) {
+				// Use Clipboard API if available and in secure context
+				await navigator.clipboard.writeText(apiKey);
+				setCopied(true);
+				toast.success("API key copied to clipboard");
+				
+				setTimeout(() => {
+					setCopied(false);
+				}, 2000);
+			} else {
+				// Fallback for non-secure contexts or browsers without clipboard API
+				fallbackCopyTextToClipboard(apiKey);
+			}
 		} catch (err) {
 			console.error("Failed to copy:", err);
 			toast.error("Failed to copy API key");
