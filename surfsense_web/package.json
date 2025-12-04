@@ -18,7 +18,10 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
-		"format:fix": "npx @biomejs/biome check --fix"
+		"format:fix": "npx @biomejs/biome check --fix",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage"
 	},
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
@@ -103,17 +106,23 @@
 		"@eslint/eslintrc": "^3.3.1",
 		"@tailwindcss/postcss": "^4.1.11",
 		"@tailwindcss/typography": "^0.5.16",
+		"@testing-library/jest-dom": "^6.6.3",
+		"@testing-library/react": "^16.1.0",
 		"@types/canvas-confetti": "^1.9.0",
 		"@types/node": "^20.19.9",
 		"@types/pg": "^8.15.5",
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
+		"@vitejs/plugin-react": "^4.3.4",
+		"@vitest/coverage-v8": "^2.1.8",
 		"cross-env": "^7.0.3",
 		"drizzle-kit": "^0.31.5",
 		"eslint": "^9.32.0",
 		"eslint-config-next": "15.2.0",
+		"jsdom": "^25.0.1",
 		"tailwindcss": "^4.1.11",
 		"tsx": "^4.20.6",
-		"typescript": "^5.8.3"
+		"typescript": "^5.8.3",
+		"vitest": "^2.1.8"
 	}
 }
