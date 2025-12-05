@@ -31,11 +31,9 @@ const bookstackConnectorFormSchema = z.object({
 	name: z.string().min(3, {
 		message: "Connector name must be at least 3 characters.",
 	}),
-	base_url: z
-		.string()
-		.url({
-			message: "Please enter a valid BookStack URL (e.g., https://docs.example.com)",
-		}),
+	base_url: z.string().url({
+		message: "Please enter a valid BookStack URL (e.g., https://docs.example.com)",
+	}),
 	token_id: z.string().min(10, {
 		message: "BookStack Token ID is required.",
 	}),
@@ -148,8 +146,8 @@ export default function BookStackConnectorPage() {
 								<Alert>
 									<Info className="h-4 w-4" />
 									<AlertDescription>
-										You'll need to create an API token from your BookStack instance.
-										Go to <strong>Edit Profile → API Tokens → Create Token</strong>
+										You'll need to create an API token from your BookStack instance. Go to{" "}
+										<strong>Edit Profile → API Tokens → Create Token</strong>
 									</AlertDescription>
 								</Alert>
 

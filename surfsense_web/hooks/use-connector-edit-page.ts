@@ -615,7 +615,10 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					} else if (connector.connector_type === "BOOKSTACK_CONNECTOR") {
 						editForm.setValue("BOOKSTACK_BASE_URL", newlySavedConfig.BOOKSTACK_BASE_URL || "");
 						editForm.setValue("BOOKSTACK_TOKEN_ID", newlySavedConfig.BOOKSTACK_TOKEN_ID || "");
-						editForm.setValue("BOOKSTACK_TOKEN_SECRET", newlySavedConfig.BOOKSTACK_TOKEN_SECRET || "");
+						editForm.setValue(
+							"BOOKSTACK_TOKEN_SECRET",
+							newlySavedConfig.BOOKSTACK_TOKEN_SECRET || ""
+						);
 					} else if (connector.connector_type === "JIRA_CONNECTOR") {
 						editForm.setValue("JIRA_BASE_URL", newlySavedConfig.JIRA_BASE_URL || "");
 						editForm.setValue("JIRA_EMAIL", newlySavedConfig.JIRA_EMAIL || "");
