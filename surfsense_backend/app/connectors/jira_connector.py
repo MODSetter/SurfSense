@@ -92,7 +92,11 @@ class JiraConnector:
         }
 
     def make_api_request(
-        self, endpoint: str, params: dict[str, Any] | None = None
+        self,
+        endpoint: str,
+        params: dict[str, Any] | None = None,
+        method: str = "GET",
+        json_payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Make a request to the Jira API.
@@ -116,7 +120,12 @@ class JiraConnector:
         url = f"{self.base_url}/rest/api/{self.api_version}/{endpoint}"
         headers = self.get_headers()
 
-        response = requests.get(url, headers=headers, params=params, timeout=500)
+        if method.upper() == "POST":
+            response = requests.post(
+                url, headers=headers, json=json_payload, timeout=500
+            )
+        else:
+            response = requests.get(url, headers=headers, params=params, timeout=500)
 
         if response.status_code == 200:
             return response.json()
@@ -169,19 +178,23 @@ class JiraConnector:
             "project",
         ]
 
-        params = {
-            "jql": jql,
-            "fields": ",".join(fields),
-            "maxResults": 100,
-            "startAt": 0,
-        }
+        all_issues = []
+        start_at = 0
+        max_results = 100
 
         all_issues = []
         start_at = 0
 
         while True:
-            params["startAt"] = start_at
-            result = self.make_api_request("search", params)
+            json_payload = {
+                "jql": jql,
+                "fields": fields,  # API accepts list
+                "maxResults": max_results,
+                "startAt": start_at,
+            }
+            result = self.make_api_request(
+                "search/jql", json_payload=json_payload, method="POST"
+            )
 
             if not isinstance(result, dict) or "issues" not in result:
                 raise Exception("Invalid response from Jira API")
@@ -226,9 +239,9 @@ class JiraConnector:
             )
             # TODO : This JQL needs some improvement to work as expected
 
-            _jql = f"{date_filter}"
+            jql = f"{date_filter}"
             if project_key:
-                _jql = (
+                jql = (
                     f'project = "{project_key}" AND {date_filter} ORDER BY created DESC'
                 )
 
@@ -250,7 +263,7 @@ class JiraConnector:
                 fields.append("comment")
 
             params = {
-                # "jql": "",   TODO : Add a JQL query to filter from a date range
+                "jql": jql,
                 "fields": ",".join(fields),
                 "maxResults": 100,
                 "startAt": 0,
@@ -262,7 +275,7 @@ class JiraConnector:
             while True:
                 params["startAt"] = start_at
 
-                result = self.make_api_request("search", params)
+                result = self.make_api_request("search/jql", params)
 
                 if not isinstance(result, dict) or "issues" not in result:
                     return [], "Invalid response from Jira API"
