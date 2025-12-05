@@ -1440,7 +1440,12 @@ async def handle_qna_workflow(
     }
 
     # Create the state for the QNA agent (it has a different state structure)
-    qna_state = {"db_session": state.db_session, "chat_history": state.chat_history}
+    # Pass streaming_service so the QNA agent can stream tokens directly
+    qna_state = {
+        "db_session": state.db_session,
+        "chat_history": state.chat_history,
+        "streaming_service": streaming_service,
+    }
 
     try:
         writer(
@@ -1455,36 +1460,26 @@ async def handle_qna_workflow(
         complete_content = ""
         captured_reranked_documents = []
 
-        # Call the QNA agent with streaming
-        async for _chunk_type, chunk in qna_agent_graph.astream(
-            qna_state, qna_config, stream_mode=["values"]
+        # Call the QNA agent with both custom and values streaming modes
+        # - "custom" captures token-by-token streams from answer_question via writer()
+        # - "values" captures state updates including final_answer and reranked_documents
+        async for stream_mode, chunk in qna_agent_graph.astream(
+            qna_state, qna_config, stream_mode=["custom", "values"]
         ):
-            if "final_answer" in chunk:
-                new_content = chunk["final_answer"]
-                if new_content and new_content != complete_content:
-                    # Extract only the new content (delta)
-                    delta = new_content[len(complete_content) :]
-                    complete_content = new_content
+            if stream_mode == "custom":
+                # Handle custom stream events (token chunks from answer_question)
+                if isinstance(chunk, dict) and "yield_value" in chunk:
+                    # Forward the streamed token to the parent writer
+                    writer(chunk)
+            elif stream_mode == "values" and isinstance(chunk, dict):
+                # Handle state value updates
+                # Capture the final answer from state
+                if chunk.get("final_answer"):
+                    complete_content = chunk["final_answer"]
 
-                    # Stream the real-time answer if there's new content
-                    if delta:
-                        # Update terminal with progress
-                        word_count = len(complete_content.split())
-                        writer(
-                            {
-                                "yield_value": streaming_service.format_terminal_info_delta(
-                                    f"✍️ Writing answer... ({word_count} words)"
-                                )
-                            }
-                        )
-
-                        writer(
-                            {"yield_value": streaming_service.format_text_chunk(delta)}
-                        )
-
-            # Capture reranked documents from QNA agent for further question generation
-            if "reranked_documents" in chunk:
-                captured_reranked_documents = chunk["reranked_documents"]
+                # Capture reranked documents from QNA agent for further question generation
+                if chunk.get("reranked_documents"):
+                    captured_reranked_documents = chunk["reranked_documents"]
 
         # Set default if no content was received
         if not complete_content:

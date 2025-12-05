@@ -7,6 +7,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.streaming_service import StreamingService
+
 
 @dataclass
 class State:
@@ -20,6 +22,9 @@ class State:
 
     # Runtime context
     db_session: AsyncSession
+
+    # Streaming service for real-time token streaming
+    streaming_service: StreamingService | None = None
 
     chat_history: list[Any] | None = field(default_factory=list)
     # OUTPUT: Populated by agent nodes
