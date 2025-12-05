@@ -42,9 +42,7 @@ class BookStackConnector:
         self.token_secret = token_secret
         self._last_request_time = 0.0
 
-    def set_credentials(
-        self, base_url: str, token_id: str, token_secret: str
-    ) -> None:
+    def set_credentials(self, base_url: str, token_id: str, token_secret: str) -> None:
         """
         Set the BookStack credentials.
 
@@ -52,7 +50,17 @@ class BookStackConnector:
             base_url: BookStack instance base URL
             token_id: BookStack API Token ID
             token_secret: BookStack API Token Secret
+
+        Raises:
+            ValueError: If any required credential is missing or invalid
         """
+        if not base_url or not isinstance(base_url, str):
+            raise ValueError("base_url must be a non-empty string")
+        if not token_id or not isinstance(token_id, str):
+            raise ValueError("token_id must be a non-empty string")
+        if not token_secret or not isinstance(token_secret, str):
+            raise ValueError("token_secret must be a non-empty string")
+
         self.base_url = base_url.rstrip("/")
         self.token_id = token_id
         self.token_secret = token_secret
@@ -86,11 +94,15 @@ class BookStackConnector:
             time.sleep(self.REQUEST_INTERVAL - elapsed)
         self._last_request_time = time.time()
 
+    # Maximum retries for rate limit errors
+    MAX_RATE_LIMIT_RETRIES = 3
+
     def make_api_request(
         self,
         endpoint: str,
         params: dict[str, Any] | None = None,
         raw_response: bool = False,
+        _retry_count: int = 0,
     ) -> dict[str, Any] | str:
         """
         Make a request to the BookStack API.
@@ -128,9 +140,17 @@ class BookStackConnector:
 
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
-                logger.warning("Rate limit exceeded, waiting 60 seconds...")
+                if _retry_count >= self.MAX_RATE_LIMIT_RETRIES:
+                    raise Exception(
+                        f"BookStack API rate limit exceeded after {self.MAX_RATE_LIMIT_RETRIES} retries"
+                    ) from e
+                logger.warning(
+                    f"Rate limit exceeded, waiting 60 seconds... (retry {_retry_count + 1}/{self.MAX_RATE_LIMIT_RETRIES})"
+                )
                 time.sleep(60)
-                return self.make_api_request(endpoint, params, raw_response)
+                return self.make_api_request(
+                    endpoint, params, raw_response, _retry_count + 1
+                )
             raise Exception(f"BookStack API request failed: {e!s}") from e
         except requests.exceptions.RequestException as e:
             raise Exception(f"BookStack API request failed: {e!s}") from e

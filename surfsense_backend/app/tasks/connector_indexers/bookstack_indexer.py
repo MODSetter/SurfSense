@@ -87,7 +87,11 @@ async def index_bookstack_pages(
         bookstack_token_id = connector.config.get("BOOKSTACK_TOKEN_ID")
         bookstack_token_secret = connector.config.get("BOOKSTACK_TOKEN_SECRET")
 
-        if not bookstack_base_url or not bookstack_token_id or not bookstack_token_secret:
+        if (
+            not bookstack_base_url
+            or not bookstack_token_id
+            or not bookstack_token_secret
+        ):
             await task_logger.log_task_failure(
                 log_entry,
                 f"BookStack credentials not found in connector config for connector {connector_id}",
@@ -196,9 +200,7 @@ async def index_bookstack_pages(
                         page_id, use_markdown=True
                     )
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to fetch content for page {page_name}: {e}"
-                    )
+                    logger.warning(f"Failed to fetch content for page {page_name}: {e}")
                     skipped_pages.append(f"{page_name} (content fetch error)")
                     documents_skipped += 1
                     continue
@@ -275,7 +277,9 @@ async def index_bookstack_pages(
                                 full_content, user_llm, summary_metadata
                             )
                         else:
-                            summary_content = f"BookStack Page: {page_name}\n\nBook ID: {book_id}\n\n"
+                            summary_content = (
+                                f"BookStack Page: {page_name}\n\nBook ID: {book_id}\n\n"
+                            )
                             if page_content:
                                 content_preview = page_content[:1000]
                                 if len(page_content) > 1000:
@@ -299,9 +303,7 @@ async def index_bookstack_pages(
                         existing_document.chunks = chunks
 
                         documents_indexed += 1
-                        logger.info(
-                            f"Successfully updated BookStack page {page_name}"
-                        )
+                        logger.info(f"Successfully updated BookStack page {page_name}")
                         continue
 
                 # Document doesn't exist - create new one
@@ -388,9 +390,7 @@ async def index_bookstack_pages(
             f"Final commit: Total {documents_indexed} BookStack pages processed"
         )
         await session.commit()
-        logger.info(
-            "Successfully committed all BookStack document changes to database"
-        )
+        logger.info("Successfully committed all BookStack document changes to database")
 
         # Log success
         await task_logger.log_task_success(
