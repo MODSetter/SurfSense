@@ -62,7 +62,7 @@ async def _process_extension_document(
     individual_document_dict, search_space_id: int, user_id: str
 ):
     """Process extension document with new session."""
-    from pydantic import BaseModel
+    from pydantic import BaseModel, ConfigDict, Field
 
     # Reconstruct the document object from dict
     # You'll need to define the proper model for this
@@ -75,8 +75,9 @@ async def _process_extension_document(
         VisitedWebPageVisitDurationInMilliseconds: str
 
     class IndividualDocument(BaseModel):
+        model_config = ConfigDict(populate_by_name=True)
         metadata: DocumentMetadata
-        pageContent: str
+        page_content: str = Field(alias="pageContent")
 
     individual_document = IndividualDocument(**individual_document_dict)
 
