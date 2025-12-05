@@ -36,25 +36,25 @@ export function useApiKey(): UseApiKeyReturn {
 	const fallbackCopyTextToClipboard = (text: string) => {
 		const textArea = document.createElement("textarea");
 		textArea.value = text;
-		
+
 		// Avoid scrolling to bottom
 		textArea.style.top = "0";
 		textArea.style.left = "0";
 		textArea.style.position = "fixed";
 		textArea.style.opacity = "0";
-		
+
 		document.body.appendChild(textArea);
 		textArea.focus();
 		textArea.select();
-		
+
 		try {
-			const successful = document.execCommand('copy');
+			const successful = document.execCommand("copy");
 			document.body.removeChild(textArea);
-			
+
 			if (successful) {
 				setCopied(true);
 				toast.success("API key copied to clipboard");
-				
+
 				setTimeout(() => {
 					setCopied(false);
 				}, 2000);
@@ -77,7 +77,7 @@ export function useApiKey(): UseApiKeyReturn {
 				await navigator.clipboard.writeText(apiKey);
 				setCopied(true);
 				toast.success("API key copied to clipboard");
-				
+
 				setTimeout(() => {
 					setCopied(false);
 				}, 2000);
