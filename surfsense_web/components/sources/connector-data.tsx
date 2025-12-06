@@ -123,6 +123,13 @@ export const connectorCategories: ConnectorCategory[] = [
 				icon: getConnectorIcon(EnumConnectorName.CONFLUENCE_CONNECTOR, "h-6 w-6"),
 				status: "available",
 			},
+			{
+				id: "bookstack-connector",
+				title: "BookStack",
+				description: "bookstack_desc",
+				icon: getConnectorIcon(EnumConnectorName.BOOKSTACK_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
 		],
 	},
 	{

@@ -32,6 +32,7 @@ CONNECTOR_TASK_MAP = {
     SearchSourceConnectorType.LUMA_CONNECTOR: "index_luma_events",
     SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: "index_elasticsearch_documents",
     SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: "index_crawled_urls",
+    SearchSourceConnectorType.BOOKSTACK_CONNECTOR: "index_bookstack_pages",
 }
 
 
@@ -68,6 +69,7 @@ def create_periodic_schedule(
         # Import all indexing tasks
         from app.tasks.celery_tasks.connector_tasks import (
             index_airtable_records_task,
+            index_bookstack_pages_task,
             index_clickup_tasks_task,
             index_confluence_pages_task,
             index_crawled_urls_task,
@@ -99,6 +101,7 @@ def create_periodic_schedule(
             SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
             SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
             SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
+            SearchSourceConnectorType.BOOKSTACK_CONNECTOR: index_bookstack_pages_task,
         }
 
         # Trigger the first run immediately

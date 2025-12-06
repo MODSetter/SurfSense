@@ -35,7 +35,8 @@ repos:
             .*pnpm-lock\.yaml|
             .*alembic\.ini|
             .*alembic/versions/.*\.py|
-            .*\.mdx$
+            .*\.mdx$|
+            .*/messages/.*\.json$
           )$
 
   # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting
