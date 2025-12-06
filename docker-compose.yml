@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: ankane/pgvector:latest
@@ -39,6 +37,8 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./surfsense_backend/app:/app/app
+      - ./surfsense_backend/tests:/app/tests
+      - ./surfsense_backend/pytest.ini:/app/pytest.ini
       - shared_temp:/tmp
     env_file:
       - ./surfsense_backend/.env
@@ -124,6 +124,30 @@ services:
       - ./surfsense_web/.env
     depends_on:
       - backend
+
+  # ============================================================================
+  # TEST SERVICE
+  # Use: docker compose --profile test run --rm backend-test
+  # Or:  docker compose --profile test run --rm backend-test pytest tests/ -v
+  # ============================================================================
+  backend-test:
+    profiles: ["test"]
+    build: ./surfsense_backend
+    volumes:
+      - ./surfsense_backend/app:/app/app
+      - ./surfsense_backend/tests:/app/tests
+      - ./surfsense_backend/pytest.ini:/app/pytest.ini
+      - ./surfsense_backend/pyproject.toml:/app/pyproject.toml
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-surfsense}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - PYTHONPATH=/app
+      - TESTING=true
+    depends_on:
+      - db
+      - redis
+    command: ["pytest", "tests/", "-v", "--tb=short"]
 
 volumes:
   postgres_data:
