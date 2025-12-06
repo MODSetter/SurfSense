@@ -1,15 +1,15 @@
 "use client";
 
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import { createChatMutationAtom, updateChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
 import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
 import { useChatState } from "@/hooks/use-chat";
-import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
@@ -46,7 +46,19 @@ export default function ResearcherPage() {
 	});
 
 	// Fetch all available sources (document types + live search connectors)
-	const { documentTypes } = useDocumentTypes(Number(search_space_id));
+	// Use the documentTypeCountsAtom for fetching document types
+	const [documentTypeCountsQuery] = useAtom(documentTypeCountsAtom);
+	const { data: documentTypeCountsData } = documentTypeCountsQuery;
+
+	// Transform the response into the expected format
+	const documentTypes = useMemo(() => {
+		if (!documentTypeCountsData) return [];
+		return Object.entries(documentTypeCountsData).map(([type, count]) => ({
+			type,
+			count,
+		}));
+	}, [documentTypeCountsData]);
+
 	const { connectors: searchConnectors } = useSearchSourceConnectors(
 		false,
 		Number(search_space_id)
