@@ -1,7 +1,7 @@
 """Add BOOKSTACK_CONNECTOR to enums
 
-Revision ID: 39
-Revises: 38
+Revision ID: 44
+Revises: 43
 """
 
 from collections.abc import Sequence
@@ -9,8 +9,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "39"
-down_revision: str | None = "38"
+revision: str = "44"
+down_revision: str | None = "43"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
