@@ -1,7 +1,9 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from langchain.schema import AIMessage, HumanMessage
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -33,6 +35,8 @@ from app.utils.validators import (
     validate_search_space_id,
     validate_top_k,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -180,19 +184,29 @@ async def create_chat(
         return db_chat
     except HTTPException:
         raise
-    except IntegrityError:
+    except IntegrityError as e:
         await session.rollback()
+        logger.warning("Chat creation failed due to integrity error: %s", e)
         raise HTTPException(
             status_code=400,
             detail="Database constraint violation. Please check your input data.",
         ) from None
-    except OperationalError:
+    except OperationalError as e:
         await session.rollback()
+        logger.error("Database operational error during chat creation: %s", e)
         raise HTTPException(
             status_code=503, detail="Database operation failed. Please try again later."
         ) from None
-    except Exception:
+    except SQLAlchemyError as e:
         await session.rollback()
+        logger.error("Database error during chat creation: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while creating the chat.",
+        ) from None
+    except Exception as e:
+        await session.rollback()
+        logger.error("Unexpected error during chat creation: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while creating the chat.",
@@ -266,11 +280,18 @@ async def read_chats(
         return result.all()
     except HTTPException:
         raise
-    except OperationalError:
+    except OperationalError as e:
+        logger.error("Database operational error while fetching chats: %s", e)
         raise HTTPException(
             status_code=503, detail="Database operation failed. Please try again later."
         ) from None
-    except Exception:
+    except SQLAlchemyError as e:
+        logger.error("Database error while fetching chats: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="An unexpected error occurred while fetching chats."
+        ) from None
+    except Exception as e:
+        logger.error("Unexpected error while fetching chats: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500, detail="An unexpected error occurred while fetching chats."
         ) from None
@@ -308,11 +329,19 @@ async def read_chat(
         return chat
     except HTTPException:
         raise
-    except OperationalError:
+    except OperationalError as e:
+        logger.error("Database operational error while fetching chat %d: %s", chat_id, e)
         raise HTTPException(
             status_code=503, detail="Database operation failed. Please try again later."
         ) from None
-    except Exception:
+    except SQLAlchemyError as e:
+        logger.error("Database error while fetching chat %d: %s", chat_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while fetching the chat.",
+        ) from None
+    except Exception as e:
+        logger.error("Unexpected error while fetching chat %d: %s", chat_id, e, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while fetching the chat.",
@@ -357,19 +386,29 @@ async def update_chat(
         return db_chat
     except HTTPException:
         raise
-    except IntegrityError:
+    except IntegrityError as e:
         await session.rollback()
+        logger.warning("Chat update failed due to integrity error for chat %d: %s", chat_id, e)
         raise HTTPException(
             status_code=400,
             detail="Database constraint violation. Please check your input data.",
         ) from None
-    except OperationalError:
+    except OperationalError as e:
         await session.rollback()
+        logger.error("Database operational error while updating chat %d: %s", chat_id, e)
         raise HTTPException(
             status_code=503, detail="Database operation failed. Please try again later."
         ) from None
-    except Exception:
+    except SQLAlchemyError as e:
         await session.rollback()
+        logger.error("Database error while updating chat %d: %s", chat_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while updating the chat.",
+        ) from None
+    except Exception as e:
+        await session.rollback()
+        logger.error("Unexpected error while updating chat %d: %s", chat_id, e, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while updating the chat.",
@@ -407,18 +446,28 @@ async def delete_chat(
         return {"message": "Chat deleted successfully"}
     except HTTPException:
         raise
-    except IntegrityError:
+    except IntegrityError as e:
         await session.rollback()
+        logger.warning("Chat deletion failed due to integrity error for chat %d: %s", chat_id, e)
         raise HTTPException(
             status_code=400, detail="Cannot delete chat due to existing dependencies."
         ) from None
-    except OperationalError:
+    except OperationalError as e:
         await session.rollback()
+        logger.error("Database operational error while deleting chat %d: %s", chat_id, e)
         raise HTTPException(
             status_code=503, detail="Database operation failed. Please try again later."
         ) from None
-    except Exception:
+    except SQLAlchemyError as e:
         await session.rollback()
+        logger.error("Database error while deleting chat %d: %s", chat_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while deleting the chat.",
+        ) from None
+    except Exception as e:
+        await session.rollback()
+        logger.error("Unexpected error while deleting chat %d: %s", chat_id, e, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while deleting the chat.",

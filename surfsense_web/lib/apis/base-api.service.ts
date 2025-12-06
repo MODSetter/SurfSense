@@ -1,4 +1,5 @@
 import type z from "zod";
+import { logger } from "@/lib/logger";
 import { getBearerToken, handleUnauthorized } from "../auth-utils";
 import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
 
@@ -121,7 +122,7 @@ class BaseApiService {
 				try {
 					data = await response.json();
 				} catch (error) {
-					console.error("Failed to parse response as JSON: ", JSON.stringify(error));
+					logger.error("Failed to parse response as JSON: ", JSON.stringify(error));
 					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
 
@@ -176,7 +177,7 @@ class BaseApiService {
 						data = await response.json();
 				}
 			} catch (error) {
-				console.error("Failed to parse response as JSON:", error);
+				logger.error("Failed to parse response as JSON:", error);
 				throw new AppError("Failed to parse response", response.status, response.statusText);
 			}
 
@@ -192,7 +193,7 @@ class BaseApiService {
 					 * 	This is a client side error, and should be fixed by updating the responseSchema to keep things typed.
 					 *  This error should not be shown to the user , it is for dev only.
 					 */
-					console.error(`Invalid API response schema - ${url} :`, JSON.stringify(parsedData.error));
+					logger.error(`Invalid API response schema - ${url} :`, JSON.stringify(parsedData.error));
 				}
 
 				return data;
@@ -200,7 +201,7 @@ class BaseApiService {
 
 			return data;
 		} catch (error) {
-			console.error("Request failed:", JSON.stringify(error));
+			logger.error("Request failed:", JSON.stringify(error));
 			throw error;
 		}
 	}

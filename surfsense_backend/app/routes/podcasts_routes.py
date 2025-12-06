@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -25,6 +26,8 @@ from app.schemas import (
 from app.tasks.podcast_tasks import generate_chat_podcast
 from app.users import current_active_user
 from app.utils.rbac import check_permission
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -54,21 +57,24 @@ async def create_podcast(
         return db_podcast
     except HTTPException as he:
         raise he
-    except IntegrityError:
+    except IntegrityError as e:
         await session.rollback()
+        logger.warning("Podcast creation failed due to integrity error: %s", e)
         raise HTTPException(
             status_code=400,
             detail="Podcast creation failed due to constraint violation",
         ) from None
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         await session.rollback()
+        logger.error("Database error while creating podcast: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500, detail="Database error occurred while creating podcast"
         ) from None
-    except Exception:
+    except Exception as e:
         await session.rollback()
+        logger.error("Unexpected error while creating podcast: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=500, detail="An unexpected error occurred"
+            status_code=500, detail="An unexpected error occurred while creating podcast"
         ) from None
 
 
@@ -115,9 +121,15 @@ async def read_podcasts(
         return result.scalars().all()
     except HTTPException:
         raise
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        logger.error("Database error while fetching podcasts: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500, detail="Database error occurred while fetching podcasts"
+        ) from None
+    except Exception as e:
+        logger.error("Unexpected error while fetching podcasts: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="An unexpected error occurred while fetching podcasts"
         ) from None
 
 
@@ -153,9 +165,15 @@ async def read_podcast(
         return podcast
     except HTTPException as he:
         raise he
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        logger.error("Database error while fetching podcast: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500, detail="Database error occurred while fetching podcast"
+        ) from None
+    except Exception as e:
+        logger.error("Unexpected error while fetching podcast: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="An unexpected error occurred while fetching podcast"
         ) from None
 
 
@@ -199,10 +217,17 @@ async def update_podcast(
         raise HTTPException(
             status_code=400, detail="Update failed due to constraint violation"
         ) from None
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         await session.rollback()
+        logger.error("Database error while updating podcast: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500, detail="Database error occurred while updating podcast"
+        ) from None
+    except Exception as e:
+        await session.rollback()
+        logger.error("Unexpected error while updating podcast: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="An unexpected error occurred while updating podcast"
         ) from None
 
 
@@ -237,10 +262,17 @@ async def delete_podcast(
         return {"message": "Podcast deleted successfully"}
     except HTTPException as he:
         raise he
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         await session.rollback()
+        logger.error("Database error while deleting podcast: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500, detail="Database error occurred while deleting podcast"
+        ) from None
+    except Exception as e:
+        await session.rollback()
+        logger.error("Unexpected error while deleting podcast: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="An unexpected error occurred while deleting podcast"
         ) from None
 
 
@@ -260,9 +292,7 @@ async def generate_chat_podcast_with_new_session(
                 session, chat_id, search_space_id, user_id, podcast_title, user_prompt
             )
         except Exception as e:
-            import logging
-
-            logging.error(f"Error generating podcast from chat: {e!s}")
+            logger.error("Error generating podcast from chat: %s", e, exc_info=True)
 
 
 @router.post("/podcasts/generate")

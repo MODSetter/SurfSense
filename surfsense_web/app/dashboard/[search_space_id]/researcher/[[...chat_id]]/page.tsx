@@ -1,6 +1,7 @@
 "use client";
 
 import { type CreateMessage, type Message, useChat } from "@ai-sdk/react";
+import { logger } from "@/lib/logger";
 import { useAtomValue } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
@@ -17,14 +18,13 @@ export default function ResearcherPage() {
 	const { search_space_id } = useParams();
 	const router = useRouter();
 	const hasSetInitialConnectors = useRef(false);
-	const hasInitiatedResponse = useRef<string | null>(null);
 	const activeChatId = useAtomValue(activeChatIdAtom);
 	const { data: activeChatState, isFetching: isChatLoading } = useAtomValue(activeChatAtom);
 	const { mutateAsync: createChat } = useAtomValue(createChatMutationAtom);
 	const { mutateAsync: updateChat } = useAtomValue(updateChatMutationAtom);
 	const isNewChat = !activeChatId;
 
-	// Reset the flag when chat ID changes (but not hasInitiatedResponse - we need to remember if we already initiated)
+	// Reset the flag when chat ID changes
 	useEffect(() => {
 		hasSetInitialConnectors.current = false;
 	}, [activeChatId]);
@@ -93,7 +93,7 @@ export default function ResearcherPage() {
 			try {
 				return JSON.parse(stored);
 			} catch (error) {
-				console.error("Error parsing stored chat state:", error);
+				logger.error("Error parsing stored chat state:", error);
 				return null;
 			}
 		}
@@ -118,7 +118,7 @@ export default function ResearcherPage() {
 			},
 		},
 		onError: (error) => {
-			console.error("Chat error:", error);
+			logger.error("Chat error:", error);
 		},
 	});
 
@@ -168,14 +168,10 @@ export default function ResearcherPage() {
 			if (chatData.messages && Array.isArray(chatData.messages)) {
 				if (chatData.messages.length === 1 && chatData.messages[0].role === "user") {
 					// Single user message - append to trigger LLM response
-					// Only if we haven't already initiated for this chat and handler doesn't have messages yet
-					if (hasInitiatedResponse.current !== activeChatId && handler.messages.length === 0) {
-						hasInitiatedResponse.current = activeChatId;
-						handler.append({
-							role: "user",
-							content: chatData.messages[0].content,
-						});
-					}
+					handler.append({
+						role: "user",
+						content: chatData.messages[0].content,
+					});
 				} else if (chatData.messages.length > 1) {
 					// Multiple messages - set them all
 					handler.setMessages(chatData.messages);

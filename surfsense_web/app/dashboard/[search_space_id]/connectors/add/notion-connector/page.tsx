@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { logger } from "@/lib/logger";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -93,7 +94,7 @@ export default function NotionConnectorPage() {
 			// Navigate back to connectors page
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		} catch (error) {
-			console.error("Error creating connector:", error);
+			logger.error("Error creating connector:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to create connector");
 		} finally {
 			setIsSubmitting(false);

@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText, MessageSquare, UserPlus, Users } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -120,7 +121,7 @@ const OnboardPage = () => {
 				});
 			}
 		} catch (error) {
-			console.error("Auto-configuration failed:", error);
+			logger.error("Auto-configuration failed:", error);
 		} finally {
 			setIsAutoConfiguring(false);
 		}

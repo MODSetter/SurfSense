@@ -1,5 +1,6 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { logger } from "@/lib/logger";
 import { IconMailFilled } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Image from "next/image";
@@ -58,7 +59,7 @@ export function ContactFormGridWithDetails() {
 				});
 			}
 		} catch (error) {
-			console.error("Error submitting form:", error);
+			logger.error("Error submitting form:", error);
 			toast.error("Something went wrong", {
 				description: "Please try again later.",
 			});

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
@@ -76,7 +77,7 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 			setError(null);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch LLM configurations");
-			console.error("Error fetching LLM configurations:", err);
+			logger.error("Error fetching LLM configurations:", err);
 		} finally {
 			setLoading(false);
 		}
@@ -108,7 +109,7 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 			return newConfig;
 		} catch (err: any) {
 			toast.error(err.message || "Failed to create LLM configuration");
-			console.error("Error creating LLM configuration:", err);
+			logger.error("Error creating LLM configuration:", err);
 			return null;
 		}
 	};
@@ -129,7 +130,7 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 			return true;
 		} catch (err: any) {
 			toast.error(err.message || "Failed to delete LLM configuration");
-			console.error("Error deleting LLM configuration:", err);
+			logger.error("Error deleting LLM configuration:", err);
 			return false;
 		}
 	};
@@ -159,7 +160,7 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 			return updatedConfig;
 		} catch (err: any) {
 			toast.error(err.message || "Failed to update LLM configuration");
-			console.error("Error updating LLM configuration:", err);
+			logger.error("Error updating LLM configuration:", err);
 			return null;
 		}
 	};
@@ -202,7 +203,7 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 			setError(null);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch LLM preferences");
-			console.error("Error fetching LLM preferences:", err);
+			logger.error("Error fetching LLM preferences:", err);
 		} finally {
 			setLoading(false);
 		}
@@ -239,7 +240,7 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 			return true;
 		} catch (err: any) {
 			toast.error(err.message || "Failed to update LLM preferences");
-			console.error("Error updating LLM preferences:", err);
+			logger.error("Error updating LLM preferences:", err);
 			return false;
 		}
 	};
@@ -284,7 +285,7 @@ export function useGlobalLLMConfigs() {
 			setError(null);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch global LLM configurations");
-			console.error("Error fetching global LLM configurations:", err);
+			logger.error("Error fetching global LLM configurations:", err);
 		} finally {
 			setLoading(false);
 		}

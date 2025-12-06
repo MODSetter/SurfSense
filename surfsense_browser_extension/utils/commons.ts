@@ -1,4 +1,5 @@
 import { Storage } from "@plasmohq/storage";
+import { logger } from "~/lib/logger";
 import type { WebHistory } from "./interfaces";
 
 export const emptyArr: any[] = [];
@@ -84,7 +85,7 @@ export const initWebHistory = async (tabId: number) => {
 			await storage.set("webhistory", { webhistory: webHistory });
 			return;
 		} catch (error) {
-			console.log(error);
+			logger.error("Error setting webhistory", error);
 		}
 	} else {
 		return;

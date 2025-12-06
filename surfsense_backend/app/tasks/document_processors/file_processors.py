@@ -30,6 +30,8 @@ from .base import (
 )
 from .markdown_processor import add_received_markdown_file_document
 
+logger = logging.getLogger(__name__)
+
 
 async def add_received_file_document_using_unstructured(
     session: AsyncSession,
@@ -473,9 +475,8 @@ async def process_file_in_background(
 
             try:
                 os.unlink(file_path)
-            except Exception as e:
-                print("Error deleting temp file", e)
-                pass
+            except OSError as e:
+                logger.debug("Could not delete temp file %s: %s", file_path, e)
 
             await task_logger.log_task_progress(
                 log_entry,
@@ -598,9 +599,8 @@ async def process_file_in_background(
             # Clean up the temp file
             try:
                 os.unlink(file_path)
-            except Exception as e:
-                print("Error deleting temp file", e)
-                pass
+            except OSError as e:
+                logger.debug("Could not delete temp file %s: %s", file_path, e)
 
             # Process transcription as markdown document
             result = await add_received_markdown_file_document(
@@ -743,9 +743,8 @@ async def process_file_in_background(
 
                 try:
                     os.unlink(file_path)
-                except Exception as e:
-                    print("Error deleting temp file", e)
-                    pass
+                except OSError as e:
+                    logger.debug("Could not delete temp file %s: %s", file_path, e)
 
                 # Pass the documents to the existing background task
                 result = await add_received_file_document_using_unstructured(
@@ -812,9 +811,8 @@ async def process_file_in_background(
 
                 try:
                     os.unlink(file_path)
-                except Exception as e:
-                    print("Error deleting temp file", e)
-                    pass
+                except OSError as e:
+                    logger.debug("Could not delete temp file %s: %s", file_path, e)
 
                 # Get markdown documents from the result
                 markdown_documents = await result.aget_markdown_documents(
@@ -971,9 +969,8 @@ async def process_file_in_background(
 
                 try:
                     os.unlink(file_path)
-                except Exception as e:
-                    print("Error deleting temp file", e)
-                    pass
+                except OSError as e:
+                    logger.debug("Could not delete temp file %s: %s", file_path, e)
 
                 await task_logger.log_task_progress(
                     log_entry,

@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText, Pencil, Trash2 } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -43,7 +44,7 @@ export function RowActions({
 			else toast.error("Failed to delete document");
 			await refreshDocuments();
 		} catch (error) {
-			console.error("Error deleting document:", error);
+			logger.error("Error deleting document:", error);
 			toast.error("Failed to delete document");
 		} finally {
 			setIsDeleting(false);

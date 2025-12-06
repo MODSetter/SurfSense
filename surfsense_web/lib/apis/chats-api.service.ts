@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 import {
 	type CreateChatRequest,
 	chatDetails,
@@ -23,7 +24,7 @@ class ChatApiService {
 		const parsedRequest = getChatDetailsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -38,7 +39,7 @@ class ChatApiService {
 		const parsedRequest = getChatsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -64,7 +65,7 @@ class ChatApiService {
 		const parsedRequest = deleteChatRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -79,7 +80,7 @@ class ChatApiService {
 		const parsedRequest = createChatRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
@@ -101,7 +102,7 @@ class ChatApiService {
 		const parsedRequest = updateChatRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
-			console.error("Invalid request:", parsedRequest.error);
+			logger.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");

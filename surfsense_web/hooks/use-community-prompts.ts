@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 
 export interface CommunityPrompt {
 	key: string;
@@ -31,7 +32,7 @@ export function useCommunityPrompts() {
 			setError(null);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch community prompts");
-			console.error("Error fetching community prompts:", err);
+			logger.error("Error fetching community prompts:", err);
 		} finally {
 			setLoading(false);
 		}

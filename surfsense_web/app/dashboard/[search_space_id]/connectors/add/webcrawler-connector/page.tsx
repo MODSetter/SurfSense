@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { logger } from "@/lib/logger";
 import { ArrowLeft, Check, Globe, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -84,7 +85,7 @@ export default function WebcrawlerConnectorPage() {
 				}
 			})
 			.catch((error) => {
-				console.error("Error fetching connectors:", error);
+				logger.error("Error fetching connectors:", error);
 			});
 	}, [fetchConnectors, searchSpaceId]);
 
@@ -123,7 +124,7 @@ export default function WebcrawlerConnectorPage() {
 			// Navigate back to connectors page
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		} catch (error) {
-			console.error("Error creating connector:", error);
+			logger.error("Error creating connector:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to create connector");
 		} finally {
 			setIsSubmitting(false);

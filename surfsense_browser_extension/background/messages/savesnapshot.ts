@@ -3,6 +3,7 @@ import type { PlasmoMessaging } from "@plasmohq/messaging";
 import { Storage } from "@plasmohq/storage";
 import { convertHtmlToMarkdown } from "dom-to-semantic-markdown";
 import { DOMParser } from "linkedom";
+import { logger } from "~/lib/logger";
 import { getRenderedHtml, webhistoryToLangChainDocument } from "~utils/commons";
 import type { WebHistory } from "~utils/interfaces";
 
@@ -26,7 +27,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 			const tab = tabs[0];
 			if (tab.id) {
 				const tabId: number = tab.id;
-				console.log("tabs", tabs);
+				logger.debug("tabs", tabs);
 				const result = await chrome.scripting.executeScript({
 					// @ts-ignore
 					target: { tabId: tab.id },
@@ -35,7 +36,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 					// world: "MAIN"
 				});
 
-				console.log("SnapRes", result);
+				logger.debug("SnapRes", result);
 
 				const toPushInTabHistory: any = result[0].result; // const { renderedHtml, title, url, entryTime } = result[0].result;
 
@@ -51,7 +52,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
 				delete toPushInTabHistory.renderedHtml;
 
-				console.log("toPushInTabHistory", toPushInTabHistory);
+				logger.debug("toPushInTabHistory", toPushInTabHistory);
 
 				const urlQueueListObj: any = await storage.get("urlQueueList");
 				const timeQueueListObj: any = await storage.get("timeQueueList");
@@ -79,11 +80,11 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 				const markdownFormat = webhistoryToLangChainDocument(tab.id, [toPushInTabHistory]);
 				toSaveFinally.push(...markdownFormat);
 
-				console.log("toSaveFinally", toSaveFinally);
+				logger.debug("toSaveFinally", toSaveFinally);
 
 				// Log first item to debug metadata structure
 				if (toSaveFinally.length > 0) {
-					console.log("First item metadata:", toSaveFinally[0].metadata);
+					logger.debug("First item metadata:", toSaveFinally[0].metadata);
 				}
 
 				// Create content array for documents in the format expected by the new API
@@ -135,7 +136,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 			}
 		});
 	} catch (error) {
-		console.log(error);
+		logger.error("Error in savesnapshot handler", error);
 	}
 };
 

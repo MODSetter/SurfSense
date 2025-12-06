@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { logger } from "@/lib/logger";
 import {
 	Calendar as CalendarIcon,
 	Clock,
@@ -108,7 +109,7 @@ export default function ConnectorsPage() {
 	useEffect(() => {
 		if (error) {
 			toast.error(t("failed_load"));
-			console.error("Error fetching connectors:", error);
+			logger.error("Error fetching connectors:", error);
 		}
 	}, [error, t]);
 
@@ -120,7 +121,7 @@ export default function ConnectorsPage() {
 			await deleteConnector(connectorToDelete);
 			toast.success(t("delete_success"));
 		} catch (error) {
-			console.error("Error deleting connector:", error);
+			logger.error("Error deleting connector:", error);
 			toast.error(t("delete_failed"));
 		} finally {
 			setConnectorToDelete(null);
@@ -147,7 +148,7 @@ export default function ConnectorsPage() {
 			await indexConnector(selectedConnectorForIndexing, searchSpaceId, startDateStr, endDateStr);
 			toast.success(t("indexing_started"));
 		} catch (error) {
-			console.error("Error indexing connector content:", error);
+			logger.error("Error indexing connector content:", error);
 			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
 		} finally {
 			setIndexingConnectorId(null);
@@ -164,7 +165,7 @@ export default function ConnectorsPage() {
 			await indexConnector(connectorId, searchSpaceId);
 			toast.success(t("indexing_started"));
 		} catch (error) {
-			console.error("Error indexing connector content:", error);
+			logger.error("Error indexing connector content:", error);
 			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
 		} finally {
 			setIndexingConnectorId(null);
@@ -233,7 +234,7 @@ export default function ConnectorsPage() {
 			);
 			setPeriodicDialogOpen(false);
 		} catch (error) {
-			console.error("Error updating periodic indexing:", error);
+			logger.error("Error updating periodic indexing:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to update periodic indexing");
 		} finally {
 			setIsSavingPeriodic(false);

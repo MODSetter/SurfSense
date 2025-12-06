@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
@@ -44,7 +45,7 @@ export function useSearchSpace({ searchSpaceId, autoFetch = true }: UseSearchSpa
 			setError(null);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch search space");
-			console.error("Error fetching search space:", err);
+			logger.error("Error fetching search space:", err);
 		} finally {
 			setLoading(false);
 		}

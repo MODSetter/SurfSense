@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { logger } from "@/lib/logger";
 import { useEffect } from "react";
 import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
 
@@ -49,7 +50,7 @@ const TokenHandler = ({
 				// Redirect to the appropriate path
 				router.push(finalRedirectPath);
 			} catch (error) {
-				console.error("Error storing token in localStorage:", error);
+				logger.error("Error storing token in localStorage:", error);
 				// Even if there's an error, try to redirect to the default path
 				router.push(redirectPath);
 			}

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronUp, ExternalLink, Info, Sparkles, User } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -97,7 +98,7 @@ export function SetupPromptStep({ searchSpaceId, onComplete }: SetupPromptStepPr
 			setHasChanges(false);
 			onComplete?.();
 		} catch (error: any) {
-			console.error("Error saving prompt configuration:", error);
+			logger.error("Error saving prompt configuration:", error);
 			toast.error(error.message || "Failed to save prompt configuration");
 		} finally {
 			setSaving(false);
