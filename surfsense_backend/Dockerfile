@@ -35,9 +35,10 @@ RUN if [ "$(uname -m)" = "x86_64" ]; then \
         pip install --no-cache-dir torch torchvision torchaudio; \
     fi
 
-# Install python dependencies
+# Install python dependencies including test dependencies
 RUN pip install --no-cache-dir uv && \
-    uv pip install --system --no-cache-dir -e .
+    uv pip install --system --no-cache-dir -e . && \
+    uv pip install --system --no-cache-dir pytest pytest-asyncio pytest-cov
 
 # Set SSL environment variables dynamically
 RUN CERTIFI_PATH=$(python -c "import certifi; print(certifi.where())") && \

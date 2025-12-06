@@ -1,0 +1,155 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if backend files changed
+        id: backend-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'surfsense_backend/**'
+
+      - name: Set up Docker Buildx
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('surfsense_backend/Dockerfile', 'surfsense_backend/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Create test environment file
+        if: steps.backend-changes.outputs.backend == 'true'
+        run: |
+          cat > surfsense_backend/.env << 'EOF'
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/surfsense
+          CELERY_BROKER_URL=redis://redis:6379/0
+          CELERY_RESULT_BACKEND=redis://redis:6379/0
+          SECRET_KEY=test-secret-key-for-ci
+          TESTING=true
+          EOF
+
+      - name: Build and run tests with Docker Compose
+        if: steps.backend-changes.outputs.backend == 'true'
+        run: |
+          # Start dependencies
+          docker compose up -d db redis
+          
+          # Wait for services to be ready
+          echo "Waiting for PostgreSQL..."
+          timeout 60 bash -c 'until docker compose exec -T db pg_isready -U postgres; do sleep 2; done'
+          
+          echo "Waiting for Redis..."
+          timeout 30 bash -c 'until docker compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
+          
+          # Build backend (pytest is already in Dockerfile)
+          docker compose build backend
+          
+          # Run tests (pytest is baked into the image)
+          docker compose run --rm -e TESTING=true backend pytest tests/ -v --tb=short --cov=app --cov-report=xml
+          
+          # Copy coverage report from the container
+          docker compose run --rm backend cat /app/coverage.xml > surfsense_backend/coverage.xml || true
+
+      - name: Stop Docker Compose services
+        if: always() && steps.backend-changes.outputs.backend == 'true'
+        run: docker compose down -v
+
+      - name: Upload coverage reports
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: codecov/codecov-action@v4
+        with:
+          file: surfsense_backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if frontend files changed
+        id: frontend-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'surfsense_web/**'
+
+      - name: Setup Node.js
+        if: steps.frontend-changes.outputs.frontend == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        if: steps.frontend-changes.outputs.frontend == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Cache dependencies
+        if: steps.frontend-changes.outputs.frontend == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            surfsense_web/node_modules
+          key: pnpm-deps-${{ hashFiles('surfsense_web/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-deps-
+
+      - name: Install dependencies
+        if: steps.frontend-changes.outputs.frontend == 'true'
+        working-directory: surfsense_web
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        if: steps.frontend-changes.outputs.frontend == 'true'
+        working-directory: surfsense_web
+        run: pnpm test
+
+  test-gate:
+    name: Test Gate
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: always()
+
+    steps:
+      - name: Check test jobs status
+        run: |
+          if [[ "${{ needs.backend-tests.result }}" == "failure" || "${{ needs.frontend-tests.result }}" == "failure" ]]; then
+            echo "❌ Tests failed"
+            exit 1
+          else
+            echo "✅ All tests passed"
+          fi
