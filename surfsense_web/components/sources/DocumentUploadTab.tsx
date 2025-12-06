@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { getAuthHeaders } from "@/lib/auth-utils";
 import { GridPattern } from "./GridPattern";
 
 interface DocumentUploadTabProps {
@@ -168,9 +169,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/fileupload`,
 				{
 					method: "POST",
-					headers: {
-						Authorization: `Bearer ${window.localStorage.getItem("surfsense_bearer_token")}`,
-					},
+					headers: getAuthHeaders(),
 					body: formData,
 				}
 			);

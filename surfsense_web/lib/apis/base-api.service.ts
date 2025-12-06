@@ -1,5 +1,5 @@
-import { th } from "date-fns/locale";
 import type z from "zod";
+import { getBearerToken, handleUnauthorized } from "../auth-utils";
 import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
 
 enum ResponseType {
@@ -132,6 +132,8 @@ class BaseApiService {
 
 				switch (response.status) {
 					case 401:
+						// Use centralized auth handler for 401 responses
+						handleUnauthorized();
 						throw new AuthenticationError(
 							"You are not authenticated. Please login again.",
 							response.status,
@@ -261,6 +263,6 @@ class BaseApiService {
 }
 
 export const baseApiService = new BaseApiService(
-	typeof window !== "undefined" ? localStorage.getItem("surfsense_bearer_token") || "" : "",
+	typeof window !== "undefined" ? getBearerToken() || "" : "",
 	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || ""
 );

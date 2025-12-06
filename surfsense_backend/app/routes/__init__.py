@@ -5,6 +5,7 @@ from .airtable_add_connector_route import (
 )
 from .chats_routes import router as chats_router
 from .documents_routes import router as documents_router
+from .editor_routes import router as editor_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
 )
@@ -15,12 +16,15 @@ from .llm_config_routes import router as llm_config_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
 from .podcasts_routes import router as podcasts_router
+from .rbac_routes import router as rbac_router
 from .search_source_connectors_routes import router as search_source_connectors_router
 from .search_spaces_routes import router as search_spaces_router
 
 router = APIRouter()
 
 router.include_router(search_spaces_router)
+router.include_router(rbac_router)  # RBAC routes for roles, members, invites
+router.include_router(editor_router)
 router.include_router(documents_router)
 router.include_router(podcasts_router)
 router.include_router(chats_router)

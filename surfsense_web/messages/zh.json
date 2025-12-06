@@ -103,6 +103,7 @@
 		"surfsense_dashboard": "SurfSense 仪表盘",
 		"welcome_message": "欢迎来到您的 SurfSense 仪表盘。",
 		"your_search_spaces": "您的搜索空间",
+		"shared": "共享",
 		"create_search_space": "创建搜索空间",
 		"add_new_search_space": "添加新的搜索空间",
 		"loading": "加载中",
@@ -149,7 +150,8 @@
 		"podcasts": "播客",
 		"logs": "日志",
 		"all_search_spaces": "所有搜索空间",
-		"chat": "聊天"
+		"chat": "聊天",
+		"team": "团队"
 	},
 	"pricing": {
 		"title": "SurfSense 定价",
@@ -620,6 +622,7 @@
 		"documents": "文档",
 		"connectors": "连接器",
 		"podcasts": "播客",
+		"editor": "编辑器",
 		"logs": "日志",
 		"chats": "聊天",
 		"settings": "设置",

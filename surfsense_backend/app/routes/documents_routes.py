@@ -10,7 +10,9 @@ from app.db import (
     Chunk,
     Document,
     DocumentType,
+    Permission,
     SearchSpace,
+    SearchSpaceMembership,
     User,
     get_async_session,
 )
@@ -22,7 +24,7 @@ from app.schemas import (
     PaginatedResponse,
 )
 from app.users import current_active_user
-from app.utils.check_ownership import check_ownership
+from app.utils.rbac import check_permission
 
 try:
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
@@ -44,9 +46,19 @@ async def create_documents(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    """
+    Create new documents.
+    Requires DOCUMENTS_CREATE permission.
+    """
     try:
-        # Check if the user owns the search space
-        await check_ownership(session, SearchSpace, request.search_space_id, user)
+        # Check permission
+        await check_permission(
+            session,
+            user,
+            request.search_space_id,
+            Permission.DOCUMENTS_CREATE.value,
+            "You don't have permission to create documents in this search space",
+        )
 
         if request.document_type == DocumentType.EXTENSION:
             from app.tasks.celery_tasks.document_tasks import (
@@ -59,8 +71,12 @@ async def create_documents(
                     "metadata": {
                         "VisitedWebPageTitle": individual_document.metadata.VisitedWebPageTitle,
                         "VisitedWebPageURL": individual_document.metadata.VisitedWebPageURL,
+                        "BrowsingSessionId": individual_document.metadata.BrowsingSessionId,
+                        "VisitedWebPageDateWithTimeInISOString": individual_document.metadata.VisitedWebPageDateWithTimeInISOString,
+                        "VisitedWebPageVisitDurationInMilliseconds": individual_document.metadata.VisitedWebPageVisitDurationInMilliseconds,
+                        "VisitedWebPageReffererURL": individual_document.metadata.VisitedWebPageReffererURL,
                     },
-                    "content": individual_document.content,
+                    "pageContent": individual_document.pageContent,
                 }
                 process_extension_document_task.delay(
                     document_dict, request.search_space_id, str(user.id)
@@ -93,8 +109,19 @@ async def create_documents_file_upload(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    """
+    Upload files as documents.
+    Requires DOCUMENTS_CREATE permission.
+    """
     try:
-        await check_ownership(session, SearchSpace, search_space_id, user)
+        # Check permission
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.DOCUMENTS_CREATE.value,
+            "You don't have permission to create documents in this search space",
+        )
 
         if not files:
             raise HTTPException(status_code=400, detail="No files provided")
@@ -151,7 +178,8 @@ async def read_documents(
     user: User = Depends(current_active_user),
 ):
     """
-    List documents owned by the current user, with optional filtering and pagination.
+    List documents the user has access to, with optional filtering and pagination.
+    Requires DOCUMENTS_READ permission for the search space(s).
 
     Args:
         skip: Absolute number of items to skip from the beginning. If provided, it takes precedence over 'page'.
@@ -167,40 +195,49 @@ async def read_documents(
 
     Notes:
         - If both 'skip' and 'page' are provided, 'skip' is used.
-        - Results are scoped to documents owned by the current user.
+        - Results are scoped to documents in search spaces the user has membership in.
     """
     try:
         from sqlalchemy import func
 
-        query = (
-            select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
-        )
-
-        # Filter by search_space_id if provided
+        # If specific search_space_id, check permission
         if search_space_id is not None:
-            query = query.filter(Document.search_space_id == search_space_id)
+            await check_permission(
+                session,
+                user,
+                search_space_id,
+                Permission.DOCUMENTS_READ.value,
+                "You don't have permission to read documents in this search space",
+            )
+            query = select(Document).filter(Document.search_space_id == search_space_id)
+            count_query = (
+                select(func.count())
+                .select_from(Document)
+                .filter(Document.search_space_id == search_space_id)
+            )
+        else:
+            # Get documents from all search spaces user has membership in
+            query = (
+                select(Document)
+                .join(SearchSpace)
+                .join(SearchSpaceMembership)
+                .filter(SearchSpaceMembership.user_id == user.id)
+            )
+            count_query = (
+                select(func.count())
+                .select_from(Document)
+                .join(SearchSpace)
+                .join(SearchSpaceMembership)
+                .filter(SearchSpaceMembership.user_id == user.id)
+            )
 
         # Filter by document_types if provided
         if document_types is not None and document_types.strip():
             type_list = [t.strip() for t in document_types.split(",") if t.strip()]
             if type_list:
                 query = query.filter(Document.document_type.in_(type_list))
-
-        # Get total count
-        count_query = (
-            select(func.count())
-            .select_from(Document)
-            .join(SearchSpace)
-            .filter(SearchSpace.user_id == user.id)
-        )
-        if search_space_id is not None:
-            count_query = count_query.filter(
-                Document.search_space_id == search_space_id
-            )
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
                 count_query = count_query.filter(Document.document_type.in_(type_list))
+
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -235,6 +272,8 @@ async def read_documents(
             )
 
         return PaginatedResponse(items=api_documents, total=total)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch documents: {e!s}"
@@ -254,6 +293,7 @@ async def search_documents(
 ):
     """
     Search documents by title substring, optionally filtered by search_space_id and document_types.
+    Requires DOCUMENTS_READ permission for the search space(s).
 
     Args:
         title: Case-insensitive substring to match against document titles. Required.
@@ -275,37 +315,48 @@ async def search_documents(
     try:
         from sqlalchemy import func
 
-        query = (
-            select(Document).join(SearchSpace).filter(SearchSpace.user_id == user.id)
-        )
+        # If specific search_space_id, check permission
         if search_space_id is not None:
-            query = query.filter(Document.search_space_id == search_space_id)
+            await check_permission(
+                session,
+                user,
+                search_space_id,
+                Permission.DOCUMENTS_READ.value,
+                "You don't have permission to read documents in this search space",
+            )
+            query = select(Document).filter(Document.search_space_id == search_space_id)
+            count_query = (
+                select(func.count())
+                .select_from(Document)
+                .filter(Document.search_space_id == search_space_id)
+            )
+        else:
+            # Get documents from all search spaces user has membership in
+            query = (
+                select(Document)
+                .join(SearchSpace)
+                .join(SearchSpaceMembership)
+                .filter(SearchSpaceMembership.user_id == user.id)
+            )
+            count_query = (
+                select(func.count())
+                .select_from(Document)
+                .join(SearchSpace)
+                .join(SearchSpaceMembership)
+                .filter(SearchSpaceMembership.user_id == user.id)
+            )
 
         # Only search by title (case-insensitive)
         query = query.filter(Document.title.ilike(f"%{title}%"))
+        count_query = count_query.filter(Document.title.ilike(f"%{title}%"))
 
         # Filter by document_types if provided
         if document_types is not None and document_types.strip():
             type_list = [t.strip() for t in document_types.split(",") if t.strip()]
             if type_list:
                 query = query.filter(Document.document_type.in_(type_list))
-
-        # Get total count
-        count_query = (
-            select(func.count())
-            .select_from(Document)
-            .join(SearchSpace)
-            .filter(SearchSpace.user_id == user.id)
-        )
-        if search_space_id is not None:
-            count_query = count_query.filter(
-                Document.search_space_id == search_space_id
-            )
-        count_query = count_query.filter(Document.title.ilike(f"%{title}%"))
-        if document_types is not None and document_types.strip():
-            type_list = [t.strip() for t in document_types.split(",") if t.strip()]
-            if type_list:
                 count_query = count_query.filter(Document.document_type.in_(type_list))
+
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -340,6 +391,8 @@ async def search_documents(
             )
 
         return PaginatedResponse(items=api_documents, total=total)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to search documents: {e!s}"
@@ -353,7 +406,8 @@ async def get_document_type_counts(
     user: User = Depends(current_active_user),
 ):
     """
-    Get counts of documents by type for the current user.
+    Get counts of documents by type for search spaces the user has access to.
+    Requires DOCUMENTS_READ permission for the search space(s).
 
     Args:
         search_space_id: If provided, restrict counts to a specific search space.
@@ -366,20 +420,36 @@ async def get_document_type_counts(
     try:
         from sqlalchemy import func
 
-        query = (
-            select(Document.document_type, func.count(Document.id))
-            .join(SearchSpace)
-            .filter(SearchSpace.user_id == user.id)
-            .group_by(Document.document_type)
-        )
-
         if search_space_id is not None:
-            query = query.filter(Document.search_space_id == search_space_id)
+            # Check permission for specific search space
+            await check_permission(
+                session,
+                user,
+                search_space_id,
+                Permission.DOCUMENTS_READ.value,
+                "You don't have permission to read documents in this search space",
+            )
+            query = (
+                select(Document.document_type, func.count(Document.id))
+                .filter(Document.search_space_id == search_space_id)
+                .group_by(Document.document_type)
+            )
+        else:
+            # Get counts from all search spaces user has membership in
+            query = (
+                select(Document.document_type, func.count(Document.id))
+                .join(SearchSpace)
+                .join(SearchSpaceMembership)
+                .filter(SearchSpaceMembership.user_id == user.id)
+                .group_by(Document.document_type)
+            )
 
         result = await session.execute(query)
         type_counts = dict(result.all())
 
         return type_counts
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch document type counts: {e!s}"
@@ -394,6 +464,7 @@ async def get_document_by_chunk_id(
 ):
     """
     Retrieves a document based on a chunk ID, including all its chunks ordered by creation time.
+    Requires DOCUMENTS_READ permission for the search space.
     The document's embedding and chunk embeddings are excluded from the response.
     """
     try:
@@ -406,20 +477,28 @@ async def get_document_by_chunk_id(
                 status_code=404, detail=f"Chunk with id {chunk_id} not found"
             )
 
-        # Get the associated document and verify ownership
+        # Get the associated document
         document_result = await session.execute(
             select(Document)
             .options(selectinload(Document.chunks))
-            .join(SearchSpace)
-            .filter(Document.id == chunk.document_id, SearchSpace.user_id == user.id)
+            .filter(Document.id == chunk.document_id)
         )
         document = document_result.scalars().first()
 
         if not document:
             raise HTTPException(
                 status_code=404,
-                detail="Document not found or you don't have access to it",
+                detail="Document not found",
             )
+
+        # Check permission for the search space
+        await check_permission(
+            session,
+            user,
+            document.search_space_id,
+            Permission.DOCUMENTS_READ.value,
+            "You don't have permission to read documents in this search space",
+        )
 
         # Sort chunks by creation time
         sorted_chunks = sorted(document.chunks, key=lambda x: x.created_at)
@@ -449,11 +528,13 @@ async def read_document(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    """
+    Get a specific document by ID.
+    Requires DOCUMENTS_READ permission for the search space.
+    """
     try:
         result = await session.execute(
-            select(Document)
-            .join(SearchSpace)
-            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
+            select(Document).filter(Document.id == document_id)
         )
         document = result.scalars().first()
 
@@ -461,6 +542,15 @@ async def read_document(
             raise HTTPException(
                 status_code=404, detail=f"Document with id {document_id} not found"
             )
+
+        # Check permission for the search space
+        await check_permission(
+            session,
+            user,
+            document.search_space_id,
+            Permission.DOCUMENTS_READ.value,
+            "You don't have permission to read documents in this search space",
+        )
 
         # Convert database object to API-friendly format
         return DocumentRead(
@@ -472,6 +562,8 @@ async def read_document(
             created_at=document.created_at,
             search_space_id=document.search_space_id,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch document: {e!s}"
@@ -485,12 +577,13 @@ async def update_document(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    """
+    Update a document.
+    Requires DOCUMENTS_UPDATE permission for the search space.
+    """
     try:
-        # Query the document directly instead of using read_document function
         result = await session.execute(
-            select(Document)
-            .join(SearchSpace)
-            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
+            select(Document).filter(Document.id == document_id)
         )
         db_document = result.scalars().first()
 
@@ -498,6 +591,15 @@ async def update_document(
             raise HTTPException(
                 status_code=404, detail=f"Document with id {document_id} not found"
             )
+
+        # Check permission for the search space
+        await check_permission(
+            session,
+            user,
+            db_document.search_space_id,
+            Permission.DOCUMENTS_UPDATE.value,
+            "You don't have permission to update documents in this search space",
+        )
 
         update_data = document_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -530,12 +632,13 @@ async def delete_document(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
+    """
+    Delete a document.
+    Requires DOCUMENTS_DELETE permission for the search space.
+    """
     try:
-        # Query the document directly instead of using read_document function
         result = await session.execute(
-            select(Document)
-            .join(SearchSpace)
-            .filter(Document.id == document_id, SearchSpace.user_id == user.id)
+            select(Document).filter(Document.id == document_id)
         )
         document = result.scalars().first()
 
@@ -543,6 +646,15 @@ async def delete_document(
             raise HTTPException(
                 status_code=404, detail=f"Document with id {document_id} not found"
             )
+
+        # Check permission for the search space
+        await check_permission(
+            session,
+            user,
+            document.search_space_id,
+            Permission.DOCUMENTS_DELETE.value,
+            "You don't have permission to delete documents in this search space",
+        )
 
         await session.delete(document)
         await session.commit()

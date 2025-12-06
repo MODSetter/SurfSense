@@ -1,20 +1,19 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Bot, CheckCircle, MessageSquare, Sparkles } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { FileText, MessageSquare, UserPlus, Users } from "lucide-react";
+import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
-import { Logo } from "@/components/Logo";
-import { CompletionStep } from "@/components/onboard/completion-step";
-import { SetupLLMStep } from "@/components/onboard/setup-llm-step";
-import { SetupPromptStep } from "@/components/onboard/setup-prompt-step";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { OnboardActionCard } from "@/components/onboard/onboard-action-card";
+import { OnboardAdvancedSettings } from "@/components/onboard/onboard-advanced-settings";
+import { OnboardHeader } from "@/components/onboard/onboard-header";
+import { OnboardLLMSetup } from "@/components/onboard/onboard-llm-setup";
+import { OnboardLoading } from "@/components/onboard/onboard-loading";
+import { OnboardStats } from "@/components/onboard/onboard-stats";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
-
-const TOTAL_STEPS = 3;
+import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 const OnboardPage = () => {
 	const t = useTranslations("onboard");
@@ -28,10 +27,17 @@ const OnboardPage = () => {
 		preferences,
 		loading: preferencesLoading,
 		isOnboardingComplete,
+		updatePreferences,
 		refreshPreferences,
 	} = useLLMPreferences(searchSpaceId);
-	const [currentStep, setCurrentStep] = useState(1);
-	const [hasUserProgressed, setHasUserProgressed] = useState(false);
+
+	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
+	const [autoConfigComplete, setAutoConfigComplete] = useState(false);
+	const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+	const [showPromptSettings, setShowPromptSettings] = useState(false);
+
+	// Track if we've already attempted auto-configuration
+	const hasAttemptedAutoConfig = useRef(false);
 
 	// Track if onboarding was complete on initial mount
 	const wasCompleteOnMount = useRef<boolean | null>(null);
@@ -39,12 +45,13 @@ const OnboardPage = () => {
 
 	// Check if user is authenticated
 	useEffect(() => {
-		const token = localStorage.getItem("surfsense_bearer_token");
+		const token = getBearerToken();
 		if (!token) {
-			router.push("/login");
+			// Save current path and redirect to login
+			redirectToLogin();
 			return;
 		}
-	}, [router]);
+	}, []);
 
 	// Capture onboarding state on first load
 	useEffect(() => {
@@ -59,231 +66,215 @@ const OnboardPage = () => {
 		}
 	}, [preferencesLoading, configsLoading, globalConfigsLoading, isOnboardingComplete]);
 
-	// Track if user has progressed beyond step 1
+	// Redirect to dashboard if onboarding was already complete
 	useEffect(() => {
-		if (currentStep > 1) {
-			setHasUserProgressed(true);
-		}
-	}, [currentStep]);
-
-	// Redirect to dashboard if onboarding was already complete on mount (not during this session)
-	useEffect(() => {
-		// Only redirect if:
-		// 1. Onboarding was complete when page loaded
-		// 2. User hasn't progressed past step 1
-		// 3. All data is loaded
 		if (
 			wasCompleteOnMount.current === true &&
-			!hasUserProgressed &&
 			!preferencesLoading &&
 			!configsLoading &&
 			!globalConfigsLoading
 		) {
-			// Small delay to ensure the check is stable on initial load
 			const timer = setTimeout(() => {
 				router.push(`/dashboard/${searchSpaceId}`);
 			}, 300);
 			return () => clearTimeout(timer);
 		}
-	}, [
-		hasUserProgressed,
-		preferencesLoading,
-		configsLoading,
-		globalConfigsLoading,
-		router,
-		searchSpaceId,
-	]);
+	}, [preferencesLoading, configsLoading, globalConfigsLoading, router, searchSpaceId]);
 
-	const progress = (currentStep / TOTAL_STEPS) * 100;
-
-	const stepTitles = [t("setup_llm_configuration"), "Configure AI Responses", t("setup_complete")];
-
-	const stepDescriptions = [
-		t("configure_providers_and_assign_roles"),
-		"Customize how the AI responds to your queries (Optional)",
-		t("all_set"),
-	];
-
-	// User can proceed to step 2 if all roles are assigned
-	const canProceedToStep2 =
-		!preferencesLoading &&
-		preferences.long_context_llm_id &&
-		preferences.fast_llm_id &&
-		preferences.strategic_llm_id;
-
-	// User can always proceed from step 2 to step 3 (prompt config is optional)
-	const canProceedToStep3 = true;
-
-	const handleNext = () => {
-		if (currentStep < TOTAL_STEPS) {
-			setCurrentStep(currentStep + 1);
+	// Auto-configure LLM roles if global configs are available
+	const autoConfigureLLMs = useCallback(async () => {
+		if (hasAttemptedAutoConfig.current) return;
+		if (globalConfigs.length === 0) return;
+		if (isOnboardingComplete()) {
+			setAutoConfigComplete(true);
+			return;
 		}
-	};
 
-	const handlePrevious = () => {
-		if (currentStep > 1) {
-			setCurrentStep(currentStep - 1);
+		hasAttemptedAutoConfig.current = true;
+		setIsAutoConfiguring(true);
+
+		try {
+			const allConfigs = [...globalConfigs, ...llmConfigs];
+
+			if (allConfigs.length === 0) {
+				setIsAutoConfiguring(false);
+				return;
+			}
+
+			// Use first available config for all roles
+			const defaultConfigId = allConfigs[0].id;
+
+			const newPreferences = {
+				long_context_llm_id: defaultConfigId,
+				fast_llm_id: defaultConfigId,
+				strategic_llm_id: defaultConfigId,
+			};
+
+			const success = await updatePreferences(newPreferences);
+
+			if (success) {
+				await refreshPreferences();
+				setAutoConfigComplete(true);
+				toast.success("AI models configured automatically!", {
+					description: "You can customize these in advanced settings.",
+				});
+			}
+		} catch (error) {
+			console.error("Auto-configuration failed:", error);
+		} finally {
+			setIsAutoConfiguring(false);
 		}
-	};
+	}, [globalConfigs, llmConfigs, isOnboardingComplete, updatePreferences, refreshPreferences]);
 
-	if (configsLoading || preferencesLoading || globalConfigsLoading) {
+	// Trigger auto-configuration once data is loaded
+	useEffect(() => {
+		if (!configsLoading && !globalConfigsLoading && !preferencesLoading) {
+			autoConfigureLLMs();
+		}
+	}, [configsLoading, globalConfigsLoading, preferencesLoading, autoConfigureLLMs]);
+
+	const allConfigs = [...globalConfigs, ...llmConfigs];
+	const isReady = autoConfigComplete || isOnboardingComplete();
+
+	// Loading state
+	if (configsLoading || preferencesLoading || globalConfigsLoading || isAutoConfiguring) {
 		return (
-			<div className="flex flex-col items-center justify-center min-h-screen">
-				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
-					<CardContent className="flex flex-col items-center justify-center py-12">
-						<Bot className="h-12 w-12 text-primary animate-pulse mb-4" />
-						<p className="text-sm text-muted-foreground">{t("loading_config")}</p>
-					</CardContent>
-				</Card>
-			</div>
+			<OnboardLoading
+				title={isAutoConfiguring ? "Setting up your AI assistant..." : t("loading_config")}
+				subtitle={
+					isAutoConfiguring
+						? "Auto-configuring optimal settings for you"
+						: "Please wait while we load your configuration"
+				}
+			/>
 		);
 	}
 
+	// No configs available - show LLM setup
+	if (allConfigs.length === 0) {
+		return (
+			<OnboardLLMSetup
+				searchSpaceId={searchSpaceId}
+				title={t("welcome_title")}
+				configTitle={t("setup_llm_configuration")}
+				configDescription={t("configure_providers_and_assign_roles")}
+				onConfigCreated={refreshConfigs}
+				onConfigDeleted={refreshConfigs}
+				onPreferencesUpdated={refreshPreferences}
+			/>
+		);
+	}
+
+	// Main onboarding view
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.5 }}
-				className="w-full max-w-4xl"
-			>
-				{/* Header */}
-				<div className="text-center mb-8">
-					<div className="flex items-center justify-center mb-4">
-						<Logo className="w-12 h-12 mr-3 rounded-full" />
-						<h1 className="text-3xl font-bold">{t("welcome_title")}</h1>
-					</div>
-					<p className="text-muted-foreground text-lg">{t("welcome_subtitle")}</p>
-				</div>
+		<div className="min-h-screen bg-background">
+			<div className="flex items-center justify-center min-h-screen p-4 md:p-8">
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					transition={{ duration: 0.6 }}
+					className="w-full max-w-5xl"
+				>
+					{/* Header */}
+					<OnboardHeader
+						title={t("welcome_title")}
+						subtitle={
+							isReady ? "You're all set! Choose what you'd like to do next." : t("welcome_subtitle")
+						}
+						isReady={isReady}
+					/>
 
-				{/* Progress */}
-				<Card className="mb-8 bg-background/60 backdrop-blur-sm">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between mb-4">
-							<div className="text-sm font-medium">
-								{t("step_of", { current: currentStep, total: TOTAL_STEPS })}
-							</div>
-							<div className="text-sm text-muted-foreground">
-								{t("percent_complete", { percent: Math.round(progress) })}
-							</div>
-						</div>
-						<Progress value={progress} className="mb-4" />
-						<div className="grid grid-cols-3 gap-4">
-							{Array.from({ length: TOTAL_STEPS }, (_, i) => {
-								const stepNum = i + 1;
-								const isCompleted = stepNum < currentStep;
-								const isCurrent = stepNum === currentStep;
+					{/* Quick Stats */}
+					<OnboardStats
+						globalConfigsCount={globalConfigs.length}
+						userConfigsCount={llmConfigs.length}
+					/>
 
-								return (
-									<div key={stepNum} className="flex items-center space-x-2">
-										<div
-											className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-												isCompleted
-													? "bg-primary text-primary-foreground"
-													: isCurrent
-														? "bg-primary/20 text-primary border-2 border-primary"
-														: "bg-muted text-muted-foreground"
-											}`}
-										>
-											{isCompleted ? <CheckCircle className="w-4 h-4" /> : stepNum}
-										</div>
-										<div className="flex-1 min-w-0">
-											<p
-												className={`text-sm font-medium truncate ${
-													isCurrent ? "text-foreground" : "text-muted-foreground"
-												}`}
-											>
-												{stepTitles[i]}
-											</p>
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					</CardContent>
-				</Card>
+					{/* Action Cards */}
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ delay: 0.6 }}
+						className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"
+					>
+						<OnboardActionCard
+							title="Manage Team"
+							description="Invite team members and collaborate on your search space"
+							icon={Users}
+							features={[
+								"Invite team members",
+								"Assign roles & permissions",
+								"Collaborate together",
+							]}
+							buttonText="Manage Team"
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/team`)}
+							colorScheme="emerald"
+							delay={0.7}
+						/>
 
-				{/* Step Content */}
-				<Card className="min-h-[500px] bg-background/60 backdrop-blur-sm">
-					<CardHeader className="text-center">
-						<CardTitle className="text-2xl flex items-center justify-center gap-2">
-							{currentStep === 1 && <Sparkles className="w-6 h-6" />}
-							{currentStep === 2 && <MessageSquare className="w-6 h-6" />}
-							{currentStep === 3 && <CheckCircle className="w-6 h-6" />}
-							{stepTitles[currentStep - 1]}
-						</CardTitle>
-						<CardDescription className="text-base">
-							{stepDescriptions[currentStep - 1]}
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<AnimatePresence mode="wait">
-							<motion.div
-								key={currentStep}
-								initial={{ opacity: 0, x: 20 }}
-								animate={{ opacity: 1, x: 0 }}
-								exit={{ opacity: 0, x: -20 }}
-								transition={{ duration: 0.3 }}
-							>
-								{currentStep === 1 && (
-									<SetupLLMStep
-										searchSpaceId={searchSpaceId}
-										onConfigCreated={refreshConfigs}
-										onConfigDeleted={refreshConfigs}
-										onPreferencesUpdated={refreshPreferences}
-									/>
-								)}
-								{currentStep === 2 && (
-									<SetupPromptStep searchSpaceId={searchSpaceId} onComplete={handleNext} />
-								)}
-								{currentStep === 3 && <CompletionStep searchSpaceId={searchSpaceId} />}
-							</motion.div>
-						</AnimatePresence>
-					</CardContent>
-				</Card>
+						<OnboardActionCard
+							title="Add Sources"
+							description="Connect your data sources to start building your knowledge base"
+							icon={FileText}
+							features={[
+								"Connect documents and files",
+								"Import from various sources",
+								"Build your knowledge base",
+							]}
+							buttonText="Add Sources"
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/sources/add`)}
+							colorScheme="blue"
+							delay={0.8}
+						/>
 
-				{/* Navigation */}
-				<div className="flex justify-between mt-8">
-					{currentStep === 1 ? (
-						<>
-							<div />
-							<Button
-								onClick={handleNext}
-								disabled={!canProceedToStep2}
-								className="flex items-center gap-2"
+						<OnboardActionCard
+							title="Start Chatting"
+							description="Jump right into the AI researcher and start asking questions"
+							icon={MessageSquare}
+							features={[
+								"AI-powered conversations",
+								"Research and explore topics",
+								"Get instant insights",
+							]}
+							buttonText="Start Chatting"
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)}
+							colorScheme="violet"
+							delay={0.9}
+						/>
+					</motion.div>
+
+					{/* Advanced Settings */}
+					<OnboardAdvancedSettings
+						searchSpaceId={searchSpaceId}
+						showLLMSettings={showAdvancedSettings}
+						setShowLLMSettings={setShowAdvancedSettings}
+						showPromptSettings={showPromptSettings}
+						setShowPromptSettings={setShowPromptSettings}
+						onConfigCreated={refreshConfigs}
+						onConfigDeleted={refreshConfigs}
+						onPreferencesUpdated={refreshPreferences}
+					/>
+
+					{/* Footer */}
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ delay: 1.1 }}
+						className="text-center mt-10 text-muted-foreground text-sm"
+					>
+						<p>
+							You can always adjust these settings later in{" "}
+							<button
+								type="button"
+								onClick={() => router.push(`/dashboard/${searchSpaceId}/settings`)}
+								className="text-primary hover:underline underline-offset-2 transition-colors"
 							>
-								{t("next")}
-								<ArrowRight className="w-4 h-4" />
-							</Button>
-						</>
-					) : currentStep === 2 ? (
-						<>
-							<Button
-								variant="outline"
-								onClick={handlePrevious}
-								className="flex items-center gap-2"
-							>
-								<ArrowLeft className="w-4 h-4" />
-								{t("previous")}
-							</Button>
-							{/* Next button is handled by SetupPromptStep component */}
-							<div />
-						</>
-					) : (
-						<>
-							<Button
-								variant="outline"
-								onClick={handlePrevious}
-								className="flex items-center gap-2"
-							>
-								<ArrowLeft className="w-4 h-4" />
-								{t("previous")}
-							</Button>
-							<div />
-						</>
-					)}
-				</div>
-			</motion.div>
+								Settings
+							</button>
+						</p>
+					</motion.div>
+				</motion.div>
+			</div>
 		</div>
 	);
 };

@@ -1,28 +1,28 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 interface DashboardLayoutProps {
 	children: React.ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-	const router = useRouter();
 	const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
 	useEffect(() => {
 		// Check if user is authenticated
-		const token = localStorage.getItem("surfsense_bearer_token");
+		const token = getBearerToken();
 		if (!token) {
-			router.push("/login");
+			// Save current path and redirect to login
+			redirectToLogin();
 			return;
 		}
 		setIsCheckingAuth(false);
-	}, [router]);
+	}, []);
 
 	// Show loading screen while checking authentication
 	if (isCheckingAuth) {

@@ -103,6 +103,7 @@
 		"surfsense_dashboard": "SurfSense Dashboard",
 		"welcome_message": "Welcome to your SurfSense dashboard.",
 		"your_search_spaces": "Your Search Spaces",
+		"shared": "Shared",
 		"create_search_space": "Create Search Space",
 		"add_new_search_space": "Add New Search Space",
 		"loading": "Loading",
@@ -149,7 +150,8 @@
 		"podcasts": "Podcasts",
 		"logs": "Logs",
 		"all_search_spaces": "All Search Spaces",
-		"chat": "Chat"
+		"chat": "Chat",
+		"team": "Team"
 	},
 	"pricing": {
 		"title": "SurfSense Pricing",
@@ -620,6 +622,7 @@
 		"documents": "Documents",
 		"connectors": "Connectors",
 		"podcasts": "Podcasts",
+		"editor": "Editor",
 		"logs": "Logs",
 		"chats": "Chats",
 		"settings": "Settings",

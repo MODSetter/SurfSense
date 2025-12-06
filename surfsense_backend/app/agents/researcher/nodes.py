@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Additional imports for document fetching
 from sqlalchemy.future import select
 
-from app.db import Document, SearchSpace
+from app.db import Document
 from app.services.connector_service import ConnectorService
 from app.services.query_service import QueryService
 
@@ -92,19 +92,18 @@ def extract_sources_from_documents(
 
 
 async def fetch_documents_by_ids(
-    document_ids: list[int], user_id: str, db_session: AsyncSession
+    document_ids: list[int], search_space_id: int, db_session: AsyncSession
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
-    Fetch documents by their IDs with ownership check using DOCUMENTS mode approach.
+    Fetch documents by their IDs within a search space.
 
-    This function ensures that only documents belonging to the user are fetched,
-    providing security by checking ownership through SearchSpace association.
+    This function ensures that only documents belonging to the search space are fetched.
     Similar to SearchMode.DOCUMENTS, it fetches full documents and concatenates their chunks.
     Also creates source objects for UI display, grouped by document type.
 
     Args:
         document_ids: List of document IDs to fetch
-        user_id: The user ID to check ownership
+        search_space_id: The search space ID to filter by
         db_session: The database session
 
     Returns:
@@ -114,11 +113,12 @@ async def fetch_documents_by_ids(
         return [], []
 
     try:
-        # Query documents with ownership check
+        # Query documents filtered by search space
         result = await db_session.execute(
-            select(Document)
-            .join(SearchSpace)
-            .filter(Document.id.in_(document_ids), SearchSpace.user_id == user_id)
+            select(Document).filter(
+                Document.id.in_(document_ids),
+                Document.search_space_id == search_space_id,
+            )
         )
         documents = result.scalars().all()
 
@@ -515,7 +515,6 @@ async def fetch_documents_by_ids(
 
 async def fetch_relevant_documents(
     research_questions: list[str],
-    user_id: str,
     search_space_id: int,
     db_session: AsyncSession,
     connectors_to_search: list[str],
@@ -536,7 +535,6 @@ async def fetch_relevant_documents(
 
     Args:
         research_questions: List of research questions to find documents for
-        user_id: The user ID
         search_space_id: The search space ID
         db_session: The database session
         connectors_to_search: List of connectors to search
@@ -619,7 +617,6 @@ async def fetch_relevant_documents(
                         youtube_chunks,
                     ) = await connector_service.search_youtube(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -646,7 +643,6 @@ async def fetch_relevant_documents(
                         extension_chunks,
                     ) = await connector_service.search_extension(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -673,7 +669,6 @@ async def fetch_relevant_documents(
                         crawled_urls_chunks,
                     ) = await connector_service.search_crawled_urls(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -697,7 +692,6 @@ async def fetch_relevant_documents(
                 elif connector == "FILE":
                     source_object, files_chunks = await connector_service.search_files(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -721,7 +715,6 @@ async def fetch_relevant_documents(
                 elif connector == "SLACK_CONNECTOR":
                     source_object, slack_chunks = await connector_service.search_slack(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -748,7 +741,6 @@ async def fetch_relevant_documents(
                         notion_chunks,
                     ) = await connector_service.search_notion(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -775,7 +767,6 @@ async def fetch_relevant_documents(
                         github_chunks,
                     ) = await connector_service.search_github(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -802,7 +793,6 @@ async def fetch_relevant_documents(
                         linear_chunks,
                     ) = await connector_service.search_linear(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -829,7 +819,6 @@ async def fetch_relevant_documents(
                         tavily_chunks,
                     ) = await connector_service.search_tavily(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                     )
@@ -855,7 +844,6 @@ async def fetch_relevant_documents(
                         searx_chunks,
                     ) = await connector_service.search_searxng(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                     )
@@ -881,7 +869,6 @@ async def fetch_relevant_documents(
                         linkup_chunks,
                     ) = await connector_service.search_linkup(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         mode=linkup_mode,
                     )
@@ -907,7 +894,6 @@ async def fetch_relevant_documents(
                         baidu_chunks,
                     ) = await connector_service.search_baidu(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                     )
@@ -933,7 +919,6 @@ async def fetch_relevant_documents(
                         discord_chunks,
                     ) = await connector_service.search_discord(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -955,7 +940,6 @@ async def fetch_relevant_documents(
                 elif connector == "JIRA_CONNECTOR":
                     source_object, jira_chunks = await connector_service.search_jira(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -981,7 +965,6 @@ async def fetch_relevant_documents(
                         calendar_chunks,
                     ) = await connector_service.search_google_calendar(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -1007,7 +990,6 @@ async def fetch_relevant_documents(
                         airtable_chunks,
                     ) = await connector_service.search_airtable(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -1033,7 +1015,6 @@ async def fetch_relevant_documents(
                         gmail_chunks,
                     ) = await connector_service.search_google_gmail(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -1059,7 +1040,6 @@ async def fetch_relevant_documents(
                         confluence_chunks,
                     ) = await connector_service.search_confluence(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -1085,7 +1065,6 @@ async def fetch_relevant_documents(
                         clickup_chunks,
                     ) = await connector_service.search_clickup(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -1112,7 +1091,6 @@ async def fetch_relevant_documents(
                         luma_chunks,
                     ) = await connector_service.search_luma(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -1139,7 +1117,6 @@ async def fetch_relevant_documents(
                         elasticsearch_chunks,
                     ) = await connector_service.search_elasticsearch(
                         user_query=reformulated_query,
-                        user_id=user_id,
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
@@ -1315,7 +1292,6 @@ async def reformulate_user_query(
         reformulated_query = await QueryService.reformulate_query_with_chat_history(
             user_query=user_query,
             session=state.db_session,
-            user_id=configuration.user_id,
             search_space_id=configuration.search_space_id,
             chat_history_str=chat_history_str,
         )
@@ -1389,7 +1365,7 @@ async def handle_qna_workflow(
                 user_selected_documents,
             ) = await fetch_documents_by_ids(
                 document_ids=configuration.document_ids_to_add_in_context,
-                user_id=configuration.user_id,
+                search_space_id=configuration.search_space_id,
                 db_session=state.db_session,
             )
 
@@ -1404,7 +1380,7 @@ async def handle_qna_workflow(
 
         # Create connector service using state db_session
         connector_service = ConnectorService(
-            state.db_session, user_id=configuration.user_id
+            state.db_session, search_space_id=configuration.search_space_id
         )
         await connector_service.initialize_counter()
 
@@ -1413,7 +1389,6 @@ async def handle_qna_workflow(
 
         relevant_documents = await fetch_relevant_documents(
             research_questions=research_questions,
-            user_id=configuration.user_id,
             search_space_id=configuration.search_space_id,
             db_session=state.db_session,
             connectors_to_search=configuration.connectors_to_search,
@@ -1459,14 +1434,18 @@ async def handle_qna_workflow(
             "user_query": user_query,  # Use the reformulated query
             "reformulated_query": reformulated_query,
             "relevant_documents": all_documents,  # Use combined documents
-            "user_id": configuration.user_id,
             "search_space_id": configuration.search_space_id,
             "language": configuration.language,
         }
     }
 
     # Create the state for the QNA agent (it has a different state structure)
-    qna_state = {"db_session": state.db_session, "chat_history": state.chat_history}
+    # Pass streaming_service so the QNA agent can stream tokens directly
+    qna_state = {
+        "db_session": state.db_session,
+        "chat_history": state.chat_history,
+        "streaming_service": streaming_service,
+    }
 
     try:
         writer(
@@ -1481,36 +1460,26 @@ async def handle_qna_workflow(
         complete_content = ""
         captured_reranked_documents = []
 
-        # Call the QNA agent with streaming
-        async for _chunk_type, chunk in qna_agent_graph.astream(
-            qna_state, qna_config, stream_mode=["values"]
+        # Call the QNA agent with both custom and values streaming modes
+        # - "custom" captures token-by-token streams from answer_question via writer()
+        # - "values" captures state updates including final_answer and reranked_documents
+        async for stream_mode, chunk in qna_agent_graph.astream(
+            qna_state, qna_config, stream_mode=["custom", "values"]
         ):
-            if "final_answer" in chunk:
-                new_content = chunk["final_answer"]
-                if new_content and new_content != complete_content:
-                    # Extract only the new content (delta)
-                    delta = new_content[len(complete_content) :]
-                    complete_content = new_content
+            if stream_mode == "custom":
+                # Handle custom stream events (token chunks from answer_question)
+                if isinstance(chunk, dict) and "yield_value" in chunk:
+                    # Forward the streamed token to the parent writer
+                    writer(chunk)
+            elif stream_mode == "values" and isinstance(chunk, dict):
+                # Handle state value updates
+                # Capture the final answer from state
+                if chunk.get("final_answer"):
+                    complete_content = chunk["final_answer"]
 
-                    # Stream the real-time answer if there's new content
-                    if delta:
-                        # Update terminal with progress
-                        word_count = len(complete_content.split())
-                        writer(
-                            {
-                                "yield_value": streaming_service.format_terminal_info_delta(
-                                    f"✍️ Writing answer... ({word_count} words)"
-                                )
-                            }
-                        )
-
-                        writer(
-                            {"yield_value": streaming_service.format_text_chunk(delta)}
-                        )
-
-            # Capture reranked documents from QNA agent for further question generation
-            if "reranked_documents" in chunk:
-                captured_reranked_documents = chunk["reranked_documents"]
+                # Capture reranked documents from QNA agent for further question generation
+                if chunk.get("reranked_documents"):
+                    captured_reranked_documents = chunk["reranked_documents"]
 
         # Set default if no content was received
         if not complete_content:
@@ -1551,12 +1520,11 @@ async def generate_further_questions(
     Returns:
         Dict containing the further questions in the "further_questions" key for state update.
     """
-    from app.services.llm_service import get_user_fast_llm
+    from app.services.llm_service import get_fast_llm
 
     # Get configuration and state data
     configuration = Configuration.from_runnable_config(config)
     chat_history = state.chat_history
-    user_id = configuration.user_id
     search_space_id = configuration.search_space_id
     streaming_service = state.streaming_service
 
@@ -1571,10 +1539,10 @@ async def generate_further_questions(
         }
     )
 
-    # Get user's fast LLM
-    llm = await get_user_fast_llm(state.db_session, user_id, search_space_id)
+    # Get search space's fast LLM
+    llm = await get_fast_llm(state.db_session, search_space_id)
     if not llm:
-        error_message = f"No fast LLM configured for user {user_id} in search space {search_space_id}"
+        error_message = f"No fast LLM configured for search space {search_space_id}"
         print(error_message)
         writer({"yield_value": streaming_service.format_error(error_message)})
 

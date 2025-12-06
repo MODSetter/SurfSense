@@ -15,9 +15,17 @@ interface JsonMetadataViewerProps {
 	title: string;
 	metadata: any;
 	trigger?: React.ReactNode;
+	open?: boolean;
+	onOpenChange?: (open: boolean) => void;
 }
 
-export function JsonMetadataViewer({ title, metadata, trigger }: JsonMetadataViewerProps) {
+export function JsonMetadataViewer({
+	title,
+	metadata,
+	trigger,
+	open,
+	onOpenChange,
+}: JsonMetadataViewerProps) {
 	// Ensure metadata is a valid object
 	const jsonData = React.useMemo(() => {
 		if (!metadata) return {};
@@ -35,6 +43,23 @@ export function JsonMetadataViewer({ title, metadata, trigger }: JsonMetadataVie
 		}
 	}, [metadata]);
 
+	// Controlled mode: when open and onOpenChange are provided
+	if (open !== undefined && onOpenChange !== undefined) {
+		return (
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>{title} - Metadata</DialogTitle>
+					</DialogHeader>
+					<div className="mt-4 p-4 bg-muted/30 rounded-md">
+						<JsonView data={jsonData} style={defaultStyles} />
+					</div>
+				</DialogContent>
+			</Dialog>
+		);
+	}
+
+	// Uncontrolled mode: when using trigger
 	return (
 		<Dialog>
 			<DialogTrigger asChild>

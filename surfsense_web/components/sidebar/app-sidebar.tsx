@@ -17,6 +17,7 @@ import {
 	SquareTerminal,
 	Trash2,
 	Undo2,
+	Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -54,6 +55,7 @@ export const iconMap: Record<string, LucideIcon> = {
 	Trash2,
 	Podcast,
 	FileText,
+	Users,
 };
 
 const defaultData = {

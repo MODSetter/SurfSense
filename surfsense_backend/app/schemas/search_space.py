@@ -34,3 +34,10 @@ class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
     qna_custom_instructions: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SearchSpaceWithStats(SearchSpaceRead):
+    """Extended search space info with member count and ownership status."""
+
+    member_count: int = 1
+    is_owner: bool = False
