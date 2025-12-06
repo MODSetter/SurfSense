@@ -1,6 +1,7 @@
 "use client";
 
 import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, X } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -84,7 +85,7 @@ export function PodcastPlayer({
 					clearTimeout(timeoutId);
 				}
 			} catch (error) {
-				console.error("Error fetching podcast:", error);
+				logger.error("Error fetching podcast:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to load podcast audio.");
 				setAudioSrc(undefined);
 			} finally {
@@ -309,9 +310,9 @@ export function PodcastPlayer({
 					onLoadedMetadata={handleMetadataLoaded}
 					onEnded={() => setIsPlaying(false)}
 					onError={(e) => {
-						console.error("Audio error:", e);
+						logger.error("Audio error:", e);
 						if (audioRef.current?.error) {
-							console.error("Audio error code:", audioRef.current.error.code);
+							logger.error("Audio error code:", audioRef.current.error.code);
 							if (audioRef.current.error.code !== audioRef.current.error.MEDIA_ERR_ABORTED) {
 								toast.error("Error playing audio. Please try again.");
 							}

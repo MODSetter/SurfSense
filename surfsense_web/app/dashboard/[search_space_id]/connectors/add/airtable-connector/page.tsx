@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -61,7 +62,7 @@ export default function AirtableConnectorPage() {
 			// Redirect to Airtable for authentication
 			window.location.href = data.auth_url;
 		} catch (error) {
-			console.error("Error connecting to Airtable:", error);
+			logger.error("Error connecting to Airtable:", error);
 			toast.error("Failed to connect to Airtable");
 		} finally {
 			setIsConnecting(false);

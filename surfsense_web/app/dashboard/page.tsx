@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Loader2, Plus, Search, Trash2, UserCheck, Users } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -187,7 +188,7 @@ const DashboardPage = () => {
 			// Refresh the search spaces list after successful deletion
 			refreshSearchSpaces();
 		} catch (error) {
-			console.error("Error deleting search space:", error);
+			logger.error("Error deleting search space:", error);
 			toast.error("An error occurred while deleting the search space");
 			return;
 		}

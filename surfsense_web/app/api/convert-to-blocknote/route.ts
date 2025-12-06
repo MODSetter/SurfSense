@@ -1,4 +1,5 @@
 import { ServerBlockNoteEditor } from "@blocknote/server-util";
+import { logger } from "@/lib/logger";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -10,11 +11,11 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Log raw markdown input before conversion
-		// console.log(`\n${"=".repeat(80)}`);
-		// console.log("RAW MARKDOWN INPUT (BEFORE CONVERSION):");
-		// console.log("=".repeat(80));
-		// console.log(markdown);
-		// console.log(`${"=".repeat(80)}\n`);
+		// logger.info(`\n${"=".repeat(80)}`);
+		// logger.info("RAW MARKDOWN INPUT (BEFORE CONVERSION):");
+		// logger.info("=".repeat(80));
+		// logger.info(markdown);
+		// logger.info(`${"=".repeat(80)}\n`);
 
 		// Create server-side editor instance
 		const editor = ServerBlockNoteEditor.create();
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
 		return NextResponse.json({ blocknote_document: blocks });
 	} catch (error: any) {
-		console.error("Failed to convert markdown to BlockNote:", error);
+		logger.error("Failed to convert markdown to BlockNote:", error);
 		return NextResponse.json(
 			{
 				error: "Failed to convert markdown to BlockNote blocks",

@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { logger } from "@/lib/logger";
 import * as RadioGroup from "@radix-ui/react-radio-group";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
@@ -190,7 +191,7 @@ export default function ElasticsearchConnectorPage() {
 			toast.success("Elasticsearch connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		} catch (error) {
-			console.error("Error creating connector:", error);
+			logger.error("Error creating connector:", error);
 			toast.error(error instanceof Error ? error.message : "Failed to create connector");
 		} finally {
 			setIsSubmitting(false);

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { normalizeListResponse } from "@/lib/pagination";
@@ -97,7 +98,7 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 				setIsLoaded(true);
 			} catch (err: any) {
 				setError(err.message || "Failed to fetch documents");
-				console.error("Error fetching documents:", err);
+				logger.error("Error fetching documents:", err);
 			} finally {
 				setLoading(false);
 			}
@@ -172,7 +173,7 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 				setError(null);
 			} catch (err: any) {
 				setError(err.message || "Failed to search documents");
-				console.error("Error searching documents:", err);
+				logger.error("Error searching documents:", err);
 			} finally {
 				setLoading(false);
 			}
@@ -200,7 +201,7 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 				return true;
 			} catch (err: any) {
 				toast.error(err.message || "Failed to delete document");
-				console.error("Error deleting document:", err);
+				logger.error("Error deleting document:", err);
 				return false;
 			}
 		},
@@ -226,7 +227,7 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 			const counts = await response.json();
 			return counts as Record<string, number>;
 		} catch (err: any) {
-			console.error("Error fetching document type counts:", err);
+			logger.error("Error fetching document type counts:", err);
 			return {};
 		}
 	}, [searchSpaceId]);

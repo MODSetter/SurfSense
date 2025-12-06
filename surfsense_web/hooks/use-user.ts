@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
@@ -40,7 +41,7 @@ export function useUser() {
 				setError(null);
 			} catch (err: any) {
 				setError(err.message || "Failed to fetch user");
-				console.error("Error fetching user:", err);
+				logger.error("Error fetching user:", err);
 			} finally {
 				setLoading(false);
 			}

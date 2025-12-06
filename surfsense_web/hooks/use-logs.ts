@@ -112,7 +112,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				return data;
 			} catch (err: any) {
 				setError(err.message || "Failed to fetch logs");
-				console.error("Error fetching logs:", err);
+				logger.error("Error fetching logs:", err);
 				throw err;
 			} finally {
 				setLoading(false);
@@ -163,7 +163,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 			return newLog;
 		} catch (err: any) {
 			toast.error(err.message || "Failed to create log");
-			console.error("Error creating log:", err);
+			logger.error("Error creating log:", err);
 			throw err;
 		}
 	}, []);
@@ -195,7 +195,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				return updatedLog;
 			} catch (err: any) {
 				toast.error(err.message || "Failed to update log");
-				console.error("Error updating log:", err);
+				logger.error("Error updating log:", err);
 				throw err;
 			}
 		},
@@ -220,7 +220,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 			return true;
 		} catch (err: any) {
 			toast.error(err.message || "Failed to delete log");
-			console.error("Error deleting log:", err);
+			logger.error("Error deleting log:", err);
 			return false;
 		}
 	}, []);
@@ -241,7 +241,7 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 			return await response.json();
 		} catch (err: any) {
 			toast.error(err.message || "Failed to fetch log");
-			console.error("Error fetching log:", err);
+			logger.error("Error fetching log:", err);
 			throw err;
 		}
 	}, []);
@@ -286,7 +286,7 @@ export function useLogsSummary(searchSpaceId: number, hours: number = 24) {
 			return data;
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch logs summary");
-			console.error("Error fetching logs summary:", err);
+			logger.error("Error fetching logs summary:", err);
 			throw err;
 		} finally {
 			setLoading(false);

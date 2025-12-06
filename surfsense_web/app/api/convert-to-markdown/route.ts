@@ -1,4 +1,5 @@
 import { ServerBlockNoteEditor } from "@blocknote/server-util";
+import { logger } from "@/lib/logger";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 			markdown,
 		});
 	} catch (error) {
-		console.error("Failed to convert BlockNote to markdown:", error);
+		logger.error("Failed to convert BlockNote to markdown:", error);
 		return NextResponse.json(
 			{ error: "Failed to convert BlockNote blocks to markdown" },
 			{ status: 500 }

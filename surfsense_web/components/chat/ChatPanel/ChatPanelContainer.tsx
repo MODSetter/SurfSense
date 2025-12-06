@@ -1,6 +1,7 @@
 "use client";
 import { useAtomValue } from "jotai";
 import { LoaderIcon, TriangleAlert } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
@@ -27,7 +28,7 @@ export function ChatPanelContainer() {
 			toast.success(`Podcast generation started!`);
 		} catch (error) {
 			toast.error("Error generating podcast. Please try again later.");
-			console.error("Error generating podcast:", JSON.stringify(generatePodcastError));
+			logger.error("Error generating podcast:", JSON.stringify(generatePodcastError));
 		}
 	};
 

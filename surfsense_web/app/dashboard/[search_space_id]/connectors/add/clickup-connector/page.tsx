@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { logger } from "@/lib/logger";
 import { ArrowLeft, ExternalLink, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -77,7 +78,7 @@ export default function ClickUpConnectorPage() {
 			toast.success("ClickUp connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		} catch (error) {
-			console.error("Error creating ClickUp connector:", error);
+			logger.error("Error creating ClickUp connector:", error);
 			toast.error("Failed to create ClickUp connector. Please try again.");
 		} finally {
 			setIsLoading(false);
