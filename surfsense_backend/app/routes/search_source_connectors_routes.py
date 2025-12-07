@@ -681,6 +681,19 @@ async def index_connector_content(
             )
             response_message = "Confluence indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.BOOKSTACK_CONNECTOR:
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_bookstack_pages_task,
+            )
+
+            logger.info(
+                f"Triggering BookStack indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            index_bookstack_pages_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "BookStack indexing started in the background."
+
         elif connector.connector_type == SearchSourceConnectorType.CLICKUP_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import index_clickup_tasks_task
 
@@ -1681,3 +1694,73 @@ async def run_web_page_indexing(
             )
     except Exception as e:
         logger.error(f"Error in background Web page indexing task: {e!s}")
+
+
+# Add new helper functions for BookStack indexing
+async def run_bookstack_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Wrapper to run BookStack indexing with its own database session."""
+    logger.info(
+        f"Background task started: Indexing BookStack connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+    )
+    async with async_session_maker() as session:
+        await run_bookstack_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+    logger.info(
+        f"Background task finished: Indexing BookStack connector {connector_id}"
+    )
+
+
+async def run_bookstack_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Background task to run BookStack indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the BookStack connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    from app.tasks.connector_indexers import index_bookstack_pages
+
+    try:
+        indexed_count, error_message = await index_bookstack_pages(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            start_date,
+            end_date,
+            update_last_indexed=False,
+        )
+        if error_message:
+            logger.error(
+                f"BookStack indexing failed for connector {connector_id}: {error_message}"
+            )
+        else:
+            logger.info(
+                f"BookStack indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+            )
+            # Update the last indexed timestamp only on success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()  # Commit timestamp update
+    except Exception as e:
+        logger.error(
+            f"Critical error in run_bookstack_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )

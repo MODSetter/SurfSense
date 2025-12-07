@@ -2496,3 +2496,98 @@ class ConnectorService:
         }
 
         return result_object, elasticsearch_chunks
+
+    async def search_bookstack(
+        self,
+        user_query: str,
+        user_id: str,
+        search_space_id: int,
+        top_k: int = 20,
+        search_mode: SearchMode = SearchMode.CHUNKS,
+    ) -> tuple:
+        """
+        Search for BookStack pages and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            user_id: The user's ID
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        if search_mode == SearchMode.CHUNKS:
+            bookstack_chunks = await self.chunk_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="BOOKSTACK_CONNECTOR",
+            )
+        elif search_mode == SearchMode.DOCUMENTS:
+            bookstack_chunks = await self.document_retriever.hybrid_search(
+                query_text=user_query,
+                top_k=top_k,
+                user_id=user_id,
+                search_space_id=search_space_id,
+                document_type="BOOKSTACK_CONNECTOR",
+            )
+            # Transform document retriever results to match expected format
+            bookstack_chunks = self._transform_document_results(bookstack_chunks)
+
+        # Early return if no results
+        if not bookstack_chunks:
+            return {
+                "id": 50,
+                "name": "BookStack",
+                "type": "BOOKSTACK_CONNECTOR",
+                "sources": [],
+            }, []
+
+        # Process each chunk and create sources directly without deduplication
+        sources_list = []
+        async with self.counter_lock:
+            for _i, chunk in enumerate(bookstack_chunks):
+                # Extract document metadata
+                document = chunk.get("document", {})
+                metadata = document.get("metadata", {})
+
+                # Extract BookStack-specific metadata
+                page_name = metadata.get("page_name", "Untitled Page")
+                page_slug = metadata.get("page_slug", "")
+                book_slug = metadata.get("book_slug", "")
+                base_url = metadata.get("base_url", "")
+                page_url = metadata.get("page_url", "")
+
+                # Create a more descriptive title for BookStack pages
+                title = f"BookStack: {page_name}"
+
+                # Create description from content
+                description = chunk.get("content", "")
+
+                # Build URL to the BookStack page
+                url = page_url
+                if not url and base_url and book_slug and page_slug:
+                    url = f"{base_url}/books/{book_slug}/page/{page_slug}"
+
+                source = {
+                    "id": chunk.get("chunk_id", self.source_id_counter),
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                }
+
+                self.source_id_counter += 1
+                sources_list.append(source)
+
+        # Create result object
+        result_object = {
+            "id": 50,  # Assign a unique ID for the BookStack connector
+            "name": "BookStack",
+            "type": "BOOKSTACK_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, bookstack_chunks

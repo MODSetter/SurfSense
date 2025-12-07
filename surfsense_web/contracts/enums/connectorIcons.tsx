@@ -1,5 +1,6 @@
 import {
 	IconBook,
+	IconBooks,
 	IconBrandDiscord,
 	IconBrandElastic,
 	IconBrandGithub,
@@ -53,6 +54,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconTable {...iconProps} />;
 		case EnumConnectorName.CONFLUENCE_CONNECTOR:
 			return <IconBook {...iconProps} />;
+		case EnumConnectorName.BOOKSTACK_CONNECTOR:
+			return <IconBooks {...iconProps} />;
 		case EnumConnectorName.CLICKUP_CONNECTOR:
 			return <IconChecklist {...iconProps} />;
 		case EnumConnectorName.LUMA_CONNECTOR:
