@@ -36,4 +36,3 @@ wait -n
 
 # If we get here, one process exited, so exit with its status
 exit $?
-
