@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: ankane/pgvector:latest
@@ -13,6 +11,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-surfsense}
 
   pgadmin:
+    container_name: postgres-SurfSense
     image: dpage/pgadmin4
     ports:
       - "${PGADMIN_PORT:-5050}:80"
