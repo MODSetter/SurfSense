@@ -32,10 +32,9 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { type Document, type DocumentType } from "@/hooks/use-documents";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { Document, DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useAtomValue } from "jotai";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 
@@ -110,8 +109,8 @@ const columns: ColumnDef<Document>[] = [
 		cell: ({ row }) => {
 			const type = row.getValue("document_type") as DocumentType;
 			return (
-				<div className="flex items-center gap-2" title={type}>
-					<span className="text-primary">{getConnectorIcon(type)}</span>
+				<div className="flex items-center gap-2" title={String(type)}>
+					<span className="text-primary">{getConnectorIcon(String(type))}</span>
 				</div>
 			);
 		},

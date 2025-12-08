@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
@@ -15,7 +15,7 @@ import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
-import type { ColumnVisibility, Document } from "./components/types";
+import type { ColumnVisibility } from "./components/types";
 import { DocumentTypeEnum } from "@/contracts/types/document.types";
 
 function useDebounced<T>(value: T, delay = 250) {
@@ -48,9 +48,7 @@ export default function DocumentsTable() {
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const {data: typeCounts} = useAtomValue(documentTypeCountsAtom) ;
-
-	// Set up the delete mutation
-	const deleteDocumentMutation = useSetAtom(deleteDocumentMutationAtom);
+	const {mutateAsync : deleteDocumentMutation} = useAtomValue(deleteDocumentMutationAtom);
 
 	// Build query parameters for fetching documents
 	const queryParams = useMemo(
@@ -138,7 +136,7 @@ export default function DocumentsTable() {
 	const deleteDocument = useCallback(
 		async (id: number) => {
 			try {
-				await deleteDocumentMutation([{ id }]);
+				await deleteDocumentMutation({ id });
 				return true;
 			} catch (error) {
 				console.error("Failed to delete document:", error);
@@ -158,7 +156,7 @@ export default function DocumentsTable() {
 			const results = await Promise.all(
 				Array.from(selectedIds).map(async (id) => {
 					try {
-						await deleteDocumentMutation([{ id }]);
+						await deleteDocumentMutation({ id });
 						return true;
 					} catch {
 						return false;

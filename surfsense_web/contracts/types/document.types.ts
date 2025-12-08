@@ -161,6 +161,7 @@ export const deleteDocumentResponse = z.object({
 	message: z.literal("Document deleted successfully"),
 });
 
+export type Document = z.infer<typeof document>
 export type GetDocumentsRequest = z.infer<typeof getDocumentsRequest>;
 export type GetDocumentsResponse = z.infer<typeof getDocumentsResponse>;
 export type GetDocumentRequest = z.infer<typeof getDocumentRequest>;
