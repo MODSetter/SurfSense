@@ -16,7 +16,6 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from alembic import op
-from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = "43"
@@ -26,57 +25,51 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Upgrade schema - Add BlockNote fields (idempotent)."""
+    """Upgrade schema - Add BlockNote fields and trigger population task."""
 
-    conn = op.get_bind()
-    inspector = inspect(conn)
-    existing_cols = {c["name"] for c in inspector.get_columns("documents")}
+    # Add the columns
+    op.add_column(
+        "documents",
+        sa.Column(
+            "blocknote_document", postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
+    )
+    op.add_column(
+        "documents",
+        sa.Column(
+            "content_needs_reindexing",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.false(),
+        ),
+    )
+    op.add_column(
+        "documents",
+        sa.Column("last_edited_at", sa.TIMESTAMP(timezone=True), nullable=True),
+    )
 
-    # Add blocknote_document (JSONB) if doest not exist
-    if "blocknote_document" not in existing_cols:
-        op.add_column(
-            "documents",
-            sa.Column(
-                "blocknote_document",
-                postgresql.JSONB(astext_type=sa.Text()),
-                nullable=True,
-            ),
+    # Trigger the Celery task to populate blocknote_document for existing documents
+    try:
+        from app.tasks.celery_tasks.blocknote_migration_tasks import (
+            populate_blocknote_for_documents_task,
         )
 
-    # Add content_needs_reindexing (boolean) if doest not exist
-    if "content_needs_reindexing" not in existing_cols:
-        op.add_column(
-            "documents",
-            sa.Column(
-                "content_needs_reindexing",
-                sa.Boolean(),
-                nullable=False,
-                server_default=sa.false(),
-            ),
+        # Queue the task to run asynchronously
+        populate_blocknote_for_documents_task.apply_async()
+        print(
+            "✓ Queued Celery task to populate blocknote_document for existing documents"
         )
-
-    # Add last_edited_at (timestamp with tz) if doest not exist
-    if "last_edited_at" not in existing_cols:
-        op.add_column(
-            "documents",
-            sa.Column("last_edited_at", sa.TIMESTAMP(timezone=True), nullable=True),
+    except Exception as e:
+        # If Celery is not available or task queueing fails, log but don't fail the migration
+        print(f"⚠ Warning: Could not queue blocknote population task: {e}")
+        print("  You can manually trigger it later with:")
+        print(
+            "  celery -A app.celery_app call app.tasks.celery_tasks.blocknote_migration_tasks.populate_blocknote_for_documents_task"
         )
-
-    # NOTE: We intentionally do NOT import or queue Celery tasks here.
-    # Running background jobs during migrations causes hard-to-debug failures.
-    # After running migrations, trigger the backfill task manually (instructions below).
 
 
 def downgrade() -> None:
-    """Downgrade schema - Remove BlockNote fields (only if present)."""
-
-    conn = op.get_bind()
-    inspector = inspect(conn)
-    existing_cols = {c["name"] for c in inspector.get_columns("documents")}
-
-    if "last_edited_at" in existing_cols:
-        op.drop_column("documents", "last_edited_at")
-    if "content_needs_reindexing" in existing_cols:
-        op.drop_column("documents", "content_needs_reindexing")
-    if "blocknote_document" in existing_cols:
-        op.drop_column("documents", "blocknote_document")
+    """Downgrade schema - Remove BlockNote fields."""
+    op.drop_column("documents", "last_edited_at")
+    op.drop_column("documents", "content_needs_reindexing")
+    op.drop_column("documents", "blocknote_document")
