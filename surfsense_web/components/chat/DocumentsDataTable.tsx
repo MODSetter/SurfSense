@@ -32,7 +32,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { type Document, type DocumentType, useDocuments } from "@/hooks/use-documents";
+import { type Document, type DocumentType } from "@/hooks/use-documents";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { DocumentTypeEnum } from "@/contracts/types/document.types";
