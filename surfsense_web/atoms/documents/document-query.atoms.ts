@@ -26,6 +26,7 @@ export const documentTypeCountsAtom = atomWithQuery((get) => {
 	return {
 		queryKey: cacheKeys.documents.typeCounts(searchSpaceId ?? undefined),
 		enabled: !!searchSpaceId,
+		staleTime: 10 * 60 * 1000, // 10 minutes
 		queryFn: async () => {
 			return documentsApiService.getDocumentTypeCounts({
 				queryParams: {

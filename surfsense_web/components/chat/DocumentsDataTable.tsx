@@ -36,6 +36,8 @@ import { type Document, type DocumentType, useDocuments } from "@/hooks/use-docu
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useAtomValue } from "jotai";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 
 interface DocumentsDataTableProps {
 	searchSpaceId: number;
@@ -189,7 +191,7 @@ export function DocumentsDataTable({
 	const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentTypeEnum[]>([]);
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(10);
-	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
+	const {data : typeCounts } = useAtomValue(documentTypeCountsAtom);
 
 	const fetchQueryParams = useMemo(
 		() => ({
@@ -203,10 +205,13 @@ export function DocumentsDataTable({
 
 	const searchQueryParams = useMemo(() => {
 		return {
-			...fetchQueryParams,
+			search_space_id: searchSpaceId,
+			page: pageIndex ,
+			page_size: pageSize,
+			...(documentTypeFilter.length > 0 && { document_types: documentTypeFilter }),
 			title : debouncedSearch,
 		}
-	},[debouncedSearch])
+	},[debouncedSearch, searchSpaceId, pageIndex, pageSize, documentTypeFilter, debouncedSearch])
 
 	// Use query for fetching documents
 	const {
@@ -230,24 +235,12 @@ export function DocumentsDataTable({
 		enabled: !!searchSpaceId && !!debouncedSearch.trim(),
 	});
 
-	// Use server-side pagination, search, and filtering
-	const { getDocumentTypeCounts } =
-		useDocuments(searchSpaceId, {
-			page: pageIndex,
-			pageSize: pageSize,
-		});
+
 
 	// Use query data when not searching, otherwise use hook data
 	const actualDocuments = debouncedSearch.trim() ? searchedDocuments?.items|| [] : documents?.items|| [];
 	const actualTotal = debouncedSearch.trim() ? searchedDocuments?.total || 0 : documents?.total || 0;
 	const actualLoading = debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading;
-
-	// Fetch document type counts on mount
-	useEffect(() => {
-		if (searchSpaceId && getDocumentTypeCounts) {
-			getDocumentTypeCounts().then(setTypeCounts);
-		}
-	}, [searchSpaceId, getDocumentTypeCounts]);
 
 	// Memoize initial row selection to prevent infinite loops
 	const initialRowSelection = useMemo(() => {
@@ -378,7 +371,7 @@ export function DocumentsDataTable({
 
 	// Get available document types from type counts (memoized)
 	const availableTypes = useMemo(() => {
-		const types = Object.keys(typeCounts) as DocumentTypeEnum[];
+		const types = typeCounts ? Object.keys(typeCounts) as DocumentTypeEnum[] : [];
 		return types.length > 0 ? types.sort() : [];
 	}, [typeCounts]);
 
@@ -428,7 +421,7 @@ export function DocumentsDataTable({
 												className="flex grow justify-between gap-2 font-normal text-sm cursor-pointer"
 											>
 												<span>{type.replace(/_/g, " ")}</span>
-												<span className="text-xs text-muted-foreground">{typeCounts[type]}</span>
+												<span className="text-xs text-muted-foreground">{typeCounts?.[type]}</span>
 											</Label>
 										</div>
 									))}
