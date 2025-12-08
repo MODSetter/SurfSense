@@ -6,12 +6,11 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
-
-import { useDocuments } from "@/hooks/use-documents";
+import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
@@ -49,6 +48,9 @@ export default function DocumentsTable() {
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const {data: typeCounts} = useAtomValue(documentTypeCountsAtom) ;
+
+	// Set up the delete mutation
+	const deleteDocumentMutation = useSetAtom(deleteDocumentMutationAtom);
 
 	// Build query parameters for fetching documents
 	const queryParams = useMemo(
@@ -109,14 +111,6 @@ export default function DocumentsTable() {
 	const loading = debouncedSearch.trim() ? isSearchLoading : isDocumentsLoading;
 	const error = debouncedSearch.trim() ? searchError : documentsError
 
-	// Use server-side pagination, search, and filtering
-	const {
-		deleteDocument,
-	} = useDocuments(searchSpaceId, {
-		page: pageIndex,
-		pageSize: pageSize,
-	});
-
 	// Display server-filtered results directly
 	const displayDocs = documents || [];
 	const displayTotal = total;
@@ -140,13 +134,37 @@ export default function DocumentsTable() {
 		}
 	}, [debouncedSearch, refetchSearch, refetchDocuments]);
 
+	// Create a delete function for single document deletion
+	const deleteDocument = useCallback(
+		async (id: number) => {
+			try {
+				await deleteDocumentMutation([{ id }]);
+				return true;
+			} catch (error) {
+				console.error("Failed to delete document:", error);
+				return false;
+			}
+		},
+		[deleteDocumentMutation]
+	);
+
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
 			toast.error(t("no_rows_selected"));
 			return;
 		}
 		try {
-			const results = await Promise.all(Array.from(selectedIds).map((id) => deleteDocument?.(id)));
+			// Delete documents one by one using the mutation
+			const results = await Promise.all(
+				Array.from(selectedIds).map(async (id) => {
+					try {
+						await deleteDocumentMutation([{ id }]);
+						return true;
+					} catch {
+						return false;
+					}
+				})
+			);
 			const okCount = results.filter((r) => r === true).length;
 			if (okCount === selectedIds.size)
 				toast.success(t("delete_success_count", { count: okCount }));
@@ -198,7 +216,7 @@ export default function DocumentsTable() {
 				selectedIds={selectedIds}
 				setSelectedIds={setSelectedIds}
 				columnVisibility={columnVisibility}
-				deleteDocument={(id) => deleteDocument?.(id) ?? Promise.resolve(false)}
+				deleteDocument={deleteDocument}
 				sortKey={sortKey}
 				sortDesc={sortDesc}
 				onSortChange={(key) => {
