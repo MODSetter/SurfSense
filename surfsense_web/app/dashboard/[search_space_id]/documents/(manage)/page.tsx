@@ -78,6 +78,7 @@ export default function DocumentsTable() {
 		data: documentsResponse,
 		isLoading: isDocumentsLoading,
 		refetch: refetchDocuments,
+		error : documentsError
 	} = useQuery({
 		queryKey: cacheKeys.documents.globalQueryParams(queryParams),
 		queryFn: () => documentsApiService.getDocuments({ queryParams }),
@@ -90,6 +91,7 @@ export default function DocumentsTable() {
 		data: searchResponse,
 		isLoading: isSearchLoading,
 		refetch: refetchSearch,
+		error: searchError
 	} = useQuery({
 		queryKey: cacheKeys.documents.globalQueryParams(searchQueryParams),
 		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
@@ -105,10 +107,10 @@ export default function DocumentsTable() {
 		? searchResponse?.total || 0 
 		: documentsResponse?.total || 0;
 	const loading = debouncedSearch.trim() ? isSearchLoading : isDocumentsLoading;
+	const error = debouncedSearch.trim() ? searchError : documentsError
 
 	// Use server-side pagination, search, and filtering
 	const {
-		error,
 		deleteDocument,
 	} = useDocuments(searchSpaceId, {
 		page: pageIndex,
