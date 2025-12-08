@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
 import type React from "react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -73,7 +73,7 @@ export function SourceDetailSheet({
 
 	useEffect(() => {
 		// Scroll to highlighted chunk when document loads
-		if (document && highlightedChunkRef.current && chunksContainerRef.current) {
+		if (document) {
 			setTimeout(() => {
 				highlightedChunkRef.current?.scrollIntoView({
 					behavior: "smooth",
@@ -81,7 +81,7 @@ export function SourceDetailSheet({
 				});
 			}, 100);
 		}
-	}, [document]);
+	}, [document, open]);
 
 	const handleUrlClick = (e: React.MouseEvent, clickUrl: string) => {
 		e.preventDefault();
