@@ -10,6 +10,7 @@ import {
 import { ArrowUpDown, Calendar, FileText, Filter, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,9 @@ import {
 } from "@/components/ui/table";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { type Document, type DocumentType, useDocuments } from "@/hooks/use-documents";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { DocumentTypeEnum } from "@/contracts/types/document.types";
 
 interface DocumentsDataTableProps {
 	searchSpaceId: number;
@@ -182,17 +186,61 @@ export function DocumentsDataTable({
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 300);
-	const [documentTypeFilter, setDocumentTypeFilter] = useState<string[]>([]);
+	const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentTypeEnum[]>([]);
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(10);
 	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
 
+	const fetchQueryParams = useMemo(
+		() => ({
+			search_space_id: searchSpaceId,
+			page: pageIndex ,
+			page_size: pageSize,
+			...(documentTypeFilter.length > 0 && { document_types: documentTypeFilter }),
+		}),
+		[searchSpaceId, pageIndex, pageSize, documentTypeFilter, debouncedSearch]
+	);
+
+	const searchQueryParams = useMemo(() => {
+		return {
+			...fetchQueryParams,
+			title : debouncedSearch,
+		}
+	},[debouncedSearch])
+
+	// Use query for fetching documents
+	const {
+		data: documents,
+		isLoading: isDocumentsLoading,
+	} = useQuery({
+		queryKey: cacheKeys.documents.withQueryParams(fetchQueryParams),
+		queryFn: () => documentsApiService.getDocuments({ queryParams : fetchQueryParams }),
+		staleTime: 3 * 60 * 1000, // 3 minutes
+		enabled: !!searchSpaceId && !debouncedSearch.trim(), 
+	});
+
+	// Seaching
+		const {
+		data: searchedDocuments,
+		isLoading: isSearchedDocumentsLoading,
+	} = useQuery({
+		queryKey: cacheKeys.documents.withQueryParams(searchQueryParams),
+		queryFn: () => documentsApiService.searchDocuments({ queryParams : searchQueryParams }),
+		staleTime: 3 * 60 * 1000, // 3 minutes
+		enabled: !!searchSpaceId && !!debouncedSearch.trim(),
+	});
+
 	// Use server-side pagination, search, and filtering
-	const { documents, total, loading, fetchDocuments, searchDocuments, getDocumentTypeCounts } =
+	const { getDocumentTypeCounts } =
 		useDocuments(searchSpaceId, {
 			page: pageIndex,
 			pageSize: pageSize,
 		});
+
+	// Use query data when not searching, otherwise use hook data
+	const actualDocuments = debouncedSearch.trim() ? searchedDocuments?.items|| [] : documents?.items|| [];
+	const actualTotal = debouncedSearch.trim() ? searchedDocuments?.total || 0 : documents?.total || 0;
+	const actualLoading = debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading;
 
 	// Fetch document type counts on mount
 	useEffect(() => {
@@ -200,34 +248,6 @@ export function DocumentsDataTable({
 			getDocumentTypeCounts().then(setTypeCounts);
 		}
 	}, [searchSpaceId, getDocumentTypeCounts]);
-
-	// Refetch when pagination changes or when search/filters change
-	useEffect(() => {
-		if (searchSpaceId) {
-			if (debouncedSearch.trim()) {
-				searchDocuments?.(
-					debouncedSearch,
-					pageIndex,
-					pageSize,
-					documentTypeFilter.length > 0 ? documentTypeFilter : undefined
-				);
-			} else {
-				fetchDocuments?.(
-					pageIndex,
-					pageSize,
-					documentTypeFilter.length > 0 ? documentTypeFilter : undefined
-				);
-			}
-		}
-	}, [
-		pageIndex,
-		pageSize,
-		debouncedSearch,
-		documentTypeFilter,
-		searchSpaceId,
-		fetchDocuments,
-		searchDocuments,
-	]);
 
 	// Memoize initial row selection to prevent infinite loops
 	const initialRowSelection = useMemo(() => {
@@ -272,14 +292,14 @@ export function DocumentsDataTable({
 
 	// Update the selected documents map when row selection changes
 	useEffect(() => {
-		if (!documents || documents.length === 0) return;
+		if (!actualDocuments || actualDocuments.length === 0) return;
 
 		setSelectedDocumentsMap((prev) => {
 			const newMap = new Map(prev);
 			let hasChanges = false;
 
 			// Process only current page documents
-			for (const doc of documents) {
+			for (const doc of actualDocuments) {
 				const docId = doc.id;
 				const isSelected = rowSelection[docId.toString()];
 				const wasInMap = newMap.has(docId);
@@ -319,14 +339,14 @@ export function DocumentsDataTable({
 	}, [selectedDocumentsArray, onSelectionChange]);
 
 	const table = useReactTable({
-		data: documents || [],
+		data: actualDocuments || [],
 		columns,
 		getRowId: (row) => row.id.toString(),
 		onSortingChange: setSorting,
 		getCoreRowModel: getCoreRowModel(),
 		onRowSelectionChange: setRowSelection,
 		manualPagination: true,
-		pageCount: Math.ceil(total / pageSize),
+		pageCount: Math.ceil(actualTotal / pageSize),
 		state: { sorting, rowSelection, pagination: { pageIndex, pageSize } },
 	});
 
@@ -344,7 +364,7 @@ export function DocumentsDataTable({
 		setRowSelection(newSelection);
 	}, [table, rowSelection]);
 
-	const handleToggleType = useCallback((type: string, checked: boolean) => {
+	const handleToggleType = useCallback((type: DocumentTypeEnum, checked: boolean) => {
 		setDocumentTypeFilter((prev) => {
 			if (checked) {
 				return [...prev, type];
@@ -358,7 +378,7 @@ export function DocumentsDataTable({
 
 	// Get available document types from type counts (memoized)
 	const availableTypes = useMemo(() => {
-		const types = Object.keys(typeCounts);
+		const types = Object.keys(typeCounts) as DocumentTypeEnum[];
 		return types.length > 0 ? types.sort() : [];
 	}, [typeCounts]);
 
@@ -435,7 +455,7 @@ export function DocumentsDataTable({
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 					<div className="flex flex-col sm:flex-row sm:items-center gap-2">
 						<span className="text-sm text-muted-foreground whitespace-nowrap">
-							{selectedCount} selected {loading && "· Loading..."}
+							{selectedCount} selected {actualLoading && "· Loading..."}
 						</span>
 						<div className="hidden sm:block h-4 w-px bg-border mx-2" />
 						<div className="flex items-center gap-2 flex-wrap">
@@ -453,7 +473,7 @@ export function DocumentsDataTable({
 								size="sm"
 								onClick={handleSelectPage}
 								className="text-xs sm:text-sm"
-								disabled={loading}
+								disabled={actualLoading}
 							>
 								Select Page
 							</Button>
@@ -490,7 +510,7 @@ export function DocumentsDataTable({
 			{/* Table Container */}
 			<div className="border rounded-lg flex-1 min-h-0 overflow-hidden bg-background">
 				<div className="overflow-auto h-full">
-					{loading ? (
+					{actualLoading ? (
 						<div className="flex items-center justify-center h-full">
 							<div className="text-center space-y-2">
 								<div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
@@ -561,31 +581,31 @@ export function DocumentsDataTable({
 			{/* Footer Pagination */}
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs sm:text-sm text-muted-foreground border-t pt-3 md:pt-4 flex-shrink-0">
 				<div className="text-center sm:text-left">
-					Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, total)} of{" "}
-					{total} documents
+					Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, actualTotal)} of{" "}
+					{actualTotal} documents
 				</div>
 				<div className="flex items-center justify-center sm:justify-end space-x-2">
 					<Button
 						variant="outline"
-						size="sm"
-						onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-						disabled={pageIndex === 0 || loading}
-						className="text-xs sm:text-sm"
+					size="sm"
+					onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+					disabled={pageIndex === 0 || actualLoading}
+					className="text-xs sm:text-sm"
 					>
 						Previous
 					</Button>
 					<div className="flex items-center space-x-1 text-xs sm:text-sm">
 						<span>Page</span>
-						<strong>{pageIndex + 1}</strong>
-						<span>of</span>
-						<strong>{Math.ceil(total / pageSize)}</strong>
-					</div>
+					<strong>{pageIndex + 1}</strong>
+					<span>of</span>
+					<strong>{Math.ceil(actualTotal / pageSize)}</strong>
+				</div>
 					<Button
 						variant="outline"
-						size="sm"
-						onClick={() => setPageIndex((p) => p + 1)}
-						disabled={pageIndex >= Math.ceil(total / pageSize) - 1 || loading}
-						className="text-xs sm:text-sm"
+					size="sm"
+					onClick={() => setPageIndex((p) => p + 1)}
+					disabled={pageIndex >= Math.ceil(actualTotal / pageSize) - 1 || actualLoading}
+					className="text-xs sm:text-sm"
 					>
 						Next
 					</Button>

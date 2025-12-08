@@ -15,6 +15,7 @@ export const cacheKeys = {
 	documents: {
 		globalQueryParams: (queries: GetDocumentsRequest["queryParams"]) =>
 			["documents", ...(queries ? Object.values(queries) : [])] as const,
+		withQueryParams :(queries: GetDocumentsRequest["queryParams"]) => ["documents-with-queries", ...(queries ? Object.values(queries) : [])] as const,
 		document: (documentId: string) => ["document", documentId] as const,
 		typeCounts: (searchSpaceId?: string) => ["documents", "type-counts", searchSpaceId] as const,
 		byChunk: (chunkId: string) => ["documents", "by-chunk", chunkId] as const,

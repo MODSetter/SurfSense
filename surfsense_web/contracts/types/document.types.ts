@@ -60,7 +60,7 @@ export const getDocumentsRequest = z.object({
 	queryParams: paginationQueryParams
 		.extend({
 			search_space_id: z.number().or(z.string()).optional(),
-			document_type: z.array(documentTypeEnum).optional(),
+			document_types: z.array(documentTypeEnum).optional(),
 		})
 		.nullish(),
 });
@@ -109,7 +109,7 @@ export const searchDocumentsRequest = z.object({
 	queryParams: paginationQueryParams
 		.extend({
 			search_space_id: z.number().or(z.string()).optional(),
-			document_type: z.array(documentTypeEnum).optional(),
+			document_types: z.array(documentTypeEnum).optional(),
 			title: z.string().optional(),
 		})
 		.nullish(),
@@ -179,3 +179,4 @@ export type UpdateDocumentRequest = z.infer<typeof updateDocumentRequest>;
 export type UpdateDocumentResponse = z.infer<typeof updateDocumentResponse>;
 export type DeleteDocumentRequest = z.infer<typeof deleteDocumentRequest>;
 export type DeleteDocumentResponse = z.infer<typeof deleteDocumentResponse>;
+export type DocumentTypeEnum = z.infer<typeof documentTypeEnum>
