@@ -538,6 +538,8 @@
 		"assign_llm_roles": "分配 LLM 角色",
 		"setup_llm_configuration": "设置 LLM 配置",
 		"configure_providers_and_assign_roles": "添加您的 LLM 提供商并为其分配特定角色",
+		"assign_llm_roles_title": "分配 LLM 角色",
+		"complete_role_assignment": "为您的 LLM 配置分配特定角色以继续",
 		"setup_complete": "设置完成",
 		"configure_first_provider": "配置您的第一个模型提供商",
 		"assign_specific_roles": "为您的 LLM 配置分配特定角色",
