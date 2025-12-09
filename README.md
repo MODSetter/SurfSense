@@ -153,7 +153,7 @@ Check out our public roadmap and contribute your ideas or feedback:
 ### Quick Start with Docker 🐳
 
 > [!TIP]
-> For production deployments, use the full [Docker Compose setup](https://www.surfsense.net/docs/docker-installation) which offers more control and scalability.
+> For production deployments, use the full [Docker Compose setup](https://www.surfsense.com/docs/docker-installation) which offers more control and scalability.
 
 **Linux/macOS:**
 
@@ -215,17 +215,17 @@ SurfSense provides multiple options to get started:
    - Perfect for evaluation, development, and small deployments
    - Data persisted via Docker volume
 
-3. **[Docker Compose (Production)](https://www.surfsense.net/docs/docker-installation)** - Full stack deployment with separate services.
+3. **[Docker Compose (Production)](https://www.surfsense.com/docs/docker-installation)** - Full stack deployment with separate services.
    - Includes pgAdmin for database management through a web UI
    - Supports environment variable customization via `.env` file
    - Flexible deployment options (full stack or core services only)
    - Better for production with separate scaling of services
 
-4. **[Manual Installation](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
+4. **[Manual Installation](https://www.surfsense.com/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
 
 Docker and manual installation guides include detailed OS-specific instructions for Windows, macOS, and Linux.
 
-Before self-hosting installation, make sure to complete the [prerequisite setup steps](https://www.surfsense.net/docs/) including:
+Before self-hosting installation, make sure to complete the [prerequisite setup steps](https://www.surfsense.com/docs/) including:
 - Auth setup (optional - defaults to LOCAL auth)
 - **File Processing ETL Service** (optional - defaults to Docling):
   - Docling (default, local processing, no API key required, supports PDF, Office docs, images, HTML, CSV)

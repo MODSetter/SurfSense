@@ -57,14 +57,14 @@ Want to fix it? Go for it! Just link the issue in your PR.
 
 2. **Choose your setup method**:
    - **Docker Setup**: Follow the [Docker Setup Guide](./DOCKER_SETUP.md)
-   - **Manual Setup**: Follow the [Installation Guide](https://www.surfsense.net/docs/)
+   - **Manual Setup**: Follow the [Installation Guide](https://www.surfsense.com/docs/)
 
 3. **Configure services**:
    - Set up PGVector & PostgreSQL
    - Configure a file ETL service: `Unstructured.io` or `LlamaIndex`
    - Add API keys for external services
 
-For detailed setup instructions, refer to our [Installation Guide](https://www.surfsense.net/docs/).
+For detailed setup instructions, refer to our [Installation Guide](https://www.surfsense.com/docs/).
 
 ## 🏗️ Project Structure
 
@@ -146,7 +146,7 @@ When contributing, please:
 Stuck? Need clarification? Here's how to get help:
 
 1. **Check existing issues** - your question might already be answered
-2. **Search the docs** - [https://www.surfsense.net/docs/](https://www.surfsense.net/docs/)
+2. **Search the docs** - [https://www.surfsense.com/docs/](https://www.surfsense.com/docs/)
 3. **Ask in Discord** - [https://discord.gg/ejRNvftDp9](https://discord.gg/ejRNvftDp9)
 4. **Create an issue** - if it's a bug or feature request
 

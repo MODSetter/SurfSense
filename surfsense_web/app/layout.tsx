@@ -50,12 +50,12 @@ export const metadata: Metadata = {
 		title: "SurfSense – AI Research & Knowledge Management Assistant",
 		description:
 			"Connect your documents and tools like Notion, Slack, GitHub, and more to your private AI assistant. SurfSense offers powerful search, document chat, podcast generation, and RAG APIs to enhance your workflow.",
-		url: "https://surfsense.net",
+		url: "https://surfsense.com",
 		siteName: "SurfSense",
 		type: "website",
 		images: [
 			{
-				url: "https://surfsense.net/og-image.png",
+				url: "https://surfsense.com/og-image.png",
 				width: 1200,
 				height: 630,
 				alt: "SurfSense AI Research Assistant",
@@ -68,11 +68,11 @@ export const metadata: Metadata = {
 		title: "SurfSense – AI Assistant for Research & Knowledge Management",
 		description:
 			"Have your own NotebookLM or Perplexity, but better. SurfSense connects external tools, allows chat with your documents, and generates fast, high-quality podcasts.",
-		creator: "https://surfsense.net",
-		site: "https://surfsense.net",
+		creator: "https://surfsense.com",
+		site: "https://surfsense.com",
 		images: [
 			{
-				url: "https://surfsense.net/og-image-twitter.png",
+				url: "https://surfsense.com/og-image-twitter.png",
 				width: 1200,
 				height: 630,
 				alt: "SurfSense AI Assistant Preview",
