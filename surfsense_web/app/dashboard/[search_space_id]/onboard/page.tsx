@@ -241,7 +241,6 @@ const OnboardPage = () => {
 							colorScheme="emerald"
 							delay={0.7}
 						/>
-
 					</motion.div>
 
 					{/* Advanced Settings */}
