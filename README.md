@@ -155,23 +155,31 @@ Check out our public roadmap and contribute your ideas or feedback:
 > [!TIP]
 > For production deployments, use the full [Docker Compose setup](https://www.surfsense.net/docs/docker-installation) which offers more control and scalability.
 
-**Quick Start :**
+**Linux/macOS:**
 
 ```bash
 docker run -d -p 3000:3000 -p 8000:8000 \
   -v surfsense-data:/data \
-  -e SECRET_KEY=$(openssl rand -hex 32) \
   --name surfsense \
   --restart unless-stopped \
   ghcr.io/modsetter/surfsense:latest
 ```
 
-**With Custom Embedding Model (e.g., OpenAI):**
+**Windows (PowerShell):**
+
+```powershell
+docker run -d -p 3000:3000 -p 8000:8000 `
+  -v surfsense-data:/data `
+  --name surfsense `
+  --restart unless-stopped `
+  ghcr.io/modsetter/surfsense:latest
+```
+
+**With Custom Configuration (e.g., OpenAI Embeddings):**
 
 ```bash
 docker run -d -p 3000:3000 -p 8000:8000 \
   -v surfsense-data:/data \
-  -e SECRET_KEY=$(openssl rand -hex 32) \
   -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
   -e OPENAI_API_KEY=your_openai_api_key \
   --name surfsense \
@@ -179,23 +187,19 @@ docker run -d -p 3000:3000 -p 8000:8000 \
   ghcr.io/modsetter/surfsense:latest
 ```
 
-**Using Docker Compose (Recommended for easier management):**
-
-```bash
-# Download the quick start compose file
-curl -o docker-compose.yml https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker-compose.quickstart.yml
-
-# Create .env file with your secret key
-echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
-
-# Start SurfSense
-docker compose up -d
-```
-
 After starting, access SurfSense at:
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
 - **Backend API**: [http://localhost:8000](http://localhost:8000)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+**Useful Commands:**
+
+```bash
+docker logs -f surfsense      # View logs
+docker stop surfsense         # Stop
+docker start surfsense        # Start
+docker rm surfsense           # Remove (data preserved in volume)
+```
 
 ### Installation Options
 

@@ -69,8 +69,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     gnupg \
-    # Supervisor
-    supervisor \
     # Backend dependencies
     gcc \
     wget \
@@ -138,6 +136,9 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
 # Install pip for Python 3.12
 RUN python3.12 -m ensurepip --upgrade \
     && python3.12 -m pip install --upgrade pip
+
+# Install supervisor via pip (system package incompatible with Python 3.12)
+RUN pip install --no-cache-dir supervisor
 
 # Build and install pgvector
 RUN cd /tmp \

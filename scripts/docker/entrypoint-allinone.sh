@@ -9,6 +9,40 @@ echo "==========================================="
 mkdir -p /var/log/supervisor
 
 # ================================================
+# Ensure data directory exists
+# ================================================
+mkdir -p /data
+
+# ================================================
+# Generate SECRET_KEY if not provided
+# ================================================
+if [ -z "$SECRET_KEY" ]; then
+    # Generate a random secret key and persist it
+    if [ -f /data/.secret_key ]; then
+        export SECRET_KEY=$(cat /data/.secret_key)
+        echo "✅ Using existing SECRET_KEY from persistent storage"
+    else
+        export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+        echo "$SECRET_KEY" > /data/.secret_key
+        chmod 600 /data/.secret_key
+        echo "✅ Generated new SECRET_KEY (saved for persistence)"
+    fi
+fi
+
+# ================================================
+# Set default TTS/STT services if not provided
+# ================================================
+if [ -z "$TTS_SERVICE" ]; then
+    export TTS_SERVICE="local/kokoro"
+    echo "✅ Using default TTS_SERVICE: local/kokoro"
+fi
+
+if [ -z "$STT_SERVICE" ]; then
+    export STT_SERVICE="local/base"
+    echo "✅ Using default STT_SERVICE: local/base"
+fi
+
+# ================================================
 # Initialize PostgreSQL if needed
 # ================================================
 if [ ! -f /data/postgres/PG_VERSION ]; then
@@ -18,7 +52,8 @@ if [ ! -f /data/postgres/PG_VERSION ]; then
     chown -R postgres:postgres /data/postgres
     chmod 700 /data/postgres
     
-    su - postgres -c "/usr/lib/postgresql/14/bin/initdb -D /data/postgres"
+    # Initialize with UTF8 encoding (required for proper text handling)
+    su - postgres -c "/usr/lib/postgresql/14/bin/initdb -D /data/postgres --encoding=UTF8 --locale=C.UTF-8"
     
     # Configure PostgreSQL for connections
     echo "host all all 0.0.0.0/0 md5" >> /data/postgres/pg_hba.conf
@@ -104,6 +139,8 @@ echo "  Backend API:     http://localhost:8000"
 echo "  API Docs:        http://localhost:8000/docs"
 echo "  Auth Type:       ${AUTH_TYPE:-LOCAL}"
 echo "  ETL Service:     ${ETL_SERVICE:-DOCLING}"
+echo "  TTS Service:     ${TTS_SERVICE}"
+echo "  STT Service:     ${STT_SERVICE}"
 echo "==========================================="
 echo ""
 
@@ -111,5 +148,5 @@ echo ""
 # Start Supervisor (manages all services)
 # ================================================
 echo "🚀 Starting all services..."
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/surfsense.conf
+exec /usr/local/bin/supervisord -c /etc/supervisor/conf.d/surfsense.conf
 

@@ -4,18 +4,16 @@
 # For production or customized deployments, use the main docker-compose.yml
 #
 # Usage:
-#   1. Create a .env file with your required configuration (see below)
+#   1. (Optional) Create a .env file with your configuration
 #   2. Run: docker compose -f docker-compose.quickstart.yml up -d
 #   3. Access SurfSense at http://localhost:3000
 #
-# Required Environment Variables:
-#   - SECRET_KEY: JWT secret key (generate with: openssl rand -hex 32)
-#
-# Optional Environment Variables:
+# All Environment Variables are Optional:
+#   - SECRET_KEY: JWT secret key (auto-generated and persisted if not set)
 #   - EMBEDDING_MODEL: Embedding model to use (default: sentence-transformers/all-MiniLM-L6-v2)
 #   - ETL_SERVICE: Document parsing service - DOCLING, UNSTRUCTURED, or LLAMACLOUD (default: DOCLING)
 #   - TTS_SERVICE: Text-to-speech service for podcasts (default: local/kokoro)
-#   - STT_SERVICE: Speech-to-text service (default: local/base)
+#   - STT_SERVICE: Speech-to-text service with model size (default: local/base)
 #   - FIRECRAWL_API_KEY: For web crawling features
 
 version: "3.8"
@@ -31,8 +29,8 @@ services:
     volumes:
       - surfsense-data:/data
     environment:
-      # Required
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      # Authentication (auto-generated if not set)
+      - SECRET_KEY=${SECRET_KEY:-}
       
       # Auth Configuration
       - AUTH_TYPE=${AUTH_TYPE:-LOCAL}

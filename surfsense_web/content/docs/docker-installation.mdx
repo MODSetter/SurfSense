@@ -29,7 +29,6 @@ Make sure to include the `-v surfsense-data:/data` in your Docker command. This 
 ```bash
 docker run -d -p 3000:3000 -p 8000:8000 \
   -v surfsense-data:/data \
-  -e SECRET_KEY=$(openssl rand -hex 32) \
   --name surfsense \
   --restart unless-stopped \
   ghcr.io/modsetter/surfsense:latest
@@ -38,14 +37,14 @@ docker run -d -p 3000:3000 -p 8000:8000 \
 **Windows (PowerShell):**
 
 ```powershell
-$secretKey = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object {[char]$_})
 docker run -d -p 3000:3000 -p 8000:8000 `
   -v surfsense-data:/data `
-  -e SECRET_KEY=$secretKey `
   --name surfsense `
   --restart unless-stopped `
   ghcr.io/modsetter/surfsense:latest
 ```
+
+> **Note:** A secure `SECRET_KEY` is automatically generated and persisted in the data volume on first run.
 
 ### With Custom Configuration
 
@@ -54,7 +53,6 @@ docker run -d -p 3000:3000 -p 8000:8000 `
 ```bash
 docker run -d -p 3000:3000 -p 8000:8000 \
   -v surfsense-data:/data \
-  -e SECRET_KEY=$(openssl rand -hex 32) \
   -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
   -e OPENAI_API_KEY=your_openai_api_key \
   --name surfsense \
@@ -67,7 +65,6 @@ docker run -d -p 3000:3000 -p 8000:8000 \
 ```bash
 docker run -d -p 3000:3000 -p 8000:8000 \
   -v surfsense-data:/data \
-  -e SECRET_KEY=$(openssl rand -hex 32) \
   -e AUTH_TYPE=GOOGLE \
   -e GOOGLE_OAUTH_CLIENT_ID=your_client_id \
   -e GOOGLE_OAUTH_CLIENT_SECRET=your_client_secret \
@@ -84,12 +81,11 @@ For easier management with environment files:
 # Download the quick start compose file
 curl -o docker-compose.yml https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker-compose.quickstart.yml
 
-# Create .env file
+# Create .env file (optional - for custom configuration)
 cat > .env << EOF
-SECRET_KEY=$(openssl rand -hex 32)
-# Add other configuration as needed
 # EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 # ETL_SERVICE=DOCLING
+# SECRET_KEY=your_custom_secret_key  # Auto-generated if not set
 EOF
 
 # Start SurfSense
@@ -105,12 +101,12 @@ After starting, access SurfSense at:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| SECRET_KEY | JWT secret key (required) | - |
+| SECRET_KEY | JWT secret key (auto-generated if not set) | Auto-generated |
 | AUTH_TYPE | Authentication: `LOCAL` or `GOOGLE` | LOCAL |
 | EMBEDDING_MODEL | Model for embeddings | sentence-transformers/all-MiniLM-L6-v2 |
 | ETL_SERVICE | Document parser: `DOCLING`, `UNSTRUCTURED`, `LLAMACLOUD` | DOCLING |
 | TTS_SERVICE | Text-to-speech for podcasts | local/kokoro |
-| STT_SERVICE | Speech-to-text for audio | local/base |
+| STT_SERVICE | Speech-to-text for audio (model size: tiny, base, small, medium, large) | local/base |
 | REGISTRATION_ENABLED | Allow new user registration | TRUE |
 
 ### Useful Commands
