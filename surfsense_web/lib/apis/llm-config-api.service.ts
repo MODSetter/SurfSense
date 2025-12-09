@@ -5,7 +5,6 @@ import {
 	type DeleteLLMConfigRequest,
 	deleteLLMConfigRequest,
 	deleteLLMConfigResponse,
-	type GetGlobalLLMConfigsResponse,
 	type GetLLMConfigRequest,
 	type GetLLMConfigsRequest,
 	type GetLLMPreferencesRequest,
