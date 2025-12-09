@@ -51,6 +51,35 @@ class LLMConfigApiService {
 			body: parsedRequest.data,
 		});
 	};
+
+	/**
+	 * Get a list of LLM configurations for a search space
+	 */
+	getLLMConfigs = async (request: GetLLMConfigsRequest) => {
+		const parsedRequest = getLLMConfigsRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		// Transform query params to be string values
+		const transformedQueryParams = parsedRequest.data.queryParams
+			? Object.fromEntries(
+					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
+						return [k, String(v)];
+					})
+				)
+			: undefined;
+
+		const queryParams = transformedQueryParams
+			? new URLSearchParams(transformedQueryParams).toString()
+			: "";
+
+		return baseApiService.get(`/api/v1/llm-configs?${queryParams}`, getLLMConfigsResponse);
+	};
 }
 
 export const llmConfigApiService = new LLMConfigApiService();
