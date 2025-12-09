@@ -6,6 +6,7 @@ import type {
 	UpdateLLMConfigRequest,
 	DeleteLLMConfigRequest,
 	GetLLMConfigsResponse,
+	UpdateLLMPreferencesRequest,
 } from "@/contracts/types/llm-config.types";
 import { llmConfigApiService } from "@/lib/apis/llm-config-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -87,6 +88,25 @@ export const deleteLLMConfigMutationAtom = atomWithMutation((get) => {
 			});
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.llmConfigs.global(),
+			});
+		},
+	};
+});
+
+export const updateLLMPreferencesMutationAtom = atomWithMutation((get) => {
+	const searchSpaceId = get(activeSearchSpaceIdAtom);
+
+	return {
+		mutationKey: cacheKeys.llmConfigs.preferences(searchSpaceId!),
+		enabled: !!searchSpaceId,
+		mutationFn: async (request: UpdateLLMPreferencesRequest) => {
+			return llmConfigApiService.updateLLMPreferences(request);
+		},
+
+		onSuccess: () => {
+			toast.success("LLM preferences updated successfully");
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.llmConfigs.preferences(searchSpaceId!),
 			});
 		},
 	};
