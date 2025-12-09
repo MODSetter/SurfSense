@@ -7,6 +7,7 @@ import type {
 	DeleteLLMConfigRequest,
 	GetLLMConfigsResponse,
 	UpdateLLMPreferencesRequest,
+	UpdateLLMConfigResponse,
 } from "@/contracts/types/llm-config.types";
 import { llmConfigApiService } from "@/lib/apis/llm-config-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -44,7 +45,7 @@ export const updateLLMConfigMutationAtom = atomWithMutation((get) => {
 			return llmConfigApiService.updateLLMConfig(request);
 		},
 
-		onSuccess: (_, request: UpdateLLMConfigRequest) => {
+		onSuccess: (_: UpdateLLMConfigResponse , request: UpdateLLMConfigRequest) => {
 			toast.success("LLM configuration updated successfully");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.llmConfigs.all(searchSpaceId!),
@@ -76,11 +77,7 @@ export const deleteLLMConfigMutationAtom = atomWithMutation((get) => {
 				cacheKeys.llmConfigs.all(searchSpaceId!),
 				(oldData: GetLLMConfigsResponse | undefined) => {
 					if (!oldData) return oldData;
-					return {
-						...oldData,
-						items: oldData.items.filter((config) => config.id !== request.id),
-						total: oldData.total - 1,
-					};
+					return oldData.filter((config) => config.id !== request.id);
 				}
 			);
 			queryClient.invalidateQueries({

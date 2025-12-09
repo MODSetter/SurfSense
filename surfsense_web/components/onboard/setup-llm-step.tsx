@@ -52,6 +52,9 @@ import {
 import { cn } from "@/lib/utils";
 
 import InferenceParamsEditor from "../inference-params-editor";
+import { useAtomValue } from "jotai";
+import { createLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import { CreateLLMConfigRequest } from "@/contracts/types/llm-config.types";
 
 interface SetupLLMStepProps {
 	searchSpaceId: number;
@@ -97,14 +100,15 @@ export function SetupLLMStep({
 	onPreferencesUpdated,
 }: SetupLLMStepProps) {
 	const t = useTranslations("onboard");
-	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
+	const { llmConfigs, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
+	const { mutateAsync : createLLMConfig, isPending : isCreatingLlmConfig } = useAtomValue(createLLMConfigMutationAtom)
 	const { globalConfigs } = useGlobalLLMConfigs();
 	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
 
 	const [isAddingNew, setIsAddingNew] = useState(false);
-	const [formData, setFormData] = useState<CreateLLMConfig>({
+	const [formData, setFormData] = useState<CreateLLMConfigRequest>({
 		name: "",
-		provider: "",
+		provider: "" as CreateLLMConfigRequest["provider"], // Allow it as Default
 		custom_provider: "",
 		model_name: "",
 		api_key: "",
@@ -113,7 +117,6 @@ export function SetupLLMStep({
 		litellm_params: {},
 		search_space_id: searchSpaceId,
 	});
-	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
 	const [showProviderForm, setShowProviderForm] = useState(false);
 
@@ -146,14 +149,12 @@ export function SetupLLMStep({
 			return;
 		}
 
-		setIsSubmitting(true);
 		const result = await createLLMConfig(formData);
-		setIsSubmitting(false);
 
 		if (result) {
 			setFormData({
 				name: "",
-				provider: "",
+				provider: "" as CreateLLMConfigRequest["provider"],
 				custom_provider: "",
 				model_name: "",
 				api_key: "",
@@ -417,7 +418,7 @@ export function SetupLLMStep({
 												<Input
 													id="custom_provider"
 													placeholder={t("custom_provider_placeholder")}
-													value={formData.custom_provider}
+													value={formData.custom_provider ?? ""}
 													onChange={(e) => handleInputChange("custom_provider", e.target.value)}
 													required
 												/>
@@ -543,7 +544,7 @@ export function SetupLLMStep({
 											<Input
 												id="api_base"
 												placeholder={selectedProvider?.apiBase || t("api_base_placeholder")}
-												value={formData.api_base}
+												value={formData.api_base ?? ""}
 												onChange={(e) => handleInputChange("api_base", e.target.value)}
 											/>
 											{/* Ollama-specific help */}
@@ -590,15 +591,15 @@ export function SetupLLMStep({
 										</div>
 
 										<div className="flex gap-2 pt-2">
-											<Button type="submit" disabled={isSubmitting} size="sm">
-												{isSubmitting ? t("adding") : t("add_provider")}
+											<Button type="submit" disabled={isCreatingLlmConfig} size="sm">
+												{isCreatingLlmConfig ? t("adding") : t("add_provider")}
 											</Button>
 											<Button
 												type="button"
 												variant="outline"
 												size="sm"
 												onClick={() => setIsAddingNew(false)}
-												disabled={isSubmitting}
+												disabled={isCreatingLlmConfig}
 											>
 												{t("cancel")}
 											</Button>
