@@ -521,21 +521,50 @@ export function SetupLLMStep({
 											<Input
 												id="api_key"
 												type="password"
-												placeholder={t("api_key_placeholder")}
+												placeholder={formData.provider === "OLLAMA" ? "Any value (e.g., ollama)" : t("api_key_placeholder")}
 												value={formData.api_key}
 												onChange={(e) => handleInputChange("api_key", e.target.value)}
 												required
 											/>
+											{formData.provider === "OLLAMA" && (
+												<p className="text-xs text-muted-foreground">
+													💡 Ollama doesn't require authentication — enter any value (e.g., "ollama")
+												</p>
+											)}
 										</div>
 
 										<div className="space-y-2">
 											<Label htmlFor="api_base">{t("api_base_optional")}</Label>
 											<Input
 												id="api_base"
-												placeholder={t("api_base_placeholder")}
+												placeholder={selectedProvider?.apiBase || t("api_base_placeholder")}
 												value={formData.api_base}
 												onChange={(e) => handleInputChange("api_base", e.target.value)}
 											/>
+											{/* Ollama-specific help */}
+											{formData.provider === "OLLAMA" && (
+												<div className="mt-2 p-3 bg-muted/50 rounded-lg border border-muted">
+													<p className="text-xs font-medium mb-2">💡 Ollama API Base URL Examples:</p>
+													<div className="space-y-1.5">
+														<button
+															type="button"
+															className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+															onClick={() => handleInputChange("api_base", "http://localhost:11434")}
+														>
+															<code className="px-1.5 py-0.5 bg-background rounded border">http://localhost:11434</code>
+															<span>— Standard local installation</span>
+														</button>
+														<button
+															type="button"
+															className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+															onClick={() => handleInputChange("api_base", "http://host.docker.internal:11434")}
+														>
+															<code className="px-1.5 py-0.5 bg-background rounded border">http://host.docker.internal:11434</code>
+															<span>— If using SurfSense Docker image</span>
+														</button>
+													</div>
+												</div>
+											)}
 										</div>
 
 										<div className="pt-2">

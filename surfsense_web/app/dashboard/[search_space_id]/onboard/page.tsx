@@ -198,18 +198,18 @@ const OnboardPage = () => {
 						className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"
 					>
 						<OnboardActionCard
-							title="Manage Team"
-							description="Invite team members and collaborate on your search space"
-							icon={Users}
+							title="Start Chatting"
+							description="Jump right into the AI researcher and start asking questions"
+							icon={MessageSquare}
 							features={[
-								"Invite team members",
-								"Assign roles & permissions",
-								"Collaborate together",
+								"AI-powered conversations",
+								"Research and explore topics",
+								"Get instant insights",
 							]}
-							buttonText="Manage Team"
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/team`)}
-							colorScheme="emerald"
-							delay={0.7}
+							buttonText="Start Chatting"
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)}
+							colorScheme="violet"
+							delay={0.9}
 						/>
 
 						<OnboardActionCard
@@ -228,19 +228,20 @@ const OnboardPage = () => {
 						/>
 
 						<OnboardActionCard
-							title="Start Chatting"
-							description="Jump right into the AI researcher and start asking questions"
-							icon={MessageSquare}
+							title="Manage Team"
+							description="Invite team members and collaborate on your search space"
+							icon={Users}
 							features={[
-								"AI-powered conversations",
-								"Research and explore topics",
-								"Get instant insights",
+								"Invite team members",
+								"Assign roles & permissions",
+								"Collaborate together",
 							]}
-							buttonText="Start Chatting"
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)}
-							colorScheme="violet"
-							delay={0.9}
+							buttonText="Manage Team"
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/team`)}
+							colorScheme="emerald"
+							delay={0.7}
 						/>
+
 					</motion.div>
 
 					{/* Advanced Settings */}
