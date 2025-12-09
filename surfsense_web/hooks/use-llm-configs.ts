@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { UpdateLLMConfigRequest } from "@/contracts/types/llm-config.types";
 
 export interface LLMConfig {
 	id: number;
@@ -136,7 +137,7 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 
 	const updateLLMConfig = async (
 		id: number,
-		config: UpdateLLMConfig
+		config: UpdateLLMConfigRequest["data"]
 	): Promise<LLMConfig | null> => {
 		try {
 			const response = await authenticatedFetch(

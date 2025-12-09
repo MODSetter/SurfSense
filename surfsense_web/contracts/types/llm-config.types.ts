@@ -38,7 +38,7 @@ export const llmConfig = z.object({
 	id: z.number(),
 	name: z.string().max(100),
 	provider: liteLLMProviderEnum,
-	custom_provider: z.string().max(100).nullable().optional(),
+	custom_provider: z.string().nullable().optional(),
 	model_name: z.string().max(100),
 	api_key: z.string(),
 	api_base: z.string().nullable().optional(),
@@ -46,7 +46,7 @@ export const llmConfig = z.object({
 	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
 	search_space_id: z.number(),
 	created_at: z.string(),
-	updated_at: z.string(),
+	updated_at: z.string().optional(),
 });
 
 export const globalLLMConfig = llmConfig
@@ -98,10 +98,7 @@ export const getLLMConfigsRequest = z.object({
 		.nullish(),
 });
 
-export const getLLMConfigsResponse = z.object({
-	items: z.array(llmConfig),
-	total: z.number(),
-});
+export const getLLMConfigsResponse = z.array(llmConfig);
 
 /**
  * Get LLM config by ID
