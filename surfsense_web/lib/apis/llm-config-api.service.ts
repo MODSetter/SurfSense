@@ -116,6 +116,22 @@ class LLMConfigApiService {
 			body: data,
 		});
 	};
+
+	/**
+	 * Delete an LLM configuration
+	 */
+	deleteLLMConfig = async (request: DeleteLLMConfigRequest) => {
+		const parsedRequest = deleteLLMConfigRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.delete(`/api/v1/llm-configs/${request.id}`, deleteLLMConfigResponse);
+	};
 }
 
 export const llmConfigApiService = new LLMConfigApiService();
