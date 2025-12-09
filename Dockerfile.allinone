@@ -1,6 +1,17 @@
 # SurfSense All-in-One Docker Image
 # This image bundles PostgreSQL+pgvector, Redis, Backend, and Frontend
-# Usage: docker run -d -p 3000:3000 -v surfsense-data:/data --name surfsense ghcr.io/modsetter/surfsense:latest
+# Usage: docker run -d -p 3000:3000 -p 8000:8000 -v surfsense-data:/data --name surfsense ghcr.io/modsetter/surfsense:latest
+#
+# Included Services (all run locally by default):
+# - PostgreSQL 14 + pgvector (vector database)
+# - Redis (task queue)
+# - Docling (document processing, CPU-only, OCR disabled)
+# - Kokoro TTS (local text-to-speech for podcasts)
+# - Faster-Whisper (local speech-to-text for audio files)
+# - Playwright Chromium (web scraping)
+#
+# Note: This is the CPU-only version. A :cuda tagged image with GPU support
+# will be available in the future for faster AI inference.
 
 # ====================
 # Stage 1: Build Frontend
@@ -64,17 +75,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     wget \
     unzip \
+    dos2unix \
+    # For PPAs
+    software-properties-common \
+    # ============================
+    # Local TTS (Kokoro) dependencies
+    # ============================
     espeak-ng \
+    libespeak-ng1 \
+    # ============================
+    # Local STT (Faster-Whisper) dependencies
+    # ============================
+    ffmpeg \
+    # ============================
+    # Audio processing (soundfile)
+    # ============================
     libsndfile1 \
+    # ============================
+    # Image/OpenCV dependencies (for Docling)
+    # ============================
     libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
-    dos2unix \
-    # For PPAs
-    software-properties-common \
-    # Playwright dependencies
+    # ============================
+    # Playwright browser dependencies
+    # ============================
     libnspr4 \
     libnss3 \
     libatk1.0-0 \
@@ -145,8 +172,8 @@ WORKDIR /app/backend
 # Copy backend dependency files
 COPY surfsense_backend/pyproject.toml surfsense_backend/uv.lock ./
 
-# Install PyTorch (CPU only to save space)
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+# Install PyTorch CPU-only (Docling needs it but OCR is disabled, no GPU needed)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Install python dependencies
 RUN pip install --no-cache-dir certifi pip-system-certs uv \
@@ -157,12 +184,8 @@ RUN CERTIFI_PATH=$(python -c "import certifi; print(certifi.where())") \
     && echo "export SSL_CERT_FILE=$CERTIFI_PATH" >> /etc/profile.d/ssl.sh \
     && echo "export REQUESTS_CA_BUNDLE=$CERTIFI_PATH" >> /etc/profile.d/ssl.sh
 
-# Pre-download EasyOCR models
-RUN mkdir -p /root/.EasyOCR/model \
-    && wget --no-check-certificate -q https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/english_g2.zip -O /root/.EasyOCR/model/english_g2.zip || true \
-    && wget --no-check-certificate -q https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/craft_mlt_25k.zip -O /root/.EasyOCR/model/craft_mlt_25k.zip || true \
-    && cd /root/.EasyOCR/model && (unzip -o -q english_g2.zip || true) && (unzip -o -q craft_mlt_25k.zip || true) \
-    && rm -f /root/.EasyOCR/model/*.zip
+# Note: EasyOCR models NOT downloaded - OCR is disabled in docling_service.py
+# GPU support will be added in a future :cuda tagged image
 
 # Install Playwright browsers
 RUN pip install --no-cache-dir playwright \
