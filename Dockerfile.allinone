@@ -2,14 +2,50 @@
 # This image bundles PostgreSQL+pgvector, Redis, Backend, and Frontend
 # Usage: docker run -d -p 3000:3000 -v surfsense-data:/data --name surfsense ghcr.io/modsetter/surfsense:latest
 
-FROM ubuntu:22.04 AS base
+# ====================
+# Stage 1: Build Frontend
+# ====================
+FROM node:20-alpine AS frontend-builder
 
-# Prevent interactive prompts during package installation
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable pnpm
+
+# Copy package files
+COPY surfsense_web/package.json surfsense_web/pnpm-lock.yaml* ./
+COPY surfsense_web/source.config.ts ./
+COPY surfsense_web/content ./content
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY surfsense_web/ ./
+
+# Build args for frontend
+ARG NEXT_PUBLIC_FASTAPI_BACKEND_URL=http://localhost:8000
+ARG NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=LOCAL
+ARG NEXT_PUBLIC_ETL_SERVICE=DOCLING
+
+ENV NEXT_PUBLIC_FASTAPI_BACKEND_URL=$NEXT_PUBLIC_FASTAPI_BACKEND_URL
+ENV NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=$NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE
+ENV NEXT_PUBLIC_ETL_SERVICE=$NEXT_PUBLIC_ETL_SERVICE
+
+# Build
+RUN pnpm run build
+
+# ====================
+# Stage 2: Runtime Image
+# ====================
+FROM ubuntu:22.04 AS runtime
+
+# Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies (first batch without Python)
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # PostgreSQL dependencies
+    # PostgreSQL
     postgresql-14 \
     postgresql-contrib-14 \
     # Build tools for pgvector
@@ -22,9 +58,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     gnupg \
-    # Supervisor for process management
+    # Supervisor
     supervisor \
-    # Additional dependencies for backend
+    # Backend dependencies
     gcc \
     wget \
     unzip \
@@ -36,25 +72,45 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     dos2unix \
-    # For adding PPAs
+    # For PPAs
     software-properties-common \
+    # Playwright dependencies
+    libnspr4 \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libxkbcommon0 \
+    libatspi2.0-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libcairo2 \
+    libpango-1.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python 3.12 from deadsnakes PPA (required by backend)
+# Install Node.js 20.x (for running frontend)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python 3.12 from deadsnakes PPA
 RUN add-apt-repository ppa:deadsnakes/ppa -y \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
     python3.12 \
     python3.12-venv \
     python3.12-dev \
-    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20.x
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g pnpm \
-    && rm -rf /var/lib/apt/lists/*
+# Set Python 3.12 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
+
+# Install pip for Python 3.12
+RUN python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --upgrade pip
 
 # Build and install pgvector
 RUN cd /tmp \
@@ -64,15 +120,7 @@ RUN cd /tmp \
     && make install \
     && rm -rf /tmp/pgvector
 
-# Set Python 3.12 as default
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
-
-# Install pip for Python 3.12 using ensurepip (distutils removed in 3.12)
-RUN python3.12 -m ensurepip --upgrade \
-    && python3.12 -m pip install --upgrade pip
-
-# Update certificates and install SSL tools
+# Update certificates
 RUN update-ca-certificates
 
 # Create data directories
@@ -80,46 +128,25 @@ RUN mkdir -p /data/postgres /data/redis /data/surfsense \
     && chown -R postgres:postgres /data/postgres
 
 # ====================
-# Build Frontend
+# Copy Frontend Build
 # ====================
 WORKDIR /app/frontend
 
-# Copy frontend source
-COPY surfsense_web/package.json surfsense_web/pnpm-lock.yaml* ./
-COPY surfsense_web/source.config.ts ./
-COPY surfsense_web/content ./content
-
-# Install frontend dependencies
-RUN pnpm install --frozen-lockfile
-
-# Copy rest of frontend
-COPY surfsense_web/ ./
-
-# Build frontend with default values (can be overridden at runtime via reverse proxy)
-ARG NEXT_PUBLIC_FASTAPI_BACKEND_URL=http://localhost:8000
-ARG NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=LOCAL
-ARG NEXT_PUBLIC_ETL_SERVICE=DOCLING
-
-ENV NEXT_PUBLIC_FASTAPI_BACKEND_URL=$NEXT_PUBLIC_FASTAPI_BACKEND_URL
-ENV NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=$NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE
-ENV NEXT_PUBLIC_ETL_SERVICE=$NEXT_PUBLIC_ETL_SERVICE
-
-RUN pnpm run build
+# Copy only the standalone build (not node_modules)
+COPY --from=frontend-builder /app/.next/standalone ./
+COPY --from=frontend-builder /app/.next/static ./.next/static
+COPY --from=frontend-builder /app/public ./public
 
 # ====================
 # Setup Backend
 # ====================
 WORKDIR /app/backend
 
-# Copy backend source
+# Copy backend dependency files
 COPY surfsense_backend/pyproject.toml surfsense_backend/uv.lock ./
 
-# Install PyTorch based on architecture
-RUN if [ "$(uname -m)" = "x86_64" ]; then \
-        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu; \
-    else \
-        pip install --no-cache-dir torch torchvision torchaudio; \
-    fi
+# Install PyTorch (CPU only to save space)
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Install python dependencies
 RUN pip install --no-cache-dir certifi pip-system-certs uv \
@@ -132,15 +159,15 @@ RUN CERTIFI_PATH=$(python -c "import certifi; print(certifi.where())") \
 
 # Pre-download EasyOCR models
 RUN mkdir -p /root/.EasyOCR/model \
-    && wget --no-check-certificate https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/english_g2.zip -O /root/.EasyOCR/model/english_g2.zip || true \
-    && wget --no-check-certificate https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/craft_mlt_25k.zip -O /root/.EasyOCR/model/craft_mlt_25k.zip || true \
-    && cd /root/.EasyOCR/model && (unzip -o english_g2.zip || true) && (unzip -o craft_mlt_25k.zip || true)
-
-# Pre-download Docling models
-RUN python -c "try:\n    from docling.document_converter import DocumentConverter\n    conv = DocumentConverter()\nexcept:\n    pass" || true
+    && wget --no-check-certificate -q https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/english_g2.zip -O /root/.EasyOCR/model/english_g2.zip || true \
+    && wget --no-check-certificate -q https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/craft_mlt_25k.zip -O /root/.EasyOCR/model/craft_mlt_25k.zip || true \
+    && cd /root/.EasyOCR/model && (unzip -o -q english_g2.zip || true) && (unzip -o -q craft_mlt_25k.zip || true) \
+    && rm -f /root/.EasyOCR/model/*.zip
 
 # Install Playwright browsers
-RUN pip install playwright && playwright install chromium
+RUN pip install --no-cache-dir playwright \
+    && playwright install chromium \
+    && rm -rf /root/.cache/ms-playwright/ffmpeg* 
 
 # Copy backend source
 COPY surfsense_backend/ ./
@@ -155,11 +182,16 @@ COPY scripts/docker/supervisor-allinone.conf /etc/supervisor/conf.d/surfsense.co
 
 # Copy entrypoint script
 COPY scripts/docker/entrypoint-allinone.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+RUN dos2unix /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # PostgreSQL initialization script
 COPY scripts/docker/init-postgres.sh /app/init-postgres.sh
-RUN chmod +x /app/init-postgres.sh
+RUN dos2unix /app/init-postgres.sh && chmod +x /app/init-postgres.sh
+
+# Clean up build dependencies to reduce image size
+RUN apt-get purge -y build-essential postgresql-server-dev-14 git \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Environment variables with defaults
 ENV POSTGRES_USER=surfsense
@@ -178,14 +210,11 @@ ENV EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 VOLUME ["/data"]
 
 # Expose ports
-# 3000 - Frontend
-# 8000 - Backend API  
 EXPOSE 3000 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000 && curl -f http://localhost:8000/docs || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -f http://localhost:3000 || exit 1
 
 # Run entrypoint
 CMD ["/app/entrypoint.sh"]
-
