@@ -128,6 +128,15 @@ export const updateLLMConfigRequest = z.object({
 
 export const updateLLMConfigResponse = llmConfig;
 
+/**
+ * Delete LLM config
+ */
+export const deleteLLMConfigRequest = llmConfig.pick({ id: true });
+
+export const deleteLLMConfigResponse = z.object({
+	message: z.literal("LLM configuration deleted successfully"),
+});
+
 export type LLMConfig = z.infer<typeof llmConfig>;
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 export type GlobalLLMConfig = z.infer<typeof globalLLMConfig>;
@@ -140,3 +149,5 @@ export type GetLLMConfigRequest = z.infer<typeof getLLMConfigRequest>;
 export type GetLLMConfigResponse = z.infer<typeof getLLMConfigResponse>;
 export type UpdateLLMConfigRequest = z.infer<typeof updateLLMConfigRequest>;
 export type UpdateLLMConfigResponse = z.infer<typeof updateLLMConfigResponse>;
+export type DeleteLLMConfigRequest = z.infer<typeof deleteLLMConfigRequest>;
+export type DeleteLLMConfigResponse = z.infer<typeof deleteLLMConfigResponse>;
