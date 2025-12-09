@@ -68,8 +68,9 @@ RUN cd /tmp \
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 
-# Ensure pip uses Python 3.12
-RUN python3.12 -m pip install --upgrade pip
+# Install pip for Python 3.12 using ensurepip (distutils removed in 3.12)
+RUN python3.12 -m ensurepip --upgrade \
+    && python3.12 -m pip install --upgrade pip
 
 # Update certificates and install SSL tools
 RUN update-ca-certificates
