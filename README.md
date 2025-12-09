@@ -150,32 +150,84 @@ Check out our public roadmap and contribute your ideas or feedback:
 
 ## How to get started?
 
+### Quick Start with Docker 🐳
+
+> [!TIP]
+> For production deployments, use the full [Docker Compose setup](https://www.surfsense.net/docs/docker-installation) which offers more control and scalability.
+
+**Quick Start :**
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+
+**With Custom Embedding Model (e.g., OpenAI):**
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
+  -e OPENAI_API_KEY=your_openai_api_key \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+
+**Using Docker Compose (Recommended for easier management):**
+
+```bash
+# Download the quick start compose file
+curl -o docker-compose.yml https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker-compose.quickstart.yml
+
+# Create .env file with your secret key
+echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
+
+# Start SurfSense
+docker compose up -d
+```
+
+After starting, access SurfSense at:
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **Backend API**: [http://localhost:8000](http://localhost:8000)
+- **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
 ### Installation Options
 
-SurfSense provides three options to get started:
+SurfSense provides multiple options to get started:
 
 1. **[SurfSense Cloud](https://www.surfsense.com/login)** - The easiest way to try SurfSense without any setup.
    - No installation required
    - Instant access to all features
    - Perfect for getting started quickly
 
-2. **[Docker Installation (Recommended for Self-Hosting)](https://www.surfsense.net/docs/docker-installation)** - Easy way to get SurfSense up and running with all dependencies containerized.
+2. **Quick Start Docker (Above)** - Single command to get SurfSense running locally.
+   - All-in-one image with PostgreSQL, Redis, and all services bundled
+   - Perfect for evaluation, development, and small deployments
+   - Data persisted via Docker volume
+
+3. **[Docker Compose (Production)](https://www.surfsense.net/docs/docker-installation)** - Full stack deployment with separate services.
    - Includes pgAdmin for database management through a web UI
    - Supports environment variable customization via `.env` file
    - Flexible deployment options (full stack or core services only)
-   - No need to manually edit configuration files between environments
+   - Better for production with separate scaling of services
 
-3. **[Manual Installation](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
+4. **[Manual Installation](https://www.surfsense.net/docs/manual-installation)** - For users who prefer more control over their setup or need to customize their deployment.
 
 Docker and manual installation guides include detailed OS-specific instructions for Windows, macOS, and Linux.
 
 Before self-hosting installation, make sure to complete the [prerequisite setup steps](https://www.surfsense.net/docs/) including:
-- Auth setup
-- **File Processing ETL Service** (choose one):
+- Auth setup (optional - defaults to LOCAL auth)
+- **File Processing ETL Service** (optional - defaults to Docling):
+  - Docling (default, local processing, no API key required, supports PDF, Office docs, images, HTML, CSV)
   - Unstructured.io API key (supports 34+ formats)
   - LlamaIndex API key (enhanced parsing, supports 50+ formats)
-  - Docling (local processing, no API key required, supports PDF, Office docs, images, HTML, CSV)
-- Other required API keys
+- Other API keys as needed for your use case
 
 ## Screenshots
 

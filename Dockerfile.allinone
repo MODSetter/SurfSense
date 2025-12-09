@@ -1,0 +1,180 @@
+# SurfSense All-in-One Docker Image
+# This image bundles PostgreSQL+pgvector, Redis, Backend, and Frontend
+# Usage: docker run -d -p 3000:3000 -v surfsense-data:/data --name surfsense ghcr.io/modsetter/surfsense:latest
+
+FROM ubuntu:22.04 AS base
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # PostgreSQL dependencies
+    postgresql-14 \
+    postgresql-contrib-14 \
+    # Build tools for pgvector
+    build-essential \
+    postgresql-server-dev-14 \
+    git \
+    # Redis
+    redis-server \
+    # Python
+    python3.11 \
+    python3.11-venv \
+    python3.11-dev \
+    python3-pip \
+    # Node.js
+    curl \
+    ca-certificates \
+    gnupg \
+    # Supervisor for process management
+    supervisor \
+    # Additional dependencies for backend
+    gcc \
+    wget \
+    unzip \
+    espeak-ng \
+    libsndfile1 \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    dos2unix \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build and install pgvector
+RUN cd /tmp \
+    && git clone --branch v0.7.4 https://github.com/pgvector/pgvector.git \
+    && cd pgvector \
+    && make \
+    && make install \
+    && rm -rf /tmp/pgvector
+
+# Set Python 3.11 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+
+# Update certificates and install SSL tools
+RUN update-ca-certificates
+
+# Create data directories
+RUN mkdir -p /data/postgres /data/redis /data/surfsense \
+    && chown -R postgres:postgres /data/postgres
+
+# ====================
+# Build Frontend
+# ====================
+WORKDIR /app/frontend
+
+# Copy frontend source
+COPY surfsense_web/package.json surfsense_web/pnpm-lock.yaml* ./
+COPY surfsense_web/source.config.ts ./
+COPY surfsense_web/content ./content
+
+# Install frontend dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy rest of frontend
+COPY surfsense_web/ ./
+
+# Build frontend with default values (can be overridden at runtime via reverse proxy)
+ARG NEXT_PUBLIC_FASTAPI_BACKEND_URL=http://localhost:8000
+ARG NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=LOCAL
+ARG NEXT_PUBLIC_ETL_SERVICE=DOCLING
+
+ENV NEXT_PUBLIC_FASTAPI_BACKEND_URL=$NEXT_PUBLIC_FASTAPI_BACKEND_URL
+ENV NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=$NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE
+ENV NEXT_PUBLIC_ETL_SERVICE=$NEXT_PUBLIC_ETL_SERVICE
+
+RUN pnpm run build
+
+# ====================
+# Setup Backend
+# ====================
+WORKDIR /app/backend
+
+# Copy backend source
+COPY surfsense_backend/pyproject.toml surfsense_backend/uv.lock ./
+
+# Install PyTorch based on architecture
+RUN if [ "$(uname -m)" = "x86_64" ]; then \
+        pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu; \
+    else \
+        pip install --no-cache-dir torch torchvision torchaudio; \
+    fi
+
+# Install python dependencies
+RUN pip install --no-cache-dir certifi pip-system-certs uv \
+    && uv pip install --system --no-cache-dir -e .
+
+# Set SSL environment variables
+RUN CERTIFI_PATH=$(python -c "import certifi; print(certifi.where())") \
+    && echo "export SSL_CERT_FILE=$CERTIFI_PATH" >> /etc/profile.d/ssl.sh \
+    && echo "export REQUESTS_CA_BUNDLE=$CERTIFI_PATH" >> /etc/profile.d/ssl.sh
+
+# Pre-download EasyOCR models
+RUN mkdir -p /root/.EasyOCR/model \
+    && wget --no-check-certificate https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/english_g2.zip -O /root/.EasyOCR/model/english_g2.zip || true \
+    && wget --no-check-certificate https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/craft_mlt_25k.zip -O /root/.EasyOCR/model/craft_mlt_25k.zip || true \
+    && cd /root/.EasyOCR/model && (unzip -o english_g2.zip || true) && (unzip -o craft_mlt_25k.zip || true)
+
+# Pre-download Docling models
+RUN python -c "try:\n    from docling.document_converter import DocumentConverter\n    conv = DocumentConverter()\nexcept:\n    pass" || true
+
+# Install Playwright browsers
+RUN pip install playwright && playwright install chromium
+
+# Copy backend source
+COPY surfsense_backend/ ./
+
+# ====================
+# Configuration
+# ====================
+WORKDIR /app
+
+# Copy supervisor configuration
+COPY scripts/docker/supervisor-allinone.conf /etc/supervisor/conf.d/surfsense.conf
+
+# Copy entrypoint script
+COPY scripts/docker/entrypoint-allinone.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# PostgreSQL initialization script
+COPY scripts/docker/init-postgres.sh /app/init-postgres.sh
+RUN chmod +x /app/init-postgres.sh
+
+# Environment variables with defaults
+ENV POSTGRES_USER=surfsense
+ENV POSTGRES_PASSWORD=surfsense
+ENV POSTGRES_DB=surfsense
+ENV DATABASE_URL=postgresql+asyncpg://surfsense:surfsense@localhost:5432/surfsense
+ENV CELERY_BROKER_URL=redis://localhost:6379/0
+ENV CELERY_RESULT_BACKEND=redis://localhost:6379/0
+ENV PYTHONPATH=/app/backend
+ENV NEXT_FRONTEND_URL=http://localhost:3000
+ENV AUTH_TYPE=LOCAL
+ENV ETL_SERVICE=DOCLING
+ENV EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+
+# Data volume
+VOLUME ["/data"]
+
+# Expose ports
+# 3000 - Frontend
+# 8000 - Backend API  
+EXPOSE 3000 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000 && curl -f http://localhost:8000/docs || exit 1
+
+# Run entrypoint
+CMD ["/app/entrypoint.sh"]
+

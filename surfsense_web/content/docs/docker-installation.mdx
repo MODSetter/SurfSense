@@ -8,7 +8,135 @@ full: true
 
 # Docker Installation
 
-This guide explains how to run SurfSense using Docker Compose, which is the preferred and recommended method for deployment.
+This guide explains how to run SurfSense using Docker, with options ranging from quick single-command deployment to full production setups.
+
+## Quick Start with Docker 🐳
+
+Get SurfSense running in seconds with a single command:
+
+<Callout type="info">
+The all-in-one Docker image bundles PostgreSQL (with pgvector), Redis, and all SurfSense services. Perfect for quick evaluation and development.
+</Callout>
+
+<Callout type="warn">
+Make sure to include the `-v surfsense-data:/data` in your Docker command. This ensures your database and files are properly persisted.
+</Callout>
+
+### One-Line Installation
+
+**Linux/macOS:**
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+
+**Windows (PowerShell):**
+
+```powershell
+$secretKey = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object {[char]$_})
+docker run -d -p 3000:3000 -p 8000:8000 `
+  -v surfsense-data:/data `
+  -e SECRET_KEY=$secretKey `
+  --name surfsense `
+  --restart unless-stopped `
+  ghcr.io/modsetter/surfsense:latest
+```
+
+### With Custom Configuration
+
+**Using OpenAI Embeddings:**
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
+  -e OPENAI_API_KEY=your_openai_api_key \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+
+**With Google OAuth:**
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  -e AUTH_TYPE=GOOGLE \
+  -e GOOGLE_OAUTH_CLIENT_ID=your_client_id \
+  -e GOOGLE_OAUTH_CLIENT_SECRET=your_client_secret \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+
+### Quick Start with Docker Compose
+
+For easier management with environment files:
+
+```bash
+# Download the quick start compose file
+curl -o docker-compose.yml https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker-compose.quickstart.yml
+
+# Create .env file
+cat > .env << EOF
+SECRET_KEY=$(openssl rand -hex 32)
+# Add other configuration as needed
+# EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+# ETL_SERVICE=DOCLING
+EOF
+
+# Start SurfSense
+docker compose up -d
+```
+
+After starting, access SurfSense at:
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **Backend API**: [http://localhost:8000](http://localhost:8000)
+- **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+### Quick Start Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| SECRET_KEY | JWT secret key (required) | - |
+| AUTH_TYPE | Authentication: `LOCAL` or `GOOGLE` | LOCAL |
+| EMBEDDING_MODEL | Model for embeddings | sentence-transformers/all-MiniLM-L6-v2 |
+| ETL_SERVICE | Document parser: `DOCLING`, `UNSTRUCTURED`, `LLAMACLOUD` | DOCLING |
+| TTS_SERVICE | Text-to-speech for podcasts | local/kokoro |
+| STT_SERVICE | Speech-to-text for audio | local/base |
+| REGISTRATION_ENABLED | Allow new user registration | TRUE |
+
+### Useful Commands
+
+```bash
+# View logs
+docker logs -f surfsense
+
+# Stop SurfSense
+docker stop surfsense
+
+# Start SurfSense
+docker start surfsense
+
+# Remove container (data preserved in volume)
+docker rm surfsense
+
+# Remove container AND data
+docker rm surfsense && docker volume rm surfsense-data
+```
+
+---
+
+## Full Docker Compose Setup (Production)
+
+For production deployments with separate services and more control, use the full Docker Compose setup below.
 
 ## Prerequisites
 
