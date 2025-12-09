@@ -137,6 +137,27 @@ export const deleteLLMConfigResponse = z.object({
 	message: z.literal("LLM configuration deleted successfully"),
 });
 
+/**
+ * LLM Preferences schemas
+ */
+export const llmPreferences = z.object({
+	long_context_llm_id: z.number().nullable().optional(),
+	fast_llm_id: z.number().nullable().optional(),
+	strategic_llm_id: z.number().nullable().optional(),
+	long_context_llm: llmConfig.nullable().optional(),
+	fast_llm: llmConfig.nullable().optional(),
+	strategic_llm: llmConfig.nullable().optional(),
+});
+
+/**
+ * Get LLM preferences
+ */
+export const getLLMPreferencesRequest = z.object({
+	search_space_id: z.number(),
+});
+
+export const getLLMPreferencesResponse = llmPreferences;
+
 export type LLMConfig = z.infer<typeof llmConfig>;
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 export type GlobalLLMConfig = z.infer<typeof globalLLMConfig>;
@@ -151,3 +172,6 @@ export type UpdateLLMConfigRequest = z.infer<typeof updateLLMConfigRequest>;
 export type UpdateLLMConfigResponse = z.infer<typeof updateLLMConfigResponse>;
 export type DeleteLLMConfigRequest = z.infer<typeof deleteLLMConfigRequest>;
 export type DeleteLLMConfigResponse = z.infer<typeof deleteLLMConfigResponse>;
+export type LLMPreferences = z.infer<typeof llmPreferences>;
+export type GetLLMPreferencesRequest = z.infer<typeof getLLMPreferencesRequest>;
+export type GetLLMPreferencesResponse = z.infer<typeof getLLMPreferencesResponse>;
