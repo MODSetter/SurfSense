@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// LiteLLM Provider enum matching backend
 export const liteLLMProviderEnum = z.enum([
 	"OPENAI",
 	"ANTHROPIC",
@@ -34,7 +33,6 @@ export const liteLLMProviderEnum = z.enum([
 	"CUSTOM",
 ]);
 
-// Base LLM Config schema
 export const llmConfig = z.object({
 	id: z.number(),
 	name: z.string().max(100),
@@ -50,6 +48,27 @@ export const llmConfig = z.object({
 	updated_at: z.string(),
 });
 
-// Inferred types
+export const globalLLMConfig = llmConfig
+	.pick({
+		id: true,
+		name: true,
+		custom_provider: true,
+		model_name: true,
+		api_base: true,
+		language: true,
+		litellm_params: true,
+	})
+	.extend({
+		provider: z.string(),
+		is_global: z.literal(true),
+	});
+
+/**
+ * Get global LLM configs
+ */
+export const getGlobalLLMConfigsResponse = z.array(globalLLMConfig);
+
 export type LLMConfig = z.infer<typeof llmConfig>;
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
+export type GlobalLLMConfig = z.infer<typeof globalLLMConfig>;
+export type GetGlobalLLMConfigsResponse = z.infer<typeof getGlobalLLMConfigsResponse>;
