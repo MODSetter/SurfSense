@@ -18,39 +18,30 @@ on:
         default: ''
 
 permissions:
-  contents: write # Needed for pushing tags
-  packages: write # Needed for pushing docker images to GHCR
+  contents: write
+  packages: write
 
 jobs:
   tag_release:
     runs-on: ubuntu-latest
     outputs:
-      # Define output to pass the tag to the next job
       new_tag: ${{ steps.tag_version.outputs.next_version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          # Fetch all history and tags to find the latest SemVer tag
           fetch-depth: 0
-          # Checkout the specific branch if provided, otherwise default
           ref: ${{ github.event.inputs.branch }}
-          # Token needed to push tags back
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get latest SemVer tag and calculate next version
         id: tag_version
         run: |
-          # Fetch all tags from remote just in case
           git fetch --tags
-
-          # Get the latest SemVer tag (handles vX.Y.Z pattern)
-          # Filters tags, sorts them version-aware, takes the last one
           LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort='v:refname' | tail -n 1)
 
           if [ -z "$LATEST_TAG" ]; then
             echo "No previous SemVer tag found. Starting with v0.1.0"
-            # Determine initial version based on bump type (optional, v0.1.0 is often fine)
             case "${{ github.event.inputs.bump_type }}" in
               patch|minor)
                 NEXT_VERSION="v0.1.0"
@@ -58,22 +49,18 @@ jobs:
               major)
                 NEXT_VERSION="v1.0.0"
                 ;;
-              *) # Should not happen due to 'choice' input, but good practice
+              *)
                 echo "Invalid bump type: ${{ github.event.inputs.bump_type }}"
                 exit 1
                 ;;
             esac
           else
             echo "Latest tag found: $LATEST_TAG"
-            # Remove 'v' prefix for calculation
             VERSION=${LATEST_TAG#v}
-
-            # Split into parts
             MAJOR=$(echo $VERSION | cut -d. -f1)
             MINOR=$(echo $VERSION | cut -d. -f2)
             PATCH=$(echo $VERSION | cut -d. -f3)
 
-            # Bump version based on input
             case "${{ github.event.inputs.bump_type }}" in
               patch)
                 PATCH=$((PATCH + 1))
@@ -96,12 +83,10 @@ jobs:
           fi
 
           echo "Calculated next version: $NEXT_VERSION"
-          # Set output for subsequent steps
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Create and Push Tag
         run: |
-          # Configure Git user identity for annotated tag (FIX)
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
@@ -109,74 +94,23 @@ jobs:
           COMMIT_SHA=$(git rev-parse HEAD)
           echo "Tagging commit $COMMIT_SHA with $NEXT_TAG"
 
-          # Create an annotated tag (recommended) - this requires user.name/email
           git tag -a "$NEXT_TAG" -m "Release $NEXT_TAG"
-
-          # Push the tag to the remote repository
           echo "Pushing tag $NEXT_TAG to origin"
           git push origin "$NEXT_TAG"
 
       - name: Verify Tag Push
         run: |
           echo "Checking if tag ${{ steps.tag_version.outputs.next_version }} exists remotely..."
-          # Give remote a second to update
           sleep 5
           git ls-remote --tags origin | grep "refs/tags/${{ steps.tag_version.outputs.next_version }}" || (echo "Tag push verification failed!" && exit 1)
           echo "Tag successfully pushed."
-  
-  # build_and_push_backend_image: 
-  #   runs-on: ubuntu-latest
-  #   needs: tag_release # Depends on the tag being created successfully
-  #   permissions:
-  #     packages: write # Need permission to write to GHCR
-  #     contents: read # Need permission to read repo contents (checkout)
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-
-  #     - name: Login to GitHub Container Registry
-  #       uses: docker/login-action@v3
-  #       with:
-  #         registry: ghcr.io
-  #         username: ${{ github.repository_owner }}
-  #         password: ${{ secrets.GITHUB_TOKEN }}
-
-  #     - name: Set up QEMU
-  #       uses: docker/setup-qemu-action@v3
-
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
-
-  #     - name: Extract metadata (tags, labels) for Docker build
-  #       id: meta
-  #       uses: docker/metadata-action@v5
-  #       with:
-  #         images: ghcr.io/${{ github.repository_owner }}/surfsense_backend
-  #         tags: |
-  #           # Use the tag generated in the previous job
-  #           type=raw,value=${{ needs.tag_release.outputs.new_tag }}
-  #           # Optionally add 'latest' tag if building from the default branch
-  #           type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
-
-  #     - name: Build and push surfsense backend
-  #       uses: docker/build-push-action@v5
-  #       with:
-  #         context: ./surfsense_backend
-  #         push: true
-  #         tags: ${{ steps.meta.outputs.tags }}
-  #         labels: ${{ steps.meta.outputs.labels }}
-  #         platforms: linux/amd64,linux/arm64
-  #         # Optional: Add build cache for faster builds
-  #         cache-from: type=gha
-  #         cache-to: type=gha,mode=max
-
-  build_and_push_ui_image: 
+  build_and_push:
     runs-on: ubuntu-latest
-    needs: tag_release # Depends on the tag being created successfully
+    needs: tag_release
     permissions:
-      packages: write # Need permission to write to GHCR
-      contents: read # Need permission to read repo contents (checkout)
+      packages: write
+      contents: read
 
     steps:
       - name: Checkout code
@@ -195,25 +129,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata (tags, labels) for Docker build
+      - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/surfsense_ui
+          images: ghcr.io/${{ github.repository_owner }}/surfsense
           tags: |
-            # Use the tag generated in the previous job
             type=raw,value=${{ needs.tag_release.outputs.new_tag }}
-            # Optionally add 'latest' tag if building from the default branch
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
 
-      - name: Build and push surfsense UI image
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          docker system prune -af
+
+      - name: Build and push SurfSense image
         uses: docker/build-push-action@v5
         with:
-          context: ./surfsense_web
+          context: .
+          file: ./Dockerfile.allinone
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          # Optional: Add build cache for faster builds
+          platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max

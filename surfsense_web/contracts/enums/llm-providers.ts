@@ -109,6 +109,7 @@ export const LLM_PROVIDERS: LLMProvider[] = [
 		label: "Ollama",
 		example: "ollama/llama3.1, ollama/mistral",
 		description: "Run models locally",
+		apiBase: "http://localhost:11434",
 	},
 	{
 		value: "ALIBABA_QWEN",

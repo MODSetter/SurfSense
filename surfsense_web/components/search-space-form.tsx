@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 
 // Define the form schema with Zod
 const searchSpaceFormSchema = z.object({
-	name: z.string().min(3, "Name must be at least 3 characters"),
+	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
 });
 

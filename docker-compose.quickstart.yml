@@ -1,0 +1,80 @@
+# SurfSense Quick Start Docker Compose
+# 
+# This is a simplified docker-compose for quick local deployment using pre-built images.
+# For production or customized deployments, use the main docker-compose.yml
+#
+# Usage:
+#   1. (Optional) Create a .env file with your configuration
+#   2. Run: docker compose -f docker-compose.quickstart.yml up -d
+#   3. Access SurfSense at http://localhost:3000
+#
+# All Environment Variables are Optional:
+#   - SECRET_KEY: JWT secret key (auto-generated and persisted if not set)
+#   - EMBEDDING_MODEL: Embedding model to use (default: sentence-transformers/all-MiniLM-L6-v2)
+#   - ETL_SERVICE: Document parsing service - DOCLING, UNSTRUCTURED, or LLAMACLOUD (default: DOCLING)
+#   - TTS_SERVICE: Text-to-speech service for podcasts (default: local/kokoro)
+#   - STT_SERVICE: Speech-to-text service with model size (default: local/base)
+#   - FIRECRAWL_API_KEY: For web crawling features
+
+version: "3.8"
+
+services:
+  # All-in-one SurfSense container
+  surfsense:
+    image: ghcr.io/modsetter/surfsense:latest
+    container_name: surfsense
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - surfsense-data:/data
+    environment:
+      # Authentication (auto-generated if not set)
+      - SECRET_KEY=${SECRET_KEY:-}
+      
+      # Auth Configuration
+      - AUTH_TYPE=${AUTH_TYPE:-LOCAL}
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:-}
+      - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      
+      # AI/ML Configuration
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      - RERANKERS_ENABLED=${RERANKERS_ENABLED:-FALSE}
+      - RERANKERS_MODEL_NAME=${RERANKERS_MODEL_NAME:-}
+      - RERANKERS_MODEL_TYPE=${RERANKERS_MODEL_TYPE:-}
+      
+      # Document Processing
+      - ETL_SERVICE=${ETL_SERVICE:-DOCLING}
+      - UNSTRUCTURED_API_KEY=${UNSTRUCTURED_API_KEY:-}
+      - LLAMA_CLOUD_API_KEY=${LLAMA_CLOUD_API_KEY:-}
+      
+      # Audio Services
+      - TTS_SERVICE=${TTS_SERVICE:-local/kokoro}
+      - TTS_SERVICE_API_KEY=${TTS_SERVICE_API_KEY:-}
+      - STT_SERVICE=${STT_SERVICE:-local/base}
+      - STT_SERVICE_API_KEY=${STT_SERVICE_API_KEY:-}
+      
+      # Web Crawling
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+      
+      # Optional Features
+      - REGISTRATION_ENABLED=${REGISTRATION_ENABLED:-TRUE}
+      - SCHEDULE_CHECKER_INTERVAL=${SCHEDULE_CHECKER_INTERVAL:-1m}
+      
+      # LangSmith Observability (optional)
+      - LANGSMITH_TRACING=${LANGSMITH_TRACING:-false}
+      - LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT:-}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY:-}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000", "&&", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+volumes:
+  surfsense-data:
+    name: surfsense-data
+

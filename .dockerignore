@@ -1,0 +1,98 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+LICENSE
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.cursor/
+
+# Node
+**/node_modules/
+**/.next/
+**/dist/
+**/.turbo/
+**/.cache/
+**/coverage/
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.Python
+**/build/
+**/develop-eggs/
+**/downloads/
+**/eggs/
+**/.eggs/
+# Python venv lib folders (but not frontend lib folders)
+surfsense_backend/lib/
+surfsense_backend/lib64/
+**/parts/
+**/sdist/
+**/var/
+**/wheels/
+**/*.egg-info/
+**/.installed.cfg
+**/*.egg
+**/pip-log.txt
+**/.tox/
+**/.coverage
+**/htmlcov/
+**/.pytest_cache/
+**/nosetests.xml
+**/coverage.xml
+
+# Environment
+**/.env
+**/.env.*
+!**/.env.example
+**/*.local
+
+# Docker
+**/Dockerfile
+**/docker-compose*.yml
+**/.docker/
+
+# Testing
+**/tests/
+**/test/
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+
+# Logs
+**/*.log
+**/logs/
+
+# Temporary files
+**/tmp/
+**/temp/
+**/.tmp/
+**/.temp/
+
+# Build artifacts from backend
+surfsense_backend/podcasts/
+surfsense_backend/temp_audio/
+surfsense_backend/*.bak
+surfsense_backend/*.dat
+surfsense_backend/*.dir
+
+# GitHub
+.github/
+
+# Browser extension (not needed for main deployment)
+surfsense_browser_extension/
+
