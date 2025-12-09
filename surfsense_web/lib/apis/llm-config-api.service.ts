@@ -132,6 +132,25 @@ class LLMConfigApiService {
 
 		return baseApiService.delete(`/api/v1/llm-configs/${request.id}`, deleteLLMConfigResponse);
 	};
+
+	/**
+	 * Get LLM preferences for a search space
+	 */
+	getLLMPreferences = async (request: GetLLMPreferencesRequest) => {
+		const parsedRequest = getLLMPreferencesRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(
+			`/api/v1/search-spaces/${request.search_space_id}/llm-preferences`,
+			getLLMPreferencesResponse
+		);
+	};
 }
 
 export const llmConfigApiService = new LLMConfigApiService();
