@@ -7,7 +7,7 @@ FROM ubuntu:22.04 AS base
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies (first batch without Python)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # PostgreSQL dependencies
     postgresql-14 \
@@ -18,12 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     # Redis
     redis-server \
-    # Python
-    python3.11 \
-    python3.11-venv \
-    python3.11-dev \
-    python3-pip \
-    # Node.js
+    # Node.js prerequisites
     curl \
     ca-certificates \
     gnupg \
@@ -41,6 +36,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     dos2unix \
+    # For adding PPAs
+    software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python 3.12 from deadsnakes PPA (required by backend)
+RUN add-apt-repository ppa:deadsnakes/ppa -y \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20.x
@@ -57,9 +64,12 @@ RUN cd /tmp \
     && make install \
     && rm -rf /tmp/pgvector
 
-# Set Python 3.11 as default
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+# Set Python 3.12 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
+
+# Ensure pip uses Python 3.12
+RUN python3.12 -m pip install --upgrade pip
 
 # Update certificates and install SSL tools
 RUN update-ca-certificates
