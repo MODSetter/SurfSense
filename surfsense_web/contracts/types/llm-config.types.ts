@@ -107,6 +107,27 @@ export const getLLMConfigRequest = llmConfig.pick({ id: true });
 
 export const getLLMConfigResponse = llmConfig;
 
+/**
+ * Update LLM config
+ */
+export const updateLLMConfigRequest = z.object({
+	id: z.number(),
+	data: llmConfig
+		.pick({
+			name: true,
+			provider: true,
+			custom_provider: true,
+			model_name: true,
+			api_key: true,
+			api_base: true,
+			language: true,
+			litellm_params: true,
+		})
+		.partial(),
+});
+
+export const updateLLMConfigResponse = llmConfig;
+
 export type LLMConfig = z.infer<typeof llmConfig>;
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 export type GlobalLLMConfig = z.infer<typeof globalLLMConfig>;
@@ -117,3 +138,5 @@ export type GetLLMConfigsRequest = z.infer<typeof getLLMConfigsRequest>;
 export type GetLLMConfigsResponse = z.infer<typeof getLLMConfigsResponse>;
 export type GetLLMConfigRequest = z.infer<typeof getLLMConfigRequest>;
 export type GetLLMConfigResponse = z.infer<typeof getLLMConfigResponse>;
+export type UpdateLLMConfigRequest = z.infer<typeof updateLLMConfigRequest>;
+export type UpdateLLMConfigResponse = z.infer<typeof updateLLMConfigResponse>;
