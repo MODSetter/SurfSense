@@ -150,14 +150,21 @@ const OnboardPage = () => {
 		);
 	}
 
-	// No configs available - show LLM setup
-	if (allConfigs.length === 0) {
+	// Show LLM setup if no configs available OR if roles are not assigned yet
+	// This forces users to complete role assignment before seeing the final screen
+	if (allConfigs.length === 0 || !isOnboardingComplete()) {
 		return (
 			<OnboardLLMSetup
 				searchSpaceId={searchSpaceId}
 				title={t("welcome_title")}
-				configTitle={t("setup_llm_configuration")}
-				configDescription={t("configure_providers_and_assign_roles")}
+				configTitle={
+					allConfigs.length === 0 ? t("setup_llm_configuration") : t("assign_llm_roles_title")
+				}
+				configDescription={
+					allConfigs.length === 0
+						? t("configure_providers_and_assign_roles")
+						: t("complete_role_assignment")
+				}
 				onConfigCreated={refreshConfigs}
 				onConfigDeleted={refreshConfigs}
 				onPreferencesUpdated={refreshPreferences}
