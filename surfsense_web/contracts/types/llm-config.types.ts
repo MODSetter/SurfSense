@@ -158,6 +158,20 @@ export const getLLMPreferencesRequest = z.object({
 
 export const getLLMPreferencesResponse = llmPreferences;
 
+/**
+ * Update LLM preferences
+ */
+export const updateLLMPreferencesRequest = z.object({
+	search_space_id: z.number(),
+	data: llmPreferences.pick({
+		long_context_llm_id: true,
+		fast_llm_id: true,
+		strategic_llm_id: true,
+	}),
+});
+
+export const updateLLMPreferencesResponse = llmPreferences;
+
 export type LLMConfig = z.infer<typeof llmConfig>;
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 export type GlobalLLMConfig = z.infer<typeof globalLLMConfig>;
@@ -175,3 +189,5 @@ export type DeleteLLMConfigResponse = z.infer<typeof deleteLLMConfigResponse>;
 export type LLMPreferences = z.infer<typeof llmPreferences>;
 export type GetLLMPreferencesRequest = z.infer<typeof getLLMPreferencesRequest>;
 export type GetLLMPreferencesResponse = z.infer<typeof getLLMPreferencesResponse>;
+export type UpdateLLMPreferencesRequest = z.infer<typeof updateLLMPreferencesRequest>;
+export type UpdateLLMPreferencesResponse = z.infer<typeof updateLLMPreferencesResponse>;
