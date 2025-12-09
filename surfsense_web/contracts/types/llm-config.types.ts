@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paginationQueryParams } from ".";
 
 export const liteLLMProviderEnum = z.enum([
 	"OPENAI",
@@ -85,9 +86,25 @@ export const createLLMConfigRequest = llmConfig.pick({
 
 export const createLLMConfigResponse = llmConfig;
 
+/**
+ * Get LLM configs
+ */
+export const getLLMConfigsRequest = z.object({
+	queryParams: paginationQueryParams
+		.pick({ skip: true, limit: true })
+		.extend({
+			search_space_id: z.number().or(z.string()),
+		})
+		.nullish(),
+});
+
+export const getLLMConfigsResponse = z.array(llmConfig);
+
 export type LLMConfig = z.infer<typeof llmConfig>;
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 export type GlobalLLMConfig = z.infer<typeof globalLLMConfig>;
 export type GetGlobalLLMConfigsResponse = z.infer<typeof getGlobalLLMConfigsResponse>;
 export type CreateLLMConfigRequest = z.infer<typeof createLLMConfigRequest>;
 export type CreateLLMConfigResponse = z.infer<typeof createLLMConfigResponse>;
+export type GetLLMConfigsRequest = z.infer<typeof getLLMConfigsRequest>;
+export type GetLLMConfigsResponse = z.infer<typeof getLLMConfigsResponse>;
