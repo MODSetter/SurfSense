@@ -98,7 +98,10 @@ export const getLLMConfigsRequest = z.object({
 		.nullish(),
 });
 
-export const getLLMConfigsResponse = z.array(llmConfig);
+export const getLLMConfigsResponse = z.object({
+	items: z.array(llmConfig),
+	total: z.number(),
+});
 
 /**
  * Get LLM config by ID
