@@ -96,6 +96,26 @@ class LLMConfigApiService {
 
 		return baseApiService.get(`/api/v1/llm-configs/${request.id}`, getLLMConfigResponse);
 	};
+
+	/**
+	 * Update an existing LLM configuration
+	 */
+	updateLLMConfig = async (request: UpdateLLMConfigRequest) => {
+		const parsedRequest = updateLLMConfigRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		const { id, data } = parsedRequest.data;
+
+		return baseApiService.put(`/api/v1/llm-configs/${id}`, updateLLMConfigResponse, {
+			body: data,
+		});
+	};
 }
 
 export const llmConfigApiService = new LLMConfigApiService();
