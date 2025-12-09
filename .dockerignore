@@ -37,8 +37,9 @@ LICENSE
 **/downloads/
 **/eggs/
 **/.eggs/
-**/lib/
-**/lib64/
+# Python venv lib folders (but not frontend lib folders)
+surfsense_backend/lib/
+surfsense_backend/lib64/
 **/parts/
 **/sdist/
 **/var/
