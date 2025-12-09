@@ -80,6 +80,22 @@ class LLMConfigApiService {
 
 		return baseApiService.get(`/api/v1/llm-configs?${queryParams}`, getLLMConfigsResponse);
 	};
+
+	/**
+	 * Get a single LLM configuration by ID
+	 */
+	getLLMConfig = async (request: GetLLMConfigRequest) => {
+		const parsedRequest = getLLMConfigRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(`/api/v1/llm-configs/${request.id}`, getLLMConfigResponse);
+	};
 }
 
 export const llmConfigApiService = new LLMConfigApiService();
