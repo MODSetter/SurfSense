@@ -68,7 +68,26 @@ export const globalLLMConfig = llmConfig
  */
 export const getGlobalLLMConfigsResponse = z.array(globalLLMConfig);
 
+/**
+ * Create LLM config
+ */
+export const createLLMConfigRequest = llmConfig.pick({
+	name: true,
+	provider: true,
+	custom_provider: true,
+	model_name: true,
+	api_key: true,
+	api_base: true,
+	language: true,
+	litellm_params: true,
+	search_space_id: true,
+});
+
+export const createLLMConfigResponse = llmConfig;
+
 export type LLMConfig = z.infer<typeof llmConfig>;
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 export type GlobalLLMConfig = z.infer<typeof globalLLMConfig>;
 export type GetGlobalLLMConfigsResponse = z.infer<typeof getGlobalLLMConfigsResponse>;
+export type CreateLLMConfigRequest = z.infer<typeof createLLMConfigRequest>;
+export type CreateLLMConfigResponse = z.infer<typeof createLLMConfigResponse>;
