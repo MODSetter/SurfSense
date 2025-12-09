@@ -33,6 +33,24 @@ class LLMConfigApiService {
 	getGlobalLLMConfigs = async () => {
 		return baseApiService.get(`/api/v1/global-llm-configs`, getGlobalLLMConfigsResponse);
 	};
+
+	/**
+	 * Create a new LLM configuration for a search space
+	 */
+	createLLMConfig = async (request: CreateLLMConfigRequest) => {
+		const parsedRequest = createLLMConfigRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.post(`/api/v1/llm-configs`, createLLMConfigResponse, {
+			body: parsedRequest.data,
+		});
+	};
 }
 
 export const llmConfigApiService = new LLMConfigApiService();
