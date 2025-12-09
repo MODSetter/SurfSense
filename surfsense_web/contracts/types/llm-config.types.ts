@@ -100,6 +100,13 @@ export const getLLMConfigsRequest = z.object({
 
 export const getLLMConfigsResponse = z.array(llmConfig);
 
+/**
+ * Get LLM config by ID
+ */
+export const getLLMConfigRequest = llmConfig.pick({ id: true });
+
+export const getLLMConfigResponse = llmConfig;
+
 export type LLMConfig = z.infer<typeof llmConfig>;
 export type LiteLLMProvider = z.infer<typeof liteLLMProviderEnum>;
 export type GlobalLLMConfig = z.infer<typeof globalLLMConfig>;
@@ -108,3 +115,5 @@ export type CreateLLMConfigRequest = z.infer<typeof createLLMConfigRequest>;
 export type CreateLLMConfigResponse = z.infer<typeof createLLMConfigResponse>;
 export type GetLLMConfigsRequest = z.infer<typeof getLLMConfigsRequest>;
 export type GetLLMConfigsResponse = z.infer<typeof getLLMConfigsResponse>;
+export type GetLLMConfigRequest = z.infer<typeof getLLMConfigRequest>;
+export type GetLLMConfigResponse = z.infer<typeof getLLMConfigResponse>;
