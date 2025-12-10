@@ -12,10 +12,10 @@ import { OnboardHeader } from "@/components/onboard/onboard-header";
 import { OnboardLLMSetup } from "@/components/onboard/onboard-llm-setup";
 import { OnboardLoading } from "@/components/onboard/onboard-loading";
 import { OnboardStats } from "@/components/onboard/onboard-stats";
-import { useGlobalLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 import { useAtomValue } from "jotai";
-import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { llmConfigsAtom, globalLLMConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 
 const OnboardPage = () => {
 	const t = useTranslations("onboard");
@@ -24,7 +24,7 @@ const OnboardPage = () => {
 	const searchSpaceId = Number(params.search_space_id);
 
 	const { data: llmConfigs = [], isFetching: configsLoading, refetch: refreshConfigs } = useAtomValue(llmConfigsAtom);
-	const { globalConfigs, loading: globalConfigsLoading } = useGlobalLLMConfigs();
+	const { data: globalConfigs = [], isFetching: globalConfigsLoading } = useAtomValue(globalLLMConfigsAtom);
 	const {
 		preferences,
 		loading: preferencesLoading,
