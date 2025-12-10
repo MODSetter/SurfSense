@@ -12,8 +12,10 @@ import { OnboardHeader } from "@/components/onboard/onboard-header";
 import { OnboardLLMSetup } from "@/components/onboard/onboard-llm-setup";
 import { OnboardLoading } from "@/components/onboard/onboard-loading";
 import { OnboardStats } from "@/components/onboard/onboard-stats";
-import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useGlobalLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { useAtomValue } from "jotai";
+import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 
 const OnboardPage = () => {
 	const t = useTranslations("onboard");
@@ -21,7 +23,7 @@ const OnboardPage = () => {
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const { llmConfigs, loading: configsLoading, refreshConfigs } = useLLMConfigs(searchSpaceId);
+	const { data: llmConfigs = [], isFetching: configsLoading, refetch: refreshConfigs } = useAtomValue(llmConfigsAtom);
 	const { globalConfigs, loading: globalConfigsLoading } = useGlobalLLMConfigs();
 	const {
 		preferences,
@@ -165,8 +167,8 @@ const OnboardPage = () => {
 						? t("configure_providers_and_assign_roles")
 						: t("complete_role_assignment")
 				}
-				onConfigCreated={refreshConfigs}
-				onConfigDeleted={refreshConfigs}
+				onConfigCreated={() => refreshConfigs()}
+				onConfigDeleted={() => refreshConfigs()}
 				onPreferencesUpdated={refreshPreferences}
 			/>
 		);
@@ -257,8 +259,8 @@ const OnboardPage = () => {
 						setShowLLMSettings={setShowAdvancedSettings}
 						showPromptSettings={showPromptSettings}
 						setShowPromptSettings={setShowPromptSettings}
-						onConfigCreated={refreshConfigs}
-						onConfigDeleted={refreshConfigs}
+						onConfigCreated={() => refreshConfigs()}
+						onConfigDeleted={() => refreshConfigs()}
 						onPreferencesUpdated={refreshPreferences}
 					/>
 
