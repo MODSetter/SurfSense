@@ -27,10 +27,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useLLMPreferences } from "@/hooks/use-llm-configs";
 
 import { useAtomValue } from "jotai";
-import { llmConfigsAtom, globalLLMConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { llmConfigsAtom, globalLLMConfigsAtom, llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+
 const ROLE_DESCRIPTIONS = {
 	long_context: {
 		icon: Brain,
@@ -76,12 +77,13 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		refetch: refreshGlobalConfigs,
 	} = useAtomValue(globalLLMConfigsAtom);
 	const {
-		preferences,
-		loading: preferencesLoading,
+		data: preferences = {},
+		isFetching: preferencesLoading,
 		error: preferencesError,
-		updatePreferences,
-		refreshPreferences,
-	} = useLLMPreferences(searchSpaceId);
+		refetch: refreshPreferences,
+	} = useAtomValue(llmPreferencesAtom);
+	
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const [assignments, setAssignments] = useState({
 		long_context_llm_id: preferences.long_context_llm_id || "",
@@ -148,14 +150,15 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						? parseInt(assignments.strategic_llm_id)
 						: undefined
 					: assignments.strategic_llm_id,
-		};
+	};
 
-		const success = await updatePreferences(numericAssignments);
+		await updatePreferences({
+			search_space_id: searchSpaceId,
+			data: numericAssignments
+		});
 
-		if (success) {
-			setHasChanges(false);
-			toast.success("LLM role assignments saved successfully!");
-		}
+		setHasChanges(false);
+		toast.success("LLM role assignments saved successfully!");
 
 		setIsSaving(false);
 	};
@@ -214,12 +217,12 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						<span className="sm:hidden">Configs</span>
 					</Button>
 					<Button
-						variant="outline"
-						size="sm"
-						onClick={refreshPreferences}
-						disabled={isLoading}
-						className="flex items-center gap-2"
-					>
+					variant="outline"
+					size="sm"
+					onClick={() => refreshPreferences()}
+					disabled={isLoading}
+					className="flex items-center gap-2"
+				>
 						<RefreshCw className={`h-4 w-4 ${preferencesLoading ? "animate-spin" : ""}`} />
 						<span className="hidden sm:inline">Refresh Preferences</span>
 						<span className="sm:hidden">Prefs</span>
@@ -230,11 +233,13 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			{/* Error Alert */}
 			{hasError && (
 				<Alert variant="destructive">
-					<AlertCircle className="h-4 w-4" />
-					<AlertDescription>
-						{configsError || preferencesError || globalConfigsError}
-					</AlertDescription>
-				</Alert>
+				<AlertCircle className="h-4 w-4" />
+				<AlertDescription>
+					{(configsError && "Failed to load LLM configurations") || 
+					 (preferencesError && "Failed to load preferences") || 
+					 (globalConfigsError && "Failed to load global configurations")}
+				</AlertDescription>
+			</Alert>
 			)}
 
 			{/* Loading State */}
