@@ -59,9 +59,6 @@ import {
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
-import {
-	useGlobalLLMConfigs,
-} from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
 import InferenceParamsEditor from "../inference-params-editor";
 import { useAtomValue } from "jotai";
