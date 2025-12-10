@@ -29,3 +29,18 @@ export const globalLLMConfigsAtom = atomWithQuery(() => {
 		},
 	};
 });
+
+export const llmPreferencesAtom = atomWithQuery((get) => {
+	const searchSpaceId = get(activeSearchSpaceIdAtom);
+
+	return {
+		queryKey: cacheKeys.llmConfigs.preferences(String(searchSpaceId)),
+		enabled: !!searchSpaceId,
+		staleTime: 5 * 60 * 1000, // 5 minutes
+		queryFn: async () => {
+			return llmConfigApiService.getLLMPreferences({
+					search_space_id: Number(searchSpaceId),
+			});
+		},
+	};
+});
