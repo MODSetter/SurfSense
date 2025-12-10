@@ -41,6 +41,7 @@ import {
 	X,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { logger } from "@/lib/logger";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -970,7 +971,7 @@ function CreateInviteDialog({
 			const invite = await onCreateInvite(data);
 			setCreatedInvite(invite);
 		} catch (error) {
-			console.error("Failed to create invite:", error);
+			logger.error("Failed to create invite:", error);
 		} finally {
 			setCreating(false);
 		}
@@ -1187,7 +1188,7 @@ function CreateRoleDialog({
 			setSelectedPermissions([]);
 			setIsDefault(false);
 		} catch (error) {
-			console.error("Failed to create role:", error);
+			logger.error("Failed to create role:", error);
 		} finally {
 			setCreating(false);
 		}

@@ -1,5 +1,6 @@
 "use client";
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
+import { logger } from "@/lib/logger";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
@@ -21,11 +22,11 @@ export function GoogleLoginButton() {
 				if (data.authorization_url) {
 					window.location.href = data.authorization_url;
 				} else {
-					console.error("No authorization URL received");
+					logger.error("No authorization URL received");
 				}
 			})
 			.catch((error) => {
-				console.error("Error during Google login:", error);
+				logger.error("Error during Google login:", error);
 			});
 	};
 	return (

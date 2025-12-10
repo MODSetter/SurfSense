@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { useTheme } from "next-themes";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -115,7 +116,7 @@ export const CodeBlock = memo<CodeBlockProps>(({ children, language }) => {
 			const timeoutId = setTimeout(() => setCopied(false), COPY_TIMEOUT);
 			return () => clearTimeout(timeoutId);
 		} catch (error) {
-			console.warn("Failed to copy code to clipboard:", error);
+			logger.warn("Failed to copy code to clipboard:", error);
 		}
 	}, [children]);
 

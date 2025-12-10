@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useState } from "react";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
@@ -84,7 +85,7 @@ export function useDocumentByChunk() {
 		} catch (err: any) {
 			const errorMessage = err.message || "Failed to fetch document";
 			setError(errorMessage);
-			console.error("Error fetching document by chunk:", err);
+			logger.error("Error fetching document by chunk:", err);
 			throw err;
 		} finally {
 			setLoading(false);

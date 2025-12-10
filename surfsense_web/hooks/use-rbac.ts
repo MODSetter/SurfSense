@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import { authenticatedFetch, getBearerToken, handleUnauthorized } from "@/lib/auth-utils";
 
@@ -122,7 +123,7 @@ export function useMembers(searchSpaceId: number) {
 			return data;
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch members");
-			console.error("Error fetching members:", err);
+			logger.error("Error fetching members:", err);
 		} finally {
 			setLoading(false);
 		}
@@ -244,7 +245,7 @@ export function useRoles(searchSpaceId: number) {
 			return data;
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch roles");
-			console.error("Error fetching roles:", err);
+			logger.error("Error fetching roles:", err);
 		} finally {
 			setLoading(false);
 		}
@@ -375,7 +376,7 @@ export function useInvites(searchSpaceId: number) {
 			return data;
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch invites");
-			console.error("Error fetching invites:", err);
+			logger.error("Error fetching invites:", err);
 		} finally {
 			setLoading(false);
 		}
@@ -504,7 +505,7 @@ export function usePermissions() {
 			return data.permissions;
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch permissions");
-			console.error("Error fetching permissions:", err);
+			logger.error("Error fetching permissions:", err);
 		} finally {
 			setLoading(false);
 		}
@@ -563,7 +564,7 @@ export function useUserAccess(searchSpaceId: number) {
 			return data;
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch access info");
-			console.error("Error fetching access:", err);
+			logger.error("Error fetching access:", err);
 		} finally {
 			setLoading(false);
 		}
@@ -637,7 +638,7 @@ export function useInviteInfo(inviteCode: string | null) {
 			return data;
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch invite info");
-			console.error("Error fetching invite info:", err);
+			logger.error("Error fetching invite info:", err);
 		} finally {
 			setLoading(false);
 		}

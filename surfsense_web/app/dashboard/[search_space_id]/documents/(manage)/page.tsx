@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { logger } from "@/lib/logger";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
@@ -135,7 +136,7 @@ export default function DocumentsTable() {
 			await refreshCurrentView();
 			setSelectedIds(new Set());
 		} catch (e) {
-			console.error(e);
+			logger.error(e);
 			toast.error(t("delete_error"));
 		}
 	};

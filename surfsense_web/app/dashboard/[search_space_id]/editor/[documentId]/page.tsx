@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, FileText, Loader2, Save, X } from "lucide-react";
+import { logger } from "@/lib/logger";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -35,7 +36,7 @@ export default function EditorPage() {
 		async function fetchDocument() {
 			const token = getBearerToken();
 			if (!token) {
-				console.error("No auth token found");
+				logger.error("No auth token found");
 				// Redirect to login with current path saved
 				redirectToLogin();
 				return;
@@ -69,7 +70,7 @@ export default function EditorPage() {
 				setEditorContent(data.blocknote_document);
 				setError(null);
 			} catch (error) {
-				console.error("Error fetching document:", error);
+				logger.error("Error fetching document:", error);
 				setError(
 					error instanceof Error ? error.message : "Failed to fetch document. Please try again."
 				);
@@ -133,7 +134,7 @@ export default function EditorPage() {
 				router.push(`/dashboard/${params.search_space_id}/documents`);
 			}, 500);
 		} catch (error) {
-			console.error("Error saving document:", error);
+			logger.error("Error saving document:", error);
 			toast.error(
 				error instanceof Error ? error.message : "Failed to save document. Please try again."
 			);

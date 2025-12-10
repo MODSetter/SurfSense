@@ -42,6 +42,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { AnimatePresence, motion, type Variants } from "motion/react";
+import { logger } from "@/lib/logger";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, { useContext, useId, useMemo, useRef, useState } from "react";
@@ -423,7 +424,7 @@ export default function LogsManagePage() {
 			await refreshLogs();
 			table.resetRowSelection();
 		} catch (error: any) {
-			console.error("Error deleting logs:", error);
+			logger.error("Error deleting logs:", error);
 			toast.error("Error deleting logs");
 		}
 	};
@@ -1129,7 +1130,7 @@ function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }
 			// toast.success(t("log_deleted_success"));
 			await refreshLogs();
 		} catch (error) {
-			console.error("Error deleting log:", error);
+			logger.error("Error deleting log:", error);
 			toast.error(t("log_deleted_error"));
 		} finally {
 			setIsDeleting(false);

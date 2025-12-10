@@ -1,4 +1,5 @@
 import { Storage } from "@plasmohq/storage";
+import { logger } from "~/lib/logger";
 import { getRenderedHtml, initQueues, initWebHistory } from "~utils/commons";
 import type { WebHistory } from "~utils/interfaces";
 
@@ -7,7 +8,7 @@ chrome.tabs.onCreated.addListener(async (tab: any) => {
 		await initWebHistory(tab.id);
 		await initQueues(tab.id);
 	} catch (error) {
-		console.log(error);
+		logger.error("Error in onCreated listener", error);
 	}
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { logger } from "@/lib/logger";
 import { ArrowLeft, Check, CircleAlert, Github, Info, ListChecks, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -121,7 +122,7 @@ export default function GithubConnectorPage() {
 			setStep("select_repos"); // Move to the next step
 			toast.success(`Found ${data.length} repositories.`);
 		} catch (error) {
-			console.error("Error fetching GitHub repositories:", error);
+			logger.error("Error fetching GitHub repositories:", error);
 			const errorMessage =
 				error instanceof Error
 					? error.message
@@ -161,7 +162,7 @@ export default function GithubConnectorPage() {
 			toast.success("GitHub connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		} catch (error) {
-			console.error("Error creating GitHub connector:", error);
+			logger.error("Error creating GitHub connector:", error);
 			const errorMessage =
 				error instanceof Error ? error.message : "Failed to create GitHub connector.";
 			toast.error(errorMessage);
