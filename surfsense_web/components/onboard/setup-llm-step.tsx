@@ -101,8 +101,8 @@ export function SetupLLMStep({
 }: SetupLLMStepProps) {
 	const { mutateAsync : createLLMConfig, isPending : isCreatingLlmConfig } = useAtomValue(createLLMConfigMutationAtom);
 	const t = useTranslations("onboard");
-	const { mutateAsync : deleteLLMConfig, isPending : isDeletingLlmConfig } = useAtomValue(deleteLLMConfigMutationAtom);
-	const { data : llmConfigs = [], isFetching : isFetchingLlmConfigs, refetch : refreshConfigs } = useAtomValue(llmConfigsAtom);
+	const { mutateAsync : deleteLLMConfig } = useAtomValue(deleteLLMConfigMutationAtom);
+	const { data : llmConfigs = []} = useAtomValue(llmConfigsAtom);
 	const { globalConfigs } = useGlobalLLMConfigs();
 	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
 
