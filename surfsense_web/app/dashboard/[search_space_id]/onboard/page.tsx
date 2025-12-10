@@ -43,6 +43,10 @@ const OnboardPage = () => {
 	const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 	const [showPromptSettings, setShowPromptSettings] = useState(false);
 
+	const handleRefreshPreferences = useCallback(async () => {
+		await refreshPreferences()
+	},[])
+
 	// Track if we've already attempted auto-configuration
 	const hasAttemptedAutoConfig = useRef(false);
 
@@ -178,7 +182,7 @@ const OnboardPage = () => {
 				}
 				onConfigCreated={() => refreshConfigs()}
 				onConfigDeleted={() => refreshConfigs()}
-				onPreferencesUpdated={refreshPreferences}
+				onPreferencesUpdated={handleRefreshPreferences}
 			/>
 		);
 	}
@@ -270,7 +274,7 @@ const OnboardPage = () => {
 						setShowPromptSettings={setShowPromptSettings}
 						onConfigCreated={() => refreshConfigs()}
 						onConfigDeleted={() => refreshConfigs()}
-						onPreferencesUpdated={refreshPreferences}
+						onPreferencesUpdated={handleRefreshPreferences}
 					/>
 
 					{/* Footer */}
