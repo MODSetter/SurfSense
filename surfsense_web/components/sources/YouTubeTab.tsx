@@ -2,12 +2,14 @@
 
 import { IconBrandYoutube } from "@tabler/icons-react";
 import { TagInput, type Tag as TagType } from "emblor";
+import { useAtom } from "jotai";
 import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { createDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +21,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { authenticatedFetch } from "@/lib/auth-utils";
 
 const youtubeRegex =
 	/^(https:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
@@ -33,8 +34,11 @@ export function YouTubeTab({ searchSpaceId }: YouTubeTabProps) {
 	const router = useRouter();
 	const [videoTags, setVideoTags] = useState<TagType[]>([]);
 	const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	// Use the createDocumentMutationAtom
+	const [createDocumentMutation] = useAtom(createDocumentMutationAtom);
+	const { mutate: createYouTubeDocument, isPending: isSubmitting } = createDocumentMutation;
 
 	const isValidYoutubeUrl = (url: string): boolean => {
 		return youtubeRegex.test(url);
@@ -58,47 +62,35 @@ export function YouTubeTab({ searchSpaceId }: YouTubeTabProps) {
 		}
 
 		setError(null);
-		setIsSubmitting(true);
 
-		try {
-			toast(t("processing_toast"), {
-				description: t("processing_toast_desc"),
-			});
+		toast(t("processing_toast"), {
+			description: t("processing_toast_desc"),
+		});
 
-			const videoUrls = videoTags.map((tag) => tag.text);
+		const videoUrls = videoTags.map((tag) => tag.text);
 
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						document_type: "YOUTUBE_VIDEO",
-						content: videoUrls,
-						search_space_id: parseInt(searchSpaceId),
-					}),
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to process YouTube videos");
+		// Use the mutation to create YouTube documents
+		createYouTubeDocument(
+			{
+				document_type: "YOUTUBE_VIDEO",
+				content: videoUrls,
+				search_space_id: parseInt(searchSpaceId),
+			},
+			{
+				onSuccess: () => {
+					toast(t("success_toast"), {
+						description: t("success_toast_desc"),
+					});
+					router.push(`/dashboard/${searchSpaceId}/documents`);
+				},
+				onError: (error: any) => {
+					setError(error.message || t("error_generic"));
+					toast(t("error_toast"), {
+						description: `${t("error_toast_desc")}: ${error.message || "Failed to process YouTube videos"}`,
+					});
+				},
 			}
-
-			await response.json();
-
-			toast(t("success_toast"), {
-				description: t("success_toast_desc"),
-			});
-
-			router.push(`/dashboard/${searchSpaceId}/documents`);
-		} catch (error: any) {
-			setError(error.message || t("error_generic"));
-			toast(t("error_toast"), {
-				description: `${t("error_toast_desc")}: ${error.message}`,
-			});
-		} finally {
-			setIsSubmitting(false);
-		}
+		);
 	};
 
 	const handleAddTag = (text: string) => {

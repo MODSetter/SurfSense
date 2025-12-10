@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtom } from "jotai";
 import { CheckCircle2, FileType, Info, Loader2, Tag, Upload, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { getAuthHeaders } from "@/lib/auth-utils";
 import { GridPattern } from "./GridPattern";
 
 interface DocumentUploadTabProps {
@@ -25,8 +26,11 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
 	const router = useRouter();
 	const [files, setFiles] = useState<File[]>([]);
-	const [isUploading, setIsUploading] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
+
+	// Use the uploadDocumentMutationAtom
+	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
+	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 
 	const audioFileTypes = {
 		"audio/mpeg": [".mp3", ".mpeg", ".mpga"],
@@ -148,53 +152,40 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 	};
 
 	const handleUpload = async () => {
-		setIsUploading(true);
 		setUploadProgress(0);
 
-		const formData = new FormData();
-		files.forEach((file) => {
-			formData.append("files", file);
-		});
-		formData.append("search_space_id", searchSpaceId);
+		// Create a progress interval to simulate progress
+		const progressInterval = setInterval(() => {
+			setUploadProgress((prev) => {
+				if (prev >= 90) return prev;
+				return prev + Math.random() * 10;
+			});
+		}, 200);
 
-		try {
-			const progressInterval = setInterval(() => {
-				setUploadProgress((prev) => {
-					if (prev >= 90) return prev;
-					return prev + Math.random() * 10;
-				});
-			}, 200);
-
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/fileupload`,
-				{
-					method: "POST",
-					headers: getAuthHeaders(),
-					body: formData,
-				}
-			);
-
-			clearInterval(progressInterval);
-			setUploadProgress(100);
-
-			if (!response.ok) {
-				throw new Error("Upload failed");
+		// Use the mutation to upload documents
+		uploadDocuments(
+			{
+				files,
+				search_space_id: Number(searchSpaceId),
+			},
+			{
+				onSuccess: () => {
+					clearInterval(progressInterval);
+					setUploadProgress(100);
+					toast(t("upload_initiated"), {
+						description: t("upload_initiated_desc"),
+					});
+					router.push(`/dashboard/${searchSpaceId}/documents`);
+				},
+				onError: (error: any) => {
+					clearInterval(progressInterval);
+					setUploadProgress(0);
+					toast(t("upload_error"), {
+						description: `${t("upload_error_desc")}: ${error.message || "Upload failed"}`,
+					});
+				},
 			}
-
-			await response.json();
-
-			toast(t("upload_initiated"), {
-				description: t("upload_initiated_desc"),
-			});
-
-			router.push(`/dashboard/${searchSpaceId}/documents`);
-		} catch (error: any) {
-			setIsUploading(false);
-			setUploadProgress(0);
-			toast(t("upload_error"), {
-				description: `${t("upload_error_desc")}: ${error.message}`,
-			});
-		}
+		);
 	};
 
 	const getTotalFileSize = () => {

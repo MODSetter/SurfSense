@@ -1,9 +1,11 @@
 "use client";
 
 import { ChatInput } from "@llamaindex/chat-ui";
+import { useAtom } from "jotai";
 import { Brain, Check, FolderOpen, Minus, Plus, PlusCircle, Zap } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import React, { Suspense, useCallback, useState } from "react";
+import React, { Suspense, useCallback, useMemo, useState } from "react";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,6 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useDocumentTypes } from "@/hooks/use-document-types";
 import type { Document } from "@/hooks/use-documents";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
@@ -118,11 +119,24 @@ const ConnectorSelector = React.memo(
 		const router = useRouter();
 		const [isOpen, setIsOpen] = useState(false);
 
-		// Fetch immediately (not lazy) so the button can show the correct count
-		const { documentTypes, isLoading, isLoaded, fetchDocumentTypes } = useDocumentTypes(
-			Number(search_space_id),
-			false
-		);
+		// Use the documentTypeCountsAtom for fetching document types
+		const [documentTypeCountsQuery] = useAtom(documentTypeCountsAtom);
+		const {
+			data: documentTypeCountsData,
+			isLoading,
+			refetch: fetchDocumentTypes,
+		} = documentTypeCountsQuery;
+
+		// Transform the response into the expected format
+		const documentTypes = useMemo(() => {
+			if (!documentTypeCountsData) return [];
+			return Object.entries(documentTypeCountsData).map(([type, count]) => ({
+				type,
+				count,
+			}));
+		}, [documentTypeCountsData]);
+
+		const isLoaded = !!documentTypeCountsData;
 
 		// Fetch live search connectors immediately (non-indexable)
 		const {

@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import type { ColumnVisibility } from "./types";
 
 const fadeInScale: Variants = {
@@ -46,13 +47,13 @@ export function DocumentsFilters({
 	columnVisibility,
 	onToggleColumn,
 }: {
-	typeCounts: Record<string, number>;
+	typeCounts: Record<DocumentTypeEnum, number>;
 	selectedIds: Set<number>;
 	onSearch: (v: string) => void;
 	searchValue: string;
 	onBulkDelete: () => Promise<void>;
-	onToggleType: (type: string, checked: boolean) => void;
-	activeTypes: string[];
+	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
+	activeTypes: DocumentTypeEnum[];
 	columnVisibility: ColumnVisibility;
 	onToggleColumn: (id: keyof ColumnVisibility, checked: boolean) => void;
 }) {
@@ -61,7 +62,7 @@ export function DocumentsFilters({
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const uniqueTypes = useMemo(() => {
-		return Object.keys(typeCountsRecord).sort();
+		return Object.keys(typeCountsRecord).sort() as DocumentTypeEnum[];
 	}, [typeCountsRecord]);
 
 	const typeCounts = useMemo(() => {
@@ -156,7 +157,7 @@ export function DocumentsFilters({
 								<div className="text-xs font-medium text-muted-foreground">Filters</div>
 								<div className="space-y-3">
 									<AnimatePresence>
-										{uniqueTypes.map((value, i) => (
+										{uniqueTypes.map((value: DocumentTypeEnum, i) => (
 											<motion.div
 												key={value}
 												className="flex items-center gap-2"

@@ -1,17 +1,21 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { motion } from "motion/react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
-
-import { useDocuments } from "@/hooks/use-documents";
-
+import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
-import type { ColumnVisibility, Document } from "./components/types";
+import type { ColumnVisibility } from "./components/types";
 
 function useDebounced<T>(value: T, delay = 250) {
 	const [debounced, setDebounced] = useState(value);
@@ -30,7 +34,7 @@ export default function DocumentsTable() {
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 250);
-	const [activeTypes, setActiveTypes] = useState<string[]>([]);
+	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
 		title: true,
 		document_type: true,
@@ -42,55 +46,65 @@ export default function DocumentsTable() {
 	const [sortKey, setSortKey] = useState<SortKey>("title");
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
+	const { data: typeCounts } = useAtomValue(documentTypeCountsAtom);
+	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
-	// Use server-side pagination, search, and filtering
+	// Build query parameters for fetching documents
+	const queryParams = useMemo(
+		() => ({
+			search_space_id: searchSpaceId,
+			page: pageIndex,
+			page_size: pageSize,
+			...(activeTypes.length > 0 && { document_types: activeTypes }),
+		}),
+		[searchSpaceId, pageIndex, pageSize, activeTypes]
+	);
+
+	// Build search query parameters
+	const searchQueryParams = useMemo(
+		() => ({
+			search_space_id: searchSpaceId,
+			page: pageIndex,
+			page_size: pageSize,
+			title: debouncedSearch.trim(),
+			...(activeTypes.length > 0 && { document_types: activeTypes }),
+		}),
+		[searchSpaceId, pageIndex, pageSize, activeTypes, debouncedSearch]
+	);
+
+	// Use query for fetching documents
 	const {
-		documents,
-		total,
-		loading,
-		error,
-		fetchDocuments,
-		searchDocuments,
-		deleteDocument,
-		getDocumentTypeCounts,
-	} = useDocuments(searchSpaceId, {
-		page: pageIndex,
-		pageSize: pageSize,
+		data: documentsResponse,
+		isLoading: isDocumentsLoading,
+		refetch: refetchDocuments,
+		error: documentsError,
+	} = useQuery({
+		queryKey: cacheKeys.documents.globalQueryParams(queryParams),
+		queryFn: () => documentsApiService.getDocuments({ queryParams }),
+		staleTime: 3 * 60 * 1000, // 3 minutes
+		enabled: !!searchSpaceId && !debouncedSearch.trim(),
 	});
 
-	// Fetch document type counts on mount and when search space changes
-	useEffect(() => {
-		if (searchSpaceId && getDocumentTypeCounts) {
-			getDocumentTypeCounts().then(setTypeCounts);
-		}
-	}, [searchSpaceId, getDocumentTypeCounts]);
+	// Use query for searching documents
+	const {
+		data: searchResponse,
+		isLoading: isSearchLoading,
+		refetch: refetchSearch,
+		error: searchError,
+	} = useQuery({
+		queryKey: cacheKeys.documents.globalQueryParams(searchQueryParams),
+		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
+		staleTime: 3 * 60 * 1000, // 3 minutes
+		enabled: !!searchSpaceId && !!debouncedSearch.trim(),
+	});
 
-	// Refetch when pagination changes or when search/filters change
-	useEffect(() => {
-		if (searchSpaceId) {
-			if (debouncedSearch.trim()) {
-				// Use search endpoint if there's a search query
-				searchDocuments?.(
-					debouncedSearch,
-					pageIndex,
-					pageSize,
-					activeTypes.length > 0 ? activeTypes : undefined
-				);
-			} else {
-				// Use regular fetch if no search
-				fetchDocuments?.(pageIndex, pageSize, activeTypes.length > 0 ? activeTypes : undefined);
-			}
-		}
-	}, [
-		pageIndex,
-		pageSize,
-		debouncedSearch,
-		activeTypes,
-		searchSpaceId,
-		fetchDocuments,
-		searchDocuments,
-	]);
+	// Extract documents and total based on search state
+	const documents = debouncedSearch.trim()
+		? searchResponse?.items || []
+		: documentsResponse?.items || [];
+	const total = debouncedSearch.trim() ? searchResponse?.total || 0 : documentsResponse?.total || 0;
+	const loading = debouncedSearch.trim() ? isSearchLoading : isDocumentsLoading;
+	const error = debouncedSearch.trim() ? searchError : documentsError;
 
 	// Display server-filtered results directly
 	const displayDocs = documents || [];
@@ -98,7 +112,7 @@ export default function DocumentsTable() {
 	const pageStart = pageIndex * pageSize;
 	const pageEnd = Math.min(pageStart + pageSize, displayTotal);
 
-	const onToggleType = (type: string, checked: boolean) => {
+	const onToggleType = (type: DocumentTypeEnum, checked: boolean) => {
 		setActiveTypes((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
 		setPageIndex(0);
 	};
@@ -109,16 +123,25 @@ export default function DocumentsTable() {
 
 	const refreshCurrentView = useCallback(async () => {
 		if (debouncedSearch.trim()) {
-			await searchDocuments?.(
-				debouncedSearch,
-				pageIndex,
-				pageSize,
-				activeTypes.length > 0 ? activeTypes : undefined
-			);
+			await refetchSearch();
 		} else {
-			await fetchDocuments?.(pageIndex, pageSize, activeTypes.length > 0 ? activeTypes : undefined);
+			await refetchDocuments();
 		}
-	}, [debouncedSearch, pageIndex, pageSize, activeTypes, searchDocuments, fetchDocuments]);
+	}, [debouncedSearch, refetchSearch, refetchDocuments]);
+
+	// Create a delete function for single document deletion
+	const deleteDocument = useCallback(
+		async (id: number) => {
+			try {
+				await deleteDocumentMutation({ id });
+				return true;
+			} catch (error) {
+				console.error("Failed to delete document:", error);
+				return false;
+			}
+		},
+		[deleteDocumentMutation]
+	);
 
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
@@ -126,7 +149,17 @@ export default function DocumentsTable() {
 			return;
 		}
 		try {
-			const results = await Promise.all(Array.from(selectedIds).map((id) => deleteDocument?.(id)));
+			// Delete documents one by one using the mutation
+			const results = await Promise.all(
+				Array.from(selectedIds).map(async (id) => {
+					try {
+						await deleteDocumentMutation({ id });
+						return true;
+					} catch {
+						return false;
+					}
+				})
+			);
 			const okCount = results.filter((r) => r === true).length;
 			if (okCount === selectedIds.size)
 				toast.success(t("delete_success_count", { count: okCount }));
@@ -159,7 +192,7 @@ export default function DocumentsTable() {
 			className="w-full px-6 py-4"
 		>
 			<DocumentsFilters
-				typeCounts={typeCounts}
+				typeCounts={typeCounts ?? {}}
 				selectedIds={selectedIds}
 				onSearch={setSearch}
 				searchValue={search}
@@ -178,7 +211,7 @@ export default function DocumentsTable() {
 				selectedIds={selectedIds}
 				setSelectedIds={setSelectedIds}
 				columnVisibility={columnVisibility}
-				deleteDocument={(id) => deleteDocument?.(id) ?? Promise.resolve(false)}
+				deleteDocument={deleteDocument}
 				sortKey={sortKey}
 				sortDesc={sortDesc}
 				onSortChange={(key) => {
