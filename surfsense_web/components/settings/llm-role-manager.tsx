@@ -27,8 +27,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useGlobalLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
+import { useAtomValue } from "jotai";
+import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 const ROLE_DESCRIPTIONS = {
 	long_context: {
 		icon: Brain,
@@ -62,11 +64,11 @@ interface LLMRoleManagerProps {
 
 export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const {
-		llmConfigs,
-		loading: configsLoading,
-		error: configsError,
-		refreshConfigs,
-	} = useLLMConfigs(searchSpaceId);
+		data: llmConfigs = [],
+		isFetching: configsLoading,
+		isError: configsError,
+		refetch: refreshConfigs
+	} = useAtomValue(llmConfigsAtom);
 	const {
 		globalConfigs,
 		loading: globalConfigsLoading,
@@ -203,7 +205,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={refreshConfigs}
+						onClick={() => refreshConfigs()}
 						disabled={isLoading}
 						className="flex items-center gap-2"
 					>
@@ -484,7 +486,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 															<span className="font-medium">Assigned:</span>
 															<Badge variant="secondary">{assignedConfig.provider}</Badge>
 															<span>{assignedConfig.name}</span>
-															{assignedConfig.is_global && (
+															{"is_global" in assignedConfig && assignedConfig.is_global && (
 																<Badge variant="outline" className="text-xs">
 																	🌐 Global
 																</Badge>
