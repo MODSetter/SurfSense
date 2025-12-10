@@ -27,9 +27,11 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { Document } from "@/contracts/types/document.types";
-import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { Document } from "@/contracts/types/document.types";
+import { useGlobalLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
+import { useAtomValue } from "jotai";
+import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 
 const DocumentSelector = React.memo(
 	({
@@ -539,7 +541,7 @@ const LLMSelector = React.memo(() => {
 	const { search_space_id } = useParams();
 	const searchSpaceId = Number(search_space_id);
 
-	const { llmConfigs, loading: llmLoading, error } = useLLMConfigs(searchSpaceId);
+	const { data: llmConfigs = [], isFetching: llmLoading, isError: error } = useAtomValue(llmConfigsAtom);
 	const {
 		globalConfigs,
 		loading: globalConfigsLoading,
@@ -574,7 +576,7 @@ const LLMSelector = React.memo(() => {
 				<span className="hidden sm:inline text-muted-foreground text-xs truncate max-w-[60px]">
 					{selectedConfig.name}
 				</span>
-				{selectedConfig.is_global && <span className="text-xs">🌐</span>}
+				{"is_global" in selectedConfig && selectedConfig.is_global && <span className="text-xs">🌐</span>}
 			</div>
 		);
 	}, [selectedConfig]);
