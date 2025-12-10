@@ -67,18 +67,18 @@ import InferenceParamsEditor from "../inference-params-editor";
 import { useAtomValue } from "jotai";
 import { createLLMConfigMutationAtom, deleteLLMConfigMutationAtom, updateLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
 import { CreateLLMConfigRequest, CreateLLMConfigResponse, LLMConfig, UpdateLLMConfigResponse } from "@/contracts/types/llm-config.types";
-import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { globalLLMConfigsAtom, llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 
 interface ModelConfigManagerProps {
 	searchSpaceId: number;
 }
 
 export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
-	const { mutateAsync : createLLMConfig, isPending : isCreatingLLMConfig, error : createLLMConfigError, isError : isCreateLLMConfigError } = useAtomValue(createLLMConfigMutationAtom)
-	const { mutateAsync : updateLLMConfig, isPending : isUpdatingLLMConfig, error : updateLLMConfigError, isError : isUpdateLLMConfigError} = useAtomValue(updateLLMConfigMutationAtom)
-	const { mutateAsync : deleteLLMConfig, isPending : isDeletingLLMConfig, error : deleteLLMConfigError, isError : isDeleteLLMConfigError } = useAtomValue(deleteLLMConfigMutationAtom)
-	const { data : llmConfigs, isFetching : isFetchingLLMConfigs, error : LLMConfigsFetchError, isError : isLLMConfigsFetchError, refetch : refreshConfigs} = useAtomValue(llmConfigsAtom)
-	const { globalConfigs } = useGlobalLLMConfigs();
+	const { mutateAsync : createLLMConfig, isPending : isCreatingLLMConfig, error : createLLMConfigError, } = useAtomValue(createLLMConfigMutationAtom)
+	const { mutateAsync : updateLLMConfig, isPending : isUpdatingLLMConfig, error : updateLLMConfigError,} = useAtomValue(updateLLMConfigMutationAtom)
+	const { mutateAsync : deleteLLMConfig, isPending : isDeletingLLMConfig, error : deleteLLMConfigError, } = useAtomValue(deleteLLMConfigMutationAtom)
+	const { data : llmConfigs, isFetching : isFetchingLLMConfigs, error : LLMConfigsFetchError, refetch : refreshConfigs} = useAtomValue(llmConfigsAtom)
+	const { data : globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null);
 	const [formData, setFormData] = useState<CreateLLMConfigRequest>({

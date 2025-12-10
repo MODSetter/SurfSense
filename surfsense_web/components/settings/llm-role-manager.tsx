@@ -27,10 +27,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useGlobalLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useLLMPreferences } from "@/hooks/use-llm-configs";
 
 import { useAtomValue } from "jotai";
-import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { llmConfigsAtom, globalLLMConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 const ROLE_DESCRIPTIONS = {
 	long_context: {
 		icon: Brain,
@@ -70,11 +70,11 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		refetch: refreshConfigs
 	} = useAtomValue(llmConfigsAtom);
 	const {
-		globalConfigs,
-		loading: globalConfigsLoading,
-		error: globalConfigsError,
-		refreshGlobalConfigs,
-	} = useGlobalLLMConfigs();
+		data: globalConfigs = [],
+		isFetching: globalConfigsLoading,
+		isError: globalConfigsError,
+		refetch: refreshGlobalConfigs,
+	} = useAtomValue(globalLLMConfigsAtom);
 	const {
 		preferences,
 		loading: preferencesLoading,
