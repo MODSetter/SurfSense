@@ -28,10 +28,10 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { Document } from "@/contracts/types/document.types";
-import { useGlobalLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
+import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { useAtomValue } from "jotai";
-import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { llmConfigsAtom, globalLLMConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 
 const DocumentSelector = React.memo(
 	({
@@ -542,11 +542,7 @@ const LLMSelector = React.memo(() => {
 	const searchSpaceId = Number(search_space_id);
 
 	const { data: llmConfigs = [], isFetching: llmLoading, isError: error } = useAtomValue(llmConfigsAtom);
-	const {
-		globalConfigs,
-		loading: globalConfigsLoading,
-		error: globalConfigsError,
-	} = useGlobalLLMConfigs();
+	const { data: globalConfigs = [], isFetching: globalConfigsLoading, isError: globalConfigsError } = useAtomValue(globalLLMConfigsAtom);
 	const {
 		preferences,
 		updatePreferences,
