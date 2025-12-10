@@ -12,10 +12,11 @@ import { OnboardHeader } from "@/components/onboard/onboard-header";
 import { OnboardLLMSetup } from "@/components/onboard/onboard-llm-setup";
 import { OnboardLoading } from "@/components/onboard/onboard-loading";
 import { OnboardStats } from "@/components/onboard/onboard-stats";
-import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 import { useAtomValue } from "jotai";
-import { llmConfigsAtom, globalLLMConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { llmConfigsAtom, globalLLMConfigsAtom, llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import { useMemo } from "react";
 
 const OnboardPage = () => {
 	const t = useTranslations("onboard");
@@ -25,13 +26,17 @@ const OnboardPage = () => {
 
 	const { data: llmConfigs = [], isFetching: configsLoading, refetch: refreshConfigs } = useAtomValue(llmConfigsAtom);
 	const { data: globalConfigs = [], isFetching: globalConfigsLoading } = useAtomValue(globalLLMConfigsAtom);
-	const {
-		preferences,
-		loading: preferencesLoading,
-		isOnboardingComplete,
-		updatePreferences,
-		refreshPreferences,
-	} = useLLMPreferences(searchSpaceId);
+	const { data: preferences = {}, isFetching: preferencesLoading, refetch: refreshPreferences } = useAtomValue(llmPreferencesAtom);
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
+	
+	// Compute isOnboardingComplete
+	const isOnboardingComplete = useMemo(() => {
+		return () => !!(
+			preferences.long_context_llm_id &&
+			preferences.fast_llm_id &&
+			preferences.strategic_llm_id
+		);
+	}, [preferences]);
 
 	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
 	const [autoConfigComplete, setAutoConfigComplete] = useState(false);
@@ -112,14 +117,18 @@ const OnboardPage = () => {
 				strategic_llm_id: defaultConfigId,
 			};
 
-			const success = await updatePreferences(newPreferences);
-
-			if (success) {
+			try {
+				await updatePreferences({
+					search_space_id: searchSpaceId,
+					data: newPreferences
+				});
 				await refreshPreferences();
 				setAutoConfigComplete(true);
 				toast.success("AI models configured automatically!", {
 					description: "You can customize these in advanced settings.",
 				});
+			} catch (updateError) {
+				console.error("Failed to update preferences:", updateError);
 			}
 		} catch (error) {
 			console.error("Auto-configuration failed:", error);
