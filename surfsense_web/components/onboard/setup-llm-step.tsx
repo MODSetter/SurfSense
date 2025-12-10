@@ -44,9 +44,7 @@ import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import {
-	type CreateLLMConfig,
 	useGlobalLLMConfigs,
-	useLLMConfigs,
 	useLLMPreferences,
 } from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
@@ -54,7 +52,9 @@ import { cn } from "@/lib/utils";
 import InferenceParamsEditor from "../inference-params-editor";
 import { useAtomValue } from "jotai";
 import { createLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
-import { CreateLLMConfigRequest } from "@/contracts/types/llm-config.types";
+import { deleteLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { CreateLLMConfigRequest, LLMConfig } from "@/contracts/types/llm-config.types";
 
 interface SetupLLMStepProps {
 	searchSpaceId: number;
@@ -99,9 +99,10 @@ export function SetupLLMStep({
 	onConfigDeleted,
 	onPreferencesUpdated,
 }: SetupLLMStepProps) {
+	const { mutateAsync : createLLMConfig, isPending : isCreatingLlmConfig } = useAtomValue(createLLMConfigMutationAtom);
 	const t = useTranslations("onboard");
-	const { llmConfigs, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
-	const { mutateAsync : createLLMConfig, isPending : isCreatingLlmConfig } = useAtomValue(createLLMConfigMutationAtom)
+	const { mutateAsync : deleteLLMConfig, isPending : isDeletingLlmConfig } = useAtomValue(deleteLLMConfigMutationAtom);
+	const { data : llmConfigs = [], isFetching : isFetchingLlmConfigs, refetch : refreshConfigs } = useAtomValue(llmConfigsAtom);
 	const { globalConfigs } = useGlobalLLMConfigs();
 	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
 
@@ -138,7 +139,7 @@ export function SetupLLMStep({
 		});
 	}, [preferences]);
 
-	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
+	const handleInputChange = (field: keyof CreateLLMConfigRequest, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
@@ -323,9 +324,11 @@ export function SetupLLMStep({
 															variant="ghost"
 															size="sm"
 															onClick={async () => {
-																const success = await deleteLLMConfig(config.id);
-																if (success) {
+																try {
+																	await deleteLLMConfig({ id: config.id });
 																	onConfigDeleted?.();
+																} catch (error) {
+																	console.error('Failed to delete config:', error);
 																}
 															}}
 															className="text-destructive hover:text-destructive"
@@ -731,7 +734,7 @@ export function SetupLLMStep({
 														<div className="flex items-center gap-2 text-sm">
 															<Bot className="w-4 h-4" />
 															<span className="font-medium">{t("assigned")}:</span>
-															{assignedConfig.is_global && (
+															{"is_global" in assignedConfig && assignedConfig.is_global && (
 																<Badge variant="secondary" className="text-xs">
 																	🌐 Global
 																</Badge>
