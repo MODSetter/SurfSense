@@ -1,8 +1,9 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
 import type React from "react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -15,7 +16,8 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useDocumentByChunk } from "@/hooks/use-document-by-chunk";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
 interface SourceDetailSheetProps {
@@ -46,10 +48,21 @@ export function SourceDetailSheet({
 	url,
 	children,
 }: SourceDetailSheetProps) {
-	const { document, loading, error, fetchDocumentByChunk, clearDocument } = useDocumentByChunk();
 	const chunksContainerRef = useRef<HTMLDivElement>(null);
 	const highlightedChunkRef = useRef<HTMLDivElement>(null);
 	const [summaryOpen, setSummaryOpen] = useState(false);
+
+	// Add useQuery to fetch document by chunk
+	const {
+		data: document,
+		isLoading: isDocumentByChunkFetching,
+		error: documentByChunkFetchingError,
+	} = useQuery({
+		queryKey: cacheKeys.documents.byChunk(chunkId.toString()),
+		queryFn: () => documentsApiService.getDocumentByChunk({ chunk_id: chunkId }),
+		enabled: !!chunkId && open,
+		staleTime: 5 * 60 * 1000, // 5 minutes
+	});
 
 	// Check if this is a source type that should render directly from node
 	const isDirectRenderSource =
@@ -59,16 +72,8 @@ export function SourceDetailSheet({
 		sourceType === "BAIDU_SEARCH_API";
 
 	useEffect(() => {
-		if (open && chunkId && !isDirectRenderSource) {
-			fetchDocumentByChunk(chunkId);
-		} else if (!open && !isDirectRenderSource) {
-			clearDocument();
-		}
-	}, [open, chunkId, isDirectRenderSource, fetchDocumentByChunk, clearDocument]);
-
-	useEffect(() => {
 		// Scroll to highlighted chunk when document loads
-		if (document && highlightedChunkRef.current && chunksContainerRef.current) {
+		if (document) {
 			setTimeout(() => {
 				highlightedChunkRef.current?.scrollIntoView({
 					behavior: "smooth",
@@ -76,7 +81,7 @@ export function SourceDetailSheet({
 				});
 			}, 100);
 		}
-	}, [document]);
+	}, [document, open]);
 
 	const handleUrlClick = (e: React.MouseEvent, clickUrl: string) => {
 		e.preventDefault();
@@ -100,15 +105,17 @@ export function SourceDetailSheet({
 					</SheetDescription>
 				</SheetHeader>
 
-				{!isDirectRenderSource && loading && (
+				{!isDirectRenderSource && isDocumentByChunkFetching && (
 					<div className="flex items-center justify-center h-64 px-6">
 						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
 					</div>
 				)}
 
-				{!isDirectRenderSource && error && (
+				{!isDirectRenderSource && documentByChunkFetchingError && (
 					<div className="flex items-center justify-center h-64 px-6">
-						<p className="text-sm text-destructive">{error}</p>
+						<p className="text-sm text-destructive">
+							{documentByChunkFetchingError.message || "Failed to load document"}
+						</p>
 					</div>
 				)}
 

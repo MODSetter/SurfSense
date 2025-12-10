@@ -3,3 +3,5 @@
 .env
 node_modules/
 .ruff_cache/
+.venv
+.pnpm-store
