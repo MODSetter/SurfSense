@@ -44,7 +44,6 @@ import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import {
-	useGlobalLLMConfigs,
 	useLLMPreferences,
 } from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
@@ -53,7 +52,7 @@ import InferenceParamsEditor from "../inference-params-editor";
 import { useAtomValue } from "jotai";
 import { createLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
 import { deleteLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
-import { llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { llmConfigsAtom, globalLLMConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 import { CreateLLMConfigRequest, LLMConfig } from "@/contracts/types/llm-config.types";
 
 interface SetupLLMStepProps {
@@ -103,7 +102,7 @@ export function SetupLLMStep({
 	const t = useTranslations("onboard");
 	const { mutateAsync : deleteLLMConfig } = useAtomValue(deleteLLMConfigMutationAtom);
 	const { data : llmConfigs = []} = useAtomValue(llmConfigsAtom);
-	const { globalConfigs } = useGlobalLLMConfigs();
+	const { data: globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
 	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
 
 	const [isAddingNew, setIsAddingNew] = useState(false);
