@@ -43,16 +43,12 @@ import { Separator } from "@/components/ui/separator";
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
-import {
-	useLLMPreferences,
-} from "@/hooks/use-llm-configs";
 import { cn } from "@/lib/utils";
 
 import InferenceParamsEditor from "../inference-params-editor";
 import { useAtomValue } from "jotai";
-import { createLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
-import { deleteLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
-import { llmConfigsAtom, globalLLMConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { createLLMConfigMutationAtom, deleteLLMConfigMutationAtom, updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import { llmConfigsAtom, globalLLMConfigsAtom, llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 import { CreateLLMConfigRequest, LLMConfig } from "@/contracts/types/llm-config.types";
 
 interface SetupLLMStepProps {
@@ -103,7 +99,10 @@ export function SetupLLMStep({
 	const { mutateAsync : deleteLLMConfig } = useAtomValue(deleteLLMConfigMutationAtom);
 	const { data : llmConfigs = []} = useAtomValue(llmConfigsAtom);
 	const { data: globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
-	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
+	
+	// Replace useLLMPreferences with jotai atoms
+	const { data: preferences = {} } = useAtomValue(llmPreferencesAtom);
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [formData, setFormData] = useState<CreateLLMConfigRequest>({
@@ -196,13 +195,16 @@ export function SetupLLMStep({
 					typeof newAssignments.strategic_llm_id === "string"
 						? parseInt(newAssignments.strategic_llm_id)
 						: newAssignments.strategic_llm_id,
-			};
+		};
 
-			const success = await updatePreferences(numericAssignments);
+		await updatePreferences({
+			search_space_id: searchSpaceId,
+			data: numericAssignments
+		});
 
-			if (success && onPreferencesUpdated) {
-				await onPreferencesUpdated();
-			}
+		if (onPreferencesUpdated) {
+			await onPreferencesUpdated();
+		}
 		}
 	};
 
