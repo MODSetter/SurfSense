@@ -81,12 +81,11 @@ export const updateDocumentMutationAtom = atomWithMutation((get) => {
 
 export const deleteDocumentMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
-	const authToken = localStorage.getItem("surfsense_bearer_token");
 	const documentsQueryParams = get(globalDocumentsQueryParamsAtom);
 
 	return {
 		mutationKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
-		enabled: !!searchSpaceId && !!authToken,
+		enabled: !!searchSpaceId,
 		mutationFn: async (request: DeleteDocumentRequest) => {
 			return documentsApiService.deleteDocument(request);
 		},
