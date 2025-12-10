@@ -161,7 +161,7 @@ export const deleteDocumentResponse = z.object({
 	message: z.literal("Document deleted successfully"),
 });
 
-export type Document = z.infer<typeof document>
+export type Document = z.infer<typeof document>;
 export type GetDocumentsRequest = z.infer<typeof getDocumentsRequest>;
 export type GetDocumentsResponse = z.infer<typeof getDocumentsResponse>;
 export type GetDocumentRequest = z.infer<typeof getDocumentRequest>;
@@ -180,4 +180,4 @@ export type UpdateDocumentRequest = z.infer<typeof updateDocumentRequest>;
 export type UpdateDocumentResponse = z.infer<typeof updateDocumentResponse>;
 export type DeleteDocumentRequest = z.infer<typeof deleteDocumentRequest>;
 export type DeleteDocumentResponse = z.infer<typeof deleteDocumentResponse>;
-export type DocumentTypeEnum = z.infer<typeof documentTypeEnum>
+export type DocumentTypeEnum = z.infer<typeof documentTypeEnum>;

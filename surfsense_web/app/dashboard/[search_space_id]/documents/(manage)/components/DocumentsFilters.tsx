@@ -27,8 +27,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import type { ColumnVisibility } from "./types";
-import { DocumentTypeEnum } from "@/contracts/types/document.types";
 
 const fadeInScale: Variants = {
 	hidden: { opacity: 0, scale: 0.95 },
@@ -157,7 +157,7 @@ export function DocumentsFilters({
 								<div className="text-xs font-medium text-muted-foreground">Filters</div>
 								<div className="space-y-3">
 									<AnimatePresence>
-										{uniqueTypes.map((value : DocumentTypeEnum, i) => (
+										{uniqueTypes.map((value: DocumentTypeEnum, i) => (
 											<motion.div
 												key={value}
 												className="flex items-center gap-2"

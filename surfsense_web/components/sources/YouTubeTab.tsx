@@ -2,12 +2,12 @@
 
 import { IconBrandYoutube } from "@tabler/icons-react";
 import { TagInput, type Tag as TagType } from "emblor";
+import { useAtom } from "jotai";
 import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { useAtom } from "jotai";
 import { toast } from "sonner";
 import { createDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 

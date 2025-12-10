@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import {
 	type ColumnDef,
 	flexRender,
@@ -7,10 +8,11 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useAtomValue } from "jotai";
 import { ArrowUpDown, Calendar, FileText, Filter, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -32,11 +34,9 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { Document, DocumentTypeEnum } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { Document, DocumentTypeEnum } from "@/contracts/types/document.types";
-import { useAtomValue } from "jotai";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 
 interface DocumentsDataTableProps {
 	searchSpaceId: number;
@@ -190,12 +190,12 @@ export function DocumentsDataTable({
 	const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentTypeEnum[]>([]);
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(10);
-	const {data : typeCounts } = useAtomValue(documentTypeCountsAtom);
+	const { data: typeCounts } = useAtomValue(documentTypeCountsAtom);
 
 	const fetchQueryParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
-			page: pageIndex ,
+			page: pageIndex,
 			page_size: pageSize,
 			...(documentTypeFilter.length > 0 && { document_types: documentTypeFilter }),
 		}),
@@ -205,40 +205,36 @@ export function DocumentsDataTable({
 	const searchQueryParams = useMemo(() => {
 		return {
 			search_space_id: searchSpaceId,
-			page: pageIndex ,
+			page: pageIndex,
 			page_size: pageSize,
 			...(documentTypeFilter.length > 0 && { document_types: documentTypeFilter }),
-			title : debouncedSearch,
-		}
-	},[debouncedSearch, searchSpaceId, pageIndex, pageSize, documentTypeFilter, debouncedSearch])
+			title: debouncedSearch,
+		};
+	}, [debouncedSearch, searchSpaceId, pageIndex, pageSize, documentTypeFilter, debouncedSearch]);
 
 	// Use query for fetching documents
-	const {
-		data: documents,
-		isLoading: isDocumentsLoading,
-	} = useQuery({
+	const { data: documents, isLoading: isDocumentsLoading } = useQuery({
 		queryKey: cacheKeys.documents.withQueryParams(fetchQueryParams),
-		queryFn: () => documentsApiService.getDocuments({ queryParams : fetchQueryParams }),
+		queryFn: () => documentsApiService.getDocuments({ queryParams: fetchQueryParams }),
 		staleTime: 3 * 60 * 1000, // 3 minutes
-		enabled: !!searchSpaceId && !debouncedSearch.trim(), 
+		enabled: !!searchSpaceId && !debouncedSearch.trim(),
 	});
 
 	// Seaching
-		const {
-		data: searchedDocuments,
-		isLoading: isSearchedDocumentsLoading,
-	} = useQuery({
+	const { data: searchedDocuments, isLoading: isSearchedDocumentsLoading } = useQuery({
 		queryKey: cacheKeys.documents.withQueryParams(searchQueryParams),
-		queryFn: () => documentsApiService.searchDocuments({ queryParams : searchQueryParams }),
+		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
 		staleTime: 3 * 60 * 1000, // 3 minutes
 		enabled: !!searchSpaceId && !!debouncedSearch.trim(),
 	});
 
-
-
 	// Use query data when not searching, otherwise use hook data
-	const actualDocuments = debouncedSearch.trim() ? searchedDocuments?.items|| [] : documents?.items|| [];
-	const actualTotal = debouncedSearch.trim() ? searchedDocuments?.total || 0 : documents?.total || 0;
+	const actualDocuments = debouncedSearch.trim()
+		? searchedDocuments?.items || []
+		: documents?.items || [];
+	const actualTotal = debouncedSearch.trim()
+		? searchedDocuments?.total || 0
+		: documents?.total || 0;
 	const actualLoading = debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading;
 
 	// Memoize initial row selection to prevent infinite loops
@@ -370,7 +366,7 @@ export function DocumentsDataTable({
 
 	// Get available document types from type counts (memoized)
 	const availableTypes = useMemo(() => {
-		const types = typeCounts ? Object.keys(typeCounts) as DocumentTypeEnum[] : [];
+		const types = typeCounts ? (Object.keys(typeCounts) as DocumentTypeEnum[]) : [];
 		return types.length > 0 ? types.sort() : [];
 	}, [typeCounts]);
 
@@ -573,31 +569,31 @@ export function DocumentsDataTable({
 			{/* Footer Pagination */}
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs sm:text-sm text-muted-foreground border-t pt-3 md:pt-4 flex-shrink-0">
 				<div className="text-center sm:text-left">
-					Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, actualTotal)} of{" "}
-					{actualTotal} documents
+					Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, actualTotal)}{" "}
+					of {actualTotal} documents
 				</div>
 				<div className="flex items-center justify-center sm:justify-end space-x-2">
 					<Button
 						variant="outline"
-					size="sm"
-					onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-					disabled={pageIndex === 0 || actualLoading}
-					className="text-xs sm:text-sm"
+						size="sm"
+						onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+						disabled={pageIndex === 0 || actualLoading}
+						className="text-xs sm:text-sm"
 					>
 						Previous
 					</Button>
 					<div className="flex items-center space-x-1 text-xs sm:text-sm">
 						<span>Page</span>
-					<strong>{pageIndex + 1}</strong>
-					<span>of</span>
-					<strong>{Math.ceil(actualTotal / pageSize)}</strong>
-				</div>
+						<strong>{pageIndex + 1}</strong>
+						<span>of</span>
+						<strong>{Math.ceil(actualTotal / pageSize)}</strong>
+					</div>
 					<Button
 						variant="outline"
-					size="sm"
-					onClick={() => setPageIndex((p) => p + 1)}
-					disabled={pageIndex >= Math.ceil(actualTotal / pageSize) - 1 || actualLoading}
-					className="text-xs sm:text-sm"
+						size="sm"
+						onClick={() => setPageIndex((p) => p + 1)}
+						disabled={pageIndex >= Math.ceil(actualTotal / pageSize) - 1 || actualLoading}
+						className="text-xs sm:text-sm"
 					>
 						Next
 					</Button>

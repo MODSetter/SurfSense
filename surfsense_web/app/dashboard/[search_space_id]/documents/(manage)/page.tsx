@@ -1,22 +1,21 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { motion } from "motion/react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
+import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
-import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
 import type { ColumnVisibility } from "./components/types";
-import { DocumentTypeEnum } from "@/contracts/types/document.types";
 
 function useDebounced<T>(value: T, delay = 250) {
 	const [debounced, setDebounced] = useState(value);
@@ -47,8 +46,8 @@ export default function DocumentsTable() {
 	const [sortKey, setSortKey] = useState<SortKey>("title");
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-	const {data: typeCounts} = useAtomValue(documentTypeCountsAtom) ;
-	const {mutateAsync : deleteDocumentMutation} = useAtomValue(deleteDocumentMutationAtom);
+	const { data: typeCounts } = useAtomValue(documentTypeCountsAtom);
+	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	// Build query parameters for fetching documents
 	const queryParams = useMemo(
@@ -78,7 +77,7 @@ export default function DocumentsTable() {
 		data: documentsResponse,
 		isLoading: isDocumentsLoading,
 		refetch: refetchDocuments,
-		error : documentsError
+		error: documentsError,
 	} = useQuery({
 		queryKey: cacheKeys.documents.globalQueryParams(queryParams),
 		queryFn: () => documentsApiService.getDocuments({ queryParams }),
@@ -91,7 +90,7 @@ export default function DocumentsTable() {
 		data: searchResponse,
 		isLoading: isSearchLoading,
 		refetch: refetchSearch,
-		error: searchError
+		error: searchError,
 	} = useQuery({
 		queryKey: cacheKeys.documents.globalQueryParams(searchQueryParams),
 		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
@@ -100,14 +99,12 @@ export default function DocumentsTable() {
 	});
 
 	// Extract documents and total based on search state
-	const documents = debouncedSearch.trim() 
-		? searchResponse?.items || [] 
+	const documents = debouncedSearch.trim()
+		? searchResponse?.items || []
 		: documentsResponse?.items || [];
-	const total = debouncedSearch.trim() 
-		? searchResponse?.total || 0 
-		: documentsResponse?.total || 0;
+	const total = debouncedSearch.trim() ? searchResponse?.total || 0 : documentsResponse?.total || 0;
 	const loading = debouncedSearch.trim() ? isSearchLoading : isDocumentsLoading;
-	const error = debouncedSearch.trim() ? searchError : documentsError
+	const error = debouncedSearch.trim() ? searchError : documentsError;
 
 	// Display server-filtered results directly
 	const displayDocs = documents || [];

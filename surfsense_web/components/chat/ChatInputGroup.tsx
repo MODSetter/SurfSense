@@ -1,10 +1,10 @@
 "use client";
 
 import { ChatInput } from "@llamaindex/chat-ui";
+import { useAtom } from "jotai";
 import { Brain, Check, FolderOpen, Minus, Plus, PlusCircle, Zap } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import React, { Suspense, useCallback, useState, useMemo } from "react";
-import { useAtom } from "jotai";
+import React, { Suspense, useCallback, useMemo, useState } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Badge } from "@/components/ui/badge";
@@ -121,7 +121,11 @@ const ConnectorSelector = React.memo(
 
 		// Use the documentTypeCountsAtom for fetching document types
 		const [documentTypeCountsQuery] = useAtom(documentTypeCountsAtom);
-		const { data: documentTypeCountsData, isLoading, refetch: fetchDocumentTypes } = documentTypeCountsQuery;
+		const {
+			data: documentTypeCountsData,
+			isLoading,
+			refetch: fetchDocumentTypes,
+		} = documentTypeCountsQuery;
 
 		// Transform the response into the expected format
 		const documentTypes = useMemo(() => {
