@@ -4,6 +4,8 @@ import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.type
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
+export const activeSearchSpaceIdAtom = atom<string | null>(null);
+
 export const searchSpacesQueryParamsAtom = atom<GetSearchSpacesRequest["queryParams"]>({
 	skip: 0,
 	limit: 10,
