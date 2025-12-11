@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { paginationQueryParams } from ".";
 
-// Base schemas
 export const searchSpace = z.object({
   id: z.number(),
   name: z.string(),
