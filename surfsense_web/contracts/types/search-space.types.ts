@@ -71,6 +71,15 @@ export const updateSearchSpaceRequest = z.object({
 
 export const updateSearchSpaceResponse = searchSpace.omit({ member_count: true, is_owner: true });
 
+/**
+ * Delete search space
+ */
+export const deleteSearchSpaceRequest = searchSpace.pick({ id: true });
+
+export const deleteSearchSpaceResponse = z.object({
+  message: z.literal("Search space deleted successfully"),
+});
+
 // Inferred types
 export type SearchSpace = z.infer<typeof searchSpace>;
 export type GetSearchSpacesRequest = z.infer<typeof getSearchSpacesRequest>;
@@ -82,3 +91,5 @@ export type GetSearchSpaceRequest = z.infer<typeof getSearchSpaceRequest>;
 export type GetSearchSpaceResponse = z.infer<typeof getSearchSpaceResponse>;
 export type UpdateSearchSpaceRequest = z.infer<typeof updateSearchSpaceRequest>;
 export type UpdateSearchSpaceResponse = z.infer<typeof updateSearchSpaceResponse>;
+export type DeleteSearchSpaceRequest = z.infer<typeof deleteSearchSpaceRequest>;
+export type DeleteSearchSpaceResponse = z.infer<typeof deleteSearchSpaceResponse>;
