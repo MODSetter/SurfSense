@@ -1,9 +1,12 @@
 import {
 	type CreateSearchSpaceRequest,
+	type GetSearchSpaceRequest,
 	type GetSearchSpacesRequest,
 	createSearchSpaceRequest,
 	createSearchSpaceResponse,
 	getCommunityPromptsResponse,
+	getSearchSpaceRequest,
+	getSearchSpaceResponse,
 	getSearchSpacesRequest,
 	getSearchSpacesResponse,
 } from "@/contracts/types/search-space.types";
@@ -63,6 +66,22 @@ class SearchSpacesApiService {
 	 */
 	getCommunityPrompts = async () => {
 		return baseApiService.get(`/api/v1/searchspaces/prompts/community`, getCommunityPromptsResponse);
+	};
+
+	/**
+	 * Get a single search space by ID
+	 */
+	getSearchSpace = async (request: GetSearchSpaceRequest) => {
+		const parsedRequest = getSearchSpaceRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(`/api/v1/searchspaces/${request.id}`, getSearchSpaceResponse);
 	};
 }
 
