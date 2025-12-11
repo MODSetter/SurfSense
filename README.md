@@ -91,41 +91,13 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 ## 📄 **Supported File Extensions**
 
-> **Note**: File format support depends on your ETL service configuration. LlamaCloud supports 50+ formats, Unstructured supports 34+ core formats, and Docling (core formats, local processing, privacy-focused, no API key).
+| ETL Service | Formats | Notes |
+|-------------|---------|-------|
+| **LlamaCloud** | 50+ formats | Documents, presentations, spreadsheets, images |
+| **Unstructured** | 34+ formats | Core formats + email support |
+| **Docling** | Core formats | Local processing, no API key required |
 
-### Documents & Text
-**LlamaCloud**: `.pdf`, `.doc`, `.docx`, `.docm`, `.dot`, `.dotm`, `.rtf`, `.txt`, `.xml`, `.epub`, `.odt`, `.wpd`, `.pages`, `.key`, `.numbers`, `.602`, `.abw`, `.cgm`, `.cwk`, `.hwp`, `.lwp`, `.mw`, `.mcw`, `.pbd`, `.sda`, `.sdd`, `.sdp`, `.sdw`, `.sgl`, `.sti`, `.sxi`, `.sxw`, `.stw`, `.sxg`, `.uof`, `.uop`, `.uot`, `.vor`, `.wps`, `.zabw`
-
-**Unstructured**: `.doc`, `.docx`, `.odt`, `.rtf`, `.pdf`, `.xml`, `.txt`, `.md`, `.markdown`, `.rst`, `.html`, `.org`, `.epub`
-
-**Docling**: `.pdf`, `.docx`, `.html`, `.htm`, `.xhtml`, `.adoc`, `.asciidoc`
-
-### Presentations
-**LlamaCloud**: `.ppt`, `.pptx`, `.pptm`, `.pot`, `.potm`, `.potx`, `.odp`, `.key`
-
-**Unstructured**: `.ppt`, `.pptx`
-
-**Docling**: `.pptx`
-
-### Spreadsheets & Data
-**LlamaCloud**: `.xlsx`, `.xls`, `.xlsm`, `.xlsb`, `.xlw`, `.csv`, `.tsv`, `.ods`, `.fods`, `.numbers`, `.dbf`, `.123`, `.dif`, `.sylk`, `.slk`, `.prn`, `.et`, `.uos1`, `.uos2`, `.wk1`, `.wk2`, `.wk3`, `.wk4`, `.wks`, `.wq1`, `.wq2`, `.wb1`, `.wb2`, `.wb3`, `.qpw`, `.xlr`, `.eth`
-
-**Unstructured**: `.xls`, `.xlsx`, `.csv`, `.tsv`
-
-**Docling**: `.xlsx`, `.csv`
-
-### Images
-**LlamaCloud**: `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.svg`, `.tiff`, `.webp`, `.html`, `.htm`, `.web`
-
-**Unstructured**: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.heic`
-
-**Docling**: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.webp`
-
-### Audio & Video *(Always Supported)*
-`.mp3`, `.mpga`, `.m4a`, `.wav`, `.mp4`, `.mpeg`, `.webm`
-
-### Email & Communication
-**Unstructured**: `.eml`, `.msg`, `.p7s`
+**Audio/Video** (via STT Service): `.mp3`, `.wav`, `.mp4`, `.webm`, etc.
 
 ### 🔖 Cross Browser Extension
 - The SurfSense extension can be used to save any webpage you like.
