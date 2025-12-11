@@ -1,5 +1,8 @@
 import {
+	type CreateSearchSpaceRequest,
 	type GetSearchSpacesRequest,
+	createSearchSpaceRequest,
+	createSearchSpaceResponse,
 	getSearchSpacesRequest,
 	getSearchSpacesResponse,
 } from "@/contracts/types/search-space.types";
@@ -34,6 +37,24 @@ class SearchSpacesApiService {
 			: "";
 
 		return baseApiService.get(`/api/v1/searchspaces?${queryParams}`, getSearchSpacesResponse);
+	};
+
+	/**
+	 * Create a new search space
+	 */
+	createSearchSpace = async (request: CreateSearchSpaceRequest) => {
+		const parsedRequest = createSearchSpaceRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.post(`/api/v1/searchspaces`, createSearchSpaceResponse, {
+			body: parsedRequest.data,
+		});
 	};
 }
 
