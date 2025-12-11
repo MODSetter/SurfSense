@@ -1,5 +1,5 @@
 import { atomWithQuery } from "jotai-tanstack-query";
-import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-queries.atom";
 import { chatsApiService } from "@/lib/apis/chats-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
