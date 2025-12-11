@@ -8,8 +8,8 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContainer";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -61,7 +61,7 @@ export function DashboardClientLayout({
 	}, [activeChatId, isChatPannelOpen]);
 
 	const { data: preferences = {}, isFetching: loading, error } = useAtomValue(llmPreferencesAtom);
-	
+
 	const isOnboardingComplete = useCallback(() => {
 		return !!(
 			preferences.long_context_llm_id &&
@@ -69,7 +69,7 @@ export function DashboardClientLayout({
 			preferences.strategic_llm_id
 		);
 	}, [preferences]);
-	
+
 	const { access, loading: accessLoading } = useUserAccess(searchSpaceIdNum);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 

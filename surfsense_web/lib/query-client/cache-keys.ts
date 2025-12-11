@@ -1,7 +1,7 @@
 import type { GetChatsRequest } from "@/contracts/types/chat.types";
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
-import type { GetPodcastsRequest } from "@/contracts/types/podcast.types";
 import type { GetLLMConfigsRequest } from "@/contracts/types/llm-config.types";
+import type { GetPodcastsRequest } from "@/contracts/types/podcast.types";
 
 export const cacheKeys = {
 	chats: {
@@ -25,7 +25,7 @@ export const cacheKeys = {
 	llmConfigs: {
 		global: () => ["llm-configs", "global"] as const,
 		all: (searchSpaceId: string) => ["llm-configs", searchSpaceId] as const,
-		withQueryParams: (queries: GetLLMConfigsRequest["queryParams"]) => 
+		withQueryParams: (queries: GetLLMConfigsRequest["queryParams"]) =>
 			["llm-configs", ...(queries ? Object.values(queries) : [])] as const,
 		byId: (llmConfigId: string) => ["llm-config", llmConfigId] as const,
 		preferences: (searchSpaceId: string) => ["llm-preferences", searchSpaceId] as const,

@@ -1,11 +1,17 @@
 "use client";
 
 import { ChatInput } from "@llamaindex/chat-ui";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { Brain, Check, FolderOpen, Minus, Plus, PlusCircle, Zap } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import React, { Suspense, useCallback, useMemo, useState } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import {
+	globalLLMConfigsAtom,
+	llmConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/llm-config/llm-config-query.atoms";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,11 +33,8 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { Document } from "@/contracts/types/document.types";
+import type { Document } from "@/contracts/types/document.types";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
-import { useAtomValue } from "jotai";
-import { llmConfigsAtom, globalLLMConfigsAtom, llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
-import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
 
 const DocumentSelector = React.memo(
 	({
@@ -541,11 +544,20 @@ const LLMSelector = React.memo(() => {
 	const { search_space_id } = useParams();
 	const searchSpaceId = Number(search_space_id);
 
-	const { data: llmConfigs = [], isFetching: llmLoading, isError: error } = useAtomValue(llmConfigsAtom);
-	const { data: globalConfigs = [], isFetching: globalConfigsLoading, isError: globalConfigsError } = useAtomValue(globalLLMConfigsAtom);
-	
+	const {
+		data: llmConfigs = [],
+		isFetching: llmLoading,
+		isError: error,
+	} = useAtomValue(llmConfigsAtom);
+	const {
+		data: globalConfigs = [],
+		isFetching: globalConfigsLoading,
+		isError: globalConfigsError,
+	} = useAtomValue(globalLLMConfigsAtom);
+
 	// Replace useLLMPreferences with jotai atoms
-	const { data: preferences = {}, isFetching: preferencesLoading } = useAtomValue(llmPreferencesAtom);
+	const { data: preferences = {}, isFetching: preferencesLoading } =
+		useAtomValue(llmPreferencesAtom);
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const isLoading = llmLoading || preferencesLoading || globalConfigsLoading;
@@ -571,7 +583,9 @@ const LLMSelector = React.memo(() => {
 				<span className="hidden sm:inline text-muted-foreground text-xs truncate max-w-[60px]">
 					{selectedConfig.name}
 				</span>
-				{"is_global" in selectedConfig && selectedConfig.is_global && <span className="text-xs">🌐</span>}
+				{"is_global" in selectedConfig && selectedConfig.is_global && (
+					<span className="text-xs">🌐</span>
+				)}
 			</div>
 		);
 	}, [selectedConfig]);
@@ -581,7 +595,7 @@ const LLMSelector = React.memo(() => {
 			const llmId = value ? parseInt(value, 10) : undefined;
 			updatePreferences({
 				search_space_id: searchSpaceId,
-				data: { fast_llm_id: llmId }
+				data: { fast_llm_id: llmId },
 			});
 		},
 		[updatePreferences, searchSpaceId]

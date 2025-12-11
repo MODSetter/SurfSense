@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	Bot,
@@ -17,6 +18,16 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+	createLLMConfigMutationAtom,
+	deleteLLMConfigMutationAtom,
+	updateLLMPreferencesMutationAtom,
+} from "@/atoms/llm-config/llm-config-mutation.atoms";
+import {
+	globalLLMConfigsAtom,
+	llmConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/llm-config/llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,13 +54,9 @@ import { Separator } from "@/components/ui/separator";
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
+import { type CreateLLMConfigRequest, LLMConfig } from "@/contracts/types/llm-config.types";
 import { cn } from "@/lib/utils";
-
 import InferenceParamsEditor from "../inference-params-editor";
-import { useAtomValue } from "jotai";
-import { createLLMConfigMutationAtom, deleteLLMConfigMutationAtom, updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
-import { llmConfigsAtom, globalLLMConfigsAtom, llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
-import { CreateLLMConfigRequest, LLMConfig } from "@/contracts/types/llm-config.types";
 
 interface SetupLLMStepProps {
 	searchSpaceId: number;
@@ -94,10 +101,12 @@ export function SetupLLMStep({
 	onConfigDeleted,
 	onPreferencesUpdated,
 }: SetupLLMStepProps) {
-	const { mutateAsync : createLLMConfig, isPending : isCreatingLlmConfig } = useAtomValue(createLLMConfigMutationAtom);
+	const { mutate: createLLMConfig, isPending: isCreatingLlmConfig } = useAtomValue(
+		createLLMConfigMutationAtom
+	);
 	const t = useTranslations("onboard");
-	const { mutateAsync : deleteLLMConfig } = useAtomValue(deleteLLMConfigMutationAtom);
-	const { data : llmConfigs = []} = useAtomValue(llmConfigsAtom);
+	const { mutateAsync: deleteLLMConfig } = useAtomValue(deleteLLMConfigMutationAtom);
+	const { data: llmConfigs = [] } = useAtomValue(llmConfigsAtom);
 	const { data: globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
 	const { data: preferences = {} } = useAtomValue(llmPreferencesAtom);
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
@@ -146,23 +155,32 @@ export function SetupLLMStep({
 			return;
 		}
 
-		const result = await createLLMConfig(formData);
-
-		if (result) {
-			setFormData({
-				name: "",
-				provider: "" as CreateLLMConfigRequest["provider"],
-				custom_provider: "",
-				model_name: "",
-				api_key: "",
-				api_base: "",
-				language: "English",
-				litellm_params: {},
-				search_space_id: searchSpaceId,
-			});
-			setIsAddingNew(false);
-			onConfigCreated?.();
-		}
+		createLLMConfig(formData, {
+			onError: (error) => {
+				console.error("Error creating LLM config:", error);
+				if (error instanceof Error) {
+					toast.error(error?.message || "Failed to create LLM config");
+				}
+			},
+			onSuccess: () => {
+				toast.success("LLM config created successfully");
+				setFormData({
+					name: "",
+					provider: "" as CreateLLMConfigRequest["provider"],
+					custom_provider: "",
+					model_name: "",
+					api_key: "",
+					api_base: "",
+					language: "English",
+					litellm_params: {},
+					search_space_id: searchSpaceId,
+				});
+				onConfigCreated?.();
+			},
+			onSettled: () => {
+				setIsAddingNew(false);
+			},
+		});
 	};
 
 	const handleRoleAssignment = async (role: string, configId: string) => {
@@ -193,16 +211,16 @@ export function SetupLLMStep({
 					typeof newAssignments.strategic_llm_id === "string"
 						? parseInt(newAssignments.strategic_llm_id)
 						: newAssignments.strategic_llm_id,
-		};
+			};
 
-		await updatePreferences({
-			search_space_id: searchSpaceId,
-			data: numericAssignments
-		});
+			await updatePreferences({
+				search_space_id: searchSpaceId,
+				data: numericAssignments,
+			});
 
-		if (onPreferencesUpdated) {
-			await onPreferencesUpdated();
-		}
+			if (onPreferencesUpdated) {
+				await onPreferencesUpdated();
+			}
 		}
 	};
 
@@ -327,7 +345,7 @@ export function SetupLLMStep({
 																	await deleteLLMConfig({ id: config.id });
 																	onConfigDeleted?.();
 																} catch (error) {
-																	console.error('Failed to delete config:', error);
+																	console.error("Failed to delete config:", error);
 																}
 															}}
 															className="text-destructive hover:text-destructive"

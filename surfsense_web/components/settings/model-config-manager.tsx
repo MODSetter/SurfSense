@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	Bot,
@@ -17,6 +18,12 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+	createLLMConfigMutationAtom,
+	deleteLLMConfigMutationAtom,
+	updateLLMConfigMutationAtom,
+} from "@/atoms/llm-config/llm-config-mutation.atoms";
+import { globalLLMConfigsAtom, llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	AlertDialog,
@@ -59,23 +66,42 @@ import {
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
+import type {
+	CreateLLMConfigRequest,
+	CreateLLMConfigResponse,
+	LLMConfig,
+	UpdateLLMConfigResponse,
+} from "@/contracts/types/llm-config.types";
 import { cn } from "@/lib/utils";
 import InferenceParamsEditor from "../inference-params-editor";
-import { useAtomValue } from "jotai";
-import { createLLMConfigMutationAtom, deleteLLMConfigMutationAtom, updateLLMConfigMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
-import { CreateLLMConfigRequest, CreateLLMConfigResponse, LLMConfig, UpdateLLMConfigResponse } from "@/contracts/types/llm-config.types";
-import { globalLLMConfigsAtom, llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 
 interface ModelConfigManagerProps {
 	searchSpaceId: number;
 }
 
 export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
-	const { mutateAsync : createLLMConfig, isPending : isCreatingLLMConfig, error : createLLMConfigError, } = useAtomValue(createLLMConfigMutationAtom)
-	const { mutateAsync : updateLLMConfig, isPending : isUpdatingLLMConfig, error : updateLLMConfigError,} = useAtomValue(updateLLMConfigMutationAtom)
-	const { mutateAsync : deleteLLMConfig, isPending : isDeletingLLMConfig, error : deleteLLMConfigError, } = useAtomValue(deleteLLMConfigMutationAtom)
-	const { data : llmConfigs, isFetching : isFetchingLLMConfigs, error : LLMConfigsFetchError, refetch : refreshConfigs} = useAtomValue(llmConfigsAtom)
-	const { data : globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
+	const {
+		mutateAsync: createLLMConfig,
+		isPending: isCreatingLLMConfig,
+		error: createLLMConfigError,
+	} = useAtomValue(createLLMConfigMutationAtom);
+	const {
+		mutateAsync: updateLLMConfig,
+		isPending: isUpdatingLLMConfig,
+		error: updateLLMConfigError,
+	} = useAtomValue(updateLLMConfigMutationAtom);
+	const {
+		mutateAsync: deleteLLMConfig,
+		isPending: isDeletingLLMConfig,
+		error: deleteLLMConfigError,
+	} = useAtomValue(deleteLLMConfigMutationAtom);
+	const {
+		data: llmConfigs,
+		isFetching: isFetchingLLMConfigs,
+		error: LLMConfigsFetchError,
+		refetch: refreshConfigs,
+	} = useAtomValue(llmConfigsAtom);
+	const { data: globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null);
 	const [formData, setFormData] = useState<CreateLLMConfigRequest>({
@@ -89,9 +115,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		litellm_params: {},
 		search_space_id: searchSpaceId,
 	});
-	const isSubmitting = isCreatingLLMConfig || isUpdatingLLMConfig
-	const errors = [createLLMConfigError, updateLLMConfigError, deleteLLMConfigError, LLMConfigsFetchError] as Error[]
-	const isError = Boolean(errors.filter(Boolean).length)
+	const isSubmitting = isCreatingLLMConfig || isUpdatingLLMConfig;
+	const errors = [
+		createLLMConfigError,
+		updateLLMConfigError,
+		deleteLLMConfigError,
+		LLMConfigsFetchError,
+	] as Error[];
+	const isError = Boolean(errors.filter(Boolean).length);
 	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
 	const [configToDelete, setConfigToDelete] = useState<LLMConfig | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -118,7 +149,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	};
 
 	// Handle provider change with auto-fill API Base URL and reset model / 处理 Provider 变更并自动填充 API Base URL 并重置模型
-	const handleProviderChange = (providerValue : CreateLLMConfigRequest["provider"]) => {
+	const handleProviderChange = (providerValue: CreateLLMConfigRequest["provider"]) => {
 		const provider = LLM_PROVIDERS.find((p) => p.value === providerValue);
 		setFormData((prev) => ({
 			...prev,
@@ -128,8 +159,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			api_base: provider?.apiBase || prev.api_base,
 		}));
 	};
-
-	
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -141,7 +170,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		let result: CreateLLMConfigResponse | UpdateLLMConfigResponse | null = null;
 		if (editingConfig) {
 			// Update existing config
-			result = await updateLLMConfig({id : editingConfig.id, data : formData});
+			result = await updateLLMConfig({ id: editingConfig.id, data: formData });
 		} else {
 			// Create new config
 			result = await createLLMConfig(formData);
@@ -218,14 +247,15 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			</div>
 
 			{/* Error Alert */}
-			{isError && errors.filter(Boolean).map(err => {
-				return (
-				<Alert variant="destructive">
-					<AlertCircle className="h-4 w-4" />
-					<AlertDescription>{err?.message ?? "Something went wrong"}</AlertDescription>
-				</Alert>
-			)
-			}) }
+			{isError &&
+				errors.filter(Boolean).map((err, i) => {
+					return (
+						<Alert key={`err.message-${i}`} variant="destructive">
+							<AlertCircle className="h-4 w-4" />
+							<AlertDescription>{err?.message ?? "Something went wrong"}</AlertDescription>
+						</Alert>
+					);
+				})}
 
 			{/* Global Configs Info Alert */}
 			{!isFetchingLLMConfigs && !isError && globalConfigs.length > 0 && (
@@ -254,7 +284,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			)}
 
 			{/* Stats Overview */}
-			{!isFetchingLLMConfigs && !isError&& (
+			{!isFetchingLLMConfigs && !isError && (
 				<div className="grid gap-3 grid-cols-3">
 					<Card className="overflow-hidden">
 						<div className="h-1 bg-blue-500" />
