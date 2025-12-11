@@ -145,7 +145,9 @@ Join the [SurfSense Discord](https://discord.gg/ejRNvftDp9) and help shape the f
 Stay up to date with our development progress and upcoming features!  
 Check out our public roadmap and contribute your ideas or feedback:
 
-**View the Roadmap:** [SurfSense Roadmap on GitHub Projects](https://github.com/users/MODSetter/projects/2)
+**📋 Roadmap Discussion:** [SurfSense 2025-2026 Roadmap: Deep Agents, Real-Time Collaboration & MCP Servers](https://github.com/MODSetter/SurfSense/discussions/565)
+
+**📊 Kanban Board:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
 
 
 ## How to get started?
