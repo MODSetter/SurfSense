@@ -67,13 +67,13 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const {
 		data: llmConfigs = [],
 		isFetching: configsLoading,
-		isError: configsError,
+		error: configsError,
 		refetch: refreshConfigs
 	} = useAtomValue(llmConfigsAtom);
 	const {
 		data: globalConfigs = [],
 		isFetching: globalConfigsLoading,
-		isError: globalConfigsError,
+		error: globalConfigsError,
 		refetch: refreshGlobalConfigs,
 	} = useAtomValue(globalLLMConfigsAtom);
 	const {
@@ -235,9 +235,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				<Alert variant="destructive">
 				<AlertCircle className="h-4 w-4" />
 				<AlertDescription>
-					{(configsError && "Failed to load LLM configurations") || 
-					 (preferencesError && "Failed to load preferences") || 
-					 (globalConfigsError && "Failed to load global configurations")}
+					{(configsError?.message ?? "Failed to load LLM configurations") || 
+					 (preferencesError?.message ?? "Failed to load preferences") || 
+					 (globalConfigsError?.message ?? "Failed to load global configurations")}
 				</AlertDescription>
 			</Alert>
 			)}

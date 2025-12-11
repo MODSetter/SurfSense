@@ -60,10 +60,8 @@ export function DashboardClientLayout({
 		}
 	}, [activeChatId, isChatPannelOpen]);
 
-	// Replace useLLMPreferences with jotai atom
 	const { data: preferences = {}, isFetching: loading, error } = useAtomValue(llmPreferencesAtom);
 	
-	// Create isOnboardingComplete function for backward compatibility
 	const isOnboardingComplete = useCallback(() => {
 		return !!(
 			preferences.long_context_llm_id &&
