@@ -3,6 +3,7 @@ import {
 	type GetSearchSpacesRequest,
 	createSearchSpaceRequest,
 	createSearchSpaceResponse,
+	getCommunityPromptsResponse,
 	getSearchSpacesRequest,
 	getSearchSpacesResponse,
 } from "@/contracts/types/search-space.types";
@@ -55,6 +56,13 @@ class SearchSpacesApiService {
 		return baseApiService.post(`/api/v1/searchspaces`, createSearchSpaceResponse, {
 			body: parsedRequest.data,
 		});
+	};
+
+	/**
+	 * Get community-curated prompts for search space system instructions
+	 */
+	getCommunityPrompts = async () => {
+		return baseApiService.get(`/api/v1/searchspaces/prompts/community`, getCommunityPromptsResponse);
 	};
 }
 
