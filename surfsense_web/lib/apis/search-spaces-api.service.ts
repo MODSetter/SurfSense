@@ -2,6 +2,7 @@ import {
 	type CreateSearchSpaceRequest,
 	type GetSearchSpaceRequest,
 	type GetSearchSpacesRequest,
+	type UpdateSearchSpaceRequest,
 	createSearchSpaceRequest,
 	createSearchSpaceResponse,
 	getCommunityPromptsResponse,
@@ -9,6 +10,8 @@ import {
 	getSearchSpaceResponse,
 	getSearchSpacesRequest,
 	getSearchSpacesResponse,
+	updateSearchSpaceRequest,
+	updateSearchSpaceResponse,
 } from "@/contracts/types/search-space.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
@@ -82,6 +85,24 @@ class SearchSpacesApiService {
 		}
 
 		return baseApiService.get(`/api/v1/searchspaces/${request.id}`, getSearchSpaceResponse);
+	};
+
+	/**
+	 * Update an existing search space
+	 */
+	updateSearchSpace = async (request: UpdateSearchSpaceRequest) => {
+		const parsedRequest = updateSearchSpaceRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.put(`/api/v1/searchspaces/${request.id}`, updateSearchSpaceResponse, {
+			body: parsedRequest.data.data,
+		});
 	};
 }
 
