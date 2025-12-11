@@ -99,8 +99,6 @@ export function SetupLLMStep({
 	const { mutateAsync : deleteLLMConfig } = useAtomValue(deleteLLMConfigMutationAtom);
 	const { data : llmConfigs = []} = useAtomValue(llmConfigsAtom);
 	const { data: globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
-	
-	// Replace useLLMPreferences with jotai atoms
 	const { data: preferences = {} } = useAtomValue(llmPreferencesAtom);
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 

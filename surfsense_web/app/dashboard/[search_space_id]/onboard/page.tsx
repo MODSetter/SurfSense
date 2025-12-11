@@ -121,7 +121,7 @@ const OnboardPage = () => {
 				strategic_llm_id: defaultConfigId,
 			};
 
-			try {
+			
 				await updatePreferences({
 					search_space_id: searchSpaceId,
 					data: newPreferences
@@ -131,9 +131,6 @@ const OnboardPage = () => {
 				toast.success("AI models configured automatically!", {
 					description: "You can customize these in advanced settings.",
 				});
-			} catch (updateError) {
-				console.error("Failed to update preferences:", updateError);
-			}
 		} catch (error) {
 			console.error("Auto-configuration failed:", error);
 		} finally {
