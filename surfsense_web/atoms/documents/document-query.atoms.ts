@@ -1,5 +1,5 @@
 import { atomWithQuery } from "jotai-tanstack-query";
-import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-queries.atom";
 import type { SearchDocumentsRequest } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
