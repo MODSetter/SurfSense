@@ -200,6 +200,9 @@ class Config:
     # ETL Service
     ETL_SERVICE = os.getenv("ETL_SERVICE")
 
+    # Pages limit for ETL services (default to very high number for OSS unlimited usage)
+    PAGES_LIMIT = int(os.getenv("PAGES_LIMIT", "999999999"))
+
     if ETL_SERVICE == "UNSTRUCTURED":
         # Unstructured API Key
         UNSTRUCTURED_API_KEY = os.getenv("UNSTRUCTURED_API_KEY")
