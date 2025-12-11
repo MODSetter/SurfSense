@@ -710,7 +710,12 @@ if config.AUTH_TYPE == "GOOGLE":
         )
 
         # Page usage tracking for ETL services
-        pages_limit = Column(Integer, nullable=False, default=config.PAGES_LIMIT, server_default=str(config.PAGES_LIMIT))
+        pages_limit = Column(
+            Integer,
+            nullable=False,
+            default=config.PAGES_LIMIT,
+            server_default=str(config.PAGES_LIMIT),
+        )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
 else:
@@ -731,7 +736,12 @@ else:
         )
 
         # Page usage tracking for ETL services
-        pages_limit = Column(Integer, nullable=False, default=config.PAGES_LIMIT, server_default=str(config.PAGES_LIMIT))
+        pages_limit = Column(
+            Integer,
+            nullable=False,
+            default=config.PAGES_LIMIT,
+            server_default=str(config.PAGES_LIMIT),
+        )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
 
