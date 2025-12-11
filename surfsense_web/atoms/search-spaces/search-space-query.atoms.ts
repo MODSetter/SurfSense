@@ -6,8 +6,9 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 // Atom to store current query params for search spaces
 export const searchSpacesQueryParamsAtom = atom<GetSearchSpacesRequest["queryParams"]>({
-	page: 0,
-	page_size: 10,
+	skip: 0,
+	limit: 10,
+	owned_only: false,
 });
 
 // Query atom to fetch search spaces with query params
