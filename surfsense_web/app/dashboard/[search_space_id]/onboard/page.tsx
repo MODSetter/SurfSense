@@ -1,11 +1,18 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { FileText, MessageSquare, UserPlus, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import {
+	globalLLMConfigsAtom,
+	llmConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/llm-config/llm-config-query.atoms";
 import { OnboardActionCard } from "@/components/onboard/onboard-action-card";
 import { OnboardAdvancedSettings } from "@/components/onboard/onboard-advanced-settings";
 import { OnboardHeader } from "@/components/onboard/onboard-header";
@@ -13,10 +20,6 @@ import { OnboardLLMSetup } from "@/components/onboard/onboard-llm-setup";
 import { OnboardLoading } from "@/components/onboard/onboard-loading";
 import { OnboardStats } from "@/components/onboard/onboard-stats";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
-import { useAtomValue } from "jotai";
-import { llmConfigsAtom, globalLLMConfigsAtom, llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
-import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
-import { useMemo } from "react";
 
 const OnboardPage = () => {
 	const t = useTranslations("onboard");
@@ -24,18 +27,28 @@ const OnboardPage = () => {
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const { data: llmConfigs = [], isFetching: configsLoading, refetch: refreshConfigs } = useAtomValue(llmConfigsAtom);
-	const { data: globalConfigs = [], isFetching: globalConfigsLoading } = useAtomValue(globalLLMConfigsAtom);
-	const { data: preferences = {}, isFetching: preferencesLoading, refetch: refreshPreferences } = useAtomValue(llmPreferencesAtom);
+	const {
+		data: llmConfigs = [],
+		isFetching: configsLoading,
+		refetch: refreshConfigs,
+	} = useAtomValue(llmConfigsAtom);
+	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
+		useAtomValue(globalLLMConfigsAtom);
+	const {
+		data: preferences = {},
+		isFetching: preferencesLoading,
+		refetch: refreshPreferences,
+	} = useAtomValue(llmPreferencesAtom);
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
-	
+
 	// Compute isOnboardingComplete
 	const isOnboardingComplete = useMemo(() => {
-		return () => !!(
-			preferences.long_context_llm_id &&
-			preferences.fast_llm_id &&
-			preferences.strategic_llm_id
-		);
+		return () =>
+			!!(
+				preferences.long_context_llm_id &&
+				preferences.fast_llm_id &&
+				preferences.strategic_llm_id
+			);
 	}, [preferences]);
 
 	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
@@ -44,8 +57,8 @@ const OnboardPage = () => {
 	const [showPromptSettings, setShowPromptSettings] = useState(false);
 
 	const handleRefreshPreferences = useCallback(async () => {
-		await refreshPreferences()
-	},[])
+		await refreshPreferences();
+	}, []);
 
 	// Track if we've already attempted auto-configuration
 	const hasAttemptedAutoConfig = useRef(false);
@@ -121,16 +134,15 @@ const OnboardPage = () => {
 				strategic_llm_id: defaultConfigId,
 			};
 
-			
-				await updatePreferences({
-					search_space_id: searchSpaceId,
-					data: newPreferences
-				});
-				await refreshPreferences();
-				setAutoConfigComplete(true);
-				toast.success("AI models configured automatically!", {
-					description: "You can customize these in advanced settings.",
-				});
+			await updatePreferences({
+				search_space_id: searchSpaceId,
+				data: newPreferences,
+			});
+			await refreshPreferences();
+			setAutoConfigComplete(true);
+			toast.success("AI models configured automatically!", {
+				description: "You can customize these in advanced settings.",
+			});
 		} catch (error) {
 			console.error("Auto-configuration failed:", error);
 		} finally {

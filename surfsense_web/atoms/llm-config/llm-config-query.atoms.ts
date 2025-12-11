@@ -39,7 +39,7 @@ export const llmPreferencesAtom = atomWithQuery((get) => {
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		queryFn: async () => {
 			return llmConfigApiService.getLLMPreferences({
-					search_space_id: Number(searchSpaceId),
+				search_space_id: Number(searchSpaceId),
 			});
 		},
 	};

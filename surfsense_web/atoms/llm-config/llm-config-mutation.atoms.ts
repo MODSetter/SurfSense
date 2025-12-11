@@ -3,11 +3,11 @@ import { toast } from "sonner";
 import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import type {
 	CreateLLMConfigRequest,
-	UpdateLLMConfigRequest,
 	DeleteLLMConfigRequest,
 	GetLLMConfigsResponse,
-	UpdateLLMPreferencesRequest,
+	UpdateLLMConfigRequest,
 	UpdateLLMConfigResponse,
+	UpdateLLMPreferencesRequest,
 } from "@/contracts/types/llm-config.types";
 import { llmConfigApiService } from "@/lib/apis/llm-config-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -45,7 +45,7 @@ export const updateLLMConfigMutationAtom = atomWithMutation((get) => {
 			return llmConfigApiService.updateLLMConfig(request);
 		},
 
-		onSuccess: (_: UpdateLLMConfigResponse , request: UpdateLLMConfigRequest) => {
+		onSuccess: (_: UpdateLLMConfigResponse, request: UpdateLLMConfigRequest) => {
 			toast.success("LLM configuration updated successfully");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.llmConfigs.all(searchSpaceId!),
