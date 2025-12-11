@@ -99,41 +99,13 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 ## 📄 **支持的文件扩展名**
 
-> **注意**：文件格式支持取决于您的 ETL 服务配置。LlamaCloud 支持 50+ 种格式，Unstructured 支持 34+ 种核心格式，Docling 支持核心格式（本地处理、注重隐私、无需 API 密钥）。
+| ETL 服务 | 格式 | 说明 |
+|----------|------|------|
+| **LlamaCloud** | 50+ 种格式 | 文档、演示文稿、电子表格、图像 |
+| **Unstructured** | 34+ 种格式 | 核心格式 + 电子邮件支持 |
+| **Docling** | 核心格式 | 本地处理，无需 API 密钥 |
 
-### 文档与文本
-**LlamaCloud**: `.pdf`, `.doc`, `.docx`, `.docm`, `.dot`, `.dotm`, `.rtf`, `.txt`, `.xml`, `.epub`, `.odt`, `.wpd`, `.pages`, `.key`, `.numbers`, `.602`, `.abw`, `.cgm`, `.cwk`, `.hwp`, `.lwp`, `.mw`, `.mcw`, `.pbd`, `.sda`, `.sdd`, `.sdp`, `.sdw`, `.sgl`, `.sti`, `.sxi`, `.sxw`, `.stw`, `.sxg`, `.uof`, `.uop`, `.uot`, `.vor`, `.wps`, `.zabw`
-
-**Unstructured**: `.doc`, `.docx`, `.odt`, `.rtf`, `.pdf`, `.xml`, `.txt`, `.md`, `.markdown`, `.rst`, `.html`, `.org`, `.epub`
-
-**Docling**: `.pdf`, `.docx`, `.html`, `.htm`, `.xhtml`, `.adoc`, `.asciidoc`
-
-### 演示文稿
-**LlamaCloud**: `.ppt`, `.pptx`, `.pptm`, `.pot`, `.potm`, `.potx`, `.odp`, `.key`
-
-**Unstructured**: `.ppt`, `.pptx`
-
-**Docling**: `.pptx`
-
-### 电子表格与数据
-**LlamaCloud**: `.xlsx`, `.xls`, `.xlsm`, `.xlsb`, `.xlw`, `.csv`, `.tsv`, `.ods`, `.fods`, `.numbers`, `.dbf`, `.123`, `.dif`, `.sylk`, `.slk`, `.prn`, `.et`, `.uos1`, `.uos2`, `.wk1`, `.wk2`, `.wk3`, `.wk4`, `.wks`, `.wq1`, `.wq2`, `.wb1`, `.wb2`, `.wb3`, `.qpw`, `.xlr`, `.eth`
-
-**Unstructured**: `.xls`, `.xlsx`, `.csv`, `.tsv`
-
-**Docling**: `.xlsx`, `.csv`
-
-### 图像
-**LlamaCloud**: `.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.svg`, `.tiff`, `.webp`, `.html`, `.htm`, `.web`
-
-**Unstructured**: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.heic`
-
-**Docling**: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.webp`
-
-### 音频与视频 **（始终支持）**
-`.mp3`, `.mpga`, `.m4a`, `.wav`, `.mp4`, `.mpeg`, `.webm`
-
-### 电子邮件与通讯
-**Unstructured**: `.eml`, `.msg`, `.p7s`
+**音频/视频**（通过 STT 服务）：`.mp3`、`.wav`、`.mp4`、`.webm` 等
 
 ### 🔖 **跨浏览器扩展**
 - SurfSense 扩展可用于保存您喜欢的任何网页
@@ -152,7 +124,9 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 随时了解我们的开发进度和即将推出的功能！  
 查看我们的公开路线图并贡献您的想法或反馈：
 
-**查看路线图：** [SurfSense 路线图 (GitHub Projects)](https://github.com/users/MODSetter/projects/2)
+**📋 路线图讨论：** [SurfSense 2025-2026 路线图：深度代理、实时协作与 MCP 服务器](https://github.com/MODSetter/SurfSense/discussions/565)
+
+**📊 看板：** [SurfSense 项目看板](https://github.com/users/MODSetter/projects/3)
 
 
 ## 如何开始？
