@@ -1,6 +1,6 @@
 import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-queries.atom";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import type {
 	DeletePodcastRequest,
 	GeneratePodcastRequest,

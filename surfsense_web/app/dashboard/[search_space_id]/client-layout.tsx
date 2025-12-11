@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-queries.atom";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContainer";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
