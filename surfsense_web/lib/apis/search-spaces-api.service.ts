@@ -1,10 +1,13 @@
 import {
 	type CreateSearchSpaceRequest,
+	type DeleteSearchSpaceRequest,
 	type GetSearchSpaceRequest,
 	type GetSearchSpacesRequest,
 	type UpdateSearchSpaceRequest,
 	createSearchSpaceRequest,
 	createSearchSpaceResponse,
+	deleteSearchSpaceRequest,
+	deleteSearchSpaceResponse,
 	getCommunityPromptsResponse,
 	getSearchSpaceRequest,
 	getSearchSpaceResponse,
@@ -103,6 +106,22 @@ class SearchSpacesApiService {
 		return baseApiService.put(`/api/v1/searchspaces/${request.id}`, updateSearchSpaceResponse, {
 			body: parsedRequest.data.data,
 		});
+	};
+
+	/**
+	 * Delete a search space
+	 */
+	deleteSearchSpace = async (request: DeleteSearchSpaceRequest) => {
+		const parsedRequest = deleteSearchSpaceRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.delete(`/api/v1/searchspaces/${request.id}`, deleteSearchSpaceResponse);
 	};
 }
 
