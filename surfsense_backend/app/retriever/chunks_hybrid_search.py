@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class ChucksHybridSearchRetriever:
     def __init__(self, db_session):
         """
@@ -13,6 +16,8 @@ class ChucksHybridSearchRetriever:
         query_text: str,
         top_k: int,
         search_space_id: int,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> list:
         """
         Perform vector similarity search on chunks.
@@ -21,6 +26,8 @@ class ChucksHybridSearchRetriever:
             query_text: The search query text
             top_k: Number of results to return
             search_space_id: The search space ID to search within
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             List of chunks sorted by vector similarity
@@ -43,6 +50,12 @@ class ChucksHybridSearchRetriever:
             .where(Document.search_space_id == search_space_id)
         )
 
+        # Add time-based filtering if provided
+        if start_date is not None:
+            query = query.where(Document.updated_at >= start_date)
+        if end_date is not None:
+            query = query.where(Document.updated_at <= end_date)
+
         # Add vector similarity ordering
         query = query.order_by(Chunk.embedding.op("<=>")(query_embedding)).limit(top_k)
 
@@ -57,6 +70,8 @@ class ChucksHybridSearchRetriever:
         query_text: str,
         top_k: int,
         search_space_id: int,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> list:
         """
         Perform full-text keyword search on chunks.
@@ -65,6 +80,8 @@ class ChucksHybridSearchRetriever:
             query_text: The search query text
             top_k: Number of results to return
             search_space_id: The search space ID to search within
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             List of chunks sorted by text relevance
@@ -89,6 +106,12 @@ class ChucksHybridSearchRetriever:
             )  # Only include results that match the query
         )
 
+        # Add time-based filtering if provided
+        if start_date is not None:
+            query = query.where(Document.updated_at >= start_date)
+        if end_date is not None:
+            query = query.where(Document.updated_at <= end_date)
+
         # Add text search ranking
         query = query.order_by(func.ts_rank_cd(tsvector, tsquery).desc()).limit(top_k)
 
@@ -104,6 +127,8 @@ class ChucksHybridSearchRetriever:
         top_k: int,
         search_space_id: int,
         document_type: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> list:
         """
         Combine vector similarity and full-text search results using Reciprocal Rank Fusion.
@@ -113,6 +138,8 @@ class ChucksHybridSearchRetriever:
             top_k: Number of results to return
             search_space_id: The search space ID to search within
             document_type: Optional document type to filter results (e.g., "FILE", "CRAWLED_URL")
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             List of dictionaries containing chunk data and relevance scores
@@ -150,6 +177,12 @@ class ChucksHybridSearchRetriever:
                     return []
             else:
                 base_conditions.append(Document.document_type == document_type)
+
+        # Add time-based filtering if provided
+        if start_date is not None:
+            base_conditions.append(Document.updated_at >= start_date)
+        if end_date is not None:
+            base_conditions.append(Document.updated_at <= end_date)
 
         # CTE for semantic search filtered by search space
         semantic_search_cte = (

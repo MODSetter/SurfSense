@@ -25,8 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, relationship
 
 from app.config import config
-from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
-from app.retriever.documents_hybrid_search import DocumentHybridSearchRetriever
 
 if config.AUTH_TYPE == "GOOGLE":
     from fastapi_users.db import SQLAlchemyBaseOAuthAccountTableUUID
@@ -797,18 +795,6 @@ else:
 
     async def get_user_db(session: AsyncSession = Depends(get_async_session)):
         yield SQLAlchemyUserDatabase(session, User)
-
-
-async def get_chucks_hybrid_search_retriever(
-    session: AsyncSession = Depends(get_async_session),
-):
-    return ChucksHybridSearchRetriever(session)
-
-
-async def get_documents_hybrid_search_retriever(
-    session: AsyncSession = Depends(get_async_session),
-):
-    return DocumentHybridSearchRetriever(session)
 
 
 def has_permission(user_permissions: list[str], required_permission: str) -> bool:
