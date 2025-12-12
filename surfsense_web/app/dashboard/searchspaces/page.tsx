@@ -1,46 +1,25 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { SearchSpaceForm } from "@/components/search-space-form";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { createSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 
 export default function SearchSpacesPage() {
 	const router = useRouter();
+	const createSearchSpace = useAtomValue(createSearchSpaceMutationAtom);
+
 	const handleCreateSearchSpace = async (data: { name: string; description?: string }) => {
-		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						name: data.name,
-						description: data.description || "",
-					}),
-				}
-			);
+		const result = await createSearchSpace.mutateAsync({
+			name: data.name,
+			description: data.description || "",
+		});
 
-			if (!response.ok) {
-				toast.error("Failed to create search space");
-				throw new Error("Failed to create search space");
-			}
+		// Redirect to the newly created search space's onboarding
+		router.push(`/dashboard/${result.id}/onboard`);
 
-			const result = await response.json();
-
-			toast.success("Search space created successfully", {
-				description: `"${data.name}" has been created.`,
-			});
-
-			// Redirect to the newly created search space's onboarding
-			router.push(`/dashboard/${result.id}/onboard`);
-
-			return result;
-		} catch (error) {
-			console.error("Error creating search space:", error);
-			throw error;
-		}
+		return result;
 	};
 
 	return (
