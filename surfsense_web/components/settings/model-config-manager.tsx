@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	Bot,
@@ -19,6 +20,12 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+	createLLMConfigMutationAtom,
+	deleteLLMConfigMutationAtom,
+	updateLLMConfigMutationAtom,
+} from "@/atoms/llm-config/llm-config-mutation.atoms";
+import { globalLLMConfigsAtom, llmConfigsAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,12 +58,12 @@ import {
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
-import {
-	type CreateLLMConfig,
-	type LLMConfig,
-	useGlobalLLMConfigs,
-	useLLMConfigs,
-} from "@/hooks/use-llm-configs";
+import type {
+	CreateLLMConfigRequest,
+	CreateLLMConfigResponse,
+	LLMConfig,
+	UpdateLLMConfigResponse,
+} from "@/contracts/types/llm-config.types";
 import { cn } from "@/lib/utils";
 import InferenceParamsEditor from "../inference-params-editor";
 
@@ -66,21 +73,33 @@ interface ModelConfigManagerProps {
 
 export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const {
-		llmConfigs,
-		loading,
-		error,
-		createLLMConfig,
-		updateLLMConfig,
-		deleteLLMConfig,
-		refreshConfigs,
-	} = useLLMConfigs(searchSpaceId);
-	const { globalConfigs } = useGlobalLLMConfigs();
+		mutateAsync: createLLMConfig,
+		isPending: isCreatingLLMConfig,
+		error: createLLMConfigError,
+	} = useAtomValue(createLLMConfigMutationAtom);
+	const {
+		mutateAsync: updateLLMConfig,
+		isPending: isUpdatingLLMConfig,
+		error: updateLLMConfigError,
+	} = useAtomValue(updateLLMConfigMutationAtom);
+	const {
+		mutateAsync: deleteLLMConfig,
+		isPending: isDeletingLLMConfig,
+		error: deleteLLMConfigError,
+	} = useAtomValue(deleteLLMConfigMutationAtom);
+	const {
+		data: llmConfigs,
+		isFetching: isFetchingLLMConfigs,
+		error: LLMConfigsFetchError,
+		refetch: refreshConfigs,
+	} = useAtomValue(llmConfigsAtom);
+	const { data: globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null);
 	const [showApiKey, setShowApiKey] = useState<Record<number, boolean>>({});
-	const [formData, setFormData] = useState<CreateLLMConfig>({
+	const [formData, setFormData] = useState<CreateLLMConfigRequest>({
 		name: "",
-		provider: "",
+		provider: "" as CreateLLMConfigRequest["provider"], // Allow it as Default,
 		custom_provider: "",
 		model_name: "",
 		api_key: "",
@@ -89,7 +108,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		litellm_params: {},
 		search_space_id: searchSpaceId,
 	});
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const isSubmitting = isCreatingLLMConfig || isUpdatingLLMConfig;
+	const errors = [
+		createLLMConfigError,
+		updateLLMConfigError,
+		deleteLLMConfigError,
+		LLMConfigsFetchError,
+	] as Error[];
+	const isError = Boolean(errors.filter(Boolean).length);
 	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
 
 	// Populate form when editing
@@ -109,12 +135,12 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		}
 	}, [editingConfig, searchSpaceId]);
 
-	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
+	const handleInputChange = (field: keyof CreateLLMConfigRequest, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
 	// Handle provider change with auto-fill API Base URL and reset model / 处理 Provider 变更并自动填充 API Base URL 并重置模型
-	const handleProviderChange = (providerValue: string) => {
+	const handleProviderChange = (providerValue: CreateLLMConfigRequest["provider"]) => {
 		const provider = LLM_PROVIDERS.find((p) => p.value === providerValue);
 		setFormData((prev) => ({
 			...prev,
@@ -132,23 +158,19 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			return;
 		}
 
-		setIsSubmitting(true);
-
-		let result: LLMConfig | null = null;
+		let result: CreateLLMConfigResponse | UpdateLLMConfigResponse | null = null;
 		if (editingConfig) {
 			// Update existing config
-			result = await updateLLMConfig(editingConfig.id, formData);
+			result = await updateLLMConfig({ id: editingConfig.id, data: formData });
 		} else {
 			// Create new config
 			result = await createLLMConfig(formData);
 		}
 
-		setIsSubmitting(false);
-
 		if (result) {
 			setFormData({
 				name: "",
-				provider: "",
+				provider: "" as CreateLLMConfigRequest["provider"],
 				custom_provider: "",
 				model_name: "",
 				api_key: "",
@@ -166,7 +188,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		if (
 			confirm("Are you sure you want to delete this configuration? This action cannot be undone.")
 		) {
-			await deleteLLMConfig(id);
+			await deleteLLMConfig({ id });
 		}
 	};
 
@@ -212,26 +234,29 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={refreshConfigs}
-						disabled={loading}
+						onClick={() => refreshConfigs()}
+						disabled={isFetchingLLMConfigs}
 						className="flex items-center gap-2"
 					>
-						<RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+						<RefreshCw className={`h-4 w-4 ${isFetchingLLMConfigs ? "animate-spin" : ""}`} />
 						Refresh
 					</Button>
 				</div>
 			</div>
 
 			{/* Error Alert */}
-			{error && (
-				<Alert variant="destructive">
-					<AlertCircle className="h-4 w-4" />
-					<AlertDescription>{error}</AlertDescription>
-				</Alert>
-			)}
+			{isError &&
+				errors.filter(Boolean).map((err, i) => {
+					return (
+						<Alert key={`err.message-${i}`} variant="destructive">
+							<AlertCircle className="h-4 w-4" />
+							<AlertDescription>{err?.message ?? "Something went wrong"}</AlertDescription>
+						</Alert>
+					);
+				})}
 
 			{/* Global Configs Info Alert */}
-			{!loading && !error && globalConfigs.length > 0 && (
+			{!isFetchingLLMConfigs && !isError && globalConfigs.length > 0 && (
 				<Alert>
 					<CheckCircle className="h-4 w-4" />
 					<AlertDescription>
@@ -245,7 +270,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			)}
 
 			{/* Loading State */}
-			{loading && (
+			{isFetchingLLMConfigs && (
 				<Card>
 					<CardContent className="flex items-center justify-center py-12">
 						<div className="flex items-center gap-2 text-muted-foreground">
@@ -257,13 +282,13 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			)}
 
 			{/* Stats Overview */}
-			{!loading && !error && (
+			{!isFetchingLLMConfigs && !isError && (
 				<div className="grid gap-4 md:grid-cols-3">
 					<Card className="border-l-4 border-l-blue-500">
 						<CardContent className="p-6">
 							<div className="flex items-center justify-between space-x-4">
 								<div className="space-y-1">
-									<p className="text-3xl font-bold tracking-tight">{llmConfigs.length}</p>
+									<p className="text-3xl font-bold tracking-tight">{llmConfigs?.length}</p>
 									<p className="text-sm font-medium text-muted-foreground">Total Configurations</p>
 								</div>
 								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10">
@@ -278,7 +303,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							<div className="flex items-center justify-between space-x-4">
 								<div className="space-y-1">
 									<p className="text-3xl font-bold tracking-tight">
-										{new Set(llmConfigs.map((c) => c.provider)).size}
+										{new Set(llmConfigs?.map((c) => c.provider)).size}
 									</p>
 									<p className="text-sm font-medium text-muted-foreground">Unique Providers</p>
 								</div>
@@ -306,7 +331,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			)}
 
 			{/* Configuration Management */}
-			{!loading && !error && (
+			{!isFetchingLLMConfigs && !isError && (
 				<div className="space-y-6">
 					<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
 						<div>
@@ -321,7 +346,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						</Button>
 					</div>
 
-					{llmConfigs.length === 0 ? (
+					{llmConfigs?.length === 0 ? (
 						<Card className="border-dashed border-2 border-muted-foreground/25">
 							<CardContent className="flex flex-col items-center justify-center py-16 text-center">
 								<div className="rounded-full bg-muted p-4 mb-6">
@@ -342,7 +367,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					) : (
 						<div className="grid gap-4">
 							<AnimatePresence>
-								{llmConfigs.map((config) => {
+								{llmConfigs?.map((config) => {
 									const providerInfo = getProviderInfo(config.provider);
 									return (
 										<motion.div
@@ -486,7 +511,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						setEditingConfig(null);
 						setFormData({
 							name: "",
-							provider: "",
+							provider: "" as LLMConfig["provider"],
 							custom_provider: "",
 							model_name: "",
 							api_key: "",
@@ -558,7 +583,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 								<Input
 									id="custom_provider"
 									placeholder="e.g., my-custom-provider"
-									value={formData.custom_provider}
+									value={formData.custom_provider ?? ""}
 									onChange={(e) => handleInputChange("custom_provider", e.target.value)}
 									required
 								/>
@@ -703,7 +728,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							<Input
 								id="api_base"
 								placeholder={selectedProvider?.apiBase || "e.g., https://api.openai.com/v1"}
-								value={formData.api_base}
+								value={formData.api_base ?? ""}
 								onChange={(e) => handleInputChange("api_base", e.target.value)}
 							/>
 							{selectedProvider?.apiBase && formData.api_base === selectedProvider.apiBase && (
@@ -785,7 +810,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 									setEditingConfig(null);
 									setFormData({
 										name: "",
-										provider: "",
+										provider: "" as LLMConfig["provider"],
 										custom_provider: "",
 										model_name: "",
 										api_key: "",

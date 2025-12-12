@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	Bot,
@@ -17,6 +18,16 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+	createLLMConfigMutationAtom,
+	deleteLLMConfigMutationAtom,
+	updateLLMPreferencesMutationAtom,
+} from "@/atoms/llm-config/llm-config-mutation.atoms";
+import {
+	globalLLMConfigsAtom,
+	llmConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/llm-config/llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,14 +54,8 @@ import { Separator } from "@/components/ui/separator";
 import { LANGUAGES } from "@/contracts/enums/languages";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
-import {
-	type CreateLLMConfig,
-	useGlobalLLMConfigs,
-	useLLMConfigs,
-	useLLMPreferences,
-} from "@/hooks/use-llm-configs";
+import { type CreateLLMConfigRequest, LLMConfig } from "@/contracts/types/llm-config.types";
 import { cn } from "@/lib/utils";
-
 import InferenceParamsEditor from "../inference-params-editor";
 
 interface SetupLLMStepProps {
@@ -96,15 +101,20 @@ export function SetupLLMStep({
 	onConfigDeleted,
 	onPreferencesUpdated,
 }: SetupLLMStepProps) {
+	const { mutate: createLLMConfig, isPending: isCreatingLlmConfig } = useAtomValue(
+		createLLMConfigMutationAtom
+	);
 	const t = useTranslations("onboard");
-	const { llmConfigs, createLLMConfig, deleteLLMConfig } = useLLMConfigs(searchSpaceId);
-	const { globalConfigs } = useGlobalLLMConfigs();
-	const { preferences, updatePreferences } = useLLMPreferences(searchSpaceId);
+	const { mutateAsync: deleteLLMConfig } = useAtomValue(deleteLLMConfigMutationAtom);
+	const { data: llmConfigs = [] } = useAtomValue(llmConfigsAtom);
+	const { data: globalConfigs = [] } = useAtomValue(globalLLMConfigsAtom);
+	const { data: preferences = {} } = useAtomValue(llmPreferencesAtom);
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const [isAddingNew, setIsAddingNew] = useState(false);
-	const [formData, setFormData] = useState<CreateLLMConfig>({
+	const [formData, setFormData] = useState<CreateLLMConfigRequest>({
 		name: "",
-		provider: "",
+		provider: "" as CreateLLMConfigRequest["provider"], // Allow it as Default
 		custom_provider: "",
 		model_name: "",
 		api_key: "",
@@ -113,7 +123,6 @@ export function SetupLLMStep({
 		litellm_params: {},
 		search_space_id: searchSpaceId,
 	});
-	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
 	const [showProviderForm, setShowProviderForm] = useState(false);
 
@@ -135,7 +144,7 @@ export function SetupLLMStep({
 		});
 	}, [preferences]);
 
-	const handleInputChange = (field: keyof CreateLLMConfig, value: string) => {
+	const handleInputChange = (field: keyof CreateLLMConfigRequest, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 	};
 
@@ -146,25 +155,32 @@ export function SetupLLMStep({
 			return;
 		}
 
-		setIsSubmitting(true);
-		const result = await createLLMConfig(formData);
-		setIsSubmitting(false);
-
-		if (result) {
-			setFormData({
-				name: "",
-				provider: "",
-				custom_provider: "",
-				model_name: "",
-				api_key: "",
-				api_base: "",
-				language: "English",
-				litellm_params: {},
-				search_space_id: searchSpaceId,
-			});
-			setIsAddingNew(false);
-			onConfigCreated?.();
-		}
+		createLLMConfig(formData, {
+			onError: (error) => {
+				console.error("Error creating LLM config:", error);
+				if (error instanceof Error) {
+					toast.error(error?.message || "Failed to create LLM config");
+				}
+			},
+			onSuccess: () => {
+				toast.success("LLM config created successfully");
+				setFormData({
+					name: "",
+					provider: "" as CreateLLMConfigRequest["provider"],
+					custom_provider: "",
+					model_name: "",
+					api_key: "",
+					api_base: "",
+					language: "English",
+					litellm_params: {},
+					search_space_id: searchSpaceId,
+				});
+				onConfigCreated?.();
+			},
+			onSettled: () => {
+				setIsAddingNew(false);
+			},
+		});
 	};
 
 	const handleRoleAssignment = async (role: string, configId: string) => {
@@ -197,9 +213,12 @@ export function SetupLLMStep({
 						: newAssignments.strategic_llm_id,
 			};
 
-			const success = await updatePreferences(numericAssignments);
+			await updatePreferences({
+				search_space_id: searchSpaceId,
+				data: numericAssignments,
+			});
 
-			if (success && onPreferencesUpdated) {
+			if (onPreferencesUpdated) {
 				await onPreferencesUpdated();
 			}
 		}
@@ -322,9 +341,11 @@ export function SetupLLMStep({
 															variant="ghost"
 															size="sm"
 															onClick={async () => {
-																const success = await deleteLLMConfig(config.id);
-																if (success) {
+																try {
+																	await deleteLLMConfig({ id: config.id });
 																	onConfigDeleted?.();
+																} catch (error) {
+																	console.error("Failed to delete config:", error);
 																}
 															}}
 															className="text-destructive hover:text-destructive"
@@ -417,7 +438,7 @@ export function SetupLLMStep({
 												<Input
 													id="custom_provider"
 													placeholder={t("custom_provider_placeholder")}
-													value={formData.custom_provider}
+													value={formData.custom_provider ?? ""}
 													onChange={(e) => handleInputChange("custom_provider", e.target.value)}
 													required
 												/>
@@ -543,7 +564,7 @@ export function SetupLLMStep({
 											<Input
 												id="api_base"
 												placeholder={selectedProvider?.apiBase || t("api_base_placeholder")}
-												value={formData.api_base}
+												value={formData.api_base ?? ""}
 												onChange={(e) => handleInputChange("api_base", e.target.value)}
 											/>
 											{/* Ollama-specific help */}
@@ -590,15 +611,15 @@ export function SetupLLMStep({
 										</div>
 
 										<div className="flex gap-2 pt-2">
-											<Button type="submit" disabled={isSubmitting} size="sm">
-												{isSubmitting ? t("adding") : t("add_provider")}
+											<Button type="submit" disabled={isCreatingLlmConfig} size="sm">
+												{isCreatingLlmConfig ? t("adding") : t("add_provider")}
 											</Button>
 											<Button
 												type="button"
 												variant="outline"
 												size="sm"
 												onClick={() => setIsAddingNew(false)}
-												disabled={isSubmitting}
+												disabled={isCreatingLlmConfig}
 											>
 												{t("cancel")}
 											</Button>
@@ -730,7 +751,7 @@ export function SetupLLMStep({
 														<div className="flex items-center gap-2 text-sm">
 															<Bot className="w-4 h-4" />
 															<span className="font-medium">{t("assigned")}:</span>
-															{assignedConfig.is_global && (
+															{"is_global" in assignedConfig && assignedConfig.is_global && (
 																<Badge variant="secondary" className="text-xs">
 																	🌐 Global
 																</Badge>
