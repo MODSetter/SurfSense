@@ -17,7 +17,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useSearchSpace, useUser } from "@/hooks";
+import { useUser } from "@/hooks";
+import { useQuery } from "@tanstack/react-query";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 interface AppSidebarProviderProps {
 	searchSpaceId: string;
@@ -55,11 +58,15 @@ export function AppSidebarProvider({
 	}, [searchSpaceId]);
 
 	const {
-		searchSpace,
-		loading: isLoadingSearchSpace,
+		data: searchSpace,
+		isLoading: isLoadingSearchSpace,
 		error: searchSpaceError,
-		fetchSearchSpace,
-	} = useSearchSpace({ searchSpaceId });
+		refetch: fetchSearchSpace,
+	} = useQuery({
+		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId),
+		queryFn: () => searchSpacesApiService.getSearchSpace({ id: Number(searchSpaceId) }),
+		enabled: !!searchSpaceId,
+	});
 
 	const { user } = useUser();
 

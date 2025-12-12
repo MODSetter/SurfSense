@@ -13,7 +13,9 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useSearchSpace } from "@/hooks/use-search-space";
+import { useQuery } from "@tanstack/react-query";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { authenticatedFetch, getBearerToken } from "@/lib/auth-utils";
 
 interface BreadcrumbItemInterface {
@@ -29,10 +31,10 @@ export function DashboardBreadcrumb() {
 	const segments = pathname.split("/").filter(Boolean);
 	const searchSpaceId = segments[0] === "dashboard" && segments[1] ? segments[1] : null;
 
-	// Fetch search space details if we have an ID
-	const { searchSpace } = useSearchSpace({
-		searchSpaceId: searchSpaceId || "",
-		autoFetch: !!searchSpaceId,
+	const { data: searchSpace } = useQuery({
+		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId || ""),
+		queryFn: () => searchSpacesApiService.getSearchSpace({ id: Number(searchSpaceId) }),
+		enabled: !!searchSpaceId,
 	});
 
 	// State to store document title for editor breadcrumb

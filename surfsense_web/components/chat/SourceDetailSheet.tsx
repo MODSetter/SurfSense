@@ -52,7 +52,6 @@ export function SourceDetailSheet({
 	const highlightedChunkRef = useRef<HTMLDivElement>(null);
 	const [summaryOpen, setSummaryOpen] = useState(false);
 
-	// Add useQuery to fetch document by chunk
 	const {
 		data: document,
 		isLoading: isDocumentByChunkFetching,
