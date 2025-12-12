@@ -8,10 +8,10 @@ import { createSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-spac
 
 export default function SearchSpacesPage() {
 	const router = useRouter();
-	const createSearchSpace = useAtomValue(createSearchSpaceMutationAtom);
+	const { mutateAsync: createSearchSpace } = useAtomValue(createSearchSpaceMutationAtom);
 
 	const handleCreateSearchSpace = async (data: { name: string; description?: string }) => {
-		const result = await createSearchSpace.mutateAsync({
+		const result = await createSearchSpace({
 			name: data.name,
 			description: data.description || "",
 		});
