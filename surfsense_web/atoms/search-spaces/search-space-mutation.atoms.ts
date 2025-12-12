@@ -40,9 +40,9 @@ export const updateSearchSpaceMutationAtom = atomWithMutation((get) => {
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.searchSpaces.all,
 			});
-			if (request.pathParams?.search_space_id) {
+			if (request.id) {
 				queryClient.invalidateQueries({
-					queryKey: cacheKeys.searchSpaces.detail(request.pathParams.search_space_id),
+					queryKey: cacheKeys.searchSpaces.detail(request.id),
 				});
 			}
 		},
