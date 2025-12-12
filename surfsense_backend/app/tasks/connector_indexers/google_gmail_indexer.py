@@ -27,6 +27,7 @@ from app.utils.document_converters import (
 from .base import (
     check_document_by_unique_identifier,
     get_connector_by_id,
+    get_current_timestamp,
     logger,
     update_connector_last_indexed,
 )
@@ -261,6 +262,7 @@ async def index_google_gmail_messages(
                             "connector_id": connector_id,
                         }
                         existing_document.chunks = chunks
+                        existing_document.updated_at = get_current_timestamp()
 
                         documents_indexed += 1
                         logger.info(f"Successfully updated Gmail message {subject}")
@@ -319,6 +321,7 @@ async def index_google_gmail_messages(
                     unique_identifier_hash=unique_identifier_hash,
                     embedding=summary_embedding,
                     chunks=chunks,
+                    updated_at=get_current_timestamp(),
                 )
                 session.add(document)
                 documents_indexed += 1

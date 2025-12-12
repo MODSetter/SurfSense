@@ -22,6 +22,7 @@ from app.utils.document_converters import (
 from .base import (
     check_document_by_unique_identifier,
     get_connector_by_id,
+    get_current_timestamp,
     logger,
     update_connector_last_indexed,
 )
@@ -270,6 +271,7 @@ async def index_crawled_urls(
                             ),
                         }
                         existing_document.chunks = chunks
+                        existing_document.updated_at = get_current_timestamp()
 
                         documents_updated += 1
                         logger.info(f"Successfully updated URL {url}")
@@ -332,6 +334,7 @@ async def index_crawled_urls(
                     unique_identifier_hash=unique_identifier_hash,
                     embedding=summary_embedding,
                     chunks=chunks,
+                    updated_at=get_current_timestamp(),
                 )
 
                 session.add(document)

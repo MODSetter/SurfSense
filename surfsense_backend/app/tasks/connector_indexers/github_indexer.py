@@ -22,6 +22,7 @@ from app.utils.document_converters import (
 from .base import (
     check_document_by_unique_identifier,
     get_connector_by_id,
+    get_current_timestamp,
     logger,
 )
 
@@ -288,6 +289,7 @@ async def index_github_repos(
                                 ),
                             }
                             existing_document.chunks = chunks_data
+                            existing_document.updated_at = get_current_timestamp()
 
                             logger.info(
                                 f"Successfully updated GitHub file {full_path_key}"
@@ -377,6 +379,7 @@ async def index_github_repos(
                         embedding=summary_embedding,
                         search_space_id=search_space_id,
                         chunks=chunks_data,  # Associate chunks directly
+                        updated_at=get_current_timestamp(),
                     )
                     session.add(document)
                     documents_processed += 1

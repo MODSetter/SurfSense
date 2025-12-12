@@ -19,6 +19,7 @@ from app.utils.document_converters import (
 
 from .base import (
     check_document_by_unique_identifier,
+    get_current_timestamp,
 )
 
 
@@ -131,6 +132,7 @@ async def add_received_markdown_file_document(
             }
             existing_document.chunks = chunks
             existing_document.blocknote_document = blocknote_json
+            existing_document.updated_at = get_current_timestamp()
 
             await session.commit()
             await session.refresh(existing_document)
@@ -150,6 +152,7 @@ async def add_received_markdown_file_document(
                 content_hash=content_hash,
                 unique_identifier_hash=unique_identifier_hash,
                 blocknote_document=blocknote_json,
+                updated_at=get_current_timestamp(),
             )
 
             session.add(document)

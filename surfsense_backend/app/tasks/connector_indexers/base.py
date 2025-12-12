@@ -3,7 +3,7 @@ Base functionality and shared imports for connector indexers.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -16,6 +16,16 @@ from app.db import (
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+
+def get_current_timestamp() -> datetime:
+    """
+    Get the current timestamp with timezone for updated_at field.
+
+    Returns:
+        Current datetime with UTC timezone
+    """
+    return datetime.now(UTC)
 
 
 async def check_duplicate_document_by_hash(

@@ -27,6 +27,7 @@ from app.utils.document_converters import (
 
 from .base import (
     check_document_by_unique_identifier,
+    get_current_timestamp,
 )
 from .markdown_processor import add_received_markdown_file_document
 
@@ -123,7 +124,7 @@ async def add_received_file_document_using_unstructured(
             existing_document.chunks = chunks
             existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
-            existing_document.last_edited_at = None
+            existing_document.updated_at = get_current_timestamp()
 
             await session.commit()
             await session.refresh(existing_document)
@@ -145,7 +146,7 @@ async def add_received_file_document_using_unstructured(
                 unique_identifier_hash=unique_identifier_hash,
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
-                last_edited_at=None,
+                updated_at=get_current_timestamp(),
             )
 
             session.add(document)
@@ -252,7 +253,7 @@ async def add_received_file_document_using_llamacloud(
             existing_document.chunks = chunks
             existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
-            existing_document.last_edited_at = None
+            existing_document.updated_at = get_current_timestamp()
 
             await session.commit()
             await session.refresh(existing_document)
@@ -274,7 +275,7 @@ async def add_received_file_document_using_llamacloud(
                 unique_identifier_hash=unique_identifier_hash,
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
-                last_edited_at=None,
+                updated_at=get_current_timestamp(),
             )
 
             session.add(document)
@@ -406,7 +407,7 @@ async def add_received_file_document_using_docling(
             existing_document.chunks = chunks
             existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
-            existing_document.last_edited_at = None
+            existing_document.updated_at = get_current_timestamp()
 
             await session.commit()
             await session.refresh(existing_document)
@@ -428,7 +429,7 @@ async def add_received_file_document_using_docling(
                 unique_identifier_hash=unique_identifier_hash,
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
-                last_edited_at=None,
+                updated_at=get_current_timestamp(),
             )
 
         session.add(document)

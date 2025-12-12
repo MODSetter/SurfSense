@@ -19,7 +19,11 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
-from .base import check_document_by_unique_identifier, check_duplicate_document_by_hash
+from .base import (
+    check_document_by_unique_identifier,
+    check_duplicate_document_by_hash,
+    get_current_timestamp,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +253,7 @@ async def index_elasticsearch_documents(
                             existing_doc.unique_identifier_hash = unique_identifier_hash
                             chunks = await create_document_chunks(content)
                             existing_doc.chunks = chunks
+                            existing_doc.updated_at = get_current_timestamp()
                             await session.flush()
                             documents_processed += 1
                             if documents_processed % 10 == 0:
@@ -264,6 +269,7 @@ async def index_elasticsearch_documents(
                         document_type=DocumentType.ELASTICSEARCH_CONNECTOR,
                         document_metadata=metadata,
                         search_space_id=search_space_id,
+                        updated_at=get_current_timestamp(),
                     )
 
                     # Create chunks and attach to document (persist via relationship)
