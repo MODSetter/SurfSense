@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { AlertCircle, Loader2, Plus, Search, Trash2, UserCheck, Users } from "lucide-react";
 import { motion, type Variants } from "motion/react";
 import Image from "next/image";
@@ -35,7 +36,8 @@ import {
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
 import { useUser } from "@/hooks";
-import { useSearchSpaces } from "@/hooks/use-search-spaces";
+import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 /**
@@ -154,7 +156,8 @@ const DashboardPage = () => {
 		},
 	};
 
-	const { searchSpaces, loading, error, refreshSearchSpaces } = useSearchSpaces();
+	const { data: searchSpaces = [], isLoading: loading, error, refetch: refreshSearchSpaces } = useAtomValue(searchSpacesAtom);
+	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 
 	// Fetch user details
 	const { user, loading: isLoadingUser, error: userError } = useUser();
@@ -169,29 +172,11 @@ const DashboardPage = () => {
 	};
 
 	if (loading) return <LoadingScreen />;
-	if (error) return <ErrorScreen message={error} />;
+	if (error) return <ErrorScreen message={error?.message || 'Failed to load search spaces'} />;
 
 	const handleDeleteSearchSpace = async (id: number) => {
-		// Send DELETE request to the API
-		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${id}`,
-				{ method: "DELETE" }
-			);
-
-			if (!response.ok) {
-				toast.error("Failed to delete search space");
-				throw new Error("Failed to delete search space");
-			}
-
-			// Refresh the search spaces list after successful deletion
-			refreshSearchSpaces();
-		} catch (error) {
-			console.error("Error deleting search space:", error);
-			toast.error("An error occurred while deleting the search space");
-			return;
-		}
-		toast.success("Search space deleted successfully");
+		await deleteSearchSpace({ id });
+		refreshSearchSpaces();
 	};
 
 	return (
