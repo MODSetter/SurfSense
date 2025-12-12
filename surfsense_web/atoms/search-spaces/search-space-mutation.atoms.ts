@@ -42,7 +42,7 @@ export const updateSearchSpaceMutationAtom = atomWithMutation((get) => {
 			});
 			if (request.id) {
 				queryClient.invalidateQueries({
-					queryKey: cacheKeys.searchSpaces.detail(request.id),
+					queryKey: cacheKeys.searchSpaces.detail(String(request.id)),
 				});
 			}
 		},
