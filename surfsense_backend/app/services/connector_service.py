@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from tavily import TavilyClient
 
-from app.agents.researcher.configuration import SearchMode
 from app.db import (
     Chunk,
     Document,
@@ -63,44 +62,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for crawled URLs and return both the source information and langchain documents
+        Search for crawled URLs and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            crawled_urls_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="CRAWLED_URL",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            crawled_urls_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="CRAWLED_URL",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            crawled_urls_chunks = self._transform_document_results(crawled_urls_chunks)
+        crawled_urls_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="CRAWLED_URL",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not crawled_urls_chunks:
@@ -176,44 +163,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for files and return both the source information and langchain documents
+        Search for files and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            files_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="FILE",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            files_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="FILE",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            files_chunks = self._transform_document_results(files_chunks)
+        files_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="FILE",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not files_chunks:
@@ -285,6 +260,125 @@ class ConnectorService:
                 }
             )
         return transformed_results
+
+    async def _combined_rrf_search(
+        self,
+        query_text: str,
+        search_space_id: int,
+        document_type: str,
+        top_k: int = 20,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Perform combined search using both chunk-level and document-level hybrid search,
+        then merge results using Reciprocal Rank Fusion (RRF).
+
+        This method:
+        1. Runs chunk-level hybrid search (vector + keyword on chunks)
+        2. Runs document-level hybrid search (vector + keyword on documents, returns chunks)
+        3. Combines results using RRF based on their ranks in each result set
+        4. Returns top-k deduplicated results
+
+        Args:
+            query_text: The search query text
+            search_space_id: The search space ID to search within
+            document_type: Document type to filter (e.g., "FILE", "CRAWLED_URL")
+            top_k: Number of results to return
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
+
+        Returns:
+            List of combined and deduplicated chunk results
+        """
+        # RRF constant
+        k = 60
+
+        # Get more results from each retriever for better fusion
+        retriever_top_k = top_k * 2
+
+        # Run both searches in parallel
+        chunk_results, doc_results = await asyncio.gather(
+            self.chunk_retriever.hybrid_search(
+                query_text=query_text,
+                top_k=retriever_top_k,
+                search_space_id=search_space_id,
+                document_type=document_type,
+                start_date=start_date,
+                end_date=end_date,
+            ),
+            self.document_retriever.hybrid_search(
+                query_text=query_text,
+                top_k=retriever_top_k,
+                search_space_id=search_space_id,
+                document_type=document_type,
+                start_date=start_date,
+                end_date=end_date,
+            ),
+        )
+
+        # Transform document results to chunk format
+        doc_results_transformed = self._transform_document_results(doc_results)
+
+        # Build rank maps for RRF calculation
+        # chunk_id -> rank in chunk results (1-indexed)
+        chunk_ranks: dict[int, int] = {}
+        for rank, result in enumerate(chunk_results, start=1):
+            chunk_id = result.get("chunk_id")
+            if chunk_id is not None:
+                chunk_ranks[chunk_id] = rank
+
+        # chunk_id -> rank in document results (1-indexed)
+        doc_ranks: dict[int, int] = {}
+        for rank, result in enumerate(doc_results_transformed, start=1):
+            chunk_id = result.get("chunk_id")
+            if chunk_id is not None:
+                doc_ranks[chunk_id] = rank
+
+        # Collect all unique chunk_ids
+        all_chunk_ids = set(chunk_ranks.keys()) | set(doc_ranks.keys())
+
+        # Calculate RRF scores for each chunk
+        rrf_scores: dict[int, float] = {}
+        for chunk_id in all_chunk_ids:
+            chunk_rank = chunk_ranks.get(chunk_id)
+            doc_rank = doc_ranks.get(chunk_id)
+
+            rrf_score = 0.0
+            if chunk_rank is not None:
+                rrf_score += 1.0 / (k + chunk_rank)
+            if doc_rank is not None:
+                rrf_score += 1.0 / (k + doc_rank)
+
+            rrf_scores[chunk_id] = rrf_score
+
+        # Create a map of chunk_id -> result data (prefer chunk results for data)
+        chunk_data: dict[int, dict[str, Any]] = {}
+        for result in chunk_results:
+            chunk_id = result.get("chunk_id")
+            if chunk_id is not None and chunk_id not in chunk_data:
+                chunk_data[chunk_id] = result
+
+        # Fill in any missing chunks from document results
+        for result in doc_results_transformed:
+            chunk_id = result.get("chunk_id")
+            if chunk_id is not None and chunk_id not in chunk_data:
+                chunk_data[chunk_id] = result
+
+        # Sort by RRF score and take top-k
+        sorted_chunk_ids = sorted(
+            all_chunk_ids, key=lambda cid: rrf_scores[cid], reverse=True
+        )[:top_k]
+
+        # Build final results with updated scores
+        combined_results = []
+        for chunk_id in sorted_chunk_ids:
+            if chunk_id in chunk_data:
+                result = chunk_data[chunk_id].copy()
+                result["score"] = rrf_scores[chunk_id]
+                combined_results.append(result)
+
+        return combined_results
 
     async def get_connector_by_type(
         self,
@@ -829,44 +923,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for slack and return both the source information and langchain documents
+        Search for slack and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            slack_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="SLACK_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            slack_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="SLACK_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            slack_chunks = self._transform_document_results(slack_chunks)
+        slack_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="SLACK_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not slack_chunks:
@@ -928,44 +1010,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Notion pages and return both the source information and langchain documents
+        Search for Notion pages and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            notion_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="NOTION_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            notion_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="NOTION_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            notion_chunks = self._transform_document_results(notion_chunks)
+        notion_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="NOTION_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not notion_chunks:
@@ -1030,44 +1100,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for extension data and return both the source information and langchain documents
+        Search for extension data and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            extension_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="EXTENSION",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            extension_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="EXTENSION",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            extension_chunks = self._transform_document_results(extension_chunks)
+        extension_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="EXTENSION",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not extension_chunks:
@@ -1156,44 +1214,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for YouTube videos and return both the source information and langchain documents
+        Search for YouTube videos and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            youtube_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="YOUTUBE_VIDEO",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            youtube_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="YOUTUBE_VIDEO",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            youtube_chunks = self._transform_document_results(youtube_chunks)
+        youtube_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="YOUTUBE_VIDEO",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not youtube_chunks:
@@ -1258,44 +1304,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for GitHub documents and return both the source information and langchain documents
+        Search for GitHub documents and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            github_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="GITHUB_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            github_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="GITHUB_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            github_chunks = self._transform_document_results(github_chunks)
+        github_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="GITHUB_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not github_chunks:
@@ -1344,44 +1378,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Linear issues and comments and return both the source information and langchain documents
+        Search for Linear issues and comments and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            linear_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="LINEAR_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            linear_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="LINEAR_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            linear_chunks = self._transform_document_results(linear_chunks)
+        linear_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="LINEAR_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not linear_chunks:
@@ -1458,44 +1480,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Jira issues and comments and return both the source information and langchain documents
+        Search for Jira issues and comments and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            jira_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="JIRA_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            jira_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="JIRA_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            jira_chunks = self._transform_document_results(jira_chunks)
+        jira_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="JIRA_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not jira_chunks:
@@ -1583,44 +1593,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Google Calendar events and return both the source information and langchain documents
+        Search for Google Calendar events and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            calendar_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="GOOGLE_CALENDAR_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            calendar_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="GOOGLE_CALENDAR_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            calendar_chunks = self._transform_document_results(calendar_chunks)
+        calendar_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="GOOGLE_CALENDAR_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not calendar_chunks:
@@ -1720,44 +1718,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Airtable records and return both the source information and langchain documents
+        Search for Airtable records and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            airtable_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="AIRTABLE_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            airtable_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="AIRTABLE_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            airtable_chunks = self._transform_document_results(airtable_chunks)
+        airtable_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="AIRTABLE_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not airtable_chunks:
@@ -1812,44 +1798,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Gmail messages and return both the source information and langchain documents
+        Search for Gmail messages and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            gmail_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="GOOGLE_GMAIL_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            gmail_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="GOOGLE_GMAIL_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            gmail_chunks = self._transform_document_results(gmail_chunks)
+        gmail_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="GOOGLE_GMAIL_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not gmail_chunks:
@@ -1940,44 +1914,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Confluence pages and return both the source information and langchain documents
+        Search for Confluence pages and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            confluence_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="CONFLUENCE_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            confluence_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="CONFLUENCE_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            confluence_chunks = self._transform_document_results(confluence_chunks)
+        confluence_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="CONFLUENCE_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not confluence_chunks:
@@ -2039,44 +2001,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for ClickUp tasks and return both the source information and langchain documents
+        Search for ClickUp tasks and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            clickup_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="CLICKUP_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            clickup_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="CLICKUP_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            clickup_chunks = self._transform_document_results(clickup_chunks)
+        clickup_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="CLICKUP_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not clickup_chunks:
@@ -2280,44 +2230,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Discord messages and return both the source information and langchain documents
+        Search for Discord messages and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            discord_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="DISCORD_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            discord_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="DISCORD_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            discord_chunks = self._transform_document_results(discord_chunks)
+        discord_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="DISCORD_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not discord_chunks:
@@ -2382,44 +2320,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Luma events and return both the source information and langchain documents
+        Search for Luma events and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            luma_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="LUMA_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            luma_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="LUMA_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            luma_chunks = self._transform_document_results(luma_chunks)
+        luma_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="LUMA_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not luma_chunks:
@@ -2544,46 +2470,32 @@ class ConnectorService:
         user_query: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for Elasticsearch documents and return both the source information and langchain documents
+        Search for Elasticsearch documents and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            elasticsearch_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="ELASTICSEARCH_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            elasticsearch_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="ELASTICSEARCH_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            elasticsearch_chunks = self._transform_document_results(
-                elasticsearch_chunks
-            )
+        elasticsearch_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="ELASTICSEARCH_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not elasticsearch_chunks:
@@ -2663,45 +2575,33 @@ class ConnectorService:
         user_id: str,
         search_space_id: int,
         top_k: int = 20,
-        search_mode: SearchMode = SearchMode.CHUNKS,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple:
         """
-        Search for BookStack pages and return both the source information and langchain documents
+        Search for BookStack pages and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
 
         Args:
             user_query: The user's query
             user_id: The user's ID
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
-            search_mode: Search mode (CHUNKS or DOCUMENTS)
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
         """
-        if search_mode == SearchMode.CHUNKS:
-            bookstack_chunks = await self.chunk_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="BOOKSTACK_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-        elif search_mode == SearchMode.DOCUMENTS:
-            bookstack_chunks = await self.document_retriever.hybrid_search(
-                query_text=user_query,
-                top_k=top_k,
-                search_space_id=search_space_id,
-                document_type="BOOKSTACK_CONNECTOR",
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Transform document retriever results to match expected format
-            bookstack_chunks = self._transform_document_results(bookstack_chunks)
+        bookstack_chunks = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="BOOKSTACK_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Early return if no results
         if not bookstack_chunks:

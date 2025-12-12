@@ -89,10 +89,13 @@ async def rerank_documents(state: State, config: RunnableConfig) -> dict[str, An
     # Get reranker service from app config
     reranker_service = RerankerService.get_reranker_instance()
 
-    # If reranking is not enabled, return original documents without processing
+    # If reranking is not enabled, sort by existing score and return
     if not reranker_service:
-        print("Reranking is disabled. Using original document order.")
-        return {"reranked_documents": documents}
+        print("Reranking is disabled. Sorting documents by existing score.")
+        sorted_documents = sorted(
+            documents, key=lambda x: x.get("score", 0), reverse=True
+        )
+        return {"reranked_documents": sorted_documents}
 
     # Perform reranking
     try:

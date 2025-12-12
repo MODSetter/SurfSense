@@ -16,7 +16,7 @@ from app.db import Document
 from app.services.connector_service import ConnectorService
 from app.services.query_service import QueryService
 
-from .configuration import Configuration, SearchMode
+from .configuration import Configuration
 from .prompts import get_further_questions_system_prompt
 from .qna_agent.graph import graph as qna_agent_graph
 from .state import State
@@ -102,7 +102,7 @@ async def fetch_documents_by_ids(
     Fetch documents by their IDs within a search space.
 
     This function ensures that only documents belonging to the search space are fetched.
-    Similar to SearchMode.DOCUMENTS, it fetches full documents and concatenates their chunks.
+    It fetches full documents and returns their chunks individually.
     Also creates source objects for UI display, grouped by document type.
 
     Args:
@@ -526,7 +526,6 @@ async def fetch_relevant_documents(
     state: State = None,
     top_k: int = 10,
     connector_service: ConnectorService = None,
-    search_mode: SearchMode = SearchMode.CHUNKS,
     user_selected_sources: list[dict[str, Any]] | None = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
@@ -539,6 +538,8 @@ async def fetch_relevant_documents(
     displaying connector names (like "Web Search" instead of "TAVILY_API") and adding
     relevant emojis to indicate the type of source being searched.
 
+    Uses combined chunk-level and document-level hybrid search with RRF fusion.
+
     Args:
         research_questions: List of research questions to find documents for
         search_space_id: The search space ID
@@ -548,7 +549,6 @@ async def fetch_relevant_documents(
         state: The current state containing the streaming service
         top_k: Number of top results to retrieve per connector per question
         connector_service: An initialized connector service to use for searching
-        search_mode: Search mode (CHUNKS or DOCUMENTS)
         user_selected_sources: Optional list of user-selected source objects
         start_date: Optional start date for filtering documents by updated_at
         end_date: Optional end date for filtering documents by updated_at
@@ -629,7 +629,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -657,7 +656,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -685,7 +683,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -710,7 +707,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -735,7 +731,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -763,7 +758,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -791,7 +785,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -819,7 +812,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -947,7 +939,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -970,7 +961,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -997,7 +987,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -1024,7 +1013,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -1051,7 +1039,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -1078,7 +1065,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -1105,7 +1091,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -1133,7 +1118,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -1161,7 +1145,6 @@ async def fetch_relevant_documents(
                         user_query=reformulated_query,
                         search_space_id=search_space_id,
                         top_k=top_k,
-                        search_mode=search_mode,
                         start_date=start_date,
                         end_date=end_date,
                     )
@@ -1444,7 +1427,6 @@ async def handle_qna_workflow(
             state=state,
             top_k=top_k,
             connector_service=connector_service,
-            search_mode=configuration.search_mode,
             user_selected_sources=user_selected_sources,
             start_date=start_date,
             end_date=end_date,
