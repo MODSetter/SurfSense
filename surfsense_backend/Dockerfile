@@ -59,7 +59,7 @@ RUN python -c "try:\n    from docling.document_converter import DocumentConverte
 
 # Install Playwright browsers for web scraping if needed
 RUN pip install playwright && \
-    playwright install chromium
+    playwright install chromium --with-deps
 
 # Copy source code
 COPY . .
