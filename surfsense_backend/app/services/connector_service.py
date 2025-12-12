@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from typing import Any
 from urllib.parse import urljoin
 
@@ -63,6 +64,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for crawled URLs and return both the source information and langchain documents
@@ -72,6 +75,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -82,6 +87,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="CRAWLED_URL",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             crawled_urls_chunks = await self.document_retriever.hybrid_search(
@@ -89,6 +96,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="CRAWLED_URL",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             crawled_urls_chunks = self._transform_document_results(crawled_urls_chunks)
@@ -168,9 +177,19 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for files and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -181,6 +200,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="FILE",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             files_chunks = await self.document_retriever.hybrid_search(
@@ -188,6 +209,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="FILE",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             files_chunks = self._transform_document_results(files_chunks)
@@ -807,9 +830,19 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for slack and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -820,6 +853,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="SLACK_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             slack_chunks = await self.document_retriever.hybrid_search(
@@ -827,6 +862,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="SLACK_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             slack_chunks = self._transform_document_results(slack_chunks)
@@ -892,6 +929,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Notion pages and return both the source information and langchain documents
@@ -900,6 +939,9 @@ class ConnectorService:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -910,6 +952,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="NOTION_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             notion_chunks = await self.document_retriever.hybrid_search(
@@ -917,6 +961,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="NOTION_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             notion_chunks = self._transform_document_results(notion_chunks)
@@ -985,6 +1031,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for extension data and return both the source information and langchain documents
@@ -993,6 +1041,9 @@ class ConnectorService:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1003,6 +1054,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="EXTENSION",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             extension_chunks = await self.document_retriever.hybrid_search(
@@ -1010,6 +1063,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="EXTENSION",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             extension_chunks = self._transform_document_results(extension_chunks)
@@ -1102,6 +1157,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for YouTube videos and return both the source information and langchain documents
@@ -1110,6 +1167,9 @@ class ConnectorService:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1120,6 +1180,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="YOUTUBE_VIDEO",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             youtube_chunks = await self.document_retriever.hybrid_search(
@@ -1127,6 +1189,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="YOUTUBE_VIDEO",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             youtube_chunks = self._transform_document_results(youtube_chunks)
@@ -1195,9 +1259,19 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for GitHub documents and return both the source information and langchain documents
+
+        Args:
+            user_query: The user's query
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1208,6 +1282,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="GITHUB_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             github_chunks = await self.document_retriever.hybrid_search(
@@ -1215,6 +1291,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="GITHUB_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             github_chunks = self._transform_document_results(github_chunks)
@@ -1267,6 +1345,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Linear issues and comments and return both the source information and langchain documents
@@ -1275,6 +1355,9 @@ class ConnectorService:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1285,6 +1368,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="LINEAR_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             linear_chunks = await self.document_retriever.hybrid_search(
@@ -1292,6 +1377,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="LINEAR_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             linear_chunks = self._transform_document_results(linear_chunks)
@@ -1372,6 +1459,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Jira issues and comments and return both the source information and langchain documents
@@ -1381,6 +1470,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1391,6 +1482,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="JIRA_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             jira_chunks = await self.document_retriever.hybrid_search(
@@ -1398,6 +1491,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="JIRA_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             jira_chunks = self._transform_document_results(jira_chunks)
@@ -1489,6 +1584,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Google Calendar events and return both the source information and langchain documents
@@ -1498,6 +1595,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1508,6 +1607,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="GOOGLE_CALENDAR_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             calendar_chunks = await self.document_retriever.hybrid_search(
@@ -1515,6 +1616,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="GOOGLE_CALENDAR_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             calendar_chunks = self._transform_document_results(calendar_chunks)
@@ -1618,6 +1721,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Airtable records and return both the source information and langchain documents
@@ -1627,6 +1732,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1637,6 +1744,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="AIRTABLE_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             airtable_chunks = await self.document_retriever.hybrid_search(
@@ -1644,6 +1753,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="AIRTABLE_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             airtable_chunks = self._transform_document_results(airtable_chunks)
@@ -1702,6 +1813,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Gmail messages and return both the source information and langchain documents
@@ -1711,6 +1824,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1721,6 +1836,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="GOOGLE_GMAIL_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             gmail_chunks = await self.document_retriever.hybrid_search(
@@ -1728,6 +1845,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="GOOGLE_GMAIL_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             gmail_chunks = self._transform_document_results(gmail_chunks)
@@ -1822,6 +1941,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Confluence pages and return both the source information and langchain documents
@@ -1831,6 +1952,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1841,6 +1964,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="CONFLUENCE_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             confluence_chunks = await self.document_retriever.hybrid_search(
@@ -1848,6 +1973,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="CONFLUENCE_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             confluence_chunks = self._transform_document_results(confluence_chunks)
@@ -1913,6 +2040,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for ClickUp tasks and return both the source information and langchain documents
@@ -1922,6 +2051,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -1932,6 +2063,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="CLICKUP_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             clickup_chunks = await self.document_retriever.hybrid_search(
@@ -1939,6 +2072,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="CLICKUP_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             clickup_chunks = self._transform_document_results(clickup_chunks)
@@ -2146,6 +2281,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Discord messages and return both the source information and langchain documents
@@ -2154,6 +2291,9 @@ class ConnectorService:
             user_query: The user's query
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
+            search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -2164,6 +2304,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="DISCORD_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             discord_chunks = await self.document_retriever.hybrid_search(
@@ -2171,6 +2313,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="DISCORD_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             discord_chunks = self._transform_document_results(discord_chunks)
@@ -2239,6 +2383,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Luma events and return both the source information and langchain documents
@@ -2248,6 +2394,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -2258,6 +2406,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="LUMA_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             luma_chunks = await self.document_retriever.hybrid_search(
@@ -2265,6 +2415,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="LUMA_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             luma_chunks = self._transform_document_results(luma_chunks)
@@ -2393,6 +2545,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for Elasticsearch documents and return both the source information and langchain documents
@@ -2402,6 +2556,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -2412,6 +2568,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="ELASTICSEARCH_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             elasticsearch_chunks = await self.document_retriever.hybrid_search(
@@ -2419,6 +2577,8 @@ class ConnectorService:
                 top_k=top_k,
                 search_space_id=search_space_id,
                 document_type="ELASTICSEARCH_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             elasticsearch_chunks = self._transform_document_results(
@@ -2504,6 +2664,8 @@ class ConnectorService:
         search_space_id: int,
         top_k: int = 20,
         search_mode: SearchMode = SearchMode.CHUNKS,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> tuple:
         """
         Search for BookStack pages and return both the source information and langchain documents
@@ -2514,6 +2676,8 @@ class ConnectorService:
             search_space_id: The search space ID to search in
             top_k: Maximum number of results to return
             search_mode: Search mode (CHUNKS or DOCUMENTS)
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             tuple: (sources_info, langchain_documents)
@@ -2522,17 +2686,19 @@ class ConnectorService:
             bookstack_chunks = await self.chunk_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="BOOKSTACK_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
         elif search_mode == SearchMode.DOCUMENTS:
             bookstack_chunks = await self.document_retriever.hybrid_search(
                 query_text=user_query,
                 top_k=top_k,
-                user_id=user_id,
                 search_space_id=search_space_id,
                 document_type="BOOKSTACK_CONNECTOR",
+                start_date=start_date,
+                end_date=end_date,
             )
             # Transform document retriever results to match expected format
             bookstack_chunks = self._transform_document_results(bookstack_chunks)

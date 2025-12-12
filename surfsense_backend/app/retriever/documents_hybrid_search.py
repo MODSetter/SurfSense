@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class DocumentHybridSearchRetriever:
     def __init__(self, db_session):
         """
@@ -13,6 +16,8 @@ class DocumentHybridSearchRetriever:
         query_text: str,
         top_k: int,
         search_space_id: int,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> list:
         """
         Perform vector similarity search on documents.
@@ -21,6 +26,8 @@ class DocumentHybridSearchRetriever:
             query_text: The search query text
             top_k: Number of results to return
             search_space_id: The search space ID to search within
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             List of documents sorted by vector similarity
@@ -42,6 +49,12 @@ class DocumentHybridSearchRetriever:
             .where(Document.search_space_id == search_space_id)
         )
 
+        # Add time-based filtering if provided
+        if start_date is not None:
+            query = query.where(Document.updated_at >= start_date)
+        if end_date is not None:
+            query = query.where(Document.updated_at <= end_date)
+
         # Add vector similarity ordering
         query = query.order_by(Document.embedding.op("<=>")(query_embedding)).limit(
             top_k
@@ -58,6 +71,8 @@ class DocumentHybridSearchRetriever:
         query_text: str,
         top_k: int,
         search_space_id: int,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> list:
         """
         Perform full-text keyword search on documents.
@@ -66,6 +81,8 @@ class DocumentHybridSearchRetriever:
             query_text: The search query text
             top_k: Number of results to return
             search_space_id: The search space ID to search within
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         Returns:
             List of documents sorted by text relevance
@@ -89,6 +106,12 @@ class DocumentHybridSearchRetriever:
             )  # Only include results that match the query
         )
 
+        # Add time-based filtering if provided
+        if start_date is not None:
+            query = query.where(Document.updated_at >= start_date)
+        if end_date is not None:
+            query = query.where(Document.updated_at <= end_date)
+
         # Add text search ranking
         query = query.order_by(func.ts_rank_cd(tsvector, tsquery).desc()).limit(top_k)
 
@@ -104,6 +127,8 @@ class DocumentHybridSearchRetriever:
         top_k: int,
         search_space_id: int,
         document_type: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> list:
         """
         Combine vector similarity and full-text search results using Reciprocal Rank Fusion.
@@ -113,6 +138,8 @@ class DocumentHybridSearchRetriever:
             top_k: Number of results to return
             search_space_id: The search space ID to search within
             document_type: Optional document type to filter results (e.g., "FILE", "CRAWLED_URL")
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
 
         """
         from sqlalchemy import func, select, text
@@ -148,6 +175,12 @@ class DocumentHybridSearchRetriever:
                     return []
             else:
                 base_conditions.append(Document.document_type == document_type)
+
+        # Add time-based filtering if provided
+        if start_date is not None:
+            base_conditions.append(Document.updated_at >= start_date)
+        if end_date is not None:
+            base_conditions.append(Document.updated_at <= end_date)
 
         # CTE for semantic search filtered by search space
         semantic_search_cte = select(

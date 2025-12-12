@@ -1,6 +1,7 @@
 import json
 import logging
 import traceback
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -20,6 +21,9 @@ from .prompts import get_further_questions_system_prompt
 from .qna_agent.graph import graph as qna_agent_graph
 from .state import State
 from .utils import get_connector_emoji, get_connector_friendly_name
+
+# Time filter constants - hardcoded 2 year time range for now
+DEFAULT_TIME_FILTER_YEARS = 2
 
 
 def extract_sources_from_documents(
@@ -524,6 +528,8 @@ async def fetch_relevant_documents(
     connector_service: ConnectorService = None,
     search_mode: SearchMode = SearchMode.CHUNKS,
     user_selected_sources: list[dict[str, Any]] | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """
     Fetch relevant documents for research questions using the provided connectors.
@@ -542,6 +548,10 @@ async def fetch_relevant_documents(
         state: The current state containing the streaming service
         top_k: Number of top results to retrieve per connector per question
         connector_service: An initialized connector service to use for searching
+        search_mode: Search mode (CHUNKS or DOCUMENTS)
+        user_selected_sources: Optional list of user-selected source objects
+        start_date: Optional start date for filtering documents by updated_at
+        end_date: Optional end date for filtering documents by updated_at
 
     Returns:
         List of relevant documents
@@ -620,6 +630,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -646,6 +658,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -672,6 +686,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -695,6 +711,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -718,6 +736,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -744,6 +764,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -770,6 +792,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -796,6 +820,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -922,6 +948,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
                     # Add to sources and raw documents
                     if source_object:
@@ -943,6 +971,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -968,6 +998,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -993,6 +1025,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -1018,6 +1052,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -1043,6 +1079,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -1068,6 +1106,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -1094,6 +1134,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -1120,6 +1162,8 @@ async def fetch_relevant_documents(
                         search_space_id=search_space_id,
                         top_k=top_k,
                         search_mode=search_mode,
+                        start_date=start_date,
+                        end_date=end_date,
                     )
 
                     # Add to sources and raw documents
@@ -1387,6 +1431,10 @@ async def handle_qna_workflow(
         # Use the reformulated query as a single research question
         research_questions = [reformulated_query, user_query]
 
+        # Calculate time filter: last 2 years from now (hardcoded for now)
+        end_date = datetime.now(UTC)
+        start_date = end_date - timedelta(days=DEFAULT_TIME_FILTER_YEARS * 365)
+
         relevant_documents = await fetch_relevant_documents(
             research_questions=research_questions,
             search_space_id=configuration.search_space_id,
@@ -1398,6 +1446,8 @@ async def handle_qna_workflow(
             connector_service=connector_service,
             search_mode=configuration.search_mode,
             user_selected_sources=user_selected_sources,
+            start_date=start_date,
+            end_date=end_date,
         )
     except Exception as e:
         error_message = f"Error fetching relevant documents for QNA: {e!s}"
