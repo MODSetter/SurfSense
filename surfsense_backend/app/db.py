@@ -353,8 +353,8 @@ class Document(BaseModel, TimestampMixin):
         Boolean, nullable=False, default=False, server_default=text("false")
     )
 
-    # Track when blocknote document was last edited
-    last_edited_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    # Track when document was last updated by indexers, processors, or editor
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False

@@ -15,7 +15,7 @@ interface EditorContent {
 	document_id: number;
 	title: string;
 	blocknote_document: any;
-	last_edited_at: string | null;
+	updated_at: string | null;
 }
 
 export default function EditorPage() {

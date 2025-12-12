@@ -60,8 +60,8 @@ async def get_editor_content(
             "document_id": document.id,
             "title": document.title,
             "blocknote_document": document.blocknote_document,
-            "last_edited_at": document.last_edited_at.isoformat()
-            if document.last_edited_at
+            "updated_at": document.updated_at.isoformat()
+            if document.updated_at
             else None,
         }
 
@@ -97,14 +97,13 @@ async def get_editor_content(
     # Save the generated blocknote_document (lazy migration)
     document.blocknote_document = blocknote_json
     document.content_needs_reindexing = False
-    document.last_edited_at = None
     await session.commit()
 
     return {
         "document_id": document.id,
         "title": document.title,
         "blocknote_document": blocknote_json,
-        "last_edited_at": None,
+        "updated_at": document.updated_at.isoformat() if document.updated_at else None,
     }
 
 
@@ -150,7 +149,7 @@ async def save_document(
 
     # Save BlockNote document
     document.blocknote_document = blocknote_document
-    document.last_edited_at = datetime.now(UTC)
+    document.updated_at = datetime.now(UTC)
     document.content_needs_reindexing = True
 
     await session.commit()
@@ -162,5 +161,5 @@ async def save_document(
         "status": "saved",
         "document_id": document_id,
         "message": "Document saved and will be reindexed in the background",
-        "last_edited_at": document.last_edited_at.isoformat(),
+        "updated_at": document.updated_at.isoformat(),
     }

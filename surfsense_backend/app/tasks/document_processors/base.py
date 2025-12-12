@@ -2,6 +2,8 @@
 Base functionality and shared imports for document processors.
 """
 
+from datetime import UTC, datetime
+
 from langchain_community.document_transformers import MarkdownifyTransformer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -10,6 +12,16 @@ from app.db import Document
 
 # Initialize markdown transformer
 md = MarkdownifyTransformer()
+
+
+def get_current_timestamp() -> datetime:
+    """
+    Get the current timestamp with timezone for updated_at field.
+
+    Returns:
+        Current datetime with UTC timezone
+    """
+    return datetime.now(UTC)
 
 
 async def check_duplicate_document(

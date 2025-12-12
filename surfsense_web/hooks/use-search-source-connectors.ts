@@ -104,7 +104,9 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	);
 
 	useEffect(() => {
-		if (!lazy) {
+		// Only auto-fetch if lazy is false AND searchSpaceId is provided
+		// This prevents 400 errors when the hook is used without a searchSpaceId
+		if (!lazy && searchSpaceId !== undefined) {
 			fetchConnectors(searchSpaceId);
 		}
 	}, [lazy, fetchConnectors, searchSpaceId]);

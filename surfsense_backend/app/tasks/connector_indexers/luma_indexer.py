@@ -22,6 +22,7 @@ from app.utils.document_converters import (
 from .base import (
     check_document_by_unique_identifier,
     get_connector_by_id,
+    get_current_timestamp,
     logger,
     update_connector_last_indexed,
 )
@@ -352,6 +353,7 @@ async def index_luma_events(
                             "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         }
                         existing_document.chunks = chunks
+                        existing_document.updated_at = get_current_timestamp()
 
                         documents_indexed += 1
                         logger.info(f"Successfully updated Luma event {event_name}")
@@ -432,6 +434,7 @@ async def index_luma_events(
                     unique_identifier_hash=unique_identifier_hash,
                     embedding=summary_embedding,
                     chunks=chunks,
+                    updated_at=get_current_timestamp(),
                 )
 
                 session.add(document)
