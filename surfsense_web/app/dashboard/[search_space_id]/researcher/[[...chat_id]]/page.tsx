@@ -9,8 +9,8 @@ import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
+import type { Document } from "@/contracts/types/document.types";
 import { useChatState } from "@/hooks/use-chat";
-import type { Document } from "@/hooks/use-documents";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 export default function ResearcherPage() {
@@ -31,8 +31,6 @@ export default function ResearcherPage() {
 
 	const {
 		token,
-		searchMode,
-		setSearchMode,
 		researchMode,
 		selectedConnectors,
 		setSelectedConnectors,
@@ -84,7 +82,6 @@ export default function ResearcherPage() {
 	interface ChatState {
 		selectedDocuments: Document[];
 		selectedConnectors: string[];
-		searchMode: "DOCUMENTS" | "CHUNKS";
 		researchMode: "QNA"; // Always QNA mode
 		topK: number;
 	}
@@ -124,7 +121,6 @@ export default function ResearcherPage() {
 				search_space_id: search_space_id,
 				selected_connectors: connectorTypes,
 				research_mode: researchMode,
-				search_mode: searchMode,
 				document_ids_to_add_in_context: documentIds,
 				top_k: topK,
 			},
@@ -155,7 +151,6 @@ export default function ResearcherPage() {
 			storeChatState(search_space_id as string, String(newChat.id), {
 				selectedDocuments,
 				selectedConnectors,
-				searchMode,
 				researchMode,
 				topK,
 			});
@@ -203,7 +198,6 @@ export default function ResearcherPage() {
 			if (restoredState) {
 				setSelectedDocuments(restoredState.selectedDocuments);
 				setSelectedConnectors(restoredState.selectedConnectors);
-				setSearchMode(restoredState.searchMode);
 				setTopK(restoredState.topK);
 				// researchMode is always "QNA", no need to restore
 			}
@@ -214,7 +208,6 @@ export default function ResearcherPage() {
 		search_space_id,
 		setSelectedDocuments,
 		setSelectedConnectors,
-		setSearchMode,
 		setTopK,
 	]);
 
@@ -287,8 +280,6 @@ export default function ResearcherPage() {
 			selectedDocuments={selectedDocuments}
 			onConnectorSelectionChange={setSelectedConnectors}
 			selectedConnectors={selectedConnectors}
-			searchMode={searchMode}
-			onSearchModeChange={setSearchMode}
 			topK={topK}
 			onTopKChange={setTopK}
 		/>

@@ -4,7 +4,7 @@ import { type ChatHandler, ChatSection as LlamaIndexChatSection } from "@llamain
 import { useParams } from "next/navigation";
 import { ChatInputUI } from "@/components/chat/ChatInputGroup";
 import { ChatMessagesUI } from "@/components/chat/ChatMessages";
-import type { Document } from "@/hooks/use-documents";
+import type { Document } from "@/contracts/types/document.types";
 
 interface ChatInterfaceProps {
 	handler: ChatHandler;
@@ -12,8 +12,6 @@ interface ChatInterfaceProps {
 	selectedDocuments?: Document[];
 	onConnectorSelectionChange?: (connectorTypes: string[]) => void;
 	selectedConnectors?: string[];
-	searchMode?: "DOCUMENTS" | "CHUNKS";
-	onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 	topK?: number;
 	onTopKChange?: (topK: number) => void;
 }
@@ -24,8 +22,6 @@ export default function ChatInterface({
 	selectedDocuments = [],
 	onConnectorSelectionChange,
 	selectedConnectors = [],
-	searchMode,
-	onSearchModeChange,
 	topK = 10,
 	onTopKChange,
 }: ChatInterfaceProps) {
@@ -41,8 +37,6 @@ export default function ChatInterface({
 						selectedDocuments={selectedDocuments}
 						onConnectorSelectionChange={onConnectorSelectionChange}
 						selectedConnectors={selectedConnectors}
-						searchMode={searchMode}
-						onSearchModeChange={onSearchModeChange}
 						topK={topK}
 						onTopKChange={onTopKChange}
 					/>

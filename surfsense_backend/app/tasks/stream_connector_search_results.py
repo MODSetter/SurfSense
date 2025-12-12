@@ -4,7 +4,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.researcher.configuration import SearchMode
 from app.agents.researcher.graph import graph as researcher_graph
 from app.agents.researcher.state import State
 from app.services.streaming_service import StreamingService
@@ -18,7 +17,6 @@ async def stream_connector_search_results(
     research_mode: str,
     selected_connectors: list[str],
     langchain_chat_history: list[Any],
-    search_mode_str: str,
     document_ids_to_add_in_context: list[int],
     language: str | None = None,
     top_k: int = 10,
@@ -42,11 +40,6 @@ async def stream_connector_search_results(
     # Convert UUID to string if needed
     user_id_str = str(user_id) if isinstance(user_id, UUID) else user_id
 
-    if search_mode_str == "CHUNKS":
-        search_mode = SearchMode.CHUNKS
-    elif search_mode_str == "DOCUMENTS":
-        search_mode = SearchMode.DOCUMENTS
-
     # Sample configuration
     config = {
         "configurable": {
@@ -54,7 +47,6 @@ async def stream_connector_search_results(
             "connectors_to_search": selected_connectors,
             "user_id": user_id_str,
             "search_space_id": search_space_id,
-            "search_mode": search_mode,
             "document_ids_to_add_in_context": document_ids_to_add_in_context,
             "language": language,  # Add language to the configuration
             "top_k": top_k,  # Add top_k to the configuration

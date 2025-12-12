@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { Document } from "@/hooks/use-documents";
+import type { Document } from "@/contracts/types/document.types";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
@@ -422,58 +422,6 @@ const ConnectorSelector = React.memo(
 
 ConnectorSelector.displayName = "ConnectorSelector";
 
-const SearchModeSelector = React.memo(
-	({
-		searchMode,
-		onSearchModeChange,
-	}: {
-		searchMode?: "DOCUMENTS" | "CHUNKS";
-		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
-	}) => {
-		const handleDocumentsClick = React.useCallback(() => {
-			onSearchModeChange?.("DOCUMENTS");
-		}, [onSearchModeChange]);
-
-		const handleChunksClick = React.useCallback(() => {
-			onSearchModeChange?.("CHUNKS");
-		}, [onSearchModeChange]);
-
-		return (
-			<div className="flex items-center gap-2">
-				<div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-					<button
-						type="button"
-						onClick={handleDocumentsClick}
-						className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-							searchMode === "DOCUMENTS"
-								? "bg-background text-foreground shadow-sm"
-								: "hover:bg-background/50 hover:text-foreground"
-						}`}
-					>
-						<FolderOpen className="h-3.5 w-3.5 mr-1.5" />
-						<span className="hidden sm:inline">Documents</span>
-						<span className="sm:hidden">Docs</span>
-					</button>
-					<button
-						type="button"
-						onClick={handleChunksClick}
-						className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-							searchMode === "CHUNKS"
-								? "bg-background text-foreground shadow-sm"
-								: "hover:bg-background/50 hover:text-foreground"
-						}`}
-					>
-						<Zap className="h-3.5 w-3.5 mr-1.5" />
-						Chunks
-					</button>
-				</div>
-			</div>
-		);
-	}
-);
-
-SearchModeSelector.displayName = "SearchModeSelector";
-
 const TopKSelector = React.memo(
 	({ topK = 10, onTopKChange }: { topK?: number; onTopKChange?: (topK: number) => void }) => {
 		const MIN_VALUE = 1;
@@ -808,8 +756,6 @@ const CustomChatInputOptions = React.memo(
 		selectedDocuments,
 		onConnectorSelectionChange,
 		selectedConnectors,
-		searchMode,
-		onSearchModeChange,
 		topK,
 		onTopKChange,
 	}: {
@@ -817,8 +763,6 @@ const CustomChatInputOptions = React.memo(
 		selectedDocuments?: Document[];
 		onConnectorSelectionChange?: (connectorTypes: string[]) => void;
 		selectedConnectors?: string[];
-		searchMode?: "DOCUMENTS" | "CHUNKS";
-		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 		topK?: number;
 		onTopKChange?: (topK: number) => void;
 	}) => {
@@ -845,8 +789,6 @@ const CustomChatInputOptions = React.memo(
 					</Suspense>
 				</div>
 				<div className="h-4 w-px bg-border hidden sm:block" />
-				<SearchModeSelector searchMode={searchMode} onSearchModeChange={onSearchModeChange} />
-				<div className="h-4 w-px bg-border hidden sm:block" />
 				<TopKSelector topK={topK} onTopKChange={onTopKChange} />
 				<div className="h-4 w-px bg-border hidden sm:block" />
 				<LLMSelector />
@@ -863,8 +805,6 @@ export const ChatInputUI = React.memo(
 		selectedDocuments,
 		onConnectorSelectionChange,
 		selectedConnectors,
-		searchMode,
-		onSearchModeChange,
 		topK,
 		onTopKChange,
 	}: {
@@ -872,8 +812,6 @@ export const ChatInputUI = React.memo(
 		selectedDocuments?: Document[];
 		onConnectorSelectionChange?: (connectorTypes: string[]) => void;
 		selectedConnectors?: string[];
-		searchMode?: "DOCUMENTS" | "CHUNKS";
-		onSearchModeChange?: (mode: "DOCUMENTS" | "CHUNKS") => void;
 		topK?: number;
 		onTopKChange?: (topK: number) => void;
 	}) => {
@@ -888,8 +826,6 @@ export const ChatInputUI = React.memo(
 					selectedDocuments={selectedDocuments}
 					onConnectorSelectionChange={onConnectorSelectionChange}
 					selectedConnectors={selectedConnectors}
-					searchMode={searchMode}
-					onSearchModeChange={onSearchModeChange}
 					topK={topK}
 					onTopKChange={onTopKChange}
 				/>

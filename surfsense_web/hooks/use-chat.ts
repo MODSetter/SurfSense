@@ -2,7 +2,7 @@ import type { Message } from "@ai-sdk/react";
 import { useCallback, useEffect, useState } from "react";
 import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { ResearchMode } from "@/components/chat";
-import type { Document } from "@/hooks/use-documents";
+import type { Document } from "@/contracts/types/document.types";
 import { getBearerToken } from "@/lib/auth-utils";
 
 interface UseChatStateProps {
@@ -16,7 +16,6 @@ export function useChatState({ chat_id }: UseChatStateProps) {
 	const [currentChatId, setCurrentChatId] = useState<string | null>(chat_id || null);
 
 	// Chat configuration state
-	const [searchMode, setSearchMode] = useState<"DOCUMENTS" | "CHUNKS">("DOCUMENTS");
 	const [researchMode, setResearchMode] = useState<ResearchMode>("QNA");
 	const [selectedConnectors, setSelectedConnectors] = useState<string[]>([]);
 	const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
@@ -34,8 +33,6 @@ export function useChatState({ chat_id }: UseChatStateProps) {
 		setIsLoading,
 		currentChatId,
 		setCurrentChatId,
-		searchMode,
-		setSearchMode,
 		researchMode,
 		setResearchMode,
 		selectedConnectors,
