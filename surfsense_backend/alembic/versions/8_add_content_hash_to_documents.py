@@ -66,6 +66,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint(op.f("uq_documents_content_hash"), "documents", type_="unique")
-    op.drop_index(op.f("ix_documents_content_hash"), table_name="documents")
-    op.drop_column("documents", "content_hash")
+    bind = op.get_bind()
+    inspector = inspect(bind)
+
+    # Get existing constraints and indexes on documents
+    constraints = [c["name"] for c in inspector.get_unique_constraints("documents")]
+    indexes = [i["name"] for i in inspector.get_indexes("documents")]
+    columns = [col["name"] for col in inspector.get_columns("documents")]
+
+    # Drop unique constraint if it exists
+    if "uq_documents_content_hash" in constraints:
+        op.drop_constraint("uq_documents_content_hash", "documents", type_="unique")
+
+    # Drop index if it exists
+    if "ix_documents_content_hash" in indexes:
+        op.drop_index("ix_documents_content_hash", table_name="documents")
+
+    # Drop column if it exists
+    if "content_hash" in columns:
+        op.drop_column("documents", "content_hash")
