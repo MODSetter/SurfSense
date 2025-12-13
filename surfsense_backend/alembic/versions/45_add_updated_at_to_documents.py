@@ -12,6 +12,7 @@ for efficient time-based filtering.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 from alembic import op
 
@@ -24,19 +25,28 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Upgrade schema - Add updated_at field with index to documents."""
-    op.add_column(
-        "documents",
-        sa.Column("updated_at", sa.TIMESTAMP(timezone=True), nullable=True),
-    )
-    op.create_index(
-        "ix_documents_updated_at",
-        "documents",
-        ["updated_at"],
-    )
+    connection = op.get_bind()
+    inspector = inspect(connection)
+    columns = [col["name"] for col in inspector.get_columns("documents")]
+
+    if "updated_at" not in columns:
+        op.add_column(
+            "documents",
+            sa.Column("updated_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        )
+        op.create_index(
+            "ix_documents_updated_at",
+            "documents",
+            ["updated_at"],
+        )
 
 
 def downgrade() -> None:
     """Downgrade schema - Remove updated_at field and index."""
-    # Use if_exists to handle cases where index wasn't created (migration modified after apply)
-    op.drop_index("ix_documents_updated_at", table_name="documents", if_exists=True)
-    op.drop_column("documents", "updated_at")
+    connection = op.get_bind()
+    inspector = inspect(connection)
+    columns = [col["name"] for col in inspector.get_columns("documents")]
+
+    if "updated_at" in columns:
+        op.drop_index("ix_documents_updated_at", table_name="documents", if_exists=True)
+        op.drop_column("documents", "updated_at")

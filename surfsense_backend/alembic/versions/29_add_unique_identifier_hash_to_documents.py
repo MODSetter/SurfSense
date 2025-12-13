@@ -47,8 +47,48 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        op.f("uq_documents_unique_identifier_hash"), "documents", type_="unique"
-    )
-    op.drop_index(op.f("ix_documents_unique_identifier_hash"), table_name="documents")
-    op.drop_column("documents", "unique_identifier_hash")
+    # Drop the unique constraint if it exists
+    op.execute("""
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 
+            FROM pg_constraint c
+            JOIN pg_class t ON t.oid = c.conrelid
+            WHERE c.conname = 'uq_documents_unique_identifier_hash'
+              AND t.relname = 'documents'
+        ) THEN
+            ALTER TABLE documents DROP CONSTRAINT uq_documents_unique_identifier_hash;
+        END IF;
+    END$$;
+    """)
+
+    # Drop the index if it exists
+    op.execute("""
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM pg_indexes
+            WHERE tablename = 'documents'
+              AND indexname = 'ix_documents_unique_identifier_hash'
+        ) THEN
+            DROP INDEX ix_documents_unique_identifier_hash;
+        END IF;
+    END$$;
+    """)
+
+    # Drop the column if it exists
+    op.execute("""
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name='documents'
+              AND column_name='unique_identifier_hash'
+        ) THEN
+            ALTER TABLE documents DROP COLUMN unique_identifier_hash;
+        END IF;
+    END$$;
+    """)
