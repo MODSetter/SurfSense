@@ -27,26 +27,39 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Upgrade schema - Add BlockNote fields and trigger population task."""
 
-    # Add the columns
-    op.add_column(
-        "documents",
-        sa.Column(
-            "blocknote_document", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
-    )
-    op.add_column(
-        "documents",
-        sa.Column(
-            "content_needs_reindexing",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.false(),
-        ),
-    )
-    op.add_column(
-        "documents",
-        sa.Column("last_edited_at", sa.TIMESTAMP(timezone=True), nullable=True),
-    )
+    # Get existing columns to avoid duplicates
+    conn = op.get_bind()
+    existing_columns = [
+        col["name"] for col in sa.inspect(conn).get_columns("documents")
+    ]
+
+    # Add the columns if they don't exist
+    if "blocknote_document" not in existing_columns:
+        op.add_column(
+            "documents",
+            sa.Column(
+                "blocknote_document",
+                postgresql.JSONB(astext_type=sa.Text()),
+                nullable=True,
+            ),
+        )
+
+    if "content_needs_reindexing" not in existing_columns:
+        op.add_column(
+            "documents",
+            sa.Column(
+                "content_needs_reindexing",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.false(),
+            ),
+        )
+
+    if "last_edited_at" not in existing_columns:
+        op.add_column(
+            "documents",
+            sa.Column("last_edited_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        )
 
     # Trigger the Celery task to populate blocknote_document for existing documents
     try:
@@ -60,7 +73,6 @@ def upgrade() -> None:
             "✓ Queued Celery task to populate blocknote_document for existing documents"
         )
     except Exception as e:
-        # If Celery is not available or task queueing fails, log but don't fail the migration
         print(f"⚠ Warning: Could not queue blocknote population task: {e}")
         print("  You can manually trigger it later with:")
         print(
