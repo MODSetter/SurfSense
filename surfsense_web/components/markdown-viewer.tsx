@@ -28,7 +28,7 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 				</p>
 			),
 			a: ({ node, children, ...props }: any) => (
-				<a className="text-primary hover:underline" {...props}>
+				<a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props}>
 					{children}
 				</a>
 			),
