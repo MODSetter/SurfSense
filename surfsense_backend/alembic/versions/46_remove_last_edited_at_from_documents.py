@@ -12,6 +12,7 @@ to track all document updates (indexers, processors, and editor).
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy import inspect, text
 
 from alembic import op
 
@@ -24,29 +25,33 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Upgrade schema - Migrate last_edited_at to updated_at, then remove last_edited_at."""
-    # Step 1: Copy last_edited_at values to updated_at where updated_at is NULL
-    # This preserves edit timestamps for documents that were edited via BlockNote
-    op.execute(
-        """
-        UPDATE documents
-        SET updated_at = last_edited_at
-        WHERE last_edited_at IS NOT NULL
-          AND updated_at IS NULL
-        """
-    )
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    columns = [col["name"] for col in inspector.get_columns("documents")]
 
-    # Step 2: For documents where both exist, use the most recent timestamp
-    op.execute(
-        """
-        UPDATE documents
-        SET updated_at = GREATEST(updated_at, last_edited_at)
-        WHERE last_edited_at IS NOT NULL
-          AND updated_at IS NOT NULL
-        """
-    )
+    if "last_edited_at" in columns:
+        # Step 1: Copy last_edited_at values to updated_at where updated_at is NULL
+        conn.execute(
+            text("""
+                UPDATE documents
+                SET updated_at = last_edited_at
+                WHERE last_edited_at IS NOT NULL
+                  AND updated_at IS NULL
+            """)
+        )
 
-    # Step 3: Drop the last_edited_at column
-    op.drop_column("documents", "last_edited_at")
+        # Step 2: For documents where both exist, use the most recent timestamp
+        conn.execute(
+            text("""
+                UPDATE documents
+                SET updated_at = GREATEST(updated_at, last_edited_at)
+                WHERE last_edited_at IS NOT NULL
+                  AND updated_at IS NOT NULL
+            """)
+        )
+
+        # Step 3: Drop the last_edited_at column
+        op.drop_column("documents", "last_edited_at")
 
 
 def downgrade() -> None:
@@ -55,5 +60,11 @@ def downgrade() -> None:
         "documents",
         sa.Column("last_edited_at", sa.TIMESTAMP(timezone=True), nullable=True),
     )
-    # Note: We cannot restore the original last_edited_at values after downgrade
-    # as that data is merged into updated_at
+    # Optionally restore values from updated_at
+    op.execute(
+        text("""
+            UPDATE documents
+            SET last_edited_at = updated_at
+            WHERE updated_at IS NOT NULL
+        """)
+    )
