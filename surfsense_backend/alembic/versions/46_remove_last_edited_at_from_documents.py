@@ -60,11 +60,5 @@ def downgrade() -> None:
         "documents",
         sa.Column("last_edited_at", sa.TIMESTAMP(timezone=True), nullable=True),
     )
-    # Optionally restore values from updated_at
-    op.execute(
-        text("""
-            UPDATE documents
-            SET last_edited_at = updated_at
-            WHERE updated_at IS NOT NULL
-        """)
-    )
+    # Note: We cannot restore the original last_edited_at values after downgrade
+    # as that data is merged into updated_at
