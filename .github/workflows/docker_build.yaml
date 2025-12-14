@@ -105,16 +105,24 @@ jobs:
           git ls-remote --tags origin | grep "refs/tags/${{ steps.tag_version.outputs.next_version }}" || (echo "Tag push verification failed!" && exit 1)
           echo "Tag successfully pushed."
 
-  build_and_push:
+  # Build for AMD64 on native x64 runner
+  build_amd64:
     runs-on: ubuntu-latest
     needs: tag_release
     permissions:
       packages: write
       contents: read
-
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    env:
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/surfsense
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set lowercase image name
+        id: image
+        run: echo "name=${REGISTRY_IMAGE,,}" >> $GITHUB_OUTPUT
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -123,20 +131,8 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/surfsense
-          tags: |
-            type=raw,value=${{ needs.tag_release.outputs.new_tag }}
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
 
       - name: Free up disk space
         run: |
@@ -146,14 +142,116 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           docker system prune -af
 
-      - name: Build and push SurfSense image
+      - name: Build and push AMD64 image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.allinone
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64, linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}-amd64
+          platforms: linux/amd64
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
+          provenance: false
+
+  # Build for ARM64 on native arm64 runner (no QEMU emulation!)
+  build_arm64:
+    runs-on: ubuntu-24.04-arm
+    needs: tag_release
+    permissions:
+      packages: write
+      contents: read
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    env:
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/surfsense
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set lowercase image name
+        id: image
+        run: echo "name=${REGISTRY_IMAGE,,}" >> $GITHUB_OUTPUT
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          docker system prune -af
+
+      - name: Build and push ARM64 image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.allinone
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}-arm64
+          platforms: linux/arm64
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,mode=max,scope=arm64
+          provenance: false
+
+  # Create multi-arch manifest combining both platform images
+  create_manifest:
+    runs-on: ubuntu-latest
+    needs: [tag_release, build_amd64, build_arm64]
+    permissions:
+      packages: write
+      contents: read
+    env:
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/surfsense
+    steps:
+      - name: Set lowercase image name
+        id: image
+        run: echo "name=${REGISTRY_IMAGE,,}" >> $GITHUB_OUTPUT
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
+        run: |
+          VERSION_TAG="${{ needs.tag_release.outputs.new_tag }}"
+          IMAGE="${{ steps.image.outputs.name }}"
+          
+          # Create manifest for version tag
+          docker manifest create ${IMAGE}:${VERSION_TAG} \
+            ${IMAGE}:${VERSION_TAG}-amd64 \
+            ${IMAGE}:${VERSION_TAG}-arm64
+          
+          docker manifest push ${IMAGE}:${VERSION_TAG}
+          
+          # Create/update latest tag if on default branch
+          if [[ "${{ github.ref }}" == "refs/heads/${{ github.event.repository.default_branch }}" ]] || [[ "${{ github.event.inputs.branch }}" == "${{ github.event.repository.default_branch }}" ]]; then
+            docker manifest create ${IMAGE}:latest \
+              ${IMAGE}:${VERSION_TAG}-amd64 \
+              ${IMAGE}:${VERSION_TAG}-arm64
+            
+            docker manifest push ${IMAGE}:latest
+          fi
+
+      - name: Clean up architecture-specific tags (optional)
+        continue-on-error: true
+        run: |
+          # Note: GHCR doesn't support tag deletion via API easily
+          # The arch-specific tags will remain but users should use the main tags
+          echo "Multi-arch manifest created successfully!"
+          echo "Users should pull: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}"
+          echo "Or for latest: ${{ steps.image.outputs.name }}:latest"
