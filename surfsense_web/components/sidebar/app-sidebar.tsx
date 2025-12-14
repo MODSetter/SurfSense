@@ -4,26 +4,116 @@ import {
 	AlertCircle,
 	BookOpen,
 	Cable,
+	ChevronsUpDown,
 	Database,
 	ExternalLink,
 	FileStack,
 	FileText,
 	Info,
+	LogOut,
 	type LucideIcon,
 	MessageCircleMore,
+	MoonIcon,
 	Podcast,
 	Settings2,
 	SquareLibrary,
 	SquareTerminal,
+	SunIcon,
 	Trash2,
 	Undo2,
+	UserPlus,
 	Users,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
-import { memo, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { memo, useEffect, useMemo, useState } from "react";
 
-import { Logo } from "@/components/Logo";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useUser } from "@/hooks/use-user";
+
+/**
+ * Generates a consistent color based on a string (email)
+ */
+function stringToColor(str: string): string {
+	let hash = 0;
+	for (let i = 0; i < str.length; i++) {
+		hash = str.charCodeAt(i) + ((hash << 5) - hash);
+	}
+	const colors = [
+		"#6366f1", // indigo
+		"#8b5cf6", // violet
+		"#a855f7", // purple
+		"#d946ef", // fuchsia
+		"#ec4899", // pink
+		"#f43f5e", // rose
+		"#ef4444", // red
+		"#f97316", // orange
+		"#eab308", // yellow
+		"#84cc16", // lime
+		"#22c55e", // green
+		"#14b8a6", // teal
+		"#06b6d4", // cyan
+		"#0ea5e9", // sky
+		"#3b82f6", // blue
+	];
+	return colors[Math.abs(hash) % colors.length];
+}
+
+/**
+ * Gets initials from an email address
+ */
+function getInitials(email: string): string {
+	const name = email.split("@")[0];
+	const parts = name.split(/[._-]/);
+	if (parts.length >= 2) {
+		return (parts[0][0] + parts[1][0]).toUpperCase();
+	}
+	return name.slice(0, 2).toUpperCase();
+}
+
+/**
+ * Dynamic avatar component that generates an SVG based on email
+ */
+function UserAvatar({ email, size = 32 }: { email: string; size?: number }) {
+	const bgColor = stringToColor(email);
+	const initials = getInitials(email);
+
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox="0 0 32 32"
+			className="rounded-lg"
+			role="img"
+			aria-labelledby="sidebar-avatar-title"
+		>
+			<title id="sidebar-avatar-title">Avatar for {email}</title>
+			<rect width="32" height="32" rx="6" fill={bgColor} />
+			<text
+				x="50%"
+				y="50%"
+				dominantBaseline="central"
+				textAnchor="middle"
+				fill="white"
+				fontSize="12"
+				fontWeight="600"
+				fontFamily="system-ui, sans-serif"
+			>
+				{initials}
+			</text>
+		</svg>
+	);
+}
+
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
@@ -122,6 +212,7 @@ const defaultData = {
 };
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+	searchSpaceId?: string;
 	navMain?: {
 		title: string;
 		url: string;
@@ -162,12 +253,22 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 // Memoized AppSidebar component for better performance
 export const AppSidebar = memo(function AppSidebar({
+	searchSpaceId,
 	navMain = defaultData.navMain,
 	navSecondary = defaultData.navSecondary,
 	RecentChats = defaultData.RecentChats,
 	pageUsage,
 	...props
 }: AppSidebarProps) {
+	const router = useRouter();
+	const { theme, setTheme } = useTheme();
+	const { user, loading: isLoadingUser } = useUser();
+	const [isClient, setIsClient] = useState(false);
+
+	useEffect(() => {
+		setIsClient(true);
+	}, []);
+
 	// Process navMain to resolve icon names to components
 	const processedNavMain = useMemo(() => {
 		return navMain.map((item) => ({
@@ -194,28 +295,111 @@ export const AppSidebar = memo(function AppSidebar({
 		);
 	}, [RecentChats]);
 
+	// Get user display name from email
+	const userDisplayName = user?.email ? user.email.split("@")[0] : "User";
+	const userEmail = user?.email || (isLoadingUser ? "Loading..." : "Unknown");
+
+	const handleLogout = () => {
+		try {
+			if (typeof window !== "undefined") {
+				localStorage.removeItem("surfsense_bearer_token");
+				router.push("/");
+			}
+		} catch (error) {
+			console.error("Error during logout:", error);
+			router.push("/");
+		}
+	};
+
 	return (
 		<Sidebar variant="inset" collapsible="icon" aria-label="Main navigation" {...props}>
 			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<SidebarMenuButton asChild size="lg">
-							<Link href="/" className="flex items-center gap-2 w-full">
-								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-									<Image
-										src="/icon-128.png"
-										alt="SurfSense logo"
-										width={32}
-										height={32}
-										className="rounded-lg"
-									/>
-								</div>
-								<div className="grid flex-1 text-left text-sm leading-tight">
-									<span className="truncate font-medium">SurfSense</span>
-									<span className="truncate text-xs">beta v0.0.8</span>
-								</div>
-							</Link>
-						</SidebarMenuButton>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<SidebarMenuButton
+									size="lg"
+									className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+								>
+									<div className="flex aspect-square size-8 items-center justify-center">
+										{user?.email ? (
+											<UserAvatar email={user.email} size={32} />
+										) : (
+											<div className="size-8 rounded-lg bg-sidebar-primary animate-pulse" />
+										)}
+									</div>
+									<div className="grid flex-1 text-left text-sm leading-tight">
+										<span className="truncate font-medium">{userDisplayName}</span>
+										<span className="truncate text-xs text-muted-foreground">{userEmail}</span>
+									</div>
+									<ChevronsUpDown className="ml-auto size-4" />
+								</SidebarMenuButton>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+								side="bottom"
+								align="start"
+								sideOffset={4}
+							>
+								<DropdownMenuLabel className="p-0 font-normal">
+									<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+										<div className="flex aspect-square size-8 items-center justify-center">
+											{user?.email ? (
+												<UserAvatar email={user.email} size={32} />
+											) : (
+												<div className="size-8 rounded-lg bg-sidebar-primary animate-pulse" />
+											)}
+										</div>
+										<div className="grid flex-1 text-left text-sm leading-tight">
+											<span className="truncate font-medium">{userDisplayName}</span>
+											<span className="truncate text-xs text-muted-foreground">{userEmail}</span>
+										</div>
+									</div>
+								</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								<DropdownMenuGroup>
+									{searchSpaceId && (
+										<>
+											<DropdownMenuItem
+												onClick={() => router.push(`/dashboard/${searchSpaceId}/settings`)}
+											>
+												<Settings2 className="mr-2 h-4 w-4" />
+												Settings
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={() => router.push(`/dashboard/${searchSpaceId}/team`)}
+											>
+												<UserPlus className="mr-2 h-4 w-4" />
+												Invite members
+											</DropdownMenuItem>
+										</>
+									)}
+									<DropdownMenuItem onClick={() => router.push("/dashboard")}>
+										<SquareLibrary className="mr-2 h-4 w-4" />
+										Switch workspace
+									</DropdownMenuItem>
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+								<DropdownMenuGroup>
+									{isClient && (
+										<DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+											{theme === "dark" ? (
+												<SunIcon className="mr-2 h-4 w-4" />
+											) : (
+												<MoonIcon className="mr-2 h-4 w-4" />
+											)}
+											{theme === "dark" ? "Light mode" : "Dark mode"}
+										</DropdownMenuItem>
+									)}
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={handleLogout}>
+									<LogOut className="mr-2 h-4 w-4" />
+									Logout
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarHeader>

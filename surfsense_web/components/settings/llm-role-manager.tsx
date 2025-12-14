@@ -255,93 +255,89 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 			{/* Stats Overview */}
 			{!isLoading && !hasError && (
-				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-					<Card className="border-l-4 border-l-blue-500">
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between space-x-4">
-								<div className="space-y-1">
-									<p className="text-3xl font-bold tracking-tight">{availableConfigs.length}</p>
-									<p className="text-sm font-medium text-muted-foreground">Available Models</p>
-									<div className="flex gap-2 text-xs text-muted-foreground">
-										<span>🌐 {globalConfigs.length} Global</span>
-										<span>• {llmConfigs.length} Custom</span>
+				<div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+					<Card className="overflow-hidden">
+						<div className="h-1 bg-blue-500" />
+						<CardContent className="p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1 min-w-0">
+									<p className="text-2xl font-bold tracking-tight">{availableConfigs.length}</p>
+									<p className="text-xs font-medium text-muted-foreground">Available Models</p>
+									<div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+										<span>{globalConfigs.length} Global</span>
+										<span>{llmConfigs.length} Custom</span>
 									</div>
 								</div>
-								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10">
-									<Bot className="h-6 w-6 text-blue-600" />
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
+									<Bot className="h-4 w-4 text-blue-600" />
 								</div>
 							</div>
 						</CardContent>
 					</Card>
 
-					<Card className="border-l-4 border-l-purple-500">
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between space-x-4">
-								<div className="space-y-1">
-									<p className="text-3xl font-bold tracking-tight">{assignedConfigIds.length}</p>
-									<p className="text-sm font-medium text-muted-foreground">Assigned Roles</p>
+					<Card className="overflow-hidden">
+						<div className="h-1 bg-purple-500" />
+						<CardContent className="p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1 min-w-0">
+									<p className="text-2xl font-bold tracking-tight">{assignedConfigIds.length}</p>
+									<p className="text-xs font-medium text-muted-foreground">Assigned Roles</p>
 								</div>
-								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/10">
-									<CheckCircle className="h-6 w-6 text-purple-600" />
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/10">
+									<CheckCircle className="h-4 w-4 text-purple-600" />
 								</div>
 							</div>
 						</CardContent>
 					</Card>
 
-					<Card
-						className={`border-l-4 ${
-							isAssignmentComplete ? "border-l-green-500" : "border-l-yellow-500"
-						}`}
-					>
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between space-x-4">
-								<div className="space-y-1">
-									<p className="text-3xl font-bold tracking-tight">
+					<Card className="overflow-hidden">
+						<div className={`h-1 ${isAssignmentComplete ? "bg-green-500" : "bg-yellow-500"}`} />
+						<CardContent className="p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1 min-w-0">
+									<p className="text-2xl font-bold tracking-tight">
 										{Math.round((assignedConfigIds.length / 3) * 100)}%
 									</p>
-									<p className="text-sm font-medium text-muted-foreground">Completion</p>
+									<p className="text-xs font-medium text-muted-foreground">Completion</p>
 								</div>
 								<div
-									className={`flex h-12 w-12 items-center justify-center rounded-lg ${
+									className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
 										isAssignmentComplete ? "bg-green-500/10" : "bg-yellow-500/10"
 									}`}
 								>
 									{isAssignmentComplete ? (
-										<CheckCircle className="h-6 w-6 text-green-600" />
+										<CheckCircle className="h-4 w-4 text-green-600" />
 									) : (
-										<AlertCircle className="h-6 w-6 text-yellow-600" />
+										<AlertCircle className="h-4 w-4 text-yellow-600" />
 									)}
 								</div>
 							</div>
 						</CardContent>
 					</Card>
 
-					<Card
-						className={`border-l-4 ${
-							isAssignmentComplete ? "border-l-emerald-500" : "border-l-orange-500"
-						}`}
-					>
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between space-x-4">
-								<div className="space-y-1">
+					<Card className="overflow-hidden">
+						<div className={`h-1 ${isAssignmentComplete ? "bg-emerald-500" : "bg-orange-500"}`} />
+						<CardContent className="p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1 min-w-0">
 									<p
-										className={`text-3xl font-bold tracking-tight ${
+										className={`text-2xl font-bold tracking-tight ${
 											isAssignmentComplete ? "text-emerald-600" : "text-orange-600"
 										}`}
 									>
 										{isAssignmentComplete ? "Ready" : "Setup"}
 									</p>
-									<p className="text-sm font-medium text-muted-foreground">Status</p>
+									<p className="text-xs font-medium text-muted-foreground">Status</p>
 								</div>
 								<div
-									className={`flex h-12 w-12 items-center justify-center rounded-lg ${
+									className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
 										isAssignmentComplete ? "bg-emerald-500/10" : "bg-orange-500/10"
 									}`}
 								>
 									{isAssignmentComplete ? (
-										<CheckCircle className="h-6 w-6 text-emerald-600" />
+										<CheckCircle className="h-4 w-4 text-emerald-600" />
 									) : (
-										<RefreshCw className="h-6 w-6 text-orange-600" />
+										<RefreshCw className="h-4 w-4 text-orange-600" />
 									)}
 								</div>
 							</div>
