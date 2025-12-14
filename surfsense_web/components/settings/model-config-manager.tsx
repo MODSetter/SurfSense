@@ -200,7 +200,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const handleConfirmDelete = async () => {
 		if (!configToDelete) return;
 		try {
-			await deleteLLMConfig({id : configToDelete.id});
+			await deleteLLMConfig({ id: configToDelete.id });
 		} catch (error) {
 			toast.error("Failed to delete configuration");
 		} finally {
