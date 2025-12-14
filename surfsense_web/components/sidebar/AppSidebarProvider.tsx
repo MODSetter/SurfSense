@@ -193,6 +193,7 @@ export function AppSidebarProvider({
 	if (!isClient) {
 		return (
 			<AppSidebar
+				searchSpaceId={searchSpaceId}
 				navSecondary={navSecondary}
 				navMain={navMain}
 				RecentChats={[]}
@@ -204,6 +205,7 @@ export function AppSidebarProvider({
 	return (
 		<>
 			<AppSidebar
+				searchSpaceId={searchSpaceId}
 				navSecondary={updatedNavSecondary}
 				navMain={navMain}
 				RecentChats={displayChats}

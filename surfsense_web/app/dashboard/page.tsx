@@ -255,7 +255,7 @@ const DashboardPage = () => {
 										/>
 										<div className="flex flex-col h-full justify-between overflow-hidden rounded-xl border bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50">
 											<div className="relative h-32 w-full overflow-hidden">
-												<Link href={`/dashboard/${space.id}/documents`} key={space.id}>
+												<Link href={`/dashboard/${space.id}/researcher`} key={space.id}>
 													<Image
 														src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1740&q=80"
 														alt={space.name}
@@ -300,7 +300,7 @@ const DashboardPage = () => {
 											</div>
 											<Link
 												className="flex flex-1 flex-col p-4 cursor-pointer"
-												href={`/dashboard/${space.id}/documents`}
+												href={`/dashboard/${space.id}/researcher`}
 												key={space.id}
 											>
 												<div className="flex flex-1 flex-col justify-between p-1">

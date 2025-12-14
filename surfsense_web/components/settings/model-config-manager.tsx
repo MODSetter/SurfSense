@@ -8,8 +8,6 @@ import {
 	ChevronsUpDown,
 	Clock,
 	Edit3,
-	Eye,
-	EyeOff,
 	Loader2,
 	Plus,
 	RefreshCw,
@@ -20,6 +18,16 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -77,7 +85,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const { globalConfigs } = useGlobalLLMConfigs();
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<LLMConfig | null>(null);
-	const [showApiKey, setShowApiKey] = useState<Record<number, boolean>>({});
 	const [formData, setFormData] = useState<CreateLLMConfig>({
 		name: "",
 		provider: "",
@@ -91,6 +98,8 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
+	const [configToDelete, setConfigToDelete] = useState<LLMConfig | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	// Populate form when editing
 	useEffect(() => {
@@ -162,19 +171,22 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		}
 	};
 
-	const handleDelete = async (id: number) => {
-		if (
-			confirm("Are you sure you want to delete this configuration? This action cannot be undone.")
-		) {
-			await deleteLLMConfig(id);
-		}
+	const handleDeleteClick = (config: LLMConfig) => {
+		setConfigToDelete(config);
 	};
 
-	const toggleApiKeyVisibility = (configId: number) => {
-		setShowApiKey((prev) => ({
-			...prev,
-			[configId]: !prev[configId],
-		}));
+	const handleConfirmDelete = async () => {
+		if (!configToDelete) return;
+		setIsDeleting(true);
+		try {
+			await deleteLLMConfig(configToDelete.id);
+			toast.success("Configuration deleted successfully");
+		} catch (error) {
+			toast.error("Failed to delete configuration");
+		} finally {
+			setIsDeleting(false);
+			setConfigToDelete(null);
+		}
 	};
 
 	const selectedProvider = LLM_PROVIDERS.find((p) => p.value === formData.provider);
@@ -182,13 +194,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 	const getProviderInfo = (providerValue: string) => {
 		return LLM_PROVIDERS.find((p) => p.value === providerValue);
-	};
-
-	const maskApiKey = (apiKey: string) => {
-		if (apiKey.length <= 8) return "*".repeat(apiKey.length);
-		return (
-			apiKey.substring(0, 4) + "*".repeat(apiKey.length - 8) + apiKey.substring(apiKey.length - 4)
-		);
 	};
 
 	return (
@@ -258,46 +263,49 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 			{/* Stats Overview */}
 			{!loading && !error && (
-				<div className="grid gap-4 md:grid-cols-3">
-					<Card className="border-l-4 border-l-blue-500">
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between space-x-4">
-								<div className="space-y-1">
-									<p className="text-3xl font-bold tracking-tight">{llmConfigs.length}</p>
-									<p className="text-sm font-medium text-muted-foreground">Total Configurations</p>
+				<div className="grid gap-3 grid-cols-3">
+					<Card className="overflow-hidden">
+						<div className="h-1 bg-blue-500" />
+						<CardContent className="p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1 min-w-0">
+									<p className="text-2xl font-bold tracking-tight">{llmConfigs.length}</p>
+									<p className="text-xs font-medium text-muted-foreground">Total Configs</p>
 								</div>
-								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10">
-									<Bot className="h-6 w-6 text-blue-600" />
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
+									<Bot className="h-4 w-4 text-blue-600" />
 								</div>
 							</div>
 						</CardContent>
 					</Card>
 
-					<Card className="border-l-4 border-l-green-500">
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between space-x-4">
-								<div className="space-y-1">
-									<p className="text-3xl font-bold tracking-tight">
+					<Card className="overflow-hidden">
+						<div className="h-1 bg-green-500" />
+						<CardContent className="p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1 min-w-0">
+									<p className="text-2xl font-bold tracking-tight">
 										{new Set(llmConfigs.map((c) => c.provider)).size}
 									</p>
-									<p className="text-sm font-medium text-muted-foreground">Unique Providers</p>
+									<p className="text-xs font-medium text-muted-foreground">Providers</p>
 								</div>
-								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10">
-									<CheckCircle className="h-6 w-6 text-green-600" />
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
+									<CheckCircle className="h-4 w-4 text-green-600" />
 								</div>
 							</div>
 						</CardContent>
 					</Card>
 
-					<Card className="border-l-4 border-l-emerald-500">
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between space-x-4">
-								<div className="space-y-1">
-									<p className="text-3xl font-bold tracking-tight text-emerald-600">Active</p>
-									<p className="text-sm font-medium text-muted-foreground">System Status</p>
+					<Card className="overflow-hidden">
+						<div className="h-1 bg-emerald-500" />
+						<CardContent className="p-4">
+							<div className="flex items-start justify-between gap-2">
+								<div className="space-y-1 min-w-0">
+									<p className="text-2xl font-bold tracking-tight text-emerald-600">Active</p>
+									<p className="text-xs font-medium text-muted-foreground">Status</p>
 								</div>
-								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
-									<CheckCircle className="h-6 w-6 text-emerald-600" />
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
+									<CheckCircle className="h-4 w-4 text-emerald-600" />
 								</div>
 							</div>
 						</CardContent>
@@ -352,118 +360,90 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 											exit={{ opacity: 0, y: -10 }}
 											transition={{ duration: 0.2 }}
 										>
-											<Card className="group border-l-4 border-l-primary/50 hover:border-l-primary hover:shadow-md transition-all duration-200">
-												<CardContent className="p-6">
-													<div className="flex items-start justify-between">
-														<div className="flex-1 space-y-4">
-															{/* Header */}
-															<div className="flex items-start gap-4">
-																<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-																	<Bot className="h-6 w-6 text-primary" />
-																</div>
-																<div className="flex-1 space-y-2">
-																	<div className="flex items-center gap-3">
-																		<h4 className="text-lg font-semibold tracking-tight">
-																			{config.name}
-																		</h4>
-																		<Badge variant="secondary" className="text-xs font-medium">
-																			{config.provider}
-																		</Badge>
+											<Card className="group overflow-hidden hover:shadow-md transition-all duration-200">
+												<CardContent className="p-0">
+													<div className="flex">
+														{/* Left accent bar */}
+														<div className="w-1 bg-primary/50 group-hover:bg-primary transition-colors" />
+
+														<div className="flex-1 p-5">
+															<div className="flex items-start justify-between gap-4">
+																{/* Main content */}
+																<div className="flex items-start gap-4 flex-1 min-w-0">
+																	<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+																		<Bot className="h-5 w-5 text-primary" />
 																	</div>
-																	<p className="text-sm text-muted-foreground font-mono">
-																		{config.model_name}
-																	</p>
-																	{config.language && (
-																		<div className="flex items-center gap-2">
-																			<Badge variant="outline" className="text-xs">
-																				{config.language}
-																			</Badge>
+																	<div className="flex-1 min-w-0 space-y-3">
+																		{/* Title row */}
+																		<div className="flex items-center gap-2 flex-wrap">
+																			<h4 className="text-base font-semibold tracking-tight truncate">
+																				{config.name}
+																			</h4>
+																			<div className="flex items-center gap-1.5">
+																				<Badge
+																					variant="secondary"
+																					className="text-[10px] font-medium px-1.5 py-0"
+																				>
+																					{config.provider}
+																				</Badge>
+																				{config.language && (
+																					<Badge
+																						variant="outline"
+																						className="text-[10px] px-1.5 py-0 text-muted-foreground"
+																					>
+																						{config.language}
+																					</Badge>
+																				)}
+																			</div>
 																		</div>
-																	)}
-																</div>
-															</div>
 
-															{/* Provider Description */}
-															{providerInfo && (
-																<p className="text-sm text-muted-foreground">
-																	{providerInfo.description}
-																</p>
-															)}
+																		{/* Model name */}
+																		<div className="flex items-center gap-2">
+																			<code className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
+																				{config.model_name}
+																			</code>
+																		</div>
 
-															{/* Configuration Details */}
-															<div className="grid gap-4 sm:grid-cols-2">
-																<div className="space-y-2">
-																	<Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-																		API Key
-																	</Label>
-																	<div className="flex items-center space-x-2">
-																		<code className="flex-1 rounded-md bg-muted px-3 py-2 text-xs font-mono">
-																			{showApiKey[config.id]
-																				? config.api_key
-																				: maskApiKey(config.api_key)}
-																		</code>
-																		<Button
-																			variant="ghost"
-																			size="sm"
-																			onClick={() => toggleApiKeyVisibility(config.id)}
-																			className="h-8 w-8 p-0"
-																		>
-																			{showApiKey[config.id] ? (
-																				<EyeOff className="h-3 w-3" />
-																			) : (
-																				<Eye className="h-3 w-3" />
+																		{/* Footer row */}
+																		<div className="flex items-center gap-3 pt-2">
+																			{config.created_at && (
+																				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+																					<Clock className="h-3 w-3" />
+																					<span>
+																						{new Date(config.created_at).toLocaleDateString()}
+																					</span>
+																				</div>
 																			)}
-																		</Button>
+																			<div className="flex items-center gap-1.5 text-xs">
+																				<div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+																				<span className="text-emerald-600 dark:text-emerald-400 font-medium">
+																					Active
+																				</span>
+																			</div>
+																		</div>
 																	</div>
 																</div>
 
-																{config.api_base && (
-																	<div className="space-y-2">
-																		<Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-																			API Base URL
-																		</Label>
-																		<code className="block rounded-md bg-muted px-3 py-2 text-xs font-mono break-all">
-																			{config.api_base}
-																		</code>
-																	</div>
-																)}
-															</div>
-
-															{/* Metadata */}
-															<div className="flex flex-wrap items-center gap-4 pt-4 border-t border-border/50">
-																{config.created_at && (
-																	<div className="flex items-center gap-2 text-xs text-muted-foreground">
-																		<Clock className="h-3 w-3" />
-																		<span>
-																			Created {new Date(config.created_at).toLocaleDateString()}
-																		</span>
-																	</div>
-																)}
-																<div className="flex items-center gap-2 text-xs">
-																	<div className="h-2 w-2 rounded-full bg-green-500"></div>
-																	<span className="text-green-600 font-medium">Active</span>
+																{/* Actions */}
+																<div className="flex items-center gap-1 shrink-0">
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		onClick={() => setEditingConfig(config)}
+																		className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+																	>
+																		<Edit3 className="h-4 w-4" />
+																	</Button>
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		onClick={() => handleDeleteClick(config)}
+																		className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+																	>
+																		<Trash2 className="h-4 w-4" />
+																	</Button>
 																</div>
 															</div>
-														</div>
-
-														{/* Actions */}
-														<div className="flex flex-col gap-2 ml-6">
-															<Button
-																variant="outline"
-																size="sm"
-																onClick={() => setEditingConfig(config)}
-																className="h-8 w-8 p-0"
-															>
-																<Edit3 className="h-4 w-4" />
-															</Button>
-															<Button
-																variant="outline"
-																size="sm"
-																onClick={() => handleDelete(config.id)}
-																className="h-8 w-8 p-0 border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-															>
-																<Trash2 className="h-4 w-4" />
-															</Button>
 														</div>
 													</div>
 												</CardContent>
@@ -803,6 +783,46 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					</form>
 				</DialogContent>
 			</Dialog>
+
+			{/* Delete Confirmation Dialog */}
+			<AlertDialog
+				open={!!configToDelete}
+				onOpenChange={(open) => !open && setConfigToDelete(null)}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle className="flex items-center gap-2">
+							<Trash2 className="h-5 w-5 text-destructive" />
+							Delete Configuration
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							Are you sure you want to delete{" "}
+							<span className="font-semibold text-foreground">{configToDelete?.name}</span>? This
+							action cannot be undone and will permanently remove this model configuration.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleConfirmDelete}
+							disabled={isDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isDeleting ? (
+								<>
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									Deleting...
+								</>
+							) : (
+								<>
+									<Trash2 className="mr-2 h-4 w-4" />
+									Delete
+								</>
+							)}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }
