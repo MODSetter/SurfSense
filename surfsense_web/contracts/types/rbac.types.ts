@@ -159,6 +159,21 @@ export const leaveSearchSpaceResponse = z.object({
 	message: z.string(),
 });
 
+/**
+ * Create invite
+ */
+export const createInviteRequest = z.object({
+	search_space_id: z.number(),
+	data: z.object({
+		name: z.string().max(100).optional(),
+		role_id: z.number().nullable().optional(),
+		expires_at: z.string().nullable().optional(),
+		max_uses: z.number().nullable().optional(),
+	}),
+});
+
+export const createInviteResponse = invite;
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -182,3 +197,5 @@ export type DeleteMembershipRequest = z.infer<typeof deleteMembershipRequest>;
 export type DeleteMembershipResponse = z.infer<typeof deleteMembershipResponse>;
 export type LeaveSearchSpaceRequest = z.infer<typeof leaveSearchSpaceRequest>;
 export type LeaveSearchSpaceResponse = z.infer<typeof leaveSearchSpaceResponse>;
+export type CreateInviteRequest = z.infer<typeof createInviteRequest>;
+export type CreateInviteResponse = z.infer<typeof createInviteResponse>;
