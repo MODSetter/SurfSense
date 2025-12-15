@@ -1,6 +1,5 @@
 import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import type {
 	CreateLLMConfigRequest,
 	DeleteLLMConfigRequest,
@@ -12,6 +11,7 @@ import type {
 import { llmConfigApiService } from "@/lib/apis/llm-config-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
+import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
 
 export const createLLMConfigMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);

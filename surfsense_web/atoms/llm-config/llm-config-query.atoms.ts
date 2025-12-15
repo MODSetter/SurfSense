@@ -1,7 +1,7 @@
 import { atomWithQuery } from "jotai-tanstack-query";
-import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { llmConfigApiService } from "@/lib/apis/llm-config-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
 
 export const llmConfigsAtom = atomWithQuery((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);

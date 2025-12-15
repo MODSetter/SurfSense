@@ -40,11 +40,5 @@ export const cacheKeys = {
 			["search-spaces", ...(queries ? Object.values(queries) : [])] as const,
 		detail: (searchSpaceId: string) => ["search-spaces", searchSpaceId] as const,
 		communityPrompts: ["search-spaces", "community-prompts"] as const,
-	},
-	llmConfigs: {
-		all: (searchSpaceId: string) => ["llm-configs", searchSpaceId] as const,
-		global: ["llm-configs", "global"] as const,
-		detail: (searchSpaceId: string, llmConfigId: string) => ["llm-configs", searchSpaceId, llmConfigId] as const,
-		preferences: (searchSpaceId: string) => ["llm-configs", "preferences", searchSpaceId] as const,
-	},
+	}
 };
