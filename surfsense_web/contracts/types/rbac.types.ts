@@ -174,6 +174,15 @@ export const createInviteRequest = z.object({
 
 export const createInviteResponse = invite;
 
+/**
+ * Get invites
+ */
+export const getInvitesRequest = z.object({
+	search_space_id: z.number(),
+});
+
+export const getInvitesResponse = z.array(invite);
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -199,3 +208,5 @@ export type LeaveSearchSpaceRequest = z.infer<typeof leaveSearchSpaceRequest>;
 export type LeaveSearchSpaceResponse = z.infer<typeof leaveSearchSpaceResponse>;
 export type CreateInviteRequest = z.infer<typeof createInviteRequest>;
 export type CreateInviteResponse = z.infer<typeof createInviteResponse>;
+export type GetInvitesRequest = z.infer<typeof getInvitesRequest>;
+export type GetInvitesResponse = z.infer<typeof getInvitesResponse>;
