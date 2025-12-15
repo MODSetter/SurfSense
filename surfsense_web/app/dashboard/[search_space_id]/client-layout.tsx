@@ -191,7 +191,9 @@ export function DashboardClientLayout({
 						<CardDescription>{t("failed_load_llm_config")}</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<p className="text-sm text-muted-foreground">{error.message}</p>
+						<p className="text-sm text-muted-foreground">
+							{error instanceof Error ? error.message : String(error)}
+						</p>
 					</CardContent>
 				</Card>
 			</div>

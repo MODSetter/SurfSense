@@ -43,12 +43,11 @@ const OnboardPage = () => {
 
 	// Compute isOnboardingComplete
 	const isOnboardingComplete = useMemo(() => {
-		return () =>
-			!!(
-				preferences.long_context_llm_id &&
-				preferences.fast_llm_id &&
-				preferences.strategic_llm_id
-			);
+		return !!(
+			preferences.long_context_llm_id &&
+			preferences.fast_llm_id &&
+			preferences.strategic_llm_id
+		);
 	}, [preferences]);
 
 	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
@@ -85,7 +84,7 @@ const OnboardPage = () => {
 			!configsLoading &&
 			!globalConfigsLoading
 		) {
-			wasCompleteOnMount.current = isOnboardingComplete();
+			wasCompleteOnMount.current = isOnboardingComplete;
 			hasCheckedInitialState.current = true;
 		}
 	}, [preferencesLoading, configsLoading, globalConfigsLoading, isOnboardingComplete]);
@@ -109,7 +108,7 @@ const OnboardPage = () => {
 	const autoConfigureLLMs = useCallback(async () => {
 		if (hasAttemptedAutoConfig.current) return;
 		if (globalConfigs.length === 0) return;
-		if (isOnboardingComplete()) {
+		if (isOnboardingComplete) {
 			setAutoConfigComplete(true);
 			return;
 		}
@@ -158,7 +157,7 @@ const OnboardPage = () => {
 	}, [configsLoading, globalConfigsLoading, preferencesLoading, autoConfigureLLMs]);
 
 	const allConfigs = [...globalConfigs, ...llmConfigs];
-	const isReady = autoConfigComplete || isOnboardingComplete();
+	const isReady = autoConfigComplete || isOnboardingComplete;
 
 	// Loading state
 	if (configsLoading || preferencesLoading || globalConfigsLoading || isAutoConfiguring) {
@@ -176,7 +175,7 @@ const OnboardPage = () => {
 
 	// Show LLM setup if no configs available OR if roles are not assigned yet
 	// This forces users to complete role assignment before seeing the final screen
-	if (allConfigs.length === 0 || !isOnboardingComplete()) {
+	if (allConfigs.length === 0 || !isOnboardingComplete) {
 		return (
 			<OnboardLLMSetup
 				searchSpaceId={searchSpaceId}
