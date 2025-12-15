@@ -6,8 +6,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
+import { llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/seach-spaces/seach-space-queries.atom";
 import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContainer";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
@@ -17,7 +18,6 @@ import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { useLLMPreferences } from "@/hooks/use-llm-configs";
 import { useUserAccess } from "@/hooks/use-rbac";
 import { cn } from "@/lib/utils";
 
@@ -60,7 +60,16 @@ export function DashboardClientLayout({
 		}
 	}, [activeChatId, isChatPannelOpen]);
 
-	const { loading, error, isOnboardingComplete } = useLLMPreferences(searchSpaceIdNum);
+	const { data: preferences = {}, isFetching: loading, error } = useAtomValue(llmPreferencesAtom);
+
+	const isOnboardingComplete = useCallback(() => {
+		return !!(
+			preferences.long_context_llm_id &&
+			preferences.fast_llm_id &&
+			preferences.strategic_llm_id
+		);
+	}, [preferences]);
+
 	const { access, loading: accessLoading } = useUserAccess(searchSpaceIdNum);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
@@ -182,7 +191,9 @@ export function DashboardClientLayout({
 						<CardDescription>{t("failed_load_llm_config")}</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<p className="text-sm text-muted-foreground">{error}</p>
+						<p className="text-sm text-muted-foreground">
+							{error instanceof Error ? error.message : String(error)}
+						</p>
 					</CardContent>
 				</Card>
 			</div>

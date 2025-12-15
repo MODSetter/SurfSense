@@ -1,18 +1,24 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { FileText, MessageSquare, UserPlus, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import {
+	globalLLMConfigsAtom,
+	llmConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/llm-config/llm-config-query.atoms";
 import { OnboardActionCard } from "@/components/onboard/onboard-action-card";
 import { OnboardAdvancedSettings } from "@/components/onboard/onboard-advanced-settings";
 import { OnboardHeader } from "@/components/onboard/onboard-header";
 import { OnboardLLMSetup } from "@/components/onboard/onboard-llm-setup";
 import { OnboardLoading } from "@/components/onboard/onboard-loading";
 import { OnboardStats } from "@/components/onboard/onboard-stats";
-import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 const OnboardPage = () => {
@@ -21,20 +27,37 @@ const OnboardPage = () => {
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const { llmConfigs, loading: configsLoading, refreshConfigs } = useLLMConfigs(searchSpaceId);
-	const { globalConfigs, loading: globalConfigsLoading } = useGlobalLLMConfigs();
 	const {
-		preferences,
-		loading: preferencesLoading,
-		isOnboardingComplete,
-		updatePreferences,
-		refreshPreferences,
-	} = useLLMPreferences(searchSpaceId);
+		data: llmConfigs = [],
+		isFetching: configsLoading,
+		refetch: refreshConfigs,
+	} = useAtomValue(llmConfigsAtom);
+	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
+		useAtomValue(globalLLMConfigsAtom);
+	const {
+		data: preferences = {},
+		isFetching: preferencesLoading,
+		refetch: refreshPreferences,
+	} = useAtomValue(llmPreferencesAtom);
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
+
+	// Compute isOnboardingComplete
+	const isOnboardingComplete = useMemo(() => {
+		return !!(
+			preferences.long_context_llm_id &&
+			preferences.fast_llm_id &&
+			preferences.strategic_llm_id
+		);
+	}, [preferences]);
 
 	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
 	const [autoConfigComplete, setAutoConfigComplete] = useState(false);
 	const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 	const [showPromptSettings, setShowPromptSettings] = useState(false);
+
+	const handleRefreshPreferences = useCallback(async () => {
+		await refreshPreferences();
+	}, []);
 
 	// Track if we've already attempted auto-configuration
 	const hasAttemptedAutoConfig = useRef(false);
@@ -61,7 +84,7 @@ const OnboardPage = () => {
 			!configsLoading &&
 			!globalConfigsLoading
 		) {
-			wasCompleteOnMount.current = isOnboardingComplete();
+			wasCompleteOnMount.current = isOnboardingComplete;
 			hasCheckedInitialState.current = true;
 		}
 	}, [preferencesLoading, configsLoading, globalConfigsLoading, isOnboardingComplete]);
@@ -85,7 +108,7 @@ const OnboardPage = () => {
 	const autoConfigureLLMs = useCallback(async () => {
 		if (hasAttemptedAutoConfig.current) return;
 		if (globalConfigs.length === 0) return;
-		if (isOnboardingComplete()) {
+		if (isOnboardingComplete) {
 			setAutoConfigComplete(true);
 			return;
 		}
@@ -110,15 +133,15 @@ const OnboardPage = () => {
 				strategic_llm_id: defaultConfigId,
 			};
 
-			const success = await updatePreferences(newPreferences);
-
-			if (success) {
-				await refreshPreferences();
-				setAutoConfigComplete(true);
-				toast.success("AI models configured automatically!", {
-					description: "You can customize these in advanced settings.",
-				});
-			}
+			await updatePreferences({
+				search_space_id: searchSpaceId,
+				data: newPreferences,
+			});
+			await refreshPreferences();
+			setAutoConfigComplete(true);
+			toast.success("AI models configured automatically!", {
+				description: "You can customize these in advanced settings.",
+			});
 		} catch (error) {
 			console.error("Auto-configuration failed:", error);
 		} finally {
@@ -134,7 +157,7 @@ const OnboardPage = () => {
 	}, [configsLoading, globalConfigsLoading, preferencesLoading, autoConfigureLLMs]);
 
 	const allConfigs = [...globalConfigs, ...llmConfigs];
-	const isReady = autoConfigComplete || isOnboardingComplete();
+	const isReady = autoConfigComplete || isOnboardingComplete;
 
 	// Loading state
 	if (configsLoading || preferencesLoading || globalConfigsLoading || isAutoConfiguring) {
@@ -152,7 +175,7 @@ const OnboardPage = () => {
 
 	// Show LLM setup if no configs available OR if roles are not assigned yet
 	// This forces users to complete role assignment before seeing the final screen
-	if (allConfigs.length === 0 || !isOnboardingComplete()) {
+	if (allConfigs.length === 0 || !isOnboardingComplete) {
 		return (
 			<OnboardLLMSetup
 				searchSpaceId={searchSpaceId}
@@ -165,9 +188,9 @@ const OnboardPage = () => {
 						? t("configure_providers_and_assign_roles")
 						: t("complete_role_assignment")
 				}
-				onConfigCreated={refreshConfigs}
-				onConfigDeleted={refreshConfigs}
-				onPreferencesUpdated={refreshPreferences}
+				onConfigCreated={() => refreshConfigs()}
+				onConfigDeleted={() => refreshConfigs()}
+				onPreferencesUpdated={handleRefreshPreferences}
 			/>
 		);
 	}
@@ -257,9 +280,9 @@ const OnboardPage = () => {
 						setShowLLMSettings={setShowAdvancedSettings}
 						showPromptSettings={showPromptSettings}
 						setShowPromptSettings={setShowPromptSettings}
-						onConfigCreated={refreshConfigs}
-						onConfigDeleted={refreshConfigs}
-						onPreferencesUpdated={refreshPreferences}
+						onConfigCreated={() => refreshConfigs()}
+						onConfigDeleted={() => refreshConfigs()}
+						onPreferencesUpdated={handleRefreshPreferences}
 					/>
 
 					{/* Footer */}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	Bot,
@@ -15,6 +16,12 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import {
+	globalLLMConfigsAtom,
+	llmConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/llm-config/llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +34,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
 
 const ROLE_DESCRIPTIONS = {
 	long_context: {
@@ -62,24 +68,25 @@ interface LLMRoleManagerProps {
 
 export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const {
-		llmConfigs,
-		loading: configsLoading,
+		data: llmConfigs = [],
+		isFetching: configsLoading,
 		error: configsError,
-		refreshConfigs,
-	} = useLLMConfigs(searchSpaceId);
+		refetch: refreshConfigs,
+	} = useAtomValue(llmConfigsAtom);
 	const {
-		globalConfigs,
-		loading: globalConfigsLoading,
+		data: globalConfigs = [],
+		isFetching: globalConfigsLoading,
 		error: globalConfigsError,
-		refreshGlobalConfigs,
-	} = useGlobalLLMConfigs();
+		refetch: refreshGlobalConfigs,
+	} = useAtomValue(globalLLMConfigsAtom);
 	const {
-		preferences,
-		loading: preferencesLoading,
+		data: preferences = {},
+		isFetching: preferencesLoading,
 		error: preferencesError,
-		updatePreferences,
-		refreshPreferences,
-	} = useLLMPreferences(searchSpaceId);
+		refetch: refreshPreferences,
+	} = useAtomValue(llmPreferencesAtom);
+
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const [assignments, setAssignments] = useState({
 		long_context_llm_id: preferences.long_context_llm_id || "",
@@ -148,12 +155,13 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					: assignments.strategic_llm_id,
 		};
 
-		const success = await updatePreferences(numericAssignments);
+		await updatePreferences({
+			search_space_id: searchSpaceId,
+			data: numericAssignments,
+		});
 
-		if (success) {
-			setHasChanges(false);
-			toast.success("LLM role assignments saved successfully!");
-		}
+		setHasChanges(false);
+		toast.success("LLM role assignments saved successfully!");
 
 		setIsSaving(false);
 	};
@@ -203,7 +211,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={refreshConfigs}
+						onClick={() => refreshConfigs()}
 						disabled={isLoading}
 						className="flex items-center gap-2"
 					>
@@ -214,7 +222,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={refreshPreferences}
+						onClick={() => refreshPreferences()}
 						disabled={isLoading}
 						className="flex items-center gap-2"
 					>
@@ -230,7 +238,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				<Alert variant="destructive">
 					<AlertCircle className="h-4 w-4" />
 					<AlertDescription>
-						{configsError || preferencesError || globalConfigsError}
+						{(configsError?.message ?? "Failed to load LLM configurations") ||
+							(preferencesError?.message ?? "Failed to load preferences") ||
+							(globalConfigsError?.message ?? "Failed to load global configurations")}
 					</AlertDescription>
 				</Alert>
 			)}
@@ -484,7 +494,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 															<span className="font-medium">Assigned:</span>
 															<Badge variant="secondary">{assignedConfig.provider}</Badge>
 															<span>{assignedConfig.name}</span>
-															{assignedConfig.is_global && (
+															{"is_global" in assignedConfig && assignedConfig.is_global && (
 																<Badge variant="outline" className="text-xs">
 																	🌐 Global
 																</Badge>
