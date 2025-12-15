@@ -45,8 +45,8 @@ export const llmConfig = z.object({
 	language: z.string().max(50).nullable(),
 	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
 	search_space_id: z.number(),
-	created_at: z.string(),
-	updated_at: z.string().optional(),
+	created_at: z.string().nullable(),
+	updated_at: z.string().nullable().optional(),
 });
 
 export const globalLLMConfig = llmConfig
