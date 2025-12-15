@@ -52,8 +52,25 @@ export const getPermissionsResponse = z.object({
 	permissions: z.array(permissionInfo),
 });
 
+/**
+ * Create role
+ */
+export const createRoleRequest = z.object({
+	search_space_id: z.number(),
+	data: role.pick({
+		name: true,
+		description: true,
+		permissions: true,
+		is_default: true,
+	}),
+});
+
+export const createRoleResponse = role;
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
 export type PermissionInfo = z.infer<typeof permissionInfo>;
 export type GetPermissionsResponse = z.infer<typeof getPermissionsResponse>;
+export type CreateRoleRequest = z.infer<typeof createRoleRequest>;
+export type CreateRoleResponse = z.infer<typeof createRoleResponse>;
