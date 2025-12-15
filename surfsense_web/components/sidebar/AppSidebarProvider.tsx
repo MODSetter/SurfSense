@@ -17,10 +17,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useUser } from "@/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 
 interface AppSidebarProviderProps {
 	searchSpaceId: string;
@@ -68,7 +68,7 @@ export function AppSidebarProvider({
 		enabled: !!searchSpaceId,
 	});
 
-	const { user } = useUser();
+	const { data: user } = useAtomValue(currentUserAtom);
 
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
