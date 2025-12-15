@@ -39,6 +39,13 @@ export const invite = z.object({
 	role: role.nullable().optional(),
 });
 
+export const permissionInfo = z.object({
+	value: z.string(),
+	name: z.string(),
+	category: z.string(),
+});
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
+export type PermissionInfo = z.infer<typeof permissionInfo>;
