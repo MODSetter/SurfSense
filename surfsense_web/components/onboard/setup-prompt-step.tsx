@@ -22,9 +22,7 @@ interface SetupPromptStepProps {
 }
 
 export function SetupPromptStep({ searchSpaceId, onComplete }: SetupPromptStepProps) {
-	const communityPromptsQuery = useAtomValue(communityPromptsAtom);
-	const prompts = communityPromptsQuery.data || [];
-	const loadingPrompts = communityPromptsQuery.isPending;
+	const { data: prompts = [], isPending: loadingPrompts } = useAtomValue(communityPromptsAtom);
 	const [enableCitations, setEnableCitations] = useState(true);
 	const [customInstructions, setCustomInstructions] = useState("");
 	const [saving, setSaving] = useState(false);
