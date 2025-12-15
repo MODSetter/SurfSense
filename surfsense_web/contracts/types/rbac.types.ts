@@ -67,6 +67,15 @@ export const createRoleRequest = z.object({
 
 export const createRoleResponse = role;
 
+/**
+ * Get roles
+ */
+export const getRolesRequest = z.object({
+	search_space_id: z.number(),
+});
+
+export const getRolesResponse = z.array(role);
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -74,3 +83,5 @@ export type PermissionInfo = z.infer<typeof permissionInfo>;
 export type GetPermissionsResponse = z.infer<typeof getPermissionsResponse>;
 export type CreateRoleRequest = z.infer<typeof createRoleRequest>;
 export type CreateRoleResponse = z.infer<typeof createRoleResponse>;
+export type GetRolesRequest = z.infer<typeof getRolesRequest>;
+export type GetRolesResponse = z.infer<typeof getRolesResponse>;
