@@ -183,6 +183,23 @@ export const getInvitesRequest = z.object({
 
 export const getInvitesResponse = z.array(invite);
 
+/**
+ * Update invite
+ */
+export const updateInviteRequest = z.object({
+	search_space_id: z.number(),
+	invite_id: z.number(),
+	data: z.object({
+		name: z.string().max(100).optional(),
+		role_id: z.number().nullable().optional(),
+		expires_at: z.string().nullable().optional(),
+		max_uses: z.number().nullable().optional(),
+		is_active: z.boolean().optional(),
+	}),
+});
+
+export const updateInviteResponse = invite;
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -210,3 +227,5 @@ export type CreateInviteRequest = z.infer<typeof createInviteRequest>;
 export type CreateInviteResponse = z.infer<typeof createInviteResponse>;
 export type GetInvitesRequest = z.infer<typeof getInvitesRequest>;
 export type GetInvitesResponse = z.infer<typeof getInvitesResponse>;
+export type UpdateInviteRequest = z.infer<typeof updateInviteRequest>;
+export type UpdateInviteResponse = z.infer<typeof updateInviteResponse>;
