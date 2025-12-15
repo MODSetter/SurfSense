@@ -71,6 +71,10 @@ async def rerank_documents(state: State, config: RunnableConfig) -> dict[str, An
     reranks them using the reranker service based on the user's query,
     and updates the state with the reranked documents.
 
+    Documents are now document-grouped with a `chunks` list. Reranking is done
+    using the concatenated `content` field, and the full structure (including
+    `chunks`) is preserved for proper citation formatting.
+
     If reranking is disabled, returns the original documents without processing.
 
     Returns:
@@ -99,25 +103,12 @@ async def rerank_documents(state: State, config: RunnableConfig) -> dict[str, An
 
     # Perform reranking
     try:
-        # Convert documents to format expected by reranker if needed
-        reranker_input_docs = [
-            {
-                "chunk_id": doc.get("chunk_id", f"chunk_{i}"),
-                "content": doc.get("content", ""),
-                "score": doc.get("score", 0.0),
-                "document": {
-                    "id": doc.get("document", {}).get("id", ""),
-                    "title": doc.get("document", {}).get("title", ""),
-                    "document_type": doc.get("document", {}).get("document_type", ""),
-                    "metadata": doc.get("document", {}).get("metadata", {}),
-                },
-            }
-            for i, doc in enumerate(documents)
-        ]
-
-        # Rerank documents using the user's query
+        # Pass documents directly to reranker - it will use:
+        # - "content" (concatenated chunk text) for scoring
+        # - "chunk_id" (primary chunk id) for matching
+        # The full document structure including "chunks" is preserved
         reranked_docs = reranker_service.rerank_documents(
-            user_query + "\n" + reformulated_query, reranker_input_docs
+            user_query + "\n" + reformulated_query, documents
         )
 
         # Sort by score in descending order
@@ -141,8 +132,8 @@ async def answer_question(
 
     This node takes the relevant documents provided in the configuration and uses
     an LLM to generate a comprehensive answer to the user's question with
-    proper citations. The citations follow [citation:source_id] format using source IDs from the
-    documents. If no documents are provided, it will use chat history to generate
+    proper citations. The citations follow [citation:chunk_id] format using chunk IDs from the
+    `<chunk id='...'>` tags in the provided documents. If no documents are provided, it will use chat history to generate
     an answer.
 
     The response is streamed token-by-token for real-time updates to the frontend.
