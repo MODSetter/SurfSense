@@ -45,7 +45,15 @@ export const permissionInfo = z.object({
 	category: z.string(),
 });
 
+/**
+ * Get permissions
+ */
+export const getPermissionsResponse = z.object({
+	permissions: z.array(permissionInfo),
+});
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
 export type PermissionInfo = z.infer<typeof permissionInfo>;
+export type GetPermissionsResponse = z.infer<typeof getPermissionsResponse>;
