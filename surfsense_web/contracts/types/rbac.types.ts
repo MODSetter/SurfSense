@@ -212,6 +212,21 @@ export const deleteInviteResponse = z.object({
 	message: z.string(),
 });
 
+/**
+ * Get invite info by code
+ */
+export const getInviteInfoRequest = z.object({
+	invite_code: z.string(),
+});
+
+export const getInviteInfoResponse = z.object({
+	invite_code: z.string(),
+	search_space_name: z.string(),
+	role_name: z.string().nullable(),
+	expires_at: z.string().nullable(),
+	is_valid: z.boolean(),
+});
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -243,3 +258,5 @@ export type UpdateInviteRequest = z.infer<typeof updateInviteRequest>;
 export type UpdateInviteResponse = z.infer<typeof updateInviteResponse>;
 export type DeleteInviteRequest = z.infer<typeof deleteInviteRequest>;
 export type DeleteInviteResponse = z.infer<typeof deleteInviteResponse>;
+export type GetInviteInfoRequest = z.infer<typeof getInviteInfoRequest>;
+export type GetInviteInfoResponse = z.infer<typeof getInviteInfoResponse>;
