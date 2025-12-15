@@ -38,7 +38,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useUser } from "@/hooks/use-user";
+import { useAtomValue } from "jotai";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 
 /**
  * Generates a consistent color based on a string (email)
@@ -262,7 +263,7 @@ export const AppSidebar = memo(function AppSidebar({
 }: AppSidebarProps) {
 	const router = useRouter();
 	const { theme, setTheme } = useTheme();
-	const { user, loading: isLoadingUser } = useUser();
+	const { data: user, isPending: isLoadingUser } = useAtomValue(currentUserAtom);
 	const [isClient, setIsClient] = useState(false);
 
 	useEffect(() => {
