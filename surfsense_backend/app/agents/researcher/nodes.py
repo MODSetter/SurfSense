@@ -30,51 +30,59 @@ def extract_sources_from_documents(
     all_documents: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
-    Extract sources from all_documents and group them by document type.
+    Extract sources from **document-grouped** results and group them by document type.
 
     Args:
-        all_documents: List of document chunks from user-selected documents and connector-fetched documents
+        all_documents: List of document-grouped results from user-selected documents and connector-fetched documents
 
     Returns:
         List of source objects grouped by type for streaming
     """
-    # Group documents by their source type
+    # Group sources by their source type
     documents_by_type = {}
 
     for doc in all_documents:
-        # Get source type from the document
+        document_info = doc.get("document", {}) or {}
         source_type = doc.get("source", "UNKNOWN")
-        document_info = doc.get("document", {})
-        document_type = document_info.get("document_type", source_type)
-
-        # Use document_type if available, otherwise use source
+        document_type = document_info.get("document_type", source_type) or source_type
         group_type = document_type if document_type != "UNKNOWN" else source_type
-
         if group_type not in documents_by_type:
             documents_by_type[group_type] = []
         documents_by_type[group_type].append(doc)
 
     # Create source objects for each document type
     source_objects = []
-    source_id_counter = 1
-
     for doc_type, docs in documents_by_type.items():
         sources_list = []
 
         for doc in docs:
             document_info = doc.get("document", {})
             metadata = document_info.get("metadata", {})
+            url = (
+                metadata.get("url")
+                or metadata.get("source")
+                or metadata.get("page_url")
+                or metadata.get("VisitedWebPageURL")
+                or ""
+            )
 
-            # Create source entry based on document structure
-            source = {
-                "id": doc.get("chunk_id", source_id_counter),
-                "title": document_info.get("title", "Untitled Document"),
-                "description": doc.get("content", "").strip(),
-                "url": metadata.get("url", metadata.get("page_url", "")),
-            }
-
-            source_id_counter += 1
-            sources_list.append(source)
+            # Each chunk becomes a source entry so citations like [citation:<chunk_id>] resolve in UI.
+            for chunk in doc.get("chunks", []) or []:
+                chunk_id = chunk.get("chunk_id")
+                chunk_content = (chunk.get("content") or "").strip()
+                description = (
+                    chunk_content
+                    if len(chunk_content) <= 240
+                    else chunk_content[:240] + "..."
+                )
+                sources_list.append(
+                    {
+                        "id": chunk_id,
+                        "title": document_info.get("title", "Untitled Document"),
+                        "description": description,
+                        "url": url,
+                    }
+                )
 
         # Create group object
         group_name = (
@@ -127,50 +135,40 @@ async def fetch_documents_by_ids(
         documents = result.scalars().all()
 
         # Group documents by type for source object creation
-        documents_by_type = {}
-        formatted_documents = []
+        documents_by_type: dict[str, list[Document]] = {}
+        formatted_documents: list[dict[str, Any]] = []
+
+        from app.db import Chunk
 
         for doc in documents:
-            # Fetch associated chunks for this document (similar to DocumentHybridSearchRetriever)
-            from app.db import Chunk
-
+            # Fetch associated chunks for this document
             chunks_query = (
                 select(Chunk).where(Chunk.document_id == doc.id).order_by(Chunk.id)
             )
             chunks_result = await db_session.execute(chunks_query)
             chunks = chunks_result.scalars().all()
 
-            # Return individual chunks instead of concatenated content
-            if chunks:
-                for chunk in chunks:
-                    # Format each chunk to match connector service return format
-                    formatted_chunk = {
-                        "chunk_id": chunk.id,
-                        "content": chunk.content,  # Use individual chunk content
-                        "score": 0.5,  # High score since user explicitly selected these
-                        "document": {
-                            "id": chunk.id,
-                            "title": doc.title,
-                            "document_type": (
-                                doc.document_type.value
-                                if doc.document_type
-                                else "UNKNOWN"
-                            ),
-                            "metadata": doc.document_metadata or {},
-                        },
-                        "source": doc.document_type.value
-                        if doc.document_type
-                        else "UNKNOWN",
-                    }
-                    formatted_documents.append(formatted_chunk)
+            doc_type = doc.document_type.value if doc.document_type else "UNKNOWN"
+            documents_by_type.setdefault(doc_type, []).append(doc)
 
-                    # Group by document type for source objects
-                    doc_type = (
-                        doc.document_type.value if doc.document_type else "UNKNOWN"
-                    )
-                    if doc_type not in documents_by_type:
-                        documents_by_type[doc_type] = []
-                    documents_by_type[doc_type].append(doc)
+            doc_group = {
+                "document_id": doc.id,
+                "content": "\n\n".join(c.content for c in chunks)
+                if chunks
+                else (doc.content or ""),
+                "score": 0.5,  # High score since user explicitly selected these
+                "chunks": [{"chunk_id": c.id, "content": c.content} for c in chunks]
+                if chunks
+                else [],
+                "document": {
+                    "id": doc.id,
+                    "title": doc.title,
+                    "document_type": doc_type,
+                    "metadata": doc.document_metadata or {},
+                },
+                "source": doc_type,
+            }
+            formatted_documents.append(doc_group)
 
         # Create source objects for each document type (similar to ConnectorService)
         source_objects = []
@@ -1265,25 +1263,22 @@ async def fetch_relevant_documents(
             }
         )
 
-    # Deduplicate raw documents based on chunk_id or content
-    seen_chunk_ids = set()
+    # Deduplicate raw documents based on document_id (preferred) or content hash
+    seen_doc_ids = set()
     seen_content_hashes = set()
-    deduplicated_docs = []
+    deduplicated_docs: list[dict[str, Any]] = []
 
     for doc in all_raw_documents:
-        chunk_id = doc.get("chunk_id")
-        content = doc.get("content", "")
+        doc_id = (doc.get("document", {}) or {}).get("id")
+        content = doc.get("content", "") or ""
         content_hash = hash(content)
 
-        # Skip if we've seen this chunk_id or content before
-        if (
-            chunk_id and chunk_id in seen_chunk_ids
-        ) or content_hash in seen_content_hashes:
+        # Skip if we've seen this document_id or content before
+        if (doc_id and doc_id in seen_doc_ids) or content_hash in seen_content_hashes:
             continue
 
-        # Add to our tracking sets and keep this document
-        if chunk_id:
-            seen_chunk_ids.add(chunk_id)
+        if doc_id:
+            seen_doc_ids.add(doc_id)
         seen_content_hashes.add(content_hash)
         deduplicated_docs.append(doc)
 
@@ -1292,7 +1287,7 @@ async def fetch_relevant_documents(
         writer(
             {
                 "yield_value": streaming_service.format_terminal_info_delta(
-                    f"🧹 Found {len(deduplicated_docs)} unique document chunks after removing duplicates"
+                    f"🧹 Found {len(deduplicated_docs)} unique documents after removing duplicates"
                 )
             }
         )

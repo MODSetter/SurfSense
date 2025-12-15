@@ -16,7 +16,7 @@ You are an expert research assistant specializing in generating contextually rel
 
 <input>
 - chat_history: Provided in XML format within <chat_history> tags, containing <user> and <assistant> message pairs that show the chronological conversation flow. This provides context about what has already been discussed.
-- available_documents: Provided in XML format within <documents> tags, containing individual <document> elements with <metadata> (source_id, source_type) and <content> sections. This helps understand what information is accessible for answering potential follow-up questions.
+- available_documents: Provided in XML format within <documents> tags, containing individual <document> elements with <document_metadata> and <document_content> sections. Each document contains multiple `<chunk id='...'>...</chunk>` blocks inside <document_content>. This helps understand what information is accessible for answering potential follow-up questions.
 </input>
 
 <output_format>

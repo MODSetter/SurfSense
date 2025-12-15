@@ -1,3 +1,4 @@
+import json
 from typing import Any, NamedTuple
 
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
@@ -78,21 +79,59 @@ def convert_langchain_messages_to_dict(
 
 
 def format_document_for_citation(document: dict[str, Any]) -> str:
-    """Format a single document for citation in the standard XML format."""
-    content = document.get("content", "")
-    doc_info = document.get("document", {})
-    document_id = document.get("chunk_id", "")
+    """Format a single document for citation in the new document+chunks XML format.
+
+    IMPORTANT:
+    - Citations must reference real DB chunk IDs: `[citation:<chunk_id>]`
+    - Document metadata is included under <document_metadata>, but citations are NOT document_id-based.
+    """
+
+    def _to_cdata(value: Any) -> str:
+        text = "" if value is None else str(value)
+        # Safely nest CDATA even if the content includes "]]>"
+        return "<![CDATA[" + text.replace("]]>", "]]]]><![CDATA[>") + "]]>"
+
+    doc_info = document.get("document", {}) or {}
+    metadata = doc_info.get("metadata", {}) or {}
+
+    doc_id = doc_info.get("id", "")
+    title = doc_info.get("title", "")
     document_type = doc_info.get("document_type", "CRAWLED_URL")
+    url = (
+        metadata.get("url")
+        or metadata.get("source")
+        or metadata.get("page_url")
+        or metadata.get("VisitedWebPageURL")
+        or ""
+    )
+
+    metadata_json = json.dumps(metadata, ensure_ascii=False)
+
+    chunks = document.get("chunks") or []
+    if not chunks:
+        # Fallback: treat `content` as a single chunk (no chunk_id available for citation)
+        chunks = [{"chunk_id": "", "content": document.get("content", "")}]
+
+    chunks_xml = "\n".join(
+        [
+            f"<chunk id='{chunk.get('chunk_id', '')}'>{_to_cdata(chunk.get('content', ''))}</chunk>"
+            for chunk in chunks
+        ]
+    )
 
     return f"""<document>
-    <metadata>
-        <source_id>{document_id}</source_id>
-        <source_type>{document_type}</source_type>
-    </metadata>
-    <content>
-        {content}
-    </content>
-    </document>"""
+<document_metadata>
+<document_id>{doc_id}</document_id>
+<document_type>{document_type}</document_type>
+<title>{_to_cdata(title)}</title>
+<url>{_to_cdata(url)}</url>
+<metadata_json>{_to_cdata(metadata_json)}</metadata_json>
+</document_metadata>
+
+<document_content>
+{chunks_xml}
+</document_content>
+</document>"""
 
 
 def format_documents_section(
