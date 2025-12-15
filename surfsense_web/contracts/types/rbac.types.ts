@@ -239,6 +239,21 @@ export const acceptInviteResponse = z.object({
 	search_space_id: z.number(),
 });
 
+/**
+ * Get my access
+ */
+export const getMyAccessRequest = z.object({
+	search_space_id: z.number(),
+});
+
+export const getMyAccessResponse = z.object({
+	user_id: z.string(),
+	search_space_id: z.number(),
+	is_owner: z.boolean(),
+	permissions: z.array(z.string()),
+	role_name: z.string().nullable(),
+});
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -274,3 +289,5 @@ export type GetInviteInfoRequest = z.infer<typeof getInviteInfoRequest>;
 export type GetInviteInfoResponse = z.infer<typeof getInviteInfoResponse>;
 export type AcceptInviteRequest = z.infer<typeof acceptInviteRequest>;
 export type AcceptInviteResponse = z.infer<typeof acceptInviteResponse>;
+export type GetMyAccessRequest = z.infer<typeof getMyAccessRequest>;
+export type GetMyAccessResponse = z.infer<typeof getMyAccessResponse>;
