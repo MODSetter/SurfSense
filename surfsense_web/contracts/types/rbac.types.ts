@@ -24,5 +24,21 @@ export const membership = z.object({
 	user_is_active: z.boolean().nullable().optional(),
 });
 
+export const invite = z.object({
+	id: z.number(),
+	name: z.string().max(100).nullable().optional(),
+	invite_code: z.string(),
+	search_space_id: z.number(),
+	created_by_id: z.string().nullable(),
+	role_id: z.number().nullable(),
+	expires_at: z.string().nullable(),
+	max_uses: z.number().nullable(),
+	uses_count: z.number(),
+	is_active: z.boolean(),
+	created_at: z.string(),
+	role: role.nullable().optional(),
+});
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
+export type Invite = z.infer<typeof invite>;
