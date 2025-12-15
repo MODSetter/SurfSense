@@ -11,4 +11,18 @@ export const role = z.object({
 	created_at: z.string(),
 });
 
+export const membership = z.object({
+	id: z.number(),
+	user_id: z.string(),
+	search_space_id: z.number(),
+	role_id: z.number().nullable(),
+	is_owner: z.boolean(),
+	joined_at: z.string(),
+	created_at: z.string(),
+	role: role.nullable().optional(),
+	user_email: z.string().nullable().optional(),
+	user_is_active: z.boolean().nullable().optional(),
+});
+
 export type Role = z.infer<typeof role>;
+export type Membership = z.infer<typeof membership>;
