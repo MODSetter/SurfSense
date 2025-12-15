@@ -24,9 +24,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
-import { type CommunityPrompt, useCommunityPrompts } from "@/hooks/use-community-prompts";
+import { communityPromptsAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { useAtomValue } from "jotai";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface PromptConfigManagerProps {
@@ -39,7 +40,9 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
 		enabled: !!searchSpaceId,
 	});
-	const { prompts, loading: loadingPrompts } = useCommunityPrompts();
+	const communityPromptsQuery = useAtomValue(communityPromptsAtom);
+	const prompts = communityPromptsQuery.data || [];
+	const loadingPrompts = communityPromptsQuery.isPending;
 
 	const [enableCitations, setEnableCitations] = useState(true);
 	const [customInstructions, setCustomInstructions] = useState("");
