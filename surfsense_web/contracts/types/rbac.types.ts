@@ -227,6 +227,18 @@ export const getInviteInfoResponse = z.object({
 	is_valid: z.boolean(),
 });
 
+/**
+ * Accept invite
+ */
+export const acceptInviteRequest = z.object({
+	invite_code: z.string(),
+});
+
+export const acceptInviteResponse = z.object({
+	message: z.string(),
+	search_space_id: z.number(),
+});
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -260,3 +272,5 @@ export type DeleteInviteRequest = z.infer<typeof deleteInviteRequest>;
 export type DeleteInviteResponse = z.infer<typeof deleteInviteResponse>;
 export type GetInviteInfoRequest = z.infer<typeof getInviteInfoRequest>;
 export type GetInviteInfoResponse = z.infer<typeof getInviteInfoResponse>;
+export type AcceptInviteRequest = z.infer<typeof acceptInviteRequest>;
+export type AcceptInviteResponse = z.infer<typeof acceptInviteResponse>;
