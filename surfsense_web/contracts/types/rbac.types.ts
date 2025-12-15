@@ -200,6 +200,18 @@ export const updateInviteRequest = z.object({
 
 export const updateInviteResponse = invite;
 
+/**
+ * Delete invite
+ */
+export const deleteInviteRequest = z.object({
+	search_space_id: z.number(),
+	invite_id: z.number(),
+});
+
+export const deleteInviteResponse = z.object({
+	message: z.string(),
+});
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -229,3 +241,5 @@ export type GetInvitesRequest = z.infer<typeof getInvitesRequest>;
 export type GetInvitesResponse = z.infer<typeof getInvitesResponse>;
 export type UpdateInviteRequest = z.infer<typeof updateInviteRequest>;
 export type UpdateInviteResponse = z.infer<typeof updateInviteResponse>;
+export type DeleteInviteRequest = z.infer<typeof deleteInviteRequest>;
+export type DeleteInviteResponse = z.infer<typeof deleteInviteResponse>;
