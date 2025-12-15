@@ -123,6 +123,19 @@ export const getMembersRequest = z.object({
 
 export const getMembersResponse = z.array(membership);
 
+/**
+ * Update membership
+ */
+export const updateMembershipRequest = z.object({
+	search_space_id: z.number(),
+	membership_id: z.number(),
+	data: z.object({
+		role_id: z.number(),
+	}),
+});
+
+export const updateMembershipResponse = membership;
+
 export type Role = z.infer<typeof role>;
 export type Membership = z.infer<typeof membership>;
 export type Invite = z.infer<typeof invite>;
@@ -140,3 +153,5 @@ export type DeleteRoleRequest = z.infer<typeof deleteRoleRequest>;
 export type DeleteRoleResponse = z.infer<typeof deleteRoleResponse>;
 export type GetMembersRequest = z.infer<typeof getMembersRequest>;
 export type GetMembersResponse = z.infer<typeof getMembersResponse>;
+export type UpdateMembershipRequest = z.infer<typeof updateMembershipRequest>;
+export type UpdateMembershipResponse = z.infer<typeof updateMembershipResponse>;
