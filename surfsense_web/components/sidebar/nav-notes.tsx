@@ -10,6 +10,7 @@ import {
 	RefreshCw,
 	Share,
 	Trash2,
+	Eye,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -149,9 +150,9 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true }: NavNotesProps
 	);
 
 	return (
-		<SidebarGroup className="group-data-[collapsible=icon]:hidden">
+		<SidebarGroup className="group-data-[collapsible=icon]:hidden relative">
 			<Collapsible open={isOpen} onOpenChange={setIsOpen}>
-				<div className="flex items-center justify-between group/header">
+				<div className="flex items-center group/header relative">
 					<CollapsibleTrigger asChild>
 						<SidebarGroupLabel className="cursor-pointer rounded-md px-2 py-1.5 -mx-2 transition-colors flex items-center gap-1.5">
 							<ChevronRight
@@ -164,19 +165,33 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true }: NavNotesProps
 							</span>
 						</SidebarGroupLabel>
 					</CollapsibleTrigger>
-					{onAddNote && (
+					<div className="absolute top-1.5 right-1 flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity">
 						<button
 							type="button"
 							onClick={(e) => {
 								e.stopPropagation();
-								onAddNote();
+								// Add your view all handler here
+								// router.push('/dashboard/[search_space_id]/notes');
 							}}
-							className="opacity-0 group-hover/header:opacity-100 transition-opacity p-1 hover:bg-sidebar-accent rounded-md -mr-2 shrink-0"
-							aria-label="Add note"
+							aria-label="View all notes"
+							className="text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0 after:absolute after:-inset-2 md:after:hidden relative"
 						>
-							<Plus className="h-3.5 w-3.5 text-muted-foreground" />
+							<Eye className="h-4 w-4" />
 						</button>
-					)}
+						{onAddNote && (
+							<button
+								type="button"
+								onClick={(e) => {
+									e.stopPropagation();
+									onAddNote();
+								}}
+								aria-label="Add note"
+								className="text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0 after:absolute after:-inset-2 md:after:hidden relative"
+							>
+								<Plus className="h-4 w-4" />
+							</button>
+						)}
+					</div>
 				</div>
 				<CollapsibleContent>
 					<SidebarGroupContent>

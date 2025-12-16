@@ -138,13 +138,13 @@ export const iconMap: Record<string, LucideIcon> = {
 	MessageCircleMore,
 	Settings2,
 	SquareLibrary,
+	FileText,
 	SquareTerminal,
 	AlertCircle,
 	Info,
 	ExternalLink,
 	Trash2,
 	Podcast,
-	FileText,
 	Users,
 };
 

@@ -44,6 +44,13 @@ export function DashboardBreadcrumb() {
 	useEffect(() => {
 		if (segments[2] === "editor" && segments[3] && searchSpaceId) {
 			const documentId = segments[3];
+			
+			// Skip fetch for "new" notes
+			if (documentId === "new") {
+				setDocumentTitle(null);
+				return;
+			}
+
 			const token = getBearerToken();
 
 			if (token) {
@@ -110,7 +117,14 @@ export function DashboardBreadcrumb() {
 
 					// Handle editor sub-sections (document ID)
 					if (section === "editor") {
-						const documentLabel = documentTitle || subSection;
+						// Handle special cases for editor
+						let documentLabel: string;
+						if (subSection === "new") {
+							documentLabel = "New Note";
+						} else {
+							documentLabel = documentTitle || subSection;
+						}
+						
 						breadcrumbs.push({
 							label: t("documents"),
 							href: `/dashboard/${segments[1]}/documents`,

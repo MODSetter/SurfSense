@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, FileText, Loader2, Save, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, FileText, Loader2, Plus, SquarePen, Save, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { notesApiService } from "@/lib/apis/notes-api.service";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 interface EditorContent {
@@ -62,6 +63,8 @@ export default function EditorPage() {
 	const params = useParams();
 	const router = useRouter();
 	const documentId = params.documentId as string;
+	const searchSpaceId = Number(params.search_space_id);
+	const isNewNote = documentId === "new";
 
 	const [document, setDocument] = useState<EditorContent | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -72,8 +75,23 @@ export default function EditorPage() {
 	const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
 	// Fetch document content - DIRECT CALL TO FASTAPI
+	// Skip fetching if this is a new note
 	useEffect(() => {
 		async function fetchDocument() {
+			// For new notes, initialize with empty state
+			if (isNewNote) {
+				setDocument({
+					document_id: 0,
+					title: "Untitled",
+					document_type: "NOTE",
+					blocknote_document: null,
+					updated_at: null,
+				});
+				setEditorContent(null);
+				setLoading(false);
+				return;
+			}
+
 			const token = getBearerToken();
 			if (!token) {
 				console.error("No auth token found");
@@ -122,7 +140,7 @@ export default function EditorPage() {
 		if (documentId) {
 			fetchDocument();
 		}
-	}, [documentId, params.search_space_id]);
+	}, [documentId, params.search_space_id, isNewNote]);
 
 	// Track changes to mark as unsaved
 	useEffect(() => {
@@ -132,7 +150,7 @@ export default function EditorPage() {
 	}, [editorContent, document]);
 
 	// Check if this is a NOTE type document
-	const isNote = document?.document_type === "NOTE";
+	const isNote = isNewNote || document?.document_type === "NOTE";
 
 	// Extract title dynamically from editor content for notes, otherwise use document title
 	const displayTitle = useMemo(() => {
@@ -145,6 +163,7 @@ export default function EditorPage() {
 	// TODO: Maybe add Auto-save every 30 seconds - DIRECT CALL TO FASTAPI
 
 	// Save and exit - DIRECT CALL TO FASTAPI
+	// For new notes, create the note first, then save
 	const handleSave = async () => {
 		const token = getBearerToken();
 		if (!token) {
@@ -153,42 +172,90 @@ export default function EditorPage() {
 			return;
 		}
 
-		if (!editorContent) {
-			toast.error("No content to save");
-			return;
-		}
-
 		setSaving(true);
+		setError(null);
+
 		try {
-			// Save blocknote_document and trigger reindexing in background
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${params.search_space_id}/documents/${documentId}/save`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ blocknote_document: editorContent }),
+			// If this is a new note, create it first
+			if (isNewNote) {
+				const title = extractTitleFromBlockNote(editorContent);
+
+				// Create the note first
+				const note = await notesApiService.createNote({
+					search_space_id: searchSpaceId,
+					title: title,
+					blocknote_document: editorContent || undefined,
+				});
+
+				// If there's content, save it properly and trigger reindexing
+				if (editorContent) {
+					const response = await authenticatedFetch(
+						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${note.id}/save`,
+						{
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ blocknote_document: editorContent }),
+						}
+					);
+
+					if (!response.ok) {
+						const errorData = await response
+							.json()
+							.catch(() => ({ detail: "Failed to save document" }));
+						throw new Error(errorData.detail || "Failed to save document");
+					}
 				}
-			);
 
-			if (!response.ok) {
-				const errorData = await response
-					.json()
-					.catch(() => ({ detail: "Failed to save document" }));
-				throw new Error(errorData.detail || "Failed to save document");
+				setHasUnsavedChanges(false);
+				toast.success("Note created successfully! Reindexing in background...");
+
+				// Redirect to editor with the new document ID
+				setTimeout(() => {
+					router.push(`/dashboard/${searchSpaceId}/editor/${note.id}`);
+				}, 500);
+			} else {
+				// Existing document - save normally
+				if (!editorContent) {
+					toast.error("No content to save");
+					setSaving(false);
+					return;
+				}
+
+				// Save blocknote_document and trigger reindexing in background
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${params.search_space_id}/documents/${documentId}/save`,
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ blocknote_document: editorContent }),
+					}
+				);
+
+				if (!response.ok) {
+					const errorData = await response
+						.json()
+						.catch(() => ({ detail: "Failed to save document" }));
+					throw new Error(errorData.detail || "Failed to save document");
+				}
+
+				setHasUnsavedChanges(false);
+				toast.success("Document saved! Reindexing in background...");
+
+				// Small delay before redirect to show success message
+				setTimeout(() => {
+					router.push(`/dashboard/${params.search_space_id}/documents`);
+				}, 500);
 			}
-
-			setHasUnsavedChanges(false);
-			toast.success("Document saved! Reindexing in background...");
-
-			// Small delay before redirect to show success message
-			setTimeout(() => {
-				router.push(`/dashboard/${params.search_space_id}/documents`);
-			}, 500);
 		} catch (error) {
 			console.error("Error saving document:", error);
-			toast.error(
-				error instanceof Error ? error.message : "Failed to save document. Please try again."
-			);
+			const errorMessage =
+				error instanceof Error
+					? error.message
+					: isNewNote
+						? "Failed to create note. Please try again."
+						: "Failed to save document. Please try again.";
+			setError(errorMessage);
+			toast.error(errorMessage);
 		} finally {
 			setSaving(false);
 		}
@@ -248,7 +315,7 @@ export default function EditorPage() {
 		);
 	}
 
-	if (!document) {
+	if (!document && !isNewNote) {
 		return (
 			<div className="flex items-center justify-center min-h-[400px] p-6">
 				<Card className="w-full max-w-md">
@@ -286,13 +353,20 @@ export default function EditorPage() {
 						{saving ? (
 							<>
 								<Loader2 className="h-4 w-4 animate-spin" />
-								Saving...
+								{isNewNote ? "Creating..." : "Saving..."}
 							</>
 						) : (
-							<>
-								<Save className="h-4 w-4" />
-								Save & Exit
-							</>
+							isNewNote ? (
+									<>
+										<SquarePen className="h-4 w-4" />
+										Create Note
+									</>
+								) : (
+									<>
+										<Save className="h-4 w-4" />
+										Save & Exit
+									</>
+								)
 						)}
 					</Button>
 				</div>
@@ -301,9 +375,21 @@ export default function EditorPage() {
 			{/* Editor Container */}
 			<div className="flex-1 overflow-hidden relative">
 				<div className="h-full w-full overflow-auto p-6">
+					{error && (
+						<motion.div
+							initial={{ opacity: 0, y: -10 }}
+							animate={{ opacity: 1, y: 0 }}
+							className="mb-6 max-w-4xl mx-auto"
+						>
+							<div className="flex items-center gap-2 p-4 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive">
+								<AlertCircle className="h-5 w-5 shrink-0" />
+								<p className="text-sm">{error}</p>
+							</div>
+						</motion.div>
+					)}
 					<div className="max-w-4xl mx-auto">
 						<BlockNoteEditor
-							initialContent={editorContent}
+							initialContent={isNewNote ? undefined : editorContent}
 							onChange={setEditorContent}
 							useTitleBlock={isNote}
 						/>
