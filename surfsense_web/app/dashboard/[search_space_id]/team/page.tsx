@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import {
 	type ColumnDef,
 	type ColumnFiltersState,
@@ -44,6 +45,8 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { rolesApiService } from "@/lib/apis/roles-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -151,13 +154,20 @@ export default function TeamManagementPage() {
 		removeMember,
 	} = useMembers(searchSpaceId);
 	const {
-		roles,
-		loading: rolesLoading,
-		fetchRoles,
-		createRole,
+	createRole,
 		updateRole,
 		deleteRole,
 	} = useRoles(searchSpaceId);
+
+	const {
+		data: roles = [],
+		isLoading: rolesLoading,
+		refetch: fetchRoles,
+	} = useQuery({
+		queryKey: cacheKeys.roles.all(searchSpaceId.toString()),
+		queryFn: () => rolesApiService.getRoles({ search_space_id: searchSpaceId }),
+		enabled: !!searchSpaceId,
+	});
 	const {
 		invites,
 		loading: invitesLoading,
