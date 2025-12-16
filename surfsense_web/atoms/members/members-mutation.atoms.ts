@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import type {
 	UpdateMembershipRequest,
 	UpdateMembershipResponse,
+	DeleteMembershipRequest,
+	DeleteMembershipResponse,
 } from "@/contracts/types/members.types";
 import { membersApiService } from "@/lib/apis/members-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -21,6 +23,23 @@ export const updateMemberMutationAtom = atomWithMutation(() => {
 		},
 		onError: () => {
 			toast.error("Failed to update member");
+		},
+	};
+});
+
+export const deleteMemberMutationAtom = atomWithMutation(() => {
+	return {
+		mutationFn: async (request: DeleteMembershipRequest) => {
+			return membersApiService.deleteMember(request);
+		},
+		onSuccess: (_: DeleteMembershipResponse, request: DeleteMembershipRequest) => {
+			toast.success("Member removed successfully");
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.members.all(request.search_space_id.toString()),
+			});
+		},
+		onError: () => {
+			toast.error("Failed to remove member");
 		},
 	};
 });
