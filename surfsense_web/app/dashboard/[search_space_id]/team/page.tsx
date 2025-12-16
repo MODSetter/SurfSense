@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { createRoleMutationAtom, updateRoleMutationAtom, deleteRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
 import { useAtomValue } from "jotai";
 import type { CreateRoleRequest, UpdateRoleRequest, DeleteRoleRequest } from "@/contracts/types/roles.types";
+import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import {
@@ -112,7 +113,6 @@ import {
 	type Role,
 	useInvites,
 	useMembers,
-	usePermissions,
 	useUserAccess,
 } from "@/hooks/use-rbac";
 import { cn } from "@/lib/utils";
@@ -210,7 +210,20 @@ export default function TeamManagementPage() {
 		createInvite,
 		revokeInvite,
 	} = useInvites(searchSpaceId);
-	const { groupedPermissions, loading: permissionsLoading } = usePermissions();
+
+	const { data: permissionsData, isLoading: permissionsLoading } = useAtomValue(permissionsAtom);
+	const permissions = permissionsData?.permissions || [];
+	const groupedPermissions = useMemo(() => {
+		const grouped: Record<string, typeof permissions> = {};
+		permissions.forEach((permission) => {
+			const category = permission.permission_name.split(":")[0];
+			if (!grouped[category]) {
+				grouped[category] = [];
+			}
+			grouped[category].push(permission);
+		});
+		return grouped;
+	}, [permissions]);
 
 	const canManageMembers = hasPermission("members:view");
 	const canManageRoles = hasPermission("roles:read");
