@@ -66,7 +66,11 @@ function ensureTitleBlock(content: any[] | undefined): any[] {
 	return content;
 }
 
-export default function BlockNoteEditor({ initialContent, onChange, useTitleBlock = false }: BlockNoteEditorProps) {
+export default function BlockNoteEditor({
+	initialContent,
+	onChange,
+	useTitleBlock = false,
+}: BlockNoteEditorProps) {
 	const { resolvedTheme } = useTheme();
 
 	// Track the initial content to prevent re-initialization

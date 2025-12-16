@@ -172,6 +172,10 @@ async def save_document(
     blocknote_document = data.get("blocknote_document")
     if not blocknote_document:
         raise HTTPException(status_code=400, detail="blocknote_document is required")
+    
+    # Add type validation
+    if not isinstance(blocknote_document, list):
+        raise HTTPException(status_code=400, detail="blocknote_document must be a list")
 
     # For NOTE type documents, extract title from first block (heading)
     if (

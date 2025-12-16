@@ -1,13 +1,6 @@
 "use client";
 
-import {
-	FileText,
-	type LucideIcon,
-	MoreHorizontal,
-	Plus,
-	RefreshCw,
-	Trash2,
-} from "lucide-react";
+import { FileText, type LucideIcon, MoreHorizontal, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
@@ -86,7 +79,7 @@ export function AllNotesSidebar({
 			const sidebarElement = document.querySelector(
 				'[data-slot="sidebar"][data-sidebar="sidebar"]'
 			) as HTMLElement;
-			
+
 			if (sidebarElement) {
 				const rect = sidebarElement.getBoundingClientRect();
 				// Set the left position to be the right edge of the sidebar
@@ -116,7 +109,7 @@ export function AllNotesSidebar({
 		// Update on window resize and scroll
 		window.addEventListener("resize", updatePosition);
 		window.addEventListener("scroll", updatePosition, true);
-		
+
 		// Use MutationObserver to watch for sidebar state changes
 		const observer = new MutationObserver(updatePosition);
 		const sidebarWrapper = document.querySelector('[data-slot="sidebar-wrapper"]');
@@ -234,7 +227,6 @@ export function AllNotesSidebar({
 						}}
 						disabled={isDeletingNote}
 						className={cn("group/item relative", isDeletingNote && "opacity-50")}
-						size="sm"
 					>
 						<note.icon className="h-4 w-4 shrink-0" />
 						<span className={cn("truncate", isDeletingNote && "opacity-50")}>{note.name}</span>
@@ -270,9 +262,7 @@ export function AllNotesSidebar({
 											className={isDeleteAction ? "text-destructive" : ""}
 										>
 											<ActionIcon className="mr-2 h-4 w-4" />
-											<span>
-												{isDeletingNote && isDeleteAction ? "Deleting..." : action.name}
-											</span>
+											<span>{isDeletingNote && isDeleteAction ? "Deleting..." : action.name}</span>
 										</DropdownMenuItem>
 									);
 								})}
@@ -290,7 +280,7 @@ export function AllNotesSidebar({
 			ref={sidebarRef}
 			aria-label="All notes sidebar"
 			className={cn(
-				"fixed top-16 bottom-0 z-[100] w-80 bg-sidebar text-sidebar-foreground shadow-xl",
+				"fixed top-0 bottom-0 z-[100] w-80 bg-sidebar text-sidebar-foreground shadow-xl",
 				"transition-all duration-300 ease-out",
 				!open && "pointer-events-none"
 			)}
@@ -319,84 +309,83 @@ export function AllNotesSidebar({
 				}
 			}}
 		>
-				<div className="flex h-full flex-col">
-					{/* Header */}
-					<div className="flex h-16 shrink-0 items-center justify-between px-4">
-						<h2 className="text-sm font-semibold">{t("all_notes") || "All Notes"}</h2>
-					</div>
-
-					{/* Content */}
-					<ScrollArea className="flex-1">
-						<div className="p-2">
-							<SidebarGroup>
-								<SidebarGroupContent>
-									{isLoadingNotes ? (
-										<SidebarMenuItem>
-											<SidebarMenuButton disabled size="sm">
-												<span className="text-xs text-muted-foreground">
-													{t("loading") || "Loading..."}
-												</span>
-											</SidebarMenuButton>
-										</SidebarMenuItem>
-									) : notesError ? (
-										<SidebarMenuItem>
-											<SidebarMenuButton disabled size="sm">
-												<span className="text-xs text-destructive">
-													{t("error_loading_notes") || "Error loading notes"}
-												</span>
-											</SidebarMenuButton>
-										</SidebarMenuItem>
-									) : allNotes.length > 0 ? (
-										<SidebarMenu className="list-none">
-											{allNotes.map((note) => (
-												<NoteItemComponent key={note.id || note.name} note={note} />
-											))}
-										</SidebarMenu>
-									) : (
-										<SidebarMenuItem className="list-none">
-											{onAddNote ? (
-												<SidebarMenuButton
-													onClick={() => {
-														onAddNote();
-														onOpenChange(false);
-													}}
-													className="text-muted-foreground hover:text-sidebar-foreground text-xs"
-													size="sm"
-												>
-													<Plus className="h-4 w-4" />
-													<span>{t("create_new_note") || "Create a new note"}</span>
-												</SidebarMenuButton>
-											) : (
-												<SidebarMenuButton disabled className="text-muted-foreground text-xs" size="sm">
-													<FileText className="h-4 w-4" />
-													<span>{t("no_notes") || "No notes yet"}</span>
-												</SidebarMenuButton>
-											)}
-										</SidebarMenuItem>
-									)}
-								</SidebarGroupContent>
-							</SidebarGroup>
-						</div>
-					</ScrollArea>
-
-					{/* Footer with Add Note button */}
-					{onAddNote && (
-						<div className="p-2">
-							<Button
-								onClick={() => {
-									onAddNote();
-									onOpenChange(false);
-								}}
-								className="w-full"
-								size="sm"
-							>
-								<Plus className="mr-2 h-4 w-4" />
-								{t("create_new_note") || "Create a new note"}
-							</Button>
-						</div>
-					)}
+			<div className="flex h-full flex-col">
+				{/* Header */}
+				<div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-sidebar">
+					<h2 className="text-sm font-semibold">{t("all_notes") || "All Notes"}</h2>
 				</div>
-			</section>
+
+				{/* Content */}
+				<ScrollArea className="flex-1">
+					<div className="p-2">
+						<SidebarGroup>
+							<SidebarGroupContent>
+								{isLoadingNotes ? (
+									<SidebarMenuItem>
+										<SidebarMenuButton disabled>
+											<span className="text-xs text-muted-foreground">
+												{t("loading") || "Loading..."}
+											</span>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								) : notesError ? (
+									<SidebarMenuItem>
+										<SidebarMenuButton disabled>
+											<span className="text-xs text-destructive">
+												{t("error_loading_notes") || "Error loading notes"}
+											</span>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								) : allNotes.length > 0 ? (
+									<SidebarMenu className="list-none">
+										{allNotes.map((note) => (
+											<NoteItemComponent key={note.id || note.name} note={note} />
+										))}
+									</SidebarMenu>
+								) : (
+									<SidebarMenuItem className="list-none">
+										{onAddNote ? (
+											<SidebarMenuButton
+												onClick={() => {
+													onAddNote();
+													onOpenChange(false);
+												}}
+												className="text-muted-foreground hover:text-sidebar-foreground text-xs"
+											>
+												<Plus className="h-4 w-4" />
+												<span>{t("create_new_note") || "Create a new note"}</span>
+											</SidebarMenuButton>
+										) : (
+											<SidebarMenuButton disabled className="text-muted-foreground text-xs">
+												<FileText className="h-4 w-4" />
+												<span>{t("no_notes") || "No notes yet"}</span>
+											</SidebarMenuButton>
+										)}
+									</SidebarMenuItem>
+								)}
+							</SidebarGroupContent>
+						</SidebarGroup>
+					</div>
+				</ScrollArea>
+
+				{/* Footer with Add Note button */}
+				{onAddNote && (
+					<div className="p-2">
+						<Button
+							onClick={() => {
+								onAddNote();
+								onOpenChange(false);
+							}}
+							className="w-full"
+							size="sm"
+						>
+							<Plus className="mr-2 h-4 w-4" />
+							{t("create_new_note") || "Create a new note"}
+						</Button>
+					</div>
+				)}
+			</div>
+		</section>
 	);
 
 	// Render sidebar via portal to avoid stacking context issues
@@ -406,4 +395,3 @@ export function AllNotesSidebar({
 
 	return createPortal(sidebarContent, document.body);
 }
-

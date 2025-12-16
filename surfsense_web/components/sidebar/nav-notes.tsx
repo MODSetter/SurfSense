@@ -15,11 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useState, useRef } from "react";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -100,7 +96,6 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 						onClick={() => router.push(note.url)}
 						disabled={isDeletingNote}
 						className={`group/item relative ${isDeletingNote ? "opacity-50" : ""}`}
-						size="sm"
 					>
 						<note.icon className="h-4 w-4 shrink-0" />
 						<span className={`truncate ${isDeletingNote ? "opacity-50" : ""}`}>{note.name}</span>
@@ -164,9 +159,7 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 									isOpen ? "rotate-90" : ""
 								}`}
 							/>
-							<span className="text-xs font-medium text-sidebar-foreground/70">
-								{t("notes") || "Notes"}
-							</span>
+							<span>{t("notes") || "Notes"}</span>
 						</SidebarGroupLabel>
 					</CollapsibleTrigger>
 					<div className="absolute top-1.5 right-1 flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity">
@@ -223,13 +216,12 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 										<SidebarMenuButton
 											onClick={onAddNote}
 											className="text-muted-foreground hover:text-sidebar-foreground text-xs"
-											size="sm"
 										>
 											<Plus className="h-4 w-4" />
 											<span>{t("create_new_note") || "Create a new note"}</span>
 										</SidebarMenuButton>
 									) : (
-										<SidebarMenuButton disabled className="text-muted-foreground text-xs" size="sm">
+										<SidebarMenuButton disabled className="text-muted-foreground text-xs">
 											<FileText className="h-4 w-4" />
 											<span>{t("no_notes") || "No notes yet"}</span>
 										</SidebarMenuButton>
@@ -252,4 +244,3 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 		</SidebarGroup>
 	);
 }
-

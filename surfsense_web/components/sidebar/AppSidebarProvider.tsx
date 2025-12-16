@@ -187,8 +187,12 @@ export function AppSidebarProvider({
 
 		// Sort notes by updated_at (most recent first), fallback to created_at if updated_at is null
 		const sortedNotes = [...notesData.items].sort((a, b) => {
-			const dateA = a.updated_at ? new Date(a.updated_at).getTime() : new Date(a.created_at).getTime();
-			const dateB = b.updated_at ? new Date(b.updated_at).getTime() : new Date(b.created_at).getTime();
+			const dateA = a.updated_at
+				? new Date(a.updated_at).getTime()
+				: new Date(a.created_at).getTime();
+			const dateB = b.updated_at
+				? new Date(b.updated_at).getTime()
+				: new Date(b.created_at).getTime();
 			return dateB - dateA; // Descending order (most recent first)
 		});
 

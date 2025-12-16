@@ -156,7 +156,12 @@ const DashboardPage = () => {
 		},
 	};
 
-	const { data: searchSpaces = [], isLoading: loading, error, refetch: refreshSearchSpaces } = useAtomValue(searchSpacesAtom);
+	const {
+		data: searchSpaces = [],
+		isLoading: loading,
+		error,
+		refetch: refreshSearchSpaces,
+	} = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 
 	// Fetch user details
@@ -172,7 +177,7 @@ const DashboardPage = () => {
 	};
 
 	if (loading) return <LoadingScreen />;
-	if (error) return <ErrorScreen message={error?.message || 'Failed to load search spaces'} />;
+	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
 
 	const handleDeleteSearchSpace = async (id: number) => {
 		await deleteSearchSpace({ id });
