@@ -124,8 +124,30 @@ class InvitesApiService {
 		}
 
 		return baseApiService.get(
-			`/api/v1/invites/${parsedRequest.data.invite_code}/info`,
-			getInviteInfoResponse
+		`/api/v1/invites/${parsedRequest.data.invite_code}/info`,
+		getInviteInfoResponse
+	);
+	};
+
+	/**
+	 * Accept an invite
+	 */
+	acceptInvite = async (request: AcceptInviteRequest) => {
+		const parsedRequest = acceptInviteRequest.safeParse(request);
+		
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+			
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.post(
+			`/api/v1/invites/accept`,
+			acceptInviteResponse,
+			{
+				body: parsedRequest.data,
+			}
 		);
 	};
 }
