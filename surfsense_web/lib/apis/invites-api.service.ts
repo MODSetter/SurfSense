@@ -49,6 +49,25 @@ class InvitesApiService {
 			}
 		);
 	};
+
+	/**
+	 * Get all invites for a search space
+	 */
+	getInvites = async (request: GetInvitesRequest) => {
+		const parsedRequest = getInvitesRequest.safeParse(request);
+		
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+			
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites`,
+			getInvitesResponse
+		);
+	};
 }
 
 export const invitesApiService = new InvitesApiService();
