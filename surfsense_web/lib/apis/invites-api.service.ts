@@ -64,8 +64,30 @@ class InvitesApiService {
 		}
 
 		return baseApiService.get(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites`,
-			getInvitesResponse
+		`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites`,
+		getInvitesResponse
+	);
+	};
+
+	/**
+	 * Update an invite
+	 */
+	updateInvite = async (request: UpdateInviteRequest) => {
+		const parsedRequest = updateInviteRequest.safeParse(request);
+		
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+			
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.put(
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
+			updateInviteResponse,
+			{
+				body: parsedRequest.data.data,
+			}
 		);
 	};
 }
