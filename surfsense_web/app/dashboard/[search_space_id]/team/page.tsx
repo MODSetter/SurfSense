@@ -45,9 +45,9 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
+import { createRoleMutationAtom, updateRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
 import { useAtomValue } from "jotai";
-import type { CreateRoleRequest } from "@/contracts/types/roles.types";
+import type { CreateRoleRequest, UpdateRoleRequest } from "@/contracts/types/roles.types";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import {
@@ -156,11 +156,23 @@ export default function TeamManagementPage() {
 		removeMember,
 	} = useMembers(searchSpaceId);
 	const {
-		updateRole,
 		deleteRole,
 	} = useRoles(searchSpaceId);
 
 	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
+	const { mutateAsync: updateRole } = useAtomValue(updateRoleMutationAtom);
+
+	const handleUpdateRole = useCallback(
+		async (roleId: number, data: { permissions?: string[] }): Promise<Role> => {
+			const request: UpdateRoleRequest = {
+				search_space_id: searchSpaceId,
+				role_id: roleId,
+				data: data,
+			};
+			return await updateRole(request);
+		},
+		[updateRole, searchSpaceId]
+	);
 
 	const handleCreateRole = useCallback(
 		async (roleData: CreateRoleRequest['data']): Promise<Role> => {
@@ -375,7 +387,7 @@ export default function TeamManagementPage() {
 								roles={roles}
 								groupedPermissions={groupedPermissions}
 								loading={rolesLoading}
-								onUpdateRole={updateRole}
+								onUpdateRole={handleUpdateRole}
 								onDeleteRole={deleteRole}
 								canUpdate={hasPermission("roles:update")}
 								canDelete={hasPermission("roles:delete")}
