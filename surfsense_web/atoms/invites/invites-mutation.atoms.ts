@@ -66,3 +66,20 @@ export const deleteInviteMutationAtom = atomWithMutation(() => ({
 		toast.error("Failed to delete invite");
 	},
 }));
+
+/**
+ * Mutation atom for accepting an invite
+ */
+export const acceptInviteMutationAtom = atomWithMutation(() => ({
+	mutationFn: async (request: AcceptInviteRequest) => {
+		return invitesApiService.acceptInvite(request);
+	},
+	onSuccess: () => {
+		queryClient.invalidateQueries({ queryKey: ["search-spaces"] });
+		toast.success("Invite accepted successfully");
+	},
+	onError: (error: Error) => {
+		console.error("Error accepting invite:", error);
+		toast.error("Failed to accept invite");
+	},
+}));
