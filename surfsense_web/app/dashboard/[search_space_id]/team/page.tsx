@@ -45,6 +45,9 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { createRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
+import { useAtomValue } from "jotai";
+import type { CreateRoleRequest } from "@/contracts/types/roles.types";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import {
@@ -107,7 +110,6 @@ import {
 	type InviteCreate,
 	type Member,
 	type Role,
-	type RoleCreate,
 	useInvites,
 	useMembers,
 	usePermissions,
@@ -154,10 +156,22 @@ export default function TeamManagementPage() {
 		removeMember,
 	} = useMembers(searchSpaceId);
 	const {
-	createRole,
 		updateRole,
 		deleteRole,
 	} = useRoles(searchSpaceId);
+
+	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
+
+	const handleCreateRole = useCallback(
+		async (roleData: CreateRoleRequest['data']): Promise<Role> => {
+			const request: CreateRoleRequest = {
+				search_space_id: searchSpaceId,
+				data: roleData,
+			};
+			return await createRole(request);
+		},
+		[createRole, searchSpaceId]
+	);
 
 	const {
 		data: roles = [],
@@ -339,7 +353,7 @@ export default function TeamManagementPage() {
 							{activeTab === "roles" && hasPermission("roles:create") && (
 								<CreateRoleDialog
 									groupedPermissions={groupedPermissions}
-									onCreateRole={createRole}
+									onCreateRole={handleCreateRole}
 								/>
 							)}
 						</div>
@@ -1168,7 +1182,7 @@ function CreateRoleDialog({
 	onCreateRole,
 }: {
 	groupedPermissions: Record<string, { value: string; name: string; category: string }[]>;
-	onCreateRole: (data: RoleCreate) => Promise<Role>;
+	onCreateRole: (data: CreateRoleRequest['data']) => Promise<Role>;
 }) {
 	const [open, setOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
@@ -1187,7 +1201,7 @@ function CreateRoleDialog({
 		try {
 			await onCreateRole({
 				name: name.trim(),
-				description: description.trim() || undefined,
+				description: description.trim() || null,
 				permissions: selectedPermissions,
 				is_default: isDefault,
 			});
