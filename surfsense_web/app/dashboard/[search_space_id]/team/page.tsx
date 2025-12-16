@@ -47,7 +47,7 @@ import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { createRoleMutationAtom, updateRoleMutationAtom, deleteRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
 import { useAtomValue } from "jotai";
-import type { CreateRoleRequest, UpdateRoleRequest, DeleteRoleRequest } from "@/contracts/types/roles.types";
+import type { CreateRoleRequest, UpdateRoleRequest, DeleteRoleRequest, Role } from "@/contracts/types/roles.types";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -110,7 +110,6 @@ import {
 	type Invite,
 	type InviteCreate,
 	type Member,
-	type Role,
 	useInvites,
 	useMembers,
 	useUserAccess,
