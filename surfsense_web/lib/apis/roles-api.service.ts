@@ -37,6 +37,73 @@ class RolesApiService {
 			},
 		);
 	};
+
+	getRoles = async (request: GetRolesRequest) => {
+		const parsedRequest = getRolesRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(
+			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles`,
+			getRolesResponse,
+		);
+	};
+
+	getRoleById = async (request: GetRoleByIdRequest) => {
+		const parsedRequest = getRoleByIdRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(
+			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
+			getRoleByIdResponse,
+		);
+	};
+
+	updateRole = async (request: UpdateRoleRequest) => {
+		const parsedRequest = updateRoleRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.put(
+			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
+			updateRoleResponse,
+			{
+				body: parsedRequest.data.data,
+			},
+		);
+	};
+
+	deleteRole = async (request: DeleteRoleRequest) => {
+		const parsedRequest = deleteRoleRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.delete(
+			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
+			deleteRoleResponse,
+		);
+	};
 }
 
 export const rolesApiService = new RolesApiService();
