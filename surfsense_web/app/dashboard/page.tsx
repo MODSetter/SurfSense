@@ -35,10 +35,10 @@ import {
 } from "@/components/ui/card";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
-import { useUser } from "@/hooks";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 
 /**
  * Formats a date string into a readable format
@@ -159,8 +159,7 @@ const DashboardPage = () => {
 	const { data: searchSpaces = [], isLoading: loading, error, refetch: refreshSearchSpaces } = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 
-	// Fetch user details
-	const { user, loading: isLoadingUser, error: userError } = useUser();
+	const { data: user, isPending: isLoadingUser, error: userError } = useAtomValue(currentUserAtom);
 
 	// Create user object for UserDropdown
 	const customUser = {
