@@ -148,19 +148,6 @@ export function NavProjects({ chats }: { chats: ChatItem[] }) {
 	return (
 		<SidebarGroup className="group-data-[collapsible=icon]:hidden">
 			<SidebarGroupLabel>{t("recent_chats")}</SidebarGroupLabel>
-
-			{/* Search Input */}
-			{showSearch && (
-				<div className="px-2 pb-2">
-					<SidebarInput
-						placeholder={t("search_chats")}
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						className="h-8"
-					/>
-				</div>
-			)}
-
 			<SidebarMenu>
 				{/* Chat Items */}
 				{filteredChats.length > 0 ? (

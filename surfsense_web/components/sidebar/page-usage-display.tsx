@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail } from "lucide-react";
+import { ChevronRight, Mail } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
 	SidebarGroup,
@@ -8,6 +8,7 @@ import {
 	SidebarGroupLabel,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface PageUsageDisplayProps {
 	pagesUsed: number;
@@ -21,19 +22,16 @@ export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProp
 
 	return (
 		<SidebarGroup>
-			<SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
-				Page Usage
-			</SidebarGroupLabel>
-			<SidebarGroupContent>
-				<div className="space-y-2 px-2 py-2">
-					{isCollapsed ? (
-						// Show only a compact progress indicator when collapsed
-						<div className="flex justify-center">
-							<Progress value={usagePercentage} className="h-2 w-8" />
-						</div>
-					) : (
-						// Show full details when expanded
-						<>
+			<Collapsible defaultOpen={false} className="group-data-[collapsible=icon]:hidden">
+				<CollapsibleTrigger asChild>
+					<SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent rounded-md px-2 py-1.5 -mx-2 transition-colors flex items-center justify-between group">
+						<span>Page Usage</span>
+						<ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-90" />
+					</SidebarGroupLabel>
+				</CollapsibleTrigger>
+				<CollapsibleContent>
+					<SidebarGroupContent>
+						<div className="space-y-2 px-2 py-2">
 							<div className="flex justify-between items-center text-xs">
 								<span className="text-muted-foreground">
 									{pagesUsed.toLocaleString()} / {pagesLimit.toLocaleString()} pages
@@ -54,10 +52,18 @@ export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProp
 									to increase limits
 								</p>
 							</div>
-						</>
-					)}
-				</div>
-			</SidebarGroupContent>
+						</div>
+					</SidebarGroupContent>
+				</CollapsibleContent>
+			</Collapsible>
+			{isCollapsed && (
+				// Show only a compact progress indicator when sidebar is collapsed
+				<SidebarGroupContent>
+					<div className="flex justify-center px-2 py-2">
+						<Progress value={usagePercentage} className="h-2 w-8" />
+					</div>
+				</SidebarGroupContent>
+			)}
 		</SidebarGroup>
 	);
 }

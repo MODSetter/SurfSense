@@ -2,6 +2,7 @@
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { useUser } from "@/hooks";
 import { useQuery } from "@tanstack/react-query";
+import { notesApiService } from "@/lib/apis/notes-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
@@ -48,6 +50,7 @@ export function AppSidebarProvider({
 }: AppSidebarProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
+	const router = useRouter();
 	const setChatsQueryParams = useSetAtom(globalChatsQueryParamsAtom);
 	const { data: chats, error: chatError, isLoading: isLoadingChats } = useAtomValue(chatsAtom);
 	const [{ isPending: isDeletingChat, mutateAsync: deleteChat, error: deleteError }] =
@@ -69,6 +72,22 @@ export function AppSidebarProvider({
 	});
 
 	const { user } = useUser();
+
+	// Fetch notes
+	const {
+		data: notesData,
+		error: notesError,
+		isLoading: isLoadingNotes,
+		refetch: refetchNotes,
+	} = useQuery({
+		queryKey: ["notes", searchSpaceId],
+		queryFn: () =>
+			notesApiService.getNotes({
+				search_space_id: Number(searchSpaceId),
+				page_size: 10, // Get recent 10 notes
+			}),
+		enabled: !!searchSpaceId,
+	});
 
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
@@ -162,6 +181,41 @@ export function AppSidebarProvider({
 	// Use fallback chats if there's an error or no chats
 	const displayChats = recentChats.length > 0 ? recentChats : fallbackChats;
 
+	// Transform notes to the format expected by NavNotes
+	const recentNotes = useMemo(() => {
+		return notesData?.items
+			? notesData.items.map((note) => ({
+					name: note.title,
+					url: `/dashboard/${note.search_space_id}/editor/${note.id}`,
+					icon: "FileText",
+					id: note.id,
+					search_space_id: note.search_space_id,
+					actions: [
+						{
+							name: "Delete",
+							icon: "Trash2",
+							onClick: async () => {
+								try {
+									await notesApiService.deleteNote({
+										search_space_id: note.search_space_id,
+										note_id: note.id,
+									});
+									refetchNotes();
+								} catch (error) {
+									console.error("Error deleting note:", error);
+								}
+							},
+						},
+					],
+				}))
+			: [];
+	}, [notesData, refetchNotes]);
+
+	// Handle add note
+	const handleAddNote = useCallback(() => {
+		router.push(`/dashboard/${searchSpaceId}/notes/new`);
+	}, [router, searchSpaceId]);
+
 	// Memoized updated navSecondary
 	const updatedNavSecondary = useMemo(() => {
 		const updated = [...navSecondary];
@@ -204,6 +258,7 @@ export function AppSidebarProvider({
 				navSecondary={navSecondary}
 				navMain={navMain}
 				RecentChats={[]}
+				RecentNotes={[]}
 				pageUsage={pageUsage}
 			/>
 		);
@@ -216,6 +271,8 @@ export function AppSidebarProvider({
 				navSecondary={updatedNavSecondary}
 				navMain={navMain}
 				RecentChats={displayChats}
+				RecentNotes={recentNotes}
+				onAddNote={handleAddNote}
 				pageUsage={pageUsage}
 			/>
 

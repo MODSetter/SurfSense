@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db import Document, Permission, User, get_async_session
+from app.db import Document, DocumentType, Permission, User, get_async_session
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
@@ -65,7 +65,28 @@ async def get_editor_content(
             else None,
         }
 
-    # Lazy migration: Try to generate blocknote_document from chunks
+    # For NOTE type documents, return empty BlockNote structure if no content exists
+    if document.document_type == DocumentType.NOTE:
+        # Return empty BlockNote structure
+        empty_blocknote = [
+            {
+                "type": "paragraph",
+                "content": [],
+                "children": [],
+            }
+        ]
+        # Save empty structure if not already saved
+        if not document.blocknote_document:
+            document.blocknote_document = empty_blocknote
+            await session.commit()
+        return {
+            "document_id": document.id,
+            "title": document.title,
+            "blocknote_document": empty_blocknote,
+            "updated_at": document.updated_at.isoformat() if document.updated_at else None,
+        }
+
+    # Lazy migration: Try to generate blocknote_document from chunks (for other document types)
     from app.utils.blocknote_converter import convert_markdown_to_blocknote
 
     chunks = sorted(document.chunks, key=lambda c: c.id)
