@@ -45,9 +45,9 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createRoleMutationAtom, updateRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
+import { createRoleMutationAtom, updateRoleMutationAtom, deleteRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
 import { useAtomValue } from "jotai";
-import type { CreateRoleRequest, UpdateRoleRequest } from "@/contracts/types/roles.types";
+import type { CreateRoleRequest, UpdateRoleRequest, DeleteRoleRequest } from "@/contracts/types/roles.types";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import {
@@ -113,7 +113,6 @@ import {
 	useInvites,
 	useMembers,
 	usePermissions,
-	useRoles,
 	useUserAccess,
 } from "@/hooks/use-rbac";
 import { cn } from "@/lib/utils";
@@ -155,12 +154,10 @@ export default function TeamManagementPage() {
 		updateMemberRole,
 		removeMember,
 	} = useMembers(searchSpaceId);
-	const {
-		deleteRole,
-	} = useRoles(searchSpaceId);
 
 	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
 	const { mutateAsync: updateRole } = useAtomValue(updateRoleMutationAtom);
+	const { mutateAsync: deleteRole } = useAtomValue(deleteRoleMutationAtom);
 
 	const handleUpdateRole = useCallback(
 		async (roleId: number, data: { permissions?: string[] }): Promise<Role> => {
@@ -172,6 +169,18 @@ export default function TeamManagementPage() {
 			return await updateRole(request);
 		},
 		[updateRole, searchSpaceId]
+	);
+
+	const handleDeleteRole = useCallback(
+		async (roleId: number): Promise<boolean> => {
+			const request: DeleteRoleRequest = {
+				search_space_id: searchSpaceId,
+				role_id: roleId,
+			};
+			await deleteRole(request);
+			return true;
+		},
+		[deleteRole, searchSpaceId]
 	);
 
 	const handleCreateRole = useCallback(
@@ -388,7 +397,7 @@ export default function TeamManagementPage() {
 								groupedPermissions={groupedPermissions}
 								loading={rolesLoading}
 								onUpdateRole={handleUpdateRole}
-								onDeleteRole={deleteRole}
+								onDeleteRole={handleDeleteRole}
 								canUpdate={hasPermission("roles:update")}
 								canDelete={hasPermission("roles:delete")}
 							/>
