@@ -720,7 +720,12 @@ function RolesTab({
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
 											{canUpdate && (
-												<DropdownMenuItem>
+												<DropdownMenuItem
+													onClick={() => {
+														// TODO: Implement edit role dialog/modal
+														console.log("Edit role not yet implemented", role);
+													}}
+												>
 													<Edit2 className="h-4 w-4 mr-2" />
 													Edit Role
 												</DropdownMenuItem>

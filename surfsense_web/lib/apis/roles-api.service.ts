@@ -30,7 +30,7 @@ class RolesApiService {
 		}
 
 		return baseApiService.post(
-			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/roles`,
 			createRoleResponse,
 			{
 				body: parsedRequest.data.data,
@@ -49,7 +49,7 @@ class RolesApiService {
 		}
 
 		return baseApiService.get(
-			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/roles`,
 			getRolesResponse,
 		);
 	};
@@ -65,7 +65,7 @@ class RolesApiService {
 		}
 
 		return baseApiService.get(
-			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
 			getRoleByIdResponse,
 		);
 	};
@@ -81,7 +81,7 @@ class RolesApiService {
 		}
 
 		return baseApiService.put(
-			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
 			updateRoleResponse,
 			{
 				body: parsedRequest.data.data,
@@ -100,7 +100,7 @@ class RolesApiService {
 		}
 
 		return baseApiService.delete(
-			`/api/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/roles/${parsedRequest.data.role_id}`,
 			deleteRoleResponse,
 		);
 	};
