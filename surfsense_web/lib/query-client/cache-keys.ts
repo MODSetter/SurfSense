@@ -2,6 +2,7 @@ import type { GetChatsRequest } from "@/contracts/types/chat.types";
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
 import type { GetLLMConfigsRequest } from "@/contracts/types/llm-config.types";
 import type { GetPodcastsRequest } from "@/contracts/types/podcast.types";
+import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
 
 export const cacheKeys = {
 	chats: {
@@ -33,4 +34,11 @@ export const cacheKeys = {
 	auth: {
 		user: ["auth", "user"] as const,
 	},
+	searchSpaces: {
+		all: ["search-spaces"] as const,
+		withQueryParams: (queries: GetSearchSpacesRequest["queryParams"]) =>
+			["search-spaces", ...(queries ? Object.values(queries) : [])] as const,
+		detail: (searchSpaceId: string) => ["search-spaces", searchSpaceId] as const,
+		communityPrompts: ["search-spaces", "community-prompts"] as const,
+	}
 };

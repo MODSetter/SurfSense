@@ -1,5 +1,4 @@
 export * from "./use-logs";
 export * from "./use-rbac";
 export * from "./use-search-source-connectors";
-export * from "./use-search-space";
 export * from "./use-user";

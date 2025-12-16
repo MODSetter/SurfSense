@@ -12,8 +12,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { type CommunityPrompt, useCommunityPrompts } from "@/hooks/use-community-prompts";
+import { communityPromptsAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { useAtomValue } from "jotai";
 
 interface SetupPromptStepProps {
 	searchSpaceId: number;
@@ -21,7 +22,7 @@ interface SetupPromptStepProps {
 }
 
 export function SetupPromptStep({ searchSpaceId, onComplete }: SetupPromptStepProps) {
-	const { prompts, loading: loadingPrompts } = useCommunityPrompts();
+	const { data: prompts = [], isPending: loadingPrompts } = useAtomValue(communityPromptsAtom);
 	const [enableCitations, setEnableCitations] = useState(true);
 	const [customInstructions, setCustomInstructions] = useState("");
 	const [saving, setSaving] = useState(false);

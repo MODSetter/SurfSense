@@ -23,8 +23,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { type CommunityPrompt, useCommunityPrompts } from "@/hooks/use-community-prompts";
-import { useSearchSpace } from "@/hooks/use-search-space";
+import { useQuery } from "@tanstack/react-query";
+import { communityPromptsAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { useAtomValue } from "jotai";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface PromptConfigManagerProps {
@@ -32,11 +35,12 @@ interface PromptConfigManagerProps {
 }
 
 export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps) {
-	const { searchSpace, loading, fetchSearchSpace } = useSearchSpace({
-		searchSpaceId,
-		autoFetch: true,
+	const { data: searchSpace, isLoading: loading, refetch: fetchSearchSpace } = useQuery({
+		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId.toString()),
+		queryFn: () => searchSpacesApiService.getSearchSpace({ id: searchSpaceId }),
+		enabled: !!searchSpaceId,
 	});
-	const { prompts, loading: loadingPrompts } = useCommunityPrompts();
+	const { data: prompts = [], isPending: loadingPrompts } = useAtomValue(communityPromptsAtom);
 
 	const [enableCitations, setEnableCitations] = useState(true);
 	const [customInstructions, setCustomInstructions] = useState("");
