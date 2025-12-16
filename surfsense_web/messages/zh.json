@@ -647,7 +647,8 @@
 		"all_notes": "所有笔记",
 		"no_notes": "暂无笔记",
 		"create_new_note": "创建新笔记",
-		"error_loading_notes": "加载笔记时出错"
+		"error_loading_notes": "加载笔记时出错",
+		"loading": "加载中..."
 	},
 	"errors": {
 		"something_went_wrong": "出错了",

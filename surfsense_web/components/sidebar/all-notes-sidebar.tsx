@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 // Map of icon names to their components
 const actionIconMap: Record<string, LucideIcon> = {
@@ -284,42 +285,40 @@ export function AllNotesSidebar({
 		[isDeleting, router, onOpenChange, handleDeleteNote]
 	);
 
-	return (
-		<>
-			{/* Floating Sidebar */}
-			<section
-				ref={sidebarRef}
-				aria-label="All notes sidebar"
-				className={cn(
-					"fixed top-16 bottom-0 z-[60] w-80 bg-sidebar text-sidebar-foreground shadow-2xl",
-					"transition-all duration-300 ease-out",
-					!open && "pointer-events-none"
-				)}
-				style={{
-					// Position it to slide from the right edge of the main sidebar
-					left: `${sidebarLeft}px`,
-					transform: open ? `scaleX(1)` : `scaleX(0)`,
-					transformOrigin: "left",
-					opacity: open ? 1 : 0,
-				}}
-				onMouseEnter={() => {
-					// Clear any pending close timeout when hovering over sidebar
-					if (hoverTimeoutRef?.current) {
-						clearTimeout(hoverTimeoutRef.current);
-						hoverTimeoutRef.current = null;
-					}
-				}}
-				onMouseLeave={() => {
-					// Close sidebar when mouse leaves
-					if (hoverTimeoutRef) {
-						hoverTimeoutRef.current = setTimeout(() => {
-							onOpenChange(false);
-						}, 200);
-					} else {
+	const sidebarContent = (
+		<section
+			ref={sidebarRef}
+			aria-label="All notes sidebar"
+			className={cn(
+				"fixed top-16 bottom-0 z-[100] w-80 bg-sidebar text-sidebar-foreground shadow-xl",
+				"transition-all duration-300 ease-out",
+				!open && "pointer-events-none"
+			)}
+			style={{
+				// Position it to slide from the right edge of the main sidebar
+				left: `${sidebarLeft}px`,
+				transform: open ? `scaleX(1)` : `scaleX(0)`,
+				transformOrigin: "left",
+				opacity: open ? 1 : 0,
+			}}
+			onMouseEnter={() => {
+				// Clear any pending close timeout when hovering over sidebar
+				if (hoverTimeoutRef?.current) {
+					clearTimeout(hoverTimeoutRef.current);
+					hoverTimeoutRef.current = null;
+				}
+			}}
+			onMouseLeave={() => {
+				// Close sidebar when mouse leaves
+				if (hoverTimeoutRef) {
+					hoverTimeoutRef.current = setTimeout(() => {
 						onOpenChange(false);
-					}
-				}}
-			>
+					}, 200);
+				} else {
+					onOpenChange(false);
+				}
+			}}
+		>
 				<div className="flex h-full flex-col">
 					{/* Header */}
 					<div className="flex h-16 shrink-0 items-center justify-between px-4">
@@ -348,13 +347,13 @@ export function AllNotesSidebar({
 											</SidebarMenuButton>
 										</SidebarMenuItem>
 									) : allNotes.length > 0 ? (
-										<SidebarMenu>
+										<SidebarMenu className="list-none">
 											{allNotes.map((note) => (
 												<NoteItemComponent key={note.id || note.name} note={note} />
 											))}
 										</SidebarMenu>
 									) : (
-										<SidebarMenuItem>
+										<SidebarMenuItem className="list-none">
 											{onAddNote ? (
 												<SidebarMenuButton
 													onClick={() => {
@@ -398,7 +397,13 @@ export function AllNotesSidebar({
 					)}
 				</div>
 			</section>
-		</>
 	);
+
+	// Render sidebar via portal to avoid stacking context issues
+	if (typeof window === "undefined") {
+		return null;
+	}
+
+	return createPortal(sidebarContent, document.body);
 }
 

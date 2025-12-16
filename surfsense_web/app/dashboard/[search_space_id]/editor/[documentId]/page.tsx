@@ -1,9 +1,10 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, FileText, Loader2, Plus, SquarePen, Save, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, FileText, Loader2, Save } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
 import {
@@ -62,6 +63,7 @@ function extractTitleFromBlockNote(blocknoteDocument: any[] | null | undefined):
 export default function EditorPage() {
 	const params = useParams();
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const documentId = params.documentId as string;
 	const searchSpaceId = Number(params.search_space_id);
 	const isNewNote = documentId === "new";
@@ -209,10 +211,25 @@ export default function EditorPage() {
 				setHasUnsavedChanges(false);
 				toast.success("Note created successfully! Reindexing in background...");
 
-				// Redirect to editor with the new document ID
-				setTimeout(() => {
-					router.push(`/dashboard/${searchSpaceId}/editor/${note.id}`);
-				}, 500);
+				// Invalidate notes query to refresh the sidebar
+				queryClient.invalidateQueries({
+					queryKey: ["notes", String(searchSpaceId)],
+				});
+
+				// Update URL to reflect the new document ID without navigation
+				window.history.replaceState(
+					{},
+					"",
+					`/dashboard/${searchSpaceId}/editor/${note.id}`
+				);
+				// Update document state to reflect the new ID
+				setDocument({
+					document_id: note.id,
+					title: title,
+					document_type: "NOTE",
+					blocknote_document: editorContent,
+					updated_at: new Date().toISOString(),
+				});
 			} else {
 				// Existing document - save normally
 				if (!editorContent) {
@@ -241,10 +258,12 @@ export default function EditorPage() {
 				setHasUnsavedChanges(false);
 				toast.success("Document saved! Reindexing in background...");
 
-				// Small delay before redirect to show success message
-				setTimeout(() => {
-					router.push(`/dashboard/${params.search_space_id}/documents`);
-				}, 500);
+				// Invalidate notes query when updating notes to refresh the sidebar
+				if (isNote) {
+					queryClient.invalidateQueries({
+						queryKey: ["notes", String(searchSpaceId)],
+					});
+				}
 			}
 		} catch (error) {
 			console.error("Error saving document:", error);
@@ -265,13 +284,13 @@ export default function EditorPage() {
 		if (hasUnsavedChanges) {
 			setShowUnsavedDialog(true);
 		} else {
-			router.back();
+			router.push(`/dashboard/${searchSpaceId}/researcher`);
 		}
 	};
 
 	const handleConfirmLeave = () => {
 		setShowUnsavedDialog(false);
-		router.back();
+		router.push(`/dashboard/${searchSpaceId}/researcher`);
 	};
 
 	if (loading) {
@@ -304,9 +323,9 @@ export default function EditorPage() {
 							<CardDescription>{error}</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<Button onClick={() => router.back()} variant="outline" className="w-full">
-								<X className="mr-2 h-4 w-4" />
-								Go Back
+							<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)} variant="outline" className="gap-2">
+								<ArrowLeft className="h-4 w-4" />
+								Back
 							</Button>
 						</CardContent>
 					</Card>
@@ -356,17 +375,10 @@ export default function EditorPage() {
 								{isNewNote ? "Creating..." : "Saving..."}
 							</>
 						) : (
-							isNewNote ? (
-									<>
-										<SquarePen className="h-4 w-4" />
-										Create Note
-									</>
-								) : (
-									<>
-										<Save className="h-4 w-4" />
-										Save & Exit
-									</>
-								)
+							<>
+								<Save className="h-4 w-4" />
+								Save
+							</>
 						)}
 					</Button>
 				</div>

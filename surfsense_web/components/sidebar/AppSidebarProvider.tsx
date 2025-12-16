@@ -84,7 +84,7 @@ export function AppSidebarProvider({
 		queryFn: () =>
 			notesApiService.getNotes({
 				search_space_id: Number(searchSpaceId),
-				page_size: 10, // Get recent 10 notes
+				page_size: 5, // Get 5 notes (changed from 10)
 			}),
 		enabled: !!searchSpaceId,
 	});
@@ -183,32 +183,40 @@ export function AppSidebarProvider({
 
 	// Transform notes to the format expected by NavNotes
 	const recentNotes = useMemo(() => {
-		return notesData?.items
-			? notesData.items.map((note) => ({
-					name: note.title,
-					url: `/dashboard/${note.search_space_id}/editor/${note.id}`,
-					icon: "FileText",
-					id: note.id,
-					search_space_id: note.search_space_id,
-					actions: [
-						{
-							name: "Delete",
-							icon: "Trash2",
-							onClick: async () => {
-								try {
-									await notesApiService.deleteNote({
-										search_space_id: note.search_space_id,
-										note_id: note.id,
-									});
-									refetchNotes();
-								} catch (error) {
-									console.error("Error deleting note:", error);
-								}
-							},
-						},
-					],
-				}))
-			: [];
+		if (!notesData?.items) return [];
+
+		// Sort notes by updated_at (most recent first), fallback to created_at if updated_at is null
+		const sortedNotes = [...notesData.items].sort((a, b) => {
+			const dateA = a.updated_at ? new Date(a.updated_at).getTime() : new Date(a.created_at).getTime();
+			const dateB = b.updated_at ? new Date(b.updated_at).getTime() : new Date(b.created_at).getTime();
+			return dateB - dateA; // Descending order (most recent first)
+		});
+
+		// Limit to 5 notes
+		return sortedNotes.slice(0, 5).map((note) => ({
+			name: note.title,
+			url: `/dashboard/${note.search_space_id}/editor/${note.id}`,
+			icon: "FileText",
+			id: note.id,
+			search_space_id: note.search_space_id,
+			actions: [
+				{
+					name: "Delete",
+					icon: "Trash2",
+					onClick: async () => {
+						try {
+							await notesApiService.deleteNote({
+								search_space_id: note.search_space_id,
+								note_id: note.id,
+							});
+							refetchNotes();
+						} catch (error) {
+							console.error("Error deleting note:", error);
+						}
+					},
+				},
+			],
+		}));
 	}, [notesData, refetchNotes]);
 
 	// Handle add note

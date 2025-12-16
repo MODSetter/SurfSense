@@ -170,7 +170,7 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 						</SidebarGroupLabel>
 					</CollapsibleTrigger>
 					<div className="absolute top-1.5 right-1 flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity">
-						{searchSpaceId && (
+						{searchSpaceId && notes.length > 0 && (
 							<button
 								type="button"
 								onMouseEnter={(e) => {
