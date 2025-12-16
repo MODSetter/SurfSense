@@ -1,38 +1,57 @@
-import { baseApiService } from "./base-api.service";
 import {
 	type GetMembersRequest,
+	type GetMembersResponse,
+	type UpdateMembershipRequest,
+	type UpdateMembershipResponse,
 	getMembersRequest,
 	getMembersResponse,
-	type UpdateMembershipRequest,
 	updateMembershipRequest,
 	updateMembershipResponse,
 } from "@/contracts/types/members.types";
+import { ValidationError } from "@/lib/error";
+import { baseApiService } from "./base-api.service";
 
 class MembersApiService {
 	/**
 	 * Get members of a search space
 	 */
-	async getMembers(request: GetMembersRequest) {
-		const parsedRequest = getMembersRequest.parse(request);
+	getMembers = async (request: GetMembersRequest) => {
+		const parsedRequest = getMembersRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
 		return baseApiService.get(
-			`/searchspaces/${parsedRequest.search_space_id}/members`,
+			`/searchspaces/${parsedRequest.data.search_space_id}/members`,
 			getMembersResponse,
 		);
-	}
+	};
 
 	/**
 	 * Update a member's role
 	 */
-	async updateMember(request: UpdateMembershipRequest) {
-		const parsedRequest = updateMembershipRequest.parse(request);
+	updateMember = async (request: UpdateMembershipRequest) => {
+		const parsedRequest = updateMembershipRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
 		return baseApiService.put(
-			`/searchspaces/${parsedRequest.search_space_id}/members/${parsedRequest.membership_id}`,
+			`/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
 			updateMembershipResponse,
 			{
-				body: parsedRequest.data,
+				body: parsedRequest.data.data,
 			},
 		);
-	}
+	};
 }
 
 export const membersApiService = new MembersApiService();
