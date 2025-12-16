@@ -47,6 +47,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
+import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	createRoleMutationAtom,
 	deleteRoleMutationAtom,
@@ -156,12 +157,12 @@ export default function TeamManagementPage() {
 
 	const { access, loading: accessLoading, hasPermission } = useUserAccess(searchSpaceId);
 	const {
-		members,
-		loading: membersLoading,
-		fetchMembers,
-		updateMemberRole,
-		removeMember,
-	} = useMembers(searchSpaceId);
+	updateMemberRole,
+	removeMember,
+} = useMembers(searchSpaceId);
+
+	const { data: membersData = [], isLoading: membersLoading, refetch: fetchMembers } = useAtomValue(membersAtom);
+	const members = membersData as Member[];
 
 	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
 	const { mutateAsync: updateRole } = useAtomValue(updateRoleMutationAtom);
