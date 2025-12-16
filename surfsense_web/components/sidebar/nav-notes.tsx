@@ -3,6 +3,7 @@
 import {
 	ChevronRight,
 	ExternalLink,
+	Eye,
 	FileText,
 	type LucideIcon,
 	MoreHorizontal,
@@ -10,11 +11,10 @@ import {
 	RefreshCw,
 	Share,
 	Trash2,
-	Eye,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -36,6 +36,7 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { AllNotesSidebar } from "./all-notes-sidebar";
 
 // Map of icon names to their components
 const actionIconMap: Record<string, LucideIcon> = {
@@ -66,14 +67,17 @@ interface NavNotesProps {
 	notes: NoteItem[];
 	onAddNote?: () => void;
 	defaultOpen?: boolean;
+	searchSpaceId?: string;
 }
 
-export function NavNotes({ notes, onAddNote, defaultOpen = true }: NavNotesProps) {
+export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }: NavNotesProps) {
 	const t = useTranslations("sidebar");
 	const { isMobile } = useSidebar();
 	const router = useRouter();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
+	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
+	const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Handle note deletion with loading state
 	const handleDeleteNote = useCallback(async (noteId: number, deleteAction: () => void) => {
@@ -166,18 +170,31 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true }: NavNotesProps
 						</SidebarGroupLabel>
 					</CollapsibleTrigger>
 					<div className="absolute top-1.5 right-1 flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity">
-						<button
-							type="button"
-							onClick={(e) => {
-								e.stopPropagation();
-								// Add your view all handler here
-								// router.push('/dashboard/[search_space_id]/notes');
-							}}
-							aria-label="View all notes"
-							className="text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0 after:absolute after:-inset-2 md:after:hidden relative"
-						>
-							<Eye className="h-4 w-4" />
-						</button>
+						{searchSpaceId && (
+							<button
+								type="button"
+								onMouseEnter={(e) => {
+									e.stopPropagation();
+									// Clear any pending close timeout
+									if (hoverTimeoutRef.current) {
+										clearTimeout(hoverTimeoutRef.current);
+										hoverTimeoutRef.current = null;
+									}
+									setIsAllNotesSidebarOpen(true);
+								}}
+								onMouseLeave={(e) => {
+									e.stopPropagation();
+									// Add a small delay before closing to allow moving to the sidebar
+									hoverTimeoutRef.current = setTimeout(() => {
+										setIsAllNotesSidebarOpen(false);
+									}, 200);
+								}}
+								aria-label="View all notes"
+								className="text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex aspect-square w-5 items-center justify-center rounded-md p-0 outline-hidden transition-transform focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0 after:absolute after:-inset-2 md:after:hidden relative"
+							>
+								<Eye className="h-4 w-4" />
+							</button>
+						)}
 						{onAddNote && (
 							<button
 								type="button"
@@ -223,6 +240,15 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true }: NavNotesProps
 					</SidebarGroupContent>
 				</CollapsibleContent>
 			</Collapsible>
+			{searchSpaceId && (
+				<AllNotesSidebar
+					open={isAllNotesSidebarOpen}
+					onOpenChange={setIsAllNotesSidebarOpen}
+					searchSpaceId={searchSpaceId}
+					onAddNote={onAddNote}
+					hoverTimeoutRef={hoverTimeoutRef}
+				/>
+			)}
 		</SidebarGroup>
 	);
 }

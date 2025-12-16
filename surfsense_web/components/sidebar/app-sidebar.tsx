@@ -453,7 +453,7 @@ export const AppSidebar = memo(function AppSidebar({
 				)}
 
 				<div className="space-y-2">
-					<NavNotes notes={processedRecentNotes} onAddNote={onAddNote} />
+					<NavNotes notes={processedRecentNotes} onAddNote={onAddNote} searchSpaceId={searchSpaceId} />
 				</div>
 			</SidebarContent>
 			<SidebarFooter>
