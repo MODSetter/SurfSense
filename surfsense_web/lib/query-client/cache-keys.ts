@@ -57,4 +57,8 @@ export const cacheKeys = {
 		all: (searchSpaceId: string) => ["members", searchSpaceId] as const,
 		myAccess: (searchSpaceId: string) => ["members", "my-access", searchSpaceId] as const,
 	},
+	invites: {
+		all: (searchSpaceId: string) => ["invites", searchSpaceId] as const,
+		info: (inviteCode: string) => ["invites", "info", inviteCode] as const,
+	},
 };
