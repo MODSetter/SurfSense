@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { notesApiService } from "@/lib/apis/notes-api.service";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+import { useLogs } from "@/hooks/use-logs";
 
 interface EditorContent {
 	document_id: number;
@@ -68,6 +69,8 @@ export default function EditorPage() {
 	const searchSpaceId = Number(params.search_space_id);
 	const isNewNote = documentId === "new";
 
+	const { createLog } = useLogs(searchSpaceId);
+
 	const [document, setDocument] = useState<EditorContent | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
@@ -112,18 +115,73 @@ export default function EditorPage() {
 					const errorData = await response
 						.json()
 						.catch(() => ({ detail: "Failed to fetch document" }));
-					throw new Error(errorData.detail || "Failed to fetch document");
+					const errorMessage = errorData.detail || "Failed to fetch document";
+					
+					// Log fetch error
+					try {
+						await createLog({
+							level: "ERROR",
+							status: "FAILED",
+							message: `Failed to fetch document: ${errorMessage}`,
+							source: "editor",
+							search_space_id: searchSpaceId,
+							log_metadata: {
+								document_id: documentId,
+								error_type: "fetch_error",
+								http_status: response.status,
+							},
+						});
+					} catch (err) {
+						console.error("Failed to create log:", err);
+					}
+					
+					throw new Error(errorMessage);
 				}
 
 				const data = await response.json();
 
 				// Check if blocknote_document exists
 				if (!data.blocknote_document) {
-					setError(
-						"This document does not have BlockNote content. Please re-upload the document to enable editing."
-					);
+					const errorMsg = "This document does not have BlockNote content. Please re-upload the document to enable editing.";
+					
+					// Log missing BlockNote content
+					try {
+						await createLog({
+							level: "WARNING",
+							status: "FAILED",
+							message: `Document ${documentId} does not have BlockNote content`,
+							source: "editor",
+							search_space_id: searchSpaceId,
+							log_metadata: {
+								document_id: documentId,
+								error_type: "missing_blocknote_content",
+							},
+						});
+					} catch (err) {
+						console.error("Failed to create log:", err);
+					}
+					
+					setError(errorMsg);
 					setLoading(false);
 					return;
+				}
+
+				// Log successful fetch
+				try {
+					await createLog({
+						level: "INFO",
+						status: "SUCCESS",
+						message: `Document ${documentId} loaded successfully`,
+						source: "editor",
+						search_space_id: searchSpaceId,
+						log_metadata: {
+							document_id: documentId,
+							document_type: data.document_type,
+							title: data.title,
+						},
+					});
+				} catch (err) {
+					console.error("Failed to create log:", err);
 				}
 
 				setDocument(data);
@@ -131,9 +189,27 @@ export default function EditorPage() {
 				setError(null);
 			} catch (error) {
 				console.error("Error fetching document:", error);
-				setError(
-					error instanceof Error ? error.message : "Failed to fetch document. Please try again."
-				);
+				const errorMessage =
+					error instanceof Error ? error.message : "Failed to fetch document. Please try again.";
+				
+				// Log general fetch error
+				try {
+					await createLog({
+						level: "ERROR",
+						status: "FAILED",
+						message: `Error fetching document: ${errorMessage}`,
+						source: "editor",
+						search_space_id: searchSpaceId,
+						log_metadata: {
+							document_id: documentId,
+							error_type: "fetch_exception",
+						},
+					});
+				} catch (err) {
+					console.error("Failed to create log:", err);
+				}
+				
+				setError(errorMessage);
 			} finally {
 				setLoading(false);
 			}
@@ -142,7 +218,7 @@ export default function EditorPage() {
 		if (documentId) {
 			fetchDocument();
 		}
-	}, [documentId, params.search_space_id, isNewNote]);
+	}, [documentId, params.search_space_id, isNewNote, searchSpaceId, createLog]);
 
 	// Track changes to mark as unsaved
 	useEffect(() => {
@@ -204,8 +280,47 @@ export default function EditorPage() {
 						const errorData = await response
 							.json()
 							.catch(() => ({ detail: "Failed to save document" }));
+						
+						// Log save error
+						try {
+							await createLog({
+								level: "ERROR",
+								status: "FAILED",
+								message: `Failed to save new note: ${errorData.detail || "Unknown error"}`,
+								source: "editor",
+								search_space_id: searchSpaceId,
+								log_metadata: {
+									document_id: note.id,
+									is_new_note: true,
+									action: "save",
+									http_status: response.status,
+								},
+							});
+						} catch (err) {
+							console.error("Failed to create log:", err);
+						}
+						
 						throw new Error(errorData.detail || "Failed to save document");
 					}
+				}
+
+				// Log successful note creation
+				try {
+					await createLog({
+						level: "INFO",
+						status: "SUCCESS",
+						message: `Note created successfully: ${title}`,
+						source: "editor",
+						search_space_id: searchSpaceId,
+						log_metadata: {
+							document_id: note.id,
+							is_new_note: true,
+							action: "save",
+							title: title,
+						},
+					});
+				} catch (err) {
+					console.error("Failed to create log:", err);
 				}
 
 				setHasUnsavedChanges(false);
@@ -248,7 +363,44 @@ export default function EditorPage() {
 					const errorData = await response
 						.json()
 						.catch(() => ({ detail: "Failed to save document" }));
+					
+					// Log save error
+					try {
+						await createLog({
+							level: "ERROR",
+							status: "FAILED",
+							message: `Failed to save document ${documentId}: ${errorData.detail || "Unknown error"}`,
+							source: "editor",
+							search_space_id: searchSpaceId,
+							log_metadata: {
+								document_id: documentId,
+								action: "save",
+								http_status: response.status,
+							},
+						});
+					} catch (err) {
+						console.error("Failed to create log:", err);
+					}
+					
 					throw new Error(errorData.detail || "Failed to save document");
+				}
+
+				// Log successful save
+				try {
+					await createLog({
+						level: "INFO",
+						status: "SUCCESS",
+						message: `Document ${documentId} saved successfully`,
+						source: "editor",
+						search_space_id: searchSpaceId,
+						log_metadata: {
+							document_id: documentId,
+							action: "save",
+							title: document?.title,
+						},
+					});
+				} catch (err) {
+					console.error("Failed to create log:", err);
 				}
 
 				setHasUnsavedChanges(false);
@@ -269,6 +421,26 @@ export default function EditorPage() {
 					: isNewNote
 						? "Failed to create note. Please try again."
 						: "Failed to save document. Please try again.";
+			
+			// Log save error
+			try {
+				await createLog({
+					level: "ERROR",
+					status: "FAILED",
+					message: `Error saving document: ${errorMessage}`,
+					source: "editor",
+					search_space_id: searchSpaceId,
+					log_metadata: {
+						document_id: isNewNote ? null : documentId,
+						is_new_note: isNewNote,
+						action: "save",
+						error_type: "save_exception",
+					},
+				});
+			} catch (err) {
+				console.error("Failed to create log:", err);
+			}
+			
 			setError(errorMessage);
 			toast.error(errorMessage);
 		} finally {
