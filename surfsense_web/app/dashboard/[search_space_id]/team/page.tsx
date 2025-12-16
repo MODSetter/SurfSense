@@ -214,15 +214,14 @@ export default function TeamManagementPage() {
 	const { data: permissionsData, isLoading: permissionsLoading } = useAtomValue(permissionsAtom);
 	const permissions = permissionsData?.permissions || [];
 	const groupedPermissions = useMemo(() => {
-		const grouped: Record<string, typeof permissions> = {};
-		permissions.forEach((permission) => {
-			const category = permission.permission_name.split(":")[0];
-			if (!grouped[category]) {
-				grouped[category] = [];
+		const groups: Record<string, typeof permissions> = {};
+		for (const perm of permissions) {
+			if (!groups[perm.category]) {
+				groups[perm.category] = [];
 			}
-			grouped[category].push(permission);
-		});
-		return grouped;
+			groups[perm.category].push(perm);
+		}
+		return groups;
 	}, [permissions]);
 
 	const canManageMembers = hasPermission("members:view");
