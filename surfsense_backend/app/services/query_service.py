@@ -1,7 +1,7 @@
 import datetime
 from typing import Any
 
-from langchain.schema import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.llm_service import get_strategic_llm
