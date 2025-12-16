@@ -11,7 +11,28 @@ export const membersAtom = atomWithQuery((get) => {
 		enabled: !!searchSpaceId,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		queryFn: async () => {
+			if (!searchSpaceId) {
+				return [];
+			}
 			return membersApiService.getMembers({
+				search_space_id: Number(searchSpaceId),
+			});
+		},
+	};
+});
+
+export const myAccessAtom = atomWithQuery((get) => {
+	const searchSpaceId = get(activeSearchSpaceIdAtom);
+
+	return {
+		queryKey: cacheKeys.members.myAccess(searchSpaceId?.toString() ?? ""),
+		enabled: !!searchSpaceId,
+		staleTime: 5 * 60 * 1000, // 5 minutes
+		queryFn: async () => {
+			if (!searchSpaceId) {
+				return null;
+			}
+			return membersApiService.getMyAccess({
 				search_space_id: Number(searchSpaceId),
 			});
 		},
