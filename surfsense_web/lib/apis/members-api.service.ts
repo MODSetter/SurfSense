@@ -7,6 +7,8 @@ import {
 	type DeleteMembershipResponse,
 	type LeaveSearchSpaceRequest,
 	type LeaveSearchSpaceResponse,
+	type GetMyAccessRequest,
+	type GetMyAccessResponse,
 	getMembersRequest,
 	getMembersResponse,
 	updateMembershipRequest,
@@ -15,6 +17,8 @@ import {
 	deleteMembershipResponse,
 	leaveSearchSpaceRequest,
 	leaveSearchSpaceResponse,
+	getMyAccessRequest,
+	getMyAccessResponse,
 } from "@/contracts/types/members.types";
 import { ValidationError } from "@/lib/error";
 import { baseApiService } from "./base-api.service";
@@ -96,6 +100,25 @@ class MembersApiService {
 		return baseApiService.delete(
 			`/searchspaces/${parsedRequest.data.search_space_id}/members/me`,
 			leaveSearchSpaceResponse,
+		);
+	};
+
+	/**
+	 * Get current user's access information for a search space
+	 */
+	getMyAccess = async (request: GetMyAccessRequest) => {
+		const parsedRequest = getMyAccessRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(
+			`/searchspaces/${parsedRequest.data.search_space_id}/my-access`,
+			getMyAccessResponse,
 		);
 	};
 }
