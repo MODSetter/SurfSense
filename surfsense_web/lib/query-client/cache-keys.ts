@@ -45,4 +45,11 @@ export const cacheKeys = {
 	user: {
 		current: () => ["user", "me"] as const,
 	},
+	roles: {
+		all: (searchSpaceId: string) => ["roles", searchSpaceId] as const,
+		byId: (searchSpaceId: string, roleId: string) => ["roles", searchSpaceId, roleId] as const,
+	},
+	permissions: {
+		all: () => ["permissions"] as const,
+	},
 };
