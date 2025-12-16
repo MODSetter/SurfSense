@@ -40,7 +40,7 @@ export const cacheKeys = {
 			["search-spaces", ...(queries ? Object.values(queries) : [])] as const,
 		detail: (searchSpaceId: string) => ["search-spaces", searchSpaceId] as const,
 		communityPrompts: ["search-spaces", "community-prompts"] as const,
-	}
+	},
 	user: {
 		current: () => ["user", "me"] as const,
 	},
