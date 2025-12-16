@@ -105,8 +105,27 @@ class InvitesApiService {
 		}
 
 		return baseApiService.delete(
-			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
-			deleteInviteResponse
+		`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
+		deleteInviteResponse
+	);
+	};
+
+	/**
+	 * Get invite info by invite code
+	 */
+	getInviteInfo = async (request: GetInviteInfoRequest) => {
+		const parsedRequest = getInviteInfoRequest.safeParse(request);
+		
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+			
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(
+			`/api/v1/invites/${parsedRequest.data.invite_code}/info`,
+			getInviteInfoResponse
 		);
 	};
 }
