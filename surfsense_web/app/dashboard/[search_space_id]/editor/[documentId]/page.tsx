@@ -1,10 +1,10 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft, FileText, Loader2, Save } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
 import {
@@ -217,11 +217,7 @@ export default function EditorPage() {
 				});
 
 				// Update URL to reflect the new document ID without navigation
-				window.history.replaceState(
-					{},
-					"",
-					`/dashboard/${searchSpaceId}/editor/${note.id}`
-				);
+				window.history.replaceState({}, "", `/dashboard/${searchSpaceId}/editor/${note.id}`);
 				// Update document state to reflect the new ID
 				setDocument({
 					document_id: note.id,
@@ -323,7 +319,11 @@ export default function EditorPage() {
 							<CardDescription>{error}</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)} variant="outline" className="gap-2">
+							<Button
+								onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)}
+								variant="outline"
+								className="gap-2"
+							>
 								<ArrowLeft className="h-4 w-4" />
 								Back
 							</Button>

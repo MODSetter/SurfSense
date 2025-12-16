@@ -97,7 +97,10 @@ async def create_note(
     )
 
 
-@router.get("/search-spaces/{search_space_id}/notes", response_model=PaginatedResponse[DocumentRead])
+@router.get(
+    "/search-spaces/{search_space_id}/notes",
+    response_model=PaginatedResponse[DocumentRead],
+)
 async def list_notes(
     search_space_id: int,
     skip: int | None = None,
@@ -130,10 +133,12 @@ async def list_notes(
 
     # Get total count
     count_query = select(func.count()).select_from(
-        select(Document).where(
+        select(Document)
+        .where(
             Document.search_space_id == search_space_id,
             Document.document_type == DocumentType.NOTE,
-        ).subquery()
+        )
+        .subquery()
     )
     total_result = await session.execute(count_query)
     total = total_result.scalar() or 0
@@ -174,13 +179,17 @@ async def list_notes(
     ]
 
     # Calculate pagination info
-    actual_skip = skip if skip is not None else (page * page_size if page is not None else 0)
+    actual_skip = (
+        skip if skip is not None else (page * page_size if page is not None else 0)
+    )
     has_more = (actual_skip + len(items)) < total if page_size > 0 else False
 
     return PaginatedResponse(
         items=items,
         total=total,
-        page=page if page is not None else (actual_skip // page_size if page_size > 0 else 0),
+        page=page
+        if page is not None
+        else (actual_skip // page_size if page_size > 0 else 0),
         page_size=page_size,
         has_more=has_more,
     )
@@ -225,4 +234,3 @@ async def delete_note(
     await session.commit()
 
     return {"message": "Note deleted successfully", "note_id": note_id}
-

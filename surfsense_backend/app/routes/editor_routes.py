@@ -85,7 +85,9 @@ async def get_editor_content(
             "title": document.title,
             "document_type": document.document_type.value,
             "blocknote_document": empty_blocknote,
-            "updated_at": document.updated_at.isoformat() if document.updated_at else None,
+            "updated_at": document.updated_at.isoformat()
+            if document.updated_at
+            else None,
         }
 
     # Lazy migration: Try to generate blocknote_document from chunks (for other document types)
@@ -178,18 +180,30 @@ async def save_document(
         and len(blocknote_document) > 0
     ):
         first_block = blocknote_document[0]
-        if first_block and first_block.get("content"):
+        if (
+            first_block
+            and first_block.get("content")
+            and isinstance(first_block["content"], list)
+        ):
             # Extract text from first block content
+            # Match the frontend extractTitleFromBlockNote logic exactly
             title_parts = []
             for item in first_block["content"]:
                 if isinstance(item, str):
                     title_parts.append(item)
-                elif isinstance(item, dict) and "text" in item:
+                elif (
+                    isinstance(item, dict)
+                    and "text" in item
+                    and isinstance(item["text"], str)
+                ):
+                    # BlockNote structure: {"type": "text", "text": "...", "styles": {}}
                     title_parts.append(item["text"])
+
             new_title = "".join(title_parts).strip()
             if new_title:
                 document.title = new_title
             else:
+                # Only set to "Untitled" if content exists but is empty
                 document.title = "Untitled"
 
     # Save BlockNote document
