@@ -5,12 +5,16 @@ import {
 	type UpdateMembershipResponse,
 	type DeleteMembershipRequest,
 	type DeleteMembershipResponse,
+	type LeaveSearchSpaceRequest,
+	type LeaveSearchSpaceResponse,
 	getMembersRequest,
 	getMembersResponse,
 	updateMembershipRequest,
 	updateMembershipResponse,
 	deleteMembershipRequest,
 	deleteMembershipResponse,
+	leaveSearchSpaceRequest,
+	leaveSearchSpaceResponse,
 } from "@/contracts/types/members.types";
 import { ValidationError } from "@/lib/error";
 import { baseApiService } from "./base-api.service";
@@ -73,6 +77,25 @@ class MembersApiService {
 		return baseApiService.delete(
 			`/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
 			deleteMembershipResponse,
+		);
+	};
+
+	/**
+	 * Leave a search space (remove self)
+	 */
+	leaveSearchSpace = async (request: LeaveSearchSpaceRequest) => {
+		const parsedRequest = leaveSearchSpaceRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.delete(
+			`/searchspaces/${parsedRequest.data.search_space_id}/members/me`,
+			leaveSearchSpaceResponse,
 		);
 	};
 }
