@@ -46,10 +46,11 @@ dependencies = [
     "firecrawl-py>=4.9.0",
     "boto3>=1.35.0",
     "langchain-community>=0.3.31",
-    "langchain-unstructured>=0.1.6",
-    "langgraph>=1.0.1",
+    "langchain-unstructured>=1.0.0",
+    "langchain>=1.2.0",
+    "litellm>=1.80.10",
     "langchain-litellm>=0.3.5",
-    "litellm>=1.77.5",
+    "langgraph>=1.0.5",
 ]
 
 [dependency-groups]
