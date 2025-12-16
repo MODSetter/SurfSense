@@ -59,6 +59,7 @@ async def get_editor_content(
         return {
             "document_id": document.id,
             "title": document.title,
+            "document_type": document.document_type.value,
             "blocknote_document": document.blocknote_document,
             "updated_at": document.updated_at.isoformat()
             if document.updated_at
@@ -82,6 +83,7 @@ async def get_editor_content(
         return {
             "document_id": document.id,
             "title": document.title,
+            "document_type": document.document_type.value,
             "blocknote_document": empty_blocknote,
             "updated_at": document.updated_at.isoformat() if document.updated_at else None,
         }
@@ -123,6 +125,7 @@ async def get_editor_content(
     return {
         "document_id": document.id,
         "title": document.title,
+        "document_type": document.document_type.value,
         "blocknote_document": blocknote_json,
         "updated_at": document.updated_at.isoformat() if document.updated_at else None,
     }
@@ -167,6 +170,27 @@ async def save_document(
     blocknote_document = data.get("blocknote_document")
     if not blocknote_document:
         raise HTTPException(status_code=400, detail="blocknote_document is required")
+
+    # For NOTE type documents, extract title from first block (heading)
+    if (
+        document.document_type == DocumentType.NOTE
+        and blocknote_document
+        and len(blocknote_document) > 0
+    ):
+        first_block = blocknote_document[0]
+        if first_block and first_block.get("content"):
+            # Extract text from first block content
+            title_parts = []
+            for item in first_block["content"]:
+                if isinstance(item, str):
+                    title_parts.append(item)
+                elif isinstance(item, dict) and "text" in item:
+                    title_parts.append(item["text"])
+            new_title = "".join(title_parts).strip()
+            if new_title:
+                document.title = new_title
+            else:
+                document.title = "Untitled"
 
     # Save BlockNote document
     document.blocknote_document = blocknote_document

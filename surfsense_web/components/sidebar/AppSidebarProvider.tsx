@@ -213,7 +213,7 @@ export function AppSidebarProvider({
 
 	// Handle add note
 	const handleAddNote = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/notes/new`);
+		router.push(`/dashboard/${searchSpaceId}/editor/new`);
 	}, [router, searchSpaceId]);
 
 	// Memoized updated navSecondary

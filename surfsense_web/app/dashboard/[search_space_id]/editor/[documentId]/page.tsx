@@ -1,11 +1,21 @@
 "use client";
 
-import { AlertCircle, FileText, Loader2, Save, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, FileText, Loader2, Save, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,8 +24,38 @@ import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-
 interface EditorContent {
 	document_id: number;
 	title: string;
+	document_type?: string;
 	blocknote_document: any;
 	updated_at: string | null;
+}
+
+// Helper function to extract title from BlockNote document
+// Takes the text content from the first block (should be a heading for notes)
+function extractTitleFromBlockNote(blocknoteDocument: any[] | null | undefined): string {
+	if (!blocknoteDocument || !Array.isArray(blocknoteDocument) || blocknoteDocument.length === 0) {
+		return "Untitled";
+	}
+
+	const firstBlock = blocknoteDocument[0];
+	if (!firstBlock) {
+		return "Untitled";
+	}
+
+	// Extract text from block content
+	// BlockNote blocks have a content array with inline content
+	if (firstBlock.content && Array.isArray(firstBlock.content)) {
+		const textContent = firstBlock.content
+			.map((item: any) => {
+				if (typeof item === "string") return item;
+				if (item?.text) return item.text;
+				return "";
+			})
+			.join("")
+			.trim();
+		return textContent || "Untitled";
+	}
+
+	return "Untitled";
 }
 
 export default function EditorPage() {
@@ -29,6 +69,7 @@ export default function EditorPage() {
 	const [editorContent, setEditorContent] = useState<any>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+	const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
 	// Fetch document content - DIRECT CALL TO FASTAPI
 	useEffect(() => {
@@ -90,6 +131,17 @@ export default function EditorPage() {
 		}
 	}, [editorContent, document]);
 
+	// Check if this is a NOTE type document
+	const isNote = document?.document_type === "NOTE";
+
+	// Extract title dynamically from editor content for notes, otherwise use document title
+	const displayTitle = useMemo(() => {
+		if (isNote && editorContent) {
+			return extractTitleFromBlockNote(editorContent);
+		}
+		return document?.title || "Untitled";
+	}, [isNote, editorContent, document?.title]);
+
 	// TODO: Maybe add Auto-save every 30 seconds - DIRECT CALL TO FASTAPI
 
 	// Save and exit - DIRECT CALL TO FASTAPI
@@ -142,14 +194,17 @@ export default function EditorPage() {
 		}
 	};
 
-	const handleCancel = () => {
+	const handleBack = () => {
 		if (hasUnsavedChanges) {
-			if (confirm("You have unsaved changes. Are you sure you want to leave?")) {
-				router.back();
-			}
+			setShowUnsavedDialog(true);
 		} else {
 			router.back();
 		}
+	};
+
+	const handleConfirmLeave = () => {
+		setShowUnsavedDialog(false);
+		router.back();
 	};
 
 	if (loading) {
@@ -217,15 +272,15 @@ export default function EditorPage() {
 				<div className="flex items-center gap-3 flex-1 min-w-0">
 					<FileText className="h-5 w-5 text-muted-foreground shrink-0" />
 					<div className="flex flex-col min-w-0">
-						<h1 className="text-lg font-semibold truncate">{document.title}</h1>
+						<h1 className="text-lg font-semibold truncate">{displayTitle}</h1>
 						{hasUnsavedChanges && <p className="text-xs text-muted-foreground">Unsaved changes</p>}
 					</div>
 				</div>
 				<Separator orientation="vertical" className="h-6" />
 				<div className="flex items-center gap-2">
-					<Button variant="outline" onClick={handleCancel} disabled={saving} className="gap-2">
-						<X className="h-4 w-4" />
-						Cancel
+					<Button variant="outline" onClick={handleBack} disabled={saving} className="gap-2">
+						<ArrowLeft className="h-4 w-4" />
+						Back
 					</Button>
 					<Button onClick={handleSave} disabled={saving} className="gap-2">
 						{saving ? (
@@ -247,10 +302,30 @@ export default function EditorPage() {
 			<div className="flex-1 overflow-hidden relative">
 				<div className="h-full w-full overflow-auto p-6">
 					<div className="max-w-4xl mx-auto">
-						<BlockNoteEditor initialContent={editorContent} onChange={setEditorContent} />
+						<BlockNoteEditor
+							initialContent={editorContent}
+							onChange={setEditorContent}
+							useTitleBlock={isNote}
+						/>
 					</div>
 				</div>
 			</div>
+
+			{/* Unsaved Changes Dialog */}
+			<AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+						<AlertDialogDescription>
+							You have unsaved changes. Are you sure you want to leave?
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleConfirmLeave}>OK</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</motion.div>
 	);
 }

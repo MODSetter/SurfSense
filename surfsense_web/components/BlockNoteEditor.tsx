@@ -10,31 +10,119 @@ import { useCreateBlockNote } from "@blocknote/react";
 interface BlockNoteEditorProps {
 	initialContent?: any;
 	onChange?: (content: any) => void;
+	useTitleBlock?: boolean; // Whether to use first block as title (Notion-style)
 }
 
-export default function BlockNoteEditor({ initialContent, onChange }: BlockNoteEditorProps) {
+// Helper to ensure first block is a heading for title
+function ensureTitleBlock(content: any[] | undefined): any[] {
+	if (!content || content.length === 0) {
+		// Return empty heading block for new notes
+		return [
+			{
+				type: "heading",
+				props: { level: 1 },
+				content: [],
+				children: [],
+			},
+		];
+	}
+
+	// If first block is not a heading, convert it to one
+	const firstBlock = content[0];
+	if (firstBlock?.type !== "heading") {
+		// Extract text from first block
+		let titleText = "";
+		if (firstBlock?.content && Array.isArray(firstBlock.content)) {
+			titleText = firstBlock.content
+				.map((item: any) => {
+					if (typeof item === "string") return item;
+					if (item?.text) return item.text;
+					return "";
+				})
+				.join("")
+				.trim();
+		}
+
+		// Create heading block with extracted text
+		const titleBlock = {
+			type: "heading",
+			props: { level: 1 },
+			content: titleText
+				? [
+						{
+							type: "text",
+							text: titleText,
+							styles: {},
+						},
+					]
+				: [],
+			children: [],
+		};
+
+		// Replace first block with heading, keep rest
+		return [titleBlock, ...content.slice(1)];
+	}
+
+	return content;
+}
+
+export default function BlockNoteEditor({ initialContent, onChange, useTitleBlock = false }: BlockNoteEditorProps) {
 	const { resolvedTheme } = useTheme();
 
 	// Track the initial content to prevent re-initialization
 	const initialContentRef = useRef<any>(null);
 	const isInitializedRef = useRef(false);
 
+	// Prepare initial content - ensure first block is a heading if useTitleBlock is true
+	const preparedInitialContent = useMemo(() => {
+		if (initialContentRef.current !== null) {
+			return undefined; // Already initialized
+		}
+		if (initialContent === undefined) {
+			// New note - create empty heading block
+			return useTitleBlock
+				? [
+						{
+							type: "heading",
+							props: { level: 1 },
+							content: [],
+							children: [],
+						},
+					]
+				: undefined;
+		}
+		// Existing note - ensure first block is heading
+		return useTitleBlock ? ensureTitleBlock(initialContent) : initialContent;
+	}, [initialContent, useTitleBlock]);
+
 	// Creates a new editor instance - only use initialContent on first render
 	const editor = useCreateBlockNote({
-		initialContent: initialContentRef.current === null ? initialContent || undefined : undefined,
+		initialContent: initialContentRef.current === null ? preparedInitialContent : undefined,
 	});
 
 	// Store initial content on first render only
 	useEffect(() => {
-		if (initialContent && initialContentRef.current === null) {
-			initialContentRef.current = initialContent;
+		if (preparedInitialContent !== undefined && initialContentRef.current === null) {
+			initialContentRef.current = preparedInitialContent;
+			isInitializedRef.current = true;
+		} else if (preparedInitialContent === undefined && initialContentRef.current === null) {
+			// Mark as initialized even when initialContent is undefined (for new notes)
 			isInitializedRef.current = true;
 		}
-	}, [initialContent]);
+	}, [preparedInitialContent]);
 
 	// Call onChange when document changes (but don't update from props)
 	useEffect(() => {
-		if (!onChange || !editor || !isInitializedRef.current) return;
+		if (!onChange || !editor) return;
+
+		// For new notes (no initialContent), we need to wait for editor to be ready
+		// Use a small delay to ensure editor is fully initialized
+		if (!isInitializedRef.current) {
+			const timer = setTimeout(() => {
+				isInitializedRef.current = true;
+			}, 100);
+			return () => clearTimeout(timer);
+		}
 
 		const handleChange = () => {
 			onChange(editor.document);
@@ -42,6 +130,12 @@ export default function BlockNoteEditor({ initialContent, onChange }: BlockNoteE
 
 		// Subscribe to document changes
 		const unsubscribe = editor.onChange(handleChange);
+
+		// Also call onChange once with current document to capture initial state
+		// This ensures we capture content even if user doesn't make changes
+		if (editor.document) {
+			onChange(editor.document);
+		}
 
 		return () => {
 			unsubscribe();
