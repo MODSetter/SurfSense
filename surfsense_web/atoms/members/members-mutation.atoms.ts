@@ -5,6 +5,8 @@ import type {
 	UpdateMembershipResponse,
 	DeleteMembershipRequest,
 	DeleteMembershipResponse,
+	LeaveSearchSpaceRequest,
+	LeaveSearchSpaceResponse,
 } from "@/contracts/types/members.types";
 import { membersApiService } from "@/lib/apis/members-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -40,6 +42,23 @@ export const deleteMemberMutationAtom = atomWithMutation(() => {
 		},
 		onError: () => {
 			toast.error("Failed to remove member");
+		},
+	};
+});
+
+export const leaveSearchSpaceMutationAtom = atomWithMutation(() => {
+	return {
+		mutationFn: async (request: LeaveSearchSpaceRequest) => {
+			return membersApiService.leaveSearchSpace(request);
+		},
+		onSuccess: (_: LeaveSearchSpaceResponse, request: LeaveSearchSpaceRequest) => {
+			toast.success("Successfully left the search space");
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.members.all(request.search_space_id.toString()),
+			});
+		},
+		onError: () => {
+			toast.error("Failed to leave search space");
 		},
 	};
 });
