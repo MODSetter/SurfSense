@@ -4,6 +4,7 @@ import type { GetLLMConfigsRequest } from "@/contracts/types/llm-config.types";
 import type { GetPodcastsRequest } from "@/contracts/types/podcast.types";
 import type { GetRolesRequest } from "@/contracts/types/roles.types";
 import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
+import type { GetMembersRequest } from "@/contracts/types/members.types";
 
 export const cacheKeys = {
 	chats: {
@@ -51,5 +52,9 @@ export const cacheKeys = {
 	},
 	permissions: {
 		all: () => ["permissions"] as const,
+	},
+	members: {
+		all: (searchSpaceId: string) => ["members", searchSpaceId] as const,
+		myAccess: (searchSpaceId: string) => ["members", "my-access", searchSpaceId] as const,
 	},
 };
