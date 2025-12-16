@@ -47,3 +47,22 @@ export const updateInviteMutationAtom = atomWithMutation(() => ({
 		toast.error("Failed to update invite");
 	},
 }));
+
+/**
+ * Mutation atom for deleting an invite
+ */
+export const deleteInviteMutationAtom = atomWithMutation(() => ({
+	mutationFn: async (request: DeleteInviteRequest) => {
+		return invitesApiService.deleteInvite(request);
+	},
+	onSuccess: (_, variables) => {
+		queryClient.invalidateQueries({
+			queryKey: cacheKeys.invites.all(variables.search_space_id.toString()),
+		});
+		toast.success("Invite deleted successfully");
+	},
+	onError: (error: Error) => {
+		console.error("Error deleting invite:", error);
+		toast.error("Failed to delete invite");
+	},
+}));
