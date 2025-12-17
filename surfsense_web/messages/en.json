@@ -642,7 +642,13 @@
 		"no_chats_found": "No chats found",
 		"no_recent_chats": "No recent chats",
 		"view_all_chats": "View All Chats",
-		"search_space": "Search Space"
+		"search_space": "Search Space",
+		"notes": "Notes",
+		"all_notes": "All Notes",
+		"no_notes": "No notes yet",
+		"create_new_note": "Create a new note",
+		"error_loading_notes": "Error loading notes",
+		"loading": "Loading..."
 	},
 	"errors": {
 		"something_went_wrong": "Something went wrong",

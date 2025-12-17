@@ -51,6 +51,7 @@ class DocumentType(str, Enum):
     LUMA_CONNECTOR = "LUMA_CONNECTOR"
     ELASTICSEARCH_CONNECTOR = "ELASTICSEARCH_CONNECTOR"
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
+    NOTE = "NOTE"
 
 
 class SearchSourceConnectorType(str, Enum):
