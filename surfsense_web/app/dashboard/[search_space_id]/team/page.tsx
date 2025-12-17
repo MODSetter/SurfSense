@@ -47,6 +47,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { updateMemberMutationAtom, deleteMemberMutationAtom } from "@/atoms/members/members-mutation.atoms";
+import { createInviteMutationAtom } from '@/atoms/invites/invites-mutation.atoms';
+import type { CreateInviteRequest } from '@/contracts/types/invites.types';
 import type { UpdateMembershipRequest, DeleteMembershipRequest, Membership } from "@/contracts/types/members.types";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -164,6 +166,18 @@ export default function TeamManagementPage() {
 	const { mutateAsync: updateMember } = useAtomValue(updateMemberMutationAtom);
 
 	const { mutateAsync: deleteMember } = useAtomValue(deleteMemberMutationAtom);
+	const { mutateAsync: createInvite } = useAtomValue(createInviteMutationAtom);
+
+	const handleCreateInvite = useCallback(
+		async (inviteData: InviteCreate) => {
+			const request: CreateInviteRequest = {
+				search_space_id: searchSpaceId,
+				data: inviteData,
+			};
+			return await createInvite(request);
+		},
+		[createInvite, searchSpaceId]
+	);
 
 	const handleUpdateRole = useCallback(
 		async (roleId: number, data: { permissions?: string[] }): Promise<Role> => {
@@ -237,7 +251,6 @@ export default function TeamManagementPage() {
 		enabled: !!searchSpaceId,
 	});
 	const {
-		createInvite,
 		revokeInvite,
 	} = useInvites(searchSpaceId);
 
@@ -419,7 +432,7 @@ export default function TeamManagementPage() {
 							{activeTab === "invites" && canInvite && (
 								<CreateInviteDialog
 									roles={roles}
-									onCreateInvite={createInvite}
+									onCreateInvite={handleCreateInvite}
 									searchSpaceId={searchSpaceId}
 								/>
 							)}
