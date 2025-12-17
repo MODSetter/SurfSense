@@ -177,7 +177,7 @@ async def index_crawled_urls(
                     documents_skipped += 1
                     continue
 
-                # Format content as structured document
+                # Format content as structured document for summary generation (includes all metadata)
                 structured_document = crawler.format_to_structured_document(
                     crawl_result
                 )
@@ -187,10 +187,14 @@ async def index_crawled_urls(
                     DocumentType.CRAWLED_URL, url, search_space_id
                 )
 
-                # Generate content hash
-                # TODO: To fix this by not including dynamic content like date, time, etc.
+                # Generate content hash using a version WITHOUT metadata
+                # This ensures the hash only changes when actual content changes,
+                # not when metadata (which contains dynamic fields like timestamps, IDs, etc.) changes
+                structured_document_for_hash = crawler.format_to_structured_document(
+                    crawl_result, exclude_metadata=True
+                )
                 content_hash = generate_content_hash(
-                    structured_document, search_space_id
+                    structured_document_for_hash, search_space_id
                 )
 
                 # Check if document with this unique identifier already exists

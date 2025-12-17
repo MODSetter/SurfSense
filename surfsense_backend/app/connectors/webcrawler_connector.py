@@ -8,6 +8,7 @@ Provides a unified interface for web scraping.
 from typing import Any
 
 import validators
+from fake_useragent import UserAgent
 from firecrawl import AsyncFirecrawlApp
 from langchain_community.document_loaders import AsyncChromiumLoader
 
@@ -121,7 +122,7 @@ class WebCrawlerConnector:
 
     async def _crawl_with_chromium(self, url: str) -> dict[str, Any]:
         """
-        Crawl URL using AsyncChromiumLoader.
+        Crawl URL using AsyncChromiumLoader with realistic User-Agent.
 
         Args:
             url: URL to crawl
@@ -132,7 +133,14 @@ class WebCrawlerConnector:
         Raises:
             Exception: If crawling fails
         """
-        crawl_loader = AsyncChromiumLoader(urls=[url], headless=True)
+        # Generate a realistic User-Agent to avoid bot detection
+        ua = UserAgent()
+        user_agent = ua.random
+
+        # Pass User-Agent to AsyncChromiumLoader
+        crawl_loader = AsyncChromiumLoader(
+            urls=[url], headless=True, user_agent=user_agent
+        )
         documents = await crawl_loader.aload()
 
         if not documents:
@@ -153,12 +161,18 @@ class WebCrawlerConnector:
             "crawler_type": "chromium",
         }
 
-    def format_to_structured_document(self, crawl_result: dict[str, Any]) -> str:
+    def format_to_structured_document(
+        self, crawl_result: dict[str, Any], exclude_metadata: bool = False
+    ) -> str:
         """
         Format crawl result as a structured document.
 
         Args:
             crawl_result: Result from crawl_url method
+            exclude_metadata: If True, excludes ALL metadata fields from the document.
+                            This is useful for content hash generation to ensure the hash
+                            only changes when actual content changes, not when metadata
+                            (which often contains dynamic fields like timestamps, IDs, etc.) changes.
 
         Returns:
             Structured document string
@@ -166,15 +180,17 @@ class WebCrawlerConnector:
         metadata = crawl_result["metadata"]
         content = crawl_result["content"]
 
-        document_parts = ["<DOCUMENT>", "<METADATA>"]
+        document_parts = ["<DOCUMENT>"]
 
-        # Add all metadata fields
-        for key, value in metadata.items():
-            document_parts.append(f"{key.upper()}: {value}")
+        # Include metadata section only if not excluded
+        if not exclude_metadata:
+            document_parts.append("<METADATA>")
+            for key, value in metadata.items():
+                document_parts.append(f"{key.upper()}: {value}")
+            document_parts.append("</METADATA>")
 
         document_parts.extend(
             [
-                "</METADATA>",
                 "<CONTENT>",
                 "FORMAT: markdown",
                 "TEXT_START",
