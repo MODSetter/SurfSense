@@ -47,6 +47,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { updateMemberMutationAtom, deleteMemberMutationAtom } from "@/atoms/members/members-mutation.atoms";
+import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { createInviteMutationAtom, deleteInviteMutationAtom } from '@/atoms/invites/invites-mutation.atoms';
 import type { CreateInviteRequest, DeleteInviteRequest } from '@/contracts/types/invites.types';
 import type { UpdateMembershipRequest, DeleteMembershipRequest, Membership } from "@/contracts/types/members.types";
@@ -118,7 +119,6 @@ import type {
 import {
 	type InviteCreate,
 	type Member,
-	useUserAccess,
 } from "@/hooks/use-rbac";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -154,7 +154,16 @@ export default function TeamManagementPage() {
 	const searchSpaceId = Number(params.search_space_id);
 	const [activeTab, setActiveTab] = useState("members");
 
-	const { access, loading: accessLoading, hasPermission } = useUserAccess(searchSpaceId);
+	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
+
+	const hasPermission = useCallback(
+		(permission: string) => {
+			if (!access) return false;
+			if (access.is_owner) return true;
+			return access.permissions?.includes(permission) ?? false;
+		},
+		[access]
+	);
 
 	const { data: membersData = [], isLoading: membersLoading, refetch: fetchMembers } = useAtomValue(membersAtom);
 	const members = membersData as Member[];
