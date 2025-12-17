@@ -15,6 +15,7 @@ from .google_gmail_add_connector_route import (
 from .llm_config_routes import router as llm_config_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
+from .notes_routes import router as notes_router
 from .podcasts_routes import router as podcasts_router
 from .rbac_routes import router as rbac_router
 from .search_source_connectors_routes import router as search_source_connectors_router
@@ -26,6 +27,7 @@ router.include_router(search_spaces_router)
 router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(documents_router)
+router.include_router(notes_router)
 router.include_router(podcasts_router)
 router.include_router(chats_router)
 router.include_router(search_source_connectors_router)

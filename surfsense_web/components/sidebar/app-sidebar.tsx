@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	BookOpen,
@@ -24,11 +25,10 @@ import {
 	UserPlus,
 	Users,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { memo, useEffect, useMemo, useState } from "react";
-
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -38,7 +38,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useUser } from "@/hooks/use-user";
 
 /**
  * Generates a consistent color based on a string (email)
@@ -115,6 +114,7 @@ function UserAvatar({ email, size = 32 }: { email: string; size?: number }) {
 }
 
 import { NavMain } from "@/components/sidebar/nav-main";
+import { NavNotes } from "@/components/sidebar/nav-notes";
 import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
 import { PageUsageDisplay } from "@/components/sidebar/page-usage-display";
@@ -138,13 +138,13 @@ export const iconMap: Record<string, LucideIcon> = {
 	MessageCircleMore,
 	Settings2,
 	SquareLibrary,
+	FileText,
 	SquareTerminal,
 	AlertCircle,
 	Info,
 	ExternalLink,
 	Trash2,
 	Podcast,
-	FileText,
 	Users,
 };
 
@@ -209,6 +209,20 @@ const defaultData = {
 			id: 1003,
 		},
 	],
+	RecentNotes: [
+		{
+			name: "Meeting Notes",
+			url: "#",
+			icon: "FileText",
+			id: 2001,
+		},
+		{
+			name: "Project Ideas",
+			url: "#",
+			icon: "FileText",
+			id: 2002,
+		},
+	],
 };
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -240,6 +254,18 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 			onClick: () => void;
 		}[];
 	}[];
+	RecentNotes?: {
+		name: string;
+		url: string;
+		icon: string;
+		id?: number;
+		search_space_id?: number;
+		actions?: {
+			name: string;
+			icon: string;
+			onClick: () => void;
+		}[];
+	}[];
 	user?: {
 		name: string;
 		email: string;
@@ -249,6 +275,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 		pagesUsed: number;
 		pagesLimit: number;
 	};
+	onAddNote?: () => void;
 }
 
 // Memoized AppSidebar component for better performance
@@ -257,12 +284,14 @@ export const AppSidebar = memo(function AppSidebar({
 	navMain = defaultData.navMain,
 	navSecondary = defaultData.navSecondary,
 	RecentChats = defaultData.RecentChats,
+	RecentNotes = defaultData.RecentNotes,
 	pageUsage,
+	onAddNote,
 	...props
 }: AppSidebarProps) {
 	const router = useRouter();
 	const { theme, setTheme } = useTheme();
-	const { user, loading: isLoadingUser } = useUser();
+	const { data: user, isPending: isLoadingUser } = useAtomValue(currentUserAtom);
 	const [isClient, setIsClient] = useState(false);
 
 	useEffect(() => {
@@ -294,6 +323,16 @@ export const AppSidebar = memo(function AppSidebar({
 			})) || []
 		);
 	}, [RecentChats]);
+
+	// Process RecentNotes to resolve icon names to components
+	const processedRecentNotes = useMemo(() => {
+		return (
+			RecentNotes?.map((item) => ({
+				...item,
+				icon: iconMap[item.icon] || FileText,
+			})) || []
+		);
+	}, [RecentNotes]);
 
 	// Get user display name from email
 	const userDisplayName = user?.email ? user.email.split("@")[0] : "User";
@@ -412,6 +451,14 @@ export const AppSidebar = memo(function AppSidebar({
 						<NavProjects chats={processedRecentChats} />
 					</div>
 				)}
+
+				<div className="space-y-2">
+					<NavNotes
+						notes={processedRecentNotes}
+						onAddNote={onAddNote}
+						searchSpaceId={searchSpaceId}
+					/>
+				</div>
 			</SidebarContent>
 			<SidebarFooter>
 				{pageUsage && (

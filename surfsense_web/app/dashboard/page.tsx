@@ -8,6 +8,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
+import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { UserDropdown } from "@/components/UserDropdown";
@@ -35,9 +38,6 @@ import {
 } from "@/components/ui/card";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
-import { useUser } from "@/hooks";
-import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 /**
@@ -156,11 +156,15 @@ const DashboardPage = () => {
 		},
 	};
 
-	const { data: searchSpaces = [], isLoading: loading, error, refetch: refreshSearchSpaces } = useAtomValue(searchSpacesAtom);
+	const {
+		data: searchSpaces = [],
+		isLoading: loading,
+		error,
+		refetch: refreshSearchSpaces,
+	} = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 
-	// Fetch user details
-	const { user, loading: isLoadingUser, error: userError } = useUser();
+	const { data: user, isPending: isLoadingUser, error: userError } = useAtomValue(currentUserAtom);
 
 	// Create user object for UserDropdown
 	const customUser = {
@@ -172,7 +176,7 @@ const DashboardPage = () => {
 	};
 
 	if (loading) return <LoadingScreen />;
-	if (error) return <ErrorScreen message={error?.message || 'Failed to load search spaces'} />;
+	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
 
 	const handleDeleteSearchSpace = async (id: number) => {
 		await deleteSearchSpace({ id });

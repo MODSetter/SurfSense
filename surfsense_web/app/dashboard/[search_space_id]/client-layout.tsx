@@ -14,7 +14,6 @@ import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContain
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
-import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -224,7 +223,6 @@ export function DashboardClientLayout({
 								</div>
 								<div className="flex items-center gap-2">
 									<LanguageSwitcher />
-									<ThemeTogglerComponent />
 									{/* Only show artifacts toggle on researcher page */}
 									{isResearcherPage && (
 										<motion.div

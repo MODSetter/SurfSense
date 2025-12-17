@@ -1,18 +1,18 @@
 import {
 	type CreateSearchSpaceRequest,
-	type DeleteSearchSpaceRequest,
-	type GetSearchSpaceRequest,
-	type GetSearchSpacesRequest,
-	type UpdateSearchSpaceRequest,
 	createSearchSpaceRequest,
 	createSearchSpaceResponse,
+	type DeleteSearchSpaceRequest,
 	deleteSearchSpaceRequest,
 	deleteSearchSpaceResponse,
+	type GetSearchSpaceRequest,
+	type GetSearchSpacesRequest,
 	getCommunityPromptsResponse,
 	getSearchSpaceRequest,
 	getSearchSpaceResponse,
 	getSearchSpacesRequest,
 	getSearchSpacesResponse,
+	type UpdateSearchSpaceRequest,
 	updateSearchSpaceRequest,
 	updateSearchSpaceResponse,
 } from "@/contracts/types/search-space.types";
@@ -71,7 +71,10 @@ class SearchSpacesApiService {
 	 * Get community-curated prompts for search space system instructions
 	 */
 	getCommunityPrompts = async () => {
-		return baseApiService.get(`/api/v1/searchspaces/prompts/community`, getCommunityPromptsResponse);
+		return baseApiService.get(
+			`/api/v1/searchspaces/prompts/community`,
+			getCommunityPromptsResponse
+		);
 	};
 
 	/**

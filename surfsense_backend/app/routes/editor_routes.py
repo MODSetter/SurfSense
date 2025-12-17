@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db import Document, Permission, User, get_async_session
+from app.db import Document, DocumentType, Permission, User, get_async_session
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
@@ -59,13 +59,38 @@ async def get_editor_content(
         return {
             "document_id": document.id,
             "title": document.title,
+            "document_type": document.document_type.value,
             "blocknote_document": document.blocknote_document,
             "updated_at": document.updated_at.isoformat()
             if document.updated_at
             else None,
         }
 
-    # Lazy migration: Try to generate blocknote_document from chunks
+    # For NOTE type documents, return empty BlockNote structure if no content exists
+    if document.document_type == DocumentType.NOTE:
+        # Return empty BlockNote structure
+        empty_blocknote = [
+            {
+                "type": "paragraph",
+                "content": [],
+                "children": [],
+            }
+        ]
+        # Save empty structure if not already saved
+        if not document.blocknote_document:
+            document.blocknote_document = empty_blocknote
+            await session.commit()
+        return {
+            "document_id": document.id,
+            "title": document.title,
+            "document_type": document.document_type.value,
+            "blocknote_document": empty_blocknote,
+            "updated_at": document.updated_at.isoformat()
+            if document.updated_at
+            else None,
+        }
+
+    # Lazy migration: Try to generate blocknote_document from chunks (for other document types)
     from app.utils.blocknote_converter import convert_markdown_to_blocknote
 
     chunks = sorted(document.chunks, key=lambda c: c.id)
@@ -102,6 +127,7 @@ async def get_editor_content(
     return {
         "document_id": document.id,
         "title": document.title,
+        "document_type": document.document_type.value,
         "blocknote_document": blocknote_json,
         "updated_at": document.updated_at.isoformat() if document.updated_at else None,
     }
@@ -146,6 +172,43 @@ async def save_document(
     blocknote_document = data.get("blocknote_document")
     if not blocknote_document:
         raise HTTPException(status_code=400, detail="blocknote_document is required")
+
+    # Add type validation
+    if not isinstance(blocknote_document, list):
+        raise HTTPException(status_code=400, detail="blocknote_document must be a list")
+
+    # For NOTE type documents, extract title from first block (heading)
+    if (
+        document.document_type == DocumentType.NOTE
+        and blocknote_document
+        and len(blocknote_document) > 0
+    ):
+        first_block = blocknote_document[0]
+        if (
+            first_block
+            and first_block.get("content")
+            and isinstance(first_block["content"], list)
+        ):
+            # Extract text from first block content
+            # Match the frontend extractTitleFromBlockNote logic exactly
+            title_parts = []
+            for item in first_block["content"]:
+                if isinstance(item, str):
+                    title_parts.append(item)
+                elif (
+                    isinstance(item, dict)
+                    and "text" in item
+                    and isinstance(item["text"], str)
+                ):
+                    # BlockNote structure: {"type": "text", "text": "...", "styles": {}}
+                    title_parts.append(item["text"])
+
+            new_title = "".join(title_parts).strip()
+            if new_title:
+                document.title = new_title
+            else:
+                # Only set to "Untitled" if content exists but is empty
+                document.title = "Untitled"
 
     # Save BlockNote document
     document.blocknote_document = blocknote_document

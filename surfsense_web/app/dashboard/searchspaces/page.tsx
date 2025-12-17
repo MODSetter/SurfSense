@@ -3,8 +3,8 @@
 import { useAtomValue } from "jotai";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { SearchSpaceForm } from "@/components/search-space-form";
 import { createSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
+import { SearchSpaceForm } from "@/components/search-space-form";
 
 export default function SearchSpacesPage() {
 	const router = useRouter();

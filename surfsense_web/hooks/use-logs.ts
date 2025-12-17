@@ -141,32 +141,43 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 	);
 
 	// Function to create a new log
-	const createLog = useCallback(async (logData: Omit<Log, "id" | "created_at">) => {
-		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs`,
-				{
-					headers: { "Content-Type": "application/json" },
-					method: "POST",
-					body: JSON.stringify(logData),
+	// Use silent: true to suppress toast notifications (for internal/background operations)
+	const createLog = useCallback(
+		async (logData: Omit<Log, "id" | "created_at">, options?: { silent?: boolean }) => {
+			const { silent = false } = options || {};
+			try {
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs`,
+					{
+						headers: { "Content-Type": "application/json" },
+						method: "POST",
+						body: JSON.stringify(logData),
+					}
+				);
+
+				if (!response.ok) {
+					const errorData = await response.json().catch(() => ({}));
+					throw new Error(errorData.detail || "Failed to create log");
 				}
-			);
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.detail || "Failed to create log");
+				const newLog = await response.json();
+				setLogs((prevLogs) => [newLog, ...prevLogs]);
+				// Only show toast if not silent
+				if (!silent) {
+					toast.success("Log created successfully");
+				}
+				return newLog;
+			} catch (err: any) {
+				// Only show error toast if not silent
+				if (!silent) {
+					toast.error(err.message || "Failed to create log");
+				}
+				console.error("Error creating log:", err);
+				throw err;
 			}
-
-			const newLog = await response.json();
-			setLogs((prevLogs) => [newLog, ...prevLogs]);
-			toast.success("Log created successfully");
-			return newLog;
-		} catch (err: any) {
-			toast.error(err.message || "Failed to create log");
-			console.error("Error creating log:", err);
-			throw err;
-		}
-	}, []);
+		},
+		[]
+	);
 
 	// Function to update a log
 	const updateLog = useCallback(

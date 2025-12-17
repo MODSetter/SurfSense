@@ -1,8 +1,10 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { ChevronDown, ChevronUp, ExternalLink, Info, Sparkles, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { communityPromptsAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,9 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { communityPromptsAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { useAtomValue } from "jotai";
 
 interface SetupPromptStepProps {
 	searchSpaceId: number;
