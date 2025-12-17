@@ -46,6 +46,8 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { updateMemberMutationAtom } from "@/atoms/members/members-mutation.atoms";
+import type { UpdateMembershipRequest, Membership } from "@/contracts/types/members.types";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -157,7 +159,6 @@ export default function TeamManagementPage() {
 
 	const { access, loading: accessLoading, hasPermission } = useUserAccess(searchSpaceId);
 	const {
-	updateMemberRole,
 	removeMember,
 } = useMembers(searchSpaceId);
 
@@ -167,6 +168,8 @@ export default function TeamManagementPage() {
 	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
 	const { mutateAsync: updateRole } = useAtomValue(updateRoleMutationAtom);
 	const { mutateAsync: deleteRole } = useAtomValue(deleteRoleMutationAtom);
+	const { mutateAsync: updateMember } = useAtomValue(updateMemberMutationAtom);
+
 
 	const handleUpdateRole = useCallback(
 		async (roleId: number, data: { permissions?: string[] }): Promise<Role> => {
@@ -201,6 +204,20 @@ export default function TeamManagementPage() {
 			return await createRole(request);
 		},
 		[createRole, searchSpaceId]
+	);
+
+	const handleUpdateMember = useCallback(
+		async (membershipId: number, roleId: number | null): Promise<Member> => {
+			const request: UpdateMembershipRequest = {
+				search_space_id: searchSpaceId,
+				membership_id: membershipId,
+				data: {
+					role_id: roleId,
+				},
+			};
+			return await updateMember(request) as Member;
+		},
+		[updateMember, searchSpaceId]
 	);
 
 	const {
@@ -405,7 +422,7 @@ export default function TeamManagementPage() {
 								members={members}
 								roles={roles}
 								loading={membersLoading}
-								onUpdateRole={updateMemberRole}
+								onUpdateRole={handleUpdateMember}
 								onRemoveMember={removeMember}
 								canManageRoles={hasPermission("members:manage_roles")}
 								canRemove={hasPermission("members:remove")}
