@@ -118,7 +118,6 @@ import type {
 import {
 	type InviteCreate,
 	type Member,
-	useInvites,
 	useUserAccess,
 } from "@/hooks/use-rbac";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
@@ -263,9 +262,6 @@ export default function TeamManagementPage() {
 		queryFn: () => rolesApiService.getRoles({ search_space_id: searchSpaceId }),
 		enabled: !!searchSpaceId,
 	});
-	const {
-	} = useInvites(searchSpaceId);
-
 	const {
 		data: invites = [],
 		isLoading: invitesLoading,
