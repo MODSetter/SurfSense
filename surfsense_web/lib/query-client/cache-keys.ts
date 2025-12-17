@@ -3,6 +3,7 @@ import type { GetDocumentsRequest } from "@/contracts/types/document.types";
 import type { GetLLMConfigsRequest } from "@/contracts/types/llm-config.types";
 import type { GetPodcastsRequest } from "@/contracts/types/podcast.types";
 import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
+import type { GetRolesRequest } from "@/contracts/types/roles.types";
 
 export const cacheKeys = {
 	chats: {
@@ -43,5 +44,12 @@ export const cacheKeys = {
 	},
 	user: {
 		current: () => ["user", "me"] as const,
+	},
+	roles: {
+		all: (searchSpaceId: string) => ["roles", searchSpaceId] as const,
+		byId: (searchSpaceId: string, roleId: string) => ["roles", searchSpaceId, roleId] as const,
+	},
+	permissions: {
+		all: () => ["permissions"] as const,
 	},
 };

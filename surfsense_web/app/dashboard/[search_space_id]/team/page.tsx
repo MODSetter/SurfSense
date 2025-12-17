@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import {
 	type ColumnDef,
 	type ColumnFiltersState,
@@ -44,6 +45,12 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { createRoleMutationAtom, updateRoleMutationAtom, deleteRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
+import { useAtomValue } from "jotai";
+import type { CreateRoleRequest, UpdateRoleRequest, DeleteRoleRequest, Role } from "@/contracts/types/roles.types";
+import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
+import { rolesApiService } from "@/lib/apis/roles-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -103,12 +110,8 @@ import {
 	type Invite,
 	type InviteCreate,
 	type Member,
-	type Role,
-	type RoleCreate,
 	useInvites,
 	useMembers,
-	usePermissions,
-	useRoles,
 	useUserAccess,
 } from "@/hooks/use-rbac";
 import { cn } from "@/lib/utils";
@@ -116,7 +119,7 @@ import { cn } from "@/lib/utils";
 // Animation variants
 const fadeInUp = {
 	hidden: { opacity: 0, y: 20 },
-	visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+	visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const} },
 };
 
 const staggerContainer = {
@@ -132,7 +135,7 @@ const cardVariants = {
 	visible: {
 		opacity: 1,
 		scale: 1,
-		transition: { type: "spring", stiffness: 300, damping: 30 },
+		transition: { type: "spring" as const, stiffness: 300, damping: 30 },
 	},
 };
 
@@ -150,14 +153,55 @@ export default function TeamManagementPage() {
 		updateMemberRole,
 		removeMember,
 	} = useMembers(searchSpaceId);
+
+	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
+	const { mutateAsync: updateRole } = useAtomValue(updateRoleMutationAtom);
+	const { mutateAsync: deleteRole } = useAtomValue(deleteRoleMutationAtom);
+
+	const handleUpdateRole = useCallback(
+		async (roleId: number, data: { permissions?: string[] }): Promise<Role> => {
+			const request: UpdateRoleRequest = {
+				search_space_id: searchSpaceId,
+				role_id: roleId,
+				data: data,
+			};
+			return await updateRole(request);
+		},
+		[updateRole, searchSpaceId]
+	);
+
+	const handleDeleteRole = useCallback(
+		async (roleId: number): Promise<boolean> => {
+			const request: DeleteRoleRequest = {
+				search_space_id: searchSpaceId,
+				role_id: roleId,
+			};
+			await deleteRole(request);
+			return true;
+		},
+		[deleteRole, searchSpaceId]
+	);
+
+	const handleCreateRole = useCallback(
+		async (roleData: CreateRoleRequest['data']): Promise<Role> => {
+			const request: CreateRoleRequest = {
+				search_space_id: searchSpaceId,
+				data: roleData,
+			};
+			return await createRole(request);
+		},
+		[createRole, searchSpaceId]
+	);
+
 	const {
-		roles,
-		loading: rolesLoading,
-		fetchRoles,
-		createRole,
-		updateRole,
-		deleteRole,
-	} = useRoles(searchSpaceId);
+		data: roles = [],
+		isLoading: rolesLoading,
+		refetch: fetchRoles,
+	} = useQuery({
+		queryKey: cacheKeys.roles.all(searchSpaceId.toString()),
+		queryFn: () => rolesApiService.getRoles({ search_space_id: searchSpaceId }),
+		enabled: !!searchSpaceId,
+	});
 	const {
 		invites,
 		loading: invitesLoading,
@@ -165,7 +209,19 @@ export default function TeamManagementPage() {
 		createInvite,
 		revokeInvite,
 	} = useInvites(searchSpaceId);
-	const { groupedPermissions, loading: permissionsLoading } = usePermissions();
+
+	const { data: permissionsData, isLoading: permissionsLoading } = useAtomValue(permissionsAtom);
+	const permissions = permissionsData?.permissions || [];
+	const groupedPermissions = useMemo(() => {
+		const groups: Record<string, typeof permissions> = {};
+		for (const perm of permissions) {
+			if (!groups[perm.category]) {
+				groups[perm.category] = [];
+			}
+			groups[perm.category].push(perm);
+		}
+		return groups;
+	}, [permissions]);
 
 	const canManageMembers = hasPermission("members:view");
 	const canManageRoles = hasPermission("roles:read");
@@ -329,7 +385,7 @@ export default function TeamManagementPage() {
 							{activeTab === "roles" && hasPermission("roles:create") && (
 								<CreateRoleDialog
 									groupedPermissions={groupedPermissions}
-									onCreateRole={createRole}
+									onCreateRole={handleCreateRole}
 								/>
 							)}
 						</div>
@@ -351,8 +407,8 @@ export default function TeamManagementPage() {
 								roles={roles}
 								groupedPermissions={groupedPermissions}
 								loading={rolesLoading}
-								onUpdateRole={updateRole}
-								onDeleteRole={deleteRole}
+								onUpdateRole={handleUpdateRole}
+								onDeleteRole={handleDeleteRole}
 								canUpdate={hasPermission("roles:update")}
 								canDelete={hasPermission("roles:delete")}
 							/>
@@ -663,7 +719,12 @@ function RolesTab({
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
 											{canUpdate && (
-												<DropdownMenuItem>
+												<DropdownMenuItem
+													onClick={() => {
+														// TODO: Implement edit role dialog/modal
+														console.log("Edit role not yet implemented", role);
+													}}
+												>
 													<Edit2 className="h-4 w-4 mr-2" />
 													Edit Role
 												</DropdownMenuItem>
@@ -882,7 +943,7 @@ function InvitesTab({
 											size="sm"
 											className="gap-2"
 											onClick={() => copyInviteLink(invite)}
-											disabled={isInactive}
+											disabled={Boolean(isInactive)}
 										>
 											{copiedId === invite.id ? (
 												<>
@@ -1158,7 +1219,7 @@ function CreateRoleDialog({
 	onCreateRole,
 }: {
 	groupedPermissions: Record<string, { value: string; name: string; category: string }[]>;
-	onCreateRole: (data: RoleCreate) => Promise<Role>;
+	onCreateRole: (data: CreateRoleRequest['data']) => Promise<Role>;
 }) {
 	const [open, setOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
@@ -1177,7 +1238,7 @@ function CreateRoleDialog({
 		try {
 			await onCreateRole({
 				name: name.trim(),
-				description: description.trim() || undefined,
+				description: description.trim() || null,
 				permissions: selectedPermissions,
 				is_default: isDefault,
 			});
