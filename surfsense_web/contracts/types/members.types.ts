@@ -30,7 +30,7 @@ export const updateMembershipRequest = z.object({
 	search_space_id: z.number(),
 	membership_id: z.number(),
 	data: z.object({
-		role_id: z.number(),
+		role_id: z.number().nullable(),
 	}),
 });
 

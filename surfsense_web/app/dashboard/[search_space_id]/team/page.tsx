@@ -46,8 +46,8 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { updateMemberMutationAtom } from "@/atoms/members/members-mutation.atoms";
-import type { UpdateMembershipRequest, Membership } from "@/contracts/types/members.types";
+import { updateMemberMutationAtom, deleteMemberMutationAtom } from "@/atoms/members/members-mutation.atoms";
+import type { UpdateMembershipRequest, DeleteMembershipRequest, Membership } from "@/contracts/types/members.types";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -121,7 +121,6 @@ import {
 	type InviteCreate,
 	type Member,
 	useInvites,
-	useMembers,
 	useUserAccess,
 } from "@/hooks/use-rbac";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
@@ -158,9 +157,6 @@ export default function TeamManagementPage() {
 	const [activeTab, setActiveTab] = useState("members");
 
 	const { access, loading: accessLoading, hasPermission } = useUserAccess(searchSpaceId);
-	const {
-	removeMember,
-} = useMembers(searchSpaceId);
 
 	const { data: membersData = [], isLoading: membersLoading, refetch: fetchMembers } = useAtomValue(membersAtom);
 	const members = membersData as Member[];
@@ -170,6 +166,7 @@ export default function TeamManagementPage() {
 	const { mutateAsync: deleteRole } = useAtomValue(deleteRoleMutationAtom);
 	const { mutateAsync: updateMember } = useAtomValue(updateMemberMutationAtom);
 
+	const { mutateAsync: deleteMember } = useAtomValue(deleteMemberMutationAtom);
 
 	const handleUpdateRole = useCallback(
 		async (roleId: number, data: { permissions?: string[] }): Promise<Role> => {
@@ -220,6 +217,19 @@ export default function TeamManagementPage() {
 		[updateMember, searchSpaceId]
 	);
 
+
+	const handleRemoveMember = useCallback(
+		async (membershipId: number) => {
+			const request: DeleteMembershipRequest = {
+				search_space_id: searchSpaceId,
+				membership_id: membershipId,
+			};
+			await deleteMember(request);
+
+			return true
+		},
+		[deleteMember, searchSpaceId]
+	);
 	const {
 		data: roles = [],
 		isLoading: rolesLoading,
@@ -423,7 +433,7 @@ export default function TeamManagementPage() {
 								roles={roles}
 								loading={membersLoading}
 								onUpdateRole={handleUpdateMember}
-								onRemoveMember={removeMember}
+								onRemoveMember={handleRemoveMember}
 								canManageRoles={hasPermission("members:manage_roles")}
 								canRemove={hasPermission("members:remove")}
 							/>
