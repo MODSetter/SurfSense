@@ -50,11 +50,8 @@ import { updateMemberMutationAtom, deleteMemberMutationAtom } from "@/atoms/memb
 import type { UpdateMembershipRequest, DeleteMembershipRequest, Membership } from "@/contracts/types/members.types";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
-import {
-	createRoleMutationAtom,
-	deleteRoleMutationAtom,
-	updateRoleMutationAtom,
-} from "@/atoms/roles/roles-mutation.atoms";
+import { invitesApiService } from '@/lib/apis/invites-api.service';
+import type { Invite } from '@/contracts/types/invites.types';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -117,7 +114,6 @@ import type {
 	UpdateRoleRequest,
 } from "@/contracts/types/roles.types";
 import {
-	type Invite,
 	type InviteCreate,
 	type Member,
 	useInvites,
@@ -126,6 +122,7 @@ import {
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
+import { createRoleMutationAtom, deleteRoleMutationAtom, updateRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
 
 // Animation variants
 const fadeInUp = {
@@ -240,12 +237,19 @@ export default function TeamManagementPage() {
 		enabled: !!searchSpaceId,
 	});
 	const {
-		invites,
-		loading: invitesLoading,
-		fetchInvites,
 		createInvite,
 		revokeInvite,
 	} = useInvites(searchSpaceId);
+
+	const {
+		data: invites = [],
+		isLoading: invitesLoading,
+		refetch: fetchInvites,
+	} = useQuery({
+		queryKey: cacheKeys.invites.all(searchSpaceId.toString()),
+		queryFn: () => invitesApiService.getInvites({ search_space_id: searchSpaceId }),
+		staleTime: 5 * 60 * 1000,
+	});
 
 	const { data: permissionsData, isLoading: permissionsLoading } = useAtomValue(permissionsAtom);
 	const permissions = permissionsData?.permissions || [];
