@@ -8,6 +8,7 @@ Provides a unified interface for web scraping.
 from typing import Any
 
 import validators
+from fake_useragent import UserAgent
 from firecrawl import AsyncFirecrawlApp
 from langchain_community.document_loaders import AsyncChromiumLoader
 
@@ -121,7 +122,7 @@ class WebCrawlerConnector:
 
     async def _crawl_with_chromium(self, url: str) -> dict[str, Any]:
         """
-        Crawl URL using AsyncChromiumLoader.
+        Crawl URL using AsyncChromiumLoader with realistic User-Agent.
 
         Args:
             url: URL to crawl
@@ -132,7 +133,14 @@ class WebCrawlerConnector:
         Raises:
             Exception: If crawling fails
         """
-        crawl_loader = AsyncChromiumLoader(urls=[url], headless=True)
+        # Generate a realistic User-Agent to avoid bot detection
+        ua = UserAgent()
+        user_agent = ua.random
+
+        # Pass User-Agent to AsyncChromiumLoader
+        crawl_loader = AsyncChromiumLoader(
+            urls=[url], headless=True, user_agent=user_agent
+        )
         documents = await crawl_loader.aload()
 
         if not documents:
