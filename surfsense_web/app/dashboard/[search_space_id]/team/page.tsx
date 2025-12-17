@@ -47,8 +47,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { updateMemberMutationAtom, deleteMemberMutationAtom } from "@/atoms/members/members-mutation.atoms";
-import { createInviteMutationAtom } from '@/atoms/invites/invites-mutation.atoms';
-import type { CreateInviteRequest } from '@/contracts/types/invites.types';
+import { createInviteMutationAtom, deleteInviteMutationAtom } from '@/atoms/invites/invites-mutation.atoms';
+import type { CreateInviteRequest, DeleteInviteRequest } from '@/contracts/types/invites.types';
 import type { UpdateMembershipRequest, DeleteMembershipRequest, Membership } from "@/contracts/types/members.types";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -167,6 +167,19 @@ export default function TeamManagementPage() {
 
 	const { mutateAsync: deleteMember } = useAtomValue(deleteMemberMutationAtom);
 	const { mutateAsync: createInvite } = useAtomValue(createInviteMutationAtom);
+	const { mutateAsync: revokeInvite } = useAtomValue(deleteInviteMutationAtom);
+
+	const handleRevokeInvite = useCallback(
+		async (inviteId: number): Promise<boolean> => {
+			const request: DeleteInviteRequest = {
+				search_space_id: searchSpaceId,
+				invite_id: inviteId,
+			};
+			await revokeInvite(request);
+			return true;
+		},
+		[revokeInvite, searchSpaceId]
+	);
 
 	const handleCreateInvite = useCallback(
 		async (inviteData: InviteCreate) => {
@@ -251,7 +264,6 @@ export default function TeamManagementPage() {
 		enabled: !!searchSpaceId,
 	});
 	const {
-		revokeInvite,
 	} = useInvites(searchSpaceId);
 
 	const {
@@ -472,7 +484,7 @@ export default function TeamManagementPage() {
 							<InvitesTab
 								invites={invites}
 								loading={invitesLoading}
-								onRevokeInvite={revokeInvite}
+								onRevokeInvite={handleRevokeInvite}
 								canRevoke={canInvite}
 							/>
 						</TabsContent>
