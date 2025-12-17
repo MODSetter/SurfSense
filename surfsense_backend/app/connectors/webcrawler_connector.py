@@ -153,12 +153,18 @@ class WebCrawlerConnector:
             "crawler_type": "chromium",
         }
 
-    def format_to_structured_document(self, crawl_result: dict[str, Any]) -> str:
+    def format_to_structured_document(
+        self, crawl_result: dict[str, Any], exclude_metadata: bool = False
+    ) -> str:
         """
         Format crawl result as a structured document.
 
         Args:
             crawl_result: Result from crawl_url method
+            exclude_metadata: If True, excludes ALL metadata fields from the document.
+                            This is useful for content hash generation to ensure the hash
+                            only changes when actual content changes, not when metadata
+                            (which often contains dynamic fields like timestamps, IDs, etc.) changes.
 
         Returns:
             Structured document string
@@ -166,15 +172,17 @@ class WebCrawlerConnector:
         metadata = crawl_result["metadata"]
         content = crawl_result["content"]
 
-        document_parts = ["<DOCUMENT>", "<METADATA>"]
+        document_parts = ["<DOCUMENT>"]
 
-        # Add all metadata fields
-        for key, value in metadata.items():
-            document_parts.append(f"{key.upper()}: {value}")
+        # Include metadata section only if not excluded
+        if not exclude_metadata:
+            document_parts.append("<METADATA>")
+            for key, value in metadata.items():
+                document_parts.append(f"{key.upper()}: {value}")
+            document_parts.append("</METADATA>")
 
         document_parts.extend(
             [
-                "</METADATA>",
                 "<CONTENT>",
                 "FORMAT: markdown",
                 "TEXT_START",
