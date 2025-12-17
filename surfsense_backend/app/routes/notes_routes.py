@@ -5,7 +5,7 @@ Notes routes for creating and managing BlockNote documents.
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,7 +64,6 @@ async def create_note(
     content_hash = hashlib.sha256(request.title.encode()).hexdigest()
 
     # Create document with NOTE type
-    from app.config import config
 
     document = Document(
         search_space_id=search_space_id,

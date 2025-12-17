@@ -17,7 +17,17 @@ import {
 	IconTicket,
 	IconWorldWww,
 } from "@tabler/icons-react";
-import { File, FileText, Globe, Link, Microscope, Search, Sparkles, Telescope, Webhook } from "lucide-react";
+import {
+	File,
+	FileText,
+	Globe,
+	Link,
+	Microscope,
+	Search,
+	Sparkles,
+	Telescope,
+	Webhook,
+} from "lucide-react";
 import { EnumConnectorName } from "./connector";
 
 export const getConnectorIcon = (connectorType: EnumConnectorName | string, className?: string) => {

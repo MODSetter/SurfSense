@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	BookOpen,
@@ -27,7 +28,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { memo, useEffect, useMemo, useState } from "react";
-
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -37,8 +38,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAtomValue } from "jotai";
-import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 
 /**
  * Generates a consistent color based on a string (email)
@@ -454,7 +453,11 @@ export const AppSidebar = memo(function AppSidebar({
 				)}
 
 				<div className="space-y-2">
-					<NavNotes notes={processedRecentNotes} onAddNote={onAddNote} searchSpaceId={searchSpaceId} />
+					<NavNotes
+						notes={processedRecentNotes}
+						onAddNote={onAddNote}
+						searchSpaceId={searchSpaceId}
+					/>
 				</div>
 			</SidebarContent>
 			<SidebarFooter>

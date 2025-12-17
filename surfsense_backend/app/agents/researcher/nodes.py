@@ -492,6 +492,7 @@ async def fetch_documents_by_ids(
                 "CLICKUP_CONNECTOR": "ClickUp (Selected)",
                 "AIRTABLE_CONNECTOR": "Airtable (Selected)",
                 "LUMA_CONNECTOR": "Luma Events (Selected)",
+                "NOTE": "Notes (Selected)",
             }
 
             source_object = {
@@ -1158,6 +1159,33 @@ async def fetch_relevant_documents(
                             {
                                 "yield_value": streaming_service.format_terminal_info_delta(
                                     f"🔎 Found {len(elasticsearch_chunks)} Elasticsearch chunks related to your query"
+                                )
+                            }
+                        )
+
+                elif connector == "NOTE":
+                    (
+                        source_object,
+                        notes_chunks,
+                    ) = await connector_service.search_notes(
+                        user_query=reformulated_query,
+                        search_space_id=search_space_id,
+                        top_k=top_k,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+
+                    # Add to sources and raw documents
+                    if source_object:
+                        all_sources.append(source_object)
+                    all_raw_documents.extend(notes_chunks)
+
+                    # Stream found document count
+                    if streaming_service and writer:
+                        writer(
+                            {
+                                "yield_value": streaming_service.format_terminal_info_delta(
+                                    f"📝 Found {len(notes_chunks)} Notes related to your query"
                                 )
                             }
                         )

@@ -19,6 +19,7 @@ export const documentTypeEnum = z.enum([
 	"LUMA_CONNECTOR",
 	"ELASTICSEARCH_CONNECTOR",
 	"LINEAR_CONNECTOR",
+	"NOTE",
 ]);
 
 export const document = z.object({
@@ -27,7 +28,10 @@ export const document = z.object({
 	document_type: documentTypeEnum,
 	document_metadata: z.record(z.string(), z.any()),
 	content: z.string(),
+	content_hash: z.string(),
+	unique_identifier_hash: z.string().nullable(),
 	created_at: z.string(),
+	updated_at: z.string().nullable(),
 	search_space_id: z.number(),
 });
 
@@ -68,6 +72,9 @@ export const getDocumentsRequest = z.object({
 export const getDocumentsResponse = z.object({
 	items: z.array(document),
 	total: z.number(),
+	page: z.number(),
+	page_size: z.number(),
+	has_more: z.boolean(),
 });
 
 /**
@@ -118,6 +125,9 @@ export const searchDocumentsRequest = z.object({
 export const searchDocumentsResponse = z.object({
 	items: z.array(document),
 	total: z.number(),
+	page: z.number(),
+	page_size: z.number(),
+	has_more: z.boolean(),
 });
 
 /**

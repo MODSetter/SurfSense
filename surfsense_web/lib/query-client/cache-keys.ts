@@ -2,8 +2,8 @@ import type { GetChatsRequest } from "@/contracts/types/chat.types";
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
 import type { GetLLMConfigsRequest } from "@/contracts/types/llm-config.types";
 import type { GetPodcastsRequest } from "@/contracts/types/podcast.types";
-import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
 import type { GetRolesRequest } from "@/contracts/types/roles.types";
+import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
 
 export const cacheKeys = {
 	chats: {

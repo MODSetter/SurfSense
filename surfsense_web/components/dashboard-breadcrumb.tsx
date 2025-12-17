@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -13,10 +14,9 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useQuery } from "@tanstack/react-query";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { authenticatedFetch, getBearerToken } from "@/lib/auth-utils";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 interface BreadcrumbItemInterface {
 	label: string;
@@ -44,7 +44,7 @@ export function DashboardBreadcrumb() {
 	useEffect(() => {
 		if (segments[2] === "editor" && segments[3] && searchSpaceId) {
 			const documentId = segments[3];
-			
+
 			// Skip fetch for "new" notes
 			if (documentId === "new") {
 				setDocumentTitle(null);
@@ -124,7 +124,7 @@ export function DashboardBreadcrumb() {
 						} else {
 							documentLabel = documentTitle || subSection;
 						}
-						
+
 						breadcrumbs.push({
 							label: t("documents"),
 							href: `/dashboard/${segments[1]}/documents`,

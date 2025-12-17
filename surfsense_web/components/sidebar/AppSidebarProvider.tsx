@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -8,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
 import { chatsAtom } from "@/atoms/chats/chat-query.atoms";
 import { globalChatsQueryParamsAtom } from "@/atoms/chats/ui.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,11 +20,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useQuery } from "@tanstack/react-query";
 import { notesApiService } from "@/lib/apis/notes-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 
 interface AppSidebarProviderProps {
 	searchSpaceId: string;

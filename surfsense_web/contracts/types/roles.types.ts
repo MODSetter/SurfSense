@@ -51,12 +51,14 @@ export const getRoleByIdResponse = role;
 export const updateRoleRequest = z.object({
 	search_space_id: z.number(),
 	role_id: z.number(),
-	data: role.pick({
-		name: true,
-		description: true,
-		permissions: true,
-		is_default: true,
-	}).partial(),
+	data: role
+		.pick({
+			name: true,
+			description: true,
+			permissions: true,
+			is_default: true,
+		})
+		.partial(),
 });
 
 export const updateRoleResponse = role;

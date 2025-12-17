@@ -1,5 +1,5 @@
-import { atomWithQuery } from "jotai-tanstack-query";
 import { atom } from "jotai";
+import { atomWithQuery } from "jotai-tanstack-query";
 import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";

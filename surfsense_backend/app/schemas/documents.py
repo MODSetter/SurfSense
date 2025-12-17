@@ -46,7 +46,10 @@ class DocumentRead(BaseModel):
     document_type: DocumentType
     document_metadata: dict
     content: str  # Changed to string to match frontend
+    content_hash: str
+    unique_identifier_hash: str | None
     created_at: datetime
+    updated_at: datetime | None
     search_space_id: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -61,3 +64,6 @@ class DocumentWithChunksRead(DocumentRead):
 class PaginatedResponse[T](BaseModel):
     items: list[T]
     total: int
+    page: int
+    page_size: int
+    has_more: bool

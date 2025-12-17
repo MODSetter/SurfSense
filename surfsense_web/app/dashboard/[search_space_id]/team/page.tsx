@@ -12,6 +12,7 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useAtomValue } from "jotai";
 import {
 	ArrowLeft,
 	Calendar,
@@ -45,12 +46,12 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createRoleMutationAtom, updateRoleMutationAtom, deleteRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
-import { useAtomValue } from "jotai";
-import type { CreateRoleRequest, UpdateRoleRequest, DeleteRoleRequest, Role } from "@/contracts/types/roles.types";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
-import { rolesApiService } from "@/lib/apis/roles-api.service";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
+import {
+	createRoleMutationAtom,
+	deleteRoleMutationAtom,
+	updateRoleMutationAtom,
+} from "@/atoms/roles/roles-mutation.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -106,6 +107,12 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import type {
+	CreateRoleRequest,
+	DeleteRoleRequest,
+	Role,
+	UpdateRoleRequest,
+} from "@/contracts/types/roles.types";
 import {
 	type Invite,
 	type InviteCreate,
@@ -114,12 +121,14 @@ import {
 	useMembers,
 	useUserAccess,
 } from "@/hooks/use-rbac";
+import { rolesApiService } from "@/lib/apis/roles-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
 // Animation variants
 const fadeInUp = {
 	hidden: { opacity: 0, y: 20 },
-	visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const} },
+	visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } },
 };
 
 const staggerContainer = {
@@ -183,7 +192,7 @@ export default function TeamManagementPage() {
 	);
 
 	const handleCreateRole = useCallback(
-		async (roleData: CreateRoleRequest['data']): Promise<Role> => {
+		async (roleData: CreateRoleRequest["data"]): Promise<Role> => {
 			const request: CreateRoleRequest = {
 				search_space_id: searchSpaceId,
 				data: roleData,
@@ -1219,7 +1228,7 @@ function CreateRoleDialog({
 	onCreateRole,
 }: {
 	groupedPermissions: Record<string, { value: string; name: string; category: string }[]>;
-	onCreateRole: (data: CreateRoleRequest['data']) => Promise<Role>;
+	onCreateRole: (data: CreateRoleRequest["data"]) => Promise<Role>;
 }) {
 	const [open, setOpen] = useState(false);
 	const [creating, setCreating] = useState(false);

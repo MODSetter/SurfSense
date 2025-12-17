@@ -266,12 +266,27 @@ async def read_documents(
                     document_type=doc.document_type,
                     document_metadata=doc.document_metadata,
                     content=doc.content,
+                    content_hash=doc.content_hash,
+                    unique_identifier_hash=doc.unique_identifier_hash,
                     created_at=doc.created_at,
+                    updated_at=doc.updated_at,
                     search_space_id=doc.search_space_id,
                 )
             )
 
-        return PaginatedResponse(items=api_documents, total=total)
+        # Calculate pagination info
+        actual_page = (
+            page if page is not None else (offset // page_size if page_size > 0 else 0)
+        )
+        has_more = (offset + len(api_documents)) < total if page_size > 0 else False
+
+        return PaginatedResponse(
+            items=api_documents,
+            total=total,
+            page=actual_page,
+            page_size=page_size,
+            has_more=has_more,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -385,12 +400,27 @@ async def search_documents(
                     document_type=doc.document_type,
                     document_metadata=doc.document_metadata,
                     content=doc.content,
+                    content_hash=doc.content_hash,
+                    unique_identifier_hash=doc.unique_identifier_hash,
                     created_at=doc.created_at,
+                    updated_at=doc.updated_at,
                     search_space_id=doc.search_space_id,
                 )
             )
 
-        return PaginatedResponse(items=api_documents, total=total)
+        # Calculate pagination info
+        actual_page = (
+            page if page is not None else (offset // page_size if page_size > 0 else 0)
+        )
+        has_more = (offset + len(api_documents)) < total if page_size > 0 else False
+
+        return PaginatedResponse(
+            items=api_documents,
+            total=total,
+            page=actual_page,
+            page_size=page_size,
+            has_more=has_more,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -510,7 +540,10 @@ async def get_document_by_chunk_id(
             document_type=document.document_type,
             document_metadata=document.document_metadata,
             content=document.content,
+            content_hash=document.content_hash,
+            unique_identifier_hash=document.unique_identifier_hash,
             created_at=document.created_at,
+            updated_at=document.updated_at,
             search_space_id=document.search_space_id,
             chunks=sorted_chunks,
         )
@@ -559,7 +592,10 @@ async def read_document(
             document_type=document.document_type,
             document_metadata=document.document_metadata,
             content=document.content,
+            content_hash=document.content_hash,
+            unique_identifier_hash=document.unique_identifier_hash,
             created_at=document.created_at,
+            updated_at=document.updated_at,
             search_space_id=document.search_space_id,
         )
     except HTTPException:
@@ -614,7 +650,10 @@ async def update_document(
             document_type=db_document.document_type,
             document_metadata=db_document.document_metadata,
             content=db_document.content,
+            content_hash=db_document.content_hash,
+            unique_identifier_hash=db_document.unique_identifier_hash,
             created_at=db_document.created_at,
+            updated_at=db_document.updated_at,
             search_space_id=db_document.search_space_id,
         )
     except HTTPException:

@@ -145,4 +145,3 @@ class NotesApiService {
 }
 
 export const notesApiService = new NotesApiService();
-

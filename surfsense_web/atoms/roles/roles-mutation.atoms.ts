@@ -3,10 +3,10 @@ import { toast } from "sonner";
 import type {
 	CreateRoleRequest,
 	CreateRoleResponse,
-	UpdateRoleRequest,
-	UpdateRoleResponse,
 	DeleteRoleRequest,
 	DeleteRoleResponse,
+	UpdateRoleRequest,
+	UpdateRoleResponse,
 } from "@/contracts/types/roles.types";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -40,7 +40,10 @@ export const updateRoleMutationAtom = atomWithMutation(() => {
 				queryKey: cacheKeys.roles.all(request.search_space_id.toString()),
 			});
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.roles.byId(request.search_space_id.toString(), request.role_id.toString()),
+				queryKey: cacheKeys.roles.byId(
+					request.search_space_id.toString(),
+					request.role_id.toString()
+				),
 			});
 		},
 		onError: () => {

@@ -2,13 +2,13 @@ import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
 import type {
 	CreateSearchSpaceRequest,
-	UpdateSearchSpaceRequest,
 	DeleteSearchSpaceRequest,
+	UpdateSearchSpaceRequest,
 } from "@/contracts/types/search-space.types";
-import { activeSearchSpaceIdAtom } from "./search-space-query.atoms";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
+import { activeSearchSpaceIdAtom } from "./search-space-query.atoms";
 
 export const createSearchSpaceMutationAtom = atomWithMutation(() => {
 	return {
