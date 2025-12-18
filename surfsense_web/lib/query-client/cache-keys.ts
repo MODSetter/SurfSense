@@ -1,4 +1,5 @@
 import type { GetChatsRequest } from "@/contracts/types/chat.types";
+import type { GetConnectorsRequest } from "@/contracts/types/connector.types";
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
 import type { GetLLMConfigsRequest } from "@/contracts/types/llm-config.types";
 import type { GetPodcastsRequest } from "@/contracts/types/podcast.types";
@@ -51,5 +52,11 @@ export const cacheKeys = {
 	},
 	permissions: {
 		all: () => ["permissions"] as const,
+	},
+	connectors: {
+		all: (searchSpaceId: string) => ["connectors", searchSpaceId] as const,
+		withQueryParams: (queries: GetConnectorsRequest["queryParams"]) =>
+			["connectors", ...(queries ? Object.values(queries) : [])] as const,
+		byId: (connectorId: string) => ["connector", connectorId] as const,
 	},
 };
