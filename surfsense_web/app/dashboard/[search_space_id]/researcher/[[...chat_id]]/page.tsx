@@ -7,11 +7,11 @@ import { useEffect, useMemo, useRef } from "react";
 import { createChatMutationAtom, updateChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
 import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import ChatInterface from "@/components/chat/ChatInterface";
 import type { Document } from "@/contracts/types/document.types";
 import { useChatState } from "@/hooks/use-chat";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 export default function ResearcherPage() {
 	const { search_space_id } = useParams();
@@ -57,14 +57,10 @@ export default function ResearcherPage() {
 		}));
 	}, [documentTypeCountsData]);
 
-	const { connectors: searchConnectors } = useSearchSourceConnectors(
-		false,
-		Number(search_space_id)
-	);
+	const { data: searchConnectors } = useAtomValue(connectorsAtom);
 
-	// Filter for non-indexable connectors (live search)
 	const liveSearchConnectors = useMemo(
-		() => searchConnectors.filter((connector) => !connector.is_indexable),
+		() => searchConnectors?.filter((connector) => !connector.is_indexable) ?? [],
 		[searchConnectors]
 	);
 
