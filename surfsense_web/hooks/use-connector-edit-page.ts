@@ -1,8 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { updateConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import {
 	type EditConnectorFormValues,
 	type EditMode,
@@ -11,10 +14,8 @@ import {
 	type GithubRepo,
 	githubPatSchema,
 } from "@/components/editConnector/types";
-import {
-	type SearchSourceConnector,
-	useSearchSourceConnectors,
-} from "@/hooks/use-search-source-connectors";
+import type { EnumConnectorName } from "@/contracts/enums/connector";
+import type { SearchSourceConnector } from "@/hooks/use-search-source-connectors";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 const normalizeListInput = (value: unknown): string[] => {
@@ -51,11 +52,8 @@ const normalizeBoolean = (value: unknown): boolean | null => {
 
 export function useConnectorEditPage(connectorId: number, searchSpaceId: string) {
 	const router = useRouter();
-	const {
-		connectors,
-		updateConnector,
-		isLoading: connectorsLoading,
-	} = useSearchSourceConnectors(false, parseInt(searchSpaceId));
+	const { data: connectors = [], isLoading: connectorsLoading } = useAtomValue(connectorsAtom);
+	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 
 	// State managed by the hook
 	const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
@@ -544,7 +542,13 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			}
 
 			try {
-				await updateConnector(connectorId, updatePayload);
+				await updateConnector({
+					id: connectorId,
+					data: {
+						...updatePayload,
+						connector_type: connector.connector_type as EnumConnectorName,
+					},
+				});
 				toast.success("Connector updated!");
 				const newlySavedConfig = updatePayload.config || originalConfig;
 				setOriginalConfig(newlySavedConfig);

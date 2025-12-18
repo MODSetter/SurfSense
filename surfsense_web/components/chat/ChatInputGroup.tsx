@@ -5,6 +5,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { Brain, Check, FolderOpen, Minus, Plus, PlusCircle, Zap } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import React, { Suspense, useCallback, useMemo, useState } from "react";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
 import {
@@ -34,7 +35,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 const DocumentSelector = React.memo(
 	({
@@ -143,15 +143,9 @@ const ConnectorSelector = React.memo(
 
 		const isLoaded = !!documentTypeCountsData;
 
-		// Fetch live search connectors immediately (non-indexable)
-		const {
-			connectors: searchConnectors,
-			isLoading: connectorsLoading,
-			isLoaded: connectorsLoaded,
-			fetchConnectors,
-		} = useSearchSourceConnectors(false, Number(search_space_id));
+		const { data: searchConnectors = [], isLoading: connectorsLoading } =
+			useAtomValue(connectorsAtom);
 
-		// Filter for non-indexable connectors (live search)
 		const liveSearchConnectors = React.useMemo(
 			() => searchConnectors.filter((connector) => !connector.is_indexable),
 			[searchConnectors]
