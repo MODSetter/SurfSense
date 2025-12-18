@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import {
 	Calendar as CalendarIcon,
 	Clock,
@@ -16,9 +16,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { deleteConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
+import {
+	deleteConnectorMutationAtom,
+	updateConnectorMutationAtom,
+} from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -91,12 +93,10 @@ export default function ConnectorsPage() {
 	const { data: connectors = [], isLoading, error } = useAtomValue(connectorsAtom);
 
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
+	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 
 	// Keep old hook for other mutations (will migrate later)
-	const { indexConnector, updateConnector } = useSearchSourceConnectors(
-		true,
-		parseInt(searchSpaceId)
-	);
+	const { indexConnector } = useSearchSourceConnectors(true, parseInt(searchSpaceId));
 
 	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(null);
 	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(null);
@@ -231,9 +231,12 @@ export default function ConnectorsPage() {
 				}
 			}
 
-			await updateConnector(selectedConnectorForPeriodic, {
-				periodic_indexing_enabled: periodicEnabled,
-				indexing_frequency_minutes: frequency,
+			await updateConnector({
+				id: selectedConnectorForPeriodic,
+				data: {
+					periodic_indexing_enabled: periodicEnabled,
+					indexing_frequency_minutes: frequency,
+				},
 			});
 
 			toast.success(
