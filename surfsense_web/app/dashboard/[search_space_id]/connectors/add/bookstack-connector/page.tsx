@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { createConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +26,6 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const bookstackConnectorFormSchema = z.object({
@@ -50,7 +51,7 @@ export default function BookStackConnectorPage() {
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const { createConnector } = useSearchSourceConnectors();
+	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	// Initialize the form
 	const form = useForm<BookStackConnectorFormValues>({
@@ -67,8 +68,8 @@ export default function BookStackConnectorPage() {
 	const onSubmit = async (values: BookStackConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector(
-				{
+			await createConnector({
+				data: {
 					name: values.name,
 					connector_type: EnumConnectorName.BOOKSTACK_CONNECTOR,
 					config: {
@@ -82,8 +83,10 @@ export default function BookStackConnectorPage() {
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
 				},
-				parseInt(searchSpaceId)
-			);
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 
 			toast.success("BookStack connector created successfully!");
 

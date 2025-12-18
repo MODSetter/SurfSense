@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, Globe, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -9,6 +10,8 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { createConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -31,10 +34,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import {
-	type SearchSourceConnector,
-	useSearchSourceConnectors,
-} from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const webcrawlerConnectorFormSchema = z.object({
@@ -55,10 +54,8 @@ export default function WebcrawlerConnectorPage() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { fetchConnectors, createConnector } = useSearchSourceConnectors(
-		true,
-		parseInt(searchSpaceId)
-	);
+	const { data: connectors } = useAtomValue(connectorsAtom);
+	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	// Initialize the form
 	const form = useForm<WebcrawlerConnectorFormValues>({
@@ -71,22 +68,15 @@ export default function WebcrawlerConnectorPage() {
 	});
 
 	useEffect(() => {
-		fetchConnectors(parseInt(searchSpaceId))
-			.then((data) => {
-				if (data && Array.isArray(data)) {
-					const connector = data.find(
-						(c: SearchSourceConnector) =>
-							c.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR
-					);
-					if (connector) {
-						setDoesConnectorExist(true);
-					}
-				}
-			})
-			.catch((error) => {
-				console.error("Error fetching connectors:", error);
-			});
-	}, [fetchConnectors, searchSpaceId]);
+		if (connectors) {
+			const connector = connectors.find(
+				(c) => c.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR
+			);
+			if (connector) {
+				setDoesConnectorExist(true);
+			}
+		}
+	}, [connectors]);
 
 	// Handle form submission
 	const onSubmit = async (values: WebcrawlerConnectorFormValues) => {
@@ -104,8 +94,8 @@ export default function WebcrawlerConnectorPage() {
 				config.INITIAL_URLS = values.initial_urls;
 			}
 
-			await createConnector(
-				{
+			await createConnector({
+				data: {
 					name: values.name,
 					connector_type: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 					config: config,
@@ -115,8 +105,10 @@ export default function WebcrawlerConnectorPage() {
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
 				},
-				parseInt(searchSpaceId)
-			);
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 
 			toast.success("Webcrawler connector created successfully!");
 

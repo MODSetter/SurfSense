@@ -1,11 +1,13 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -18,10 +20,6 @@ import {
 import { EnumConnectorName } from "@/contracts/enums/connector";
 // import { IconBrandAirtable } from "@tabler/icons-react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import {
-	type SearchSourceConnector,
-	useSearchSourceConnectors,
-} from "@/hooks/use-search-source-connectors";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 export default function AirtableConnectorPage() {
@@ -31,18 +29,18 @@ export default function AirtableConnectorPage() {
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { fetchConnectors } = useSearchSourceConnectors(true, parseInt(searchSpaceId));
+	const { data: connectors } = useAtomValue(connectorsAtom);
 
 	useEffect(() => {
-		fetchConnectors(parseInt(searchSpaceId)).then((data) => {
-			const connector = data.find(
-				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.AIRTABLE_CONNECTOR
+		if (connectors) {
+			const connector = connectors.find(
+				(c) => c.connector_type === EnumConnectorName.AIRTABLE_CONNECTOR
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
 			}
-		});
-	}, []);
+		}
+	}, [connectors]);
 
 	const handleConnectAirtable = async () => {
 		setIsConnecting(true);
