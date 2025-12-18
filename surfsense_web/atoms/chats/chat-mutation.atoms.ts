@@ -1,7 +1,7 @@
 import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
-import type { Chat } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type {
+	ChatSummary,
 	CreateChatRequest,
 	DeleteChatRequest,
 	UpdateChatRequest,
@@ -29,7 +29,7 @@ export const deleteChatMutationAtom = atomWithMutation((get) => {
 			toast.success("Chat deleted successfully");
 			queryClient.setQueryData(
 				cacheKeys.chats.globalQueryParams(chatsQueryParams),
-				(oldData: Chat[]) => {
+				(oldData: ChatSummary[]) => {
 					return oldData.filter((chat) => chat.id !== request.id);
 				}
 			);
