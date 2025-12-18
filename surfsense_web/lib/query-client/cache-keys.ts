@@ -58,5 +58,6 @@ export const cacheKeys = {
 		withQueryParams: (queries: GetConnectorsRequest["queryParams"]) =>
 			["connectors", ...(queries ? Object.values(queries) : [])] as const,
 		byId: (connectorId: string) => ["connector", connectorId] as const,
+		index: () => ["connector", "index"] as const,
 	},
 };
