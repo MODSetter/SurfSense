@@ -5,4 +5,3 @@ node_modules/
 .ruff_cache/
 .venv
 .pnpm-store
-AGENTS.md
