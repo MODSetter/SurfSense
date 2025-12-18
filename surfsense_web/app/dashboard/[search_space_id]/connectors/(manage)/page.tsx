@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
 	Calendar as CalendarIcon,
 	Clock,
@@ -15,6 +16,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -84,8 +87,14 @@ export default function ConnectorsPage() {
 	const searchSpaceId = params.search_space_id as string;
 	const today = new Date();
 
-	const { connectors, isLoading, error, deleteConnector, indexConnector, updateConnector } =
-		useSearchSourceConnectors(false, parseInt(searchSpaceId));
+	const { data: connectors = [], isLoading, error } = useAtomValue(connectorsAtom);
+
+	// Keep old hook for mutations (will migrate later)
+	const { deleteConnector, indexConnector, updateConnector } = useSearchSourceConnectors(
+		true,
+		parseInt(searchSpaceId)
+	);
+
 	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(null);
 	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(null);
 	const [datePickerOpen, setDatePickerOpen] = useState(false);
