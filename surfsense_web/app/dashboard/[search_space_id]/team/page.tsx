@@ -49,12 +49,11 @@ import { toast } from "sonner";
 import { updateMemberMutationAtom, deleteMemberMutationAtom } from "@/atoms/members/members-mutation.atoms";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { createInviteMutationAtom, deleteInviteMutationAtom } from '@/atoms/invites/invites-mutation.atoms';
-import type { CreateInviteRequest, DeleteInviteRequest } from '@/contracts/types/invites.types';
-import type { UpdateMembershipRequest, DeleteMembershipRequest, Membership } from "@/contracts/types/members.types";
+import type { DeleteInviteRequest } from '@/contracts/types/invites.types';
+import type { UpdateMembershipRequest, DeleteMembershipRequest} from "@/contracts/types/members.types";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { invitesApiService } from '@/lib/apis/invites-api.service';
-import type { Invite } from '@/contracts/types/invites.types';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -117,9 +116,10 @@ import type {
 	UpdateRoleRequest,
 } from "@/contracts/types/roles.types";
 import {
-	type InviteCreate,
-	type Member,
-} from "@/hooks/use-rbac";
+	type Invite,
+	type CreateInviteRequest,
+} from "@/contracts/types/invites.types";
+import type { Membership } from "@/contracts/types/members.types";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
@@ -165,8 +165,7 @@ export default function TeamManagementPage() {
 		[access]
 	);
 
-	const { data: membersData = [], isLoading: membersLoading, refetch: fetchMembers } = useAtomValue(membersAtom);
-	const members = membersData as Member[];
+	const { data: members = [], isLoading: membersLoading, refetch: fetchMembers } = useAtomValue(membersAtom);
 
 	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
 	const { mutateAsync: updateRole } = useAtomValue(updateRoleMutationAtom);
@@ -190,7 +189,7 @@ export default function TeamManagementPage() {
 	);
 
 	const handleCreateInvite = useCallback(
-		async (inviteData: InviteCreate) => {
+		async (inviteData: CreateInviteRequest['data']) => {
 			const request: CreateInviteRequest = {
 				search_space_id: searchSpaceId,
 				data: inviteData,
@@ -236,7 +235,7 @@ export default function TeamManagementPage() {
 	);
 
 	const handleUpdateMember = useCallback(
-		async (membershipId: number, roleId: number | null): Promise<Member> => {
+		async (membershipId: number, roleId: number | null): Promise<Membership> => {
 			const request: UpdateMembershipRequest = {
 				search_space_id: searchSpaceId,
 				membership_id: membershipId,
@@ -244,7 +243,7 @@ export default function TeamManagementPage() {
 					role_id: roleId,
 				},
 			};
-			return await updateMember(request) as Member;
+			return await updateMember(request) as Membership;
 		},
 		[updateMember, searchSpaceId]
 	);
@@ -511,10 +510,10 @@ function MembersTab({
 	canManageRoles,
 	canRemove,
 }: {
-	members: Member[];
+	members: Membership[];
 	roles: Role[];
 	loading: boolean;
-	onUpdateRole: (membershipId: number, roleId: number | null) => Promise<Member>;
+	onUpdateRole: (membershipId: number, roleId: number | null) => Promise<Membership>;
 	onRemoveMember: (membershipId: number) => Promise<boolean>;
 	canManageRoles: boolean;
 	canRemove: boolean;
@@ -1078,7 +1077,7 @@ function CreateInviteDialog({
 	searchSpaceId,
 }: {
 	roles: Role[];
-	onCreateInvite: (data: InviteCreate) => Promise<Invite>;
+	onCreateInvite: (data: CreateInviteRequest['data']) => Promise<Invite>;
 	searchSpaceId: number;
 }) {
 	const [open, setOpen] = useState(false);
@@ -1093,7 +1092,7 @@ function CreateInviteDialog({
 	const handleCreate = async () => {
 		setCreating(true);
 		try {
-			const data: InviteCreate = {};
+			const data: CreateInviteRequest['data'] = {};
 			if (name) data.name = name;
 			if (roleId && roleId !== "default") data.role_id = Number(roleId);
 			if (maxUses) data.max_uses = Number(maxUses);
