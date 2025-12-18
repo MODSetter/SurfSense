@@ -46,7 +46,7 @@ export const getConnectorsRequest = z.object({
 	queryParams: paginationQueryParams
 		.pick({ skip: true, limit: true })
 		.extend({
-			search_space_id: z.number().or(z.string()),
+			search_space_id: z.number().or(z.string()).nullish(),
 		})
 		.nullish(),
 });
