@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
 	deleteConnectorMutationAtom,
+	indexConnectorMutationAtom,
 	updateConnectorMutationAtom,
 } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
@@ -65,7 +66,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
 export default function ConnectorsPage() {
@@ -93,10 +93,8 @@ export default function ConnectorsPage() {
 	const { data: connectors = [], isLoading, error } = useAtomValue(connectorsAtom);
 
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
+	const { mutateAsync: indexConnector } = useAtomValue(indexConnectorMutationAtom);
 	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
-
-	// Keep old hook for other mutations (will migrate later)
-	const { indexConnector } = useSearchSourceConnectors(true, parseInt(searchSpaceId));
 
 	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(null);
 	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(null);
@@ -154,7 +152,14 @@ export default function ConnectorsPage() {
 			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
-			await indexConnector(selectedConnectorForIndexing, searchSpaceId, startDateStr, endDateStr);
+			await indexConnector({
+				connector_id: selectedConnectorForIndexing,
+				queryParams: {
+					search_space_id: searchSpaceId,
+					start_date: startDateStr,
+					end_date: endDateStr,
+				},
+			});
 			toast.success(t("indexing_started"));
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
@@ -171,7 +176,12 @@ export default function ConnectorsPage() {
 	const handleQuickIndexConnector = async (connectorId: number) => {
 		setIndexingConnectorId(connectorId);
 		try {
-			await indexConnector(connectorId, searchSpaceId);
+			await indexConnector({
+				connector_id: connectorId,
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 			toast.success(t("indexing_started"));
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
