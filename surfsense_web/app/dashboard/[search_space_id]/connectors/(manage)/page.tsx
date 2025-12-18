@@ -16,6 +16,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { deleteConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
@@ -89,8 +90,10 @@ export default function ConnectorsPage() {
 
 	const { data: connectors = [], isLoading, error } = useAtomValue(connectorsAtom);
 
-	// Keep old hook for mutations (will migrate later)
-	const { deleteConnector, indexConnector, updateConnector } = useSearchSourceConnectors(
+	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
+
+	// Keep old hook for other mutations (will migrate later)
+	const { indexConnector, updateConnector } = useSearchSourceConnectors(
 		true,
 		parseInt(searchSpaceId)
 	);
@@ -126,11 +129,9 @@ export default function ConnectorsPage() {
 		if (connectorToDelete === null) return;
 
 		try {
-			await deleteConnector(connectorToDelete);
-			toast.success(t("delete_success"));
+			await deleteConnector({ id: connectorToDelete });
 		} catch (error) {
 			console.error("Error deleting connector:", error);
-			toast.error(t("delete_failed"));
 		} finally {
 			setConnectorToDelete(null);
 		}
