@@ -38,7 +38,7 @@ class MembersApiService {
 		}
 
 		return baseApiService.get(
-			`/searchspaces/${parsedRequest.data.search_space_id}/members`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members`,
 			getMembersResponse,
 		);
 	};
@@ -57,7 +57,7 @@ class MembersApiService {
 		}
 
 		return baseApiService.put(
-			`/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
 			updateMembershipResponse,
 			{
 				body: parsedRequest.data.data,
@@ -79,7 +79,7 @@ class MembersApiService {
 		}
 
 		return baseApiService.delete(
-			`/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
 			deleteMembershipResponse,
 		);
 	};
@@ -98,7 +98,7 @@ class MembersApiService {
 		}
 
 		return baseApiService.delete(
-			`/searchspaces/${parsedRequest.data.search_space_id}/members/me`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members/me`,
 			leaveSearchSpaceResponse,
 		);
 	};
@@ -117,7 +117,7 @@ class MembersApiService {
 		}
 
 		return baseApiService.get(
-			`/searchspaces/${parsedRequest.data.search_space_id}/my-access`,
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/my-access`,
 			getMyAccessResponse,
 		);
 	};

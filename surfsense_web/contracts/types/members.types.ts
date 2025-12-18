@@ -67,7 +67,7 @@ export const getMyAccessRequest = z.object({
 });
 
 export const getMyAccessResponse = z.object({
-	user_id: z.string(),
+	search_space_name: z.string(),
 	search_space_id: z.number(),
 	is_owner: z.boolean(),
 	permissions: z.array(z.string()),
