@@ -17,7 +17,7 @@ import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { useUserAccess } from "@/hooks/use-rbac";
+import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { cn } from "@/lib/utils";
 
 export function DashboardClientLayout({
@@ -69,7 +69,7 @@ export function DashboardClientLayout({
 		);
 	}, [preferences]);
 
-	const { access, loading: accessLoading } = useUserAccess(searchSpaceIdNum);
+	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
 	// Skip onboarding check if we're already on the onboarding page

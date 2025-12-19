@@ -77,11 +77,10 @@ export const getInviteInfoRequest = z.object({
 });
 
 export const getInviteInfoResponse = z.object({
-	invite_code: z.string(),
 	search_space_name: z.string(),
 	role_name: z.string().nullable(),
-	expires_at: z.string().nullable(),
 	is_valid: z.boolean(),
+	message: z.string().nullable(),
 });
 
 /**
@@ -94,6 +93,8 @@ export const acceptInviteRequest = z.object({
 export const acceptInviteResponse = z.object({
 	message: z.string(),
 	search_space_id: z.number(),
+	search_space_name: z.string(),
+	role_name: z.string().nullable(),
 });
 
 export type Invite = z.infer<typeof invite>;
