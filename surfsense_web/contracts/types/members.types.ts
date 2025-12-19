@@ -30,7 +30,7 @@ export const updateMembershipRequest = z.object({
 	search_space_id: z.number(),
 	membership_id: z.number(),
 	data: z.object({
-		role_id: z.number(),
+		role_id: z.number().nullable(),
 	}),
 });
 
@@ -67,7 +67,7 @@ export const getMyAccessRequest = z.object({
 });
 
 export const getMyAccessResponse = z.object({
-	user_id: z.string(),
+	search_space_name: z.string(),
 	search_space_id: z.number(),
 	is_owner: z.boolean(),
 	permissions: z.array(z.string()),

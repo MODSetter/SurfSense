@@ -5,11 +5,16 @@ A module for crawling web pages and extracting content using Firecrawl or AsyncC
 Provides a unified interface for web scraping.
 """
 
+import logging
 from typing import Any
 
+import trafilatura
 import validators
+from fake_useragent import UserAgent
 from firecrawl import AsyncFirecrawlApp
 from langchain_community.document_loaders import AsyncChromiumLoader
+
+logger = logging.getLogger(__name__)
 
 
 class WebCrawlerConnector:
@@ -121,7 +126,8 @@ class WebCrawlerConnector:
 
     async def _crawl_with_chromium(self, url: str) -> dict[str, Any]:
         """
-        Crawl URL using AsyncChromiumLoader.
+        Crawl URL using AsyncChromiumLoader with Trafilatura for content extraction.
+        Falls back to raw HTML if Trafilatura extraction fails.
 
         Args:
             url: URL to crawl
@@ -132,33 +138,106 @@ class WebCrawlerConnector:
         Raises:
             Exception: If crawling fails
         """
-        crawl_loader = AsyncChromiumLoader(urls=[url], headless=True)
+        # Generate a realistic User-Agent to avoid bot detection
+        ua = UserAgent()
+        user_agent = ua.random
+
+        # Pass User-Agent to AsyncChromiumLoader
+        crawl_loader = AsyncChromiumLoader(
+            urls=[url], headless=True, user_agent=user_agent
+        )
         documents = await crawl_loader.aload()
 
         if not documents:
             raise ValueError(f"Failed to load content from {url}")
 
         doc = documents[0]
+        raw_html = doc.page_content
 
         # Extract basic metadata from the document
-        metadata = doc.metadata if doc.metadata else {}
+        base_metadata = doc.metadata if doc.metadata else {}
+
+        # Try to extract main content using Trafilatura
+        extracted_content = None
+        trafilatura_metadata = None
+
+        try:
+            logger.info(
+                f"Attempting to extract main content from {url} using Trafilatura"
+            )
+
+            # Extract main content as markdown
+            extracted_content = trafilatura.extract(
+                raw_html,
+                output_format="markdown",  # Get clean markdown
+                include_comments=False,  # Exclude comments
+                include_tables=True,  # Keep tables
+                include_images=True,  # Keep image references
+                include_links=True,  # Keep links
+            )
+
+            # Extract metadata using Trafilatura
+            trafilatura_metadata = trafilatura.extract_metadata(raw_html)
+
+            if extracted_content and len(extracted_content.strip()) > 0:
+                logger.info(
+                    f"Successfully extracted main content from {url} using Trafilatura "
+                    f"({len(extracted_content)} chars vs {len(raw_html)} chars raw HTML)"
+                )
+            else:
+                logger.warning(
+                    f"Trafilatura extraction returned empty content for {url}, "
+                    "falling back to raw HTML"
+                )
+                extracted_content = None
+
+        except Exception as e:
+            logger.warning(
+                f"Trafilatura extraction failed for {url}: {e}. "
+                "Falling back to raw HTML"
+            )
+            extracted_content = None
+
+        # Build metadata, preferring Trafilatura metadata when available
+        metadata = {
+            "source": url,
+            "title": (
+                trafilatura_metadata.title
+                if trafilatura_metadata and trafilatura_metadata.title
+                else base_metadata.get("title", url)
+            ),
+        }
+
+        # Add additional metadata from Trafilatura if available
+        if trafilatura_metadata:
+            if trafilatura_metadata.description:
+                metadata["description"] = trafilatura_metadata.description
+            if trafilatura_metadata.author:
+                metadata["author"] = trafilatura_metadata.author
+            if trafilatura_metadata.date:
+                metadata["date"] = trafilatura_metadata.date
+
+        # Add any remaining base metadata
+        metadata.update(base_metadata)
 
         return {
-            "content": doc.page_content,
-            "metadata": {
-                "source": url,
-                "title": metadata.get("title", url),
-                **metadata,
-            },
+            "content": extracted_content if extracted_content else raw_html,
+            "metadata": metadata,
             "crawler_type": "chromium",
         }
 
-    def format_to_structured_document(self, crawl_result: dict[str, Any]) -> str:
+    def format_to_structured_document(
+        self, crawl_result: dict[str, Any], exclude_metadata: bool = False
+    ) -> str:
         """
         Format crawl result as a structured document.
 
         Args:
             crawl_result: Result from crawl_url method
+            exclude_metadata: If True, excludes ALL metadata fields from the document.
+                            This is useful for content hash generation to ensure the hash
+                            only changes when actual content changes, not when metadata
+                            (which often contains dynamic fields like timestamps, IDs, etc.) changes.
 
         Returns:
             Structured document string
@@ -166,15 +245,17 @@ class WebCrawlerConnector:
         metadata = crawl_result["metadata"]
         content = crawl_result["content"]
 
-        document_parts = ["<DOCUMENT>", "<METADATA>"]
+        document_parts = ["<DOCUMENT>"]
 
-        # Add all metadata fields
-        for key, value in metadata.items():
-            document_parts.append(f"{key.upper()}: {value}")
+        # Include metadata section only if not excluded
+        if not exclude_metadata:
+            document_parts.append("<METADATA>")
+            for key, value in metadata.items():
+                document_parts.append(f"{key.upper()}: {value}")
+            document_parts.append("</METADATA>")
 
         document_parts.extend(
             [
-                "</METADATA>",
                 "<CONTENT>",
                 "FORMAT: markdown",
                 "TEXT_START",

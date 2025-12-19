@@ -1,5 +1,7 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	ArrowRight,
@@ -16,7 +18,9 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { acceptInviteMutationAtom } from "@/atoms/invites/invites-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -26,22 +30,48 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { useInviteInfo } from "@/hooks/use-rbac";
+import type { AcceptInviteResponse } from "@/contracts/types/invites.types";
+import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export default function InviteAcceptPage() {
 	const params = useParams();
 	const router = useRouter();
 	const inviteCode = params.invite_code as string;
 
-	const { inviteInfo, loading, acceptInvite } = useInviteInfo(inviteCode);
+	const { data: inviteInfo = null, isLoading: loading } = useQuery({
+		queryKey: cacheKeys.invites.info(inviteCode),
+		enabled: !!inviteCode,
+		staleTime: 5 * 60 * 1000,
+		queryFn: async () => {
+			if (!inviteCode) return null;
+			return invitesApiService.getInviteInfo({
+				invite_code: inviteCode,
+			});
+		},
+	});
+
+	const { mutateAsync: acceptInviteMutation } = useAtomValue(acceptInviteMutationAtom);
+
+	const acceptInvite = useCallback(async () => {
+		if (!inviteCode) {
+			toast.error("No invite code provided");
+			return null;
+		}
+
+		try {
+			const result = await acceptInviteMutation({ invite_code: inviteCode });
+			return result;
+		} catch (err: any) {
+			toast.error(err.message || "Failed to accept invite");
+			throw err;
+		}
+	}, [inviteCode, acceptInviteMutation]);
+
 	const [accepting, setAccepting] = useState(false);
 	const [accepted, setAccepted] = useState(false);
-	const [acceptedData, setAcceptedData] = useState<{
-		search_space_id: number;
-		search_space_name: string;
-		role_name: string;
-	} | null>(null);
+	const [acceptedData, setAcceptedData] = useState<AcceptInviteResponse | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
