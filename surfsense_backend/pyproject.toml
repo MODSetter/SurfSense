@@ -53,6 +53,7 @@ dependencies = [
     "langgraph>=1.0.5",
     "fake-useragent>=2.2.0",
     "deepagents>=0.3.0",
+    "trafilatura>=2.0.0",
 ]
 
 [dependency-groups]
