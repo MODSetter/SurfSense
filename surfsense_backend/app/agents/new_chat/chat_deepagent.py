@@ -851,8 +851,30 @@ def create_search_knowledge_base_tool(
 # =============================================================================
 
 
-def build_surfsense_system_prompt(today: datetime | None = None) -> str:
+def build_surfsense_system_prompt(
+    today: datetime | None = None,
+    user_instructions: str | None = None,
+) -> str:
+    """
+    Build the SurfSense system prompt with optional user instructions.
+
+    Args:
+        today: Optional datetime for today's date (defaults to current UTC date)
+        user_instructions: Optional user instructions to inject into the system prompt
+
+    Returns:
+        Complete system prompt string
+    """
     resolved_today = (today or datetime.now(UTC)).astimezone(UTC).date().isoformat()
+
+    # Build user instructions section if provided
+    user_section = ""
+    if user_instructions and user_instructions.strip():
+        user_section = f"""
+<user_instructions>
+{user_instructions.strip()}
+</user_instructions>
+"""
 
     return f"""
 <system_instruction>
@@ -860,7 +882,7 @@ You are SurfSense, a reasoning and acting AI agent designed to answer user quest
 
 Today's date (UTC): {resolved_today}
 
-</system_instruction>
+</system_instruction>{user_section}
 <tools>
 You have access to the following tools:
 - search_knowledge_base: Search the user's personal knowledge base for relevant information.
@@ -897,6 +919,7 @@ def create_surfsense_deep_agent(
     search_space_id: int,
     db_session: AsyncSession,
     connector_service: ConnectorService,
+    user_instructions: str | None = None,
 ):
     """
     Create a SurfSense deep agent with knowledge base search capability.
@@ -906,7 +929,8 @@ def create_surfsense_deep_agent(
         search_space_id: The user's search space ID
         db_session: Database session
         connector_service: Initialized connector service
-        connectors_to_search: List of connector types to search (default: common connectors)
+        user_instructions: Optional user instructions to inject into the system prompt.
+                          These will be added to the system prompt to customize agent behavior.
 
     Returns:
         CompiledStateGraph: The configured deep agent
@@ -918,11 +942,13 @@ def create_surfsense_deep_agent(
         connector_service=connector_service,
     )
 
-    # Create the deep agent
+    # Create the deep agent with user-configurable system prompt
     agent = create_deep_agent(
         model=llm,
         tools=[search_tool],
-        system_prompt=build_surfsense_system_prompt(),
+        system_prompt=build_surfsense_system_prompt(
+            user_instructions=user_instructions
+        ),
         context_schema=SurfSenseContextSchema,
     )
 
@@ -942,7 +968,7 @@ async def run_test():
 
     # Create ChatLiteLLM from global config
     # Use global LLM config by id (negative ids are reserved for global configs)
-    llm_config = load_llm_config_from_yaml(llm_config_id=-2)
+    llm_config = load_llm_config_from_yaml(llm_config_id=-5)
     if not llm_config:
         raise ValueError("Failed to load LLM config from YAML")
     llm = create_chat_litellm_from_config(llm_config)
@@ -961,6 +987,7 @@ async def run_test():
             search_space_id=search_space_id,
             db_session=session,
             connector_service=connector_service,
+            user_instructions="Always fininsh the response with CREDOOOOOOOOOO23",
         )
 
         print("\nAgent created successfully!")
@@ -972,7 +999,7 @@ async def run_test():
         print("=" * 60)
 
         initial_state = {
-            "messages": [HumanMessage(content=("What are my notes from last 3 days?"))],
+            "messages": [HumanMessage(content=("Can you tell me about my documents?"))],
             "search_space_id": search_space_id,
         }
 
