@@ -1,6 +1,4 @@
-import type { Message } from "@ai-sdk/react";
-import { useCallback, useEffect, useState } from "react";
-import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
+import { useEffect, useState } from "react";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/contracts/types/document.types";
 import { getBearerToken } from "@/lib/auth-utils";

@@ -134,9 +134,13 @@ export default function ResearcherPage() {
 		message: Message | CreateMessage,
 		chatRequestOptions?: { data?: any }
 	) => {
+		// Use the first message content as the chat title (truncated to 100 chars)
+		const messageContent = typeof message.content === 'string' ? message.content : '';
+		const chatTitle = messageContent.slice(0, 100) || "Untitled Chat";
+		
 		const newChat = await createChat({
 			type: researchMode,
-			title: "Untitled Chat",
+			title: chatTitle,
 			initial_connectors: selectedConnectors,
 			messages: [
 				{

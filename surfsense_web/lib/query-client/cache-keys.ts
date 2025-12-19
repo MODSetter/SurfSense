@@ -10,7 +10,14 @@ export const cacheKeys = {
 	chats: {
 		activeChat: (chatId: string) => ["active-chat", chatId] as const,
 		globalQueryParams: (queries: GetChatsRequest["queryParams"]) =>
-			["chats", ...(queries ? Object.values(queries) : [])] as const,
+			[
+				"chats",
+				queries?.search_space_id,
+				queries?.limit,
+				queries?.skip,
+				queries?.page,
+				queries?.page_size,
+			] as const,
 	},
 	podcasts: {
 		globalQueryParams: (queries: GetPodcastsRequest["queryParams"]) =>

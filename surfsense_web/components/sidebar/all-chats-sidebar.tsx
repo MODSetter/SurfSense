@@ -2,10 +2,11 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { FileText, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
+import { Loader2, MessageCircleMore, MoreHorizontal, Search, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -24,93 +25,70 @@ import {
 } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { notesApiService } from "@/lib/apis/notes-api.service";
+import { chatsApiService } from "@/lib/apis/chats-api.service";
 import { cn } from "@/lib/utils";
 
-interface AllNotesSidebarProps {
+interface AllChatsSidebarProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
-	onAddNote?: () => void;
 }
 
-export function AllNotesSidebar({
+export function AllChatsSidebar({
 	open,
 	onOpenChange,
 	searchSpaceId,
-	onAddNote,
-}: AllNotesSidebarProps) {
+}: AllChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const queryClient = useQueryClient();
-	const [deletingNoteId, setDeletingNoteId] = useState<number | null>(null);
+	const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
-	// Fetch all notes (when no search query)
+	// Fetch all chats
 	const {
-		data: notesData,
-		error: notesError,
-		isLoading: isLoadingNotes,
+		data: chatsData,
+		error: chatsError,
+		isLoading: isLoadingChats,
 	} = useQuery({
-		queryKey: ["all-notes", searchSpaceId],
+		queryKey: ["all-chats", searchSpaceId],
 		queryFn: () =>
-			notesApiService.getNotes({
-				search_space_id: Number(searchSpaceId),
-				page_size: 1000,
-			}),
-		enabled: !!searchSpaceId && open && !debouncedSearchQuery,
-	});
-
-	// Search notes (when there's a search query)
-	const {
-		data: searchData,
-		error: searchError,
-		isLoading: isSearching,
-	} = useQuery({
-		queryKey: ["search-notes", searchSpaceId, debouncedSearchQuery],
-		queryFn: () =>
-			documentsApiService.searchDocuments({
+			chatsApiService.getChats({
 				queryParams: {
 					search_space_id: Number(searchSpaceId),
-					document_types: ["NOTE"],
-					title: debouncedSearchQuery,
-					page_size: 100,
 				},
 			}),
-		enabled: !!searchSpaceId && open && !!debouncedSearchQuery,
+		enabled: !!searchSpaceId && open,
 	});
 
-	// Handle note navigation
-	const handleNoteClick = useCallback(
-		(noteId: number, noteSearchSpaceId: number) => {
-			router.push(`/dashboard/${noteSearchSpaceId}/editor/${noteId}`);
+	// Handle chat navigation
+	const handleChatClick = useCallback(
+		(chatId: number, chatSearchSpaceId: number) => {
+			router.push(`/dashboard/${chatSearchSpaceId}/researcher/${chatId}`);
 			onOpenChange(false);
 		},
 		[router, onOpenChange]
 	);
 
-	// Handle note deletion
-	const handleDeleteNote = useCallback(
-		async (noteId: number, noteSearchSpaceId: number) => {
-			setDeletingNoteId(noteId);
+	// Handle chat deletion
+	const handleDeleteChat = useCallback(
+		async (chatId: number) => {
+			setDeletingChatId(chatId);
 			try {
-				await notesApiService.deleteNote({
-					search_space_id: noteSearchSpaceId,
-					note_id: noteId,
-				});
+				await chatsApiService.deleteChat({ id: chatId });
+				toast.success(t("chat_deleted") || "Chat deleted successfully");
 				// Invalidate queries to refresh the list
-				queryClient.invalidateQueries({ queryKey: ["all-notes", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["notes", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["search-notes", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["all-chats", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["chats"] });
 			} catch (error) {
-				console.error("Error deleting note:", error);
+				console.error("Error deleting chat:", error);
+				toast.error(t("error_deleting_chat") || "Failed to delete chat");
 			} finally {
-				setDeletingNoteId(null);
+				setDeletingChatId(null);
 			}
 		},
-		[queryClient, searchSpaceId]
+		[queryClient, searchSpaceId, t]
 	);
 
 	// Clear search
@@ -118,46 +96,35 @@ export function AllNotesSidebar({
 		setSearchQuery("");
 	}, []);
 
-	// Determine which data to show
-	const isSearchMode = !!debouncedSearchQuery;
-	const isLoading = isSearchMode ? isSearching : isLoadingNotes;
-	const error = isSearchMode ? searchError : notesError;
-
-	// Transform and sort notes data - handle both regular notes and search results
-	const notes = useMemo(() => {
-		let notesList: { id: number; title: string; search_space_id: number; created_at: string; updated_at?: string | null }[];
+	// Filter and sort chats based on search query (client-side filtering)
+	const chats = useMemo(() => {
+		const allChats = chatsData ?? [];
 		
-		if (isSearchMode && searchData?.items) {
-			notesList = searchData.items.map((doc) => ({
-				id: doc.id,
-				title: doc.title,
-				search_space_id: doc.search_space_id,
-				created_at: doc.created_at,
-				updated_at: doc.updated_at,
-			}));
-		} else {
-			notesList = notesData?.items ?? [];
-		}
-
-		// Sort notes by updated_at (most recent first), fallback to created_at
-		return [...notesList].sort((a, b) => {
-			const dateA = a.updated_at
-				? new Date(a.updated_at).getTime()
-				: new Date(a.created_at).getTime();
-			const dateB = b.updated_at
-				? new Date(b.updated_at).getTime()
-				: new Date(b.created_at).getTime();
+		// Sort chats by created_at (most recent first)
+		const sortedChats = [...allChats].sort((a, b) => {
+			const dateA = new Date(a.created_at).getTime();
+			const dateB = new Date(b.created_at).getTime();
 			return dateB - dateA; // Descending order (most recent first)
 		});
-	}, [isSearchMode, searchData, notesData]);
+
+		if (!debouncedSearchQuery) {
+			return sortedChats;
+		}
+		const query = debouncedSearchQuery.toLowerCase();
+		return sortedChats.filter((chat) => 
+			chat.title.toLowerCase().includes(query)
+		);
+	}, [chatsData, debouncedSearchQuery]);
+
+	const isSearchMode = !!debouncedSearchQuery;
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
 			<SheetContent side="left" className="w-80 p-0 flex flex-col">
 				<SheetHeader className="mx-3 px-4 py-4 border-b space-y-3">
-					<SheetTitle>{t("all_notes") || "All Notes"}</SheetTitle>
+					<SheetTitle>{t("all_chats") || "All Chats"}</SheetTitle>
 					<SheetDescription className="sr-only">
-						{t("all_notes_description") || "Browse and manage all your notes"}
+						{t("all_chats_description") || "Browse and manage all your chats"}
 					</SheetDescription>
 
 					{/* Search Input */}
@@ -165,7 +132,7 @@ export function AllNotesSidebar({
 						<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 						<Input
 							type="text"
-							placeholder={t("search_notes") || "Search notes..."}
+							placeholder={t("search_chats") || "Search chats..."}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							className="pl-9 pr-8 h-9"
@@ -186,22 +153,22 @@ export function AllNotesSidebar({
 
 				<ScrollArea className="flex-1">
 					<div className="p-2">
-						{isLoading ? (
+						{isLoadingChats ? (
 							<div className="flex items-center justify-center py-8">
 								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
 							</div>
-						) : error ? (
+						) : chatsError ? (
 							<div className="text-center py-8 text-sm text-destructive">
-								{t("error_loading_notes") || "Error loading notes"}
+								{t("error_loading_chats") || "Error loading chats"}
 							</div>
-						) : notes.length > 0 ? (
+						) : chats.length > 0 ? (
 							<div className="space-y-1">
-								{notes.map((note) => {
-									const isDeleting = deletingNoteId === note.id;
+								{chats.map((chat) => {
+									const isDeleting = deletingChatId === chat.id;
 
 									return (
 										<div
-											key={note.id}
+											key={chat.id}
 											className={cn(
 												"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 												"hover:bg-accent hover:text-accent-foreground",
@@ -214,21 +181,16 @@ export function AllNotesSidebar({
 												<TooltipTrigger asChild>
 													<button
 														type="button"
-														onClick={() => handleNoteClick(note.id, note.search_space_id)}
+														onClick={() => handleChatClick(chat.id, chat.search_space_id)}
 														disabled={isDeleting}
 														className="flex items-center gap-2 flex-1 min-w-0 text-left"
 													>
-														<FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-														<span className="truncate">{note.title}</span>
+														<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
+														<span className="truncate">{chat.title}</span>
 													</button>
 												</TooltipTrigger>
 												<TooltipContent side="right">
-													<div className="space-y-1">
-														<p>{t("created") || "Created"}: {format(new Date(note.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
-														{note.updated_at && (
-															<p>{t("updated") || "Updated"}: {format(new Date(note.updated_at), "MMM d, yyyy 'at' h:mm a")}</p>
-														)}
-													</div>
+													<p>{t("created") || "Created"}: {format(new Date(chat.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
 												</TooltipContent>
 											</Tooltip>
 
@@ -255,7 +217,7 @@ export function AllNotesSidebar({
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end" className="w-40">
 													<DropdownMenuItem
-														onClick={() => handleDeleteNote(note.id, note.search_space_id)}
+														onClick={() => handleDeleteChat(chat.id)}
 														className="text-destructive focus:text-destructive"
 													>
 														<Trash2 className="mr-2 h-4 w-4" />
@@ -271,7 +233,7 @@ export function AllNotesSidebar({
 							<div className="text-center py-8">
 								<Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
 								<p className="text-sm text-muted-foreground">
-									{t("no_results_found") || "No notes found"}
+									{t("no_chats_found") || "No chats found"}
 								</p>
 								<p className="text-xs text-muted-foreground/70 mt-1">
 									{t("try_different_search") || "Try a different search term"}
@@ -279,44 +241,17 @@ export function AllNotesSidebar({
 							</div>
 						) : (
 							<div className="text-center py-8">
-								<FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-								<p className="text-sm text-muted-foreground mb-4">
-									{t("no_notes") || "No notes yet"}
+								<MessageCircleMore className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+								<p className="text-sm text-muted-foreground">
+									{t("no_chats") || "No chats yet"}
 								</p>
-								{onAddNote && (
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => {
-											onAddNote();
-											onOpenChange(false);
-										}}
-									>
-										<Plus className="mr-2 h-4 w-4" />
-										{t("create_new_note") || "Create a note"}
-									</Button>
-								)}
+								<p className="text-xs text-muted-foreground/70 mt-1">
+									{t("start_new_chat_hint") || "Start a new chat from the researcher"}
+								</p>
 							</div>
 						)}
 					</div>
 				</ScrollArea>
-
-				{/* Footer with Add Note button */}
-				{onAddNote && notes.length > 0 && (
-					<div className="mx-3 p-3">
-						<Button
-							onClick={() => {
-								onAddNote();
-								onOpenChange(false);
-							}}
-							className="w-full"
-							size="sm"
-						>
-							<Plus className="mr-2 h-4 w-4" />
-							{t("create_new_note") || "Create a new note"}
-						</Button>
-					</div>
-				)}
 			</SheetContent>
 		</Sheet>
 	);

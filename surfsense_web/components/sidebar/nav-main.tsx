@@ -2,7 +2,7 @@
 
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -28,7 +28,12 @@ interface NavItem {
 	}[];
 }
 
-export function NavMain({ items }: { items: NavItem[] }) {
+interface NavMainProps {
+	items: NavItem[];
+	onSourcesExpandedChange?: (expanded: boolean) => void;
+}
+
+export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 	const t = useTranslations("nav_menu");
 
 	// Translation function that handles both exact matches and fallback to original
@@ -53,6 +58,29 @@ export function NavMain({ items }: { items: NavItem[] }) {
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);
 
+	// Track expanded state for items with sub-menus (like Sources)
+	const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(() => {
+		const initial: Record<string, boolean> = {};
+		items.forEach((item) => {
+			if (item.items?.length) {
+				initial[item.title] = item.isActive ?? false;
+			}
+		});
+		return initial;
+	});
+
+	// Handle collapsible state change
+	const handleOpenChange = useCallback(
+		(title: string, isOpen: boolean) => {
+			setExpandedItems((prev) => ({ ...prev, [title]: isOpen }));
+			// Notify parent when Sources is expanded/collapsed
+			if (title === "Sources" && onSourcesExpandedChange) {
+				onSourcesExpandedChange(isOpen);
+			}
+		},
+		[onSourcesExpandedChange]
+	);
+
 	return (
 		<SidebarGroup>
 			<SidebarGroupLabel>{translateTitle("Platform")}</SidebarGroupLabel>
@@ -60,8 +88,15 @@ export function NavMain({ items }: { items: NavItem[] }) {
 				{memoizedItems.map((item, index) => {
 					const translatedTitle = translateTitle(item.title);
 					const hasSub = !!item.items?.length;
+					const isItemOpen = expandedItems[item.title] ?? item.isActive ?? false;
 					return (
-						<Collapsible key={`${item.title}-${index}`} asChild defaultOpen={item.isActive}>
+						<Collapsible
+							key={`${item.title}-${index}`}
+							asChild
+							open={hasSub ? isItemOpen : undefined}
+							onOpenChange={hasSub ? (open) => handleOpenChange(item.title, open) : undefined}
+							defaultOpen={!hasSub ? item.isActive : undefined}
+						>
 							<SidebarMenuItem>
 								{hasSub ? (
 									// When the item has children, make the whole row a collapsible trigger

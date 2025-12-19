@@ -2,12 +2,12 @@
 
 import {
 	ChevronRight,
-	FileText,
 	FolderOpen,
-	Loader2,
 	type LucideIcon,
+	Loader2,
+	MessageCircleMore,
 	MoreHorizontal,
-	Plus,
+	RefreshCw,
 	Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -31,26 +31,25 @@ import {
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { AllNotesSidebar } from "./all-notes-sidebar";
+import { AllChatsSidebar } from "./all-chats-sidebar";
 
-interface NoteAction {
+interface ChatAction {
 	name: string;
 	icon: string;
 	onClick: () => void;
 }
 
-interface NoteItem {
+interface ChatItem {
 	name: string;
 	url: string;
 	icon: LucideIcon;
 	id?: number;
 	search_space_id?: number;
-	actions?: NoteAction[];
+	actions?: ChatAction[];
 }
 
-interface NavNotesProps {
-	notes: NoteItem[];
-	onAddNote?: () => void;
+interface NavChatsProps {
+	chats: ChatItem[];
 	defaultOpen?: boolean;
 	searchSpaceId?: string;
 	isSourcesExpanded?: boolean;
@@ -58,18 +57,19 @@ interface NavNotesProps {
 
 // Map of icon names to their components
 const actionIconMap: Record<string, LucideIcon> = {
-	FileText,
+	MessageCircleMore,
 	Trash2,
 	MoreHorizontal,
+	RefreshCw,
 };
 
-export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, isSourcesExpanded = false }: NavNotesProps) {
+export function NavChats({ chats, defaultOpen = true, searchSpaceId, isSourcesExpanded = false }: NavChatsProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const isMobile = useIsMobile();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
-	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
+	const [isAllChatsSidebarOpen, setIsAllChatsSidebarOpen] = useState(false);
 
 	// Auto-collapse on smaller screens when Sources is expanded
 	useEffect(() => {
@@ -78,9 +78,9 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 		}
 	}, [isSourcesExpanded, isMobile]);
 
-	// Handle note deletion with loading state
-	const handleDeleteNote = useCallback(async (noteId: number, deleteAction: () => void) => {
-		setIsDeleting(noteId);
+	// Handle chat deletion with loading state
+	const handleDeleteChat = useCallback(async (chatId: number, deleteAction: () => void) => {
+		setIsDeleting(chatId);
 		try {
 			await deleteAction();
 		} finally {
@@ -88,8 +88,8 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 		}
 	}, []);
 
-	// Handle note navigation
-	const handleNoteClick = useCallback(
+	// Handle chat navigation
+	const handleChatClick = useCallback(
 		(url: string) => {
 			router.push(url);
 		},
@@ -108,67 +108,53 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 									isOpen && "rotate-90"
 								)}
 							/>
-							<span>{t("notes") || "Notes"}</span>
+							<span>{t("recent_chats") || "Recent Chats"}</span>
 						</SidebarGroupLabel>
 					</CollapsibleTrigger>
 
 					{/* Action buttons - always visible on hover */}
 					<div className="flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity pr-1">
-						{searchSpaceId && notes.length > 0 && (
+						{searchSpaceId && chats.length > 0 && (
 							<Button
 								variant="ghost"
 								size="icon"
 								className="h-5 w-5"
 								onClick={(e) => {
 									e.stopPropagation();
-									setIsAllNotesSidebarOpen(true);
+									setIsAllChatsSidebarOpen(true);
 								}}
-								aria-label={t("view_all_notes") || "View all notes"}
+								aria-label={t("view_all_chats") || "View all chats"}
 							>
 								<FolderOpen className="h-3.5 w-3.5" />
-							</Button>
-						)}
-						{onAddNote && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-5 w-5"
-								onClick={(e) => {
-									e.stopPropagation();
-									onAddNote();
-								}}
-								aria-label={t("add_note") || "Add note"}
-							>
-								<Plus className="h-3.5 w-3.5" />
 							</Button>
 						)}
 					</div>
 				</div>
 
 				<CollapsibleContent>
-					<SidebarGroupContent>
-						<SidebarMenu>
-							{notes.length > 0 ? (
-								notes.map((note) => {
-									const isDeletingNote = isDeleting === note.id;
+					{chats.length > 0 ? (
+						<SidebarGroupContent>
+							<SidebarMenu>
+								{chats.map((chat) => {
+									const isDeletingChat = isDeleting === chat.id;
 
 									return (
-										<SidebarMenuItem key={note.id || note.name} className="group/note">
+										<SidebarMenuItem key={chat.id || chat.name} className="group/chat">
 											{/* Main navigation button */}
 											<SidebarMenuButton
-												onClick={() => handleNoteClick(note.url)}
-												disabled={isDeletingNote}
+												onClick={() => handleChatClick(chat.url)}
+												disabled={isDeletingChat}
 												className={cn(
 													"pr-8", // Make room for the action button
-													isDeletingNote && "opacity-50"
+													isDeletingChat && "opacity-50"
 												)}
 											>
-												<note.icon className="h-4 w-4 shrink-0" />
-												<span className="truncate">{note.name}</span>
+												<chat.icon className="h-4 w-4 shrink-0" />
+												<span className="truncate">{chat.name}</span>
 											</SidebarMenuButton>
 
 											{/* Actions dropdown - positioned absolutely */}
-											{note.actions && note.actions.length > 0 && (
+											{chat.actions && chat.actions.length > 0 && (
 												<div className="absolute right-1 top-1/2 -translate-y-1/2">
 													<DropdownMenu>
 														<DropdownMenuTrigger asChild>
@@ -177,13 +163,13 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 																size="icon"
 																className={cn(
 																	"h-6 w-6",
-																	"opacity-0 group-hover/note:opacity-100 focus:opacity-100",
+																	"opacity-0 group-hover/chat:opacity-100 focus:opacity-100",
 																	"data-[state=open]:opacity-100",
 																	"transition-opacity"
 																)}
-																disabled={isDeletingNote}
+																disabled={isDeletingChat}
 															>
-																{isDeletingNote ? (
+																{isDeletingChat ? (
 																	<Loader2 className="h-3.5 w-3.5 animate-spin" />
 																) : (
 																	<MoreHorizontal className="h-3.5 w-3.5" />
@@ -192,8 +178,8 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 															</Button>
 														</DropdownMenuTrigger>
 														<DropdownMenuContent align="end" side="right" className="w-40">
-															{note.actions.map((action, actionIndex) => {
-																const ActionIcon = actionIconMap[action.icon] || FileText;
+															{chat.actions.map((action, actionIndex) => {
+																const ActionIcon = actionIconMap[action.icon] || MessageCircleMore;
 																const isDeleteAction = action.name.toLowerCase().includes("delete");
 
 																return (
@@ -201,12 +187,12 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 																		key={`${action.name}-${actionIndex}`}
 																		onClick={() => {
 																			if (isDeleteAction) {
-																				handleDeleteNote(note.id || 0, action.onClick);
+																				handleDeleteChat(chat.id || 0, action.onClick);
 																			} else {
 																				action.onClick();
 																			}
 																		}}
-																		disabled={isDeletingNote}
+																		disabled={isDeletingChat}
 																		className={
 																			isDeleteAction
 																				? "text-destructive focus:text-destructive"
@@ -215,7 +201,7 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 																	>
 																		<ActionIcon className="mr-2 h-4 w-4" />
 																		<span>
-																			{isDeletingNote && isDeleteAction
+																			{isDeletingChat && isDeleteAction
 																				? t("deleting") || "Deleting..."
 																				: action.name}
 																		</span>
@@ -228,37 +214,24 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 											)}
 										</SidebarMenuItem>
 									);
-								})
-							) : (
-								<SidebarMenuItem>
-									{onAddNote ? (
-										<SidebarMenuButton
-											onClick={onAddNote}
-											className="text-muted-foreground hover:text-sidebar-foreground text-xs"
-										>
-											<Plus className="h-4 w-4" />
-											<span>{t("create_new_note") || "Create a new note"}</span>
-										</SidebarMenuButton>
-									) : (
-										<SidebarMenuButton disabled className="text-muted-foreground text-xs">
-											<FileText className="h-4 w-4" />
-											<span>{t("no_notes") || "No notes yet"}</span>
-										</SidebarMenuButton>
-									)}
-								</SidebarMenuItem>
-							)}
-						</SidebarMenu>
-					</SidebarGroupContent>
+								})}
+							</SidebarMenu>
+						</SidebarGroupContent>
+					) : (
+						<div className="flex items-center gap-2 px-2 py-1 text-muted-foreground/60 text-xs">
+							<MessageCircleMore className="h-3.5 w-3.5" />
+							<span>{t("no_recent_chats") || "No recent chats"}</span>
+						</div>
+					)}
 				</CollapsibleContent>
 			</Collapsible>
 
-			{/* All Notes Sheet */}
+			{/* All Chats Sheet */}
 			{searchSpaceId && (
-				<AllNotesSidebar
-					open={isAllNotesSidebarOpen}
-					onOpenChange={setIsAllNotesSidebarOpen}
+				<AllChatsSidebar
+					open={isAllChatsSidebarOpen}
+					onOpenChange={setIsAllChatsSidebarOpen}
 					searchSpaceId={searchSpaceId}
-					onAddNote={onAddNote}
 				/>
 			)}
 		</SidebarGroup>
