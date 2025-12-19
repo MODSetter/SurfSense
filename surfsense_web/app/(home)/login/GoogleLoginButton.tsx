@@ -9,24 +9,20 @@ export function GoogleLoginButton() {
 	const t = useTranslations("auth");
 
 	const handleGoogleLogin = () => {
-		// Redirect to Google OAuth authorization URL
-		fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize`)
-			.then((response) => {
-				if (!response.ok) {
-					throw new Error("Failed to get authorization URL");
-				}
-				return response.json();
-			})
-			.then((data) => {
-				if (data.authorization_url) {
-					window.location.href = data.authorization_url;
-				} else {
-					console.error("No authorization URL received");
-				}
-			})
-			.catch((error) => {
-				console.error("Error during Google login:", error);
-			});
+		// IMPORTANT:
+		// FastAPI Users OAuth stores the "state" in a cookie.
+		// Doing a cross-origin fetch() (www.surfsense.com -> backend.ssbacktemp.xyz)
+		// will NOT persist Set-Cookie unless you use credentials + non-wildcard CORS.
+		// The simplest/most reliable approach is a top-level navigation to the backend
+		// authorize endpoint so the cookie is set as first-party.
+		const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
+		if (!backendUrl) {
+			console.error("Missing NEXT_PUBLIC_FASTAPI_BACKEND_URL");
+			return;
+		}
+
+		// This endpoint performs a 302 to Google (more reliable than fetching JSON).
+		window.location.href = `${backendUrl}/auth/google/start`;
 	};
 	return (
 		<div className="relative w-full overflow-hidden">

@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
@@ -88,6 +89,28 @@ if config.AUTH_TYPE == "GOOGLE":
             Depends(registration_allowed)
         ],  # blocks OAuth registration when disabled
     )
+
+    # Convenience endpoint for browser-based login:
+    # - FastAPI Users `/auth/google/authorize` returns JSON {authorization_url: ...}
+    # - In production, it's more reliable to do a top-level navigation that
+    #   immediately redirects to Google (avoids cross-site XHR/CORS pitfalls).
+    from fastapi import Query
+    from fastapi_users.router.oauth import generate_state_token
+
+    @app.get("/auth/google/start", include_in_schema=False)
+    async def google_oauth_start(
+        request: Request, scopes: list[str] = Query(None)
+    ) -> RedirectResponse:
+        base = (config.BACKEND_URL or str(request.base_url)).rstrip("/")
+        callback_url = f"{base}/auth/google/callback"
+
+        state = generate_state_token({}, SECRET)
+        authorization_url = await google_oauth_client.get_authorization_url(
+            callback_url,
+            state,
+            scopes,
+        )
+        return RedirectResponse(authorization_url, status_code=302)
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 
