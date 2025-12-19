@@ -11,11 +11,8 @@ from langchain_core.messages import HumanMessage
 from app.db import async_session_maker
 from app.services.connector_service import ConnectorService
 
-from .chat_deepagent import (
-    create_chat_litellm_from_config,
-    create_surfsense_deep_agent,
-    load_llm_config_from_yaml,
-)
+from .chat_deepagent import create_surfsense_deep_agent
+from .llm_config import create_chat_litellm_from_config, load_llm_config_from_yaml
 
 # =============================================================================
 # Test Runner
