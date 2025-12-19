@@ -58,7 +58,7 @@ export function AppSidebarProvider({
 
 	useEffect(() => {
 		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 4 }));
-	}, [searchSpaceId]);
+	}, [searchSpaceId, setChatsQueryParams]);
 
 	const {
 		data: searchSpace,

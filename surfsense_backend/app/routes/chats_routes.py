@@ -319,15 +319,19 @@ async def read_chats(
                 "You don't have permission to read chats in this search space",
             )
             # Select specific fields excluding messages
-            query = select(
-                Chat.id,
-                Chat.type,
-                Chat.title,
-                Chat.initial_connectors,
-                Chat.search_space_id,
-                Chat.created_at,
-                Chat.state_version,
-            ).filter(Chat.search_space_id == search_space_id)
+            query = (
+                select(
+                    Chat.id,
+                    Chat.type,
+                    Chat.title,
+                    Chat.initial_connectors,
+                    Chat.search_space_id,
+                    Chat.created_at,
+                    Chat.state_version,
+                )
+                .filter(Chat.search_space_id == search_space_id)
+                .order_by(Chat.created_at.desc())
+            )
         else:
             # Get chats from all search spaces user has membership in
             query = (
@@ -343,6 +347,7 @@ async def read_chats(
                 .join(SearchSpace)
                 .join(SearchSpaceMembership)
                 .filter(SearchSpaceMembership.user_id == user.id)
+                .order_by(Chat.created_at.desc())
             )
 
         result = await session.execute(query.offset(skip).limit(limit))
