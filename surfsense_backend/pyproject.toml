@@ -10,7 +10,6 @@ dependencies = [
     "discord-py>=2.5.2",
     "docling>=2.15.0",
     "fastapi>=0.115.8",
-    "fastapi-users[oauth,sqlalchemy]>=14.0.1",
     "github3.py==4.0.1",
     "google-api-python-client>=2.156.0",
     "google-auth-oauthlib>=1.2.1",
@@ -54,6 +53,7 @@ dependencies = [
     "fake-useragent>=2.2.0",
     "deepagents>=0.3.0",
     "trafilatura>=2.0.0",
+    "fastapi-users[oauth,sqlalchemy]>=15.0.3",
 ]
 
 [dependency-groups]

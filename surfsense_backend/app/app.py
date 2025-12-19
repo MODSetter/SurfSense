@@ -70,9 +70,17 @@ app.include_router(
 if config.AUTH_TYPE == "GOOGLE":
     from app.users import google_oauth_client
 
+    # Determine if we're in a secure context (HTTPS) or local development (HTTP)
+    # The CSRF cookie must have secure=False for HTTP (localhost development)
+    is_secure_context = config.BACKEND_URL and config.BACKEND_URL.startswith("https://")
+
     app.include_router(
         fastapi_users.get_oauth_router(
-            google_oauth_client, auth_backend, SECRET, is_verified_by_default=True
+            google_oauth_client,
+            auth_backend,
+            SECRET,
+            is_verified_by_default=True,
+            csrf_token_cookie_secure=is_secure_context,
         )
         if not config.BACKEND_URL
         else fastapi_users.get_oauth_router(
@@ -81,6 +89,7 @@ if config.AUTH_TYPE == "GOOGLE":
             SECRET,
             is_verified_by_default=True,
             redirect_url=f"{config.BACKEND_URL}/auth/google/callback",
+            csrf_token_cookie_secure=is_secure_context,
         ),
         prefix="/auth/google",
         tags=["auth"],

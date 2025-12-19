@@ -10,7 +10,10 @@ export function GoogleLoginButton() {
 
 	const handleGoogleLogin = () => {
 		// Redirect to Google OAuth authorization URL
-		fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize`)
+		// credentials: 'include' is required to accept the CSRF cookie from cross-origin response
+		fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize`, {
+			credentials: "include",
+		})
 			.then((response) => {
 				if (!response.ok) {
 					throw new Error("Failed to get authorization URL");
