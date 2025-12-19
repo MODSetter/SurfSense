@@ -11,6 +11,8 @@ import {
 	type GetChatsRequest,
 	getChatDetailsRequest,
 	getChatsRequest,
+	type SearchChatsRequest,
+	searchChatsRequest,
 	type UpdateChatRequest,
 	updateChatRequest,
 } from "@/contracts/types/chat.types";
@@ -57,6 +59,28 @@ class ChatApiService {
 			: undefined;
 
 		return baseApiService.get(`/api/v1/chats?${queryParams}`, z.array(chatSummary));
+	};
+
+	searchChats = async (request: SearchChatsRequest) => {
+		// Validate the request
+		const parsedRequest = searchChatsRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			// Format a user frendly error message
+			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		// Transform queries params to be string values
+		const transformedQueryParams = Object.fromEntries(
+			Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [k, String(v)])
+		);
+
+		const queryParams = new URLSearchParams(transformedQueryParams).toString();
+
+		return baseApiService.get(`/api/v1/chats/search?${queryParams}`, z.array(chatSummary));
 	};
 
 	deleteChat = async (request: DeleteChatRequest) => {

@@ -364,6 +364,109 @@ async def read_chats(
         ) from None
 
 
+@router.get("/chats/search", response_model=list[ChatReadWithoutMessages])
+async def search_chats(
+    title: str,
+    skip: int = 0,
+    limit: int = 100,
+    search_space_id: int | None = None,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Search chats by title substring.
+    Requires CHATS_READ permission for the search space(s).
+
+    Args:
+        title: Case-insensitive substring to match against chat titles. Required.
+        skip: Number of items to skip from the beginning. Default: 0.
+        limit: Maximum number of items to return. Default: 100.
+        search_space_id: Filter results to a specific search space. Default: None.
+        session: Database session (injected).
+        user: Current authenticated user (injected).
+
+    Returns:
+        List of chats matching the search query.
+
+    Notes:
+        - Title matching uses ILIKE (case-insensitive).
+        - Results are ordered by creation date (most recent first).
+    """
+    # Validate pagination parameters
+    if skip < 0:
+        raise HTTPException(
+            status_code=400, detail="skip must be a non-negative integer"
+        )
+
+    if limit <= 0 or limit > 1000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
+
+    # Validate search_space_id if provided
+    if search_space_id is not None and search_space_id <= 0:
+        raise HTTPException(
+            status_code=400, detail="search_space_id must be a positive integer"
+        )
+
+    try:
+        if search_space_id is not None:
+            # Check permission for specific search space
+            await check_permission(
+                session,
+                user,
+                search_space_id,
+                Permission.CHATS_READ.value,
+                "You don't have permission to read chats in this search space",
+            )
+            # Select specific fields excluding messages
+            query = (
+                select(
+                    Chat.id,
+                    Chat.type,
+                    Chat.title,
+                    Chat.initial_connectors,
+                    Chat.search_space_id,
+                    Chat.created_at,
+                    Chat.state_version,
+                )
+                .filter(Chat.search_space_id == search_space_id)
+                .order_by(Chat.created_at.desc())
+            )
+        else:
+            # Get chats from all search spaces user has membership in
+            query = (
+                select(
+                    Chat.id,
+                    Chat.type,
+                    Chat.title,
+                    Chat.initial_connectors,
+                    Chat.search_space_id,
+                    Chat.created_at,
+                    Chat.state_version,
+                )
+                .join(SearchSpace)
+                .join(SearchSpaceMembership)
+                .filter(SearchSpaceMembership.user_id == user.id)
+                .order_by(Chat.created_at.desc())
+            )
+
+        # Apply title search filter (case-insensitive)
+        query = query.filter(Chat.title.ilike(f"%{title}%"))
+
+        result = await session.execute(query.offset(skip).limit(limit))
+        return result.all()
+    except HTTPException:
+        raise
+    except OperationalError:
+        raise HTTPException(
+            status_code=503, detail="Database operation failed. Please try again later."
+        ) from None
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while searching chats.",
+        ) from None
+
+
 @router.get("/chats/{chat_id}", response_model=ChatRead)
 async def read_chat(
     chat_id: int,
