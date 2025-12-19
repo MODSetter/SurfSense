@@ -8,18 +8,11 @@ This demonstrates:
 4. Creating a search_knowledge_base tool similar to fetch_relevant_documents
 """
 
-import sys
-from pathlib import Path
-
-# Add parent directory to path so 'app' module can be found when running directly
-_THIS_FILE = Path(__file__).resolve()
-_BACKEND_ROOT = _THIS_FILE.parent.parent.parent.parent  # surfsense_backend/
-if str(_BACKEND_ROOT) not in sys.path:
-    sys.path.insert(0, str(_BACKEND_ROOT))
-
 import asyncio
 import json
+import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any, TypedDict
 
 import yaml
@@ -31,6 +24,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import async_session_maker
 from app.services.connector_service import ConnectorService
+
+# Add parent directory to path so 'app' module can be found when running directly
+_THIS_FILE = Path(__file__).resolve()
+_BACKEND_ROOT = _THIS_FILE.parent.parent.parent.parent  # surfsense_backend/
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
+
 
 # =============================================================================
 # LLM Configuration Loading
@@ -854,13 +854,15 @@ def create_search_knowledge_base_tool(
 def build_surfsense_system_prompt(
     today: datetime | None = None,
     user_instructions: str | None = None,
+    enable_citations: bool = True,
 ) -> str:
     """
-    Build the SurfSense system prompt with optional user instructions.
+    Build the SurfSense system prompt with optional user instructions and citation toggle.
 
     Args:
         today: Optional datetime for today's date (defaults to current UTC date)
         user_instructions: Optional user instructions to inject into the system prompt
+        enable_citations: Whether to include citation instructions in the prompt (default: True)
 
     Returns:
         Complete system prompt string
@@ -875,6 +877,11 @@ def build_surfsense_system_prompt(
 {user_instructions.strip()}
 </user_instructions>
 """
+
+    # Include citation instructions only if enabled
+    citation_section = (
+        f"\n{SURFSENSE_CITATION_INSTRUCTIONS}" if enable_citations else ""
+    )
 
     return f"""
 <system_instruction>
@@ -900,9 +907,7 @@ You have access to the following tools:
 
 - User: "What did I discuss on Slack last week about the React migration?"
   - Call: `search_knowledge_base(query="React migration", connectors_to_search=["SLACK_CONNECTOR"], start_date="YYYY-MM-DD", end_date="YYYY-MM-DD")`
-</tool_call_examples>
-
-{SURFSENSE_CITATION_INSTRUCTIONS}
+</tool_call_examples>{citation_section}
 """
 
 
@@ -920,6 +925,7 @@ def create_surfsense_deep_agent(
     db_session: AsyncSession,
     connector_service: ConnectorService,
     user_instructions: str | None = None,
+    enable_citations: bool = True,
 ):
     """
     Create a SurfSense deep agent with knowledge base search capability.
@@ -931,6 +937,8 @@ def create_surfsense_deep_agent(
         connector_service: Initialized connector service
         user_instructions: Optional user instructions to inject into the system prompt.
                           These will be added to the system prompt to customize agent behavior.
+        enable_citations: Whether to include citation instructions in the system prompt (default: True).
+                         When False, the agent will not be instructed to add citations to responses.
 
     Returns:
         CompiledStateGraph: The configured deep agent
@@ -947,7 +955,8 @@ def create_surfsense_deep_agent(
         model=llm,
         tools=[search_tool],
         system_prompt=build_surfsense_system_prompt(
-            user_instructions=user_instructions
+            user_instructions=user_instructions,
+            enable_citations=enable_citations,
         ),
         context_schema=SurfSenseContextSchema,
     )
