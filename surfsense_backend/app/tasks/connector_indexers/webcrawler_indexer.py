@@ -197,10 +197,6 @@ async def index_crawled_urls(
                     structured_document_for_hash, search_space_id
                 )
 
-                logger.info(
-                    f"structured_document_for_hash {structured_document_for_hash} ========="
-                )
-
                 # Check if document with this unique identifier already exists
                 existing_document = await check_document_by_unique_identifier(
                     session, unique_identifier_hash
