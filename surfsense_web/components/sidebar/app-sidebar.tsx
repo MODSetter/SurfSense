@@ -443,24 +443,20 @@ export const AppSidebar = memo(function AppSidebar({
 				</SidebarMenu>
 			</SidebarHeader>
 
-			<SidebarContent className="space-y-6">
-				<NavMain items={processedNavMain} />
+		<SidebarContent className="gap-1">
+			<NavMain items={processedNavMain} />
 
-				<div className="space-y-2">
-					<NavChats
-						chats={processedRecentChats}
-						searchSpaceId={searchSpaceId}
-					/>
-				</div>
+			<NavChats
+				chats={processedRecentChats}
+				searchSpaceId={searchSpaceId}
+			/>
 
-				<div className="space-y-2">
-					<NavNotes
-						notes={processedRecentNotes}
-						onAddNote={onAddNote}
-						searchSpaceId={searchSpaceId}
-					/>
-				</div>
-			</SidebarContent>
+			<NavNotes
+				notes={processedRecentNotes}
+				onAddNote={onAddNote}
+				searchSpaceId={searchSpaceId}
+			/>
+		</SidebarContent>
 			<SidebarFooter>
 				{pageUsage && (
 					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />

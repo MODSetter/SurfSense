@@ -57,7 +57,7 @@ export function AppSidebarProvider({
 		useAtom(deleteChatMutationAtom);
 
 	useEffect(() => {
-		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 5 }));
+		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 4 }));
 	}, [searchSpaceId]);
 
 	const {
@@ -84,7 +84,7 @@ export function AppSidebarProvider({
 		queryFn: () =>
 			notesApiService.getNotes({
 				search_space_id: Number(searchSpaceId),
-				page_size: 5, // Get 5 notes (changed from 10)
+				page_size: 4, // Get 4 notes for compact sidebar
 			}),
 		enabled: !!searchSpaceId,
 	});
@@ -196,8 +196,8 @@ export function AppSidebarProvider({
 			return dateB - dateA; // Descending order (most recent first)
 		});
 
-		// Limit to 5 notes
-		return sortedNotes.slice(0, 5).map((note) => ({
+		// Limit to 4 notes for compact sidebar
+		return sortedNotes.slice(0, 4).map((note) => ({
 			name: note.title,
 			url: `/dashboard/${note.search_space_id}/editor/${note.id}`,
 			icon: "FileText",
