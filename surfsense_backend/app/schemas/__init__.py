@@ -6,6 +6,7 @@ from .chats import (
     ChatRead,
     ChatReadWithoutMessages,
     ChatUpdate,
+    NewChatRequest,
 )
 from .chunks import ChunkBase, ChunkCreate, ChunkRead, ChunkUpdate
 from .documents import (
@@ -97,6 +98,7 @@ __all__ = [
     "MembershipRead",
     "MembershipReadWithUser",
     "MembershipUpdate",
+    "NewChatRequest",
     "PaginatedResponse",
     "PermissionInfo",
     "PermissionsListResponse",

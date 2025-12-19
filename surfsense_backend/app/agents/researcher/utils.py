@@ -34,6 +34,7 @@ def get_connector_emoji(connector_name: str) -> str:
         "LUMA_CONNECTOR": "✨",
         "ELASTICSEARCH_CONNECTOR": "⚡",
         "WEBCRAWLER_CONNECTOR": "🌐",
+        "BOOKSTACK_CONNECTOR": "📚",
         "NOTE": "📝",
     }
     return connector_emojis.get(connector_name, "🔎")
@@ -60,6 +61,7 @@ def get_connector_friendly_name(connector_name: str) -> str:
         "LUMA_CONNECTOR": "Luma",
         "ELASTICSEARCH_CONNECTOR": "Elasticsearch",
         "WEBCRAWLER_CONNECTOR": "Web Pages",
+        "BOOKSTACK_CONNECTOR": "BookStack",
         "NOTE": "Notes",
     }
     return connector_friendly_names.get(connector_name, connector_name)

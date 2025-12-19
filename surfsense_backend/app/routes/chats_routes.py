@@ -20,8 +20,13 @@ from app.schemas import (
     ChatRead,
     ChatReadWithoutMessages,
     ChatUpdate,
+    NewChatRequest,
 )
-from app.tasks.stream_connector_search_results import stream_connector_search_results
+from app.services.new_streaming_service import VercelStreamingService
+from app.tasks.chat.stream_connector_search_results import (
+    stream_connector_search_results,
+)
+from app.tasks.chat.stream_new_chat import stream_new_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 from app.utils.validators import (
@@ -149,6 +154,87 @@ async def handle_chat_data(
     )
 
     response.headers["x-vercel-ai-data-stream"] = "v1"
+    return response
+
+
+@router.post("/new_chat")
+async def handle_new_chat(
+    request: NewChatRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Handle new chat requests using the SurfSense deep agent.
+
+    This endpoint uses the new deep agent with the Vercel AI SDK
+    Data Stream Protocol (SSE format).
+
+    Args:
+        request: NewChatRequest containing chat_id, user_query, and search_space_id
+        session: Database session
+        user: Current authenticated user
+
+    Returns:
+        StreamingResponse with SSE formatted data
+    """
+    # Validate the user query
+    if not request.user_query or not request.user_query.strip():
+        raise HTTPException(status_code=400, detail="User query cannot be empty")
+
+    # Check if the user has chat access to the search space
+    try:
+        await check_permission(
+            session,
+            user,
+            request.search_space_id,
+            Permission.CHATS_CREATE.value,
+            "You don't have permission to use chat in this search space",
+        )
+    except HTTPException:
+        raise HTTPException(
+            status_code=403, detail="You don't have access to this search space"
+        ) from None
+
+    # Get LLM config ID from search space preferences (optional enhancement)
+    # For now, we use the default global config (-1)
+    llm_config_id = -1
+
+    # Optionally load LLM preferences from search space
+    try:
+        search_space_result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
+        )
+        search_space = search_space_result.scalars().first()
+
+        if search_space:
+            # Use strategic_llm_id if available, otherwise fall back to fast_llm_id
+            if search_space.strategic_llm_id is not None:
+                llm_config_id = search_space.strategic_llm_id
+            elif search_space.fast_llm_id is not None:
+                llm_config_id = search_space.fast_llm_id
+    except Exception:
+        # Fall back to default config on any error
+        pass
+
+    # Create the streaming response
+    # chat_id is used as LangGraph's thread_id for automatic chat history management
+    response = StreamingResponse(
+        stream_new_chat(
+            user_query=request.user_query.strip(),
+            user_id=user.id,
+            search_space_id=request.search_space_id,
+            chat_id=request.chat_id,
+            session=session,
+            llm_config_id=llm_config_id,
+        ),
+        media_type="text/event-stream",
+    )
+
+    # Set the required headers for Vercel AI SDK
+    headers = VercelStreamingService.get_response_headers()
+    for key, value in headers.items():
+        response.headers[key] = value
+
     return response
 
 
