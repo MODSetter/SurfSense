@@ -56,7 +56,7 @@ export function AppSidebarProvider({
 	const { data: chats, error: chatError, isLoading: isLoadingChats } = useAtomValue(chatsAtom);
 	const [{ isPending: isDeletingChat, mutateAsync: deleteChat, error: deleteError }] =
 		useAtom(deleteChatMutationAtom);
-	
+
 	// Editor state for handling unsaved changes
 	const hasUnsavedEditorChanges = useAtomValue(hasUnsavedEditorChangesAtom);
 	const setPendingNavigation = useSetAtom(pendingEditorNavigationAtom);
@@ -97,7 +97,11 @@ export function AppSidebarProvider({
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
 	const [showDeleteNoteDialog, setShowDeleteNoteDialog] = useState(false);
-	const [noteToDelete, setNoteToDelete] = useState<{ id: number; name: string; search_space_id: number } | null>(null);
+	const [noteToDelete, setNoteToDelete] = useState<{
+		id: number;
+		name: string;
+		search_space_id: number;
+	} | null>(null);
 	const [isDeletingNote, setIsDeletingNote] = useState(false);
 	const [isClient, setIsClient] = useState(false);
 
@@ -230,7 +234,11 @@ export function AppSidebarProvider({
 					name: "Delete",
 					icon: "Trash2",
 					onClick: () => {
-						setNoteToDelete({ id: note.id, name: note.title, search_space_id: note.search_space_id });
+						setNoteToDelete({
+							id: note.id,
+							name: note.title,
+							search_space_id: note.search_space_id,
+						});
 						setShowDeleteNoteDialog(true);
 					},
 				},
@@ -241,7 +249,7 @@ export function AppSidebarProvider({
 	// Handle add note - check for unsaved changes first
 	const handleAddNote = useCallback(() => {
 		const newNoteUrl = `/dashboard/${searchSpaceId}/editor/new`;
-		
+
 		if (hasUnsavedEditorChanges) {
 			// Set pending navigation - the editor will show the unsaved changes dialog
 			setPendingNavigation(newNoteUrl);

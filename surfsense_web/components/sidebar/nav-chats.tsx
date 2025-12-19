@@ -3,8 +3,8 @@
 import {
 	ChevronRight,
 	FolderOpen,
-	type LucideIcon,
 	Loader2,
+	type LucideIcon,
 	MessageCircleMore,
 	MoreHorizontal,
 	RefreshCw,
@@ -63,7 +63,12 @@ const actionIconMap: Record<string, LucideIcon> = {
 	RefreshCw,
 };
 
-export function NavChats({ chats, defaultOpen = true, searchSpaceId, isSourcesExpanded = false }: NavChatsProps) {
+export function NavChats({
+	chats,
+	defaultOpen = true,
+	searchSpaceId,
+	isSourcesExpanded = false,
+}: NavChatsProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const isMobile = useIsMobile();
@@ -174,7 +179,9 @@ export function NavChats({ chats, defaultOpen = true, searchSpaceId, isSourcesEx
 																) : (
 																	<MoreHorizontal className="h-3.5 w-3.5" />
 																)}
-																<span className="sr-only">{t("more_options") || "More options"}</span>
+																<span className="sr-only">
+																	{t("more_options") || "More options"}
+																</span>
 															</Button>
 														</DropdownMenuTrigger>
 														<DropdownMenuContent align="end" side="right" className="w-40">

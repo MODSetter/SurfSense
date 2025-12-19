@@ -125,8 +125,14 @@ export function AllNotesSidebar({
 
 	// Transform and sort notes data - handle both regular notes and search results
 	const notes = useMemo(() => {
-		let notesList: { id: number; title: string; search_space_id: number; created_at: string; updated_at?: string | null }[];
-		
+		let notesList: {
+			id: number;
+			title: string;
+			search_space_id: number;
+			created_at: string;
+			updated_at?: string | null;
+		}[];
+
 		if (isSearchMode && searchData?.items) {
 			notesList = searchData.items.map((doc) => ({
 				id: doc.id,
@@ -224,9 +230,15 @@ export function AllNotesSidebar({
 												</TooltipTrigger>
 												<TooltipContent side="right">
 													<div className="space-y-1">
-														<p>{t("created") || "Created"}: {format(new Date(note.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
+														<p>
+															{t("created") || "Created"}:{" "}
+															{format(new Date(note.created_at), "MMM d, yyyy 'at' h:mm a")}
+														</p>
 														{note.updated_at && (
-															<p>{t("updated") || "Updated"}: {format(new Date(note.updated_at), "MMM d, yyyy 'at' h:mm a")}</p>
+															<p>
+																{t("updated") || "Updated"}:{" "}
+																{format(new Date(note.updated_at), "MMM d, yyyy 'at' h:mm a")}
+															</p>
 														)}
 													</div>
 												</TooltipContent>

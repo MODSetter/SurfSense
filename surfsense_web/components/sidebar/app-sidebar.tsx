@@ -446,22 +446,22 @@ export const AppSidebar = memo(function AppSidebar({
 				</SidebarMenu>
 			</SidebarHeader>
 
-		<SidebarContent className="gap-1">
-			<NavMain items={processedNavMain} onSourcesExpandedChange={setIsSourcesExpanded} />
+			<SidebarContent className="gap-1">
+				<NavMain items={processedNavMain} onSourcesExpandedChange={setIsSourcesExpanded} />
 
-			<NavChats
-				chats={processedRecentChats}
-				searchSpaceId={searchSpaceId}
-				isSourcesExpanded={isSourcesExpanded}
-			/>
+				<NavChats
+					chats={processedRecentChats}
+					searchSpaceId={searchSpaceId}
+					isSourcesExpanded={isSourcesExpanded}
+				/>
 
-			<NavNotes
-				notes={processedRecentNotes}
-				onAddNote={onAddNote}
-				searchSpaceId={searchSpaceId}
-				isSourcesExpanded={isSourcesExpanded}
-			/>
-		</SidebarContent>
+				<NavNotes
+					notes={processedRecentNotes}
+					onAddNote={onAddNote}
+					searchSpaceId={searchSpaceId}
+					isSourcesExpanded={isSourcesExpanded}
+				/>
+			</SidebarContent>
 			<SidebarFooter>
 				{pageUsage && (
 					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />

@@ -34,11 +34,7 @@ interface AllChatsSidebarProps {
 	searchSpaceId: string;
 }
 
-export function AllChatsSidebar({
-	open,
-	onOpenChange,
-	searchSpaceId,
-}: AllChatsSidebarProps) {
+export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const queryClient = useQueryClient();
@@ -99,7 +95,7 @@ export function AllChatsSidebar({
 	// Filter and sort chats based on search query (client-side filtering)
 	const chats = useMemo(() => {
 		const allChats = chatsData ?? [];
-		
+
 		// Sort chats by created_at (most recent first)
 		const sortedChats = [...allChats].sort((a, b) => {
 			const dateA = new Date(a.created_at).getTime();
@@ -111,9 +107,7 @@ export function AllChatsSidebar({
 			return sortedChats;
 		}
 		const query = debouncedSearchQuery.toLowerCase();
-		return sortedChats.filter((chat) => 
-			chat.title.toLowerCase().includes(query)
-		);
+		return sortedChats.filter((chat) => chat.title.toLowerCase().includes(query));
 	}, [chatsData, debouncedSearchQuery]);
 
 	const isSearchMode = !!debouncedSearchQuery;
@@ -190,7 +184,10 @@ export function AllChatsSidebar({
 													</button>
 												</TooltipTrigger>
 												<TooltipContent side="right">
-													<p>{t("created") || "Created"}: {format(new Date(chat.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
+													<p>
+														{t("created") || "Created"}:{" "}
+														{format(new Date(chat.created_at), "MMM d, yyyy 'at' h:mm a")}
+													</p>
 												</TooltipContent>
 											</Tooltip>
 
@@ -242,9 +239,7 @@ export function AllChatsSidebar({
 						) : (
 							<div className="text-center py-8">
 								<MessageCircleMore className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-								<p className="text-sm text-muted-foreground">
-									{t("no_chats") || "No chats yet"}
-								</p>
+								<p className="text-sm text-muted-foreground">{t("no_chats") || "No chats yet"}</p>
 								<p className="text-xs text-muted-foreground/70 mt-1">
 									{t("start_new_chat_hint") || "Start a new chat from the researcher"}
 								</p>

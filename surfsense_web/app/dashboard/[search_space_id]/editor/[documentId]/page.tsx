@@ -332,7 +332,7 @@ export default function EditorPage() {
 		// Clear global unsaved state
 		setGlobalHasUnsavedChanges(false);
 		setHasUnsavedChanges(false);
-		
+
 		// If there's a pending navigation (from sidebar), use that; otherwise go back to researcher
 		if (pendingNavigation) {
 			router.push(pendingNavigation);
@@ -470,9 +470,12 @@ export default function EditorPage() {
 			</div>
 
 			{/* Unsaved Changes Dialog */}
-			<AlertDialog open={showUnsavedDialog} onOpenChange={(open) => {
-				if (!open) handleCancelLeave();
-			}}>
+			<AlertDialog
+				open={showUnsavedDialog}
+				onOpenChange={(open) => {
+					if (!open) handleCancelLeave();
+				}}
+			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>

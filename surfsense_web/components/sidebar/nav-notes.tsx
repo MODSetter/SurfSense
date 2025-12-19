@@ -63,7 +63,13 @@ const actionIconMap: Record<string, LucideIcon> = {
 	MoreHorizontal,
 };
 
-export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, isSourcesExpanded = false }: NavNotesProps) {
+export function NavNotes({
+	notes,
+	onAddNote,
+	defaultOpen = true,
+	searchSpaceId,
+	isSourcesExpanded = false,
+}: NavNotesProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const isMobile = useIsMobile();
@@ -188,7 +194,9 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId, 
 																) : (
 																	<MoreHorizontal className="h-3.5 w-3.5" />
 																)}
-																<span className="sr-only">{t("more_options") || "More options"}</span>
+																<span className="sr-only">
+																	{t("more_options") || "More options"}
+																</span>
 															</Button>
 														</DropdownMenuTrigger>
 														<DropdownMenuContent align="end" side="right" className="w-40">
