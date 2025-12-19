@@ -105,6 +105,12 @@ if config.AUTH_TYPE == "GOOGLE":
     # The CSRF cookie must have secure=False for HTTP (localhost development)
     is_secure_context = config.BACKEND_URL and config.BACKEND_URL.startswith("https://")
 
+    # For cross-origin OAuth (frontend and backend on different domains):
+    # - SameSite=None is required to allow cross-origin cookie setting
+    # - Secure=True is required when SameSite=None
+    # For same-origin or local development, use SameSite=Lax (default)
+    csrf_cookie_samesite = "none" if is_secure_context else "lax"
+
     app.include_router(
         fastapi_users.get_oauth_router(
             google_oauth_client,
@@ -112,6 +118,7 @@ if config.AUTH_TYPE == "GOOGLE":
             SECRET,
             is_verified_by_default=True,
             csrf_token_cookie_secure=is_secure_context,
+            csrf_token_cookie_samesite=csrf_cookie_samesite,
         )
         if not config.BACKEND_URL
         else fastapi_users.get_oauth_router(
@@ -121,6 +128,7 @@ if config.AUTH_TYPE == "GOOGLE":
             is_verified_by_default=True,
             redirect_url=f"{config.BACKEND_URL}/auth/google/callback",
             csrf_token_cookie_secure=is_secure_context,
+            csrf_token_cookie_samesite=csrf_cookie_samesite,
         ),
         prefix="/auth/google",
         tags=["auth"],
