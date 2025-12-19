@@ -252,24 +252,28 @@ class ConnectorService:
         # Get more results from each retriever for better fusion
         retriever_top_k = top_k * 2
 
-        # Run both searches in parallel
-        chunk_results, doc_results = await asyncio.gather(
-            self.chunk_retriever.hybrid_search(
-                query_text=query_text,
-                top_k=retriever_top_k,
-                search_space_id=search_space_id,
-                document_type=document_type,
-                start_date=start_date,
-                end_date=end_date,
-            ),
-            self.document_retriever.hybrid_search(
-                query_text=query_text,
-                top_k=retriever_top_k,
-                search_space_id=search_space_id,
-                document_type=document_type,
-                start_date=start_date,
-                end_date=end_date,
-            ),
+        # IMPORTANT:
+        # These retrievers share the same AsyncSession. AsyncSession does not permit
+        # concurrent awaits that require DB IO on the same session/connection.
+        # Running these in parallel can raise:
+        # "This session is provisioning a new connection; concurrent operations are not permitted"
+        #
+        # So we run them sequentially.
+        chunk_results = await self.chunk_retriever.hybrid_search(
+            query_text=query_text,
+            top_k=retriever_top_k,
+            search_space_id=search_space_id,
+            document_type=document_type,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        doc_results = await self.document_retriever.hybrid_search(
+            query_text=query_text,
+            top_k=retriever_top_k,
+            search_space_id=search_space_id,
+            document_type=document_type,
+            start_date=start_date,
+            end_date=end_date,
         )
 
         # Helper to extract document_id from our doc-grouped result
@@ -2432,7 +2436,6 @@ class ConnectorService:
     async def search_bookstack(
         self,
         user_query: str,
-        user_id: str,
         search_space_id: int,
         top_k: int = 20,
         start_date: datetime | None = None,

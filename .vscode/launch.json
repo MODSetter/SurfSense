@@ -32,6 +32,19 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "cwd": "${workspaceFolder}/surfsense_backend"
+        },
+        {
+            "name": "Python Debugger: Chat DeepAgent",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.agents.new_chat.chat_deepagent",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/surfsense_backend",
+            "python": "${command:python.interpreterPath}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/surfsense_backend"
+            }
         }
     ]
 }
