@@ -14,7 +14,7 @@ export const chatSummary = z.object({
 });
 
 export const chatDetails = chatSummary.extend({
-	initial_connectors: z.array(z.string()),
+	initial_connectors: z.array(z.string()).nullable().optional(),
 	messages: z.array(z.any()),
 });
 

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
 import { chatsAtom } from "@/atoms/chats/chat-query.atoms";
 import { globalChatsQueryParamsAtom } from "@/atoms/chats/ui.atoms";
+import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,10 @@ export function AppSidebarProvider({
 	const { data: chats, error: chatError, isLoading: isLoadingChats } = useAtomValue(chatsAtom);
 	const [{ isPending: isDeletingChat, mutateAsync: deleteChat, error: deleteError }] =
 		useAtom(deleteChatMutationAtom);
+	
+	// Editor state for handling unsaved changes
+	const hasUnsavedEditorChanges = useAtomValue(hasUnsavedEditorChangesAtom);
+	const setPendingNavigation = useSetAtom(pendingEditorNavigationAtom);
 
 	useEffect(() => {
 		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 4 }));
@@ -233,10 +238,18 @@ export function AppSidebarProvider({
 		}));
 	}, [notesData]);
 
-	// Handle add note
+	// Handle add note - check for unsaved changes first
 	const handleAddNote = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/editor/new`);
-	}, [router, searchSpaceId]);
+		const newNoteUrl = `/dashboard/${searchSpaceId}/editor/new`;
+		
+		if (hasUnsavedEditorChanges) {
+			// Set pending navigation - the editor will show the unsaved changes dialog
+			setPendingNavigation(newNoteUrl);
+		} else {
+			// No unsaved changes, navigate directly
+			router.push(newNoteUrl);
+		}
+	}, [router, searchSpaceId, hasUnsavedEditorChanges, setPendingNavigation]);
 
 	// Memoized updated navSecondary
 	const updatedNavSecondary = useMemo(() => {
