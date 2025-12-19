@@ -9,6 +9,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import { llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContainer";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
@@ -17,7 +18,6 @@ import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { cn } from "@/lib/utils";
 
 export function DashboardClientLayout({

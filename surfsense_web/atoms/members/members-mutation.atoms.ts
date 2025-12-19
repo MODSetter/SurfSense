@@ -1,12 +1,12 @@
 import { atomWithMutation } from "jotai-tanstack-query";
 import { toast } from "sonner";
 import type {
-	UpdateMembershipRequest,
-	UpdateMembershipResponse,
 	DeleteMembershipRequest,
 	DeleteMembershipResponse,
 	LeaveSearchSpaceRequest,
 	LeaveSearchSpaceResponse,
+	UpdateMembershipRequest,
+	UpdateMembershipResponse,
 } from "@/contracts/types/members.types";
 import { membersApiService } from "@/lib/apis/members-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";

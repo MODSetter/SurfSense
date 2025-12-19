@@ -1,14 +1,14 @@
 import { atomWithMutation } from "jotai-tanstack-query";
+import { toast } from "sonner";
+import type {
+	AcceptInviteRequest,
+	CreateInviteRequest,
+	DeleteInviteRequest,
+	UpdateInviteRequest,
+} from "@/contracts/types/invites.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
-import type {
-	CreateInviteRequest,
-	UpdateInviteRequest,
-	DeleteInviteRequest,
-	AcceptInviteRequest,
-} from "@/contracts/types/invites.types";
-import { toast } from "sonner";
 
 /**
  * Mutation atom for creating an invite

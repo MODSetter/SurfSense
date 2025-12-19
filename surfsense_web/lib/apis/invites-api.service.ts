@@ -1,28 +1,28 @@
 import {
-	type CreateInviteRequest,
-	type CreateInviteResponse,
-	type GetInvitesRequest,
-	type GetInvitesResponse,
-	type UpdateInviteRequest,
-	type UpdateInviteResponse,
-	type DeleteInviteRequest,
-	type DeleteInviteResponse,
-	type GetInviteInfoRequest,
-	type GetInviteInfoResponse,
 	type AcceptInviteRequest,
 	type AcceptInviteResponse,
-	createInviteRequest,
-	createInviteResponse,
-	getInvitesRequest,
-	getInvitesResponse,
-	updateInviteRequest,
-	updateInviteResponse,
-	deleteInviteRequest,
-	deleteInviteResponse,
-	getInviteInfoRequest,
-	getInviteInfoResponse,
 	acceptInviteRequest,
 	acceptInviteResponse,
+	type CreateInviteRequest,
+	type CreateInviteResponse,
+	createInviteRequest,
+	createInviteResponse,
+	type DeleteInviteRequest,
+	type DeleteInviteResponse,
+	deleteInviteRequest,
+	deleteInviteResponse,
+	type GetInviteInfoRequest,
+	type GetInviteInfoResponse,
+	type GetInvitesRequest,
+	type GetInvitesResponse,
+	getInviteInfoRequest,
+	getInviteInfoResponse,
+	getInvitesRequest,
+	getInvitesResponse,
+	type UpdateInviteRequest,
+	type UpdateInviteResponse,
+	updateInviteRequest,
+	updateInviteResponse,
 } from "@/contracts/types/invites.types";
 import { ValidationError } from "@/lib/error";
 import { baseApiService } from "./base-api.service";
@@ -33,10 +33,10 @@ class InvitesApiService {
 	 */
 	createInvite = async (request: CreateInviteRequest) => {
 		const parsedRequest = createInviteRequest.safeParse(request);
-		
+
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			
+
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
@@ -55,18 +55,18 @@ class InvitesApiService {
 	 */
 	getInvites = async (request: GetInvitesRequest) => {
 		const parsedRequest = getInvitesRequest.safeParse(request);
-		
+
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			
+
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
 		return baseApiService.get(
-		`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites`,
-		getInvitesResponse
-	);
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites`,
+			getInvitesResponse
+		);
 	};
 
 	/**
@@ -74,21 +74,21 @@ class InvitesApiService {
 	 */
 	updateInvite = async (request: UpdateInviteRequest) => {
 		const parsedRequest = updateInviteRequest.safeParse(request);
-		
+
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			
+
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
 		return baseApiService.put(
-		`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
-		updateInviteResponse,
-		{
-			body: parsedRequest.data.data,
-		}
-	);
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
+			updateInviteResponse,
+			{
+				body: parsedRequest.data.data,
+			}
+		);
 	};
 
 	/**
@@ -96,18 +96,18 @@ class InvitesApiService {
 	 */
 	deleteInvite = async (request: DeleteInviteRequest) => {
 		const parsedRequest = deleteInviteRequest.safeParse(request);
-		
+
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			
+
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
 		return baseApiService.delete(
-		`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
-		deleteInviteResponse
-	);
+			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/invites/${parsedRequest.data.invite_id}`,
+			deleteInviteResponse
+		);
 	};
 
 	/**
@@ -115,18 +115,18 @@ class InvitesApiService {
 	 */
 	getInviteInfo = async (request: GetInviteInfoRequest) => {
 		const parsedRequest = getInviteInfoRequest.safeParse(request);
-		
+
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			
+
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
 		return baseApiService.get(
-		`/api/v1/invites/${parsedRequest.data.invite_code}/info`,
-		getInviteInfoResponse
-	);
+			`/api/v1/invites/${parsedRequest.data.invite_code}/info`,
+			getInviteInfoResponse
+		);
 	};
 
 	/**
@@ -134,21 +134,17 @@ class InvitesApiService {
 	 */
 	acceptInvite = async (request: AcceptInviteRequest) => {
 		const parsedRequest = acceptInviteRequest.safeParse(request);
-		
+
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			
+
 			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.post(
-			`/api/v1/invites/accept`,
-			acceptInviteResponse,
-			{
-				body: parsedRequest.data,
-			}
-		);
+		return baseApiService.post(`/api/v1/invites/accept`, acceptInviteResponse, {
+			body: parsedRequest.data,
+		});
 	};
 }
 

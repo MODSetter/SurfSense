@@ -46,14 +46,21 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { updateMemberMutationAtom, deleteMemberMutationAtom } from "@/atoms/members/members-mutation.atoms";
-import { myAccessAtom } from "@/atoms/members/members-query.atoms";
-import { createInviteMutationAtom, deleteInviteMutationAtom } from '@/atoms/invites/invites-mutation.atoms';
-import type { DeleteInviteRequest } from '@/contracts/types/invites.types';
-import type { UpdateMembershipRequest, DeleteMembershipRequest} from "@/contracts/types/members.types";
+import {
+	createInviteMutationAtom,
+	deleteInviteMutationAtom,
+} from "@/atoms/invites/invites-mutation.atoms";
+import {
+	deleteMemberMutationAtom,
+	updateMemberMutationAtom,
+} from "@/atoms/members/members-mutation.atoms";
+import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
-import { membersAtom } from "@/atoms/members/members-query.atoms";
-import { invitesApiService } from '@/lib/apis/invites-api.service';
+import {
+	createRoleMutationAtom,
+	deleteRoleMutationAtom,
+	updateRoleMutationAtom,
+} from "@/atoms/roles/roles-mutation.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -110,20 +117,25 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type {
+	CreateInviteRequest,
+	DeleteInviteRequest,
+	Invite,
+} from "@/contracts/types/invites.types";
+import type {
+	DeleteMembershipRequest,
+	Membership,
+	UpdateMembershipRequest,
+} from "@/contracts/types/members.types";
+import type {
 	CreateRoleRequest,
 	DeleteRoleRequest,
 	Role,
 	UpdateRoleRequest,
 } from "@/contracts/types/roles.types";
-import {
-	type Invite,
-	type CreateInviteRequest,
-} from "@/contracts/types/invites.types";
-import type { Membership } from "@/contracts/types/members.types";
+import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
-import { createRoleMutationAtom, deleteRoleMutationAtom, updateRoleMutationAtom } from "@/atoms/roles/roles-mutation.atoms";
 
 // Animation variants
 const fadeInUp = {
@@ -165,7 +177,11 @@ export default function TeamManagementPage() {
 		[access]
 	);
 
-	const { data: members = [], isLoading: membersLoading, refetch: fetchMembers } = useAtomValue(membersAtom);
+	const {
+		data: members = [],
+		isLoading: membersLoading,
+		refetch: fetchMembers,
+	} = useAtomValue(membersAtom);
 
 	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
 	const { mutateAsync: updateRole } = useAtomValue(updateRoleMutationAtom);
@@ -189,7 +205,7 @@ export default function TeamManagementPage() {
 	);
 
 	const handleCreateInvite = useCallback(
-		async (inviteData: CreateInviteRequest['data']) => {
+		async (inviteData: CreateInviteRequest["data"]) => {
 			const request: CreateInviteRequest = {
 				search_space_id: searchSpaceId,
 				data: inviteData,
@@ -243,11 +259,10 @@ export default function TeamManagementPage() {
 					role_id: roleId,
 				},
 			};
-			return await updateMember(request) as Membership;
+			return (await updateMember(request)) as Membership;
 		},
 		[updateMember, searchSpaceId]
 	);
-
 
 	const handleRemoveMember = useCallback(
 		async (membershipId: number) => {
@@ -257,7 +272,7 @@ export default function TeamManagementPage() {
 			};
 			await deleteMember(request);
 
-			return true
+			return true;
 		},
 		[deleteMember, searchSpaceId]
 	);
@@ -1077,7 +1092,7 @@ function CreateInviteDialog({
 	searchSpaceId,
 }: {
 	roles: Role[];
-	onCreateInvite: (data: CreateInviteRequest['data']) => Promise<Invite>;
+	onCreateInvite: (data: CreateInviteRequest["data"]) => Promise<Invite>;
 	searchSpaceId: number;
 }) {
 	const [open, setOpen] = useState(false);
@@ -1092,7 +1107,7 @@ function CreateInviteDialog({
 	const handleCreate = async () => {
 		setCreating(true);
 		try {
-			const data: CreateInviteRequest['data'] = {};
+			const data: CreateInviteRequest["data"] = {};
 			if (name) data.name = name;
 			if (roleId && roleId !== "default") data.role_id = Number(roleId);
 			if (maxUses) data.max_uses = Number(maxUses);

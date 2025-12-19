@@ -1,7 +1,7 @@
 "use client";
 
-import { useAtomValue } from "jotai";
 import { useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	ArrowRight,
@@ -21,8 +21,6 @@ import { useParams, useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { acceptInviteMutationAtom } from "@/atoms/invites/invites-mutation.atoms";
-import { invitesApiService } from "@/lib/apis/invites-api.service";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -32,8 +30,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import type { AcceptInviteResponse } from "@/contracts/types/invites.types";
+import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
-import { AcceptInviteResponse } from "@/contracts/types/invites.types";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export default function InviteAcceptPage() {
 	const params = useParams();
@@ -41,9 +41,9 @@ export default function InviteAcceptPage() {
 	const inviteCode = params.invite_code as string;
 
 	const { data: inviteInfo = null, isLoading: loading } = useQuery({
-	queryKey: cacheKeys.invites.info(inviteCode),
-	enabled: !!inviteCode,
-	staleTime: 5 * 60 * 1000,
+		queryKey: cacheKeys.invites.info(inviteCode),
+		enabled: !!inviteCode,
+		staleTime: 5 * 60 * 1000,
 		queryFn: async () => {
 			if (!inviteCode) return null;
 			return invitesApiService.getInviteInfo({

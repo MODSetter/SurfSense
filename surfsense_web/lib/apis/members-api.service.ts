@@ -1,24 +1,24 @@
 import {
-	type GetMembersRequest,
-	type GetMembersResponse,
-	type UpdateMembershipRequest,
-	type UpdateMembershipResponse,
 	type DeleteMembershipRequest,
 	type DeleteMembershipResponse,
-	type LeaveSearchSpaceRequest,
-	type LeaveSearchSpaceResponse,
+	deleteMembershipRequest,
+	deleteMembershipResponse,
+	type GetMembersRequest,
+	type GetMembersResponse,
 	type GetMyAccessRequest,
 	type GetMyAccessResponse,
 	getMembersRequest,
 	getMembersResponse,
-	updateMembershipRequest,
-	updateMembershipResponse,
-	deleteMembershipRequest,
-	deleteMembershipResponse,
-	leaveSearchSpaceRequest,
-	leaveSearchSpaceResponse,
 	getMyAccessRequest,
 	getMyAccessResponse,
+	type LeaveSearchSpaceRequest,
+	type LeaveSearchSpaceResponse,
+	leaveSearchSpaceRequest,
+	leaveSearchSpaceResponse,
+	type UpdateMembershipRequest,
+	type UpdateMembershipResponse,
+	updateMembershipRequest,
+	updateMembershipResponse,
 } from "@/contracts/types/members.types";
 import { ValidationError } from "@/lib/error";
 import { baseApiService } from "./base-api.service";
@@ -39,7 +39,7 @@ class MembersApiService {
 
 		return baseApiService.get(
 			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members`,
-			getMembersResponse,
+			getMembersResponse
 		);
 	};
 
@@ -61,7 +61,7 @@ class MembersApiService {
 			updateMembershipResponse,
 			{
 				body: parsedRequest.data.data,
-			},
+			}
 		);
 	};
 
@@ -80,7 +80,7 @@ class MembersApiService {
 
 		return baseApiService.delete(
 			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members/${parsedRequest.data.membership_id}`,
-			deleteMembershipResponse,
+			deleteMembershipResponse
 		);
 	};
 
@@ -99,7 +99,7 @@ class MembersApiService {
 
 		return baseApiService.delete(
 			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/members/me`,
-			leaveSearchSpaceResponse,
+			leaveSearchSpaceResponse
 		);
 	};
 
@@ -118,7 +118,7 @@ class MembersApiService {
 
 		return baseApiService.get(
 			`/api/v1/searchspaces/${parsedRequest.data.search_space_id}/my-access`,
-			getMyAccessResponse,
+			getMyAccessResponse
 		);
 	};
 }
