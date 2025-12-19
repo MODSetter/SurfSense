@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteChatMutationAtom } from "@/atoms/chats/chat-mutation.atoms";
 import { chatsAtom } from "@/atoms/chats/chat-query.atoms";
 import { globalChatsQueryParamsAtom } from "@/atoms/chats/ui.atoms";
+import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -56,9 +57,13 @@ export function AppSidebarProvider({
 	const [{ isPending: isDeletingChat, mutateAsync: deleteChat, error: deleteError }] =
 		useAtom(deleteChatMutationAtom);
 
+	// Editor state for handling unsaved changes
+	const hasUnsavedEditorChanges = useAtomValue(hasUnsavedEditorChangesAtom);
+	const setPendingNavigation = useSetAtom(pendingEditorNavigationAtom);
+
 	useEffect(() => {
-		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 5 }));
-	}, [searchSpaceId]);
+		setChatsQueryParams((prev) => ({ ...prev, search_space_id: searchSpaceId, skip: 0, limit: 4 }));
+	}, [searchSpaceId, setChatsQueryParams]);
 
 	const {
 		data: searchSpace,
@@ -84,13 +89,20 @@ export function AppSidebarProvider({
 		queryFn: () =>
 			notesApiService.getNotes({
 				search_space_id: Number(searchSpaceId),
-				page_size: 5, // Get 5 notes (changed from 10)
+				page_size: 4, // Get 4 notes for compact sidebar
 			}),
 		enabled: !!searchSpaceId,
 	});
 
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
+	const [showDeleteNoteDialog, setShowDeleteNoteDialog] = useState(false);
+	const [noteToDelete, setNoteToDelete] = useState<{
+		id: number;
+		name: string;
+		search_space_id: number;
+	} | null>(null);
+	const [isDeletingNote, setIsDeletingNote] = useState(false);
 	const [isClient, setIsClient] = useState(false);
 
 	// Set isClient to true when component mounts on the client
@@ -105,25 +117,32 @@ export function AppSidebarProvider({
 
 	// Transform API response to the format expected by AppSidebar
 	const recentChats = useMemo(() => {
-		return chats
-			? chats.map((chat) => ({
-					name: chat.title || `Chat ${chat.id}`,
-					url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
-					icon: "MessageCircleMore",
-					id: chat.id,
-					search_space_id: chat.search_space_id,
-					actions: [
-						{
-							name: "Delete",
-							icon: "Trash2",
-							onClick: () => {
-								setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
-								setShowDeleteDialog(true);
-							},
-						},
-					],
-				}))
-			: [];
+		if (!chats) return [];
+
+		// Sort chats by created_at (most recent first)
+		const sortedChats = [...chats].sort((a, b) => {
+			const dateA = new Date(a.created_at).getTime();
+			const dateB = new Date(b.created_at).getTime();
+			return dateB - dateA; // Descending order (most recent first)
+		});
+
+		return sortedChats.map((chat) => ({
+			name: chat.title || `Chat ${chat.id}`,
+			url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
+			icon: "MessageCircleMore",
+			id: chat.id,
+			search_space_id: chat.search_space_id,
+			actions: [
+				{
+					name: "Delete",
+					icon: "Trash2",
+					onClick: () => {
+						setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
+						setShowDeleteDialog(true);
+					},
+				},
+			],
+		}));
 	}, [chats]);
 
 	// Handle delete chat with better error handling
@@ -140,6 +159,26 @@ export function AppSidebarProvider({
 			setChatToDelete(null);
 		}
 	}, [chatToDelete, deleteChat]);
+
+	// Handle delete note with confirmation
+	const handleDeleteNote = useCallback(async () => {
+		if (!noteToDelete) return;
+
+		setIsDeletingNote(true);
+		try {
+			await notesApiService.deleteNote({
+				search_space_id: noteToDelete.search_space_id,
+				note_id: noteToDelete.id,
+			});
+			refetchNotes();
+		} catch (error) {
+			console.error("Error deleting note:", error);
+		} finally {
+			setIsDeletingNote(false);
+			setShowDeleteNoteDialog(false);
+			setNoteToDelete(null);
+		}
+	}, [noteToDelete, refetchNotes]);
 
 	// Memoized fallback chats
 	const fallbackChats = useMemo(() => {
@@ -158,19 +197,6 @@ export function AppSidebarProvider({
 							onClick: retryFetch,
 						},
 					],
-				},
-			];
-		}
-
-		if (!isLoadingChats && recentChats.length === 0) {
-			return [
-				{
-					name: t("no_recent_chats"),
-					url: "#",
-					icon: "MessageCircleMore",
-					id: 0,
-					search_space_id: Number(searchSpaceId),
-					actions: [],
 				},
 			];
 		}
@@ -196,8 +222,8 @@ export function AppSidebarProvider({
 			return dateB - dateA; // Descending order (most recent first)
 		});
 
-		// Limit to 5 notes
-		return sortedNotes.slice(0, 5).map((note) => ({
+		// Limit to 4 notes for compact sidebar
+		return sortedNotes.slice(0, 4).map((note) => ({
 			name: note.title,
 			url: `/dashboard/${note.search_space_id}/editor/${note.id}`,
 			icon: "FileText",
@@ -207,26 +233,31 @@ export function AppSidebarProvider({
 				{
 					name: "Delete",
 					icon: "Trash2",
-					onClick: async () => {
-						try {
-							await notesApiService.deleteNote({
-								search_space_id: note.search_space_id,
-								note_id: note.id,
-							});
-							refetchNotes();
-						} catch (error) {
-							console.error("Error deleting note:", error);
-						}
+					onClick: () => {
+						setNoteToDelete({
+							id: note.id,
+							name: note.title,
+							search_space_id: note.search_space_id,
+						});
+						setShowDeleteNoteDialog(true);
 					},
 				},
 			],
 		}));
-	}, [notesData, refetchNotes]);
+	}, [notesData]);
 
-	// Handle add note
+	// Handle add note - check for unsaved changes first
 	const handleAddNote = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/editor/new`);
-	}, [router, searchSpaceId]);
+		const newNoteUrl = `/dashboard/${searchSpaceId}/editor/new`;
+
+		if (hasUnsavedEditorChanges) {
+			// Set pending navigation - the editor will show the unsaved changes dialog
+			setPendingNavigation(newNoteUrl);
+		} else {
+			// No unsaved changes, navigate directly
+			router.push(newNoteUrl);
+		}
+	}, [router, searchSpaceId, hasUnsavedEditorChanges, setPendingNavigation]);
 
 	// Memoized updated navSecondary
 	const updatedNavSecondary = useMemo(() => {
@@ -271,6 +302,7 @@ export function AppSidebarProvider({
 				navMain={navMain}
 				RecentChats={[]}
 				RecentNotes={[]}
+				onAddNote={handleAddNote}
 				pageUsage={pageUsage}
 			/>
 		);
@@ -316,6 +348,49 @@ export function AppSidebarProvider({
 							className="gap-2"
 						>
 							{isDeletingChat ? (
+								<>
+									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{t("deleting")}
+								</>
+							) : (
+								<>
+									<Trash2 className="h-4 w-4" />
+									{tCommon("delete")}
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Note Confirmation Dialog */}
+			<Dialog open={showDeleteNoteDialog} onOpenChange={setShowDeleteNoteDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<Trash2 className="h-5 w-5 text-destructive" />
+							<span>{t("delete_note")}</span>
+						</DialogTitle>
+						<DialogDescription>
+							{t("delete_note_confirm")} <span className="font-medium">{noteToDelete?.name}</span>?{" "}
+							{t("action_cannot_undone")}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowDeleteNoteDialog(false)}
+							disabled={isDeletingNote}
+						>
+							{tCommon("cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleDeleteNote}
+							disabled={isDeletingNote}
+							className="gap-2"
+						>
+							{isDeletingNote ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 									{t("deleting")}

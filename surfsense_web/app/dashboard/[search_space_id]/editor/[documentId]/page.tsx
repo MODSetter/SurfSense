@@ -1,11 +1,13 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { useAtom } from "jotai";
 import { AlertCircle, ArrowLeft, FileText, Loader2, Save } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
 import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
 import {
 	AlertDialog,
@@ -75,6 +77,46 @@ export default function EditorPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+	// Global state for cross-component communication
+	const [, setGlobalHasUnsavedChanges] = useAtom(hasUnsavedEditorChangesAtom);
+	const [pendingNavigation, setPendingNavigation] = useAtom(pendingEditorNavigationAtom);
+
+	// Sync local unsaved changes state with global atom
+	useEffect(() => {
+		setGlobalHasUnsavedChanges(hasUnsavedChanges);
+	}, [hasUnsavedChanges, setGlobalHasUnsavedChanges]);
+
+	// Cleanup global state when component unmounts
+	useEffect(() => {
+		return () => {
+			setGlobalHasUnsavedChanges(false);
+			setPendingNavigation(null);
+		};
+	}, [setGlobalHasUnsavedChanges, setPendingNavigation]);
+
+	// Handle pending navigation from sidebar (e.g., when user clicks "+" to create new note)
+	useEffect(() => {
+		if (pendingNavigation) {
+			if (hasUnsavedChanges) {
+				// Show dialog to confirm navigation
+				setShowUnsavedDialog(true);
+			} else {
+				// No unsaved changes, navigate immediately
+				router.push(pendingNavigation);
+				setPendingNavigation(null);
+			}
+		}
+	}, [pendingNavigation, hasUnsavedChanges, router, setPendingNavigation]);
+
+	// Reset state when documentId changes (e.g., navigating from existing note to new note)
+	useEffect(() => {
+		setDocument(null);
+		setEditorContent(null);
+		setError(null);
+		setHasUnsavedChanges(false);
+		setLoading(true);
+	}, [documentId]);
 
 	// Fetch document content - DIRECT CALL TO FASTAPI
 	// Skip fetching if this is a new note
@@ -287,7 +329,23 @@ export default function EditorPage() {
 
 	const handleConfirmLeave = () => {
 		setShowUnsavedDialog(false);
-		router.push(`/dashboard/${searchSpaceId}/researcher`);
+		// Clear global unsaved state
+		setGlobalHasUnsavedChanges(false);
+		setHasUnsavedChanges(false);
+
+		// If there's a pending navigation (from sidebar), use that; otherwise go back to researcher
+		if (pendingNavigation) {
+			router.push(pendingNavigation);
+			setPendingNavigation(null);
+		} else {
+			router.push(`/dashboard/${searchSpaceId}/researcher`);
+		}
+	};
+
+	const handleCancelLeave = () => {
+		setShowUnsavedDialog(false);
+		// Clear pending navigation if user cancels
+		setPendingNavigation(null);
 	};
 
 	if (loading) {
@@ -402,6 +460,7 @@ export default function EditorPage() {
 					)}
 					<div className="max-w-4xl mx-auto">
 						<BlockNoteEditor
+							key={documentId} // Force re-mount when document changes
 							initialContent={isNewNote ? undefined : editorContent}
 							onChange={setEditorContent}
 							useTitleBlock={isNote}
@@ -411,7 +470,12 @@ export default function EditorPage() {
 			</div>
 
 			{/* Unsaved Changes Dialog */}
-			<AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+			<AlertDialog
+				open={showUnsavedDialog}
+				onOpenChange={(open) => {
+					if (!open) handleCancelLeave();
+				}}
+			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
@@ -420,7 +484,7 @@ export default function EditorPage() {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogCancel onClick={handleCancelLeave}>Cancel</AlertDialogCancel>
 						<AlertDialogAction onClick={handleConfirmLeave}>OK</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

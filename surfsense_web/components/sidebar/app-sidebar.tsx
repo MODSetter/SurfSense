@@ -16,6 +16,7 @@ import {
 	MessageCircleMore,
 	MoonIcon,
 	Podcast,
+	RefreshCw,
 	Settings2,
 	SquareLibrary,
 	SquareTerminal,
@@ -113,9 +114,9 @@ function UserAvatar({ email, size = 32 }: { email: string; size?: number }) {
 	);
 }
 
+import { NavChats } from "@/components/sidebar/nav-chats";
 import { NavMain } from "@/components/sidebar/nav-main";
 import { NavNotes } from "@/components/sidebar/nav-notes";
-import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
 import { PageUsageDisplay } from "@/components/sidebar/page-usage-display";
 import {
@@ -146,6 +147,7 @@ export const iconMap: Record<string, LucideIcon> = {
 	Trash2,
 	Podcast,
 	Users,
+	RefreshCw,
 };
 
 const defaultData = {
@@ -293,6 +295,7 @@ export const AppSidebar = memo(function AppSidebar({
 	const { theme, setTheme } = useTheme();
 	const { data: user, isPending: isLoadingUser } = useAtomValue(currentUserAtom);
 	const [isClient, setIsClient] = useState(false);
+	const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
 
 	useEffect(() => {
 		setIsClient(true);
@@ -443,22 +446,21 @@ export const AppSidebar = memo(function AppSidebar({
 				</SidebarMenu>
 			</SidebarHeader>
 
-			<SidebarContent className="space-y-6">
-				<NavMain items={processedNavMain} />
+			<SidebarContent className="gap-1">
+				<NavMain items={processedNavMain} onSourcesExpandedChange={setIsSourcesExpanded} />
 
-				{processedRecentChats.length > 0 && (
-					<div className="space-y-2">
-						<NavProjects chats={processedRecentChats} />
-					</div>
-				)}
+				<NavChats
+					chats={processedRecentChats}
+					searchSpaceId={searchSpaceId}
+					isSourcesExpanded={isSourcesExpanded}
+				/>
 
-				<div className="space-y-2">
-					<NavNotes
-						notes={processedRecentNotes}
-						onAddNote={onAddNote}
-						searchSpaceId={searchSpaceId}
-					/>
-				</div>
+				<NavNotes
+					notes={processedRecentNotes}
+					onAddNote={onAddNote}
+					searchSpaceId={searchSpaceId}
+					isSourcesExpanded={isSourcesExpanded}
+				/>
 			</SidebarContent>
 			<SidebarFooter>
 				{pageUsage && (
