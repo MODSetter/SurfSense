@@ -16,6 +16,7 @@ import {
 	MessageCircleMore,
 	MoonIcon,
 	Podcast,
+	RefreshCw,
 	Settings2,
 	SquareLibrary,
 	SquareTerminal,
@@ -146,6 +147,7 @@ export const iconMap: Record<string, LucideIcon> = {
 	Trash2,
 	Podcast,
 	Users,
+	RefreshCw,
 };
 
 const defaultData = {
@@ -293,6 +295,7 @@ export const AppSidebar = memo(function AppSidebar({
 	const { theme, setTheme } = useTheme();
 	const { data: user, isPending: isLoadingUser } = useAtomValue(currentUserAtom);
 	const [isClient, setIsClient] = useState(false);
+	const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
 
 	useEffect(() => {
 		setIsClient(true);
@@ -444,17 +447,19 @@ export const AppSidebar = memo(function AppSidebar({
 			</SidebarHeader>
 
 		<SidebarContent className="gap-1">
-			<NavMain items={processedNavMain} />
+			<NavMain items={processedNavMain} onSourcesExpandedChange={setIsSourcesExpanded} />
 
 			<NavChats
 				chats={processedRecentChats}
 				searchSpaceId={searchSpaceId}
+				isSourcesExpanded={isSourcesExpanded}
 			/>
 
 			<NavNotes
 				notes={processedRecentNotes}
 				onAddNote={onAddNote}
 				searchSpaceId={searchSpaceId}
+				isSourcesExpanded={isSourcesExpanded}
 			/>
 		</SidebarContent>
 			<SidebarFooter>

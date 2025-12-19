@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { Loader2, MessageCircleMore, MoreHorizontal, Search, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -22,6 +23,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { chatsApiService } from "@/lib/apis/chats-api.service";
 import { cn } from "@/lib/utils";
@@ -94,14 +96,22 @@ export function AllChatsSidebar({
 		setSearchQuery("");
 	}, []);
 
-	// Filter chats based on search query (client-side filtering)
+	// Filter and sort chats based on search query (client-side filtering)
 	const chats = useMemo(() => {
 		const allChats = chatsData ?? [];
+		
+		// Sort chats by created_at (most recent first)
+		const sortedChats = [...allChats].sort((a, b) => {
+			const dateA = new Date(a.created_at).getTime();
+			const dateB = new Date(b.created_at).getTime();
+			return dateB - dateA; // Descending order (most recent first)
+		});
+
 		if (!debouncedSearchQuery) {
-			return allChats;
+			return sortedChats;
 		}
 		const query = debouncedSearchQuery.toLowerCase();
-		return allChats.filter((chat) => 
+		return sortedChats.filter((chat) => 
 			chat.title.toLowerCase().includes(query)
 		);
 	}, [chatsData, debouncedSearchQuery]);
@@ -111,7 +121,7 @@ export function AllChatsSidebar({
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
 			<SheetContent side="left" className="w-80 p-0 flex flex-col">
-				<SheetHeader className="px-4 py-4 border-b space-y-3">
+				<SheetHeader className="mx-3 px-4 py-4 border-b space-y-3">
 					<SheetTitle>{t("all_chats") || "All Chats"}</SheetTitle>
 					<SheetDescription className="sr-only">
 						{t("all_chats_description") || "Browse and manage all your chats"}
@@ -135,7 +145,7 @@ export function AllChatsSidebar({
 								onClick={handleClearSearch}
 							>
 								<X className="h-3.5 w-3.5" />
-								<span className="sr-only">Clear search</span>
+								<span className="sr-only">{t("clear_search") || "Clear search"}</span>
 							</Button>
 						)}
 					</div>
@@ -167,15 +177,22 @@ export function AllChatsSidebar({
 											)}
 										>
 											{/* Main clickable area for navigation */}
-											<button
-												type="button"
-												onClick={() => handleChatClick(chat.id, chat.search_space_id)}
-												disabled={isDeleting}
-												className="flex items-center gap-2 flex-1 min-w-0 text-left"
-											>
-												<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
-												<span className="truncate">{chat.title}</span>
-											</button>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<button
+														type="button"
+														onClick={() => handleChatClick(chat.id, chat.search_space_id)}
+														disabled={isDeleting}
+														className="flex items-center gap-2 flex-1 min-w-0 text-left"
+													>
+														<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
+														<span className="truncate">{chat.title}</span>
+													</button>
+												</TooltipTrigger>
+												<TooltipContent side="right">
+													<p>{t("created") || "Created"}: {format(new Date(chat.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
+												</TooltipContent>
+											</Tooltip>
 
 											{/* Actions dropdown - separate from main click area */}
 											<DropdownMenu>
@@ -195,7 +212,7 @@ export function AllChatsSidebar({
 														) : (
 															<MoreHorizontal className="h-3.5 w-3.5" />
 														)}
-														<span className="sr-only">More options</span>
+														<span className="sr-only">{t("more_options") || "More options"}</span>
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end" className="w-40">
@@ -204,7 +221,7 @@ export function AllChatsSidebar({
 														className="text-destructive focus:text-destructive"
 													>
 														<Trash2 className="mr-2 h-4 w-4" />
-														<span>Delete</span>
+														<span>{t("delete") || "Delete"}</span>
 													</DropdownMenuItem>
 												</DropdownMenuContent>
 											</DropdownMenu>

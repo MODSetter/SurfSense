@@ -7,12 +7,12 @@ import {
 	Loader2,
 	MessageCircleMore,
 	MoreHorizontal,
-	Search,
+	RefreshCw,
 	Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -29,6 +29,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { AllChatsSidebar } from "./all-chats-sidebar";
 
@@ -51,6 +52,7 @@ interface NavChatsProps {
 	chats: ChatItem[];
 	defaultOpen?: boolean;
 	searchSpaceId?: string;
+	isSourcesExpanded?: boolean;
 }
 
 // Map of icon names to their components
@@ -58,14 +60,23 @@ const actionIconMap: Record<string, LucideIcon> = {
 	MessageCircleMore,
 	Trash2,
 	MoreHorizontal,
+	RefreshCw,
 };
 
-export function NavChats({ chats, defaultOpen = true, searchSpaceId }: NavChatsProps) {
+export function NavChats({ chats, defaultOpen = true, searchSpaceId, isSourcesExpanded = false }: NavChatsProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const isMobile = useIsMobile();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 	const [isAllChatsSidebarOpen, setIsAllChatsSidebarOpen] = useState(false);
+
+	// Auto-collapse on smaller screens when Sources is expanded
+	useEffect(() => {
+		if (isSourcesExpanded && isMobile) {
+			setIsOpen(false);
+		}
+	}, [isSourcesExpanded, isMobile]);
 
 	// Handle chat deletion with loading state
 	const handleDeleteChat = useCallback(async (chatId: number, deleteAction: () => void) => {
@@ -112,7 +123,7 @@ export function NavChats({ chats, defaultOpen = true, searchSpaceId }: NavChatsP
 									e.stopPropagation();
 									setIsAllChatsSidebarOpen(true);
 								}}
-								aria-label="View all chats"
+								aria-label={t("view_all_chats") || "View all chats"}
 							>
 								<FolderOpen className="h-3.5 w-3.5" />
 							</Button>
@@ -121,10 +132,10 @@ export function NavChats({ chats, defaultOpen = true, searchSpaceId }: NavChatsP
 				</div>
 
 				<CollapsibleContent>
-					<SidebarGroupContent>
-						<SidebarMenu>
-							{chats.length > 0 ? (
-								chats.map((chat) => {
+					{chats.length > 0 ? (
+						<SidebarGroupContent>
+							<SidebarMenu>
+								{chats.map((chat) => {
 									const isDeletingChat = isDeleting === chat.id;
 
 									return (
@@ -163,7 +174,7 @@ export function NavChats({ chats, defaultOpen = true, searchSpaceId }: NavChatsP
 																) : (
 																	<MoreHorizontal className="h-3.5 w-3.5" />
 																)}
-																<span className="sr-only">More options</span>
+																<span className="sr-only">{t("more_options") || "More options"}</span>
 															</Button>
 														</DropdownMenuTrigger>
 														<DropdownMenuContent align="end" side="right" className="w-40">
@@ -191,7 +202,7 @@ export function NavChats({ chats, defaultOpen = true, searchSpaceId }: NavChatsP
 																		<ActionIcon className="mr-2 h-4 w-4" />
 																		<span>
 																			{isDeletingChat && isDeleteAction
-																				? "Deleting..."
+																				? t("deleting") || "Deleting..."
 																				: action.name}
 																		</span>
 																	</DropdownMenuItem>
@@ -203,17 +214,15 @@ export function NavChats({ chats, defaultOpen = true, searchSpaceId }: NavChatsP
 											)}
 										</SidebarMenuItem>
 									);
-								})
-							) : (
-								<SidebarMenuItem>
-									<SidebarMenuButton disabled className="text-muted-foreground text-xs">
-										<Search className="h-4 w-4" />
-										<span>{t("no_recent_chats") || "No recent chats"}</span>
-									</SidebarMenuButton>
-								</SidebarMenuItem>
-							)}
-						</SidebarMenu>
-					</SidebarGroupContent>
+								})}
+							</SidebarMenu>
+						</SidebarGroupContent>
+					) : (
+						<div className="flex items-center gap-2 px-2 py-1 text-muted-foreground/60 text-xs">
+							<MessageCircleMore className="h-3.5 w-3.5" />
+							<span>{t("no_recent_chats") || "No recent chats"}</span>
+						</div>
+					)}
 				</CollapsibleContent>
 			</Collapsible>
 

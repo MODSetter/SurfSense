@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { FileText, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -21,6 +22,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { notesApiService } from "@/lib/apis/notes-api.service";
@@ -121,22 +123,38 @@ export function AllNotesSidebar({
 	const isLoading = isSearchMode ? isSearching : isLoadingNotes;
 	const error = isSearchMode ? searchError : notesError;
 
-	// Transform notes data - handle both regular notes and search results
+	// Transform and sort notes data - handle both regular notes and search results
 	const notes = useMemo(() => {
+		let notesList: { id: number; title: string; search_space_id: number; created_at: string; updated_at?: string | null }[];
+		
 		if (isSearchMode && searchData?.items) {
-			return searchData.items.map((doc) => ({
+			notesList = searchData.items.map((doc) => ({
 				id: doc.id,
 				title: doc.title,
 				search_space_id: doc.search_space_id,
+				created_at: doc.created_at,
+				updated_at: doc.updated_at,
 			}));
+		} else {
+			notesList = notesData?.items ?? [];
 		}
-		return notesData?.items ?? [];
+
+		// Sort notes by updated_at (most recent first), fallback to created_at
+		return [...notesList].sort((a, b) => {
+			const dateA = a.updated_at
+				? new Date(a.updated_at).getTime()
+				: new Date(a.created_at).getTime();
+			const dateB = b.updated_at
+				? new Date(b.updated_at).getTime()
+				: new Date(b.created_at).getTime();
+			return dateB - dateA; // Descending order (most recent first)
+		});
 	}, [isSearchMode, searchData, notesData]);
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
 			<SheetContent side="left" className="w-80 p-0 flex flex-col">
-				<SheetHeader className="px-4 py-4 border-b space-y-3">
+				<SheetHeader className="mx-3 px-4 py-4 border-b space-y-3">
 					<SheetTitle>{t("all_notes") || "All Notes"}</SheetTitle>
 					<SheetDescription className="sr-only">
 						{t("all_notes_description") || "Browse and manage all your notes"}
@@ -160,7 +178,7 @@ export function AllNotesSidebar({
 								onClick={handleClearSearch}
 							>
 								<X className="h-3.5 w-3.5" />
-								<span className="sr-only">Clear search</span>
+								<span className="sr-only">{t("clear_search") || "Clear search"}</span>
 							</Button>
 						)}
 					</div>
@@ -192,15 +210,27 @@ export function AllNotesSidebar({
 											)}
 										>
 											{/* Main clickable area for navigation */}
-											<button
-												type="button"
-												onClick={() => handleNoteClick(note.id, note.search_space_id)}
-												disabled={isDeleting}
-												className="flex items-center gap-2 flex-1 min-w-0 text-left"
-											>
-												<FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-												<span className="truncate">{note.title}</span>
-											</button>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<button
+														type="button"
+														onClick={() => handleNoteClick(note.id, note.search_space_id)}
+														disabled={isDeleting}
+														className="flex items-center gap-2 flex-1 min-w-0 text-left"
+													>
+														<FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+														<span className="truncate">{note.title}</span>
+													</button>
+												</TooltipTrigger>
+												<TooltipContent side="right">
+													<div className="space-y-1">
+														<p>{t("created") || "Created"}: {format(new Date(note.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
+														{note.updated_at && (
+															<p>{t("updated") || "Updated"}: {format(new Date(note.updated_at), "MMM d, yyyy 'at' h:mm a")}</p>
+														)}
+													</div>
+												</TooltipContent>
+											</Tooltip>
 
 											{/* Actions dropdown - separate from main click area */}
 											<DropdownMenu>
@@ -220,7 +250,7 @@ export function AllNotesSidebar({
 														) : (
 															<MoreHorizontal className="h-3.5 w-3.5" />
 														)}
-														<span className="sr-only">More options</span>
+														<span className="sr-only">{t("more_options") || "More options"}</span>
 													</Button>
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end" className="w-40">
@@ -229,7 +259,7 @@ export function AllNotesSidebar({
 														className="text-destructive focus:text-destructive"
 													>
 														<Trash2 className="mr-2 h-4 w-4" />
-														<span>Delete</span>
+														<span>{t("delete") || "Delete"}</span>
 													</DropdownMenuItem>
 												</DropdownMenuContent>
 											</DropdownMenu>
@@ -273,7 +303,7 @@ export function AllNotesSidebar({
 
 				{/* Footer with Add Note button */}
 				{onAddNote && notes.length > 0 && (
-					<div className="p-3 border-t">
+					<div className="mx-3 p-3">
 						<Button
 							onClick={() => {
 								onAddNote();

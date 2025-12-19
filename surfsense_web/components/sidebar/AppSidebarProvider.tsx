@@ -91,6 +91,9 @@ export function AppSidebarProvider({
 
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
+	const [showDeleteNoteDialog, setShowDeleteNoteDialog] = useState(false);
+	const [noteToDelete, setNoteToDelete] = useState<{ id: number; name: string; search_space_id: number } | null>(null);
+	const [isDeletingNote, setIsDeletingNote] = useState(false);
 	const [isClient, setIsClient] = useState(false);
 
 	// Set isClient to true when component mounts on the client
@@ -105,25 +108,32 @@ export function AppSidebarProvider({
 
 	// Transform API response to the format expected by AppSidebar
 	const recentChats = useMemo(() => {
-		return chats
-			? chats.map((chat) => ({
-					name: chat.title || `Chat ${chat.id}`,
-					url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
-					icon: "MessageCircleMore",
-					id: chat.id,
-					search_space_id: chat.search_space_id,
-					actions: [
-						{
-							name: "Delete",
-							icon: "Trash2",
-							onClick: () => {
-								setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
-								setShowDeleteDialog(true);
-							},
-						},
-					],
-				}))
-			: [];
+		if (!chats) return [];
+
+		// Sort chats by created_at (most recent first)
+		const sortedChats = [...chats].sort((a, b) => {
+			const dateA = new Date(a.created_at).getTime();
+			const dateB = new Date(b.created_at).getTime();
+			return dateB - dateA; // Descending order (most recent first)
+		});
+
+		return sortedChats.map((chat) => ({
+			name: chat.title || `Chat ${chat.id}`,
+			url: `/dashboard/${chat.search_space_id}/researcher/${chat.id}`,
+			icon: "MessageCircleMore",
+			id: chat.id,
+			search_space_id: chat.search_space_id,
+			actions: [
+				{
+					name: "Delete",
+					icon: "Trash2",
+					onClick: () => {
+						setChatToDelete({ id: chat.id, name: chat.title || `Chat ${chat.id}` });
+						setShowDeleteDialog(true);
+					},
+				},
+			],
+		}));
 	}, [chats]);
 
 	// Handle delete chat with better error handling
@@ -140,6 +150,26 @@ export function AppSidebarProvider({
 			setChatToDelete(null);
 		}
 	}, [chatToDelete, deleteChat]);
+
+	// Handle delete note with confirmation
+	const handleDeleteNote = useCallback(async () => {
+		if (!noteToDelete) return;
+
+		setIsDeletingNote(true);
+		try {
+			await notesApiService.deleteNote({
+				search_space_id: noteToDelete.search_space_id,
+				note_id: noteToDelete.id,
+			});
+			refetchNotes();
+		} catch (error) {
+			console.error("Error deleting note:", error);
+		} finally {
+			setIsDeletingNote(false);
+			setShowDeleteNoteDialog(false);
+			setNoteToDelete(null);
+		}
+	}, [noteToDelete, refetchNotes]);
 
 	// Memoized fallback chats
 	const fallbackChats = useMemo(() => {
@@ -158,19 +188,6 @@ export function AppSidebarProvider({
 							onClick: retryFetch,
 						},
 					],
-				},
-			];
-		}
-
-		if (!isLoadingChats && recentChats.length === 0) {
-			return [
-				{
-					name: t("no_recent_chats"),
-					url: "#",
-					icon: "MessageCircleMore",
-					id: 0,
-					search_space_id: Number(searchSpaceId),
-					actions: [],
 				},
 			];
 		}
@@ -207,21 +224,14 @@ export function AppSidebarProvider({
 				{
 					name: "Delete",
 					icon: "Trash2",
-					onClick: async () => {
-						try {
-							await notesApiService.deleteNote({
-								search_space_id: note.search_space_id,
-								note_id: note.id,
-							});
-							refetchNotes();
-						} catch (error) {
-							console.error("Error deleting note:", error);
-						}
+					onClick: () => {
+						setNoteToDelete({ id: note.id, name: note.title, search_space_id: note.search_space_id });
+						setShowDeleteNoteDialog(true);
 					},
 				},
 			],
 		}));
-	}, [notesData, refetchNotes]);
+	}, [notesData]);
 
 	// Handle add note
 	const handleAddNote = useCallback(() => {
@@ -271,6 +281,7 @@ export function AppSidebarProvider({
 				navMain={navMain}
 				RecentChats={[]}
 				RecentNotes={[]}
+				onAddNote={handleAddNote}
 				pageUsage={pageUsage}
 			/>
 		);
@@ -316,6 +327,49 @@ export function AppSidebarProvider({
 							className="gap-2"
 						>
 							{isDeletingChat ? (
+								<>
+									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{t("deleting")}
+								</>
+							) : (
+								<>
+									<Trash2 className="h-4 w-4" />
+									{tCommon("delete")}
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Note Confirmation Dialog */}
+			<Dialog open={showDeleteNoteDialog} onOpenChange={setShowDeleteNoteDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<Trash2 className="h-5 w-5 text-destructive" />
+							<span>{t("delete_note")}</span>
+						</DialogTitle>
+						<DialogDescription>
+							{t("delete_note_confirm")} <span className="font-medium">{noteToDelete?.name}</span>?{" "}
+							{t("action_cannot_undone")}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowDeleteNoteDialog(false)}
+							disabled={isDeletingNote}
+						>
+							{tCommon("cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleDeleteNote}
+							disabled={isDeletingNote}
+							className="gap-2"
+						>
+							{isDeletingNote ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 									{t("deleting")}
