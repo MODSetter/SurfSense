@@ -30,7 +30,7 @@ export const getSearchSpacesResponse = z.array(searchSpace);
  * Create search space
  */
 export const createSearchSpaceRequest = searchSpace.pick({ name: true, description: true }).extend({
-	citations_enabled: z.boolean().default(true).optional(),
+	citations_enabled: z.boolean().prefault(true).optional(),
 	qna_custom_instructions: z.string().nullable().optional(),
 });
 

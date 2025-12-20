@@ -16,7 +16,7 @@ const createNoteResponse = z.object({
 	content: z.string(),
 	content_hash: z.string(),
 	unique_identifier_hash: z.string().nullable(),
-	document_metadata: z.record(z.any()).nullable(),
+	document_metadata: z.record(z.string(), z.any()).nullable(),
 	search_space_id: z.number(),
 	created_at: z.string(),
 	updated_at: z.string().nullable(),
@@ -36,7 +36,7 @@ const noteItem = z.object({
 	content: z.string(),
 	content_hash: z.string(),
 	unique_identifier_hash: z.string().nullable(),
-	document_metadata: z.record(z.any()).nullable(),
+	document_metadata: z.record(z.string(), z.any()).nullable(),
 	search_space_id: z.number(),
 	created_at: z.string(),
 	updated_at: z.string().nullable(),
@@ -78,7 +78,7 @@ class NotesApiService {
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -105,7 +105,7 @@ class NotesApiService {
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -131,7 +131,7 @@ class NotesApiService {
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 

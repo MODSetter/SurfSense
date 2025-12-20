@@ -26,7 +26,7 @@ class PodcastsApiService {
 			console.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -52,7 +52,7 @@ class PodcastsApiService {
 			console.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -70,7 +70,7 @@ class PodcastsApiService {
 			console.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -93,7 +93,7 @@ class PodcastsApiService {
 			console.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -110,7 +110,7 @@ class PodcastsApiService {
 			console.error("Invalid request:", parsedRequest.error);
 
 			// Format a user frendly error message
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
