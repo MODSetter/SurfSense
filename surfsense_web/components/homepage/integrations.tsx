@@ -16,7 +16,7 @@ const INTEGRATIONS: Integration[] = [
 	{ name: "Elasticsearch", icon: "https://cdn.simpleicons.org/elastic/00A9E5" },
 
 	// Communication
-	{ name: "Slack", icon: "https://cdn.simpleicons.org/slack/4A154B" },
+	{ name: "Slack", icon: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg" },
 	{ name: "Discord", icon: "https://cdn.simpleicons.org/discord/5865F2" },
 	{ name: "Gmail", icon: "https://cdn.simpleicons.org/gmail/EA4335" },
 
