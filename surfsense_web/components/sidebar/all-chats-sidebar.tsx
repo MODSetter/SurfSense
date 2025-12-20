@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Loader2, MessageCircleMore, MoreHorizontal, Search, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +42,9 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
-	// Fetch all chats
+	const isSearchMode = !!debouncedSearchQuery.trim();
+
+	// Fetch all chats (when not searching)
 	const {
 		data: chatsData,
 		error: chatsError,
@@ -55,7 +57,24 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 					search_space_id: Number(searchSpaceId),
 				},
 			}),
-		enabled: !!searchSpaceId && open,
+		enabled: !!searchSpaceId && open && !isSearchMode,
+	});
+
+	// Search chats (when searching)
+	const {
+		data: searchData,
+		error: searchError,
+		isLoading: isLoadingSearch,
+	} = useQuery({
+		queryKey: ["search-chats", searchSpaceId, debouncedSearchQuery],
+		queryFn: () =>
+			chatsApiService.searchChats({
+				queryParams: {
+					title: debouncedSearchQuery.trim(),
+					search_space_id: Number(searchSpaceId),
+				},
+			}),
+		enabled: !!searchSpaceId && open && isSearchMode,
 	});
 
 	// Handle chat navigation
@@ -76,6 +95,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 				// Invalidate queries to refresh the list
 				queryClient.invalidateQueries({ queryKey: ["all-chats", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["search-chats", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["chats"] });
 			} catch (error) {
 				console.error("Error deleting chat:", error);
@@ -92,25 +112,10 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 		setSearchQuery("");
 	}, []);
 
-	// Filter and sort chats based on search query (client-side filtering)
-	const chats = useMemo(() => {
-		const allChats = chatsData ?? [];
-
-		// Sort chats by created_at (most recent first)
-		const sortedChats = [...allChats].sort((a, b) => {
-			const dateA = new Date(a.created_at).getTime();
-			const dateB = new Date(b.created_at).getTime();
-			return dateB - dateA; // Descending order (most recent first)
-		});
-
-		if (!debouncedSearchQuery) {
-			return sortedChats;
-		}
-		const query = debouncedSearchQuery.toLowerCase();
-		return sortedChats.filter((chat) => chat.title.toLowerCase().includes(query));
-	}, [chatsData, debouncedSearchQuery]);
-
-	const isSearchMode = !!debouncedSearchQuery;
+	// Determine which data source to use and loading/error states
+	const chats = isSearchMode ? (searchData ?? []) : (chatsData ?? []);
+	const isLoading = isSearchMode ? isLoadingSearch : isLoadingChats;
+	const error = isSearchMode ? searchError : chatsError;
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
@@ -147,11 +152,11 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 
 				<ScrollArea className="flex-1">
 					<div className="p-2">
-						{isLoadingChats ? (
+						{isLoading ? (
 							<div className="flex items-center justify-center py-8">
 								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
 							</div>
-						) : chatsError ? (
+						) : error ? (
 							<div className="text-center py-8 text-sm text-destructive">
 								{t("error_loading_chats") || "Error loading chats"}
 							</div>

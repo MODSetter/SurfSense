@@ -8,13 +8,6 @@ from app.db import Chat, Podcast
 from app.services.task_logging_service import TaskLoggingService
 
 
-async def generate_document_podcast(
-    session: AsyncSession, document_id: int, search_space_id: int, user_id: int
-):
-    # TODO: Need to fetch the document chunks, then concatenate them and pass them to the podcast generation model
-    pass
-
-
 async def generate_chat_podcast(
     session: AsyncSession,
     chat_id: int,

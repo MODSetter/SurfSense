@@ -28,7 +28,6 @@ export const editConnectorSchema = z.object({
 	name: z.string().min(3, { message: "Connector name must be at least 3 characters." }),
 	SLACK_BOT_TOKEN: z.string().optional(),
 	NOTION_INTEGRATION_TOKEN: z.string().optional(),
-	SERPER_API_KEY: z.string().optional(),
 	TAVILY_API_KEY: z.string().optional(),
 	SEARXNG_HOST: z.string().optional(),
 	SEARXNG_API_KEY: z.string().optional(),

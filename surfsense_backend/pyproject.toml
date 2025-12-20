@@ -41,7 +41,6 @@ dependencies = [
     "celery[redis]>=5.5.3",
     "flower>=2.0.1",
     "redis>=5.2.1",
-    "chonkie[all]>=1.4.0",
     "firecrawl-py>=4.9.0",
     "boto3>=1.35.0",
     "langchain-community>=0.3.31",
@@ -54,6 +53,7 @@ dependencies = [
     "deepagents>=0.3.0",
     "trafilatura>=2.0.0",
     "fastapi-users[oauth,sqlalchemy]>=15.0.3",
+    "chonkie[all]>=1.5.0",
 ]
 
 [dependency-groups]
