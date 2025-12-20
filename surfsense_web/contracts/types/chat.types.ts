@@ -29,11 +29,10 @@ export const getChatsRequest = z.object({
 });
 
 export const searchChatsRequest = z.object({
-	queryParams: paginationQueryParams
-		.extend({
-			title: z.string(),
-			search_space_id: z.number().or(z.string()).optional(),
-		}),
+	queryParams: paginationQueryParams.extend({
+		title: z.string(),
+		search_space_id: z.number().or(z.string()).optional(),
+	}),
 });
 
 export const deleteChatResponse = z.object({

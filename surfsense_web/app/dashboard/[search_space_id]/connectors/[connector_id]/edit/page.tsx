@@ -153,15 +153,6 @@ export default function EditConnectorPage() {
 										placeholder="Begins with secret_..."
 									/>
 								)}
-								{/* == Serper == */}
-								{connector.connector_type === "SERPER_API" && (
-									<EditSimpleTokenForm
-										control={editForm.control}
-										fieldName="SERPER_API_KEY"
-										fieldLabel="Serper API Key"
-										fieldDescription="Update the Serper API Key if needed."
-									/>
-								)}
 								{/* == Tavily == */}
 								{connector.connector_type === "TAVILY_API" && (
 									<EditSimpleTokenForm

@@ -197,7 +197,6 @@ export function DashboardBreadcrumb() {
 								"slack-connector": "Slack",
 								"notion-connector": "Notion",
 								"tavily-api": "Tavily API",
-								"serper-api": "Serper API",
 								"linkup-api": "LinkUp API",
 								"luma-connector": "Luma",
 								"elasticsearch-connector": "Elasticsearch",
