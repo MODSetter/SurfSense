@@ -87,10 +87,11 @@ def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
         provider_prefix = provider_map.get(provider, provider.lower())
         model_string = f"{provider_prefix}/{llm_config['model_name']}"
 
-    # Create ChatLiteLLM instance
+    # Create ChatLiteLLM instance with streaming enabled
     litellm_kwargs = {
         "model": model_string,
         "api_key": llm_config.get("api_key"),
+        "streaming": True,  # Enable streaming for real-time token streaming
     }
 
     # Add optional parameters

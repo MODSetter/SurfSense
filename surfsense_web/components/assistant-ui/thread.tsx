@@ -118,7 +118,7 @@ const ThreadSuggestions: FC = () => {
 					className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-200"
 					style={{ animationDelay: `${100 + index * 50}ms` }}
 				>
-					<ThreadPrimitive.Suggestion prompt={suggestion.prompt} send asChild>
+					<ThreadPrimitive.Suggestion prompt={suggestion.prompt} autoSend asChild>
 						<Button
 							variant="ghost"
 							className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
