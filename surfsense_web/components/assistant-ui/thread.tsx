@@ -42,6 +42,7 @@ import { ConnectorGroup } from "../chat/ConnectorGroup";
 import { useState } from "react";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Document } from "@/contracts/types/document.types";
+import { ReasoningStepChain } from "@/components/assistant-ui/reasoning-step-chain";
 
 export const Thread: FC = () => {
 	return (
@@ -96,7 +97,7 @@ const ThreadLogo: FC = () => {
 	return <AnimatedEmptyState />;
 };
 
-const Composer: FC<{onDocumentsMention?: (documents: Document[]) => void}> = ({onDocumentsMention}) => {
+const Composer: FC<{ onDocumentsMention?: (documents: Document[]) => void }> = ({ onDocumentsMention }) => {
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const inputRef = useRef<HTMLTextAreaElement | null>(null);
 	const { search_space_id } = useParams();
@@ -216,10 +217,8 @@ const ComposerAction: FC = () => {
 		if (token && !isNewChat && activeChatId) {
 			const chatData = activeChatState?.chatDetails;
 			if (!chatData) return;
-
 			// Update configuration from chat data
 			// researchMode is always "QNA", no need to set from chat data
-
 			if (chatData.initial_connectors && Array.isArray(chatData.initial_connectors)) {
 				setSelectedConnectors(chatData.initial_connectors);
 			}
@@ -239,7 +238,6 @@ const ComposerAction: FC = () => {
 				...documentTypes.map((dt) => dt.type),
 				...liveSearchConnectors.map((c) => c.connector_type),
 			];
-
 			if (allSourceTypes.length > 0) {
 				setSelectedConnectors(allSourceTypes);
 				hasSetInitialConnectors.current = true;
@@ -280,7 +278,6 @@ const ComposerAction: FC = () => {
 					</TooltipIconButton>
 				</ComposerPrimitive.Send>
 			</AssistantIf>
-
 			<AssistantIf condition={({ thread }) => thread.isRunning}>
 				<ComposerPrimitive.Cancel asChild>
 					<Button
