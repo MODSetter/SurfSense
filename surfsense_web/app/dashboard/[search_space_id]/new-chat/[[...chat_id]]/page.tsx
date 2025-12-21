@@ -4,6 +4,7 @@ import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
+import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { createNewChatAdapter } from "@/lib/chat/new-chat-transport";
 
 export default function NewChatPage() {
@@ -38,6 +39,8 @@ export default function NewChatPage() {
 
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
+			{/* Register tool UI components */}
+			<GeneratePodcastToolUI />
 			<div className="h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden">
 				<Thread />
 			</div>

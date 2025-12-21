@@ -12,6 +12,22 @@ interface NewChatAdapterConfig {
 }
 
 /**
+ * Represents an in-progress or completed tool call
+ */
+interface ToolCallState {
+	toolCallId: string;
+	toolName: string;
+	args: Record<string, unknown>;
+	result?: unknown;
+}
+
+/**
+ * Tools that should render custom UI in the chat.
+ * Other tools (like search_knowledge_base) will be hidden from the UI.
+ */
+const TOOLS_WITH_UI = new Set(["generate_podcast"]);
+
+/**
  * Creates a ChatModelAdapter that connects to the FastAPI new_chat endpoint.
  *
  * The backend expects:
@@ -77,6 +93,41 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 			let buffer = "";
 			let accumulatedText = "";
 
+			// Track tool calls by their ID
+			const toolCalls = new Map<string, ToolCallState>();
+
+			/**
+			 * Build the content array with text and tool calls.
+			 * Only includes tools that have custom UI (defined in TOOLS_WITH_UI).
+			 */
+			function buildContent() {
+				const content: Array<
+					| { type: "text"; text: string }
+					| { type: "tool-call"; toolCallId: string; toolName: string; args: Record<string, unknown>; result?: unknown }
+				> = [];
+
+				// Add text content if any
+				if (accumulatedText) {
+					content.push({ type: "text" as const, text: accumulatedText });
+				}
+
+				// Only add tool calls that have custom UI registered
+				// Other tools (like search_knowledge_base) are hidden from the UI
+				for (const toolCall of toolCalls.values()) {
+					if (TOOLS_WITH_UI.has(toolCall.toolName)) {
+						content.push({
+							type: "tool-call" as const,
+							toolCallId: toolCall.toolCallId,
+							toolName: toolCall.toolName,
+							args: toolCall.args,
+							result: toolCall.result,
+						});
+					}
+				}
+
+				return content;
+			}
+
 			try {
 				while (true) {
 					const { done, value } = await reader.read();
@@ -113,16 +164,56 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 								switch (parsed.type) {
 									case "text-delta":
 										accumulatedText += parsed.delta;
-										yield {
-											content: [{ type: "text" as const, text: accumulatedText }],
-										};
+										yield { content: buildContent() };
 										break;
+
+									case "tool-input-start": {
+										// Tool call is starting - create a new tool call entry
+										const { toolCallId, toolName } = parsed;
+										toolCalls.set(toolCallId, {
+											toolCallId,
+											toolName,
+											args: {},
+										});
+										// Yield to show tool is starting (running state)
+										yield { content: buildContent() };
+										break;
+									}
+
+									case "tool-input-available": {
+										// Tool input is complete - update the args
+										const { toolCallId, toolName, input } = parsed;
+										const existing = toolCalls.get(toolCallId);
+										if (existing) {
+											existing.args = input || {};
+										} else {
+											// Create new entry if we missed tool-input-start
+											toolCalls.set(toolCallId, {
+												toolCallId,
+												toolName,
+												args: input || {},
+											});
+										}
+										yield { content: buildContent() };
+										break;
+									}
+
+									case "tool-output-available": {
+										// Tool execution is complete - add the result
+										const { toolCallId, output } = parsed;
+										const existing = toolCalls.get(toolCallId);
+										if (existing) {
+											existing.result = output;
+										}
+										yield { content: buildContent() };
+										break;
+									}
 
 									case "error":
 										throw new Error(parsed.errorText || "Unknown error from server");
 
-									// Other types like text-start, text-end, tool-*, etc.
-									// are handled implicitly - we just accumulate text deltas
+									// Other types like text-start, text-end, start-step, finish-step, etc.
+									// are handled implicitly
 									default:
 										break;
 								}
@@ -148,9 +239,14 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 									const parsed = JSON.parse(data);
 									if (parsed.type === "text-delta") {
 										accumulatedText += parsed.delta;
-										yield {
-											content: [{ type: "text" as const, text: accumulatedText }],
-										};
+										yield { content: buildContent() };
+									} else if (parsed.type === "tool-output-available") {
+										const { toolCallId, output } = parsed;
+										const existing = toolCalls.get(toolCallId);
+										if (existing) {
+											existing.result = output;
+										}
+										yield { content: buildContent() };
 									}
 								} catch {
 									// Ignore parse errors

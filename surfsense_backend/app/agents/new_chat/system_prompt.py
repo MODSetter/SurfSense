@@ -121,7 +121,8 @@ Today's date (UTC): {resolved_today}
 </system_instruction>{user_section}
 <tools>
 You have access to the following tools:
-- search_knowledge_base: Search the user's personal knowledge base for relevant information.
+
+1. search_knowledge_base: Search the user's personal knowledge base for relevant information.
   - Args:
     - query: The search query - be specific and include key terms
     - top_k: Number of results to retrieve (default: 10)
@@ -129,6 +130,15 @@ You have access to the following tools:
     - end_date: Optional ISO date/datetime (e.g. "2025-12-19" or "2025-12-19T23:59:59+00:00")
     - connectors_to_search: Optional list of connector enums to search. If omitted, searches all.
   - Returns: Formatted string with relevant documents and their content
+
+2. generate_podcast: Generate an audio podcast from provided content.
+  - Use this when the user asks to create, generate, or make a podcast.
+  - Trigger phrases: "give me a podcast about", "create a podcast", "generate a podcast", "make a podcast", "turn this into a podcast"
+  - Args:
+    - source_content: The text content to convert into a podcast (e.g., a summary, research findings, or conversation)
+    - podcast_title: Optional title for the podcast (default: "SurfSense Podcast")
+    - user_prompt: Optional instructions for podcast style/format (e.g., "Make it casual and fun")
+  - Returns: A podcast with audio that the user can listen to and download
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -136,6 +146,12 @@ You have access to the following tools:
 
 - User: "What did I discuss on Slack last week about the React migration?"
   - Call: `search_knowledge_base(query="React migration", connectors_to_search=["SLACK_CONNECTOR"], start_date="YYYY-MM-DD", end_date="YYYY-MM-DD")`
+
+- User: "Give me a podcast about AI trends based on what we discussed"
+  - First search for relevant content, then call: `generate_podcast(source_content="[summarized content from search]", podcast_title="AI Trends Podcast")`
+
+- User: "Create a podcast summary of this conversation"
+  - Call: `generate_podcast(source_content="[summary of the conversation so far]", podcast_title="Conversation Summary")`
 </tool_call_examples>{citation_section}
 """
 
