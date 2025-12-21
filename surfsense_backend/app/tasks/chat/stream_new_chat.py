@@ -5,6 +5,7 @@ This module streams responses from the deep agent using the Vercel AI SDK
 Data Stream Protocol (SSE format).
 """
 
+import json
 from collections.abc import AsyncGenerator
 from uuid import UUID
 
@@ -78,13 +79,15 @@ async def stream_new_chat(
         # Get the PostgreSQL checkpointer for persistent conversation memory
         checkpointer = await get_checkpointer()
 
-        # Create the deep agent with checkpointer
+        # Create the deep agent with checkpointer with podcast capability
         agent = create_surfsense_deep_agent(
             llm=llm,
             search_space_id=search_space_id,
             db_session=session,
             connector_service=connector_service,
             checkpointer=checkpointer,
+            user_id=str(user_id),
+            enable_podcast=True,
         )
 
         # Build input with message history from frontend
@@ -182,22 +185,72 @@ async def stream_new_chat(
                         f"Searching knowledge base: {query[:100]}{'...' if len(query) > 100 else ''}",
                         "info",
                     )
+                elif tool_name == "generate_podcast":
+                    title = (
+                        tool_input.get("podcast_title", "SurfSense Podcast")
+                        if isinstance(tool_input, dict)
+                        else "SurfSense Podcast"
+                    )
+                    yield streaming_service.format_terminal_info(
+                        f"Generating podcast: {title}",
+                        "info",
+                    )
 
             elif event_type == "on_tool_end":
                 run_id = event.get("run_id", "")
-                tool_output = event.get("data", {}).get("output", "")
+                tool_name = event.get("name", "unknown_tool")
+                raw_output = event.get("data", {}).get("output", "")
+
+                # Extract content from ToolMessage if needed
+                # LangGraph may return a ToolMessage object instead of raw dict
+                if hasattr(raw_output, "content"):
+                    # It's a ToolMessage object - extract the content
+                    content = raw_output.content
+                    # If content is a string that looks like JSON, try to parse it
+                    if isinstance(content, str):
+                        try:
+                            tool_output = json.loads(content)
+                        except (json.JSONDecodeError, TypeError):
+                            tool_output = {"result": content}
+                    elif isinstance(content, dict):
+                        tool_output = content
+                    else:
+                        tool_output = {"result": str(content)}
+                elif isinstance(raw_output, dict):
+                    tool_output = raw_output
+                else:
+                    tool_output = {"result": str(raw_output) if raw_output else "completed"}
 
                 tool_call_id = f"call_{run_id[:32]}" if run_id else "call_unknown"
 
-                # Don't stream the full output (can be very large), just acknowledge
-                yield streaming_service.format_tool_output_available(
-                    tool_call_id,
-                    {"status": "completed", "result_length": len(str(tool_output))},
-                )
-
-                yield streaming_service.format_terminal_info(
-                    "Knowledge base search completed", "success"
-                )
+                # Handle different tool outputs
+                if tool_name == "generate_podcast":
+                    # Stream the full podcast result so frontend can render the audio player
+                    yield streaming_service.format_tool_output_available(
+                        tool_call_id,
+                        tool_output if isinstance(tool_output, dict) else {"result": tool_output},
+                    )
+                    # Send appropriate terminal message based on status
+                    if isinstance(tool_output, dict) and tool_output.get("status") == "success":
+                        yield streaming_service.format_terminal_info(
+                            f"Podcast generated successfully: {tool_output.get('title', 'Podcast')}",
+                            "success",
+                        )
+                    else:
+                        error_msg = tool_output.get("error", "Unknown error") if isinstance(tool_output, dict) else "Unknown error"
+                        yield streaming_service.format_terminal_info(
+                            f"Podcast generation failed: {error_msg}",
+                            "error",
+                        )
+                else:
+                    # Don't stream the full output for other tools (can be very large), just acknowledge
+                    yield streaming_service.format_tool_output_available(
+                        tool_call_id,
+                        {"status": "completed", "result_length": len(str(tool_output))},
+                    )
+                    yield streaming_service.format_terminal_info(
+                        "Knowledge base search completed", "success"
+                    )
 
             # Handle chain/agent end to close any open text blocks
             elif event_type in ("on_chain_end", "on_agent_end"):

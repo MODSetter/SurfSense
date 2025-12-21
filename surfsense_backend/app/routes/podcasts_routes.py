@@ -444,3 +444,66 @@ async def get_podcast_by_chat_id(
         raise HTTPException(
             status_code=500, detail=f"Error fetching podcast: {e!s}"
         ) from e
+
+
+@router.get("/podcasts/task/{task_id}/status")
+async def get_podcast_task_status(
+    task_id: str,
+    user: User = Depends(current_active_user),
+):
+    """
+    Get the status of a podcast generation task.
+    Used by new-chat frontend to poll for completion.
+
+    Returns:
+    - status: "processing" | "success" | "error"
+    - podcast_id: (only if status == "success")
+    - title: (only if status == "success")
+    - error: (only if status == "error")
+    """
+    try:
+        from celery.result import AsyncResult
+
+        from app.celery_app import celery_app
+
+        result = AsyncResult(task_id, app=celery_app)
+
+        if result.ready():
+            # Task completed
+            if result.successful():
+                task_result = result.result
+                if isinstance(task_result, dict):
+                    if task_result.get("status") == "success":
+                        return {
+                            "status": "success",
+                            "podcast_id": task_result.get("podcast_id"),
+                            "title": task_result.get("title"),
+                            "transcript_entries": task_result.get("transcript_entries"),
+                        }
+                    else:
+                        return {
+                            "status": "error",
+                            "error": task_result.get("error", "Unknown error"),
+                        }
+                else:
+                    return {
+                        "status": "error",
+                        "error": "Unexpected task result format",
+                    }
+            else:
+                # Task failed
+                return {
+                    "status": "error",
+                    "error": str(result.result) if result.result else "Task failed",
+                }
+        else:
+            # Task still processing
+            return {
+                "status": "processing",
+                "state": result.state,
+            }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error checking task status: {e!s}"
+        ) from e

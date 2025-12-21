@@ -1,12 +1,17 @@
 import { z } from "zod";
 import { paginationQueryParams } from ".";
 
+export const podcastTranscriptEntry = z.object({
+	speaker_id: z.number(),
+	dialog: z.string(),
+});
+
 export const podcast = z.object({
 	id: z.number(),
 	title: z.string(),
 	created_at: z.string(),
 	file_location: z.string(),
-	podcast_transcript: z.array(z.any()),
+	podcast_transcript: z.array(podcastTranscriptEntry),
 	search_space_id: z.number(),
 	chat_state_version: z.number().nullable(),
 });
@@ -41,6 +46,7 @@ export const getPodcastsRequest = z.object({
 	queryParams: paginationQueryParams.nullish(),
 });
 
+export type PodcastTranscriptEntry = z.infer<typeof podcastTranscriptEntry>;
 export type GeneratePodcastRequest = z.infer<typeof generatePodcastRequest>;
 export type GetPodcastByChatIdRequest = z.infer<typeof getPodcastByChatIdRequest>;
 export type GetPodcastByChatIdResponse = z.infer<typeof getPodcastByChaIdResponse>;

@@ -121,7 +121,8 @@ Today's date (UTC): {resolved_today}
 </system_instruction>{user_section}
 <tools>
 You have access to the following tools:
-- search_knowledge_base: Search the user's personal knowledge base for relevant information.
+
+1. search_knowledge_base: Search the user's personal knowledge base for relevant information.
   - Args:
     - query: The search query - be specific and include key terms
     - top_k: Number of results to retrieve (default: 10)
@@ -129,6 +130,21 @@ You have access to the following tools:
     - end_date: Optional ISO date/datetime (e.g. "2025-12-19" or "2025-12-19T23:59:59+00:00")
     - connectors_to_search: Optional list of connector enums to search. If omitted, searches all.
   - Returns: Formatted string with relevant documents and their content
+
+2. generate_podcast: Generate an audio podcast from provided content.
+  - Use this when the user asks to create, generate, or make a podcast.
+  - Trigger phrases: "give me a podcast about", "create a podcast", "generate a podcast", "make a podcast", "turn this into a podcast"
+  - Args:
+    - source_content: The text content to convert into a podcast. This MUST be comprehensive and include:
+      * If discussing the current conversation: Include a detailed summary of the FULL chat history (all user questions and your responses)
+      * If based on knowledge base search: Include the key findings and insights from the search results
+      * You can combine both: conversation context + search results for richer podcasts
+      * The more detailed the source_content, the better the podcast quality
+    - podcast_title: Optional title for the podcast (default: "SurfSense Podcast")
+    - user_prompt: Optional instructions for podcast style/format (e.g., "Make it casual and fun")
+  - Returns: A task_id for tracking. The podcast will be generated in the background.
+  - IMPORTANT: Only one podcast can be generated at a time. If a podcast is already being generated, the tool will return status "already_generating".
+  - After calling this tool, inform the user that podcast generation has started and they will see the player when it's ready (takes 3-5 minutes).
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -136,6 +152,16 @@ You have access to the following tools:
 
 - User: "What did I discuss on Slack last week about the React migration?"
   - Call: `search_knowledge_base(query="React migration", connectors_to_search=["SLACK_CONNECTOR"], start_date="YYYY-MM-DD", end_date="YYYY-MM-DD")`
+
+- User: "Give me a podcast about AI trends based on what we discussed"
+  - First search for relevant content, then call: `generate_podcast(source_content="Based on our conversation and search results: [detailed summary of chat + search findings]", podcast_title="AI Trends Podcast")`
+
+- User: "Create a podcast summary of this conversation"
+  - Call: `generate_podcast(source_content="Complete conversation summary:\n\nUser asked about [topic 1]:\n[Your detailed response]\n\nUser then asked about [topic 2]:\n[Your detailed response]\n\n[Continue for all exchanges in the conversation]", podcast_title="Conversation Summary")`
+
+- User: "Make a podcast about quantum computing"
+  - First search: `search_knowledge_base(query="quantum computing")`
+  - Then: `generate_podcast(source_content="Key insights about quantum computing from the knowledge base:\n\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", podcast_title="Quantum Computing Explained")`
 </tool_call_examples>{citation_section}
 """
 

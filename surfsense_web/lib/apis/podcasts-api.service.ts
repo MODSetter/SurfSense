@@ -62,6 +62,13 @@ class PodcastsApiService {
 		);
 	};
 
+	/**
+	 * Get a podcast by its ID (includes full transcript)
+	 */
+	getPodcastById = async (podcastId: number) => {
+		return baseApiService.get(`/api/v1/podcasts/${podcastId}`, podcast);
+	};
+
 	generatePodcast = async (request: GeneratePodcastRequest) => {
 		// Validate the request
 		const parsedRequest = generatePodcastRequest.safeParse(request);
