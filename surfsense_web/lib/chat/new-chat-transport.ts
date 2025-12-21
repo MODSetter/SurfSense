@@ -198,4 +198,3 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 		},
 	};
 }
-

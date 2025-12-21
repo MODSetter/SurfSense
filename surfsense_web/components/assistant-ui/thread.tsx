@@ -30,6 +30,7 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AnimatedEmptyState } from "../chat/AnimatedEmptyState";
 
 export const Thread: FC = () => {
 	return (
@@ -44,7 +45,7 @@ export const Thread: FC = () => {
 				className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
 			>
 				<AssistantIf condition={({ thread }) => thread.isEmpty}>
-					<ThreadWelcome />
+					<ThreadLogo />
 				</AssistantIf>
 
 				<ThreadPrimitive.Messages
@@ -78,22 +79,8 @@ const ThreadScrollToBottom: FC = () => {
 	);
 };
 
-const ThreadWelcome: FC = () => {
-	return (
-		<div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
-			<div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
-				<div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
-					<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in font-semibold text-2xl duration-200">
-						Hello there!
-					</h1>
-					<p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in text-muted-foreground text-xl delay-75 duration-200">
-						How can I help you today?
-					</p>
-				</div>
-			</div>
-			<ThreadSuggestions />
-		</div>
-	);
+const ThreadLogo: FC = () => {
+	return <AnimatedEmptyState />;
 };
 
 const SUGGESTIONS = [

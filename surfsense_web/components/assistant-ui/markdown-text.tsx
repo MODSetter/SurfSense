@@ -9,11 +9,10 @@ import {
 	useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { type FC, type ReactNode, memo, useState } from "react";
+import { type FC, memo, type ReactNode, useState } from "react";
 import remarkGfm from "remark-gfm";
-
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { InlineCitation } from "@/components/assistant-ui/inline-citation";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
 // Citation pattern: [citation:CHUNK_ID]
@@ -212,18 +211,12 @@ const defaultComponents = memoizeMarkdownComponents({
 		</h5>
 	),
 	h6: ({ className, children, ...props }) => (
-		<h6
-			className={cn("aui-md-h6 my-4 font-semibold first:mt-0 last:mb-0", className)}
-			{...props}
-		>
+		<h6 className={cn("aui-md-h6 my-4 font-semibold first:mt-0 last:mb-0", className)} {...props}>
 			{processChildrenWithCitations(children)}
 		</h6>
 	),
 	p: ({ className, children, ...props }) => (
-		<p
-			className={cn("aui-md-p mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)}
-			{...props}
-		>
+		<p className={cn("aui-md-p mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)} {...props}>
 			{processChildrenWithCitations(children)}
 		</p>
 	),
@@ -236,10 +229,7 @@ const defaultComponents = memoizeMarkdownComponents({
 		</a>
 	),
 	blockquote: ({ className, children, ...props }) => (
-		<blockquote
-			className={cn("aui-md-blockquote border-l-2 pl-6 italic", className)}
-			{...props}
-		>
+		<blockquote className={cn("aui-md-blockquote border-l-2 pl-6 italic", className)} {...props}>
 			{processChildrenWithCitations(children)}
 		</blockquote>
 	),

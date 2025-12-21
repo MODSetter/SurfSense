@@ -39,4 +39,3 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, citationNumbe
 		</SourceDetailPanel>
 	);
 };
-
