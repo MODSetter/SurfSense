@@ -11,11 +11,10 @@ from uuid import UUID
 from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
-from app.agents.new_chat.llm_config import (
-    create_chat_litellm_from_config,
-    load_llm_config_from_yaml,
+from app.agents.new_chat.chat_deepagent import (
+    create_surfsense_deep_agent,
 )
+from app.agents.new_chat.llm_config import create_chat_litellm_from_config, load_llm_config_from_yaml
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 

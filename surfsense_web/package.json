@@ -22,9 +22,9 @@
 	},
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
-		"@assistant-ui/react": "^0.11.52",
-		"@assistant-ui/react-ai-sdk": "^1.1.19",
-		"@assistant-ui/react-markdown": "^0.11.8",
+		"@assistant-ui/react": "^0.11.53",
+		"@assistant-ui/react-ai-sdk": "^1.1.20",
+		"@assistant-ui/react-markdown": "^0.11.9",
 		"@blocknote/core": "^0.45.0",
 		"@blocknote/mantine": "^0.45.0",
 		"@blocknote/react": "^0.45.0",
@@ -98,9 +98,12 @@
 		"remark-gfm": "^4.0.1",
 		"server-only": "^0.0.1",
 		"sonner": "^2.0.6",
+		"streamdown": "^1.6.10",
 		"tailwind-merge": "^3.3.1",
 		"tailwindcss-animate": "^1.0.7",
-		"zod": "^4.2.1"
+		"unist-util-visit": "^5.0.0",
+		"zod": "^4.2.1",
+		"zustand": "^5.0.9"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.1.2",

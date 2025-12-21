@@ -9,13 +9,85 @@ import {
 	useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { type FC, memo, useState } from "react";
+import { type FC, type ReactNode, memo, useState } from "react";
 import remarkGfm from "remark-gfm";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { InlineCitation } from "@/components/assistant-ui/inline-citation";
 import { cn } from "@/lib/utils";
 
+// Citation pattern: [citation:CHUNK_ID]
+const CITATION_REGEX = /\[citation:(\d+)\]/g;
+
+// Track chunk IDs to citation numbers mapping for consistent numbering
+// This map is reset when a new message starts rendering
+let chunkIdToCitationNumber: Map<number, number> = new Map();
+let nextCitationNumber = 1;
+
+/**
+ * Resets the citation counter - should be called at the start of each message
+ */
+export function resetCitationCounter() {
+	chunkIdToCitationNumber = new Map();
+	nextCitationNumber = 1;
+}
+
+/**
+ * Gets or assigns a citation number for a chunk ID
+ */
+function getCitationNumber(chunkId: number): number {
+	if (!chunkIdToCitationNumber.has(chunkId)) {
+		chunkIdToCitationNumber.set(chunkId, nextCitationNumber++);
+	}
+	return chunkIdToCitationNumber.get(chunkId)!;
+}
+
+/**
+ * Parses text and replaces [citation:XXX] patterns with InlineCitation components
+ */
+function parseTextWithCitations(text: string): ReactNode[] {
+	const parts: ReactNode[] = [];
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+	let instanceIndex = 0;
+
+	// Reset regex state
+	CITATION_REGEX.lastIndex = 0;
+
+	while ((match = CITATION_REGEX.exec(text)) !== null) {
+		// Add text before the citation
+		if (match.index > lastIndex) {
+			parts.push(text.substring(lastIndex, match.index));
+		}
+
+		// Add the citation component
+		const chunkId = Number.parseInt(match[1], 10);
+		const citationNumber = getCitationNumber(chunkId);
+		parts.push(
+			<InlineCitation
+				key={`citation-${chunkId}-${instanceIndex}`}
+				chunkId={chunkId}
+				citationNumber={citationNumber}
+			/>
+		);
+
+		lastIndex = match.index + match[0].length;
+		instanceIndex++;
+	}
+
+	// Add any remaining text after the last citation
+	if (lastIndex < text.length) {
+		parts.push(text.substring(lastIndex));
+	}
+
+	return parts.length > 0 ? parts : [text];
+}
+
 const MarkdownTextImpl = () => {
+	// Reset citation counter at the start of each render
+	// This ensures consistent numbering as the message streams in
+	resetCitationCounter();
+
 	return (
 		<MarkdownTextPrimitive
 			remarkPlugins={[remarkGfm]}
@@ -60,69 +132,127 @@ const useCopyToClipboard = ({ copiedDuration = 3000 }: { copiedDuration?: number
 	return { isCopied, copyToClipboard };
 };
 
+/**
+ * Helper to process children and replace citation patterns with components
+ */
+function processChildrenWithCitations(children: ReactNode): ReactNode {
+	if (typeof children === "string") {
+		const parsed = parseTextWithCitations(children);
+		return parsed.length === 1 && typeof parsed[0] === "string" ? children : <>{parsed}</>;
+	}
+
+	if (Array.isArray(children)) {
+		return children.map((child, index) => {
+			if (typeof child === "string") {
+				const parsed = parseTextWithCitations(child);
+				return parsed.length === 1 && typeof parsed[0] === "string" ? (
+					child
+				) : (
+					<span key={index}>{parsed}</span>
+				);
+			}
+			return child;
+		});
+	}
+
+	return children;
+}
+
 const defaultComponents = memoizeMarkdownComponents({
-	h1: ({ className, ...props }) => (
+	h1: ({ className, children, ...props }) => (
 		<h1
 			className={cn(
 				"aui-md-h1 mb-8 scroll-m-20 font-extrabold text-4xl tracking-tight last:mb-0",
 				className
 			)}
 			{...props}
-		/>
+		>
+			{processChildrenWithCitations(children)}
+		</h1>
 	),
-	h2: ({ className, ...props }) => (
+	h2: ({ className, children, ...props }) => (
 		<h2
 			className={cn(
 				"aui-md-h2 mt-8 mb-4 scroll-m-20 font-semibold text-3xl tracking-tight first:mt-0 last:mb-0",
 				className
 			)}
 			{...props}
-		/>
+		>
+			{processChildrenWithCitations(children)}
+		</h2>
 	),
-	h3: ({ className, ...props }) => (
+	h3: ({ className, children, ...props }) => (
 		<h3
 			className={cn(
 				"aui-md-h3 mt-6 mb-4 scroll-m-20 font-semibold text-2xl tracking-tight first:mt-0 last:mb-0",
 				className
 			)}
 			{...props}
-		/>
+		>
+			{processChildrenWithCitations(children)}
+		</h3>
 	),
-	h4: ({ className, ...props }) => (
+	h4: ({ className, children, ...props }) => (
 		<h4
 			className={cn(
 				"aui-md-h4 mt-6 mb-4 scroll-m-20 font-semibold text-xl tracking-tight first:mt-0 last:mb-0",
 				className
 			)}
 			{...props}
-		/>
+		>
+			{processChildrenWithCitations(children)}
+		</h4>
 	),
-	h5: ({ className, ...props }) => (
+	h5: ({ className, children, ...props }) => (
 		<h5
 			className={cn("aui-md-h5 my-4 font-semibold text-lg first:mt-0 last:mb-0", className)}
 			{...props}
-		/>
+		>
+			{processChildrenWithCitations(children)}
+		</h5>
 	),
-	h6: ({ className, ...props }) => (
-		<h6 className={cn("aui-md-h6 my-4 font-semibold first:mt-0 last:mb-0", className)} {...props} />
+	h6: ({ className, children, ...props }) => (
+		<h6
+			className={cn("aui-md-h6 my-4 font-semibold first:mt-0 last:mb-0", className)}
+			{...props}
+		>
+			{processChildrenWithCitations(children)}
+		</h6>
 	),
-	p: ({ className, ...props }) => (
-		<p className={cn("aui-md-p mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)} {...props} />
+	p: ({ className, children, ...props }) => (
+		<p
+			className={cn("aui-md-p mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)}
+			{...props}
+		>
+			{processChildrenWithCitations(children)}
+		</p>
 	),
-	a: ({ className, ...props }) => (
+	a: ({ className, children, ...props }) => (
 		<a
 			className={cn("aui-md-a font-medium text-primary underline underline-offset-4", className)}
 			{...props}
-		/>
+		>
+			{processChildrenWithCitations(children)}
+		</a>
 	),
-	blockquote: ({ className, ...props }) => (
-		<blockquote className={cn("aui-md-blockquote border-l-2 pl-6 italic", className)} {...props} />
+	blockquote: ({ className, children, ...props }) => (
+		<blockquote
+			className={cn("aui-md-blockquote border-l-2 pl-6 italic", className)}
+			{...props}
+		>
+			{processChildrenWithCitations(children)}
+		</blockquote>
 	),
 	ul: ({ className, ...props }) => (
 		<ul className={cn("aui-md-ul my-5 ml-6 list-disc [&>li]:mt-2", className)} {...props} />
 	),
 	ol: ({ className, ...props }) => (
 		<ol className={cn("aui-md-ol my-5 ml-6 list-decimal [&>li]:mt-2", className)} {...props} />
+	),
+	li: ({ className, children, ...props }) => (
+		<li className={cn("aui-md-li", className)} {...props}>
+			{processChildrenWithCitations(children)}
+		</li>
 	),
 	hr: ({ className, ...props }) => (
 		<hr className={cn("aui-md-hr my-5 border-b", className)} {...props} />
@@ -136,23 +266,27 @@ const defaultComponents = memoizeMarkdownComponents({
 			{...props}
 		/>
 	),
-	th: ({ className, ...props }) => (
+	th: ({ className, children, ...props }) => (
 		<th
 			className={cn(
 				"aui-md-th bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [[align=center]]:text-center [[align=right]]:text-right",
 				className
 			)}
 			{...props}
-		/>
+		>
+			{processChildrenWithCitations(children)}
+		</th>
 	),
-	td: ({ className, ...props }) => (
+	td: ({ className, children, ...props }) => (
 		<td
 			className={cn(
 				"aui-md-td border-b border-l px-4 py-2 text-left last:border-r [[align=center]]:text-center [[align=right]]:text-right",
 				className
 			)}
 			{...props}
-		/>
+		>
+			{processChildrenWithCitations(children)}
+		</td>
 	),
 	tr: ({ className, ...props }) => (
 		<tr
@@ -187,5 +321,15 @@ const defaultComponents = memoizeMarkdownComponents({
 			/>
 		);
 	},
+	strong: ({ className, children, ...props }) => (
+		<strong className={cn("aui-md-strong font-semibold", className)} {...props}>
+			{processChildrenWithCitations(children)}
+		</strong>
+	),
+	em: ({ className, children, ...props }) => (
+		<em className={cn("aui-md-em", className)} {...props}>
+			{processChildrenWithCitations(children)}
+		</em>
+	),
 	CodeHeader,
 });
