@@ -39,6 +39,8 @@ import { useChatState } from "@/hooks/use-chat";
 import { cn } from "@/lib/utils";
 import { AnimatedEmptyState } from "../chat/AnimatedEmptyState";
 import { ConnectorGroup } from "../chat/ConnectorGroup";
+import { useState } from "react";
+import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 
 export const Thread: FC = () => {
 	return (
@@ -90,9 +92,6 @@ const ThreadScrollToBottom: FC = () => {
 const ThreadLogo: FC = () => {
 	return <AnimatedEmptyState />;
 };
-
-import { useState } from "react";
-import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 
 const Composer: FC = () => {
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);

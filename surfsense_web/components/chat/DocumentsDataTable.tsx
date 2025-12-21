@@ -183,7 +183,7 @@ export function DocumentsDataTable({
 	onSelectionChange,
 	onDone,
 	initialSelectedDocuments = [],
-	viewOnly = false,
+	viewOnly = false
 }: DocumentsDataTableProps) {
 	const router = useRouter();
 	const [sorting, setSorting] = useState<SortingState>([]);
