@@ -19,6 +19,29 @@ import { cn } from "@/lib/utils";
 // Citation pattern: [citation:CHUNK_ID]
 const CITATION_REGEX = /\[citation:(\d+)\]/g;
 
+// Track chunk IDs to citation numbers mapping for consistent numbering
+// This map is reset when a new message starts rendering
+let chunkIdToCitationNumber: Map<number, number> = new Map();
+let nextCitationNumber = 1;
+
+/**
+ * Resets the citation counter - should be called at the start of each message
+ */
+export function resetCitationCounter() {
+	chunkIdToCitationNumber = new Map();
+	nextCitationNumber = 1;
+}
+
+/**
+ * Gets or assigns a citation number for a chunk ID
+ */
+function getCitationNumber(chunkId: number): number {
+	if (!chunkIdToCitationNumber.has(chunkId)) {
+		chunkIdToCitationNumber.set(chunkId, nextCitationNumber++);
+	}
+	return chunkIdToCitationNumber.get(chunkId)!;
+}
+
 /**
  * Parses text and replaces [citation:XXX] patterns with InlineCitation components
  */
@@ -26,7 +49,7 @@ function parseTextWithCitations(text: string): ReactNode[] {
 	const parts: ReactNode[] = [];
 	let lastIndex = 0;
 	let match: RegExpExecArray | null;
-	let citationIndex = 0;
+	let instanceIndex = 0;
 
 	// Reset regex state
 	CITATION_REGEX.lastIndex = 0;
@@ -39,12 +62,17 @@ function parseTextWithCitations(text: string): ReactNode[] {
 
 		// Add the citation component
 		const chunkId = Number.parseInt(match[1], 10);
+		const citationNumber = getCitationNumber(chunkId);
 		parts.push(
-			<InlineCitation key={`citation-${chunkId}-${citationIndex}`} chunkId={chunkId} />
+			<InlineCitation
+				key={`citation-${chunkId}-${instanceIndex}`}
+				chunkId={chunkId}
+				citationNumber={citationNumber}
+			/>
 		);
 
 		lastIndex = match.index + match[0].length;
-		citationIndex++;
+		instanceIndex++;
 	}
 
 	// Add any remaining text after the last citation
@@ -56,6 +84,10 @@ function parseTextWithCitations(text: string): ReactNode[] {
 }
 
 const MarkdownTextImpl = () => {
+	// Reset citation counter at the start of each render
+	// This ensures consistent numbering as the message streams in
+	resetCitationCounter();
+
 	return (
 		<MarkdownTextPrimitive
 			remarkPlugins={[remarkGfm]}
