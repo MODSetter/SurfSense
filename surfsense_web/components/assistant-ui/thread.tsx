@@ -41,6 +41,7 @@ import { AnimatedEmptyState } from "../chat/AnimatedEmptyState";
 import { ConnectorGroup } from "../chat/ConnectorGroup";
 import { useState } from "react";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
+import { Document } from "@/contracts/types/document.types";
 
 export const Thread: FC = () => {
 	return (
@@ -68,7 +69,9 @@ export const Thread: FC = () => {
 
 				<ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
 					<ThreadScrollToBottom />
-					<Composer />
+					<Composer onDocumentsMention={(documents) => {
+						console.log(documents);
+					}} />
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
 		</ThreadPrimitive.Root>
@@ -93,7 +96,7 @@ const ThreadLogo: FC = () => {
 	return <AnimatedEmptyState />;
 };
 
-const Composer: FC = () => {
+const Composer: FC<{onDocumentsMention?: (documents: Document[]) => void}> = ({onDocumentsMention}) => {
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const inputRef = useRef<HTMLTextAreaElement | null>(null);
 	const { search_space_id } = useParams();
@@ -114,6 +117,10 @@ const Composer: FC = () => {
 		} else {
 			setShowDocumentPopover(false);
 		}
+	};
+
+	const handleDocumentsMention = (documents: Document[]) => {
+		onDocumentsMention?.(documents);
 	};
 
 	return (
@@ -138,7 +145,7 @@ const Composer: FC = () => {
 						<div className="p-2 max-h-96 w-full overflow-auto">
 							<DocumentsDataTable
 								searchSpaceId={Number(search_space_id)}
-								onSelectionChange={() => {}}
+								onSelectionChange={handleDocumentsMention}
 								onDone={() => setShowDocumentPopover(false)}
 								initialSelectedDocuments={[]}
 								viewOnly={true}
