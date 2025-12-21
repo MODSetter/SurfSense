@@ -4,7 +4,13 @@
  */
 
 import type { ChatModelAdapter, ChatModelRunOptions } from "@assistant-ui/react";
+import { toast } from "sonner";
 import { getBearerToken } from "@/lib/auth-utils";
+import {
+	isPodcastGenerating,
+	looksLikePodcastRequest,
+	setActivePodcastTaskId,
+} from "@/lib/chat/podcast-state";
 
 interface NewChatAdapterConfig {
 	searchSpaceId: number;
@@ -57,6 +63,21 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 
 			if (!userQuery.trim()) {
 				throw new Error("User query cannot be empty");
+			}
+
+			// Check if user is requesting a podcast while one is already generating
+			if (isPodcastGenerating() && looksLikePodcastRequest(userQuery)) {
+				toast.warning("A podcast is already being generated. Please wait for it to complete.");
+				// Return a message telling the user to wait
+				yield {
+					content: [
+						{
+							type: "text",
+							text: "A podcast is already being generated. Please wait for it to complete before requesting another one.",
+						},
+					],
+				};
+				return;
 			}
 
 			const token = getBearerToken();
@@ -204,6 +225,20 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 										const existing = toolCalls.get(toolCallId);
 										if (existing) {
 											existing.result = output;
+
+											// If this is a podcast tool with status="processing", set the state immediately
+											// This ensures subsequent podcast requests are intercepted
+											if (
+												existing.toolName === "generate_podcast" &&
+												output &&
+												typeof output === "object" &&
+												"status" in output &&
+												output.status === "processing" &&
+												"task_id" in output &&
+												typeof output.task_id === "string"
+											) {
+												setActivePodcastTaskId(output.task_id);
+											}
 										}
 										yield { content: buildContent() };
 										break;
@@ -245,6 +280,19 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 										const existing = toolCalls.get(toolCallId);
 										if (existing) {
 											existing.result = output;
+
+											// Set podcast state if processing
+											if (
+												existing.toolName === "generate_podcast" &&
+												output &&
+												typeof output === "object" &&
+												"status" in output &&
+												output.status === "processing" &&
+												"task_id" in output &&
+												typeof output.task_id === "string"
+											) {
+												setActivePodcastTaskId(output.task_id);
+											}
 										}
 										yield { content: buildContent() };
 									}

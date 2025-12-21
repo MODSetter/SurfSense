@@ -6,6 +6,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Audio } from "@/components/tool-ui/audio";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
+import {
+	clearActivePodcastTaskId,
+	setActivePodcastTaskId,
+} from "@/lib/chat/podcast-state";
 
 /**
  * Type definitions for the generate_podcast tool
@@ -17,7 +21,7 @@ interface GeneratePodcastArgs {
 }
 
 interface GeneratePodcastResult {
-	status: "processing" | "success" | "error";
+	status: "processing" | "already_generating" | "success" | "error";
 	task_id?: string;
 	podcast_id?: number;
 	title?: string;
@@ -218,6 +222,17 @@ function PodcastTaskPoller({
 	const [pollCount, setPollCount] = useState(0);
 	const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
+	// Set active podcast state when this component mounts
+	useEffect(() => {
+		setActivePodcastTaskId(taskId);
+
+		// Clear when component unmounts
+		return () => {
+			// Only clear if this task is still the active one
+			clearActivePodcastTaskId();
+		};
+	}, [taskId]);
+
 	// Poll for task status
 	useEffect(() => {
 		const pollStatus = async () => {
@@ -233,6 +248,8 @@ function PodcastTaskPoller({
 						clearInterval(pollingRef.current);
 						pollingRef.current = null;
 					}
+					// Clear the active podcast state when task completes
+					clearActivePodcastTaskId();
 				}
 			} catch (err) {
 				console.error("Error polling task status:", err);
@@ -334,6 +351,28 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 		// Error result
 		if (result.status === "error") {
 			return <PodcastErrorState title={title} error={result.error || "Unknown error"} />;
+		}
+
+		// Already generating - show simple warning, don't create another poller
+		// The FIRST tool call will display the podcast when ready
+		if (result.status === "already_generating") {
+			return (
+				<div className="my-4 overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+					<div className="flex items-center gap-3">
+						<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
+							<MicIcon className="size-5 text-amber-500" />
+						</div>
+						<div>
+							<p className="text-amber-600 dark:text-amber-400 text-sm font-medium">
+								Podcast already in progress
+							</p>
+							<p className="text-muted-foreground text-xs mt-0.5">
+								Please wait for the current podcast to complete.
+							</p>
+						</div>
+					</div>
+				</div>
+			);
 		}
 
 		// Processing - poll for completion

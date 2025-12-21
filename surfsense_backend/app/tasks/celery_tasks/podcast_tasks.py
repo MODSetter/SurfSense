@@ -98,6 +98,22 @@ async def _generate_chat_podcast(
 # =============================================================================
 
 
+def _clear_active_podcast_redis_key(search_space_id: int) -> None:
+    """Clear the active podcast task key from Redis when task completes."""
+    import os
+
+    import redis
+
+    try:
+        redis_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+        client = redis.from_url(redis_url, decode_responses=True)
+        key = f"podcast:active:{search_space_id}"
+        client.delete(key)
+        logger.info(f"Cleared active podcast key for search_space_id={search_space_id}")
+    except Exception as e:
+        logger.warning(f"Could not clear active podcast key: {e}")
+
+
 @celery_app.task(name="generate_content_podcast", bind=True)
 def generate_content_podcast_task(
     self,
@@ -142,6 +158,8 @@ def generate_content_podcast_task(
         logger.error(f"Error generating content podcast: {e!s}")
         return {"status": "error", "error": str(e)}
     finally:
+        # Always clear the active podcast key when task completes (success or failure)
+        _clear_active_podcast_redis_key(search_space_id)
         asyncio.set_event_loop(None)
         loop.close()
 
