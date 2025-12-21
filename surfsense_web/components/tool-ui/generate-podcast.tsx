@@ -10,6 +10,7 @@ import {
 	clearActivePodcastTaskId,
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
+import type { PodcastTranscriptEntry } from "@/contracts/types/podcast.types";
 
 /**
  * Type definitions for the generate_podcast tool
@@ -51,7 +52,7 @@ function PodcastGeneratingState({ title }: { title: string }) {
 						<MicIcon className="size-8 text-primary" />
 					</div>
 					{/* Animated rings */}
-					<div className="absolute inset-1.4 animate-ping rounded-full bg-primary/20" />
+					<div className="absolute inset-1 animate-ping rounded-full bg-primary/20" />
 				</div>
 				<div className="flex-1">
 					<h3 className="font-semibold text-foreground text-lg">{title}</h3>
@@ -113,14 +114,6 @@ function AudioLoadingState({ title }: { title: string }) {
 }
 
 /**
- * Transcript entry type from the database
- */
-interface TranscriptEntry {
-	speaker_id: number;
-	dialog: string;
-}
-
-/**
  * Podcast Player Component - Fetches audio and transcript with authentication
  */
 function PodcastPlayer({
@@ -135,7 +128,7 @@ function PodcastPlayer({
 	durationMs?: number;
 }) {
 	const [audioSrc, setAudioSrc] = useState<string | null>(null);
-	const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null);
+	const [transcript, setTranscript] = useState<PodcastTranscriptEntry[] | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const objectUrlRef = useRef<string | null>(null);
@@ -181,7 +174,7 @@ function PodcastPlayer({
 
 				// Set transcript from podcast details
 				if (podcastDetails?.podcast_transcript) {
-					setTranscript(podcastDetails.podcast_transcript as TranscriptEntry[]);
+					setTranscript(podcastDetails.podcast_transcript);
 				}
 			} finally {
 				clearTimeout(timeoutId);
