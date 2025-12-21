@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from deepagents import create_deep_agent
 from langchain_core.tools import BaseTool
 from langchain_litellm import ChatLiteLLM
+from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
@@ -28,6 +29,7 @@ def create_surfsense_deep_agent(
     search_space_id: int,
     db_session: AsyncSession,
     connector_service: ConnectorService,
+    checkpointer: Checkpointer,
     user_id: str | None = None,
     user_instructions: str | None = None,
     enable_citations: bool = True,
@@ -42,6 +44,8 @@ def create_surfsense_deep_agent(
         search_space_id: The user's search space ID
         db_session: Database session
         connector_service: Initialized connector service
+        checkpointer: LangGraph checkpointer for conversation state persistence.
+                      Use AsyncPostgresSaver for production or MemorySaver for testing.
         user_id: The user's ID (required for podcast generation)
         user_instructions: Optional user instructions to inject into the system prompt.
                           These will be added to the system prompt to customize agent behavior.
@@ -77,7 +81,7 @@ def create_surfsense_deep_agent(
     if additional_tools:
         tools.extend(additional_tools)
 
-    # Create the deep agent with user-configurable system prompt
+    # Create the deep agent with user-configurable system prompt and checkpointer
     agent = create_deep_agent(
         model=llm,
         tools=tools,
@@ -86,6 +90,7 @@ def create_surfsense_deep_agent(
             enable_citations=enable_citations,
         ),
         context_schema=SurfSenseContextSchema,
+        checkpointer=checkpointer,  # Enable conversation memory via thread_id
     )
 
     return agent

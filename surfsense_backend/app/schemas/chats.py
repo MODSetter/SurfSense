@@ -48,12 +48,20 @@ class AISDKChatRequest(BaseModel):
     data: dict[str, Any] | None = None
 
 
+class ChatMessage(BaseModel):
+    """A single message in the chat history."""
+
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class NewChatRequest(BaseModel):
     """Request schema for the new deep agent chat endpoint."""
 
     chat_id: int
     user_query: str
     search_space_id: int
+    messages: list[ChatMessage] | None = None  # Optional chat history from frontend
 
 
 class ChatCreate(ChatBase):

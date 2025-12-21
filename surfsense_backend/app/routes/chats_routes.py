@@ -226,6 +226,7 @@ async def handle_new_chat(
             chat_id=request.chat_id,
             session=session,
             llm_config_id=llm_config_id,
+            messages=request.messages,  # Pass message history from frontend
         ),
         media_type="text/event-stream",
     )
