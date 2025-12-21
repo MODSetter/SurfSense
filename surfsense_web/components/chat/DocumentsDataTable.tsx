@@ -43,6 +43,7 @@ interface DocumentsDataTableProps {
 	onSelectionChange: (documents: Document[]) => void;
 	onDone: () => void;
 	initialSelectedDocuments?: Document[];
+	viewOnly?: boolean;
 }
 
 function useDebounced<T>(value: T, delay = 300) {
@@ -182,6 +183,7 @@ export function DocumentsDataTable({
 	onSelectionChange,
 	onDone,
 	initialSelectedDocuments = [],
+	viewOnly = false,
 }: DocumentsDataTableProps) {
 	const router = useRouter();
 	const [sorting, setSorting] = useState<SortingState>([]);
@@ -544,18 +546,22 @@ export function DocumentsDataTable({
 												</div>
 												<div className="space-y-2 text-center max-w-sm">
 													<h3 className="font-semibold">No documents found</h3>
-													<p className="text-sm text-muted-foreground">
-														Get started by adding your first data source to build your knowledge
-														base.
-													</p>
+													{!viewOnly ? (
+														<p className="text-sm text-muted-foreground">
+															Get started by adding your first data source to build your knowledge
+															base.
+														</p>
+													) : null}
 												</div>
-												<Button
-													size="sm"
-													onClick={() => router.push(`/dashboard/${searchSpaceId}/sources/add`)}
-												>
-													<Plus className="mr-2 h-4 w-4" />
-													Add Sources
-												</Button>
+												{!viewOnly && (
+													<Button
+														size="sm"
+														onClick={() => router.push(`/dashboard/${searchSpaceId}/sources/add`)}
+													>
+														<Plus className="mr-2 h-4 w-4" />
+														Add Sources
+													</Button>
+												)}
 											</div>
 										</TableCell>
 									</TableRow>

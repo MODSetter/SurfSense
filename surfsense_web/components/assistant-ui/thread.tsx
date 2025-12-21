@@ -7,6 +7,7 @@ import {
 	MessagePrimitive,
 	ThreadPrimitive,
 } from "@assistant-ui/react";
+import { useAtom, useAtomValue } from "jotai";
 import {
 	ArrowDownIcon,
 	ArrowUpIcon,
@@ -19,7 +20,11 @@ import {
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, type FC } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { type FC, useEffect, useMemo, useRef } from "react";
+import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
+import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -29,16 +34,11 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
+import { useSearchSourceConnectors } from "@/hooks";
+import { useChatState } from "@/hooks/use-chat";
 import { cn } from "@/lib/utils";
 import { AnimatedEmptyState } from "../chat/AnimatedEmptyState";
 import { ConnectorGroup } from "../chat/ConnectorGroup";
-import { useChatState } from "@/hooks/use-chat";
-import { useParams, useRouter } from "next/navigation";
-import { useAtom, useAtomValue } from "jotai";
-import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
-import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
-import { useSearchSourceConnectors } from "@/hooks";
 
 export const Thread: FC = () => {
 	return (
@@ -91,18 +91,63 @@ const ThreadLogo: FC = () => {
 	return <AnimatedEmptyState />;
 };
 
+import { useState } from "react";
+import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
+
 const Composer: FC = () => {
+	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
+	const inputRef = useRef<HTMLTextAreaElement | null>(null);
+	const { search_space_id } = useParams();
+
+	const handleInputOrKeyUp = (
+		e: React.FormEvent<HTMLTextAreaElement> | React.KeyboardEvent<HTMLTextAreaElement>
+	) => {
+		const textarea = e.currentTarget;
+		const value = textarea.value;
+		const selectionStart = textarea.selectionStart;
+		// Only open if the last character before the caret is exactly '@'
+		if (
+			selectionStart !== null &&
+			value[selectionStart - 1] === "@" &&
+			value.length === selectionStart
+		) {
+			setShowDocumentPopover(true);
+		} else {
+			setShowDocumentPopover(false);
+		}
+	};
+
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
 				<ComposerPrimitive.Input
+					ref={inputRef}
+					onInput={handleInputOrKeyUp}
+					onKeyUp={handleInputOrKeyUp}
 					placeholder="Send a message..."
 					className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
 					rows={1}
 					autoFocus
 					aria-label="Message input"
 				/>
+				{showDocumentPopover && (
+					<div
+						style={{ position: "absolute", bottom: "8rem", left: 0, zIndex: 50 }}
+						className="shadow-lg rounded-md border bg-popover"
+					>
+						<div className="p-2 max-h-96 w-full overflow-auto">
+							<DocumentsDataTable
+								searchSpaceId={Number(search_space_id)}
+								onSelectionChange={() => {}}
+								onDone={() => setShowDocumentPopover(false)}
+								initialSelectedDocuments={[]}
+								viewOnly={true}
+							/>
+						</div>
+					</div>
+				)}
+
 				<ComposerAction />
 			</ComposerPrimitive.AttachmentDropzone>
 		</ComposerPrimitive.Root>
@@ -121,12 +166,7 @@ const ComposerAction: FC = () => {
 		hasSetInitialConnectors.current = false;
 	}, [activeChatId]);
 
-	const {
-		token,
-		selectedConnectors,
-		setSelectedConnectors,
-		selectedDocuments,
-	} = useChatState({
+	const { token, selectedConnectors, setSelectedConnectors, selectedDocuments } = useChatState({
 		search_space_id: search_space_id as string,
 		chat_id: activeChatId ?? undefined,
 	});
@@ -165,7 +205,6 @@ const ComposerAction: FC = () => {
 	const connectorTypes = useMemo(() => {
 		return selectedConnectors;
 	}, [selectedConnectors]);
-
 
 	useEffect(() => {
 		if (token && !isNewChat && activeChatId) {
@@ -208,13 +247,18 @@ const ComposerAction: FC = () => {
 		setSelectedConnectors,
 	]);
 
-  return (
-    <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
-      <ComposerAddAttachment />
-      <div className="flex flex-row gap-2 w-full">
-		<ConnectorGroup connectors={selectedConnectors.map((connector) => ({ id: connector, name: connector, type: connector }))} />
-       
-      </div>
+	return (
+		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
+			<ComposerAddAttachment />
+			<div className="flex flex-row gap-2 w-full">
+				<ConnectorGroup
+					connectors={selectedConnectors.map((connector) => ({
+						id: connector,
+						name: connector,
+						type: connector,
+					}))}
+				/>
+			</div>
 			<AssistantIf condition={({ thread }) => !thread.isRunning}>
 				<ComposerPrimitive.Send asChild>
 					<TooltipIconButton
