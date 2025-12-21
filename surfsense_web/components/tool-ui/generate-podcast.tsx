@@ -51,7 +51,7 @@ function PodcastGeneratingState({ title }: { title: string }) {
 						<MicIcon className="size-8 text-primary" />
 					</div>
 					{/* Animated rings */}
-					<div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+					<div className="absolute inset-1.4 animate-ping rounded-full bg-primary/20" />
 				</div>
 				<div className="flex-1">
 					<h3 className="font-semibold text-foreground text-lg">{title}</h3>
@@ -113,7 +113,15 @@ function AudioLoadingState({ title }: { title: string }) {
 }
 
 /**
- * Podcast Player Component - Fetches audio with authentication
+ * Transcript entry type from the database
+ */
+interface TranscriptEntry {
+	speaker_id: number;
+	dialog: string;
+}
+
+/**
+ * Podcast Player Component - Fetches audio and transcript with authentication
  */
 function PodcastPlayer({
 	podcastId,
@@ -127,6 +135,7 @@ function PodcastPlayer({
 	durationMs?: number;
 }) {
 	const [audioSrc, setAudioSrc] = useState<string | null>(null);
+	const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const objectUrlRef = useRef<string | null>(null);
@@ -140,8 +149,8 @@ function PodcastPlayer({
 		};
 	}, []);
 
-	// Fetch audio with authentication
-	const loadAudio = useCallback(async () => {
+	// Fetch audio and podcast details (including transcript)
+	const loadPodcast = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
 
@@ -156,35 +165,43 @@ function PodcastPlayer({
 			const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
 			try {
-				// Fetch audio blob with authentication
-				const response = await podcastsApiService.loadPodcast({
-					request: { id: podcastId },
-					controller,
-				});
+				// Fetch audio blob and podcast details in parallel
+				const [audioBlob, podcastDetails] = await Promise.all([
+					podcastsApiService.loadPodcast({
+						request: { id: podcastId },
+						controller,
+					}),
+					podcastsApiService.getPodcastById(podcastId),
+				]);
 
 				// Create object URL from blob
-				const objectUrl = URL.createObjectURL(response);
+				const objectUrl = URL.createObjectURL(audioBlob);
 				objectUrlRef.current = objectUrl;
 				setAudioSrc(objectUrl);
+
+				// Set transcript from podcast details
+				if (podcastDetails?.podcast_transcript) {
+					setTranscript(podcastDetails.podcast_transcript as TranscriptEntry[]);
+				}
 			} finally {
 				clearTimeout(timeoutId);
 			}
 		} catch (err) {
-			console.error("Error loading podcast audio:", err);
+			console.error("Error loading podcast:", err);
 			if (err instanceof DOMException && err.name === "AbortError") {
 				setError("Request timed out. Please try again.");
 			} else {
-				setError(err instanceof Error ? err.message : "Failed to load audio");
+				setError(err instanceof Error ? err.message : "Failed to load podcast");
 			}
 		} finally {
 			setIsLoading(false);
 		}
 	}, [podcastId]);
 
-	// Load audio when component mounts
+	// Load podcast when component mounts
 	useEffect(() => {
-		loadAudio();
-	}, [loadAudio]);
+		loadPodcast();
+	}, [loadPodcast]);
 
 	if (isLoading) {
 		return <AudioLoadingState title={title} />;
@@ -204,6 +221,24 @@ function PodcastPlayer({
 				durationMs={durationMs}
 				className="w-full"
 			/>
+			{/* Transcript section */}
+			{transcript && transcript.length > 0 && (
+				<details className="mt-3 rounded-lg border bg-muted/30 p-3">
+					<summary className="cursor-pointer font-medium text-muted-foreground text-sm hover:text-foreground">
+						View transcript ({transcript.length} entries)
+					</summary>
+					<div className="mt-3 space-y-3 max-h-96 overflow-y-auto">
+						{transcript.map((entry, idx) => (
+							<div key={`${idx}-${entry.speaker_id}`} className="text-sm">
+								<span className="font-medium text-primary">
+									Speaker {entry.speaker_id + 1}:
+								</span>{" "}
+								<span className="text-muted-foreground">{entry.dialog}</span>
+							</div>
+						))}
+					</div>
+				</details>
+			)}
 		</div>
 	);
 }
@@ -219,7 +254,6 @@ function PodcastTaskPoller({
 	title: string;
 }) {
 	const [taskStatus, setTaskStatus] = useState<TaskStatusResponse>({ status: "processing" });
-	const [pollCount, setPollCount] = useState(0);
 	const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Set active podcast state when this component mounts
@@ -253,9 +287,8 @@ function PodcastTaskPoller({
 				}
 			} catch (err) {
 				console.error("Error polling task status:", err);
-				// Don't stop polling on network errors, just increment count
+				// Don't stop polling on network errors, continue polling
 			}
-			setPollCount((prev) => prev + 1);
 		};
 
 		// Initial poll
