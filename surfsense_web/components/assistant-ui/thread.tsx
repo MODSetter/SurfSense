@@ -19,7 +19,7 @@ import {
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import { useEffect, useMemo, useRef, type FC } from "react";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -31,6 +31,14 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AnimatedEmptyState } from "../chat/AnimatedEmptyState";
+import { ConnectorGroup } from "../chat/ConnectorGroup";
+import { useChatState } from "@/hooks/use-chat";
+import { useParams, useRouter } from "next/navigation";
+import { useAtom, useAtomValue } from "jotai";
+import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
+import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import { useSearchSourceConnectors } from "@/hooks";
 
 export const Thread: FC = () => {
 	return (
@@ -83,48 +91,6 @@ const ThreadLogo: FC = () => {
 	return <AnimatedEmptyState />;
 };
 
-const SUGGESTIONS = [
-	{
-		title: "What's the weather",
-		label: "in San Francisco?",
-		prompt: "What's the weather in San Francisco?",
-	},
-	{
-		title: "Explain React hooks",
-		label: "like useState and useEffect",
-		prompt: "Explain React hooks like useState and useEffect",
-	},
-] as const;
-
-const ThreadSuggestions: FC = () => {
-	return (
-		<div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
-			{SUGGESTIONS.map((suggestion, index) => (
-				<div
-					key={suggestion.prompt}
-					className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-200"
-					style={{ animationDelay: `${100 + index * 50}ms` }}
-				>
-					<ThreadPrimitive.Suggestion prompt={suggestion.prompt} autoSend asChild>
-						<Button
-							variant="ghost"
-							className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
-							aria-label={suggestion.prompt}
-						>
-							<span className="aui-thread-welcome-suggestion-text-1 font-medium">
-								{suggestion.title}
-							</span>
-							<span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
-								{suggestion.label}
-							</span>
-						</Button>
-					</ThreadPrimitive.Suggestion>
-				</div>
-			))}
-		</div>
-	);
-};
-
 const Composer: FC = () => {
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
@@ -144,10 +110,111 @@ const Composer: FC = () => {
 };
 
 const ComposerAction: FC = () => {
-	return (
-		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
-			<ComposerAddAttachment />
+	const { search_space_id } = useParams();
+	const hasSetInitialConnectors = useRef(false);
+	const activeChatId = useAtomValue(activeChatIdAtom);
+	const isNewChat = !activeChatId;
+	const { data: activeChatState, isFetching: isChatLoading } = useAtomValue(activeChatAtom);
 
+	// Reset the flag when chat ID changes (but not hasInitiatedResponse - we need to remember if we already initiated)
+	useEffect(() => {
+		hasSetInitialConnectors.current = false;
+	}, [activeChatId]);
+
+	const {
+		token,
+		selectedConnectors,
+		setSelectedConnectors,
+		selectedDocuments,
+	} = useChatState({
+		search_space_id: search_space_id as string,
+		chat_id: activeChatId ?? undefined,
+	});
+
+	// Fetch all available sources (document types + live search connectors)
+	// Use the documentTypeCountsAtom for fetching document types
+	const [documentTypeCountsQuery] = useAtom(documentTypeCountsAtom);
+	const { data: documentTypeCountsData } = documentTypeCountsQuery;
+
+	// Transform the response into the expected format
+	const documentTypes = useMemo(() => {
+		if (!documentTypeCountsData) return [];
+		return Object.entries(documentTypeCountsData).map(([type, count]) => ({
+			type,
+			count,
+		}));
+	}, [documentTypeCountsData]);
+
+	const { connectors: searchConnectors } = useSearchSourceConnectors(
+		false,
+		Number(search_space_id)
+	);
+
+	// Filter for non-indexable connectors (live search)
+	const liveSearchConnectors = useMemo(
+		() => searchConnectors.filter((connector) => !connector.is_indexable),
+		[searchConnectors]
+	);
+
+	// Memoize document IDs to prevent infinite re-renders
+	const documentIds = useMemo(() => {
+		return selectedDocuments.map((doc) => doc.id);
+	}, [selectedDocuments]);
+
+	// Memoize connector types to prevent infinite re-renders
+	const connectorTypes = useMemo(() => {
+		return selectedConnectors;
+	}, [selectedConnectors]);
+
+
+	useEffect(() => {
+		if (token && !isNewChat && activeChatId) {
+			const chatData = activeChatState?.chatDetails;
+			if (!chatData) return;
+
+			// Update configuration from chat data
+			// researchMode is always "QNA", no need to set from chat data
+
+			if (chatData.initial_connectors && Array.isArray(chatData.initial_connectors)) {
+				setSelectedConnectors(chatData.initial_connectors);
+			}
+		}
+	}, [token, isNewChat, activeChatId, isChatLoading]);
+
+	// Set all sources as default for new chats (only once on initial mount)
+	useEffect(() => {
+		if (
+			isNewChat &&
+			!hasSetInitialConnectors.current &&
+			selectedConnectors.length === 0 &&
+			documentTypes.length > 0
+		) {
+			// Combine all document types and live search connectors
+			const allSourceTypes = [
+				...documentTypes.map((dt) => dt.type),
+				...liveSearchConnectors.map((c) => c.connector_type),
+			];
+
+			if (allSourceTypes.length > 0) {
+				setSelectedConnectors(allSourceTypes);
+				hasSetInitialConnectors.current = true;
+			}
+		}
+	}, [
+		isNewChat,
+		documentTypes,
+		liveSearchConnectors,
+		selectedConnectors.length,
+		setSelectedConnectors,
+	]);
+
+  return (
+    <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
+      <ComposerAddAttachment />
+      <div className="flex flex-row gap-2 w-full">
+		<ConnectorGroup connectors={selectedConnectors.map((connector) => ({ id: connector, name: connector, type: connector }))} />
+       
+      </div>
 			<AssistantIf condition={({ thread }) => !thread.isRunning}>
 				<ComposerPrimitive.Send asChild>
 					<TooltipIconButton
