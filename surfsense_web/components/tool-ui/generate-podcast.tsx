@@ -4,6 +4,7 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, Loader2Icon, MicIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Audio } from "@/components/tool-ui/audio";
+import { baseApiService } from "@/lib/apis/base-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
 
 /**
@@ -16,12 +17,21 @@ interface GeneratePodcastArgs {
 }
 
 interface GeneratePodcastResult {
-	status: "success" | "error";
+	status: "processing" | "success" | "error";
+	task_id?: string;
 	podcast_id?: number;
 	title?: string;
-	transcript?: string;
-	duration_ms?: number;
 	transcript_entries?: number;
+	message?: string;
+	error?: string;
+}
+
+interface TaskStatusResponse {
+	status: "processing" | "success" | "error";
+	podcast_id?: number;
+	title?: string;
+	transcript_entries?: number;
+	state?: string;
 	error?: string;
 }
 
@@ -106,15 +116,11 @@ function PodcastPlayer({
 	title,
 	description,
 	durationMs,
-	transcript,
-	transcriptEntries,
 }: {
 	podcastId: number;
 	title: string;
 	description: string;
 	durationMs?: number;
-	transcript?: string;
-	transcriptEntries?: number;
 }) {
 	const [audioSrc, setAudioSrc] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -194,19 +200,87 @@ function PodcastPlayer({
 				durationMs={durationMs}
 				className="w-full"
 			/>
-			{/* Full transcript */}
-			{transcript && (
-				<details className="mt-3 rounded-lg border bg-muted/30 p-3">
-					<summary className="cursor-pointer font-medium text-muted-foreground text-sm hover:text-foreground">
-						View full transcript{transcriptEntries ? ` (${transcriptEntries} entries)` : ""}
-					</summary>
-					<pre className="mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap text-muted-foreground text-xs">
-						{transcript}
-					</pre>
-				</details>
-			)}
 		</div>
 	);
+}
+
+/**
+ * Polling component that checks task status and shows player when complete
+ */
+function PodcastTaskPoller({
+	taskId,
+	title,
+}: {
+	taskId: string;
+	title: string;
+}) {
+	const [taskStatus, setTaskStatus] = useState<TaskStatusResponse>({ status: "processing" });
+	const [pollCount, setPollCount] = useState(0);
+	const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Poll for task status
+	useEffect(() => {
+		const pollStatus = async () => {
+			try {
+				const response = await baseApiService.get<TaskStatusResponse>(
+					`/api/v1/podcasts/task/${taskId}/status`
+				);
+				setTaskStatus(response);
+
+				// Stop polling if task is complete or errored
+				if (response.status !== "processing") {
+					if (pollingRef.current) {
+						clearInterval(pollingRef.current);
+						pollingRef.current = null;
+					}
+				}
+			} catch (err) {
+				console.error("Error polling task status:", err);
+				// Don't stop polling on network errors, just increment count
+			}
+			setPollCount((prev) => prev + 1);
+		};
+
+		// Initial poll
+		pollStatus();
+
+		// Poll every 5 seconds
+		pollingRef.current = setInterval(pollStatus, 5000);
+
+		return () => {
+			if (pollingRef.current) {
+				clearInterval(pollingRef.current);
+			}
+		};
+	}, [taskId]);
+
+	// Show loading state while processing
+	if (taskStatus.status === "processing") {
+		return <PodcastGeneratingState title={title} />;
+	}
+
+	// Show error state
+	if (taskStatus.status === "error") {
+		return <PodcastErrorState title={title} error={taskStatus.error || "Generation failed"} />;
+	}
+
+	// Show player when complete
+	if (taskStatus.status === "success" && taskStatus.podcast_id) {
+		return (
+			<PodcastPlayer
+				podcastId={taskStatus.podcast_id}
+				title={taskStatus.title || title}
+				description={
+					taskStatus.transcript_entries
+						? `${taskStatus.transcript_entries} dialogue entries`
+						: "SurfSense AI-generated podcast"
+				}
+			/>
+		);
+	}
+
+	// Fallback
+	return <PodcastErrorState title={title} error="Unexpected state" />;
 }
 
 /**
@@ -214,9 +288,8 @@ function PodcastPlayer({
  *
  * This component is registered with assistant-ui to render custom UI
  * when the generate_podcast tool is called by the agent.
- * 
- * It fetches the podcast audio with authentication (like the old system)
- * and displays it using the Audio component.
+ *
+ * It polls for task completion and auto-updates when the podcast is ready.
  */
 export const GeneratePodcastToolUI = makeAssistantToolUI<
 	GeneratePodcastArgs,
@@ -226,7 +299,7 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 	render: function GeneratePodcastUI({ args, result, status }) {
 		const title = args.podcast_title || "SurfSense Podcast";
 
-		// Loading state - podcast is being generated
+		// Loading state - tool is still running (agent processing)
 		if (status.type === "running" || status.type === "requires-action") {
 			return <PodcastGeneratingState title={title} />;
 		}
@@ -263,26 +336,27 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 			return <PodcastErrorState title={title} error={result.error || "Unknown error"} />;
 		}
 
-		// Success - need podcast_id to fetch with auth
-		if (!result.podcast_id) {
-			return <PodcastErrorState title={title} error="Missing podcast ID" />;
+		// Processing - poll for completion
+		if (result.status === "processing" && result.task_id) {
+			return <PodcastTaskPoller taskId={result.task_id} title={result.title || title} />;
 		}
 
-		// Render the podcast player (handles auth fetch internally)
-		return (
-			<PodcastPlayer
-				podcastId={result.podcast_id}
-				title={result.title || title}
-				description={
-					result.transcript_entries
-						? `${result.transcript_entries} dialogue entries`
-						: "SurfSense AI-generated podcast"
-				}
-				durationMs={result.duration_ms}
-				transcript={result.transcript}
-				transcriptEntries={result.transcript_entries}
-			/>
-		);
+		// Success with podcast_id (direct result, not via polling)
+		if (result.status === "success" && result.podcast_id) {
+			return (
+				<PodcastPlayer
+					podcastId={result.podcast_id}
+					title={result.title || title}
+					description={
+						result.transcript_entries
+							? `${result.transcript_entries} dialogue entries`
+							: "SurfSense AI-generated podcast"
+					}
+				/>
+			);
+		}
+
+		// Fallback - missing required data
+		return <PodcastErrorState title={title} error="Missing task ID or podcast ID" />;
 	},
 });
-
