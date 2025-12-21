@@ -11,12 +11,41 @@ interface NewChatAdapterConfig {
 	chatId: number;
 }
 
+interface ChatMessageForBackend {
+	role: "user" | "assistant";
+	content: string;
+}
+
+/**
+ * Converts assistant-ui messages to a simple format for the backend
+ */
+function convertMessagesToBackendFormat(
+	messages: ChatModelRunOptions["messages"]
+): ChatMessageForBackend[] {
+	return messages
+		.filter((m) => m.role === "user" || m.role === "assistant")
+		.map((m) => {
+			// Extract text content from the message parts
+			let content = "";
+			for (const part of m.content) {
+				if (part.type === "text") {
+					content += part.text;
+				}
+			}
+			return {
+				role: m.role as "user" | "assistant",
+				content: content.trim(),
+			};
+		})
+		.filter((m) => m.content.length > 0); // Filter out empty messages
+}
+
 /**
  * Creates a ChatModelAdapter that connects to the FastAPI new_chat endpoint.
  *
  * The backend expects:
  * - POST /api/v1/new_chat
- * - Body: { chat_id: number, user_query: string, search_space_id: number }
+ * - Body: { chat_id: number, user_query: string, search_space_id: number, messages: [...] }
  * - Returns: SSE stream with Vercel AI SDK Data Stream Protocol
  */
 export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAdapter {
@@ -31,7 +60,7 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 				throw new Error("No user message found");
 			}
 
-			// Extract text content from the message
+			// Extract text content from the last user message
 			let userQuery = "";
 			for (const part of lastUserMessage.content) {
 				if (part.type === "text") {
@@ -48,6 +77,9 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 				throw new Error("Not authenticated. Please log in again.");
 			}
 
+			// Convert all messages to backend format for chat history
+			const messageHistory = convertMessagesToBackendFormat(messages);
+
 			const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
 				method: "POST",
 				headers: {
@@ -58,6 +90,7 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 					chat_id: config.chatId,
 					user_query: userQuery.trim(),
 					search_space_id: config.searchSpaceId,
+					messages: messageHistory,
 				}),
 				signal: abortSignal,
 			});
@@ -165,3 +198,4 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 		},
 	};
 }
+

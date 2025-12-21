@@ -14,7 +14,7 @@ import {
 	Sparkles,
 } from "lucide-react";
 import type React from "react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
@@ -44,83 +44,70 @@ const formatDocumentType = (type: string) => {
 		.join(" ");
 };
 
-// Chunk card component with enhanced animations
-const ChunkCard = ({
-	chunk,
-	index,
-	totalChunks,
-	isCited,
-	isActive,
-}: {
+// Chunk card component
+// For large documents (>30 chunks), we disable animation to prevent layout shifts
+// which break auto-scroll functionality
+interface ChunkCardProps {
 	chunk: { id: number; content: string };
 	index: number;
 	totalChunks: number;
 	isCited: boolean;
 	isActive: boolean;
-}) => {
-	const shouldReduceMotion = useReducedMotion();
+	disableLayoutAnimation?: boolean;
+}
 
-	return (
-		<motion.div
-			data-chunk-index={index}
-			initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{
-				type: "spring",
-				stiffness: 100,
-				damping: 15,
-				delay: shouldReduceMotion ? 0 : Math.min(index * 0.05, 0.3),
-			}}
-			className={cn(
-				"group relative rounded-2xl border-2 transition-all duration-300",
-				isCited
-					? "bg-linear-to-br from-primary/5 via-primary/10 to-primary/5 border-primary shadow-lg shadow-primary/10"
-					: "bg-card border-border/50 hover:border-border hover:shadow-md"
-			)}
-		>
-			{/* Cited indicator glow effect */}
-			{isCited && (
-				<div className="absolute inset-0 rounded-2xl bg-primary/5 blur-xl -z-10" />
-			)}
-
-			{/* Header */}
-			<div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
-				<div className="flex items-center gap-3">
-					<div
-						className={cn(
-							"flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors",
-							isCited
-								? "bg-primary text-primary-foreground"
-								: "bg-muted text-muted-foreground group-hover:bg-muted/80"
-						)}
-					>
-						{index + 1}
-					</div>
-					<span className="text-sm text-muted-foreground">
-						of {totalChunks} chunks
-					</span>
-				</div>
+const ChunkCard = forwardRef<HTMLDivElement, ChunkCardProps>(
+	({ chunk, index, totalChunks, isCited, isActive, disableLayoutAnimation }, ref) => {
+		return (
+			<div
+				ref={ref}
+				data-chunk-index={index}
+				className={cn(
+					"group relative rounded-2xl border-2 transition-all duration-300",
+					isCited
+						? "bg-linear-to-br from-primary/5 via-primary/10 to-primary/5 border-primary shadow-lg shadow-primary/10"
+						: "bg-card border-border/50 hover:border-border hover:shadow-md"
+				)}
+			>
+				{/* Cited indicator glow effect */}
 				{isCited && (
-					<motion.div
-						initial={{ scale: 0, opacity: 0 }}
-						animate={{ scale: 1, opacity: 1 }}
-						transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
-					>
+					<div className="absolute inset-0 rounded-2xl bg-primary/5 blur-xl -z-10" />
+				)}
+
+				{/* Header */}
+				<div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
+					<div className="flex items-center gap-3">
+						<div
+							className={cn(
+								"flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors",
+								isCited
+									? "bg-primary text-primary-foreground"
+									: "bg-muted text-muted-foreground group-hover:bg-muted/80"
+							)}
+						>
+							{index + 1}
+						</div>
+						<span className="text-sm text-muted-foreground">
+							of {totalChunks} chunks
+						</span>
+					</div>
+					{isCited && (
 						<Badge variant="default" className="gap-1.5 px-3 py-1">
 							<Sparkles className="h-3 w-3" />
 							Cited Source
 						</Badge>
-					</motion.div>
-				)}
-			</div>
+					)}
+				</div>
 
-			{/* Content */}
-			<div className="p-5 overflow-hidden">
-				<MarkdownViewer content={chunk.content} />
+				{/* Content */}
+				<div className="p-5 overflow-hidden">
+					<MarkdownViewer content={chunk.content} />
+				</div>
 			</div>
-		</motion.div>
-	);
-};
+		);
+	}
+);
+ChunkCard.displayName = "ChunkCard";
 
 export function SourceDetailPanel({
 	open,
@@ -133,6 +120,7 @@ export function SourceDetailPanel({
 	children,
 }: SourceDetailPanelProps) {
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
+	const hasScrolledRef = useRef(false); // Use ref to avoid stale closures
 	const [summaryOpen, setSummaryOpen] = useState(false);
 	const [activeChunkIndex, setActiveChunkIndex] = useState<number | null>(null);
 	const [mounted, setMounted] = useState(false);
@@ -163,30 +151,92 @@ export function SourceDetailPanel({
 	// Find cited chunk index
 	const citedChunkIndex = documentData?.chunks?.findIndex((chunk) => chunk.id === chunkId) ?? -1;
 
-	// Auto-scroll to cited chunk when data loads
-	useEffect(() => {
-		if (documentData?.chunks && citedChunkIndex !== -1 && !hasScrolledToCited && open) {
-			// Wait for animations to complete then scroll
-			const timer = setTimeout(() => {
-				const chunkElement = scrollAreaRef.current?.querySelector(
-					`[data-chunk-index="${citedChunkIndex}"]`
-				);
-				if (chunkElement) {
-					chunkElement.scrollIntoView({
-						behavior: shouldReduceMotion ? "auto" : "smooth",
-						block: "center",
-					});
-					setHasScrolledToCited(true);
-					setActiveChunkIndex(citedChunkIndex);
-				}
-			}, 400);
-			return () => clearTimeout(timer);
+	// Simple scroll function that scrolls to a chunk by index
+	const scrollToChunkByIndex = useCallback((chunkIndex: number, smooth = true) => {
+		const scrollContainer = scrollAreaRef.current;
+		if (!scrollContainer) return;
+
+		const viewport = scrollContainer.querySelector(
+			'[data-radix-scroll-area-viewport]'
+		) as HTMLElement | null;
+		if (!viewport) return;
+
+		const chunkElement = scrollContainer.querySelector(
+			`[data-chunk-index="${chunkIndex}"]`
+		) as HTMLElement | null;
+		if (!chunkElement) return;
+
+		// Get positions using getBoundingClientRect for accuracy
+		const viewportRect = viewport.getBoundingClientRect();
+		const chunkRect = chunkElement.getBoundingClientRect();
+
+		// Calculate where to scroll to center the chunk
+		const currentScrollTop = viewport.scrollTop;
+		const chunkTopRelativeToViewport = chunkRect.top - viewportRect.top + currentScrollTop;
+		const scrollTarget = chunkTopRelativeToViewport - (viewportRect.height / 2) + (chunkRect.height / 2);
+
+		viewport.scrollTo({
+			top: Math.max(0, scrollTarget),
+			behavior: smooth && !shouldReduceMotion ? "smooth" : "auto",
+		});
+
+		setActiveChunkIndex(chunkIndex);
+	}, [shouldReduceMotion]);
+
+	// Callback ref for the cited chunk - scrolls when the element mounts
+	const citedChunkRefCallback = useCallback((node: HTMLDivElement | null) => {
+		if (node && !hasScrolledRef.current && open) {
+			hasScrolledRef.current = true; // Mark immediately to prevent duplicate scrolls
+			
+			// Store the node reference for the delayed scroll
+			const scrollToCitedChunk = () => {
+				const scrollContainer = scrollAreaRef.current;
+				if (!scrollContainer || !node.isConnected) return false;
+
+				const viewport = scrollContainer.querySelector(
+					'[data-radix-scroll-area-viewport]'
+				) as HTMLElement | null;
+				if (!viewport) return false;
+
+				// Get positions
+				const viewportRect = viewport.getBoundingClientRect();
+				const chunkRect = node.getBoundingClientRect();
+
+				// Calculate scroll position to center the chunk
+				const currentScrollTop = viewport.scrollTop;
+				const chunkTopRelativeToViewport = chunkRect.top - viewportRect.top + currentScrollTop;
+				const scrollTarget = chunkTopRelativeToViewport - (viewportRect.height / 2) + (chunkRect.height / 2);
+
+				viewport.scrollTo({
+					top: Math.max(0, scrollTarget),
+					behavior: "auto", // Instant scroll for initial positioning
+				});
+
+				return true;
+			};
+
+			// Scroll multiple times with delays to handle progressive content rendering
+			// Each subsequent scroll will correct for any layout shifts
+			const scrollAttempts = [50, 150, 300, 600, 1000];
+			
+			scrollAttempts.forEach((delay) => {
+				setTimeout(() => {
+					scrollToCitedChunk();
+				}, delay);
+			});
+
+			// After final attempt, mark state as scrolled
+			setTimeout(() => {
+				setHasScrolledToCited(true);
+				setActiveChunkIndex(citedChunkIndex);
+			}, scrollAttempts[scrollAttempts.length - 1] + 50);
 		}
-	}, [documentData, citedChunkIndex, hasScrolledToCited, open, shouldReduceMotion]);
+	}, [open, citedChunkIndex]);
 
 	// Reset scroll state when panel closes
 	useEffect(() => {
 		if (!open) {
+			hasScrolledRef.current = false;
 			setHasScrolledToCited(false);
 			setActiveChunkIndex(null);
 		}
@@ -222,12 +272,8 @@ export function SourceDetailPanel({
 	};
 
 	const scrollToChunk = useCallback((index: number) => {
-		setActiveChunkIndex(index);
-		const chunkElement = scrollAreaRef.current?.querySelector(
-			`[data-chunk-index="${index}"]`
-		);
-		chunkElement?.scrollIntoView({ behavior: "smooth", block: "center" });
-	}, []);
+		scrollToChunkByIndex(index, true);
+	}, [scrollToChunkByIndex]);
 
 	const panelContent = (
 		<AnimatePresence mode="wait">
@@ -388,9 +434,9 @@ export function SourceDetailPanel({
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: 0.2 }}
-										className="hidden lg:flex flex-col w-16 border-r bg-muted/10"
+										className="hidden lg:flex flex-col w-16 border-r bg-muted/10 overflow-hidden"
 									>
-										<ScrollArea className="flex-1">
+										<ScrollArea className="flex-1 h-full">
 											<div className="p-2 pt-3 flex flex-col gap-1.5">
 												{documentData.chunks.map((chunk, idx) => {
 													const isCited = chunk.id === chunkId;
@@ -514,16 +560,21 @@ export function SourceDetailPanel({
 
 										{/* Chunks */}
 										<div className="space-y-4">
-											{documentData.chunks.map((chunk, idx) => (
-												<ChunkCard
-													key={chunk.id}
-													chunk={chunk}
-													index={idx}
-													totalChunks={documentData.chunks.length}
-													isCited={chunk.id === chunkId}
-													isActive={activeChunkIndex === idx}
-												/>
-											))}
+											{documentData.chunks.map((chunk, idx) => {
+												const isCited = chunk.id === chunkId;
+												return (
+													<ChunkCard
+														key={chunk.id}
+														ref={isCited ? citedChunkRefCallback : undefined}
+														chunk={chunk}
+														index={idx}
+														totalChunks={documentData.chunks.length}
+														isCited={isCited}
+														isActive={activeChunkIndex === idx}
+														disableLayoutAnimation={documentData.chunks.length > 30}
+													/>
+												);
+											})}
 										</div>
 									</div>
 								</ScrollArea>

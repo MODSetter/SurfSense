@@ -54,6 +54,8 @@ dependencies = [
     "trafilatura>=2.0.0",
     "fastapi-users[oauth,sqlalchemy]>=15.0.3",
     "chonkie[all]>=1.5.0",
+    "langgraph-checkpoint-postgres>=3.0.2",
+    "psycopg[binary,pool]>=3.3.2",
 ]
 
 [dependency-groups]

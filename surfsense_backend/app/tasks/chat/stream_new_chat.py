@@ -8,13 +8,13 @@ Data Stream Protocol (SSE format).
 from collections.abc import AsyncGenerator
 from uuid import UUID
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.chat_deepagent import (
-    create_surfsense_deep_agent,
-)
+from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
+from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.llm_config import create_chat_litellm_from_config, load_llm_config_from_yaml
+from app.schemas.chats import ChatMessage
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 
@@ -26,13 +26,14 @@ async def stream_new_chat(
     chat_id: int,
     session: AsyncSession,
     llm_config_id: int = -1,
+    messages: list[ChatMessage] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
 
     This uses the Vercel AI SDK Data Stream Protocol (SSE format) for streaming.
-    The chat_id is used as LangGraph's thread_id for memory/checkpointing,
-    so chat history is automatically managed by LangGraph.
+    The chat_id is used as LangGraph's thread_id for memory/checkpointing.
+    Message history can be passed from the frontend for context.
 
     Args:
         user_query: The user's query
@@ -41,6 +42,7 @@ async def stream_new_chat(
         chat_id: The chat ID (used as LangGraph thread_id for memory)
         session: The database session
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
+        messages: Optional chat history from frontend (list of ChatMessage)
 
     Yields:
         str: SSE formatted response strings
@@ -73,18 +75,36 @@ async def stream_new_chat(
         # Create connector service
         connector_service = ConnectorService(session, search_space_id=search_space_id)
 
-        # Create the deep agent
+        # Get the PostgreSQL checkpointer for persistent conversation memory
+        checkpointer = await get_checkpointer()
+
+        # Create the deep agent with checkpointer
         agent = create_surfsense_deep_agent(
             llm=llm,
             search_space_id=search_space_id,
             db_session=session,
             connector_service=connector_service,
+            checkpointer=checkpointer,
         )
 
-        # Build input with just the current user query
-        # Chat history is managed by LangGraph via thread_id
+        # Build input with message history from frontend
+        langchain_messages = []
+        
+        # if messages:
+        #     # Convert frontend messages to LangChain format
+        #     for msg in messages:
+        #         if msg.role == "user":
+        #             langchain_messages.append(HumanMessage(content=msg.content))
+        #         elif msg.role == "assistant":
+        #             langchain_messages.append(AIMessage(content=msg.content))
+        # else:
+            # Fallback: just use the current user query
+        langchain_messages.append(HumanMessage(content=user_query))
+        
         input_state = {
-            "messages": [HumanMessage(content=user_query)],
+            # Lets not pass this message atm because we are using the checkpointer to manage the conversation history
+            # We will use this to simulate group chat functionality in the future
+            "messages": langchain_messages,
             "search_space_id": search_space_id,
         }
 

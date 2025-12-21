@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from app.agents.new_chat.checkpointer import close_checkpointer, setup_checkpointer_tables
 from app.config import config
 from app.db import User, create_db_and_tables, get_async_session
 from app.routes import router as crud_router
@@ -16,7 +17,11 @@ from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 async def lifespan(app: FastAPI):
     # Not needed if you setup a migration system like Alembic
     await create_db_and_tables()
+    # Setup LangGraph checkpointer tables for conversation persistence
+    await setup_checkpointer_tables()
     yield
+    # Cleanup: close checkpointer connection on shutdown
+    await close_checkpointer()
 
 
 def registration_allowed():
