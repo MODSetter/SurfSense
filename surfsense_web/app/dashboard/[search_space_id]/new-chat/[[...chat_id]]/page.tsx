@@ -45,6 +45,7 @@ function extractThinkingSteps(content: unknown): ThinkingStep[] {
 
 /**
  * Convert backend message to assistant-ui ThreadMessageLike format
+ * Filters out 'thinking-steps' part as it's handled separately
  */
 function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	let content: ThreadMessageLike["content"];
@@ -52,7 +53,17 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	if (typeof msg.content === "string") {
 		content = [{ type: "text", text: msg.content }];
 	} else if (Array.isArray(msg.content)) {
-		content = msg.content as ThreadMessageLike["content"];
+		// Filter out thinking-steps part - it's handled separately via messageThinkingSteps
+		const filteredContent = msg.content.filter(
+			(part: unknown) => 
+				!(typeof part === "object" && 
+				  part !== null && 
+				  "type" in part && 
+				  (part as { type: string }).type === "thinking-steps")
+		);
+		content = filteredContent.length > 0 
+			? (filteredContent as ThreadMessageLike["content"])
+			: [{ type: "text", text: "" }];
 	} else {
 		content = [{ type: "text", text: String(msg.content) }];
 	}
@@ -244,8 +255,8 @@ export default function NewChatPage() {
 				}
 			>();
 
-			// Helper to build content (includes thinking steps for persistence)
-			const buildContent = (): ThreadMessageLike["content"] => {
+			// Helper to build content for UI (without thinking-steps)
+			const buildContentForUI = (): ThreadMessageLike["content"] => {
 				const parts: Array<
 					| { type: "text"; text: string }
 					| {
@@ -255,11 +266,30 @@ export default function NewChatPage() {
 							args: Record<string, unknown>;
 							result?: unknown;
 					  }
-					| {
-							type: "thinking-steps";
-							steps: ThinkingStepData[];
-					  }
 				> = [];
+				
+				if (accumulatedText) {
+					parts.push({ type: "text", text: accumulatedText });
+				}
+				for (const toolCall of toolCalls.values()) {
+					if (TOOLS_WITH_UI.has(toolCall.toolName)) {
+						parts.push({
+							type: "tool-call",
+							toolCallId: toolCall.toolCallId,
+							toolName: toolCall.toolName,
+							args: toolCall.args,
+							result: toolCall.result,
+						});
+					}
+				}
+				return parts.length > 0
+					? (parts as ThreadMessageLike["content"])
+					: [{ type: "text", text: "" }];
+			};
+
+			// Helper to build content for persistence (includes thinking-steps)
+			const buildContentForPersistence = (): unknown[] => {
+				const parts: unknown[] = [];
 				
 				// Include thinking steps for persistence
 				if (currentThinkingSteps.size > 0) {
@@ -283,9 +313,7 @@ export default function NewChatPage() {
 						});
 					}
 				}
-				return parts.length > 0
-					? (parts as ThreadMessageLike["content"])
-					: [{ type: "text", text: "" }];
+				return parts.length > 0 ? parts : [{ type: "text", text: "" }];
 			};
 
 			// Add placeholder assistant message
@@ -372,7 +400,7 @@ export default function NewChatPage() {
 											accumulatedText += parsed.delta;
 											setMessages((prev) =>
 												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContent() } : m
+													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
 												)
 											);
 											break;
@@ -385,7 +413,7 @@ export default function NewChatPage() {
 											});
 											setMessages((prev) =>
 												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContent() } : m
+													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
 												)
 											);
 											break;
@@ -401,7 +429,7 @@ export default function NewChatPage() {
 												});
 											setMessages((prev) =>
 												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContent() } : m
+													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
 												)
 											);
 											break;
@@ -421,7 +449,7 @@ export default function NewChatPage() {
 											}
 											setMessages((prev) =>
 												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContent() } : m
+													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
 												)
 											);
 											break;
@@ -459,8 +487,8 @@ export default function NewChatPage() {
 					reader.releaseLock();
 				}
 
-				// Persist assistant message
-				const finalContent = buildContent();
+				// Persist assistant message (with thinking steps for restoration on refresh)
+				const finalContent = buildContentForPersistence();
 				if (accumulatedText || toolCalls.size > 0) {
 					appendMessage(threadId, {
 						role: "assistant",
