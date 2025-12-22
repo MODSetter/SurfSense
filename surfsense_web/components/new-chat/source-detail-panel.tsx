@@ -1,26 +1,26 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
+	BookOpen,
 	ChevronDown,
 	ChevronUp,
 	ExternalLink,
-	Loader2,
-	X,
 	FileText,
 	Hash,
-	BookOpen,
+	Loader2,
 	Sparkles,
+	X,
 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type React from "react";
-import { type ReactNode, forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
@@ -70,9 +70,7 @@ const ChunkCard = forwardRef<HTMLDivElement, ChunkCardProps>(
 				)}
 			>
 				{/* Cited indicator glow effect */}
-				{isCited && (
-					<div className="absolute inset-0 rounded-2xl bg-primary/5 blur-xl -z-10" />
-				)}
+				{isCited && <div className="absolute inset-0 rounded-2xl bg-primary/5 blur-xl -z-10" />}
 
 				{/* Header */}
 				<div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
@@ -87,9 +85,7 @@ const ChunkCard = forwardRef<HTMLDivElement, ChunkCardProps>(
 						>
 							{index + 1}
 						</div>
-						<span className="text-sm text-muted-foreground">
-							of {totalChunks} chunks
-						</span>
+						<span className="text-sm text-muted-foreground">of {totalChunks} chunks</span>
 					</div>
 					{isCited && (
 						<Badge variant="default" className="gap-1.5 px-3 py-1">
@@ -152,86 +148,97 @@ export function SourceDetailPanel({
 	const citedChunkIndex = documentData?.chunks?.findIndex((chunk) => chunk.id === chunkId) ?? -1;
 
 	// Simple scroll function that scrolls to a chunk by index
-	const scrollToChunkByIndex = useCallback((chunkIndex: number, smooth = true) => {
-		const scrollContainer = scrollAreaRef.current;
-		if (!scrollContainer) return;
+	const scrollToChunkByIndex = useCallback(
+		(chunkIndex: number, smooth = true) => {
+			const scrollContainer = scrollAreaRef.current;
+			if (!scrollContainer) return;
 
-		const viewport = scrollContainer.querySelector(
-			'[data-radix-scroll-area-viewport]'
-		) as HTMLElement | null;
-		if (!viewport) return;
+			const viewport = scrollContainer.querySelector(
+				"[data-radix-scroll-area-viewport]"
+			) as HTMLElement | null;
+			if (!viewport) return;
 
-		const chunkElement = scrollContainer.querySelector(
-			`[data-chunk-index="${chunkIndex}"]`
-		) as HTMLElement | null;
-		if (!chunkElement) return;
+			const chunkElement = scrollContainer.querySelector(
+				`[data-chunk-index="${chunkIndex}"]`
+			) as HTMLElement | null;
+			if (!chunkElement) return;
 
-		// Get positions using getBoundingClientRect for accuracy
-		const viewportRect = viewport.getBoundingClientRect();
-		const chunkRect = chunkElement.getBoundingClientRect();
+			// Get positions using getBoundingClientRect for accuracy
+			const viewportRect = viewport.getBoundingClientRect();
+			const chunkRect = chunkElement.getBoundingClientRect();
 
-		// Calculate where to scroll to center the chunk
-		const currentScrollTop = viewport.scrollTop;
-		const chunkTopRelativeToViewport = chunkRect.top - viewportRect.top + currentScrollTop;
-		const scrollTarget = chunkTopRelativeToViewport - (viewportRect.height / 2) + (chunkRect.height / 2);
+			// Calculate where to scroll to center the chunk
+			const currentScrollTop = viewport.scrollTop;
+			const chunkTopRelativeToViewport = chunkRect.top - viewportRect.top + currentScrollTop;
+			const scrollTarget =
+				chunkTopRelativeToViewport - viewportRect.height / 2 + chunkRect.height / 2;
 
-		viewport.scrollTo({
-			top: Math.max(0, scrollTarget),
-			behavior: smooth && !shouldReduceMotion ? "smooth" : "auto",
-		});
-
-		setActiveChunkIndex(chunkIndex);
-	}, [shouldReduceMotion]);
-
-	// Callback ref for the cited chunk - scrolls when the element mounts
-	const citedChunkRefCallback = useCallback((node: HTMLDivElement | null) => {
-		if (node && !hasScrolledRef.current && open) {
-			hasScrolledRef.current = true; // Mark immediately to prevent duplicate scrolls
-			
-			// Store the node reference for the delayed scroll
-			const scrollToCitedChunk = () => {
-				const scrollContainer = scrollAreaRef.current;
-				if (!scrollContainer || !node.isConnected) return false;
-
-				const viewport = scrollContainer.querySelector(
-					'[data-radix-scroll-area-viewport]'
-				) as HTMLElement | null;
-				if (!viewport) return false;
-
-				// Get positions
-				const viewportRect = viewport.getBoundingClientRect();
-				const chunkRect = node.getBoundingClientRect();
-
-				// Calculate scroll position to center the chunk
-				const currentScrollTop = viewport.scrollTop;
-				const chunkTopRelativeToViewport = chunkRect.top - viewportRect.top + currentScrollTop;
-				const scrollTarget = chunkTopRelativeToViewport - (viewportRect.height / 2) + (chunkRect.height / 2);
-
-				viewport.scrollTo({
-					top: Math.max(0, scrollTarget),
-					behavior: "auto", // Instant scroll for initial positioning
-				});
-
-				return true;
-			};
-
-			// Scroll multiple times with delays to handle progressive content rendering
-			// Each subsequent scroll will correct for any layout shifts
-			const scrollAttempts = [50, 150, 300, 600, 1000];
-			
-			scrollAttempts.forEach((delay) => {
-				setTimeout(() => {
-					scrollToCitedChunk();
-				}, delay);
+			viewport.scrollTo({
+				top: Math.max(0, scrollTarget),
+				behavior: smooth && !shouldReduceMotion ? "smooth" : "auto",
 			});
 
-			// After final attempt, mark state as scrolled
-			setTimeout(() => {
-				setHasScrolledToCited(true);
-				setActiveChunkIndex(citedChunkIndex);
-			}, scrollAttempts[scrollAttempts.length - 1] + 50);
-		}
-	}, [open, citedChunkIndex]);
+			setActiveChunkIndex(chunkIndex);
+		},
+		[shouldReduceMotion]
+	);
+
+	// Callback ref for the cited chunk - scrolls when the element mounts
+	const citedChunkRefCallback = useCallback(
+		(node: HTMLDivElement | null) => {
+			if (node && !hasScrolledRef.current && open) {
+				hasScrolledRef.current = true; // Mark immediately to prevent duplicate scrolls
+
+				// Store the node reference for the delayed scroll
+				const scrollToCitedChunk = () => {
+					const scrollContainer = scrollAreaRef.current;
+					if (!scrollContainer || !node.isConnected) return false;
+
+					const viewport = scrollContainer.querySelector(
+						"[data-radix-scroll-area-viewport]"
+					) as HTMLElement | null;
+					if (!viewport) return false;
+
+					// Get positions
+					const viewportRect = viewport.getBoundingClientRect();
+					const chunkRect = node.getBoundingClientRect();
+
+					// Calculate scroll position to center the chunk
+					const currentScrollTop = viewport.scrollTop;
+					const chunkTopRelativeToViewport = chunkRect.top - viewportRect.top + currentScrollTop;
+					const scrollTarget =
+						chunkTopRelativeToViewport - viewportRect.height / 2 + chunkRect.height / 2;
+
+					viewport.scrollTo({
+						top: Math.max(0, scrollTarget),
+						behavior: "auto", // Instant scroll for initial positioning
+					});
+
+					return true;
+				};
+
+				// Scroll multiple times with delays to handle progressive content rendering
+				// Each subsequent scroll will correct for any layout shifts
+				const scrollAttempts = [50, 150, 300, 600, 1000];
+
+				scrollAttempts.forEach((delay) => {
+					setTimeout(() => {
+						scrollToCitedChunk();
+					}, delay);
+				});
+
+				// After final attempt, mark state as scrolled
+				setTimeout(
+					() => {
+						setHasScrolledToCited(true);
+						setActiveChunkIndex(citedChunkIndex);
+					},
+					scrollAttempts[scrollAttempts.length - 1] + 50
+				);
+			}
+		},
+		[open, citedChunkIndex]
+	);
 
 	// Reset scroll state when panel closes
 	useEffect(() => {
@@ -271,9 +278,12 @@ export function SourceDetailPanel({
 		window.open(clickUrl, "_blank", "noopener,noreferrer");
 	};
 
-	const scrollToChunk = useCallback((index: number) => {
-		scrollToChunkByIndex(index, true);
-	}, [scrollToChunkByIndex]);
+	const scrollToChunk = useCallback(
+		(index: number) => {
+			scrollToChunkByIndex(index, true);
+		},
+		[scrollToChunkByIndex]
+	);
 
 	const panelContent = (
 		<AnimatePresence mode="wait">
@@ -320,7 +330,8 @@ export function SourceDetailPanel({
 										: sourceType && formatDocumentType(sourceType)}
 									{documentData?.chunks && (
 										<span className="ml-2">
-											• {documentData.chunks.length} chunk{documentData.chunks.length !== 1 ? "s" : ""}
+											• {documentData.chunks.length} chunk
+											{documentData.chunks.length !== 1 ? "s" : ""}
 										</span>
 									)}
 								</p>
@@ -378,9 +389,12 @@ export function SourceDetailPanel({
 										<X className="h-10 w-10 text-destructive" />
 									</div>
 									<div>
-										<p className="font-semibold text-destructive text-lg">Failed to load document</p>
+										<p className="font-semibold text-destructive text-lg">
+											Failed to load document
+										</p>
 										<p className="text-sm text-muted-foreground mt-2 max-w-md">
-											{documentByChunkFetchingError.message || "An unexpected error occurred. Please try again."}
+											{documentByChunkFetchingError.message ||
+												"An unexpected error occurred. Please try again."}
 										</p>
 									</div>
 									<Button variant="outline" onClick={() => onOpenChange(false)} className="mt-2">
@@ -490,18 +504,14 @@ export function SourceDetailPanel({
 														Document Information
 													</h3>
 													<dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-														{Object.entries(documentData.document_metadata).map(
-															([key, value]) => (
-																<div key={key} className="space-y-1">
-																	<dt className="font-medium text-muted-foreground capitalize text-xs">
-																		{key.replace(/_/g, " ")}
-																	</dt>
-																	<dd className="text-foreground wrap-break-word">
-																		{String(value)}
-																	</dd>
-																</div>
-															)
-														)}
+														{Object.entries(documentData.document_metadata).map(([key, value]) => (
+															<div key={key} className="space-y-1">
+																<dt className="font-medium text-muted-foreground capitalize text-xs">
+																	{key.replace(/_/g, " ")}
+																</dt>
+																<dd className="text-foreground wrap-break-word">{String(value)}</dd>
+															</div>
+														))}
 													</dl>
 												</motion.div>
 											)}

@@ -51,11 +51,26 @@ export interface ThreadHistoryLoadResponse {
  * Fetch list of threads for a search space
  */
 export async function fetchThreads(
-	searchSpaceId: number
+	searchSpaceId: number,
+	limit?: number
 ): Promise<ThreadListResponse> {
-	return baseApiService.get<ThreadListResponse>(
-		`/api/v1/threads?search_space_id=${searchSpaceId}`
-	);
+	const params = new URLSearchParams({ search_space_id: String(searchSpaceId) });
+	if (limit) params.append("limit", String(limit));
+	return baseApiService.get<ThreadListResponse>(`/api/v1/threads?${params}`);
+}
+
+/**
+ * Search threads by title
+ */
+export async function searchThreads(
+	searchSpaceId: number,
+	title: string
+): Promise<ThreadListItem[]> {
+	const params = new URLSearchParams({
+		search_space_id: String(searchSpaceId),
+		title,
+	});
+	return baseApiService.get<ThreadListItem[]>(`/api/v1/threads/search?${params}`);
 }
 
 /**
@@ -77,12 +92,8 @@ export async function createThread(
 /**
  * Get thread messages
  */
-export async function getThreadMessages(
-	threadId: number
-): Promise<ThreadHistoryLoadResponse> {
-	return baseApiService.get<ThreadHistoryLoadResponse>(
-		`/api/v1/threads/${threadId}`
-	);
+export async function getThreadMessages(threadId: number): Promise<ThreadHistoryLoadResponse> {
+	return baseApiService.get<ThreadHistoryLoadResponse>(`/api/v1/threads/${threadId}`);
 }
 
 /**
@@ -92,11 +103,9 @@ export async function appendMessage(
 	threadId: number,
 	message: { role: "user" | "assistant" | "system"; content: unknown }
 ): Promise<MessageRecord> {
-	return baseApiService.post<MessageRecord>(
-		`/api/v1/threads/${threadId}/messages`,
-		undefined,
-		{ body: message }
-	);
+	return baseApiService.post<MessageRecord>(`/api/v1/threads/${threadId}/messages`, undefined, {
+		body: message,
+	});
 }
 
 /**
@@ -106,11 +115,9 @@ export async function updateThread(
 	threadId: number,
 	updates: { title?: string; archived?: boolean }
 ): Promise<ThreadRecord> {
-	return baseApiService.put<ThreadRecord>(
-		`/api/v1/threads/${threadId}`,
-		undefined,
-		{ body: updates }
-	);
+	return baseApiService.put<ThreadRecord>(`/api/v1/threads/${threadId}`, undefined, {
+		body: updates,
+	});
 }
 
 /**
@@ -159,8 +166,7 @@ export function createThreadListManager(config: ThreadListAdapterConfig) {
 					threads: [],
 					archivedThreads: [],
 					isLoading: false,
-					error:
-						error instanceof Error ? error.message : "Failed to load threads",
+					error: error instanceof Error ? error.message : "Failed to load threads",
 				};
 			}
 		},

@@ -2,26 +2,26 @@
 
 import {
 	AssistantRuntimeProvider,
-	useExternalStoreRuntime,
 	type ThreadMessageLike,
+	useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Thread } from "@/components/assistant-ui/thread";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
-import {
-	createThread,
-	getThreadMessages,
-	appendMessage,
-	type MessageRecord,
-} from "@/lib/chat/thread-persistence";
 import { getBearerToken } from "@/lib/auth-utils";
-import { toast } from "sonner";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
+import {
+	appendMessage,
+	createThread,
+	getThreadMessages,
+	type MessageRecord,
+} from "@/lib/chat/thread-persistence";
 
 /**
  * Convert backend message to assistant-ui ThreadMessageLike format
@@ -223,8 +223,7 @@ export default function NewChatPage() {
 			]);
 
 			try {
-				const backendUrl =
-					process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 
 				// Build message history for context
 				const messageHistory = messages
@@ -232,11 +231,7 @@ export default function NewChatPage() {
 					.map((m) => {
 						let text = "";
 						for (const part of m.content) {
-							if (
-								typeof part === "object" &&
-								part.type === "text" &&
-								"text" in part
-							) {
+							if (typeof part === "object" && part.type === "text" && "text" in part) {
 								text += part.text;
 							}
 						}
@@ -296,9 +291,7 @@ export default function NewChatPage() {
 											accumulatedText += parsed.delta;
 											setMessages((prev) =>
 												prev.map((m) =>
-													m.id === assistantMsgId
-														? { ...m, content: buildContent() }
-														: m
+													m.id === assistantMsgId ? { ...m, content: buildContent() } : m
 												)
 											);
 											break;
@@ -311,9 +304,7 @@ export default function NewChatPage() {
 											});
 											setMessages((prev) =>
 												prev.map((m) =>
-													m.id === assistantMsgId
-														? { ...m, content: buildContent() }
-														: m
+													m.id === assistantMsgId ? { ...m, content: buildContent() } : m
 												)
 											);
 											break;
@@ -329,9 +320,7 @@ export default function NewChatPage() {
 												});
 											setMessages((prev) =>
 												prev.map((m) =>
-													m.id === assistantMsgId
-														? { ...m, content: buildContent() }
-														: m
+													m.id === assistantMsgId ? { ...m, content: buildContent() } : m
 												)
 											);
 											break;
@@ -351,9 +340,7 @@ export default function NewChatPage() {
 											}
 											setMessages((prev) =>
 												prev.map((m) =>
-													m.id === assistantMsgId
-														? { ...m, content: buildContent() }
-														: m
+													m.id === assistantMsgId ? { ...m, content: buildContent() } : m
 												)
 											);
 											break;
@@ -379,9 +366,7 @@ export default function NewChatPage() {
 					appendMessage(threadId, {
 						role: "assistant",
 						content: finalContent,
-					}).catch((err) =>
-						console.error("Failed to persist assistant message:", err)
-					);
+					}).catch((err) => console.error("Failed to persist assistant message:", err));
 				}
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") {

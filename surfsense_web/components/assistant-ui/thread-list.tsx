@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+	ArchiveIcon,
+	MessageSquareIcon,
+	MoreVerticalIcon,
+	PlusIcon,
+	RotateCcwIcon,
+	TrashIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { ArchiveIcon, MessageSquareIcon, PlusIcon, TrashIcon, MoreVerticalIcon, RotateCcwIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -13,10 +19,11 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-	type ThreadListItem,
 	createThreadListManager,
+	type ThreadListItem,
 	type ThreadListState,
 } from "@/lib/chat/thread-persistence";
+import { cn } from "@/lib/utils";
 
 interface ThreadListProps {
 	searchSpaceId: number;
@@ -123,7 +130,13 @@ export function ThreadList({ searchSpaceId, currentThreadId, className }: Thread
 			{/* Header with New Chat button */}
 			<div className="flex items-center justify-between border-b p-3">
 				<h2 className="font-semibold text-sm">Conversations</h2>
-				<Button variant="ghost" size="icon" className="size-8" onClick={handleNewThread} title="New Chat">
+				<Button
+					variant="ghost"
+					size="icon"
+					className="size-8"
+					onClick={handleNewThread}
+					title="New Chat"
+				>
 					<PlusIcon className="size-4" />
 				</Button>
 			</div>

@@ -1,6 +1,6 @@
 import Image from "next/image";
-import { Streamdown } from "streamdown";
 import type { Components } from "react-markdown";
+import { Streamdown } from "streamdown";
 import { cn } from "@/lib/utils";
 
 interface MarkdownViewerProps {
@@ -68,12 +68,8 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 				<table className="min-w-full divide-y divide-border" {...props} />
 			</div>
 		),
-		th: ({ ...props }) => (
-			<th className="px-3 py-2 text-left font-medium bg-muted" {...props} />
-		),
-		td: ({ ...props }) => (
-			<td className="px-3 py-2 border-t border-border" {...props} />
-		),
+		th: ({ ...props }) => <th className="px-3 py-2 text-left font-medium bg-muted" {...props} />,
+		td: ({ ...props }) => <td className="px-3 py-2 border-t border-border" {...props} />,
 		code: ({ className, children, ...props }) => {
 			const match = /language-(\w+)/.exec(className || "");
 			const isInline = !match;
@@ -96,11 +92,13 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 	};
 
 	return (
-		<div className={cn("prose prose-sm dark:prose-invert max-w-none overflow-hidden [&_pre]:overflow-x-auto [&_code]:wrap-break-word [&_table]:block [&_table]:overflow-x-auto", className)}>
-			<Streamdown
-				components={components}
-				shikiTheme={["github-light", "github-dark"]}
-			>
+		<div
+			className={cn(
+				"prose prose-sm dark:prose-invert max-w-none overflow-hidden [&_pre]:overflow-x-auto [&_code]:wrap-break-word [&_table]:block [&_table]:overflow-x-auto",
+				className
+			)}
+		>
+			<Streamdown components={components} shikiTheme={["github-light", "github-dark"]}>
 				{content}
 			</Streamdown>
 		</div>

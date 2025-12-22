@@ -669,7 +669,13 @@
 		"more_options": "More options",
 		"clear_search": "Clear search",
 		"view_all_notes": "View all notes",
-		"add_note": "Add note"
+		"add_note": "Add note",
+		"archive": "Archive",
+		"unarchive": "Restore",
+		"chat_archived": "Chat archived",
+		"chat_unarchived": "Chat restored",
+		"no_archived_chats": "No archived chats",
+		"error_archiving_chat": "Failed to archive chat"
 	},
 	"errors": {
 		"something_went_wrong": "Something went wrong",

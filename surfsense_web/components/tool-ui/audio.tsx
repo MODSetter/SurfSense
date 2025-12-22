@@ -25,15 +25,7 @@ function formatTime(seconds: number): string {
 	return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function Audio({
-	id,
-	src,
-	title,
-	description,
-	artwork,
-	durationMs,
-	className,
-}: AudioProps) {
+export function Audio({ id, src, title, description, artwork, durationMs, className }: AudioProps) {
 	const audioRef = useRef<HTMLAudioElement>(null);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
@@ -158,7 +150,7 @@ export function Audio({
 			<div
 				className={cn(
 					"flex items-center gap-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4",
-					className,
+					className
 				)}
 			>
 				<div className="flex size-16 items-center justify-center rounded-lg bg-destructive/10">
@@ -177,7 +169,7 @@ export function Audio({
 			id={id}
 			className={cn(
 				"group relative overflow-hidden rounded-xl border bg-gradient-to-br from-background to-muted/30 p-4 shadow-sm transition-all hover:shadow-md",
-				className,
+				className
 			)}
 		>
 			{/* Hidden audio element */}
@@ -190,13 +182,7 @@ export function Audio({
 				<div className="relative shrink-0">
 					<div className="relative size-20 overflow-hidden rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 shadow-inner">
 						{artwork ? (
-							<Image
-								src={artwork}
-								alt={title}
-								fill
-								className="object-cover"
-								unoptimized
-							/>
+							<Image src={artwork} alt={title} fill className="object-cover" unoptimized />
 						) : (
 							<div className="flex size-full items-center justify-center">
 								<Volume2Icon className="size-8 text-primary/50" />
@@ -224,9 +210,7 @@ export function Audio({
 					<div className="min-w-0">
 						<h3 className="truncate font-semibold text-foreground">{title}</h3>
 						{description && (
-							<p className="mt-0.5 line-clamp-1 text-muted-foreground text-sm">
-								{description}
-							</p>
+							<p className="mt-0.5 line-clamp-1 text-muted-foreground text-sm">{description}</p>
 						)}
 					</div>
 
@@ -271,17 +255,8 @@ export function Audio({
 
 					{/* Volume control */}
 					<div className="flex items-center gap-2">
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={toggleMute}
-							className="size-8"
-						>
-							{isMuted ? (
-								<VolumeXIcon className="size-4" />
-							) : (
-								<Volume2Icon className="size-4" />
-							)}
+						<Button variant="ghost" size="icon" onClick={toggleMute} className="size-8">
+							{isMuted ? <VolumeXIcon className="size-4" /> : <Volume2Icon className="size-4" />}
 						</Button>
 						<Slider
 							value={[isMuted ? 0 : volume]}
@@ -294,12 +269,7 @@ export function Audio({
 				</div>
 
 				{/* Download button */}
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={handleDownload}
-					className="gap-2"
-				>
+				<Button variant="outline" size="sm" onClick={handleDownload} className="gap-2">
 					<DownloadIcon className="size-4" />
 					Download
 				</Button>
@@ -307,4 +277,3 @@ export function Audio({
 		</div>
 	);
 }
-

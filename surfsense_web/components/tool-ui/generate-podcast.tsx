@@ -4,13 +4,10 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, Loader2Icon, MicIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Audio } from "@/components/tool-ui/audio";
+import type { PodcastTranscriptEntry } from "@/contracts/types/podcast.types";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
-import {
-	clearActivePodcastTaskId,
-	setActivePodcastTaskId,
-} from "@/lib/chat/podcast-state";
-import type { PodcastTranscriptEntry } from "@/contracts/types/podcast.types";
+import { clearActivePodcastTaskId, setActivePodcastTaskId } from "@/lib/chat/podcast-state";
 
 /**
  * Type definitions for the generate_podcast tool
@@ -223,9 +220,7 @@ function PodcastPlayer({
 					<div className="mt-3 space-y-3 max-h-96 overflow-y-auto">
 						{transcript.map((entry, idx) => (
 							<div key={`${idx}-${entry.speaker_id}`} className="text-sm">
-								<span className="font-medium text-primary">
-									Speaker {entry.speaker_id + 1}:
-								</span>{" "}
+								<span className="font-medium text-primary">Speaker {entry.speaker_id + 1}:</span>{" "}
 								<span className="text-muted-foreground">{entry.dialog}</span>
 							</div>
 						))}
@@ -239,13 +234,7 @@ function PodcastPlayer({
 /**
  * Polling component that checks task status and shows player when complete
  */
-function PodcastTaskPoller({
-	taskId,
-	title,
-}: {
-	taskId: string;
-	title: string;
-}) {
+function PodcastTaskPoller({ taskId, title }: { taskId: string; title: string }) {
 	const [taskStatus, setTaskStatus] = useState<TaskStatusResponse>({ status: "processing" });
 	const pollingRef = useRef<NodeJS.Timeout | null>(null);
 

@@ -51,12 +51,17 @@ router = APIRouter()
 @router.get("/threads", response_model=ThreadListResponse)
 async def list_threads(
     search_space_id: int,
+    limit: int | None = None,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     """
     List all threads for the current user in a search space.
     Returns threads and archived_threads for ThreadListPrimitive.
+
+    Args:
+        search_space_id: The search space to list threads for
+        limit: Optional limit on number of threads to return (applies to active threads only)
 
     Requires CHATS_READ permission.
     """
@@ -91,13 +96,17 @@ async def list_threads(
                 id=thread.id,
                 title=thread.title,
                 archived=thread.archived,
-                createdAt=thread.created_at,
-                updatedAt=thread.updated_at,
+                created_at=thread.created_at,
+                updated_at=thread.updated_at,
             )
             if thread.archived:
                 archived_threads.append(item)
             else:
                 threads.append(item)
+
+        # Apply limit to active threads if specified
+        if limit is not None and limit > 0:
+            threads = threads[:limit]
 
         return ThreadListResponse(threads=threads, archived_threads=archived_threads)
 
@@ -111,6 +120,69 @@ async def list_threads(
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred while fetching threads: {e!s}",
+        ) from None
+
+
+@router.get("/threads/search", response_model=list[ThreadListItem])
+async def search_threads(
+    search_space_id: int,
+    title: str,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Search threads by title in a search space.
+
+    Args:
+        search_space_id: The search space to search in
+        title: The search query (case-insensitive partial match)
+
+    Requires CHATS_READ permission.
+    """
+    try:
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.CHATS_READ.value,
+            "You don't have permission to read chats in this search space",
+        )
+
+        # Search threads by title (case-insensitive)
+        query = (
+            select(NewChatThread)
+            .filter(
+                NewChatThread.search_space_id == search_space_id,
+                NewChatThread.user_id == user.id,
+                NewChatThread.title.ilike(f"%{title}%"),
+            )
+            .order_by(NewChatThread.updated_at.desc())
+        )
+
+        result = await session.execute(query)
+        threads = result.scalars().all()
+
+        return [
+            ThreadListItem(
+                id=thread.id,
+                title=thread.title,
+                archived=thread.archived,
+                created_at=thread.created_at,
+                updated_at=thread.updated_at,
+            )
+            for thread in threads
+        ]
+
+    except HTTPException:
+        raise
+    except OperationalError:
+        raise HTTPException(
+            status_code=503, detail="Database operation failed. Please try again later."
+        ) from None
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while searching threads: {e!s}",
         ) from None
 
 
