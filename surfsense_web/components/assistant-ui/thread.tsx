@@ -32,6 +32,12 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useRef, useState, useMemo } from "react";
+import { useAtomValue } from "jotai";
+import { useParams } from "next/navigation";
+import type { Document } from "@/contracts/types/document.types";
+import { documentsAtom } from "@/atoms/documents/document-query.atoms";
+import { DocumentsDataTable } from "@/components/new-chat/DocumentsDataTable";
 
 export const Thread: FC = () => {
 	return (
@@ -141,17 +147,124 @@ const ThreadSuggestions: FC = () => {
 };
 
 const Composer: FC = () => {
+	// ---- State for document mentions ----
+	const [allSelectedDocuments, setAllSelectedDocuments] = useState<Document[]>([]);
+	const [mentionedDocuments, setMentionedDocuments] = useState<Document[]>([]);
+	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
+	const [mentionModalSelectedDocs, setMentionModalSelectedDocs] = useState<Document[]>([]);
+	const [inputValue, setInputValue] = useState("");
+	const inputRef = useRef<HTMLTextAreaElement | null>(null);
+	const documentsResult = useAtomValue(documentsAtom); // Atom fetches all docs for this workspace
+	const allDocuments = documentsResult?.data?.items || [];
+	const { search_space_id } = useParams();
+	const searchSpaceId = typeof search_space_id === "string" ? parseInt(search_space_id, 10) : 0;
+
+	const handleInputOrKeyUp = (
+		e: React.FormEvent<HTMLTextAreaElement> | React.KeyboardEvent<HTMLTextAreaElement>
+	) => {
+		const textarea = e.currentTarget;
+		const value = textarea.value;
+		setInputValue(value);
+
+		// Regex: finds all [title] occurrences
+		const mentionRegex = /\[([^\]]+)\]/g;
+		const titlesMentioned: string[] = [];
+		let match;
+		while ((match = mentionRegex.exec(value)) !== null) {
+			titlesMentioned.push(match[1]);
+		}
+
+		// Use allSelectedDocuments to filter down for current chips
+		setMentionedDocuments(
+			allSelectedDocuments.filter((doc) => titlesMentioned.includes(doc.title))
+		);
+
+		const selectionStart = textarea.selectionStart;
+		// Only open if the last character before the caret is exactly '@'
+		if (
+			selectionStart !== null &&
+			value[selectionStart - 1] === "@" &&
+			value.length === selectionStart
+		) {
+			setShowDocumentPopover(true);
+		} else {
+			setShowDocumentPopover(false);
+		}
+	};
+
+	const handleDocumentsMention = (documents: Document[]) => {
+		// Add newly selected docs to allSelectedDocuments
+		setAllSelectedDocuments(prev => {
+			const toAdd = documents.filter(doc => !prev.find(p => p.id === doc.id));
+			return [...prev, ...toAdd];
+		});
+		let newValue = inputValue;
+		documents.forEach((doc) => {
+			const refString = `[${doc.title}]`;
+			if (!newValue.includes(refString)) {
+				if (newValue.trim() !== "" && !newValue.endsWith(" ")) {
+					newValue += " ";
+				}
+				newValue += refString;
+			}
+		});
+		setInputValue(newValue);
+		// Run the chip update as well right after change
+		const mentionRegex = /\[([^\]]+)\]/g;
+		const titlesMentioned: string[] = [];
+		let match;
+		while ((match = mentionRegex.exec(newValue)) !== null) {
+			titlesMentioned.push(match[1]);
+		}
+		setMentionedDocuments(
+			allSelectedDocuments.filter(doc => titlesMentioned.includes(doc.title))
+		);
+	};
+
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
+				{/* -------- Input field w/ refs and handlers -------- */}
 				<ComposerPrimitive.Input
+					ref={inputRef}
+					value={inputValue}
+					onInput={handleInputOrKeyUp}
+					onKeyUp={handleInputOrKeyUp}
 					placeholder="Send a message..."
 					className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
 					rows={1}
 					autoFocus
 					aria-label="Message input"
 				/>
+
+				{/* -------- Document mention popover (simple version) -------- */}
+				{showDocumentPopover && (
+					<div
+						style={{ position: "absolute", bottom: "8rem", left: 0, zIndex: 50 }}
+						className="shadow-lg rounded-md border bg-popover"
+					>
+						<div className="p-2 max-h-96 w-full overflow-auto">
+							<DocumentsDataTable
+								searchSpaceId={Number(search_space_id)}
+								onSelectionChange={handleDocumentsMention}
+								onDone={() => setShowDocumentPopover(false)}
+								initialSelectedDocuments={mentionedDocuments}
+								viewOnly={true}
+							/>
+						</div>
+					</div>
+				)}
+				{/* ---- Mention chips for selected/mentioned documents ---- */}
+								{mentionedDocuments.length > 0 && (
+					<div className="aui-composer-mentioned-docs mx-2 flex flex-wrap gap-2">
+						{mentionedDocuments.map((doc) => (
+							<span key={doc.id} className="px-2 py-1 rounded bg-accent text-xs font-semibold max-w-xs truncate" title={doc.title}>
+								{doc.title}
+							</span>
+						))}
+					</div>
+				)}
 				<ComposerAction />
 			</ComposerPrimitive.AttachmentDropzone>
 		</ComposerPrimitive.Root>
