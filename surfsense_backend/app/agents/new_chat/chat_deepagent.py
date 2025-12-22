@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
 from app.agents.new_chat.knowledge_base import create_search_knowledge_base_tool
+from app.agents.new_chat.link_preview import create_link_preview_tool
 from app.agents.new_chat.podcast import create_generate_podcast_tool
 from app.agents.new_chat.system_prompt import build_surfsense_system_prompt
 from app.services.connector_service import ConnectorService
@@ -34,6 +35,7 @@ def create_surfsense_deep_agent(
     user_instructions: str | None = None,
     enable_citations: bool = True,
     enable_podcast: bool = True,
+    enable_link_preview: bool = True,
     additional_tools: Sequence[BaseTool] | None = None,
 ):
     """
@@ -53,6 +55,8 @@ def create_surfsense_deep_agent(
                          When False, the agent will not be instructed to add citations to responses.
         enable_podcast: Whether to include the podcast generation tool (default: True).
                        When True and user_id is provided, the agent can generate podcasts.
+        enable_link_preview: Whether to include the link preview tool (default: True).
+                            When True, the agent can fetch and display rich link previews.
         additional_tools: Optional sequence of additional tools to inject into the agent.
                          The search_knowledge_base tool will always be included.
 
@@ -77,6 +81,11 @@ def create_surfsense_deep_agent(
             user_id=str(user_id),
         )
         tools.append(podcast_tool)
+
+    # Add link preview tool if enabled
+    if enable_link_preview:
+        link_preview_tool = create_link_preview_tool()
+        tools.append(link_preview_tool)
 
     if additional_tools:
         tools.extend(additional_tools)

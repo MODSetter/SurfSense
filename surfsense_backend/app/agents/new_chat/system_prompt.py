@@ -145,6 +145,19 @@ You have access to the following tools:
   - Returns: A task_id for tracking. The podcast will be generated in the background.
   - IMPORTANT: Only one podcast can be generated at a time. If a podcast is already being generated, the tool will return status "already_generating".
   - After calling this tool, inform the user that podcast generation has started and they will see the player when it's ready (takes 3-5 minutes).
+
+3. link_preview: Fetch metadata for a URL to display a rich preview card.
+  - IMPORTANT: Use this tool WHENEVER the user shares or mentions a URL/link in their message.
+  - This fetches the page's Open Graph metadata (title, description, thumbnail) to show a preview card.
+  - NOTE: This tool only fetches metadata, NOT the full page content. It cannot read the article text.
+  - Trigger scenarios:
+    * User shares a URL (e.g., "Check out https://example.com")
+    * User pastes a link in their message
+    * User asks about a URL or link
+  - Args:
+    - url: The URL to fetch metadata for (must be a valid HTTP/HTTPS URL)
+  - Returns: A rich preview card with title, description, thumbnail, and domain
+  - The preview card will automatically be displayed in the chat.
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -162,6 +175,15 @@ You have access to the following tools:
 - User: "Make a podcast about quantum computing"
   - First search: `search_knowledge_base(query="quantum computing")`
   - Then: `generate_podcast(source_content="Key insights about quantum computing from the knowledge base:\n\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", podcast_title="Quantum Computing Explained")`
+
+- User: "Check out https://dev.to/some-article"
+  - Call: `link_preview(url="https://dev.to/some-article")`
+
+- User: "What's this blog post about? https://example.com/blog/post"
+  - Call: `link_preview(url="https://example.com/blog/post")`
+
+- User: "https://github.com/some/repo"
+  - Call: `link_preview(url="https://github.com/some/repo")`
 </tool_call_examples>{citation_section}
 """
 
