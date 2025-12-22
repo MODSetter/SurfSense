@@ -133,7 +133,7 @@ export default function GoogleGmailConnectorPage() {
 							<Button
 								type="button"
 								variant="outline"
-								onClick={() => router.back()}
+								onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}
 							>
 								Cancel
 							</Button>

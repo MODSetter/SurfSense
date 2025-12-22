@@ -36,7 +36,6 @@ import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-quer
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { connectorCategories } from "@/components/sources/connector-data";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -326,56 +325,9 @@ const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const { connectors, isLoading } = useSearchSourceConnectors(false, searchSpaceId ? Number(searchSpaceId) : undefined);
 	const [isOpen, setIsOpen] = useState(false);
-	const [searchQuery, setSearchQuery] = useState("");
 	const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	
 	const hasConnectors = connectors.length > 0;
-	
-	// Get connected connector types for comparison
-	const connectedTypes = new Set(connectors.map(c => c.connector_type));
-	
-	// Flatten all available connectors from categories
-	const allAvailableConnectors = connectorCategories.flatMap(category => 
-		category.connectors.filter(c => c.status === "available")
-	);
-	
-	// Filter connectors based on search query
-	const filteredConnectors = allAvailableConnectors.filter(connector =>
-		connector.title.toLowerCase().includes(searchQuery.toLowerCase())
-	);
-	
-	// Filter connected connectors based on search query
-	const filteredConnectedConnectors = connectors.filter(connector =>
-		connector.name.toLowerCase().includes(searchQuery.toLowerCase())
-	);
-	
-	// Filter available (not connected) connectors
-	const filteredAvailableConnectors = filteredConnectors.filter(connector => {
-		// Map connector id to connector_type for comparison
-		const connectorTypeMap: Record<string, string> = {
-			"webcrawler-connector": "WEBCRAWLER_CONNECTOR",
-			"tavily-api": "TAVILY_API",
-			"searxng": "SEARXNG_API",
-			"linkup-api": "LINKUP_API",
-			"baidu-search-api": "BAIDU_SEARCH_API",
-			"slack-connector": "SLACK_CONNECTOR",
-			"discord-connector": "DISCORD_CONNECTOR",
-			"linear-connector": "LINEAR_CONNECTOR",
-			"jira-connector": "JIRA_CONNECTOR",
-			"clickup-connector": "CLICKUP_CONNECTOR",
-			"notion-connector": "NOTION_CONNECTOR",
-			"confluence-connector": "CONFLUENCE_CONNECTOR",
-			"bookstack-connector": "BOOKSTACK_CONNECTOR",
-			"github-connector": "GITHUB_CONNECTOR",
-			"elasticsearch-connector": "ELASTICSEARCH_CONNECTOR",
-			"airtable-connector": "AIRTABLE_CONNECTOR",
-			"google-calendar-connector": "GOOGLE_CALENDAR_CONNECTOR",
-			"google-gmail-connector": "GOOGLE_GMAIL_CONNECTOR",
-			"luma-connector": "LUMA_CONNECTOR",
-		};
-		const connectorType = connectorTypeMap[connector.id];
-		return !connectorType || !connectedTypes.has(connectorType);
-	});
 	
 	const handleMouseEnter = useCallback(() => {
 		// Clear any pending close timeout
@@ -390,7 +342,6 @@ const ConnectorIndicator: FC = () => {
 		// Delay closing by 150ms for better UX
 		closeTimeoutRef.current = setTimeout(() => {
 			setIsOpen(false);
-			setSearchQuery(""); // Reset search when closing
 		}, 150);
 	}, []);
 	
@@ -425,75 +376,48 @@ const ConnectorIndicator: FC = () => {
 			<PopoverContent 
 				side="bottom" 
 				align="start" 
-				className="w-72 p-0"
+				className="w-64 p-3"
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
 			>
-				<div className="flex flex-col max-h-[250px] overflow-hidden rounded-md">
-					{/* Search input - sticky at top */}
-					<div className="p-2 border-b sticky top-0 bg-popover z-10 rounded-t-md">
-						<div className="relative">
-							<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-							<input
-								type="text"
-								placeholder="Search connectors..."
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								className="w-full pl-8 pr-3 py-1.5 text-sm bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground"
-							/>
-						</div>
-					</div>
-					
-					{/* Connectors list - scrollable */}
-					<div className="overflow-y-auto flex-1 p-1">
-						{/* Connected connectors first */}
-						{filteredConnectedConnectors.length > 0 && (
-							<>
-								{filteredConnectedConnectors.map((connector) => (
-									<Link
-										key={connector.id}
-										href={`/dashboard/${searchSpaceId}/connectors/${connector.id}`}
-										className="flex items-center justify-between px-2 py-2 rounded-md hover:bg-muted transition-colors group"
-									>
-										<div className="flex items-center gap-2.5">
-											<div className="size-6 flex items-center justify-center text-muted-foreground">
-												{getConnectorIcon(connector.connector_type, "size-5")}
-											</div>
-											<span className="text-sm">{connector.name}</span>
-										</div>
-										<CheckCircle2 className="size-4 text-emerald-500" />
-									</Link>
-								))}
-								{filteredAvailableConnectors.length > 0 && (
-									<div className="border-t my-1" />
-								)}
-							</>
-						)}
-						
-						{/* Available connectors */}
-						{filteredAvailableConnectors.length > 0 ? (
-							filteredAvailableConnectors.map((connector) => (
-								<Link
+				{hasConnectors ? (
+					<div className="space-y-2">
+						<p className="text-xs font-medium text-muted-foreground mb-2">
+							Connected Sources ({connectors.length})
+						</p>
+						<div className="flex flex-wrap gap-2">
+							{connectors.map((connector) => (
+								<div
 									key={connector.id}
-									href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}
-									className="flex items-center justify-between px-2 py-2 rounded-md hover:bg-muted transition-colors group"
+									className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs"
 								>
-									<div className="flex items-center gap-2.5">
-										<div className="size-6 flex items-center justify-center text-muted-foreground">
-											{connector.icon}
-										</div>
-										<span className="text-sm">{connector.title}</span>
-									</div>
-									<Plus className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-								</Link>
-							))
-						) : filteredConnectedConnectors.length === 0 ? (
-							<div className="px-2 py-4 text-center text-sm text-muted-foreground">
-								No connectors found
-							</div>
-						) : null}
+									{getConnectorIcon(connector.connector_type, "size-3")}
+									<span className="truncate max-w-[100px]">{connector.name}</span>
+								</div>
+							))}
+						</div>
+						<Link
+							href={`/dashboard/${searchSpaceId}/connectors`}
+							className="block text-xs text-primary hover:underline mt-2"
+						>
+							Manage connectors →
+						</Link>
 					</div>
-				</div>
+				) : (
+					<div className="space-y-2">
+						<p className="text-sm font-medium">No connectors yet</p>
+						<p className="text-xs text-muted-foreground">
+							Connect your first data source to enhance search results.
+						</p>
+						<Link
+							href={`/dashboard/${searchSpaceId}/connectors/add`}
+							className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors mt-1"
+						>
+							<Plus className="size-3" />
+							Add Connector
+						</Link>
+					</div>
+				)}
 			</PopoverContent>
 		</Popover>
 	);

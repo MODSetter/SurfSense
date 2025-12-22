@@ -112,7 +112,7 @@ export default function ConfluenceConnectorPage() {
 			<Button
 				variant="ghost"
 				className="mb-6"
-				onClick={() => router.back()}
+				onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}
 			>
 				<ArrowLeft className="mr-2 h-4 w-4" />
 				Back to Connectors
