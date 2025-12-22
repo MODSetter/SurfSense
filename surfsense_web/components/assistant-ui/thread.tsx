@@ -21,7 +21,9 @@ import {
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
+import { useParams } from "next/navigation";
 import type { FC } from "react";
+import { useRef, useState } from "react";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -30,14 +32,10 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { useRef, useState, useMemo } from "react";
-import { useAtomValue } from "jotai";
-import { useParams } from "next/navigation";
-import type { Document } from "@/contracts/types/document.types";
-import { documentsAtom } from "@/atoms/documents/document-query.atoms";
 import { DocumentsDataTable } from "@/components/new-chat/DocumentsDataTable";
+import { Button } from "@/components/ui/button";
+import type { Document } from "@/contracts/types/document.types";
+import { cn } from "@/lib/utils";
 
 export const Thread: FC = () => {
 	return (
@@ -151,13 +149,9 @@ const Composer: FC = () => {
 	const [allSelectedDocuments, setAllSelectedDocuments] = useState<Document[]>([]);
 	const [mentionedDocuments, setMentionedDocuments] = useState<Document[]>([]);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
-	const [mentionModalSelectedDocs, setMentionModalSelectedDocs] = useState<Document[]>([]);
 	const [inputValue, setInputValue] = useState("");
 	const inputRef = useRef<HTMLTextAreaElement | null>(null);
-	const documentsResult = useAtomValue(documentsAtom); // Atom fetches all docs for this workspace
-	const allDocuments = documentsResult?.data?.items || [];
 	const { search_space_id } = useParams();
-	const searchSpaceId = typeof search_space_id === "string" ? parseInt(search_space_id, 10) : 0;
 
 	const handleInputOrKeyUp = (
 		e: React.FormEvent<HTMLTextAreaElement> | React.KeyboardEvent<HTMLTextAreaElement>
@@ -194,8 +188,8 @@ const Composer: FC = () => {
 
 	const handleDocumentsMention = (documents: Document[]) => {
 		// Add newly selected docs to allSelectedDocuments
-		setAllSelectedDocuments(prev => {
-			const toAdd = documents.filter(doc => !prev.find(p => p.id === doc.id));
+		setAllSelectedDocuments((prev) => {
+			const toAdd = documents.filter((doc) => !prev.find((p) => p.id === doc.id));
 			return [...prev, ...toAdd];
 		});
 		let newValue = inputValue;
@@ -217,7 +211,7 @@ const Composer: FC = () => {
 			titlesMentioned.push(match[1]);
 		}
 		setMentionedDocuments(
-			allSelectedDocuments.filter(doc => titlesMentioned.includes(doc.title))
+			allSelectedDocuments.filter((doc) => titlesMentioned.includes(doc.title))
 		);
 	};
 
@@ -256,10 +250,14 @@ const Composer: FC = () => {
 					</div>
 				)}
 				{/* ---- Mention chips for selected/mentioned documents ---- */}
-								{mentionedDocuments.length > 0 && (
+				{mentionedDocuments.length > 0 && (
 					<div className="aui-composer-mentioned-docs mx-2 flex flex-wrap gap-2">
 						{mentionedDocuments.map((doc) => (
-							<span key={doc.id} className="px-2 py-1 rounded bg-accent text-xs font-semibold max-w-xs truncate" title={doc.title}>
+							<span
+								key={doc.id}
+								className="px-2 py-1 rounded bg-accent text-xs font-semibold max-w-xs truncate"
+								title={doc.title}
+							>
 								{doc.title}
 							</span>
 						))}
