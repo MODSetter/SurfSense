@@ -381,27 +381,36 @@ const ConnectorIndicator: FC = () => {
 				onMouseLeave={handleMouseLeave}
 			>
 				{hasConnectors ? (
-					<div className="space-y-2">
-						<p className="text-xs font-medium text-muted-foreground mb-2">
-							Connected Sources ({connectors.length})
-						</p>
+					<div className="space-y-3">
+						<div className="flex items-center justify-between">
+							<p className="text-xs font-medium text-muted-foreground">
+								Connected Sources
+							</p>
+							<span className="text-xs font-medium bg-muted px-1.5 py-0.5 rounded">
+								{connectors.length}
+							</span>
+						</div>
 						<div className="flex flex-wrap gap-2">
 							{connectors.map((connector) => (
 								<div
 									key={connector.id}
-									className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs"
+									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
 								>
-									{getConnectorIcon(connector.connector_type, "size-3")}
+									{getConnectorIcon(connector.connector_type, "size-3.5")}
 									<span className="truncate max-w-[100px]">{connector.name}</span>
 								</div>
 							))}
 						</div>
-						<Link
-							href={`/dashboard/${searchSpaceId}/connectors`}
-							className="block text-xs text-primary hover:underline mt-2"
-						>
-							Manage connectors →
-						</Link>
+						<div className="pt-1 border-t border-border/50">
+							<Link
+								href={`/dashboard/${searchSpaceId}/connectors`}
+								className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+							>
+								<Plug2 className="size-3" />
+								Manage connectors
+								<ChevronRightIcon className="size-3" />
+							</Link>
+						</div>
 					</div>
 				) : (
 					<div className="space-y-2">
