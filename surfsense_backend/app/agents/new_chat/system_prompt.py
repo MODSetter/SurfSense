@@ -173,6 +173,29 @@ You have access to the following tools:
     - description: Optional description providing context about the image
   - Returns: An image card with the image, title, and description
   - The image will automatically be displayed in the chat.
+
+5. scrape_webpage: Scrape and extract the main content from a webpage.
+  - Use this when the user wants you to READ and UNDERSTAND the actual content of a webpage.
+  - IMPORTANT: This is different from link_preview:
+    * link_preview: Only fetches metadata (title, description, thumbnail) for display
+    * scrape_webpage: Actually reads the FULL page content so you can analyze/summarize it
+  - Trigger scenarios:
+    * "Read this article and summarize it"
+    * "What does this page say about X?"
+    * "Summarize this blog post for me"
+    * "Tell me the key points from this article"
+    * "What's in this webpage?"
+    * "Can you analyze this article?"
+  - Args:
+    - url: The URL of the webpage to scrape (must be HTTP/HTTPS)
+    - max_length: Maximum content length to return (default: 50000 chars)
+  - Returns: The page title, description, full content (in markdown), word count, and metadata
+  - After scraping, you will have the full article text and can analyze, summarize, or answer questions about it.
+  - IMAGES: The scraped content may contain image URLs in markdown format like `![alt text](image_url)`.
+    * When you find relevant/important images in the scraped content, use the `display_image` tool to show them to the user.
+    * This makes your response more visual and engaging.
+    * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
+    * Don't show every image - just the most relevant 1-3 images that enhance understanding.
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -205,6 +228,24 @@ You have access to the following tools:
 
 - User: "Can you display a diagram of a neural network?"
   - Call: `display_image(src="https://example.com/neural-network.png", alt="Neural network diagram", title="Neural Network Architecture", description="A visual representation of a neural network with input, hidden, and output layers")`
+
+- User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
+  - Call: `scrape_webpage(url="https://example.com/blog/ai-trends")`
+  - After getting the content, provide a summary based on the scraped text
+
+- User: "What does this page say about machine learning? https://docs.example.com/ml-guide"
+  - Call: `scrape_webpage(url="https://docs.example.com/ml-guide")`
+  - Then answer the question using the extracted content
+
+- User: "Summarize this blog post: https://medium.com/some-article"
+  - Call: `scrape_webpage(url="https://medium.com/some-article")`
+  - Provide a comprehensive summary of the article content
+
+- User: "Read this tutorial and explain it: https://example.com/ml-tutorial"
+  - First: `scrape_webpage(url="https://example.com/ml-tutorial")`
+  - Then, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
+    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
+  - Then provide your explanation, referencing the displayed image
 </tool_call_examples>{citation_section}
 """
 

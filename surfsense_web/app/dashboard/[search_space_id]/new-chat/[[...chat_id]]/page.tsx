@@ -13,6 +13,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
+import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
@@ -81,7 +82,7 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 /**
  * Tools that should render custom UI in the chat.
  */
-const TOOLS_WITH_UI = new Set(["generate_podcast", "link_preview", "display_image"]);
+const TOOLS_WITH_UI = new Set(["generate_podcast", "link_preview", "display_image", "scrape_webpage"]);
 
 /**
  * Type for thinking step data from the backend
@@ -245,47 +246,74 @@ export default function NewChatPage() {
 
 			// Prepare assistant message
 			const assistantMsgId = `msg-assistant-${Date.now()}`;
-			let accumulatedText = "";
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
-			const toolCalls = new Map<
-				string,
-				{
-					toolCallId: string;
-					toolName: string;
-					args: Record<string, unknown>;
-					result?: unknown;
+			
+			// Ordered content parts to preserve inline tool call positions
+			// Each part is either a text segment or a tool call
+			type ContentPart = 
+				| { type: "text"; text: string }
+				| {
+						type: "tool-call";
+						toolCallId: string;
+						toolName: string;
+						args: Record<string, unknown>;
+						result?: unknown;
+				  };
+			const contentParts: ContentPart[] = [];
+			
+			// Track the current text segment index (for appending text deltas)
+			let currentTextPartIndex = -1;
+			
+			// Map to track tool call indices for updating results
+			const toolCallIndices = new Map<string, number>();
+			
+			// Helper to get or create the current text part for appending text
+			const appendText = (delta: string) => {
+				if (currentTextPartIndex >= 0 && contentParts[currentTextPartIndex]?.type === "text") {
+					// Append to existing text part
+					(contentParts[currentTextPartIndex] as { type: "text"; text: string }).text += delta;
+				} else {
+					// Create new text part
+					contentParts.push({ type: "text", text: delta });
+					currentTextPartIndex = contentParts.length - 1;
 				}
-			>();
+			};
+			
+			// Helper to add a tool call (this "breaks" the current text segment)
+			const addToolCall = (toolCallId: string, toolName: string, args: Record<string, unknown>) => {
+				if (TOOLS_WITH_UI.has(toolName)) {
+					contentParts.push({
+						type: "tool-call",
+						toolCallId,
+						toolName,
+						args,
+					});
+					toolCallIndices.set(toolCallId, contentParts.length - 1);
+					// Reset text part index so next text creates a new segment
+					currentTextPartIndex = -1;
+				}
+			};
+			
+			// Helper to update a tool call's args or result
+			const updateToolCall = (toolCallId: string, update: { args?: Record<string, unknown>; result?: unknown }) => {
+				const index = toolCallIndices.get(toolCallId);
+				if (index !== undefined && contentParts[index]?.type === "tool-call") {
+					const tc = contentParts[index] as ContentPart & { type: "tool-call" };
+					if (update.args) tc.args = update.args;
+					if (update.result !== undefined) tc.result = update.result;
+				}
+			};
 
 			// Helper to build content for UI (without thinking-steps)
 			const buildContentForUI = (): ThreadMessageLike["content"] => {
-				const parts: Array<
-					| { type: "text"; text: string }
-					| {
-							type: "tool-call";
-							toolCallId: string;
-							toolName: string;
-							args: Record<string, unknown>;
-							result?: unknown;
-					  }
-				> = [];
-				
-				if (accumulatedText) {
-					parts.push({ type: "text", text: accumulatedText });
-				}
-				for (const toolCall of toolCalls.values()) {
-					if (TOOLS_WITH_UI.has(toolCall.toolName)) {
-						parts.push({
-							type: "tool-call",
-							toolCallId: toolCall.toolCallId,
-							toolName: toolCall.toolName,
-							args: toolCall.args,
-							result: toolCall.result,
-						});
-					}
-				}
-				return parts.length > 0
-					? (parts as ThreadMessageLike["content"])
+				// Filter to only include text parts with content and tool-calls with UI
+				const filtered = contentParts.filter((part) => {
+					if (part.type === "text") return part.text.length > 0;
+					if (part.type === "tool-call") return TOOLS_WITH_UI.has(part.toolName);
+					return false;
+				});
+				return filtered.length > 0
+					? (filtered as ThreadMessageLike["content"])
 					: [{ type: "text", text: "" }];
 			};
 
@@ -301,20 +329,15 @@ export default function NewChatPage() {
 					});
 				}
 				
-				if (accumulatedText) {
-					parts.push({ type: "text", text: accumulatedText });
-				}
-				for (const toolCall of toolCalls.values()) {
-					if (TOOLS_WITH_UI.has(toolCall.toolName)) {
-						parts.push({
-							type: "tool-call",
-							toolCallId: toolCall.toolCallId,
-							toolName: toolCall.toolName,
-							args: toolCall.args,
-							result: toolCall.result,
-						});
+				// Add content parts (filtered)
+				for (const part of contentParts) {
+					if (part.type === "text" && part.text.length > 0) {
+						parts.push(part);
+					} else if (part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName)) {
+						parts.push(part);
 					}
 				}
+				
 				return parts.length > 0 ? parts : [{ type: "text", text: "" }];
 			};
 
@@ -399,7 +422,7 @@ export default function NewChatPage() {
 
 									switch (parsed.type) {
 										case "text-delta":
-											accumulatedText += parsed.delta;
+											appendText(parsed.delta);
 											setMessages((prev) =>
 												prev.map((m) =>
 													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
@@ -408,11 +431,8 @@ export default function NewChatPage() {
 											break;
 
 										case "tool-input-start":
-											toolCalls.set(parsed.toolCallId, {
-												toolCallId: parsed.toolCallId,
-												toolName: parsed.toolName,
-												args: {},
-											});
+											// Add tool call inline - this breaks the current text segment
+											addToolCall(parsed.toolCallId, parsed.toolName, {});
 											setMessages((prev) =>
 												prev.map((m) =>
 													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
@@ -421,14 +441,12 @@ export default function NewChatPage() {
 											break;
 
 										case "tool-input-available": {
-											const tc = toolCalls.get(parsed.toolCallId);
-											if (tc) tc.args = parsed.input || {};
-											else
-												toolCalls.set(parsed.toolCallId, {
-													toolCallId: parsed.toolCallId,
-													toolName: parsed.toolName,
-													args: parsed.input || {},
-												});
+											// Update existing tool call's args, or add if not exists
+											if (toolCallIndices.has(parsed.toolCallId)) {
+												updateToolCall(parsed.toolCallId, { args: parsed.input || {} });
+											} else {
+												addToolCall(parsed.toolCallId, parsed.toolName, parsed.input || {});
+											}
 											setMessages((prev) =>
 												prev.map((m) =>
 													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
@@ -438,15 +456,17 @@ export default function NewChatPage() {
 										}
 
 										case "tool-output-available": {
-											const tc = toolCalls.get(parsed.toolCallId);
-											if (tc) {
-												tc.result = parsed.output;
-												if (
-													tc.toolName === "generate_podcast" &&
-													parsed.output?.status === "processing" &&
-													parsed.output?.task_id
-												) {
-													setActivePodcastTaskId(parsed.output.task_id);
+											// Update the tool call with its result
+											updateToolCall(parsed.toolCallId, { result: parsed.output });
+											// Handle podcast-specific logic
+											if (parsed.output?.status === "processing" && parsed.output?.task_id) {
+												// Check if this is a podcast tool by looking at the content part
+												const idx = toolCallIndices.get(parsed.toolCallId);
+												if (idx !== undefined) {
+													const part = contentParts[idx];
+													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+														setActivePodcastTaskId(parsed.output.task_id);
+													}
 												}
 											}
 											setMessages((prev) =>
@@ -491,7 +511,7 @@ export default function NewChatPage() {
 
 				// Persist assistant message (with thinking steps for restoration on refresh)
 				const finalContent = buildContentForPersistence();
-				if (accumulatedText || toolCalls.size > 0) {
+				if (contentParts.length > 0) {
 					appendMessage(threadId, {
 						role: "assistant",
 						content: finalContent,
@@ -593,6 +613,7 @@ export default function NewChatPage() {
 			<GeneratePodcastToolUI />
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
+			<ScrapeWebpageToolUI />
 			<div className="h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden">
 				<Thread messageThinkingSteps={messageThinkingSteps} />
 			</div>

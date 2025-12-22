@@ -319,6 +319,20 @@ async def stream_new_chat(
                         status="in_progress",
                         items=last_active_step_items,
                     )
+                elif tool_name == "scrape_webpage":
+                    url = (
+                        tool_input.get("url", "")
+                        if isinstance(tool_input, dict)
+                        else str(tool_input)
+                    )
+                    last_active_step_title = "Scraping webpage"
+                    last_active_step_items = [f"URL: {url[:80]}{'...' if len(url) > 80 else ''}"]
+                    yield streaming_service.format_thinking_step(
+                        step_id=tool_step_id,
+                        title="Scraping webpage",
+                        status="in_progress",
+                        items=last_active_step_items,
+                    )
                 elif tool_name == "generate_podcast":
                     podcast_title = (
                         tool_input.get("podcast_title", "SurfSense Podcast")
@@ -396,6 +410,16 @@ async def stream_new_chat(
                     )
                     yield streaming_service.format_terminal_info(
                         f"Displaying image: {src[:60]}{'...' if len(src) > 60 else ''}",
+                        "info",
+                    )
+                elif tool_name == "scrape_webpage":
+                    url = (
+                        tool_input.get("url", "")
+                        if isinstance(tool_input, dict)
+                        else str(tool_input)
+                    )
+                    yield streaming_service.format_terminal_info(
+                        f"Scraping webpage: {url[:70]}{'...' if len(url) > 70 else ''}",
                         "info",
                     )
                 elif tool_name == "generate_podcast":
@@ -499,6 +523,31 @@ async def stream_new_chat(
                     yield streaming_service.format_thinking_step(
                         step_id=original_step_id,
                         title="Displaying image",
+                        status="completed",
+                        items=completed_items,
+                    )
+                elif tool_name == "scrape_webpage":
+                    # Build completion items for webpage scraping
+                    if isinstance(tool_output, dict):
+                        title = tool_output.get("title", "Webpage")
+                        word_count = tool_output.get("word_count", 0)
+                        has_error = "error" in tool_output
+                        if has_error:
+                            completed_items = [
+                                *last_active_step_items,
+                                f"Error: {tool_output.get('error', 'Failed to scrape')[:50]}",
+                            ]
+                        else:
+                            completed_items = [
+                                *last_active_step_items,
+                                f"Title: {title[:50]}{'...' if len(title) > 50 else ''}",
+                                f"Extracted: {word_count:,} words",
+                            ]
+                    else:
+                        completed_items = [*last_active_step_items, "Content extracted"]
+                    yield streaming_service.format_thinking_step(
+                        step_id=original_step_id,
+                        title="Scraping webpage",
                         status="completed",
                         items=completed_items,
                     )
@@ -629,6 +678,47 @@ async def stream_new_chat(
                         yield streaming_service.format_terminal_info(
                             f"Image displayed: {title[:40]}{'...' if len(title) > 40 else ''}",
                             "success",
+                        )
+                elif tool_name == "scrape_webpage":
+                    # Stream the scrape result so frontend can render the Article component
+                    # Note: We send metadata for display, but content goes to LLM for processing
+                    if isinstance(tool_output, dict):
+                        # Create a display-friendly output (without full content for the card)
+                        display_output = {
+                            k: v for k, v in tool_output.items() if k != "content"
+                        }
+                        # But keep a truncated content preview
+                        if "content" in tool_output:
+                            content = tool_output.get("content", "")
+                            display_output["content_preview"] = (
+                                content[:500] + "..." if len(content) > 500 else content
+                            )
+                        yield streaming_service.format_tool_output_available(
+                            tool_call_id,
+                            display_output,
+                        )
+                    else:
+                        yield streaming_service.format_tool_output_available(
+                            tool_call_id,
+                            {"result": tool_output},
+                        )
+                    # Send terminal message
+                    if isinstance(tool_output, dict) and "error" not in tool_output:
+                        title = tool_output.get("title", "Webpage")
+                        word_count = tool_output.get("word_count", 0)
+                        yield streaming_service.format_terminal_info(
+                            f"Scraped: {title[:40]}{'...' if len(title) > 40 else ''} ({word_count:,} words)",
+                            "success",
+                        )
+                    else:
+                        error_msg = (
+                            tool_output.get("error", "Failed to scrape")
+                            if isinstance(tool_output, dict)
+                            else "Failed to scrape"
+                        )
+                        yield streaming_service.format_terminal_info(
+                            f"Scrape failed: {error_msg}",
+                            "error",
                         )
                 elif tool_name == "search_knowledge_base":
                     # Don't stream the full output for search (can be very large), just acknowledge
