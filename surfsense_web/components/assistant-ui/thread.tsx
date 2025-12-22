@@ -21,7 +21,9 @@ import {
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
+import Image from "next/image";
 import type { FC } from "react";
+import { useAtomValue } from "jotai";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -32,6 +34,7 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 
 export const Thread: FC = () => {
 	return (
@@ -59,7 +62,11 @@ export const Thread: FC = () => {
 
 				<ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
 					<ThreadScrollToBottom />
-					<Composer />
+					<AssistantIf condition={({ thread }) => !thread.isEmpty}>
+						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
+							<Composer />
+						</div>
+					</AssistantIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
 		</ThreadPrimitive.Root>
@@ -80,62 +87,109 @@ const ThreadScrollToBottom: FC = () => {
 	);
 };
 
-const ThreadWelcome: FC = () => {
-	return (
-		<div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
-			<div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
-				<div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
-					<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in font-semibold text-2xl duration-200">
-						Hello there!
-					</h1>
-					<p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in text-muted-foreground text-xl delay-75 duration-200">
-						How can I help you today?
-					</p>
-				</div>
-			</div>
-			<ThreadSuggestions />
-		</div>
-	);
+const getTimeBasedGreeting = (userEmail?: string): string => {
+	const hour = new Date().getHours();
+	
+	// Extract first name from email if available
+	const firstName = userEmail
+		? userEmail.split("@")[0].split(".")[0].charAt(0).toUpperCase() + 
+		  userEmail.split("@")[0].split(".")[0].slice(1)
+		: null;
+	
+	// Array of greeting variations for each time period
+	const morningGreetings = [
+		"Good morning",
+		"Rise and shine",
+		"Morning",
+		"Hey there",
+		"Welcome back",
+	];
+	
+	const afternoonGreetings = [
+		"Good afternoon",
+		"Afternoon",
+		"Hey there",
+		"Welcome back",
+		"Hope you're having a great day",
+	];
+	
+	const eveningGreetings = [
+		"Good evening",
+		"Evening",
+		"Hey there",
+		"Welcome back",
+		"Hope you had a great day",
+	];
+	
+	const nightGreetings = [
+		"Late night",
+		"Still up",
+		"Hey there",
+		"Welcome back",
+		"Burning the midnight oil",
+	];
+	
+	// Select a random greeting based on time
+	let greeting: string;
+	if (hour < 12) {
+		greeting = morningGreetings[Math.floor(Math.random() * morningGreetings.length)];
+	} else if (hour < 17) {
+		greeting = afternoonGreetings[Math.floor(Math.random() * afternoonGreetings.length)];
+	} else if (hour < 21) {
+		greeting = eveningGreetings[Math.floor(Math.random() * eveningGreetings.length)];
+	} else {
+		greeting = nightGreetings[Math.floor(Math.random() * nightGreetings.length)];
+	}
+	
+	// Add personalization with first name if available
+	if (firstName) {
+		return `${greeting}, ${firstName}!`;
+	}
+	
+	return `${greeting}!`;
 };
 
-const SUGGESTIONS = [
-	{
-		title: "What's the weather",
-		label: "in San Francisco?",
-		prompt: "What's the weather in San Francisco?",
-	},
-	{
-		title: "Explain React hooks",
-		label: "like useState and useEffect",
-		prompt: "Explain React hooks like useState and useEffect",
-	},
-] as const;
-
-const ThreadSuggestions: FC = () => {
+const ThreadWelcome: FC = () => {
+	const { data: user } = useAtomValue(currentUserAtom);
+	
 	return (
-		<div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
-			{SUGGESTIONS.map((suggestion, index) => (
-				<div
-					key={suggestion.prompt}
-					className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-200"
-					style={{ animationDelay: `${100 + index * 50}ms` }}
-				>
-					<ThreadPrimitive.Suggestion prompt={suggestion.prompt} autoSend asChild>
-						<Button
-							variant="ghost"
-							className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
-							aria-label={suggestion.prompt}
-						>
-							<span className="aui-thread-welcome-suggestion-text-1 font-medium">
-								{suggestion.title}
-							</span>
-							<span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
-								{suggestion.label}
-							</span>
-						</Button>
-					</ThreadPrimitive.Suggestion>
-				</div>
-			))}
+		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
+			{/* Greeting positioned near the composer */}
+			<div className="aui-thread-welcome-message absolute top-1/2 left-0 right-0 flex flex-col items-center text-center z-10 -translate-y-[calc(50%+100px)]">
+				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-4xl delay-100 duration-500 ease-out fill-mode-both flex items-center gap-3">
+					{/** biome-ignore lint/a11y/noStaticElementInteractions: wrong lint error, this is a workaround to fix the lint error */}
+					<div
+						className="relative cursor-pointer"
+						onMouseMove={(e) => {
+							const rect = e.currentTarget.getBoundingClientRect();
+							const x = (e.clientX - rect.left - rect.width / 2) / 3;
+							const y = (e.clientY - rect.top - rect.height / 2) / 3;
+							e.currentTarget.style.setProperty("--mag-x", `${x}px`);
+							e.currentTarget.style.setProperty("--mag-y", `${y}px`);
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.setProperty("--mag-x", "0px");
+							e.currentTarget.style.setProperty("--mag-y", "0px");
+						}}
+					>
+						<Image
+							src="/icon-128.png"
+							alt="SurfSense"
+							width={32}
+							height={32}
+							className="rounded-full transition-transform duration-200 ease-out"
+							style={{
+								transform: "translate(var(--mag-x, 0), var(--mag-y, 0))",
+							}}
+						/>
+					</div>
+					{getTimeBasedGreeting(user?.email)}
+				</h1>
+			</div>
+			{/* Composer centered in the middle of the screen */}
+			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-center justify-center absolute top-1/2 left-0 right-0 -translate-y-1/2">
+				<Composer />
+			</div>
 		</div>
 	);
 };
@@ -143,10 +197,10 @@ const ThreadSuggestions: FC = () => {
 const Composer: FC = () => {
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
+			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
 				<ComposerPrimitive.Input
-					placeholder="Send a message..."
+					placeholder="Ask SurfSense"
 					className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
 					rows={1}
 					autoFocus
@@ -170,6 +224,14 @@ const ComposerAction: FC = () => {
 		})
 	);
 
+	// Check if composer text is empty
+	const isComposerEmpty = useAssistantState(({ composer }) => {
+		const text = composer.text?.trim() || "";
+		return text.length === 0;
+	});
+
+	const isSendDisabled = hasProcessingAttachments || isComposerEmpty;
+
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
 			<ComposerAddAttachment />
@@ -183,19 +245,25 @@ const ComposerAction: FC = () => {
 			)}
 
 			<AssistantIf condition={({ thread }) => !thread.isRunning}>
-				<ComposerPrimitive.Send asChild disabled={hasProcessingAttachments}>
+				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 					<TooltipIconButton
-						tooltip={hasProcessingAttachments ? "Wait for attachments to process" : "Send message"}
+						tooltip={
+							hasProcessingAttachments
+								? "Wait for attachments to process"
+								: isComposerEmpty
+									? "Enter a message to send"
+									: "Send message"
+						}
 						side="bottom"
 						type="submit"
 						variant="default"
 						size="icon"
 						className={cn(
 							"aui-composer-send size-8 rounded-full",
-							hasProcessingAttachments && "cursor-not-allowed opacity-50"
+							isSendDisabled && "cursor-not-allowed opacity-50"
 						)}
 						aria-label="Send message"
-						disabled={hasProcessingAttachments}
+						disabled={isSendDisabled}
 					>
 						<ArrowUpIcon className="aui-composer-send-icon size-4" />
 					</TooltipIconButton>
