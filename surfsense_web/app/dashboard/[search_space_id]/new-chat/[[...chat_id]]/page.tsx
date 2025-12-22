@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Thread } from "@/components/assistant-ui/thread";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
+import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
 import {
@@ -24,6 +25,23 @@ import {
 	getThreadMessages,
 	type MessageRecord,
 } from "@/lib/chat/thread-persistence";
+
+/**
+ * Extract thinking steps from message content
+ */
+function extractThinkingSteps(content: unknown): ThinkingStep[] {
+	if (!Array.isArray(content)) return [];
+	
+	const thinkingPart = content.find(
+		(part: unknown) => 
+			typeof part === "object" && 
+			part !== null && 
+			"type" in part && 
+			(part as { type: string }).type === "thinking-steps"
+	) as { type: "thinking-steps"; steps: ThinkingStep[] } | undefined;
+	
+	return thinkingPart?.steps || [];
+}
 
 /**
  * Convert backend message to assistant-ui ThreadMessageLike format
@@ -52,6 +70,16 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
  */
 const TOOLS_WITH_UI = new Set(["generate_podcast"]);
 
+/**
+ * Type for thinking step data from the backend
+ */
+interface ThinkingStepData {
+	id: string;
+	title: string;
+	status: "pending" | "in_progress" | "completed";
+	items: string[];
+}
+
 export default function NewChatPage() {
 	const params = useParams();
 	const router = useRouter();
@@ -59,6 +87,10 @@ export default function NewChatPage() {
 	const [threadId, setThreadId] = useState<number | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
+	// Store thinking steps per message ID
+	const [messageThinkingSteps, setMessageThinkingSteps] = useState<
+		Map<string, ThinkingStep[]>
+	>(new Map());
 	const abortControllerRef = useRef<AbortController | null>(null);
 
 	// Create the attachment adapter for file processing
@@ -95,6 +127,20 @@ export default function NewChatPage() {
 				if (response.messages && response.messages.length > 0) {
 					const loadedMessages = response.messages.map(convertToThreadMessage);
 					setMessages(loadedMessages);
+					
+					// Extract and restore thinking steps from persisted messages
+					const restoredThinkingSteps = new Map<string, ThinkingStep[]>();
+					for (const msg of response.messages) {
+						if (msg.role === "assistant") {
+							const steps = extractThinkingSteps(msg.content);
+							if (steps.length > 0) {
+								restoredThinkingSteps.set(`msg-${msg.id}`, steps);
+							}
+						}
+					}
+					if (restoredThinkingSteps.size > 0) {
+						setMessageThinkingSteps(restoredThinkingSteps);
+					}
 				}
 			} else {
 				// Create new thread
@@ -187,6 +233,7 @@ export default function NewChatPage() {
 			// Prepare assistant message
 			const assistantMsgId = `msg-assistant-${Date.now()}`;
 			let accumulatedText = "";
+			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 			const toolCalls = new Map<
 				string,
 				{
@@ -197,7 +244,7 @@ export default function NewChatPage() {
 				}
 			>();
 
-			// Helper to build content
+			// Helper to build content (includes thinking steps for persistence)
 			const buildContent = (): ThreadMessageLike["content"] => {
 				const parts: Array<
 					| { type: "text"; text: string }
@@ -208,7 +255,20 @@ export default function NewChatPage() {
 							args: Record<string, unknown>;
 							result?: unknown;
 					  }
+					| {
+							type: "thinking-steps";
+							steps: ThinkingStepData[];
+					  }
 				> = [];
+				
+				// Include thinking steps for persistence
+				if (currentThinkingSteps.size > 0) {
+					parts.push({
+						type: "thinking-steps",
+						steps: Array.from(currentThinkingSteps.values()),
+					});
+				}
+				
 				if (accumulatedText) {
 					parts.push({ type: "text", text: accumulatedText });
 				}
@@ -367,6 +427,24 @@ export default function NewChatPage() {
 											break;
 										}
 
+										case "data-thinking-step": {
+											// Handle thinking step events for chain-of-thought display
+											const stepData = parsed.data as ThinkingStepData;
+											if (stepData?.id) {
+												currentThinkingSteps.set(stepData.id, stepData);
+												// Update message-specific thinking steps
+												setMessageThinkingSteps((prev) => {
+													const newMap = new Map(prev);
+													newMap.set(
+														assistantMsgId,
+														Array.from(currentThinkingSteps.values())
+													);
+													return newMap;
+												});
+											}
+											break;
+										}
+
 										case "error":
 											throw new Error(parsed.errorText || "Server error");
 									}
@@ -415,6 +493,7 @@ export default function NewChatPage() {
 			} finally {
 				setIsRunning(false);
 				abortControllerRef.current = null;
+				// Note: We no longer clear thinking steps - they persist with the message
 			}
 		},
 		[threadId, searchSpaceId, messages]
@@ -483,7 +562,7 @@ export default function NewChatPage() {
 		<AssistantRuntimeProvider runtime={runtime}>
 			<GeneratePodcastToolUI />
 			<div className="h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden">
-				<Thread />
+				<Thread messageThinkingSteps={messageThinkingSteps} />
 			</div>
 		</AssistantRuntimeProvider>
 	);

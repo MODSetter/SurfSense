@@ -8,3 +8,10 @@
 
 export { Audio } from "./audio";
 export { GeneratePodcastToolUI } from "./generate-podcast";
+export {
+  DeepAgentThinkingToolUI,
+  InlineThinkingDisplay,
+  type ThinkingStep,
+  type DeepAgentThinkingArgs,
+  type DeepAgentThinkingResult,
+} from "./deepagent-thinking";
