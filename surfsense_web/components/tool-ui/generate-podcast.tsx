@@ -4,9 +4,8 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, Loader2Icon, MicIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Audio } from "@/components/tool-ui/audio";
-import type { PodcastTranscriptEntry } from "@/contracts/types/podcast.types";
 import { baseApiService } from "@/lib/apis/base-api.service";
-import { podcastsApiService } from "@/lib/apis/podcasts-api.service";
+import { authenticatedFetch } from "@/lib/auth-utils";
 import { clearActivePodcastTaskId, setActivePodcastTaskId } from "@/lib/chat/podcast-state";
 
 /**
@@ -113,6 +112,14 @@ function AudioLoadingState({ title }: { title: string }) {
 /**
  * Podcast Player Component - Fetches audio and transcript with authentication
  */
+/**
+ * Transcript entry type for podcast transcripts
+ */
+interface PodcastTranscriptEntry {
+	speaker_id: number;
+	dialog: string;
+}
+
 function PodcastPlayer({
 	podcastId,
 	title,
@@ -156,13 +163,21 @@ function PodcastPlayer({
 
 			try {
 				// Fetch audio blob and podcast details in parallel
-				const [audioBlob, podcastDetails] = await Promise.all([
-					podcastsApiService.loadPodcast({
-						request: { id: podcastId },
-						controller,
-					}),
-					podcastsApiService.getPodcastById(podcastId),
+				const [audioResponse, podcastDetails] = await Promise.all([
+					authenticatedFetch(
+						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcastId}/audio`,
+						{ method: "GET", signal: controller.signal }
+					),
+					baseApiService.get<{ podcast_transcript?: PodcastTranscriptEntry[] }>(
+						`/api/v1/podcasts/${podcastId}`
+					),
 				]);
+
+				if (!audioResponse.ok) {
+					throw new Error(`Failed to load audio: ${audioResponse.status}`);
+				}
+
+				const audioBlob = await audioResponse.blob();
 
 				// Create object URL from blob
 				const objectUrl = URL.createObjectURL(audioBlob);

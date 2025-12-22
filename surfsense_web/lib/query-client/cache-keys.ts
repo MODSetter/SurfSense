@@ -1,27 +1,14 @@
-import type { GetChatsRequest } from "@/contracts/types/chat.types";
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
 import type { GetLLMConfigsRequest } from "@/contracts/types/llm-config.types";
-import type { GetMembersRequest } from "@/contracts/types/members.types";
-import type { GetPodcastsRequest } from "@/contracts/types/podcast.types";
-import type { GetRolesRequest } from "@/contracts/types/roles.types";
 import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
 
 export const cacheKeys = {
-	chats: {
-		activeChat: (chatId: string) => ["active-chat", chatId] as const,
-		globalQueryParams: (queries: GetChatsRequest["queryParams"]) =>
-			[
-				"chats",
-				queries?.search_space_id,
-				queries?.limit,
-				queries?.skip,
-				queries?.page,
-				queries?.page_size,
-			] as const,
-	},
-	podcasts: {
-		globalQueryParams: (queries: GetPodcastsRequest["queryParams"]) =>
-			["podcasts", ...(queries ? Object.values(queries) : [])] as const,
+	// New chat threads (assistant-ui)
+	threads: {
+		list: (searchSpaceId: number) => ["threads", searchSpaceId] as const,
+		detail: (threadId: number) => ["threads", "detail", threadId] as const,
+		search: (searchSpaceId: number, query: string) =>
+			["threads", "search", searchSpaceId, query] as const,
 	},
 	documents: {
 		globalQueryParams: (queries: GetDocumentsRequest["queryParams"]) =>

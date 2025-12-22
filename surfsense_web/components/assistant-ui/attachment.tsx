@@ -7,7 +7,7 @@ import {
 	useAssistantApi,
 	useAssistantState,
 } from "@assistant-ui/react";
-import { FileText, PlusIcon, XIcon } from "lucide-react";
+import { FileText, Loader2, PlusIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { type FC, type PropsWithChildren, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
@@ -40,11 +40,15 @@ const useFileSrc = (file: File | undefined) => {
 const useAttachmentSrc = () => {
 	const { file, src } = useAssistantState(
 		useShallow(({ attachment }): { file?: File; src?: string } => {
-			if (attachment.type !== "image") return {};
+			if (!attachment || attachment.type !== "image") return {};
 			if (attachment.file) return { file: attachment.file };
-			const src = attachment.content?.filter((c) => c.type === "image")[0]?.image;
-			if (!src) return {};
-			return { src };
+			// Only try to filter if content is an array (standard assistant-ui format)
+			// Our custom ChatAttachment has content as a string, so skip this
+			if (Array.isArray(attachment.content)) {
+				const src = attachment.content.filter((c) => c.type === "image")[0]?.image;
+				if (src) return { src };
+			}
+			return {};
 		})
 	);
 
@@ -98,8 +102,26 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 };
 
 const AttachmentThumb: FC = () => {
-	const isImage = useAssistantState(({ attachment }) => attachment.type === "image");
+	const isImage = useAssistantState(({ attachment }) => attachment?.type === "image");
+	// Check if actively processing (running AND progress < 100)
+	// When progress is 100, processing is done but waiting for send()
+	const isProcessing = useAssistantState(({ attachment }) => {
+		const status = attachment?.status;
+		if (status?.type !== "running") return false;
+		// If progress is defined and equals 100, processing is complete
+		const progress = (status as { type: "running"; progress?: number }).progress;
+		return progress === undefined || progress < 100;
+	});
 	const src = useAttachmentSrc();
+
+	// Show loading spinner only when actively processing (not when done and waiting for send)
+	if (isProcessing) {
+		return (
+			<div className="flex h-full w-full items-center justify-center bg-muted">
+				<Loader2 className="size-6 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
 
 	return (
 		<Avatar className="aui-attachment-tile-avatar h-full w-full rounded-none">
@@ -119,9 +141,17 @@ const AttachmentUI: FC = () => {
 	const api = useAssistantApi();
 	const isComposer = api.attachment.source === "composer";
 
-	const isImage = useAssistantState(({ attachment }) => attachment.type === "image");
+	const isImage = useAssistantState(({ attachment }) => attachment?.type === "image");
+	// Check if actively processing (running AND progress < 100)
+	// When progress is 100, processing is done but waiting for send()
+	const isProcessing = useAssistantState(({ attachment }) => {
+		const status = attachment?.status;
+		if (status?.type !== "running") return false;
+		const progress = (status as { type: "running"; progress?: number }).progress;
+		return progress === undefined || progress < 100;
+	});
 	const typeLabel = useAssistantState(({ attachment }) => {
-		const type = attachment.type;
+		const type = attachment?.type;
 		switch (type) {
 			case "image":
 				return "Image";
@@ -129,10 +159,8 @@ const AttachmentUI: FC = () => {
 				return "Document";
 			case "file":
 				return "File";
-			default: {
-				const _exhaustiveCheck: never = type;
-				throw new Error(`Unknown attachment type: ${_exhaustiveCheck}`);
-			}
+			default:
+				return "File"; // Default fallback for unknown types
 		}
 	});
 
@@ -149,20 +177,28 @@ const AttachmentUI: FC = () => {
 						<div
 							className={cn(
 								"aui-attachment-tile size-14 cursor-pointer overflow-hidden rounded-[14px] border bg-muted transition-opacity hover:opacity-75",
-								isComposer && "aui-attachment-tile-composer border-foreground/20"
+								isComposer && "aui-attachment-tile-composer border-foreground/20",
+								isProcessing && "animate-pulse"
 							)}
 							role="button"
 							id="attachment-tile"
-							aria-label={`${typeLabel} attachment`}
+							aria-label={isProcessing ? "Processing attachment..." : `${typeLabel} attachment`}
 						>
 							<AttachmentThumb />
 						</div>
 					</TooltipTrigger>
 				</AttachmentPreviewDialog>
-				{isComposer && <AttachmentRemove />}
+				{isComposer && !isProcessing && <AttachmentRemove />}
 			</AttachmentPrimitive.Root>
 			<TooltipContent side="top">
-				<AttachmentPrimitive.Name />
+				{isProcessing ? (
+					<span className="flex items-center gap-1.5">
+						<Loader2 className="size-3 animate-spin" />
+						Processing...
+					</span>
+				) : (
+					<AttachmentPrimitive.Name />
+				)}
 			</TooltipContent>
 		</Tooltip>
 	);

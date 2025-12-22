@@ -30,7 +30,6 @@
 		"@blocknote/react": "^0.45.0",
 		"@blocknote/server-util": "^0.45.0",
 		"@hookform/resolvers": "^5.2.2",
-		"@llamaindex/chat-ui": "^0.5.17",
 		"@next/third-parties": "^16.1.0",
 		"@number-flow/react": "^0.5.10",
 		"@radix-ui/react-accordion": "^1.2.11",

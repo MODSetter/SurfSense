@@ -18,9 +18,26 @@ from app.agents.new_chat.llm_config import (
     create_chat_litellm_from_config,
     load_llm_config_from_yaml,
 )
-from app.schemas.new_chat import ChatMessage
+from app.schemas.new_chat import ChatAttachment, ChatMessage
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
+
+
+def format_attachments_as_context(attachments: list[ChatAttachment]) -> str:
+    """Format attachments as context for the agent."""
+    if not attachments:
+        return ""
+
+    context_parts = ["<user_attachments>"]
+    for i, attachment in enumerate(attachments, 1):
+        context_parts.append(
+            f"<attachment index='{i}' name='{attachment.name}' type='{attachment.type}'>"
+        )
+        context_parts.append(f"<![CDATA[{attachment.content}]]>")
+        context_parts.append("</attachment>")
+    context_parts.append("</user_attachments>")
+
+    return "\n".join(context_parts)
 
 
 async def stream_new_chat(
@@ -31,6 +48,7 @@ async def stream_new_chat(
     session: AsyncSession,
     llm_config_id: int = -1,
     messages: list[ChatMessage] | None = None,
+    attachments: list[ChatAttachment] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -96,6 +114,14 @@ async def stream_new_chat(
         # Build input with message history from frontend
         langchain_messages = []
 
+        # Format the user query with attachment context if any
+        final_query = user_query
+        if attachments:
+            attachment_context = format_attachments_as_context(attachments)
+            final_query = (
+                f"{attachment_context}\n\n<user_query>{user_query}</user_query>"
+            )
+
         # if messages:
         #     # Convert frontend messages to LangChain format
         #     for msg in messages:
@@ -104,8 +130,8 @@ async def stream_new_chat(
         #         elif msg.role == "assistant":
         #             langchain_messages.append(AIMessage(content=msg.content))
         # else:
-        # Fallback: just use the current user query
-        langchain_messages.append(HumanMessage(content=user_query))
+        # Fallback: just use the current user query with attachment context
+        langchain_messages.append(HumanMessage(content=final_query))
 
         input_state = {
             # Lets not pass this message atm because we are using the checkpointer to manage the conversation history

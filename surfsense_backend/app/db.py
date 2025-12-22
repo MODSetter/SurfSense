@@ -9,7 +9,6 @@ from sqlalchemy import (
     ARRAY,
     JSON,
     TIMESTAMP,
-    BigInteger,
     Boolean,
     Column,
     Enum as SQLAlchemyEnum,
@@ -423,6 +422,25 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
+class Podcast(BaseModel, TimestampMixin):
+    """Podcast model for storing generated podcasts."""
+
+    __tablename__ = "podcasts"
+
+    title = Column(String(500), nullable=False)
+    podcast_transcript = Column(JSONB, nullable=True)  # List of transcript entries
+    file_location = Column(Text, nullable=True)  # Path to the audio file
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship("SearchSpace", back_populates="podcasts")
+
+    # Optional: link to chat thread (null for content-based podcasts from new-chat)
+    chat_id = Column(Integer, nullable=True)
+    chat_state_version = Column(String(100), nullable=True)
+
+
 class SearchSpace(BaseModel, TimestampMixin):
     __tablename__ = "searchspaces"
 
@@ -457,6 +475,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         "NewChatThread",
         back_populates="search_space",
         order_by="NewChatThread.updated_at.desc()",
+        cascade="all, delete-orphan",
+    )
+    podcasts = relationship(
+        "Podcast",
+        back_populates="search_space",
+        order_by="Podcast.id.desc()",
         cascade="all, delete-orphan",
     )
     logs = relationship(

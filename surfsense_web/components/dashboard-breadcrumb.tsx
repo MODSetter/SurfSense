@@ -1,11 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, { useEffect, useState } from "react";
-import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -26,7 +24,6 @@ interface BreadcrumbItemInterface {
 export function DashboardBreadcrumb() {
 	const t = useTranslations("breadcrumb");
 	const pathname = usePathname();
-	const { data: activeChatState } = useAtomValue(activeChatAtom);
 	// Extract search space ID and chat ID from pathname
 	const segments = pathname.split("/").filter(Boolean);
 	const searchSpaceId = segments[0] === "dashboard" && segments[1] ? segments[1] : null;
@@ -98,13 +95,11 @@ export function DashboardBreadcrumb() {
 
 				// Map section names to more readable labels
 				const sectionLabels: Record<string, string> = {
-					researcher: t("researcher"),
+					"new-chat": t("chat") || "Chat",
 					documents: t("documents"),
 					connectors: t("connectors"),
 					sources: "Sources",
-					podcasts: t("podcasts"),
 					logs: t("logs"),
-					chats: t("chats"),
 					settings: t("settings"),
 					editor: t("editor"),
 				};
@@ -169,15 +164,15 @@ export function DashboardBreadcrumb() {
 						return breadcrumbs;
 					}
 
-					// Handle researcher sub-sections (chat IDs)
-					if (section === "researcher") {
-						// Use the actual chat title if available, otherwise fall back to the ID
-						const chatLabel = activeChatState?.chatDetails?.title || subSection;
+					// Handle new-chat sub-sections (thread IDs)
+					if (section === "new-chat") {
 						breadcrumbs.push({
-							label: t("researcher"),
-							href: `/dashboard/${segments[1]}/researcher`,
+							label: t("chat") || "Chat",
+							href: `/dashboard/${segments[1]}/new-chat`,
 						});
-						breadcrumbs.push({ label: chatLabel });
+						if (subSection) {
+							breadcrumbs.push({ label: `Thread ${subSection}` });
+						}
 						return breadcrumbs;
 					}
 

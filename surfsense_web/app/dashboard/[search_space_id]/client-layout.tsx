@@ -1,24 +1,20 @@
 "use client";
 
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { Loader2, PanelRight } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { Loader2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { activeChathatUIAtom, activeChatIdAtom } from "@/atoms/chats/ui.atoms";
 import { llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { ChatPanelContainer } from "@/components/chat/ChatPanel/ChatPanelContainer";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 
 export function DashboardClientLayout({
 	children,
@@ -34,33 +30,8 @@ export function DashboardClientLayout({
 	const t = useTranslations("dashboard");
 	const router = useRouter();
 	const pathname = usePathname();
-	const searchSpaceIdNum = Number(searchSpaceId);
-	const { search_space_id, chat_id } = useParams();
-	const [chatUIState, setChatUIState] = useAtom(activeChathatUIAtom);
-	const activeChatId = useAtomValue(activeChatIdAtom);
+	const { search_space_id } = useParams();
 	const setActiveSearchSpaceIdState = useSetAtom(activeSearchSpaceIdAtom);
-	const setActiveChatIdState = useSetAtom(activeChatIdAtom);
-	const [showIndicator, setShowIndicator] = useState(false);
-
-	const { isChatPannelOpen } = chatUIState;
-
-	// Check if we're on the researcher page
-	const isResearcherPage = pathname?.includes("/researcher");
-
-	// Check if we're on the new-chat page (uses separate thread persistence)
-	const isNewChatPage = pathname?.includes("/new-chat");
-
-	// Show indicator when chat becomes active and panel is closed
-	useEffect(() => {
-		if (activeChatId && !isChatPannelOpen) {
-			setShowIndicator(true);
-			// Hide indicator after 5 seconds
-			const timer = setTimeout(() => setShowIndicator(false), 5000);
-			return () => clearTimeout(timer);
-		} else {
-			setShowIndicator(false);
-		}
-	}, [activeChatId, isChatPannelOpen]);
 
 	const { data: preferences = {}, isFetching: loading, error } = useAtomValue(llmPreferencesAtom);
 
@@ -151,24 +122,7 @@ export function DashboardClientLayout({
 					: "";
 		if (!activeSeacrhSpaceId) return;
 		setActiveSearchSpaceIdState(activeSeacrhSpaceId);
-	}, [search_space_id]);
-
-	useEffect(() => {
-		// Skip setting activeChatIdAtom on new-chat page (uses separate thread persistence)
-		if (isNewChatPage) {
-			setActiveChatIdState(null);
-			return;
-		}
-
-		const activeChatId =
-			typeof chat_id === "string"
-				? chat_id
-				: Array.isArray(chat_id) && chat_id.length > 0
-					? chat_id[0]
-					: "";
-		if (!activeChatId) return;
-		setActiveChatIdState(activeChatId);
-	}, [chat_id, search_space_id, isNewChatPage]);
+	}, [search_space_id, setActiveSearchSpaceIdState]);
 
 	// Show loading screen while checking onboarding status (only on first load)
 	if (!hasCheckedOnboarding && (loading || accessLoading) && !isOnboardingPage) {
@@ -221,123 +175,20 @@ export function DashboardClientLayout({
 				navMain={translatedNavMain}
 			/>
 			<SidebarInset className="h-full ">
-				<main className="flex h-full">
-					<div className="flex grow flex-col h-full border-r">
-						<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b">
-							<div className="flex items-center justify-between w-full gap-2 px-4">
-								<div className="flex items-center gap-2">
-									<SidebarTrigger className="-ml-1" />
-									<Separator orientation="vertical" className="h-6" />
-									<DashboardBreadcrumb />
-								</div>
-								<div className="flex items-center gap-2">
-									<LanguageSwitcher />
-									{/* Only show artifacts toggle on researcher page */}
-									{isResearcherPage && (
-										<motion.div
-											className="relative"
-											animate={
-												showIndicator
-													? {
-															scale: [1, 1.05, 1],
-														}
-													: {}
-											}
-											transition={{
-												duration: 2,
-												repeat: showIndicator ? Number.POSITIVE_INFINITY : 0,
-												ease: "easeInOut",
-											}}
-										>
-											<motion.button
-												type="button"
-												onClick={() => {
-													setChatUIState((prev) => ({
-														...prev,
-														isChatPannelOpen: !isChatPannelOpen,
-													}));
-													setShowIndicator(false);
-												}}
-												className={cn(
-													"shrink-0 rounded-full p-2 transition-all duration-300 relative",
-													showIndicator
-														? "bg-primary/20 hover:bg-primary/30 shadow-lg shadow-primary/25"
-														: "hover:bg-muted",
-													activeChatId && !showIndicator && "hover:bg-primary/10"
-												)}
-												title="Toggle Artifacts Panel"
-												whileHover={{ scale: 1.05 }}
-												whileTap={{ scale: 0.95 }}
-											>
-												<motion.div
-													animate={
-														showIndicator
-															? {
-																	rotate: [0, -10, 10, -10, 0],
-																}
-															: {}
-													}
-													transition={{
-														duration: 0.5,
-														repeat: showIndicator ? Number.POSITIVE_INFINITY : 0,
-														repeatDelay: 2,
-													}}
-												>
-													<PanelRight
-														className={cn(
-															"h-4 w-4 transition-colors",
-															showIndicator && "text-primary"
-														)}
-													/>
-												</motion.div>
-											</motion.button>
-
-											{/* Pulsing indicator badge */}
-											<AnimatePresence>
-												{showIndicator && (
-													<motion.div
-														initial={{ opacity: 0, scale: 0 }}
-														animate={{ opacity: 1, scale: 1 }}
-														exit={{ opacity: 0, scale: 0 }}
-														className="absolute -right-1 -top-1 pointer-events-none"
-													>
-														<motion.div
-															animate={{
-																scale: [1, 1.3, 1],
-															}}
-															transition={{
-																duration: 1.5,
-																repeat: Number.POSITIVE_INFINITY,
-																ease: "easeInOut",
-															}}
-															className="relative"
-														>
-															<div className="h-2.5 w-2.5 rounded-full bg-primary shadow-lg" />
-															<motion.div
-																animate={{
-																	scale: [1, 2.5, 1],
-																	opacity: [0.6, 0, 0.6],
-																}}
-																transition={{
-																	duration: 1.5,
-																	repeat: Number.POSITIVE_INFINITY,
-																	ease: "easeInOut",
-																}}
-																className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-primary"
-															/>
-														</motion.div>
-													</motion.div>
-												)}
-											</AnimatePresence>
-										</motion.div>
-									)}
-								</div>
+				<main className="flex flex-col h-full">
+					<header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b">
+						<div className="flex items-center justify-between w-full gap-2 px-4">
+							<div className="flex items-center gap-2">
+								<SidebarTrigger className="-ml-1" />
+								<Separator orientation="vertical" className="h-6" />
+								<DashboardBreadcrumb />
 							</div>
-						</header>
-						<div className="grow flex-1 overflow-auto min-h-[calc(100vh-64px)]">{children}</div>
-					</div>
-					{/* Only render chat panel on researcher page */}
-					{isResearcherPage && <ChatPanelContainer />}
+							<div className="flex items-center gap-2">
+								<LanguageSwitcher />
+							</div>
+						</div>
+					</header>
+					<div className="grow flex-1 overflow-auto min-h-[calc(100vh-64px)]">{children}</div>
 				</main>
 			</SidebarInset>
 		</SidebarProvider>

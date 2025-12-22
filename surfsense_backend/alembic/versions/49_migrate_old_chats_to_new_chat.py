@@ -13,7 +13,7 @@ This migration:
 
 import json
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import datetime
 
 import sqlalchemy as sa
 
@@ -116,7 +116,7 @@ def upgrade() -> None:
                 # Only migrate user and assistant messages
                 if role_lower not in ("user", "assistant"):
                     continue
-                
+
                 # Convert to uppercase for database enum
                 role = role_lower.upper()
 
@@ -195,8 +195,18 @@ def downgrade() -> None:
         sa.Column("initial_connectors", sa.ARRAY(sa.String()), nullable=True),
         sa.Column("messages", sa.JSON(), nullable=False),
         sa.Column("state_version", sa.BigInteger(), nullable=False, default=1),
-        sa.Column("search_space_id", sa.Integer(), sa.ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "search_space_id",
+            sa.Integer(),
+            sa.ForeignKey("searchspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
     )
 
     # Recreate podcasts table
@@ -206,11 +216,25 @@ def downgrade() -> None:
         sa.Column("title", sa.String(), nullable=False, index=True),
         sa.Column("podcast_transcript", sa.JSON(), nullable=False, server_default="{}"),
         sa.Column("file_location", sa.String(500), nullable=False, server_default=""),
-        sa.Column("chat_id", sa.Integer(), sa.ForeignKey("chats.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "chat_id",
+            sa.Integer(),
+            sa.ForeignKey("chats.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("chat_state_version", sa.BigInteger(), nullable=True),
-        sa.Column("search_space_id", sa.Integer(), sa.ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "search_space_id",
+            sa.Integer(),
+            sa.ForeignKey("searchspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
     )
 
     print("[Migration 49 Downgrade] Tables recreated (data not restored)")
-

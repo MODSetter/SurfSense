@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	type AppendMessage,
 	AssistantRuntimeProvider,
 	type ThreadMessageLike,
 	useExternalStoreRuntime,
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { Thread } from "@/components/assistant-ui/thread";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { getBearerToken } from "@/lib/auth-utils";
+import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
@@ -59,6 +61,9 @@ export default function NewChatPage() {
 	const [isRunning, setIsRunning] = useState(false);
 	const abortControllerRef = useRef<AbortController | null>(null);
 
+	// Create the attachment adapter for file processing
+	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
+
 	// Extract search_space_id from URL params
 	const searchSpaceId = useMemo(() => {
 		const id = params.search_space_id;
@@ -99,7 +104,10 @@ export default function NewChatPage() {
 			}
 		} catch (error) {
 			console.error("[NewChatPage] Failed to initialize thread:", error);
-			setThreadId(Date.now());
+			// Keep threadId as null - don't use Date.now() as it creates an invalid ID
+			// that will cause 404 errors on subsequent API calls
+			setThreadId(null);
+			toast.error("Failed to initialize chat. Please try again.");
 		} finally {
 			setIsInitializing(false);
 		}
@@ -121,18 +129,27 @@ export default function NewChatPage() {
 
 	// Handle new message from user
 	const onNew = useCallback(
-		async (message: ThreadMessageLike) => {
+		async (message: AppendMessage) => {
 			if (!threadId) return;
 
-			// Extract user query text
+			// Extract user query text from content parts
 			let userQuery = "";
 			for (const part of message.content) {
-				if (typeof part === "object" && part.type === "text" && "text" in part) {
+				if (part.type === "text") {
 					userQuery += part.text;
 				}
 			}
 
-			if (!userQuery.trim()) return;
+			// Extract attachments from message
+			// AppendMessage.attachments contains the processed attachment objects (from adapter.send())
+			const messageAttachments: Array<Record<string, unknown>> = [];
+			if (message.attachments && message.attachments.length > 0) {
+				for (const att of message.attachments) {
+					messageAttachments.push(att as unknown as Record<string, unknown>);
+				}
+			}
+
+			if (!userQuery.trim() && messageAttachments.length === 0) return;
 
 			// Check if podcast is already generating
 			if (isPodcastGenerating() && looksLikePodcastRequest(userQuery)) {
@@ -239,6 +256,9 @@ export default function NewChatPage() {
 					})
 					.filter((m) => m.content.length > 0);
 
+				// Extract attachment content to send with the request
+				const attachments = extractAttachmentContent(messageAttachments);
+
 				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
 					method: "POST",
 					headers: {
@@ -250,6 +270,7 @@ export default function NewChatPage() {
 						user_query: userQuery.trim(),
 						search_space_id: searchSpaceId,
 						messages: messageHistory,
+						attachments: attachments.length > 0 ? attachments : undefined,
 					}),
 					signal: controller.signal,
 				});
@@ -405,13 +426,29 @@ export default function NewChatPage() {
 		[]
 	);
 
-	// Create external store runtime
+	// Handle editing a message - removes messages after the edited one and sends as new
+	const onEdit = useCallback(
+		async (message: AppendMessage) => {
+			// Find the message being edited by looking at the parentId
+			// The parentId tells us which message's response we're editing
+			// For now, we'll just treat edits like new messages
+			// A more sophisticated implementation would truncate the history
+			await onNew(message);
+		},
+		[onNew]
+	);
+
+	// Create external store runtime with attachment support
 	const runtime = useExternalStoreRuntime({
 		messages,
 		isRunning,
 		onNew,
+		onEdit,
 		convertMessage,
 		onCancel: cancelRun,
+		adapters: {
+			attachments: attachmentAdapter,
+		},
 	});
 
 	// Show loading state
@@ -419,6 +456,25 @@ export default function NewChatPage() {
 		return (
 			<div className="flex h-[calc(100vh-64px)] items-center justify-center">
 				<div className="text-muted-foreground">Loading chat...</div>
+			</div>
+		);
+	}
+
+	// Show error state if thread initialization failed
+	if (!threadId) {
+		return (
+			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
+				<div className="text-destructive">Failed to initialize chat</div>
+				<button
+					type="button"
+					onClick={() => {
+						setIsInitializing(true);
+						initializeThread();
+					}}
+					className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
+				>
+					Try Again
+				</button>
 			</div>
 		);
 	}

@@ -26,6 +26,7 @@ from .new_chat import (
     ThreadListItem,
     ThreadListResponse,
 )
+from .podcasts import PodcastBase, PodcastCreate, PodcastRead, PodcastUpdate
 from .rbac_schemas import (
     InviteAcceptRequest,
     InviteAcceptResponse,
@@ -61,17 +62,6 @@ from .users import UserCreate, UserRead, UserUpdate
 __all__ = [
     # Chat schemas (assistant-ui integration)
     "ChatMessage",
-    "NewChatMessageAppend",
-    "NewChatMessageCreate",
-    "NewChatMessageRead",
-    "NewChatRequest",
-    "NewChatThreadCreate",
-    "NewChatThreadRead",
-    "NewChatThreadUpdate",
-    "NewChatThreadWithMessages",
-    "ThreadHistoryLoadResponse",
-    "ThreadListItem",
-    "ThreadListResponse",
     # Chunk schemas
     "ChunkBase",
     "ChunkCreate",
@@ -85,10 +75,15 @@ __all__ = [
     "DocumentsCreate",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
-    "PaginatedResponse",
     # Base schemas
     "IDModel",
-    "TimestampModel",
+    # RBAC schemas
+    "InviteAcceptRequest",
+    "InviteAcceptResponse",
+    "InviteCreate",
+    "InviteInfoResponse",
+    "InviteRead",
+    "InviteUpdate",
     # LLM Config schemas
     "LLMConfigBase",
     "LLMConfigCreate",
@@ -100,18 +95,25 @@ __all__ = [
     "LogFilter",
     "LogRead",
     "LogUpdate",
-    # RBAC schemas
-    "InviteAcceptRequest",
-    "InviteAcceptResponse",
-    "InviteCreate",
-    "InviteInfoResponse",
-    "InviteRead",
-    "InviteUpdate",
     "MembershipRead",
     "MembershipReadWithUser",
     "MembershipUpdate",
+    "NewChatMessageAppend",
+    "NewChatMessageCreate",
+    "NewChatMessageRead",
+    "NewChatRequest",
+    "NewChatThreadCreate",
+    "NewChatThreadRead",
+    "NewChatThreadUpdate",
+    "NewChatThreadWithMessages",
+    "PaginatedResponse",
     "PermissionInfo",
     "PermissionsListResponse",
+    # Podcast schemas
+    "PodcastBase",
+    "PodcastCreate",
+    "PodcastRead",
+    "PodcastUpdate",
     "RoleCreate",
     "RoleRead",
     "RoleUpdate",
@@ -126,6 +128,10 @@ __all__ = [
     "SearchSpaceRead",
     "SearchSpaceUpdate",
     "SearchSpaceWithStats",
+    "ThreadHistoryLoadResponse",
+    "ThreadListItem",
+    "ThreadListResponse",
+    "TimestampModel",
     # User schemas
     "UserCreate",
     "UserRead",

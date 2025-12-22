@@ -6,6 +6,7 @@ import {
 	ErrorPrimitive,
 	MessagePrimitive,
 	ThreadPrimitive,
+	useAssistantState,
 } from "@assistant-ui/react";
 import {
 	ArrowDownIcon,
@@ -15,6 +16,7 @@ import {
 	ChevronRightIcon,
 	CopyIcon,
 	DownloadIcon,
+	Loader2,
 	PencilIcon,
 	RefreshCwIcon,
 	SquareIcon,
@@ -157,20 +159,43 @@ const Composer: FC = () => {
 };
 
 const ComposerAction: FC = () => {
+	// Check if any attachments are still being processed (running AND progress < 100)
+	// When progress is 100, processing is done but waiting for send()
+	const hasProcessingAttachments = useAssistantState(({ composer }) =>
+		composer.attachments?.some((att) => {
+			const status = att.status;
+			if (status?.type !== "running") return false;
+			const progress = (status as { type: "running"; progress?: number }).progress;
+			return progress === undefined || progress < 100;
+		})
+	);
+
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
 			<ComposerAddAttachment />
 
+			{/* Show processing indicator when attachments are being processed */}
+			{hasProcessingAttachments && (
+				<div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+					<Loader2 className="size-3 animate-spin" />
+					<span>Processing...</span>
+				</div>
+			)}
+
 			<AssistantIf condition={({ thread }) => !thread.isRunning}>
-				<ComposerPrimitive.Send asChild>
+				<ComposerPrimitive.Send asChild disabled={hasProcessingAttachments}>
 					<TooltipIconButton
-						tooltip="Send message"
+						tooltip={hasProcessingAttachments ? "Wait for attachments to process" : "Send message"}
 						side="bottom"
 						type="submit"
 						variant="default"
 						size="icon"
-						className="aui-composer-send size-8 rounded-full"
+						className={cn(
+							"aui-composer-send size-8 rounded-full",
+							hasProcessingAttachments && "cursor-not-allowed opacity-50"
+						)}
 						aria-label="Send message"
+						disabled={hasProcessingAttachments}
 					>
 						<ArrowUpIcon className="aui-composer-send-icon size-4" />
 					</TooltipIconButton>
