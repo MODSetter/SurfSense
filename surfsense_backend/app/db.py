@@ -77,10 +77,6 @@ class SearchSourceConnectorType(str, Enum):
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
 
 
-class ChatType(str, Enum):
-    QNA = "QNA"
-
-
 class LiteLLMProvider(str, Enum):
     """
     Enum for LLM providers supported by LiteLLM.
@@ -317,21 +313,6 @@ class BaseModel(Base):
     id = Column(Integer, primary_key=True, index=True)
 
 
-class Chat(BaseModel, TimestampMixin):
-    __tablename__ = "chats"
-
-    type = Column(SQLAlchemyEnum(ChatType), nullable=False)
-    title = Column(String, nullable=False, index=True)
-    initial_connectors = Column(ARRAY(String), nullable=True)
-    messages = Column(JSON, nullable=False)
-    state_version = Column(BigInteger, nullable=False, default=1)
-
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-    search_space = relationship("SearchSpace", back_populates="chats")
-
-
 class NewChatMessageRole(str, Enum):
     """Role enum for new chat messages."""
 
@@ -362,9 +343,6 @@ class NewChatThread(BaseModel, TimestampMixin):
     # Foreign keys
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
 
     # Relationships
@@ -445,23 +423,6 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
-class Podcast(BaseModel, TimestampMixin):
-    __tablename__ = "podcasts"
-
-    title = Column(String, nullable=False, index=True)
-    podcast_transcript = Column(JSON, nullable=False, default={})
-    file_location = Column(String(500), nullable=False, default="")
-    chat_id = Column(
-        Integer, ForeignKey("chats.id", ondelete="CASCADE"), nullable=True
-    )  # If generated from a chat, this will be the chat id, else null ( can be from a document or a chat )
-    chat_state_version = Column(BigInteger, nullable=True)
-
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
-    )
-    search_space = relationship("SearchSpace", back_populates="podcasts")
-
-
 class SearchSpace(BaseModel, TimestampMixin):
     __tablename__ = "searchspaces"
 
@@ -490,18 +451,6 @@ class SearchSpace(BaseModel, TimestampMixin):
         "Document",
         back_populates="search_space",
         order_by="Document.id",
-        cascade="all, delete-orphan",
-    )
-    podcasts = relationship(
-        "Podcast",
-        back_populates="search_space",
-        order_by="Podcast.id",
-        cascade="all, delete-orphan",
-    )
-    chats = relationship(
-        "Chat",
-        back_populates="search_space",
-        order_by="Chat.id",
         cascade="all, delete-orphan",
     )
     new_chat_threads = relationship(

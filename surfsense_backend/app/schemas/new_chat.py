@@ -127,3 +127,24 @@ class ThreadListResponse(BaseModel):
 
     threads: list[ThreadListItem]
     archived_threads: list[ThreadListItem]
+
+
+# =============================================================================
+# Chat Request Schemas (for deep agent)
+# =============================================================================
+
+
+class ChatMessage(BaseModel):
+    """A single message in the chat history."""
+
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class NewChatRequest(BaseModel):
+    """Request schema for the deep agent chat endpoint."""
+
+    chat_id: int
+    user_query: str
+    search_space_id: int
+    messages: list[ChatMessage] | None = None  # Optional chat history from frontend

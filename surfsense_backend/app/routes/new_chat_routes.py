@@ -13,6 +13,7 @@ These endpoints support the ThreadHistoryAdapter pattern from assistant-ui:
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -23,12 +24,14 @@ from app.db import (
     NewChatMessageRole,
     NewChatThread,
     Permission,
+    SearchSpace,
     User,
     get_async_session,
 )
 from app.schemas.new_chat import (
     NewChatMessageAppend,
     NewChatMessageRead,
+    NewChatRequest,
     NewChatThreadCreate,
     NewChatThreadRead,
     NewChatThreadUpdate,
@@ -37,6 +40,7 @@ from app.schemas.new_chat import (
     ThreadListItem,
     ThreadListResponse,
 )
+from app.tasks.chat.stream_new_chat import stream_new_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
@@ -74,13 +78,10 @@ async def list_threads(
             "You don't have permission to read chats in this search space",
         )
 
-        # Get all threads for this user in this search space
+        # Get all threads in this search space
         query = (
             select(NewChatThread)
-            .filter(
-                NewChatThread.search_space_id == search_space_id,
-                NewChatThread.user_id == user.id,
-            )
+            .filter(NewChatThread.search_space_id == search_space_id)
             .order_by(NewChatThread.updated_at.desc())
         )
 
@@ -153,7 +154,6 @@ async def search_threads(
             select(NewChatThread)
             .filter(
                 NewChatThread.search_space_id == search_space_id,
-                NewChatThread.user_id == user.id,
                 NewChatThread.title.ilike(f"%{title}%"),
             )
             .order_by(NewChatThread.updated_at.desc())
@@ -211,7 +211,6 @@ async def create_thread(
             title=thread.title,
             archived=thread.archived,
             search_space_id=thread.search_space_id,
-            user_id=user.id,
             updated_at=now,
         )
         session.add(db_thread)
@@ -273,12 +272,6 @@ async def get_thread_messages(
             "You don't have permission to read chats in this search space",
         )
 
-        # Ensure user owns this thread
-        if thread.user_id != user.id:
-            raise HTTPException(
-                status_code=403, detail="You don't have access to this thread"
-            )
-
         # Return messages in the format expected by assistant-ui
         messages = [
             NewChatMessageRead(
@@ -336,11 +329,6 @@ async def get_thread_full(
             "You don't have permission to read chats in this search space",
         )
 
-        if thread.user_id != user.id:
-            raise HTTPException(
-                status_code=403, detail="You don't have access to this thread"
-            )
-
         return thread
 
     except HTTPException:
@@ -385,11 +373,6 @@ async def update_thread(
             Permission.CHATS_UPDATE.value,
             "You don't have permission to update chats in this search space",
         )
-
-        if db_thread.user_id != user.id:
-            raise HTTPException(
-                status_code=403, detail="You don't have access to this thread"
-            )
 
         # Update fields
         update_data = thread_update.model_dump(exclude_unset=True)
@@ -450,11 +433,6 @@ async def delete_thread(
             Permission.CHATS_DELETE.value,
             "You don't have permission to delete chats in this search space",
         )
-
-        if db_thread.user_id != user.id:
-            raise HTTPException(
-                status_code=403, detail="You don't have access to this thread"
-            )
 
         await session.delete(db_thread)
         await session.commit()
@@ -529,11 +507,6 @@ async def append_message(
             Permission.CHATS_UPDATE.value,
             "You don't have permission to update chats in this search space",
         )
-
-        if thread.user_id != user.id:
-            raise HTTPException(
-                status_code=403, detail="You don't have access to this thread"
-            )
 
         # Convert string role to enum
         role_str = (
@@ -639,11 +612,6 @@ async def list_messages(
             "You don't have permission to read chats in this search space",
         )
 
-        if thread.user_id != user.id:
-            raise HTTPException(
-                status_code=403, detail="You don't have access to this thread"
-            )
-
         # Get messages
         query = (
             select(NewChatMessage)
@@ -666,4 +634,80 @@ async def list_messages(
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred while fetching messages: {e!s}",
+        ) from None
+
+
+# =============================================================================
+# Chat Streaming Endpoint
+# =============================================================================
+
+
+@router.post("/new_chat")
+async def handle_new_chat(
+    request: NewChatRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Stream chat responses from the deep agent.
+    
+    This endpoint handles the new chat functionality with streaming responses
+    using Server-Sent Events (SSE) format compatible with Vercel AI SDK.
+    
+    Requires CHATS_CREATE permission.
+    """
+    try:
+        # Verify thread exists and user has permission
+        result = await session.execute(
+            select(NewChatThread).filter(NewChatThread.id == request.chat_id)
+        )
+        thread = result.scalars().first()
+
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        await check_permission(
+            session,
+            user,
+            thread.search_space_id,
+            Permission.CHATS_CREATE.value,
+            "You don't have permission to chat in this search space",
+        )
+
+        # Get search space to check LLM config preferences
+        search_space_result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
+        )
+        search_space = search_space_result.scalars().first()
+
+        # Determine LLM config ID (use search space preference or default)
+        llm_config_id = -1  # Default to first global config
+        if search_space and search_space.fast_llm_id:
+            llm_config_id = search_space.fast_llm_id
+
+        # Return streaming response
+        return StreamingResponse(
+            stream_new_chat(
+                user_query=request.user_query,
+                user_id=str(user.id),
+                search_space_id=request.search_space_id,
+                chat_id=request.chat_id,
+                session=session,
+                llm_config_id=llm_config_id,
+                messages=request.messages,
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {e!s}",
         ) from None

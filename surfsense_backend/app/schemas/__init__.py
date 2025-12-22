@@ -1,13 +1,4 @@
 from .base import IDModel, TimestampModel
-from .chats import (
-    AISDKChatRequest,
-    ChatBase,
-    ChatCreate,
-    ChatRead,
-    ChatReadWithoutMessages,
-    ChatUpdate,
-    NewChatRequest,
-)
 from .chunks import ChunkBase, ChunkCreate, ChunkRead, ChunkUpdate
 from .documents import (
     DocumentBase,
@@ -22,9 +13,11 @@ from .documents import (
 from .llm_config import LLMConfigBase, LLMConfigCreate, LLMConfigRead, LLMConfigUpdate
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
 from .new_chat import (
+    ChatMessage,
     NewChatMessageAppend,
     NewChatMessageCreate,
     NewChatMessageRead,
+    NewChatRequest,
     NewChatThreadCreate,
     NewChatThreadRead,
     NewChatThreadUpdate,
@@ -32,13 +25,6 @@ from .new_chat import (
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
-)
-from .podcasts import (
-    PodcastBase,
-    PodcastCreate,
-    PodcastGenerateRequest,
-    PodcastRead,
-    PodcastUpdate,
 )
 from .rbac_schemas import (
     InviteAcceptRequest,
@@ -73,44 +59,8 @@ from .search_space import (
 from .users import UserCreate, UserRead, UserUpdate
 
 __all__ = [
-    "AISDKChatRequest",
-    "ChatBase",
-    "ChatCreate",
-    "ChatRead",
-    "ChatReadWithoutMessages",
-    "ChatUpdate",
-    "ChunkBase",
-    "ChunkCreate",
-    "ChunkRead",
-    "ChunkUpdate",
-    "DocumentBase",
-    "DocumentRead",
-    "DocumentUpdate",
-    "DocumentWithChunksRead",
-    "DocumentsCreate",
-    "ExtensionDocumentContent",
-    "ExtensionDocumentMetadata",
-    "IDModel",
-    # RBAC schemas
-    "InviteAcceptRequest",
-    "InviteAcceptResponse",
-    "InviteCreate",
-    "InviteInfoResponse",
-    "InviteRead",
-    "InviteUpdate",
-    "LLMConfigBase",
-    "LLMConfigCreate",
-    "LLMConfigRead",
-    "LLMConfigUpdate",
-    "LogBase",
-    "LogCreate",
-    "LogFilter",
-    "LogRead",
-    "LogUpdate",
-    "MembershipRead",
-    "MembershipReadWithUser",
-    "MembershipUpdate",
-    # New chat schemas (assistant-ui integration)
+    # Chat schemas (assistant-ui integration)
+    "ChatMessage",
     "NewChatMessageAppend",
     "NewChatMessageCreate",
     "NewChatMessageRead",
@@ -119,30 +69,64 @@ __all__ = [
     "NewChatThreadRead",
     "NewChatThreadUpdate",
     "NewChatThreadWithMessages",
+    "ThreadHistoryLoadResponse",
+    "ThreadListItem",
+    "ThreadListResponse",
+    # Chunk schemas
+    "ChunkBase",
+    "ChunkCreate",
+    "ChunkRead",
+    "ChunkUpdate",
+    # Document schemas
+    "DocumentBase",
+    "DocumentRead",
+    "DocumentUpdate",
+    "DocumentWithChunksRead",
+    "DocumentsCreate",
+    "ExtensionDocumentContent",
+    "ExtensionDocumentMetadata",
     "PaginatedResponse",
+    # Base schemas
+    "IDModel",
+    "TimestampModel",
+    # LLM Config schemas
+    "LLMConfigBase",
+    "LLMConfigCreate",
+    "LLMConfigRead",
+    "LLMConfigUpdate",
+    # Log schemas
+    "LogBase",
+    "LogCreate",
+    "LogFilter",
+    "LogRead",
+    "LogUpdate",
+    # RBAC schemas
+    "InviteAcceptRequest",
+    "InviteAcceptResponse",
+    "InviteCreate",
+    "InviteInfoResponse",
+    "InviteRead",
+    "InviteUpdate",
+    "MembershipRead",
+    "MembershipReadWithUser",
+    "MembershipUpdate",
     "PermissionInfo",
     "PermissionsListResponse",
-    "PodcastBase",
-    "PodcastCreate",
-    "PodcastGenerateRequest",
-    "PodcastRead",
-    "PodcastUpdate",
     "RoleCreate",
     "RoleRead",
     "RoleUpdate",
+    # Search source connector schemas
     "SearchSourceConnectorBase",
     "SearchSourceConnectorCreate",
     "SearchSourceConnectorRead",
     "SearchSourceConnectorUpdate",
+    # Search space schemas
     "SearchSpaceBase",
     "SearchSpaceCreate",
     "SearchSpaceRead",
     "SearchSpaceUpdate",
     "SearchSpaceWithStats",
-    "ThreadHistoryLoadResponse",
-    "ThreadListItem",
-    "ThreadListResponse",
-    "TimestampModel",
+    # User schemas
     "UserCreate",
     "UserRead",
     "UserSearchSpaceAccess",

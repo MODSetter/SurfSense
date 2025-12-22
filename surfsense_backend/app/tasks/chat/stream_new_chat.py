@@ -18,7 +18,7 @@ from app.agents.new_chat.llm_config import (
     create_chat_litellm_from_config,
     load_llm_config_from_yaml,
 )
-from app.schemas.chats import ChatMessage
+from app.schemas.new_chat import ChatMessage
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 
