@@ -249,7 +249,7 @@ export default function WebcrawlerConnectorPage() {
 									<Button
 										type="button"
 										variant="outline"
-										onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}
+										onClick={() => router.back()}
 									>
 										Cancel
 									</Button>

@@ -125,7 +125,7 @@ export default function JiraConnectorPage() {
 			<Button
 				variant="ghost"
 				className="mb-6"
-				onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}
+				onClick={() => router.back()}
 			>
 				<ArrowLeft className="mr-2 h-4 w-4" />
 				Back to Connectors

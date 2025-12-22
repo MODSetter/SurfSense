@@ -21,14 +21,22 @@ import {
 	DownloadIcon,
 	Loader2,
 	PencilIcon,
+	Plug2,
+	Plus,
 	RefreshCwIcon,
 	Search,
 	Sparkles,
 	SquareIcon,
 } from "lucide-react";
 import Image from "next/image";
-import type { FC } from "react";
+import Link from "next/link";
+import { type FC, useState, useRef, useCallback } from "react";
 import { useAtomValue } from "jotai";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { connectorCategories } from "@/components/sources/connector-data";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -197,14 +205,12 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 		"Rise and shine",
 		"Morning",
 		"Hey there",
-		"Welcome back",
 	];
 	
 	const afternoonGreetings = [
 		"Good afternoon",
 		"Afternoon",
 		"Hey there",
-		"Welcome back",
 		"Hope you're having a great day",
 	];
 	
@@ -212,27 +218,36 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 		"Good evening",
 		"Evening",
 		"Hey there",
-		"Welcome back",
 		"Hope you had a great day",
 	];
 	
 	const nightGreetings = [
-		"Late night",
-		"Still up",
+		"Good night",
+		"Evening",
 		"Hey there",
-		"Welcome back",
+		"Winding down",
+	];
+	
+	const lateNightGreetings = [
 		"Burning the midnight oil",
+		"Still up",
+		"Night owl mode",
+		"The night is young",
 	];
 	
 	// Select a random greeting based on time
 	let greeting: string;
-	if (hour < 12) {
+	if (hour < 5) {
+		// Late night: midnight to 5 AM
+		greeting = lateNightGreetings[Math.floor(Math.random() * lateNightGreetings.length)];
+	} else if (hour < 12) {
 		greeting = morningGreetings[Math.floor(Math.random() * morningGreetings.length)];
-	} else if (hour < 17) {
+	} else if (hour < 18) {
 		greeting = afternoonGreetings[Math.floor(Math.random() * afternoonGreetings.length)];
-	} else if (hour < 21) {
+	} else if (hour < 22) {
 		greeting = eveningGreetings[Math.floor(Math.random() * eveningGreetings.length)];
 	} else {
+		// Night: 10 PM to midnight
 		greeting = nightGreetings[Math.floor(Math.random() * nightGreetings.length)];
 	}
 	
@@ -251,7 +266,7 @@ const ThreadWelcome: FC = () => {
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned near the composer */}
 			<div className="aui-thread-welcome-message absolute top-1/2 left-0 right-0 flex flex-col items-center text-center z-10 -translate-y-[calc(50%+100px)]">
-				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-4xl delay-100 duration-500 ease-out fill-mode-both flex items-center gap-3">
+				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both flex items-center gap-4">
 					{/** biome-ignore lint/a11y/noStaticElementInteractions: wrong lint error, this is a workaround to fix the lint error */}
 					<div
 						className="relative cursor-pointer"
@@ -270,8 +285,8 @@ const ThreadWelcome: FC = () => {
 						<Image
 							src="/icon-128.png"
 							alt="SurfSense"
-							width={32}
-							height={32}
+							width={48}
+							height={48}
 							className="rounded-full transition-transform duration-200 ease-out"
 							style={{
 								transform: "translate(var(--mag-x, 0), var(--mag-y, 0))",
@@ -307,6 +322,183 @@ const Composer: FC = () => {
 	);
 };
 
+const ConnectorIndicator: FC = () => {
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const { connectors, isLoading } = useSearchSourceConnectors(false, searchSpaceId ? Number(searchSpaceId) : undefined);
+	const [isOpen, setIsOpen] = useState(false);
+	const [searchQuery, setSearchQuery] = useState("");
+	const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	
+	const hasConnectors = connectors.length > 0;
+	
+	// Get connected connector types for comparison
+	const connectedTypes = new Set(connectors.map(c => c.connector_type));
+	
+	// Flatten all available connectors from categories
+	const allAvailableConnectors = connectorCategories.flatMap(category => 
+		category.connectors.filter(c => c.status === "available")
+	);
+	
+	// Filter connectors based on search query
+	const filteredConnectors = allAvailableConnectors.filter(connector =>
+		connector.title.toLowerCase().includes(searchQuery.toLowerCase())
+	);
+	
+	// Filter connected connectors based on search query
+	const filteredConnectedConnectors = connectors.filter(connector =>
+		connector.name.toLowerCase().includes(searchQuery.toLowerCase())
+	);
+	
+	// Filter available (not connected) connectors
+	const filteredAvailableConnectors = filteredConnectors.filter(connector => {
+		// Map connector id to connector_type for comparison
+		const connectorTypeMap: Record<string, string> = {
+			"webcrawler-connector": "WEBCRAWLER_CONNECTOR",
+			"tavily-api": "TAVILY_API",
+			"searxng": "SEARXNG_API",
+			"linkup-api": "LINKUP_API",
+			"baidu-search-api": "BAIDU_SEARCH_API",
+			"slack-connector": "SLACK_CONNECTOR",
+			"discord-connector": "DISCORD_CONNECTOR",
+			"linear-connector": "LINEAR_CONNECTOR",
+			"jira-connector": "JIRA_CONNECTOR",
+			"clickup-connector": "CLICKUP_CONNECTOR",
+			"notion-connector": "NOTION_CONNECTOR",
+			"confluence-connector": "CONFLUENCE_CONNECTOR",
+			"bookstack-connector": "BOOKSTACK_CONNECTOR",
+			"github-connector": "GITHUB_CONNECTOR",
+			"elasticsearch-connector": "ELASTICSEARCH_CONNECTOR",
+			"airtable-connector": "AIRTABLE_CONNECTOR",
+			"google-calendar-connector": "GOOGLE_CALENDAR_CONNECTOR",
+			"google-gmail-connector": "GOOGLE_GMAIL_CONNECTOR",
+			"luma-connector": "LUMA_CONNECTOR",
+		};
+		const connectorType = connectorTypeMap[connector.id];
+		return !connectorType || !connectedTypes.has(connectorType);
+	});
+	
+	const handleMouseEnter = useCallback(() => {
+		// Clear any pending close timeout
+		if (closeTimeoutRef.current) {
+			clearTimeout(closeTimeoutRef.current);
+			closeTimeoutRef.current = null;
+		}
+		setIsOpen(true);
+	}, []);
+	
+	const handleMouseLeave = useCallback(() => {
+		// Delay closing by 150ms for better UX
+		closeTimeoutRef.current = setTimeout(() => {
+			setIsOpen(false);
+			setSearchQuery(""); // Reset search when closing
+		}, 150);
+	}, []);
+	
+	if (!searchSpaceId) return null;
+	
+	return (
+		<Popover open={isOpen} onOpenChange={setIsOpen}>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					className={cn(
+						"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors",
+						"hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30",
+						"outline-none focus:outline-none focus-visible:outline-none",
+						"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none",
+						"data-[state=open]:bg-transparent data-[state=open]:shadow-none data-[state=open]:ring-0",
+						hasConnectors 
+							? "text-muted-foreground" 
+							: "text-muted-foreground/60"
+					)}
+					aria-label={hasConnectors ? "View connected sources" : "Add your first connector"}
+					onMouseEnter={handleMouseEnter}
+					onMouseLeave={handleMouseLeave}
+				>
+					{isLoading ? (
+						<Loader2 className="size-4 animate-spin" />
+					) : (
+						<Plug2 className="size-4" />
+					)}
+				</button>
+			</PopoverTrigger>
+			<PopoverContent 
+				side="bottom" 
+				align="start" 
+				className="w-72 p-0"
+				onMouseEnter={handleMouseEnter}
+				onMouseLeave={handleMouseLeave}
+			>
+				<div className="flex flex-col max-h-[250px] overflow-hidden rounded-md">
+					{/* Search input - sticky at top */}
+					<div className="p-2 border-b sticky top-0 bg-popover z-10 rounded-t-md">
+						<div className="relative">
+							<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+							<input
+								type="text"
+								placeholder="Search connectors..."
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								className="w-full pl-8 pr-3 py-1.5 text-sm bg-transparent border-none outline-none focus:ring-0 placeholder:text-muted-foreground"
+							/>
+						</div>
+					</div>
+					
+					{/* Connectors list - scrollable */}
+					<div className="overflow-y-auto flex-1 p-1">
+						{/* Connected connectors first */}
+						{filteredConnectedConnectors.length > 0 && (
+							<>
+								{filteredConnectedConnectors.map((connector) => (
+									<Link
+										key={connector.id}
+										href={`/dashboard/${searchSpaceId}/connectors/${connector.id}`}
+										className="flex items-center justify-between px-2 py-2 rounded-md hover:bg-muted transition-colors group"
+									>
+										<div className="flex items-center gap-2.5">
+											<div className="size-6 flex items-center justify-center text-muted-foreground">
+												{getConnectorIcon(connector.connector_type, "size-5")}
+											</div>
+											<span className="text-sm">{connector.name}</span>
+										</div>
+										<CheckCircle2 className="size-4 text-emerald-500" />
+									</Link>
+								))}
+								{filteredAvailableConnectors.length > 0 && (
+									<div className="border-t my-1" />
+								)}
+							</>
+						)}
+						
+						{/* Available connectors */}
+						{filteredAvailableConnectors.length > 0 ? (
+							filteredAvailableConnectors.map((connector) => (
+								<Link
+									key={connector.id}
+									href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}
+									className="flex items-center justify-between px-2 py-2 rounded-md hover:bg-muted transition-colors group"
+								>
+									<div className="flex items-center gap-2.5">
+										<div className="size-6 flex items-center justify-center text-muted-foreground">
+											{connector.icon}
+										</div>
+										<span className="text-sm">{connector.title}</span>
+									</div>
+									<Plus className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+								</Link>
+							))
+						) : filteredConnectedConnectors.length === 0 ? (
+							<div className="px-2 py-4 text-center text-sm text-muted-foreground">
+								No connectors found
+							</div>
+						) : null}
+					</div>
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+};
+
 const ComposerAction: FC = () => {
 	// Check if any attachments are still being processed (running AND progress < 100)
 	// When progress is 100, processing is done but waiting for send()
@@ -329,7 +521,10 @@ const ComposerAction: FC = () => {
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
-			<ComposerAddAttachment />
+			<div className="flex items-center gap-1">
+				<ComposerAddAttachment />
+				<ConnectorIndicator />
+			</div>
 
 			{/* Show processing indicator when attachments are being processed */}
 			{hasProcessingAttachments && (

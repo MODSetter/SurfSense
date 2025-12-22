@@ -192,7 +192,7 @@ export default function GithubConnectorPage() {
 						// Reset form PAT field, keep name
 						form.reset({ name: connectorName, github_pat: "" });
 					} else {
-						router.push(`/dashboard/${searchSpaceId}/connectors/add`);
+						router.back();
 					}
 				}}
 			>
