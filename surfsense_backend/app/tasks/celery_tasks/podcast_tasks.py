@@ -7,14 +7,13 @@ import sys
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.celery_app import celery_app
-from app.config import config
-from app.tasks.podcast_tasks import generate_chat_podcast
-
 # Import for content-based podcast (new-chat)
 from app.agents.podcaster.graph import graph as podcaster_graph
 from app.agents.podcaster.state import State as PodcasterState
+from app.celery_app import celery_app
+from app.config import config
 from app.db import Podcast
+from app.tasks.podcast_tasks import generate_chat_podcast
 
 logger = logging.getLogger(__name__)
 
@@ -201,15 +200,16 @@ async def _generate_content_podcast(
             serializable_transcript = []
             for entry in podcast_transcript:
                 if hasattr(entry, "speaker_id"):
-                    serializable_transcript.append({
-                        "speaker_id": entry.speaker_id,
-                        "dialog": entry.dialog
-                    })
+                    serializable_transcript.append(
+                        {"speaker_id": entry.speaker_id, "dialog": entry.dialog}
+                    )
                 else:
-                    serializable_transcript.append({
-                        "speaker_id": entry.get("speaker_id", 0),
-                        "dialog": entry.get("dialog", "")
-                    })
+                    serializable_transcript.append(
+                        {
+                            "speaker_id": entry.get("speaker_id", 0),
+                            "dialog": entry.get("dialog", ""),
+                        }
+                    )
 
             # Save podcast to database
             podcast = Podcast(

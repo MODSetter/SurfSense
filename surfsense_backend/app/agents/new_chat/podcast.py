@@ -126,7 +126,9 @@ def create_generate_podcast_tool(
             # Check if a podcast is already being generated for this search space
             active_task_id = get_active_podcast_task(search_space_id)
             if active_task_id:
-                print(f"[generate_podcast] Blocked duplicate request. Active task: {active_task_id}")
+                print(
+                    f"[generate_podcast] Blocked duplicate request. Active task: {active_task_id}"
+                )
                 return {
                     "status": "already_generating",
                     "task_id": active_task_id,

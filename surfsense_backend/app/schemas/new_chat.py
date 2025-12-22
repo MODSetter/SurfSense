@@ -1,0 +1,129 @@
+"""
+Pydantic schemas for the new chat feature with assistant-ui integration.
+
+These schemas follow the assistant-ui ThreadHistoryAdapter pattern:
+- ThreadRecord: id, title, archived, createdAt, updatedAt
+- MessageRecord: id, threadId, role, content, createdAt
+"""
+
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.db import NewChatMessageRole
+
+from .base import IDModel, TimestampModel
+
+# =============================================================================
+# Message Schemas
+# =============================================================================
+
+
+class NewChatMessageBase(BaseModel):
+    """Base schema for new chat messages."""
+
+    role: NewChatMessageRole
+    content: Any  # JSONB content - can be text, tool calls, etc.
+
+
+class NewChatMessageCreate(NewChatMessageBase):
+    """Schema for creating a new message."""
+
+    thread_id: int
+
+
+class NewChatMessageRead(NewChatMessageBase, IDModel, TimestampModel):
+    """Schema for reading a message."""
+
+    thread_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NewChatMessageAppend(BaseModel):
+    """
+    Schema for appending a message via the history adapter.
+    This is the format assistant-ui sends when calling append().
+    """
+
+    role: str  # Accept string and validate in route handler
+    content: Any
+
+
+# =============================================================================
+# Thread Schemas
+# =============================================================================
+
+
+class NewChatThreadBase(BaseModel):
+    """Base schema for new chat threads."""
+
+    title: str = Field(default="New Chat", max_length=500)
+    archived: bool = False
+
+
+class NewChatThreadCreate(NewChatThreadBase):
+    """Schema for creating a new thread."""
+
+    search_space_id: int
+
+
+class NewChatThreadUpdate(BaseModel):
+    """Schema for updating a thread."""
+
+    title: str | None = None
+    archived: bool | None = None
+
+
+class NewChatThreadRead(NewChatThreadBase, IDModel):
+    """
+    Schema for reading a thread (matches assistant-ui ThreadRecord).
+    """
+
+    search_space_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NewChatThreadWithMessages(NewChatThreadRead):
+    """Schema for reading a thread with its messages."""
+
+    messages: list[NewChatMessageRead] = []
+
+
+# =============================================================================
+# History Adapter Response Schemas
+# =============================================================================
+
+
+class ThreadHistoryLoadResponse(BaseModel):
+    """
+    Response format for the ThreadHistoryAdapter.load() method.
+    Returns messages array for the current thread.
+    """
+
+    messages: list[NewChatMessageRead]
+
+
+class ThreadListItem(BaseModel):
+    """
+    Thread list item for sidebar display.
+    Matches assistant-ui ThreadListPrimitive expected format.
+    """
+
+    id: int
+    title: str
+    archived: bool
+    created_at: datetime = Field(alias="createdAt")
+    updated_at: datetime = Field(alias="updatedAt")
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class ThreadListResponse(BaseModel):
+    """Response containing list of threads for the sidebar."""
+
+    threads: list[ThreadListItem]
+    archived_threads: list[ThreadListItem]

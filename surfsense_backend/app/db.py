@@ -332,6 +332,75 @@ class Chat(BaseModel, TimestampMixin):
     search_space = relationship("SearchSpace", back_populates="chats")
 
 
+class NewChatMessageRole(str, Enum):
+    """Role enum for new chat messages."""
+
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+
+
+class NewChatThread(BaseModel, TimestampMixin):
+    """
+    Thread model for the new chat feature using assistant-ui.
+    Each thread represents a conversation with message history.
+    LangGraph checkpointer uses thread_id for state persistence.
+    """
+
+    __tablename__ = "new_chat_threads"
+
+    title = Column(String(500), nullable=False, default="New Chat", index=True)
+    archived = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    # Foreign keys
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Relationships
+    search_space = relationship("SearchSpace", back_populates="new_chat_threads")
+    messages = relationship(
+        "NewChatMessage",
+        back_populates="thread",
+        order_by="NewChatMessage.created_at",
+        cascade="all, delete-orphan",
+    )
+
+
+class NewChatMessage(BaseModel, TimestampMixin):
+    """
+    Message model for the new chat feature.
+    Stores individual messages in assistant-ui format.
+    """
+
+    __tablename__ = "new_chat_messages"
+
+    role = Column(SQLAlchemyEnum(NewChatMessageRole), nullable=False)
+    # Content stored as JSONB to support rich content (text, tool calls, etc.)
+    content = Column(JSONB, nullable=False)
+
+    # Foreign key to thread
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Relationship
+    thread = relationship("NewChatThread", back_populates="messages")
+
+
 class Document(BaseModel, TimestampMixin):
     __tablename__ = "documents"
 
@@ -433,6 +502,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         "Chat",
         back_populates="search_space",
         order_by="Chat.id",
+        cascade="all, delete-orphan",
+    )
+    new_chat_threads = relationship(
+        "NewChatThread",
+        back_populates="search_space",
+        order_by="NewChatThread.updated_at.desc()",
         cascade="all, delete-orphan",
     )
     logs = relationship(

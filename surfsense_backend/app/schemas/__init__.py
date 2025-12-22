@@ -21,6 +21,18 @@ from .documents import (
 )
 from .llm_config import LLMConfigBase, LLMConfigCreate, LLMConfigRead, LLMConfigUpdate
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
+from .new_chat import (
+    NewChatMessageAppend,
+    NewChatMessageCreate,
+    NewChatMessageRead,
+    NewChatThreadCreate,
+    NewChatThreadRead,
+    NewChatThreadUpdate,
+    NewChatThreadWithMessages,
+    ThreadHistoryLoadResponse,
+    ThreadListItem,
+    ThreadListResponse,
+)
 from .podcasts import (
     PodcastBase,
     PodcastCreate,
@@ -98,7 +110,15 @@ __all__ = [
     "MembershipRead",
     "MembershipReadWithUser",
     "MembershipUpdate",
+    # New chat schemas (assistant-ui integration)
+    "NewChatMessageAppend",
+    "NewChatMessageCreate",
+    "NewChatMessageRead",
     "NewChatRequest",
+    "NewChatThreadCreate",
+    "NewChatThreadRead",
+    "NewChatThreadUpdate",
+    "NewChatThreadWithMessages",
     "PaginatedResponse",
     "PermissionInfo",
     "PermissionsListResponse",
@@ -119,6 +139,9 @@ __all__ = [
     "SearchSpaceRead",
     "SearchSpaceUpdate",
     "SearchSpaceWithStats",
+    "ThreadHistoryLoadResponse",
+    "ThreadListItem",
+    "ThreadListResponse",
     "TimestampModel",
     "UserCreate",
     "UserRead",

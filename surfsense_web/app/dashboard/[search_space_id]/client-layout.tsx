@@ -47,6 +47,9 @@ export function DashboardClientLayout({
 	// Check if we're on the researcher page
 	const isResearcherPage = pathname?.includes("/researcher");
 
+	// Check if we're on the new-chat page (uses separate thread persistence)
+	const isNewChatPage = pathname?.includes("/new-chat");
+
 	// Show indicator when chat becomes active and panel is closed
 	useEffect(() => {
 		if (activeChatId && !isChatPannelOpen) {
@@ -151,6 +154,12 @@ export function DashboardClientLayout({
 	}, [search_space_id]);
 
 	useEffect(() => {
+		// Skip setting activeChatIdAtom on new-chat page (uses separate thread persistence)
+		if (isNewChatPage) {
+			setActiveChatIdState(null);
+			return;
+		}
+
 		const activeChatId =
 			typeof chat_id === "string"
 				? chat_id
@@ -159,7 +168,7 @@ export function DashboardClientLayout({
 					: "";
 		if (!activeChatId) return;
 		setActiveChatIdState(activeChatId);
-	}, [chat_id, search_space_id]);
+	}, [chat_id, search_space_id, isNewChatPage]);
 
 	// Show loading screen while checking onboarding status (only on first load)
 	if (!hasCheckedOnboarding && (loading || accessLoading) && !isOnboardingPage) {

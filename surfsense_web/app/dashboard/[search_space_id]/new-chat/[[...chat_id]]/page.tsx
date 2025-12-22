@@ -1,23 +1,73 @@
 "use client";
 
-import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
-import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import {
+	AssistantRuntimeProvider,
+	useExternalStoreRuntime,
+	type ThreadMessageLike,
+} from "@assistant-ui/react";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
-import { createNewChatAdapter } from "@/lib/chat/new-chat-transport";
+import {
+	createThread,
+	getThreadMessages,
+	appendMessage,
+	type MessageRecord,
+} from "@/lib/chat/thread-persistence";
+import { getBearerToken } from "@/lib/auth-utils";
+import { toast } from "sonner";
+import {
+	isPodcastGenerating,
+	looksLikePodcastRequest,
+	setActivePodcastTaskId,
+} from "@/lib/chat/podcast-state";
+
+/**
+ * Convert backend message to assistant-ui ThreadMessageLike format
+ */
+function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
+	let content: ThreadMessageLike["content"];
+
+	if (typeof msg.content === "string") {
+		content = [{ type: "text", text: msg.content }];
+	} else if (Array.isArray(msg.content)) {
+		content = msg.content as ThreadMessageLike["content"];
+	} else {
+		content = [{ type: "text", text: String(msg.content) }];
+	}
+
+	return {
+		id: `msg-${msg.id}`,
+		role: msg.role,
+		content,
+		createdAt: new Date(msg.created_at),
+	};
+}
+
+/**
+ * Tools that should render custom UI in the chat.
+ */
+const TOOLS_WITH_UI = new Set(["generate_podcast"]);
 
 export default function NewChatPage() {
 	const params = useParams();
+	const router = useRouter();
+	const [isInitializing, setIsInitializing] = useState(true);
+	const [threadId, setThreadId] = useState<number | null>(null);
+	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
+	const [isRunning, setIsRunning] = useState(false);
+	const abortControllerRef = useRef<AbortController | null>(null);
 
-	// Extract search_space_id and chat_id from URL params
+	// Extract search_space_id from URL params
 	const searchSpaceId = useMemo(() => {
 		const id = params.search_space_id;
 		const parsed = typeof id === "string" ? Number.parseInt(id, 10) : 0;
 		return Number.isNaN(parsed) ? 0 : parsed;
 	}, [params.search_space_id]);
 
-	const chatId = useMemo(() => {
+	// Extract chat_id from URL params
+	const urlChatId = useMemo(() => {
 		const id = params.chat_id;
 		let parsed = 0;
 		if (Array.isArray(id) && id.length > 0) {
@@ -28,18 +78,368 @@ export default function NewChatPage() {
 		return Number.isNaN(parsed) ? 0 : parsed;
 	}, [params.chat_id]);
 
-	// Create the adapter with the extracted params
-	const adapter = useMemo(
-		() => createNewChatAdapter({ searchSpaceId, chatId }),
-		[searchSpaceId, chatId]
+	// Initialize thread and load messages
+	const initializeThread = useCallback(async () => {
+		setIsInitializing(true);
+
+		try {
+			if (urlChatId > 0) {
+				// Thread exists - load messages
+				setThreadId(urlChatId);
+				const response = await getThreadMessages(urlChatId);
+				if (response.messages && response.messages.length > 0) {
+					const loadedMessages = response.messages.map(convertToThreadMessage);
+					setMessages(loadedMessages);
+				}
+			} else {
+				// Create new thread
+				const newThread = await createThread(searchSpaceId, "New Chat");
+				setThreadId(newThread.id);
+				router.replace(`/dashboard/${searchSpaceId}/new-chat/${newThread.id}`);
+			}
+		} catch (error) {
+			console.error("[NewChatPage] Failed to initialize thread:", error);
+			setThreadId(Date.now());
+		} finally {
+			setIsInitializing(false);
+		}
+	}, [urlChatId, searchSpaceId, router]);
+
+	// Initialize on mount
+	useEffect(() => {
+		initializeThread();
+	}, [initializeThread]);
+
+	// Cancel ongoing request
+	const cancelRun = useCallback(async () => {
+		if (abortControllerRef.current) {
+			abortControllerRef.current.abort();
+			abortControllerRef.current = null;
+		}
+		setIsRunning(false);
+	}, []);
+
+	// Handle new message from user
+	const onNew = useCallback(
+		async (message: ThreadMessageLike) => {
+			if (!threadId) return;
+
+			// Extract user query text
+			let userQuery = "";
+			for (const part of message.content) {
+				if (typeof part === "object" && part.type === "text" && "text" in part) {
+					userQuery += part.text;
+				}
+			}
+
+			if (!userQuery.trim()) return;
+
+			// Check if podcast is already generating
+			if (isPodcastGenerating() && looksLikePodcastRequest(userQuery)) {
+				toast.warning("A podcast is already being generated.");
+				return;
+			}
+
+			const token = getBearerToken();
+			if (!token) {
+				toast.error("Not authenticated. Please log in again.");
+				return;
+			}
+
+			// Add user message to state
+			const userMsgId = `msg-user-${Date.now()}`;
+			const userMessage: ThreadMessageLike = {
+				id: userMsgId,
+				role: "user",
+				content: message.content,
+				createdAt: new Date(),
+			};
+			setMessages((prev) => [...prev, userMessage]);
+
+			// Persist user message (don't await, fire and forget)
+			appendMessage(threadId, {
+				role: "user",
+				content: message.content,
+			}).catch((err) => console.error("Failed to persist user message:", err));
+
+			// Start streaming response
+			setIsRunning(true);
+			const controller = new AbortController();
+			abortControllerRef.current = controller;
+
+			// Prepare assistant message
+			const assistantMsgId = `msg-assistant-${Date.now()}`;
+			let accumulatedText = "";
+			const toolCalls = new Map<
+				string,
+				{
+					toolCallId: string;
+					toolName: string;
+					args: Record<string, unknown>;
+					result?: unknown;
+				}
+			>();
+
+			// Helper to build content
+			const buildContent = (): ThreadMessageLike["content"] => {
+				const parts: Array<
+					| { type: "text"; text: string }
+					| {
+							type: "tool-call";
+							toolCallId: string;
+							toolName: string;
+							args: Record<string, unknown>;
+							result?: unknown;
+					  }
+				> = [];
+				if (accumulatedText) {
+					parts.push({ type: "text", text: accumulatedText });
+				}
+				for (const toolCall of toolCalls.values()) {
+					if (TOOLS_WITH_UI.has(toolCall.toolName)) {
+						parts.push({
+							type: "tool-call",
+							toolCallId: toolCall.toolCallId,
+							toolName: toolCall.toolName,
+							args: toolCall.args,
+							result: toolCall.result,
+						});
+					}
+				}
+				return parts.length > 0
+					? (parts as ThreadMessageLike["content"])
+					: [{ type: "text", text: "" }];
+			};
+
+			// Add placeholder assistant message
+			setMessages((prev) => [
+				...prev,
+				{
+					id: assistantMsgId,
+					role: "assistant",
+					content: [{ type: "text", text: "" }],
+					createdAt: new Date(),
+				},
+			]);
+
+			try {
+				const backendUrl =
+					process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+
+				// Build message history for context
+				const messageHistory = messages
+					.filter((m) => m.role === "user" || m.role === "assistant")
+					.map((m) => {
+						let text = "";
+						for (const part of m.content) {
+							if (
+								typeof part === "object" &&
+								part.type === "text" &&
+								"text" in part
+							) {
+								text += part.text;
+							}
+						}
+						return { role: m.role, content: text };
+					})
+					.filter((m) => m.content.length > 0);
+
+				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({
+						chat_id: threadId,
+						user_query: userQuery.trim(),
+						search_space_id: searchSpaceId,
+						messages: messageHistory,
+					}),
+					signal: controller.signal,
+				});
+
+				if (!response.ok) {
+					throw new Error(`Backend error: ${response.status}`);
+				}
+
+				if (!response.body) {
+					throw new Error("No response body");
+				}
+
+				// Parse SSE stream
+				const reader = response.body.getReader();
+				const decoder = new TextDecoder();
+				let buffer = "";
+
+				try {
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
+
+						buffer += decoder.decode(value, { stream: true });
+						const events = buffer.split(/\r?\n\r?\n/);
+						buffer = events.pop() || "";
+
+						for (const event of events) {
+							const lines = event.split(/\r?\n/);
+							for (const line of lines) {
+								if (!line.startsWith("data: ")) continue;
+								const data = line.slice(6).trim();
+								if (!data || data === "[DONE]") continue;
+
+								try {
+									const parsed = JSON.parse(data);
+
+									switch (parsed.type) {
+										case "text-delta":
+											accumulatedText += parsed.delta;
+											setMessages((prev) =>
+												prev.map((m) =>
+													m.id === assistantMsgId
+														? { ...m, content: buildContent() }
+														: m
+												)
+											);
+											break;
+
+										case "tool-input-start":
+											toolCalls.set(parsed.toolCallId, {
+												toolCallId: parsed.toolCallId,
+												toolName: parsed.toolName,
+												args: {},
+											});
+											setMessages((prev) =>
+												prev.map((m) =>
+													m.id === assistantMsgId
+														? { ...m, content: buildContent() }
+														: m
+												)
+											);
+											break;
+
+										case "tool-input-available": {
+											const tc = toolCalls.get(parsed.toolCallId);
+											if (tc) tc.args = parsed.input || {};
+											else
+												toolCalls.set(parsed.toolCallId, {
+													toolCallId: parsed.toolCallId,
+													toolName: parsed.toolName,
+													args: parsed.input || {},
+												});
+											setMessages((prev) =>
+												prev.map((m) =>
+													m.id === assistantMsgId
+														? { ...m, content: buildContent() }
+														: m
+												)
+											);
+											break;
+										}
+
+										case "tool-output-available": {
+											const tc = toolCalls.get(parsed.toolCallId);
+											if (tc) {
+												tc.result = parsed.output;
+												if (
+													tc.toolName === "generate_podcast" &&
+													parsed.output?.status === "processing" &&
+													parsed.output?.task_id
+												) {
+													setActivePodcastTaskId(parsed.output.task_id);
+												}
+											}
+											setMessages((prev) =>
+												prev.map((m) =>
+													m.id === assistantMsgId
+														? { ...m, content: buildContent() }
+														: m
+												)
+											);
+											break;
+										}
+
+										case "error":
+											throw new Error(parsed.errorText || "Server error");
+									}
+								} catch (e) {
+									if (e instanceof SyntaxError) continue;
+									throw e;
+								}
+							}
+						}
+					}
+				} finally {
+					reader.releaseLock();
+				}
+
+				// Persist assistant message
+				const finalContent = buildContent();
+				if (accumulatedText || toolCalls.size > 0) {
+					appendMessage(threadId, {
+						role: "assistant",
+						content: finalContent,
+					}).catch((err) =>
+						console.error("Failed to persist assistant message:", err)
+					);
+				}
+			} catch (error) {
+				if (error instanceof Error && error.name === "AbortError") {
+					// Request was cancelled
+					return;
+				}
+				console.error("[NewChatPage] Chat error:", error);
+				toast.error("Failed to get response. Please try again.");
+				// Update assistant message with error
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantMsgId
+							? {
+									...m,
+									content: [
+										{
+											type: "text",
+											text: "Sorry, there was an error. Please try again.",
+										},
+									],
+								}
+							: m
+					)
+				);
+			} finally {
+				setIsRunning(false);
+				abortControllerRef.current = null;
+			}
+		},
+		[threadId, searchSpaceId, messages]
 	);
 
-	// Use LocalRuntime with our custom adapter
-	const runtime = useLocalRuntime(adapter);
+	// Convert message (pass through since already in correct format)
+	const convertMessage = useCallback(
+		(message: ThreadMessageLike): ThreadMessageLike => message,
+		[]
+	);
+
+	// Create external store runtime
+	const runtime = useExternalStoreRuntime({
+		messages,
+		isRunning,
+		onNew,
+		convertMessage,
+		onCancel: cancelRun,
+	});
+
+	// Show loading state
+	if (isInitializing) {
+		return (
+			<div className="flex h-[calc(100vh-64px)] items-center justify-center">
+				<div className="text-muted-foreground">Loading chat...</div>
+			</div>
+		);
+	}
 
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
-			{/* Register tool UI components */}
 			<GeneratePodcastToolUI />
 			<div className="h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden">
 				<Thread />

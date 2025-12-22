@@ -9,12 +9,15 @@ import json
 from collections.abc import AsyncGenerator
 from uuid import UUID
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
-from app.agents.new_chat.llm_config import create_chat_litellm_from_config, load_llm_config_from_yaml
+from app.agents.new_chat.llm_config import (
+    create_chat_litellm_from_config,
+    load_llm_config_from_yaml,
+)
 from app.schemas.chats import ChatMessage
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
@@ -92,7 +95,7 @@ async def stream_new_chat(
 
         # Build input with message history from frontend
         langchain_messages = []
-        
+
         # if messages:
         #     # Convert frontend messages to LangChain format
         #     for msg in messages:
@@ -101,9 +104,9 @@ async def stream_new_chat(
         #         elif msg.role == "assistant":
         #             langchain_messages.append(AIMessage(content=msg.content))
         # else:
-            # Fallback: just use the current user query
+        # Fallback: just use the current user query
         langchain_messages.append(HumanMessage(content=user_query))
-        
+
         input_state = {
             # Lets not pass this message atm because we are using the checkpointer to manage the conversation history
             # We will use this to simulate group chat functionality in the future
@@ -219,7 +222,9 @@ async def stream_new_chat(
                 elif isinstance(raw_output, dict):
                     tool_output = raw_output
                 else:
-                    tool_output = {"result": str(raw_output) if raw_output else "completed"}
+                    tool_output = {
+                        "result": str(raw_output) if raw_output else "completed"
+                    }
 
                 tool_call_id = f"call_{run_id[:32]}" if run_id else "call_unknown"
 
@@ -228,16 +233,25 @@ async def stream_new_chat(
                     # Stream the full podcast result so frontend can render the audio player
                     yield streaming_service.format_tool_output_available(
                         tool_call_id,
-                        tool_output if isinstance(tool_output, dict) else {"result": tool_output},
+                        tool_output
+                        if isinstance(tool_output, dict)
+                        else {"result": tool_output},
                     )
                     # Send appropriate terminal message based on status
-                    if isinstance(tool_output, dict) and tool_output.get("status") == "success":
+                    if (
+                        isinstance(tool_output, dict)
+                        and tool_output.get("status") == "success"
+                    ):
                         yield streaming_service.format_terminal_info(
                             f"Podcast generated successfully: {tool_output.get('title', 'Podcast')}",
                             "success",
                         )
                     else:
-                        error_msg = tool_output.get("error", "Unknown error") if isinstance(tool_output, dict) else "Unknown error"
+                        error_msg = (
+                            tool_output.get("error", "Unknown error")
+                            if isinstance(tool_output, dict)
+                            else "Unknown error"
+                        )
                         yield streaming_service.format_terminal_info(
                             f"Podcast generation failed: {error_msg}",
                             "error",
