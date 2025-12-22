@@ -436,10 +436,6 @@ class Podcast(BaseModel, TimestampMixin):
     )
     search_space = relationship("SearchSpace", back_populates="podcasts")
 
-    # Optional: link to chat thread (null for content-based podcasts from new-chat)
-    chat_id = Column(Integer, nullable=True)
-    chat_state_version = Column(String(100), nullable=True)
-
 
 class SearchSpace(BaseModel, TimestampMixin):
     __tablename__ = "searchspaces"

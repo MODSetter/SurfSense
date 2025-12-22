@@ -13,8 +13,6 @@ class PodcastBase(BaseModel):
     podcast_transcript: list[dict[str, Any]] | None = None
     file_location: str | None = None
     search_space_id: int
-    chat_id: int | None = None
-    chat_state_version: str | None = None
 
 
 class PodcastCreate(PodcastBase):

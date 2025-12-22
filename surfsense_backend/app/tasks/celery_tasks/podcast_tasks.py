@@ -72,8 +72,7 @@ def generate_content_podcast_task(
     """
     Celery task to generate podcast from source content (for new-chat).
 
-    Unlike generate_chat_podcast which requires a chat_id, this task
-    generates a podcast directly from provided content.
+    This task generates a podcast directly from provided content.
 
     Args:
         source_content: The text content to convert into a podcast
@@ -164,8 +163,6 @@ async def _generate_content_podcast(
                 podcast_transcript=serializable_transcript,
                 file_location=file_path,
                 search_space_id=search_space_id,
-                chat_id=None,  # No chat_id for new-chat podcasts
-                chat_state_version=None,
             )
             session.add(podcast)
             await session.commit()

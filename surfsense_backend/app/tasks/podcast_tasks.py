@@ -7,19 +7,10 @@ if called. Use generate_content_podcast_task in celery_tasks/podcast_tasks.py
 for new-chat podcast generation instead.
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.db import Podcast  # noqa: F401 - imported for backwards compatibility
 
 
-async def generate_chat_podcast(
-    session: AsyncSession,
-    chat_id: int,
-    search_space_id: int,
-    user_id: int,
-    podcast_title: str | None = None,
-    user_prompt: str | None = None,
-):
+async def generate_chat_podcast(*args, **kwargs):
     """
     Legacy function for generating podcasts from old chat system.
 
