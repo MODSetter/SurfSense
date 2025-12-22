@@ -67,6 +67,8 @@ function ImageCancelledState({ src }: { src: string }) {
 
 /**
  * Parsed Image component with error handling
+ * Note: Image component has built-in click handling via href/src,
+ * so no additional responseActions needed.
  */
 function ParsedImage({ result }: { result: unknown }) {
 	const image = parseSerializableImage(result);
@@ -75,14 +77,6 @@ function ParsedImage({ result }: { result: unknown }) {
 		<Image
 			{...image}
 			maxWidth="420px"
-			responseActions={[
-				{ id: "open", label: "Open", variant: "default" },
-			]}
-			onResponseAction={(id) => {
-				if (id === "open" && image.src) {
-					window.open(image.src, "_blank", "noopener,noreferrer");
-				}
-			}}
 		/>
 	);
 }

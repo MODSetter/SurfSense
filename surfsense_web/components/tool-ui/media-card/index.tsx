@@ -3,6 +3,7 @@
 import { ExternalLinkIcon, Globe, ImageIcon, LinkIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { Component, type ReactNode } from "react";
+import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,24 +11,38 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 
 /**
- * Aspect ratio options for media cards
+ * Zod schemas for runtime validation
  */
-type AspectRatio = "1:1" | "4:3" | "16:9" | "21:9" | "auto";
+const AspectRatioSchema = z.enum(["1:1", "4:3", "16:9", "21:9", "auto"]);
+const MediaCardKindSchema = z.enum(["link", "image", "video", "audio"]);
+
+const ResponseActionSchema = z.object({
+	id: z.string(),
+	label: z.string(),
+	variant: z.enum(["default", "secondary", "outline", "destructive", "ghost"]).optional(),
+	confirmLabel: z.string().optional(),
+});
+
+const SerializableMediaCardSchema = z.object({
+	id: z.string(),
+	assetId: z.string(),
+	kind: MediaCardKindSchema,
+	href: z.string().optional(),
+	src: z.string().optional(),
+	title: z.string(),
+	description: z.string().optional(),
+	thumb: z.string().optional(),
+	ratio: AspectRatioSchema.optional(),
+	domain: z.string().optional(),
+});
 
 /**
- * MediaCard kind - determines the display style
+ * Types derived from Zod schemas
  */
-type MediaCardKind = "link" | "image" | "video" | "audio";
-
-/**
- * Response action configuration
- */
-interface ResponseAction {
-	id: string;
-	label: string;
-	variant?: "default" | "secondary" | "outline" | "destructive" | "ghost";
-	confirmLabel?: string;
-}
+type AspectRatio = z.infer<typeof AspectRatioSchema>;
+type MediaCardKind = z.infer<typeof MediaCardKindSchema>;
+type ResponseAction = z.infer<typeof ResponseActionSchema>;
+export type SerializableMediaCard = z.infer<typeof SerializableMediaCardSchema>;
 
 /**
  * Props for the MediaCard component
@@ -51,57 +66,17 @@ export interface MediaCardProps {
 }
 
 /**
- * Serializable schema for MediaCard props (for tool results)
- */
-export interface SerializableMediaCard {
-	id: string;
-	assetId: string;
-	kind: MediaCardKind;
-	href?: string;
-	src?: string;
-	title: string;
-	description?: string;
-	thumb?: string;
-	ratio?: AspectRatio;
-	domain?: string;
-}
-
-/**
  * Parse and validate serializable media card from tool result
  */
 export function parseSerializableMediaCard(result: unknown): SerializableMediaCard {
-	if (typeof result !== "object" || result === null) {
-		throw new Error("Invalid media card result: expected object");
+	const parsed = SerializableMediaCardSchema.safeParse(result);
+	
+	if (!parsed.success) {
+		console.warn("Invalid media card data:", parsed.error.issues);
+		throw new Error(`Invalid media card: ${parsed.error.issues.map(i => i.message).join(", ")}`);
 	}
-
-	const obj = result as Record<string, unknown>;
-
-	// Validate required fields
-	if (typeof obj.id !== "string") {
-		throw new Error("Invalid media card: missing id");
-	}
-	if (typeof obj.assetId !== "string") {
-		throw new Error("Invalid media card: missing assetId");
-	}
-	if (typeof obj.kind !== "string") {
-		throw new Error("Invalid media card: missing kind");
-	}
-	if (typeof obj.title !== "string") {
-		throw new Error("Invalid media card: missing title");
-	}
-
-	return {
-		id: obj.id,
-		assetId: obj.assetId,
-		kind: obj.kind as MediaCardKind,
-		href: typeof obj.href === "string" ? obj.href : undefined,
-		src: typeof obj.src === "string" ? obj.src : undefined,
-		title: obj.title,
-		description: typeof obj.description === "string" ? obj.description : undefined,
-		thumb: typeof obj.thumb === "string" ? obj.thumb : undefined,
-		ratio: typeof obj.ratio === "string" ? (obj.ratio as AspectRatio) : undefined,
-		domain: typeof obj.domain === "string" ? obj.domain : undefined,
-	};
+	
+	return parsed.data;
 }
 
 /**

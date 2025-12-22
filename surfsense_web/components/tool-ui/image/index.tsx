@@ -3,28 +3,43 @@
 import { ExternalLinkIcon, ImageIcon, Loader2 } from "lucide-react";
 import NextImage from "next/image";
 import { Component, type ReactNode, useState } from "react";
+import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 /**
- * Aspect ratio options for images
+ * Zod schemas for runtime validation
  */
-type AspectRatio = "1:1" | "4:3" | "16:9" | "9:16" | "auto";
+const AspectRatioSchema = z.enum(["1:1", "4:3", "16:9", "9:16", "auto"]);
+const ImageFitSchema = z.enum(["cover", "contain"]);
+
+const ImageSourceSchema = z.object({
+	label: z.string(),
+	iconUrl: z.string().optional(),
+	url: z.string().optional(),
+});
+
+const SerializableImageSchema = z.object({
+	id: z.string(),
+	assetId: z.string(),
+	src: z.string(),
+	alt: z.string(),
+	title: z.string().optional(),
+	description: z.string().optional(),
+	href: z.string().optional(),
+	domain: z.string().optional(),
+	ratio: AspectRatioSchema.optional(),
+	source: ImageSourceSchema.optional(),
+});
 
 /**
- * Image fit options
+ * Types derived from Zod schemas
  */
-type ImageFit = "cover" | "contain";
-
-/**
- * Source attribution
- */
-interface ImageSource {
-	label: string;
-	iconUrl?: string;
-	url?: string;
-}
+type AspectRatio = z.infer<typeof AspectRatioSchema>;
+type ImageFit = z.infer<typeof ImageFitSchema>;
+type ImageSource = z.infer<typeof ImageSourceSchema>;
+export type SerializableImage = z.infer<typeof SerializableImageSchema>;
 
 /**
  * Props for the Image component
@@ -46,57 +61,19 @@ export interface ImageProps {
 }
 
 /**
- * Serializable schema for Image props (for tool results)
- */
-export interface SerializableImage {
-	id: string;
-	assetId: string;
-	src: string;
-	alt: string;
-	title?: string;
-	description?: string;
-	href?: string;
-	domain?: string;
-	ratio?: AspectRatio;
-	source?: ImageSource;
-}
-
-/**
  * Parse and validate serializable image from tool result
  */
 export function parseSerializableImage(result: unknown): SerializableImage {
-	if (typeof result !== "object" || result === null) {
-		throw new Error("Invalid image result: expected object");
+	const parsed = SerializableImageSchema.safeParse(result);
+	
+	if (!parsed.success) {
+		console.warn("Invalid image data:", parsed.error.issues);
+		// Try to extract basic info for error display
+		const obj = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
+		throw new Error(`Invalid image: ${parsed.error.issues.map(i => i.message).join(", ")}`);
 	}
-
-	const obj = result as Record<string, unknown>;
-
-	// Validate required fields
-	if (typeof obj.id !== "string") {
-		throw new Error("Invalid image: missing id");
-	}
-	if (typeof obj.assetId !== "string") {
-		throw new Error("Invalid image: missing assetId");
-	}
-	if (typeof obj.src !== "string") {
-		throw new Error("Invalid image: missing src");
-	}
-	if (typeof obj.alt !== "string") {
-		throw new Error("Invalid image: missing alt");
-	}
-
-	return {
-		id: obj.id,
-		assetId: obj.assetId,
-		src: obj.src,
-		alt: obj.alt,
-		title: typeof obj.title === "string" ? obj.title : undefined,
-		description: typeof obj.description === "string" ? obj.description : undefined,
-		href: typeof obj.href === "string" ? obj.href : undefined,
-		domain: typeof obj.domain === "string" ? obj.domain : undefined,
-		ratio: typeof obj.ratio === "string" ? (obj.ratio as AspectRatio) : undefined,
-		source: typeof obj.source === "object" && obj.source !== null ? (obj.source as ImageSource) : undefined,
-	};
+	
+	return parsed.data;
 }
 
 /**

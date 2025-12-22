@@ -17,6 +17,33 @@ import {
 	UserIcon,
 } from "lucide-react";
 import { Component, type ReactNode, useCallback } from "react";
+import { z } from "zod";
+
+/**
+ * Zod schema for serializable article data (from backend)
+ */
+const SerializableArticleSchema = z.object({
+	id: z.string().default("article-unknown"),
+	assetId: z.string().optional(),
+	kind: z.literal("article").optional(),
+	title: z.string().default("Untitled Article"),
+	description: z.string().optional(),
+	content: z.string().optional(),
+	href: z.string().url().optional(),
+	domain: z.string().optional(),
+	author: z.string().optional(),
+	date: z.string().optional(),
+	word_count: z.number().optional(),
+	wordCount: z.number().optional(),
+	was_truncated: z.boolean().optional(),
+	wasTruncated: z.boolean().optional(),
+	error: z.string().optional(),
+});
+
+/**
+ * Serializable article data type (from backend)
+ */
+export type SerializableArticle = z.infer<typeof SerializableArticleSchema>;
 
 /**
  * Article component props
@@ -61,44 +88,36 @@ export interface ArticleProps {
 }
 
 /**
- * Serializable article data type (from backend)
- */
-export interface SerializableArticle {
-	id: string;
-	assetId?: string;
-	kind?: "article";
-	title: string;
-	description?: string;
-	content?: string;
-	href?: string;
-	domain?: string;
-	author?: string;
-	date?: string;
-	word_count?: number;
-	wordCount?: number;
-	was_truncated?: boolean;
-	wasTruncated?: boolean;
-	error?: string;
-}
-
-/**
- * Parse serializable article data to ArticleProps
+ * Parse and validate serializable article data to ArticleProps
  */
 export function parseSerializableArticle(data: unknown): ArticleProps {
-	const obj = data as Record<string, unknown>;
+	const result = SerializableArticleSchema.safeParse(data);
+	
+	if (!result.success) {
+		console.warn("Invalid article data:", result.error.issues);
+		// Return fallback with basic info
+		const obj = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+		return {
+			id: String(obj.id || "article-unknown"),
+			title: String(obj.title || "Untitled Article"),
+			error: "Failed to parse article data",
+		};
+	}
+	
+	const parsed = result.data;
 	return {
-		id: String(obj.id || "article-unknown"),
-		assetId: obj.assetId as string | undefined,
-		title: String(obj.title || "Untitled Article"),
-		description: obj.description as string | undefined,
-		content: obj.content as string | undefined,
-		href: obj.href as string | undefined,
-		domain: obj.domain as string | undefined,
-		author: obj.author as string | undefined,
-		date: obj.date as string | undefined,
-		wordCount: (obj.word_count || obj.wordCount) as number | undefined,
-		wasTruncated: (obj.was_truncated || obj.wasTruncated) as boolean | undefined,
-		error: obj.error as string | undefined,
+		id: parsed.id,
+		assetId: parsed.assetId,
+		title: parsed.title,
+		description: parsed.description,
+		content: parsed.content,
+		href: parsed.href,
+		domain: parsed.domain,
+		author: parsed.author,
+		date: parsed.date,
+		wordCount: parsed.word_count ?? parsed.wordCount,
+		wasTruncated: parsed.was_truncated ?? parsed.wasTruncated,
+		error: parsed.error,
 	};
 }
 

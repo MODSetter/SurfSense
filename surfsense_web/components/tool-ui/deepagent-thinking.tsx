@@ -3,6 +3,7 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { Brain, CheckCircle2, Loader2, Search, Sparkles } from "lucide-react";
 import { useMemo, useState, useEffect, useRef } from "react";
+import { z } from "zod";
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -13,24 +14,61 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Types for the deepagent thinking/reasoning tool
+ * Zod schemas for runtime validation
  */
-interface ThinkingStep {
-  id: string;
-  title: string;
-  items: string[];
-  status: "pending" | "in_progress" | "completed";
+const ThinkingStepSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  items: z.array(z.string()).default([]),
+  status: z.enum(["pending", "in_progress", "completed"]).default("pending"),
+});
+
+const DeepAgentThinkingArgsSchema = z.object({
+  query: z.string().optional(),
+  context: z.string().optional(),
+});
+
+const DeepAgentThinkingResultSchema = z.object({
+  steps: z.array(ThinkingStepSchema).optional(),
+  status: z.enum(["thinking", "searching", "synthesizing", "completed"]).optional(),
+  summary: z.string().optional(),
+});
+
+/**
+ * Types derived from Zod schemas
+ */
+type ThinkingStep = z.infer<typeof ThinkingStepSchema>;
+type DeepAgentThinkingArgs = z.infer<typeof DeepAgentThinkingArgsSchema>;
+type DeepAgentThinkingResult = z.infer<typeof DeepAgentThinkingResultSchema>;
+
+/**
+ * Parse and validate a single thinking step
+ */
+export function parseThinkingStep(data: unknown): ThinkingStep {
+  const result = ThinkingStepSchema.safeParse(data);
+  if (!result.success) {
+    console.warn("Invalid thinking step data:", result.error.issues);
+    // Return a fallback step
+    return {
+      id: "unknown",
+      title: "Processing...",
+      items: [],
+      status: "pending",
+    };
+  }
+  return result.data;
 }
 
-interface DeepAgentThinkingArgs {
-  query?: string;
-  context?: string;
-}
-
-interface DeepAgentThinkingResult {
-  steps?: ThinkingStep[];
-  status?: "thinking" | "searching" | "synthesizing" | "completed";
-  summary?: string;
+/**
+ * Parse and validate thinking result
+ */
+export function parseThinkingResult(data: unknown): DeepAgentThinkingResult {
+  const result = DeepAgentThinkingResultSchema.safeParse(data);
+  if (!result.success) {
+    console.warn("Invalid thinking result data:", result.error.issues);
+    return {};
+  }
+  return result.data;
 }
 
 /**
