@@ -210,14 +210,14 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 		"Good afternoon",
 		"Afternoon",
 		"Hey there",
-		"Hope you're having a great day",
+		"Hi there",
 	];
 	
 	const eveningGreetings = [
 		"Good evening",
 		"Evening",
 		"Hey there",
-		"Hope you had a great day",
+		"Hi there",
 	];
 	
 	const nightGreetings = [
@@ -228,10 +228,10 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 	];
 	
 	const lateNightGreetings = [
-		"Burning the midnight oil",
 		"Still up",
 		"Night owl mode",
 		"The night is young",
+		"Hi there",
 	];
 	
 	// Select a random greeting based on time
@@ -358,9 +358,7 @@ const ConnectorIndicator: FC = () => {
 						"outline-none focus:outline-none focus-visible:outline-none",
 						"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none",
 						"data-[state=open]:bg-transparent data-[state=open]:shadow-none data-[state=open]:ring-0",
-						hasConnectors 
-							? "text-muted-foreground" 
-							: "text-muted-foreground/60"
+						"text-muted-foreground"
 					)}
 					aria-label={hasConnectors ? "View connected sources" : "Add your first connector"}
 					onMouseEnter={handleMouseEnter}
