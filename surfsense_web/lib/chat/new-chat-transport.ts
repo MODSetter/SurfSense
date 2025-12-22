@@ -151,6 +151,12 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 										};
 										break;
 
+									case "data-terminal-info":
+										yield {
+											content: [{type : "reasoning" as const, text : parsed.data.text, status : {type : parsed.data.type === "info" ? "running" : parsed.data.type === "success" ? "complete" : "failed"} as const }],
+										};
+										break;
+
 									case "error":
 										throw new Error(parsed.errorText || "Unknown error from server");
 
@@ -183,6 +189,11 @@ export function createNewChatAdapter(config: NewChatAdapterConfig): ChatModelAda
 										accumulatedText += parsed.delta;
 										yield {
 											content: [{ type: "text" as const, text: accumulatedText }],
+										};
+									}
+									if (parsed.type === "data-terminal-info") {
+										yield {
+											content: [{type : "reasoning" as const, text : parsed.data.text, status : {type : parsed.data.type === "info" ? "running" : parsed.data.type === "success" ? "complete" : "failed"} as const }],
 										};
 									}
 								} catch {

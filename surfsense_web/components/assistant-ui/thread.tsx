@@ -5,6 +5,8 @@ import {
 	ComposerPrimitive,
 	ErrorPrimitive,
 	MessagePrimitive,
+	ReasoningMessagePartComponent,
+	ReasoningMessagePartProps,
 	ThreadPrimitive,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue } from "jotai";
@@ -14,13 +16,14 @@ import {
 	CheckIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
+	CircleDashed,
 	CopyIcon,
 	DownloadIcon,
 	PencilIcon,
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { type FC, useEffect, useMemo, useRef } from "react";
 import { activeChatAtom } from "@/atoms/chats/chat-query.atoms";
 import { activeChatIdAtom } from "@/atoms/chats/ui.atoms";
@@ -42,7 +45,6 @@ import { ConnectorGroup } from "../chat/ConnectorGroup";
 import { useState } from "react";
 import { DocumentsDataTable } from "@/components/chat/DocumentsDataTable";
 import { Document } from "@/contracts/types/document.types";
-import { ReasoningStepChain } from "@/components/assistant-ui/reasoning-step-chain";
 
 export const Thread: FC = () => {
 	return (
@@ -59,7 +61,6 @@ export const Thread: FC = () => {
 				<AssistantIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadLogo />
 				</AssistantIf>
-
 				<ThreadPrimitive.Messages
 					components={{
 						UserMessage,
@@ -305,6 +306,15 @@ const MessageError: FC = () => {
 	);
 };
 
+const ReasoningMessage: ReasoningMessagePartComponent = ({ text, status : {type} }: ReasoningMessagePartProps ) => {
+	return (
+			<div className="flex items-center gap-2">
+				{type === "running" ? <CircleDashed className="size-4" /> : <CheckIcon className="size-4" />}
+				<p className="text-sm text-muted-foreground bg-muted p-2 rounded-md">{text}</p>
+			</div>
+	);
+};
+
 const AssistantMessage: FC = () => {
 	return (
 		<MessagePrimitive.Root
@@ -315,6 +325,7 @@ const AssistantMessage: FC = () => {
 				<MessagePrimitive.Parts
 					components={{
 						Text: MarkdownText,
+						Reasoning: ReasoningMessage,
 						tools: { Fallback: ToolFallback },
 					}}
 				/>
