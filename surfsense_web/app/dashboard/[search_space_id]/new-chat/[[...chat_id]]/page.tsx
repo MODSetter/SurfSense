@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Thread } from "@/components/assistant-ui/thread";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
+import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
@@ -80,7 +81,7 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 /**
  * Tools that should render custom UI in the chat.
  */
-const TOOLS_WITH_UI = new Set(["generate_podcast", "link_preview"]);
+const TOOLS_WITH_UI = new Set(["generate_podcast", "link_preview", "display_image"]);
 
 /**
  * Type for thinking step data from the backend
@@ -591,6 +592,7 @@ export default function NewChatPage() {
 		<AssistantRuntimeProvider runtime={runtime}>
 			<GeneratePodcastToolUI />
 			<LinkPreviewToolUI />
+			<DisplayImageToolUI />
 			<div className="h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden">
 				<Thread messageThinkingSteps={messageThinkingSteps} />
 			</div>

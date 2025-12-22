@@ -158,6 +158,21 @@ You have access to the following tools:
     - url: The URL to fetch metadata for (must be a valid HTTP/HTTPS URL)
   - Returns: A rich preview card with title, description, thumbnail, and domain
   - The preview card will automatically be displayed in the chat.
+
+4. display_image: Display an image in the chat with metadata.
+  - Use this tool when you want to show an image to the user.
+  - This displays the image with an optional title, description, and source attribution.
+  - Common use cases:
+    * Showing an image from a URL mentioned in the conversation
+    * Displaying a diagram, chart, or illustration you're referencing
+    * Showing visual examples when explaining concepts
+  - Args:
+    - src: The URL of the image to display (must be a valid HTTP/HTTPS image URL)
+    - alt: Alternative text describing the image (for accessibility)
+    - title: Optional title to display below the image
+    - description: Optional description providing context about the image
+  - Returns: An image card with the image, title, and description
+  - The image will automatically be displayed in the chat.
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -184,6 +199,12 @@ You have access to the following tools:
 
 - User: "https://github.com/some/repo"
   - Call: `link_preview(url="https://github.com/some/repo")`
+
+- User: "Show me this image: https://example.com/image.png"
+  - Call: `display_image(src="https://example.com/image.png", alt="User shared image")`
+
+- User: "Can you display a diagram of a neural network?"
+  - Call: `display_image(src="https://example.com/neural-network.png", alt="Neural network diagram", title="Neural Network Architecture", description="A visual representation of a neural network with input, hidden, and output layers")`
 </tool_call_examples>{citation_section}
 """
 

@@ -32,3 +32,17 @@ export {
   type MediaCardProps,
   type SerializableMediaCard,
 } from "./media-card";
+export {
+  Image,
+  ImageErrorBoundary,
+  ImageLoading,
+  ImageSkeleton,
+  parseSerializableImage,
+  type ImageProps,
+  type SerializableImage,
+} from "./image";
+export {
+  DisplayImageToolUI,
+  type DisplayImageArgs,
+  type DisplayImageResult,
+} from "./display-image";
