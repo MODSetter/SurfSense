@@ -217,24 +217,11 @@ async def stream_new_chat(
                                 yield completion_event
 
                             if just_finished_tool:
-                                # We just finished a tool - don't create a step here,
-                                # text will flow silently after tools.
-                                # Clear the active step tracking.
+                                # Clear the active step tracking - text flows without a dedicated step
                                 last_active_step_id = None
                                 last_active_step_title = ""
                                 last_active_step_items = []
                                 just_finished_tool = False
-                            else:
-                                # Normal text generation (not after a tool)
-                                gen_step_id = next_thinking_step_id()
-                                last_active_step_id = gen_step_id
-                                last_active_step_title = "Generating response"
-                                last_active_step_items = []
-                                yield streaming_service.format_thinking_step(
-                                    step_id=gen_step_id,
-                                    title="Generating response",
-                                    status="in_progress",
-                                )
 
                             current_text_id = streaming_service.generate_text_id()
                             yield streaming_service.format_text_start(current_text_id)

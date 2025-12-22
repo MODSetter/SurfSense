@@ -2,7 +2,7 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { Brain, CheckCircle2, Loader2, Search, Sparkles } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -61,13 +61,21 @@ function getStepIcon(status: "pending" | "in_progress" | "completed", title: str
 }
 
 /**
- * Component to display a single thinking step
+ * Component to display a single thinking step with controlled open state
  */
-function ThinkingStepDisplay({ step }: { step: ThinkingStep }) {
+function ThinkingStepDisplay({ 
+  step, 
+  isOpen, 
+  onToggle 
+}: { 
+  step: ThinkingStep; 
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
   const icon = useMemo(() => getStepIcon(step.status, step.title), [step.status, step.title]);
   
   return (
-    <ChainOfThoughtStep defaultOpen={step.status === "in_progress"}>
+    <ChainOfThoughtStep open={isOpen} onOpenChange={onToggle}>
       <ChainOfThoughtTrigger 
         leftIcon={icon}
         swapIconOnHover={step.status !== "in_progress"}
@@ -120,6 +128,82 @@ function ThinkingLoadingState({ status }: { status?: string }) {
 }
 
 /**
+ * Smart chain of thought renderer with state management
+ */
+function SmartChainOfThought({ steps }: { steps: ThinkingStep[] }) {
+  // Track which steps the user has manually toggled
+  const [manualOverrides, setManualOverrides] = useState<Record<string, boolean>>({});
+  // Track previous step statuses to detect changes
+  const prevStatusesRef = useRef<Record<string, string>>({});
+  
+  // Check if any step is currently in progress
+  const hasInProgressStep = steps.some(step => step.status === "in_progress");
+  
+  // Find the last completed step index
+  const lastCompletedIndex = steps
+    .map((s, i) => s.status === "completed" ? i : -1)
+    .filter(i => i !== -1)
+    .pop();
+  
+  // Clear manual overrides when a step's status changes
+  useEffect(() => {
+    const currentStatuses: Record<string, string> = {};
+    steps.forEach(step => {
+      currentStatuses[step.id] = step.status;
+      // If status changed, clear any manual override for this step
+      if (prevStatusesRef.current[step.id] && prevStatusesRef.current[step.id] !== step.status) {
+        setManualOverrides(prev => {
+          const next = { ...prev };
+          delete next[step.id];
+          return next;
+        });
+      }
+    });
+    prevStatusesRef.current = currentStatuses;
+  }, [steps]);
+  
+  const getStepOpenState = (step: ThinkingStep, index: number): boolean => {
+    // If user has manually toggled, respect that
+    if (manualOverrides[step.id] !== undefined) {
+      return manualOverrides[step.id];
+    }
+    // Auto behavior: open if in progress
+    if (step.status === "in_progress") {
+      return true;
+    }
+    // Auto behavior: keep last completed step open if no in-progress step
+    if (!hasInProgressStep && index === lastCompletedIndex) {
+      return true;
+    }
+    // Default: collapsed
+    return false;
+  };
+  
+  const handleToggle = (stepId: string, currentOpen: boolean) => {
+    setManualOverrides(prev => ({
+      ...prev,
+      [stepId]: !currentOpen,
+    }));
+  };
+  
+  return (
+    <ChainOfThought>
+      {steps.map((step, index) => {
+        const isOpen = getStepOpenState(step, index);
+        return (
+          <ThinkingStepDisplay 
+            key={step.id} 
+            step={step} 
+            isOpen={isOpen}
+            onToggle={() => handleToggle(step.id, isOpen)}
+          />
+        );
+      })}
+    </ChainOfThought>
+  );
+}
+
+/**
  * DeepAgent Thinking Tool UI Component
  *
  * This component displays the agent's chain-of-thought reasoning
@@ -131,7 +215,7 @@ export const DeepAgentThinkingToolUI = makeAssistantToolUI<
   DeepAgentThinkingResult
 >({
   toolName: "deepagent_thinking",
-  render: function DeepAgentThinkingUI({ args, result, status }) {
+  render: function DeepAgentThinkingUI({ result, status }) {
     // Loading state - tool is still running
     if (status.type === "running" || status.type === "requires-action") {
       return <ThinkingLoadingState status={result?.status} />;
@@ -155,11 +239,7 @@ export const DeepAgentThinkingToolUI = makeAssistantToolUI<
     // Render the chain of thought
     return (
       <div className="my-3 w-full">
-        <ChainOfThought>
-          {result.steps.map((step) => (
-            <ThinkingStepDisplay key={step.id} step={step} />
-          ))}
-        </ChainOfThought>
+        <SmartChainOfThought steps={result.steps} />
       </div>
     );
   },
@@ -189,11 +269,7 @@ export function InlineThinkingDisplay({
       {isStreaming && steps.length === 0 ? (
         <ThinkingLoadingState />
       ) : (
-        <ChainOfThought>
-          {steps.map((step) => (
-            <ThinkingStepDisplay key={step.id} step={step} />
-          ))}
-        </ChainOfThought>
+        <SmartChainOfThought steps={steps} />
       )}
     </div>
   );

@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { type FC, useState, useRef, useCallback } from "react";
+import { type FC, useState, useRef, useCallback, useEffect } from "react";
 import { useAtomValue } from "jotai";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
@@ -94,35 +94,102 @@ function getStepIcon(status: "pending" | "in_progress" | "completed", title: str
 }
 
 /**
- * Chain of thought display component
+ * Chain of thought display component with smart expand/collapse behavior
  */
-const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[] }> = ({ steps }) => {
+const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolean }> = ({ steps, isThreadRunning = true }) => {
+	// Track which steps the user has manually toggled (overrides auto behavior)
+	const [manualOverrides, setManualOverrides] = useState<Record<string, boolean>>({});
+	// Track previous step statuses to detect changes
+	const prevStatusesRef = useRef<Record<string, string>>({});
+	
+	// Derive effective status: if thread stopped and step is in_progress, treat as completed
+	const getEffectiveStatus = (step: ThinkingStep): "pending" | "in_progress" | "completed" => {
+		if (step.status === "in_progress" && !isThreadRunning) {
+			return "completed"; // Thread was stopped, so mark as completed
+		}
+		return step.status;
+	};
+	
+	// Check if any step is effectively in progress
+	const hasInProgressStep = steps.some(step => getEffectiveStatus(step) === "in_progress");
+	
+	// Find the last completed step index (using effective status)
+	const lastCompletedIndex = steps
+		.map((s, i) => getEffectiveStatus(s) === "completed" ? i : -1)
+		.filter(i => i !== -1)
+		.pop();
+	
+	// Clear manual overrides when a step's status changes
+	useEffect(() => {
+		const currentStatuses: Record<string, string> = {};
+		steps.forEach(step => {
+			currentStatuses[step.id] = step.status;
+			// If status changed, clear any manual override for this step
+			if (prevStatusesRef.current[step.id] && prevStatusesRef.current[step.id] !== step.status) {
+				setManualOverrides(prev => {
+					const next = { ...prev };
+					delete next[step.id];
+					return next;
+				});
+			}
+		});
+		prevStatusesRef.current = currentStatuses;
+	}, [steps]);
+	
 	if (steps.length === 0) return null;
+	
+	const getStepOpenState = (step: ThinkingStep, index: number): boolean => {
+		const effectiveStatus = getEffectiveStatus(step);
+		// If user has manually toggled, respect that
+		if (manualOverrides[step.id] !== undefined) {
+			return manualOverrides[step.id];
+		}
+		// Auto behavior: open if in progress
+		if (effectiveStatus === "in_progress") {
+			return true;
+		}
+		// Auto behavior: keep last completed step open if no in-progress step
+		if (!hasInProgressStep && index === lastCompletedIndex) {
+			return true;
+		}
+		// Default: collapsed
+		return false;
+	};
+	
+	const handleToggle = (stepId: string, currentOpen: boolean) => {
+		setManualOverrides(prev => ({
+			...prev,
+			[stepId]: !currentOpen,
+		}));
+	};
 	
 	return (
 		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
 			<ChainOfThought>
-				{steps.map((step) => {
-					const icon = getStepIcon(step.status, step.title);
+				{steps.map((step, index) => {
+					const effectiveStatus = getEffectiveStatus(step);
+					const icon = getStepIcon(effectiveStatus, step.title);
+					const isOpen = getStepOpenState(step, index);
 					return (
 						<ChainOfThoughtStep 
 							key={step.id} 
-							defaultOpen={step.status === "in_progress"}
+							open={isOpen}
+							onOpenChange={() => handleToggle(step.id, isOpen)}
 						>
 							<ChainOfThoughtTrigger
 								leftIcon={icon}
-								swapIconOnHover={step.status !== "in_progress"}
+								swapIconOnHover={effectiveStatus !== "in_progress"}
 								className={cn(
-									step.status === "in_progress" && "text-foreground font-medium",
-									step.status === "completed" && "text-muted-foreground"
+									effectiveStatus === "in_progress" && "text-foreground font-medium",
+									effectiveStatus === "completed" && "text-muted-foreground"
 								)}
 							>
 								{step.title}
 							</ChainOfThoughtTrigger>
 							{step.items && step.items.length > 0 && (
 								<ChainOfThoughtContent>
-									{step.items.map((item, index) => (
-										<ChainOfThoughtItem key={`${step.id}-item-${index}`}>
+									{step.items.map((item, idx) => (
+										<ChainOfThoughtItem key={`${step.id}-item-${idx}`}>
 											{item}
 										</ChainOfThoughtItem>
 									))}
@@ -263,8 +330,8 @@ const ThreadWelcome: FC = () => {
 	
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
-			{/* Greeting positioned near the composer */}
-			<div className="aui-thread-welcome-message absolute top-1/2 left-0 right-0 flex flex-col items-center text-center z-10 -translate-y-[calc(50%+100px)]">
+			{/* Greeting positioned above the composer - fixed position */}
+			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center z-10">
 				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both flex items-center gap-4">
 					{/** biome-ignore lint/a11y/noStaticElementInteractions: wrong lint error, this is a workaround to fix the lint error */}
 					<div
@@ -295,8 +362,8 @@ const ThreadWelcome: FC = () => {
 					{getTimeBasedGreeting(user?.email)}
 				</h1>
 			</div>
-			{/* Composer centered in the middle of the screen */}
-			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-center justify-center absolute top-1/2 left-0 right-0 -translate-y-1/2">
+			{/* Composer - top edge fixed, expands downward only */}
+			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
 				<Composer />
 			</div>
 		</div>
@@ -525,12 +592,15 @@ const AssistantMessageInner: FC = () => {
 	const messageId = useMessage((m) => m.id);
 	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
 	
+	// Check if thread is still running (for stopping the spinner when cancelled)
+	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	
 	return (
 		<>
 			{/* Show thinking steps BEFORE the text response */}
 			{thinkingSteps.length > 0 && (
 				<div className="mb-3">
-					<ThinkingStepsDisplay steps={thinkingSteps} />
+					<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isThreadRunning} />
 				</div>
 			)}
 			
