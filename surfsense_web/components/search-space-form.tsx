@@ -121,11 +121,6 @@ export function SearchSpaceForm({
 					<h2 className="text-3xl font-bold tracking-tight">
 						{isEditing ? "Edit Search Space" : "Create Search Space"}
 					</h2>
-					<p className="text-muted-foreground">
-						{isEditing
-							? "Update your search space details"
-							: "Create a new search space to organize your documents, chats, and podcasts."}
-					</p>
 				</div>
 				<Button
 					variant="ghost"
@@ -198,8 +193,8 @@ export function SearchSpaceForm({
 							)}
 						</div>
 						<p className="text-muted-foreground">
-							A search space allows you to organize and search through your documents, generate
-							podcasts, and have AI-powered conversations about your content.
+							A search space is your personal workspace. Connect external sources, upload documents,
+							take notes, and get work done with AI agents.
 						</p>
 					</div>
 				</Tilt>
