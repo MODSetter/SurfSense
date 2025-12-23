@@ -2,7 +2,8 @@
 SurfSense deep agent implementation.
 
 This module provides the factory function for creating SurfSense deep agents
-with configurable tools via the tools registry.
+with configurable tools via the tools registry and configurable prompts
+via NewLLMConfig.
 """
 
 from collections.abc import Sequence
@@ -14,7 +15,11 @@ from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
-from app.agents.new_chat.system_prompt import build_surfsense_system_prompt
+from app.agents.new_chat.llm_config import AgentConfig
+from app.agents.new_chat.system_prompt import (
+    build_configurable_system_prompt,
+    build_surfsense_system_prompt,
+)
 from app.agents.new_chat.tools import build_tools
 from app.services.connector_service import ConnectorService
 
@@ -29,13 +34,14 @@ def create_surfsense_deep_agent(
     db_session: AsyncSession,
     connector_service: ConnectorService,
     checkpointer: Checkpointer,
+    agent_config: AgentConfig | None = None,
     enabled_tools: list[str] | None = None,
     disabled_tools: list[str] | None = None,
     additional_tools: Sequence[BaseTool] | None = None,
     firecrawl_api_key: str | None = None,
 ):
     """
-    Create a SurfSense deep agent with configurable tools.
+    Create a SurfSense deep agent with configurable tools and prompts.
 
     The agent comes with built-in tools that can be configured:
     - search_knowledge_base: Search the user's personal knowledge base
@@ -44,6 +50,10 @@ def create_surfsense_deep_agent(
     - display_image: Display images in chat
     - scrape_webpage: Extract content from webpages
 
+    The system prompt can be configured via agent_config:
+    - Custom system instructions (or use defaults)
+    - Citation toggle (enable/disable citation requirements)
+
     Args:
         llm: ChatLiteLLM instance for the agent's language model
         search_space_id: The user's search space ID
@@ -51,6 +61,8 @@ def create_surfsense_deep_agent(
         connector_service: Initialized connector service for knowledge base search
         checkpointer: LangGraph checkpointer for conversation state persistence.
                       Use AsyncPostgresSaver for production or MemorySaver for testing.
+        agent_config: Optional AgentConfig from NewLLMConfig for prompt configuration.
+                     If None, uses default system prompt with citations enabled.
         enabled_tools: Explicit list of tool names to enable. If None, all default tools
                       are enabled. Use this to limit which tools are available.
         disabled_tools: List of tool names to disable. Applied after enabled_tools.
@@ -64,8 +76,20 @@ def create_surfsense_deep_agent(
         CompiledStateGraph: The configured deep agent
 
     Examples:
-        # Create agent with all default tools
+        # Create agent with all default tools and default prompt
         agent = create_surfsense_deep_agent(llm, search_space_id, db_session, ...)
+
+        # Create agent with custom prompt configuration
+        agent = create_surfsense_deep_agent(
+            llm, search_space_id, db_session, ...,
+            agent_config=AgentConfig(
+                provider="OPENAI",
+                model_name="gpt-4",
+                api_key="...",
+                system_instructions="Custom instructions...",
+                citations_enabled=False,
+            )
+        )
 
         # Create agent with only specific tools
         agent = create_surfsense_deep_agent(
@@ -101,11 +125,23 @@ def create_surfsense_deep_agent(
         additional_tools=list(additional_tools) if additional_tools else None,
     )
 
+    # Build system prompt based on agent_config
+    if agent_config is not None:
+        # Use configurable prompt with settings from NewLLMConfig
+        system_prompt = build_configurable_system_prompt(
+            custom_system_instructions=agent_config.system_instructions,
+            use_default_system_instructions=agent_config.use_default_system_instructions,
+            citations_enabled=agent_config.citations_enabled,
+        )
+    else:
+        # Use default prompt (with citations enabled)
+        system_prompt = build_surfsense_system_prompt()
+
     # Create the deep agent with system prompt and checkpointer
     agent = create_deep_agent(
         model=llm,
         tools=tools,
-        system_prompt=build_surfsense_system_prompt(),
+        system_prompt=system_prompt,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
     )

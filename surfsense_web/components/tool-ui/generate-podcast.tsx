@@ -202,9 +202,7 @@ function PodcastPlayer({
 						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcastId}/audio`,
 						{ method: "GET", signal: controller.signal }
 					),
-					baseApiService.get<unknown>(
-						`/api/v1/podcasts/${podcastId}`
-					),
+					baseApiService.get<unknown>(`/api/v1/podcasts/${podcastId}`),
 				]);
 
 				if (!audioResponse.ok) {

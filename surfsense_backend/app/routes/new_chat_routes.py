@@ -685,8 +685,16 @@ async def handle_new_chat(
         )
         search_space = search_space_result.scalars().first()
 
-        # TODO: Add new llm config arch then complete this
-        llm_config_id = -1  
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found")
+
+        # Use agent_llm_id from search space for chat operations
+        # Positive IDs load from NewLLMConfig database table
+        # Negative IDs load from YAML global configs
+        # Falls back to -1 (first global config) if not configured
+        llm_config_id = (
+            search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
+        )
 
         # Return streaming response
         return StreamingResponse(
@@ -696,7 +704,6 @@ async def handle_new_chat(
                 chat_id=request.chat_id,
                 session=session,
                 llm_config_id=llm_config_id,
-                messages=request.messages,
                 attachments=request.attachments,
             ),
             media_type="text/event-stream",

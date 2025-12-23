@@ -1,13 +1,13 @@
 import logging
-from pathlib import Path
 
-import yaml
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.config import config
 from app.db import (
+    NewLLMConfig,
     Permission,
     SearchSpace,
     SearchSpaceMembership,
@@ -17,6 +17,8 @@ from app.db import (
     get_default_roles_config,
 )
 from app.schemas import (
+    LLMPreferencesRead,
+    LLMPreferencesUpdate,
     SearchSpaceCreate,
     SearchSpaceRead,
     SearchSpaceUpdate,
@@ -184,37 +186,6 @@ async def read_search_spaces(
         ) from e
 
 
-@router.get("/searchspaces/prompts/community")
-async def get_community_prompts():
-    """
-    Get community-curated prompts for SearchSpace System Instructions.
-    This endpoint does not require authentication as it serves public prompts.
-    """
-    try:
-        # Get the path to the prompts YAML file
-        prompts_file = (
-            Path(__file__).parent.parent
-            / "prompts"
-            / "public_search_space_prompts.yaml"
-        )
-
-        if not prompts_file.exists():
-            raise HTTPException(
-                status_code=404, detail="Community prompts file not found"
-            )
-
-        with open(prompts_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
-        return data.get("prompts", [])
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to load community prompts: {e!s}"
-        ) from e
-
-
 @router.get("/searchspaces/{search_space_id}", response_model=SearchSpaceRead)
 async def read_search_space(
     search_space_id: int,
@@ -328,4 +299,185 @@ async def delete_search_space(
         await session.rollback()
         raise HTTPException(
             status_code=500, detail=f"Failed to delete search space: {e!s}"
+        ) from e
+
+
+# =============================================================================
+# LLM Preferences Routes
+# =============================================================================
+
+
+async def _get_llm_config_by_id(
+    session: AsyncSession, config_id: int | None
+) -> dict | None:
+    """
+    Get an LLM config by ID as a dictionary. Returns database config for positive IDs,
+    global config for negative IDs, or None if ID is None.
+    """
+    if config_id is None:
+        return None
+
+    if config_id < 0:
+        # Global config - find from YAML
+        global_configs = config.GLOBAL_LLM_CONFIGS
+        for cfg in global_configs:
+            if cfg.get("id") == config_id:
+                return {
+                    "id": cfg.get("id"),
+                    "name": cfg.get("name"),
+                    "description": cfg.get("description"),
+                    "provider": cfg.get("provider"),
+                    "custom_provider": cfg.get("custom_provider"),
+                    "model_name": cfg.get("model_name"),
+                    "api_base": cfg.get("api_base"),
+                    "litellm_params": cfg.get("litellm_params", {}),
+                    "system_instructions": cfg.get("system_instructions", ""),
+                    "use_default_system_instructions": cfg.get(
+                        "use_default_system_instructions", True
+                    ),
+                    "citations_enabled": cfg.get("citations_enabled", True),
+                    "is_global": True,
+                }
+        return None
+    else:
+        # Database config - convert to dict
+        result = await session.execute(
+            select(NewLLMConfig).filter(NewLLMConfig.id == config_id)
+        )
+        db_config = result.scalars().first()
+        if db_config:
+            return {
+                "id": db_config.id,
+                "name": db_config.name,
+                "description": db_config.description,
+                "provider": db_config.provider.value if db_config.provider else None,
+                "custom_provider": db_config.custom_provider,
+                "model_name": db_config.model_name,
+                "api_key": db_config.api_key,
+                "api_base": db_config.api_base,
+                "litellm_params": db_config.litellm_params or {},
+                "system_instructions": db_config.system_instructions or "",
+                "use_default_system_instructions": db_config.use_default_system_instructions,
+                "citations_enabled": db_config.citations_enabled,
+                "created_at": db_config.created_at.isoformat()
+                if db_config.created_at
+                else None,
+                "search_space_id": db_config.search_space_id,
+            }
+        return None
+
+
+@router.get(
+    "/search-spaces/{search_space_id}/llm-preferences",
+    response_model=LLMPreferencesRead,
+)
+async def get_llm_preferences(
+    search_space_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Get LLM preferences (role assignments) for a search space.
+    Requires LLM_CONFIGS_READ permission.
+    """
+    try:
+        # Check permission
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.LLM_CONFIGS_READ.value,
+            "You don't have permission to view LLM preferences",
+        )
+
+        result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+        )
+        search_space = result.scalars().first()
+
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found")
+
+        # Get full config objects for each role
+        agent_llm = await _get_llm_config_by_id(session, search_space.agent_llm_id)
+        document_summary_llm = await _get_llm_config_by_id(
+            session, search_space.document_summary_llm_id
+        )
+
+        return LLMPreferencesRead(
+            agent_llm_id=search_space.agent_llm_id,
+            document_summary_llm_id=search_space.document_summary_llm_id,
+            agent_llm=agent_llm,
+            document_summary_llm=document_summary_llm,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to get LLM preferences")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get LLM preferences: {e!s}"
+        ) from e
+
+
+@router.put(
+    "/search-spaces/{search_space_id}/llm-preferences",
+    response_model=LLMPreferencesRead,
+)
+async def update_llm_preferences(
+    search_space_id: int,
+    preferences: LLMPreferencesUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Update LLM preferences (role assignments) for a search space.
+    Requires LLM_CONFIGS_UPDATE permission.
+    """
+    try:
+        # Check permission
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.LLM_CONFIGS_UPDATE.value,
+            "You don't have permission to update LLM preferences",
+        )
+
+        result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == search_space_id)
+        )
+        search_space = result.scalars().first()
+
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found")
+
+        # Update preferences
+        update_data = preferences.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(search_space, key, value)
+
+        await session.commit()
+        await session.refresh(search_space)
+
+        # Get full config objects for response
+        agent_llm = await _get_llm_config_by_id(session, search_space.agent_llm_id)
+        document_summary_llm = await _get_llm_config_by_id(
+            session, search_space.document_summary_llm_id
+        )
+
+        return LLMPreferencesRead(
+            agent_llm_id=search_space.agent_llm_id,
+            document_summary_llm_id=search_space.document_summary_llm_id,
+            agent_llm=agent_llm,
+            document_summary_llm=document_summary_llm,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Failed to update LLM preferences")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update LLM preferences: {e!s}"
         ) from e

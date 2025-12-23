@@ -1,13 +1,5 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import {
 	AlertCircleIcon,
 	BookOpenIcon,
@@ -18,6 +10,9 @@ import {
 } from "lucide-react";
 import { Component, type ReactNode, useCallback } from "react";
 import { z } from "zod";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 /**
  * Zod schema for serializable article data (from backend)
@@ -92,7 +87,7 @@ export interface ArticleProps {
  */
 export function parseSerializableArticle(data: unknown): ArticleProps {
 	const result = SerializableArticleSchema.safeParse(data);
-	
+
 	if (!result.success) {
 		console.warn("Invalid article data:", result.error.issues);
 		// Return fallback with basic info
@@ -103,7 +98,7 @@ export function parseSerializableArticle(data: unknown): ArticleProps {
 			error: "Failed to parse article data",
 		};
 	}
-	
+
 	const parsed = result.data;
 	return {
 		id: parsed.id,
@@ -162,10 +157,7 @@ export function Article({
 		return (
 			<Card
 				id={id}
-				className={cn(
-					"overflow-hidden border-destructive/20 bg-destructive/5",
-					className
-				)}
+				className={cn("overflow-hidden border-destructive/20 bg-destructive/5", className)}
 				style={{ maxWidth }}
 			>
 				<CardContent className="p-4">
@@ -174,14 +166,8 @@ export function Article({
 							<AlertCircleIcon className="size-5 text-destructive" />
 						</div>
 						<div className="flex-1 min-w-0">
-							<p className="font-medium text-destructive text-sm">
-								Failed to scrape webpage
-							</p>
-							{href && (
-								<p className="text-muted-foreground text-xs mt-0.5 truncate">
-									{href}
-								</p>
-							)}
+							<p className="font-medium text-destructive text-sm">Failed to scrape webpage</p>
+							{href && <p className="text-muted-foreground text-xs mt-0.5 truncate">{href}</p>}
 							<p className="text-muted-foreground text-xs mt-1">{error}</p>
 						</div>
 					</div>
@@ -228,9 +214,7 @@ export function Article({
 
 							{/* Description */}
 							{description && (
-								<p className="text-muted-foreground text-xs mt-1 line-clamp-2">
-									{description}
-								</p>
+								<p className="text-muted-foreground text-xs mt-1 line-clamp-2">{description}</p>
 							)}
 
 							{/* Metadata row */}
@@ -276,9 +260,7 @@ export function Article({
 											<span className="flex items-center gap-1">
 												<FileTextIcon className="size-3" />
 												<span>{formatWordCount(wordCount)}</span>
-												{wasTruncated && (
-													<span className="text-warning">(truncated)</span>
-												)}
+												{wasTruncated && <span className="text-warning">(truncated)</span>}
 											</span>
 										</TooltipTrigger>
 										<TooltipContent>
@@ -333,9 +315,7 @@ export function Article({
 /**
  * Loading state for article component
  */
-export function ArticleLoading({
-	title = "Loading article...",
-}: { title?: string }) {
+export function ArticleLoading({ title = "Loading article..." }: { title?: string }) {
 	return (
 		<Card className="overflow-hidden animate-pulse">
 			<CardContent className="p-4">
@@ -388,10 +368,7 @@ interface ErrorBoundaryState {
 /**
  * Error boundary for article component
  */
-export class ArticleErrorBoundary extends Component<
-	ErrorBoundaryProps,
-	ErrorBoundaryState
-> {
+export class ArticleErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 	constructor(props: ErrorBoundaryProps) {
 		super(props);
 		this.state = { hasError: false };
@@ -409,9 +386,7 @@ export class ArticleErrorBoundary extends Component<
 						<CardContent className="p-4">
 							<div className="flex items-center gap-3">
 								<AlertCircleIcon className="size-5 text-destructive" />
-								<p className="text-sm text-destructive">
-									Failed to render article
-								</p>
+								<p className="text-sm text-destructive">Failed to render article</p>
 							</div>
 						</CardContent>
 					</Card>
@@ -422,4 +397,3 @@ export class ArticleErrorBoundary extends Component<
 		return this.props.children;
 	}
 }
-

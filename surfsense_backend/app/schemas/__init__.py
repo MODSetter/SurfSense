@@ -10,7 +10,6 @@ from .documents import (
     ExtensionDocumentMetadata,
     PaginatedResponse,
 )
-from .llm_config import LLMConfigBase, LLMConfigCreate, LLMConfigRead, LLMConfigUpdate
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
 from .new_chat import (
     ChatMessage,
@@ -25,6 +24,16 @@ from .new_chat import (
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
+)
+from .new_llm_config import (
+    DefaultSystemInstructionsResponse,
+    GlobalNewLLMConfigRead,
+    LLMPreferencesRead,
+    LLMPreferencesUpdate,
+    NewLLMConfigCreate,
+    NewLLMConfigPublic,
+    NewLLMConfigRead,
+    NewLLMConfigUpdate,
 )
 from .podcasts import PodcastBase, PodcastCreate, PodcastRead, PodcastUpdate
 from .rbac_schemas import (
@@ -67,6 +76,7 @@ __all__ = [
     "ChunkCreate",
     "ChunkRead",
     "ChunkUpdate",
+    "DefaultSystemInstructionsResponse",
     # Document schemas
     "DocumentBase",
     "DocumentRead",
@@ -75,6 +85,7 @@ __all__ = [
     "DocumentsCreate",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
+    "GlobalNewLLMConfigRead",
     # Base schemas
     "IDModel",
     # RBAC schemas
@@ -84,11 +95,9 @@ __all__ = [
     "InviteInfoResponse",
     "InviteRead",
     "InviteUpdate",
-    # LLM Config schemas
-    "LLMConfigBase",
-    "LLMConfigCreate",
-    "LLMConfigRead",
-    "LLMConfigUpdate",
+    # LLM Preferences schemas
+    "LLMPreferencesRead",
+    "LLMPreferencesUpdate",
     # Log schemas
     "LogBase",
     "LogCreate",
@@ -106,6 +115,11 @@ __all__ = [
     "NewChatThreadRead",
     "NewChatThreadUpdate",
     "NewChatThreadWithMessages",
+    # NewLLMConfig schemas
+    "NewLLMConfigCreate",
+    "NewLLMConfigPublic",
+    "NewLLMConfigRead",
+    "NewLLMConfigUpdate",
     "PaginatedResponse",
     "PermissionInfo",
     "PermissionsListResponse",

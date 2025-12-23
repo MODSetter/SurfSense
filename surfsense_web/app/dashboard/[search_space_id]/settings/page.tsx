@@ -30,20 +30,20 @@ interface SettingsNavItem {
 const settingsNavItems: SettingsNavItem[] = [
 	{
 		id: "models",
-		label: "Model Configs",
-		description: "Configure AI models and providers",
+		label: "Agent Configs",
+		description: "LLM models with prompts & citations",
 		icon: Bot,
 	},
 	{
 		id: "roles",
-		label: "LLM Roles",
-		description: "Manage language model roles",
+		label: "Role Assignments",
+		description: "Assign configs to agent roles",
 		icon: Brain,
 	},
 	{
 		id: "prompts",
 		label: "System Instructions",
-		description: "Customize system prompts",
+		description: "SearchSpace-wide AI instructions",
 		icon: MessageSquare,
 	},
 ];
@@ -236,9 +236,6 @@ function SettingsContent({
 									<h1 className="text-xl md:text-2xl font-bold tracking-tight truncate">
 										{activeItem?.label}
 									</h1>
-									<p className="text-sm text-muted-foreground mt-0.5 truncate">
-										{activeItem?.description}
-									</p>
 								</div>
 							</div>
 						</motion.div>
@@ -275,7 +272,7 @@ export default function SettingsPage() {
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	const handleBackToApp = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/researcher`);
+		router.push(`/dashboard/${searchSpaceId}/new-chat`);
 	}, [router, searchSpaceId]);
 
 	return (

@@ -86,7 +86,9 @@ def create_display_image_tool():
         ratio = "16:9"  # Default
         if "unsplash.com" in src or "pexels.com" in src:
             ratio = "16:9"
-        elif "imgur.com" in src or "github.com" in src or "githubusercontent.com" in src:
+        elif (
+            "imgur.com" in src or "github.com" in src or "githubusercontent.com" in src
+        ):
             ratio = "auto"
 
         return {
@@ -101,4 +103,3 @@ def create_display_image_tool():
         }
 
     return display_image
-

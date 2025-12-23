@@ -1,5 +1,4 @@
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
-import type { GetLLMConfigsRequest } from "@/contracts/types/llm-config.types";
 import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
 
 export const cacheKeys = {
@@ -19,13 +18,12 @@ export const cacheKeys = {
 		typeCounts: (searchSpaceId?: string) => ["documents", "type-counts", searchSpaceId] as const,
 		byChunk: (chunkId: string) => ["documents", "by-chunk", chunkId] as const,
 	},
-	llmConfigs: {
-		global: () => ["llm-configs", "global"] as const,
-		all: (searchSpaceId: string) => ["llm-configs", searchSpaceId] as const,
-		withQueryParams: (queries: GetLLMConfigsRequest["queryParams"]) =>
-			["llm-configs", ...(queries ? Object.values(queries) : [])] as const,
-		byId: (llmConfigId: string) => ["llm-config", llmConfigId] as const,
-		preferences: (searchSpaceId: string) => ["llm-preferences", searchSpaceId] as const,
+	newLLMConfigs: {
+		all: (searchSpaceId: number) => ["new-llm-configs", searchSpaceId] as const,
+		byId: (configId: number) => ["new-llm-configs", "detail", configId] as const,
+		preferences: (searchSpaceId: number) => ["llm-preferences", searchSpaceId] as const,
+		defaultInstructions: () => ["new-llm-configs", "default-instructions"] as const,
+		global: () => ["new-llm-configs", "global"] as const,
 	},
 	auth: {
 		user: ["auth", "user"] as const,
@@ -35,7 +33,6 @@ export const cacheKeys = {
 		withQueryParams: (queries: GetSearchSpacesRequest["queryParams"]) =>
 			["search-spaces", ...(queries ? Object.values(queries) : [])] as const,
 		detail: (searchSpaceId: string) => ["search-spaces", searchSpaceId] as const,
-		communityPrompts: ["search-spaces", "community-prompts"] as const,
 	},
 	user: {
 		current: () => ["user", "me"] as const,

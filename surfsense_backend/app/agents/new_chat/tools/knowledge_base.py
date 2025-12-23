@@ -605,4 +605,3 @@ def create_search_knowledge_base_tool(
         )
 
     return search_knowledge_base
-

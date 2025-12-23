@@ -65,14 +65,14 @@ export interface ImageProps {
  */
 export function parseSerializableImage(result: unknown): SerializableImage {
 	const parsed = SerializableImageSchema.safeParse(result);
-	
+
 	if (!parsed.success) {
 		console.warn("Invalid image data:", parsed.error.issues);
 		// Try to extract basic info for error display
 		const obj = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
-		throw new Error(`Invalid image: ${parsed.error.issues.map(i => i.message).join(", ")}`);
+		throw new Error(`Invalid image: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
 	}
-	
+
 	return parsed.data;
 }
 
@@ -165,7 +165,7 @@ export function ImageLoading({ title = "Loading image..." }: { title?: string })
 
 /**
  * Image Component
- * 
+ *
  * Display images with metadata and attribution.
  * Features hover overlay with title and source attribution.
  */
@@ -197,11 +197,7 @@ export function Image({
 
 	if (imageError) {
 		return (
-			<Card
-				id={id}
-				className={cn("w-full overflow-hidden", className)}
-				style={{ maxWidth }}
-			>
+			<Card id={id} className={cn("w-full overflow-hidden", className)} style={{ maxWidth }}>
 				<div className={cn("bg-muted flex items-center justify-center", aspectRatioClass)}>
 					<div className="flex flex-col items-center gap-2 text-muted-foreground">
 						<ImageIcon className="size-8" />
@@ -266,9 +262,7 @@ export function Image({
 
 						{/* Description */}
 						{description && (
-							<p className="text-white/80 text-sm line-clamp-2 mb-2">
-								{description}
-							</p>
+							<p className="text-white/80 text-sm line-clamp-2 mb-2">{description}</p>
 						)}
 
 						{/* Source attribution */}
@@ -295,8 +289,8 @@ export function Image({
 				{/* Always visible domain badge (bottom right, shown when NOT hovered) */}
 				{displayDomain && !isHovered && (
 					<div className="absolute bottom-2 right-2">
-						<Badge 
-							variant="secondary" 
+						<Badge
+							variant="secondary"
 							className="bg-black/60 text-white border-0 text-xs backdrop-blur-sm"
 						>
 							{displayDomain}

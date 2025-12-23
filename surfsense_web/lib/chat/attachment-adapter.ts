@@ -153,8 +153,6 @@ export function createAttachmentAdapter(): AttachmentAdapter {
 				throw new Error("No file provided");
 			}
 
-			console.log("[AttachmentAdapter] Processing file:", file.name);
-
 			// Generate a unique ID for this attachment
 			const id = crypto.randomUUID();
 
@@ -174,13 +172,6 @@ export function createAttachmentAdapter(): AttachmentAdapter {
 			try {
 				// Process the file through the backend ETL service
 				const result = await processAttachment(file);
-
-				console.log(
-					"[AttachmentAdapter] File processed:",
-					result.name,
-					"content length:",
-					result.contentLength
-				);
 
 				// Verify we have the required fields
 				if (!result.content) {

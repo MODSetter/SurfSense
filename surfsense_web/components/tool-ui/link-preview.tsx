@@ -74,9 +74,7 @@ function ParsedMediaCard({ result }: { result: unknown }) {
 		<MediaCard
 			{...card}
 			maxWidth="420px"
-			responseActions={[
-				{ id: "open", label: "Open", variant: "default" },
-			]}
+			responseActions={[{ id: "open", label: "Open", variant: "default" }]}
 			onResponseAction={(id) => {
 				if (id === "open" && card.href) {
 					window.open(card.href, "_blank", "noopener,noreferrer");
@@ -98,10 +96,7 @@ function ParsedMediaCard({ result }: { result: unknown }) {
  * - Domain name
  * - Clickable link to open in new tab
  */
-export const LinkPreviewToolUI = makeAssistantToolUI<
-	LinkPreviewArgs,
-	LinkPreviewResult
->({
+export const LinkPreviewToolUI = makeAssistantToolUI<LinkPreviewArgs, LinkPreviewResult>({
 	toolName: "link_preview",
 	render: function LinkPreviewUI({ args, result, status }) {
 		const url = args.url || "Unknown URL";
@@ -223,4 +218,3 @@ export const MultiLinkPreviewToolUI = makeAssistantToolUI<
 });
 
 export type { LinkPreviewArgs, LinkPreviewResult, MultiLinkPreviewArgs, MultiLinkPreviewResult };
-
