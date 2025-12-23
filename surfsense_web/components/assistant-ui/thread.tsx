@@ -28,13 +28,14 @@ import {
 	Sparkles,
 	SquareIcon,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { type FC, useState, useRef, useCallback, useEffect } from "react";
 import { useAtomValue } from "jotai";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	ComposerAddAttachment,
@@ -332,35 +333,9 @@ const ThreadWelcome: FC = () => {
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer - fixed position */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center z-10">
-				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both flex items-center gap-4">
-					{/** biome-ignore lint/a11y/noStaticElementInteractions: wrong lint error, this is a workaround to fix the lint error */}
-					<div
-						className="relative cursor-pointer"
-						onMouseMove={(e) => {
-							const rect = e.currentTarget.getBoundingClientRect();
-							const x = (e.clientX - rect.left - rect.width / 2) / 3;
-							const y = (e.clientY - rect.top - rect.height / 2) / 3;
-							e.currentTarget.style.setProperty("--mag-x", `${x}px`);
-							e.currentTarget.style.setProperty("--mag-y", `${y}px`);
-						}}
-						onMouseLeave={(e) => {
-							e.currentTarget.style.setProperty("--mag-x", "0px");
-							e.currentTarget.style.setProperty("--mag-y", "0px");
-						}}
-					>
-						<Image
-							src="/icon-128.png"
-							alt="SurfSense"
-							width={48}
-							height={48}
-							className="rounded-full transition-transform duration-200 ease-out"
-							style={{
-								transform: "translate(var(--mag-x, 0), var(--mag-y, 0))",
-							}}
-						/>
-					</div>
-					{getTimeBasedGreeting(user?.email)}
-				</h1>
+			<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both">
+				{getTimeBasedGreeting(user?.email)}
+			</h1>
 			</div>
 			{/* Composer - top edge fixed, expands downward only */}
 			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
@@ -390,11 +365,21 @@ const Composer: FC = () => {
 
 const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { connectors, isLoading } = useSearchSourceConnectors(false, searchSpaceId ? Number(searchSpaceId) : undefined);
+	const { connectors, isLoading: connectorsLoading } = useSearchSourceConnectors(false, searchSpaceId ? Number(searchSpaceId) : undefined);
+	const { data: documentTypeCounts, isLoading: documentTypesLoading } = useAtomValue(documentTypeCountsAtom);
 	const [isOpen, setIsOpen] = useState(false);
 	const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	
+	const isLoading = connectorsLoading || documentTypesLoading;
+	
+	// Get document types that have documents in the search space
+	const activeDocumentTypes = documentTypeCounts 
+		? Object.entries(documentTypeCounts).filter(([_, count]) => count > 0)
+		: [];
+	
 	const hasConnectors = connectors.length > 0;
+	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
+	const totalSourceCount = connectors.length + activeDocumentTypes.length;
 	
 	const handleMouseEnter = useCallback(() => {
 		// Clear any pending close timeout
@@ -420,21 +405,32 @@ const ConnectorIndicator: FC = () => {
 				<button
 					type="button"
 					className={cn(
-						"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors",
+						"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors relative",
 						"hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30",
 						"outline-none focus:outline-none focus-visible:outline-none",
 						"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none",
 						"data-[state=open]:bg-transparent data-[state=open]:shadow-none data-[state=open]:ring-0",
 						"text-muted-foreground"
 					)}
-					aria-label={hasConnectors ? "View connected sources" : "Add your first connector"}
+					aria-label={hasSources ? `View ${totalSourceCount} connected sources` : "Add your first connector"}
 					onMouseEnter={handleMouseEnter}
 					onMouseLeave={handleMouseLeave}
 				>
 					{isLoading ? (
 						<Loader2 className="size-4 animate-spin" />
 					) : (
-						<Plug2 className="size-4" />
+						<>
+							<Plug2 className="size-4" />
+							{totalSourceCount > 0 ? (
+								<span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm">
+									{totalSourceCount > 99 ? "99+" : totalSourceCount}
+								</span>
+							) : (
+								<span className="absolute -top-0.5 -right-0.5 flex items-center justify-center size-3 rounded-full bg-muted-foreground/30 border border-background">
+									<span className="size-1.5 rounded-full bg-muted-foreground/60" />
+								</span>
+							)}
+						</>
 					)}
 				</button>
 			</PopoverTrigger>
@@ -445,20 +441,31 @@ const ConnectorIndicator: FC = () => {
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
 			>
-				{hasConnectors ? (
+				{hasSources ? (
 					<div className="space-y-3">
 						<div className="flex items-center justify-between">
 							<p className="text-xs font-medium text-muted-foreground">
 								Connected Sources
 							</p>
 							<span className="text-xs font-medium bg-muted px-1.5 py-0.5 rounded">
-								{connectors.length}
+								{totalSourceCount}
 							</span>
 						</div>
 						<div className="flex flex-wrap gap-2">
+							{/* Document types from the search space */}
+							{activeDocumentTypes.map(([docType, count]) => (
+								<div
+									key={docType}
+									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
+								>
+									{getConnectorIcon(docType, "size-3.5")}
+									<span className="truncate max-w-[100px]">{getDocumentTypeLabel(docType)}</span>
+								</div>
+							))}
+							{/* Search source connectors */}
 							{connectors.map((connector) => (
 								<div
-									key={connector.id}
+									key={`connector-${connector.id}`}
 									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
 								>
 									{getConnectorIcon(connector.connector_type, "size-3.5")}
@@ -479,9 +486,9 @@ const ConnectorIndicator: FC = () => {
 					</div>
 				) : (
 					<div className="space-y-2">
-						<p className="text-sm font-medium">No connectors yet</p>
+						<p className="text-sm font-medium">No sources yet</p>
 						<p className="text-xs text-muted-foreground">
-							Connect your first data source to enhance search results.
+							Add documents or connect data sources to enhance search results.
 						</p>
 						<Link
 							href={`/dashboard/${searchSpaceId}/connectors/add`}

@@ -7,8 +7,6 @@ Data Stream Protocol (SSE format).
 
 import json
 from collections.abc import AsyncGenerator
-from uuid import UUID
-
 from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +40,6 @@ def format_attachments_as_context(attachments: list[ChatAttachment]) -> str:
 
 async def stream_new_chat(
     user_query: str,
-    user_id: str | UUID,
     search_space_id: int,
     chat_id: int,
     session: AsyncSession,
@@ -59,7 +56,6 @@ async def stream_new_chat(
 
     Args:
         user_query: The user's query
-        user_id: The user's ID (can be UUID object or string)
         search_space_id: The search space ID
         chat_id: The chat ID (used as LangGraph thread_id for memory)
         session: The database session
@@ -70,9 +66,6 @@ async def stream_new_chat(
         str: SSE formatted response strings
     """
     streaming_service = VercelStreamingService()
-
-    # Convert UUID to string if needed
-    str(user_id) if isinstance(user_id, UUID) else user_id
 
     # Track the current text block for streaming (defined early for exception handling)
     current_text_id: str | None = None
@@ -107,8 +100,6 @@ async def stream_new_chat(
             db_session=session,
             connector_service=connector_service,
             checkpointer=checkpointer,
-            user_id=str(user_id),
-            enable_podcast=True,
         )
 
         # Build input with message history from frontend

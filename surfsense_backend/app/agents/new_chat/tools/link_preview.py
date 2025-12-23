@@ -1,5 +1,5 @@
 """
-Link preview tool for the new chat agent.
+Link preview tool for the SurfSense agent.
 
 This module provides a tool for fetching URL metadata (title, description,
 Open Graph image, etc.) to display rich link previews in the chat UI.
@@ -34,13 +34,13 @@ def extract_og_content(html: str, property_name: str) -> str | None:
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1)
-    
+
     # Try content before property
     pattern = rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:{property_name}["\']'
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1)
-    
+
     return None
 
 
@@ -50,13 +50,13 @@ def extract_twitter_content(html: str, name: str) -> str | None:
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1)
-    
+
     # Try content before name
     pattern = rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:{name}["\']'
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1)
-    
+
     return None
 
 
@@ -66,13 +66,13 @@ def extract_meta_description(html: str) -> str | None:
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1)
-    
+
     # Try content before name
     pattern = r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']description["\']'
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1)
-    
+
     return None
 
 
@@ -82,18 +82,18 @@ def extract_title(html: str) -> str | None:
     og_title = extract_og_content(html, "title")
     if og_title:
         return og_title
-    
+
     # Try twitter:title
     twitter_title = extract_twitter_content(html, "title")
     if twitter_title:
         return twitter_title
-    
+
     # Fall back to <title> tag
     pattern = r"<title[^>]*>([^<]+)</title>"
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1).strip()
-    
+
     return None
 
 
@@ -103,12 +103,12 @@ def extract_description(html: str) -> str | None:
     og_desc = extract_og_content(html, "description")
     if og_desc:
         return og_desc
-    
+
     # Try twitter:description
     twitter_desc = extract_twitter_content(html, "description")
     if twitter_desc:
         return twitter_desc
-    
+
     # Fall back to meta description
     return extract_meta_description(html)
 
@@ -119,12 +119,12 @@ def extract_image(html: str) -> str | None:
     og_image = extract_og_content(html, "image")
     if og_image:
         return og_image
-    
+
     # Try twitter:image
     twitter_image = extract_twitter_content(html, "image")
     if twitter_image:
         return twitter_image
-    
+
     return None
 
 

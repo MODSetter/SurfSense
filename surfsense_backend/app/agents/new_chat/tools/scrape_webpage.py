@@ -1,5 +1,5 @@
 """
-Web scraping tool for the new chat agent.
+Web scraping tool for the SurfSense agent.
 
 This module provides a tool for scraping and extracting content from webpages
 using the existing WebCrawlerConnector. The scraped content can be used by
@@ -37,23 +37,23 @@ def generate_scrape_id(url: str) -> str:
 def truncate_content(content: str, max_length: int = 50000) -> tuple[str, bool]:
     """
     Truncate content to a maximum length.
-    
+
     Returns:
         Tuple of (truncated_content, was_truncated)
     """
     if len(content) <= max_length:
         return content, False
-    
+
     # Try to truncate at a sentence boundary
     truncated = content[:max_length]
     last_period = truncated.rfind(".")
     last_newline = truncated.rfind("\n\n")
-    
+
     # Use the later of the two boundaries, or just truncate
     boundary = max(last_period, last_newline)
     if boundary > max_length * 0.8:  # Only use boundary if it's not too far back
         truncated = content[: boundary + 1]
-    
+
     return truncated + "\n\n[Content truncated...]", True
 
 

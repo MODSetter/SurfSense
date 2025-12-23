@@ -1,5 +1,5 @@
 """
-Display image tool for the new chat agent.
+Display image tool for the SurfSense agent.
 
 This module provides a tool for displaying images in the chat UI
 with metadata like title, description, and source attribution.
@@ -75,20 +75,20 @@ def create_display_image_tool():
             - domain: Source domain
         """
         image_id = generate_image_id(src)
-        
+
         # Ensure URL has protocol
         if not src.startswith(("http://", "https://")):
             src = f"https://{src}"
-        
+
         domain = extract_domain(src)
-        
+
         # Determine aspect ratio based on common image sources
         ratio = "16:9"  # Default
         if "unsplash.com" in src or "pexels.com" in src:
             ratio = "16:9"
         elif "imgur.com" in src or "github.com" in src or "githubusercontent.com" in src:
             ratio = "auto"
-        
+
         return {
             "id": image_id,
             "assetId": src,

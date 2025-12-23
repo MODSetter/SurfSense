@@ -685,16 +685,13 @@ async def handle_new_chat(
         )
         search_space = search_space_result.scalars().first()
 
-        # Determine LLM config ID (use search space preference or default)
-        llm_config_id = -1  # Default to first global config
-        if search_space and search_space.fast_llm_id:
-            llm_config_id = search_space.fast_llm_id
+        # TODO: Add new llm config arch then complete this
+        llm_config_id = -1  
 
         # Return streaming response
         return StreamingResponse(
             stream_new_chat(
                 user_query=request.user_query,
-                user_id=str(user.id),
                 search_space_id=request.search_space_id,
                 chat_id=request.chat_id,
                 session=session,
