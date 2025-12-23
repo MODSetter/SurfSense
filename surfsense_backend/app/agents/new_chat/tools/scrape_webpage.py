@@ -156,7 +156,9 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
             if not description and content:
                 # Use first paragraph as description
                 first_para = content.split("\n\n")[0] if content else ""
-                description = first_para[:300] + "..." if len(first_para) > 300 else first_para
+                description = (
+                    first_para[:300] + "..." if len(first_para) > 300 else first_para
+                )
 
             # Truncate content if needed
             content, was_truncated = truncate_content(content, max_length)
@@ -194,4 +196,3 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
             }
 
     return scrape_webpage
-

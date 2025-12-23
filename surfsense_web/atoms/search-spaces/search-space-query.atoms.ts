@@ -25,13 +25,3 @@ export const searchSpacesAtom = atomWithQuery((get) => {
 		},
 	};
 });
-
-export const communityPromptsAtom = atomWithQuery(() => {
-	return {
-		queryKey: cacheKeys.searchSpaces.communityPrompts,
-		staleTime: 30 * 60 * 1000,
-		queryFn: async () => {
-			return searchSpacesApiService.getCommunityPrompts();
-		},
-	};
-});

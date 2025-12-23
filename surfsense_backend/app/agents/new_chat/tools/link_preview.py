@@ -46,13 +46,17 @@ def extract_og_content(html: str, property_name: str) -> str | None:
 
 def extract_twitter_content(html: str, name: str) -> str | None:
     """Extract Twitter Card meta content from HTML."""
-    pattern = rf'<meta[^>]+name=["\']twitter:{name}["\'][^>]+content=["\']([^"\']+)["\']'
+    pattern = (
+        rf'<meta[^>]+name=["\']twitter:{name}["\'][^>]+content=["\']([^"\']+)["\']'
+    )
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1)
 
     # Try content before name
-    pattern = rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:{name}["\']'
+    pattern = (
+        rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:{name}["\']'
+    )
     match = re.search(pattern, html, re.IGNORECASE)
     if match:
         return match.group(1)
@@ -289,4 +293,3 @@ def create_link_preview_tool():
             }
 
     return link_preview
-

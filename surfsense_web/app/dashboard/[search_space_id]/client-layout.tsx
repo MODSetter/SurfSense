@@ -5,9 +5,14 @@ import { Loader2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { llmPreferencesAtom } from "@/atoms/llm-config/llm-config-query.atoms";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
+import {
+	globalNewLLMConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -33,18 +38,24 @@ export function DashboardClientLayout({
 	const { search_space_id } = useParams();
 	const setActiveSearchSpaceIdState = useSetAtom(activeSearchSpaceIdAtom);
 
-	const { data: preferences = {}, isFetching: loading, error } = useAtomValue(llmPreferencesAtom);
+	const {
+		data: preferences = {},
+		isFetching: loading,
+		error,
+		refetch: refetchPreferences,
+	} = useAtomValue(llmPreferencesAtom);
+	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
+		useAtomValue(globalNewLLMConfigsAtom);
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const isOnboardingComplete = useCallback(() => {
-		return !!(
-			preferences.long_context_llm_id &&
-			preferences.fast_llm_id &&
-			preferences.strategic_llm_id
-		);
+		return !!(preferences.agent_llm_id && preferences.document_summary_llm_id);
 	}, [preferences]);
 
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 	const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
+	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
+	const hasAttemptedAutoConfig = useRef(false);
 
 	// Skip onboarding check if we're already on the onboarding page
 	const isOnboardingPage = pathname?.includes("/onboard");
@@ -89,27 +100,82 @@ export function DashboardClientLayout({
 			return;
 		}
 
-		// Wait for both preferences and access data to load
-		if (!loading && !accessLoading && !hasCheckedOnboarding) {
+		// Wait for all data to load
+		if (
+			!loading &&
+			!accessLoading &&
+			!globalConfigsLoading &&
+			!hasCheckedOnboarding &&
+			!isAutoConfiguring
+		) {
 			const onboardingComplete = isOnboardingComplete();
 
-			// Only redirect to onboarding if user is the owner and onboarding is not complete
-			// Invited members (non-owners) should skip onboarding and use existing config
-			if (!onboardingComplete && isOwner) {
-				router.push(`/dashboard/${searchSpaceId}/onboard`);
+			// If onboarding is complete, nothing to do
+			if (onboardingComplete) {
+				setHasCheckedOnboarding(true);
+				return;
 			}
 
+			// Only handle onboarding for owners
+			if (!isOwner) {
+				setHasCheckedOnboarding(true);
+				return;
+			}
+
+			// If global configs available, auto-configure without going to onboard page
+			if (globalConfigs.length > 0 && !hasAttemptedAutoConfig.current) {
+				hasAttemptedAutoConfig.current = true;
+				setIsAutoConfiguring(true);
+
+				const autoConfigureWithGlobal = async () => {
+					try {
+						const firstGlobalConfig = globalConfigs[0];
+						await updatePreferences({
+							search_space_id: Number(searchSpaceId),
+							data: {
+								agent_llm_id: firstGlobalConfig.id,
+								document_summary_llm_id: firstGlobalConfig.id,
+							},
+						});
+
+						await refetchPreferences();
+
+						toast.success("AI configured automatically!", {
+							description: `Using ${firstGlobalConfig.name}. Customize in Settings.`,
+						});
+
+						setHasCheckedOnboarding(true);
+					} catch (error) {
+						console.error("Auto-configuration failed:", error);
+						// Fall back to onboard page
+						router.push(`/dashboard/${searchSpaceId}/onboard`);
+					} finally {
+						setIsAutoConfiguring(false);
+					}
+				};
+
+				autoConfigureWithGlobal();
+				return;
+			}
+
+			// No global configs - redirect to onboard page
+			router.push(`/dashboard/${searchSpaceId}/onboard`);
 			setHasCheckedOnboarding(true);
 		}
 	}, [
 		loading,
 		accessLoading,
+		globalConfigsLoading,
 		isOnboardingComplete,
 		isOnboardingPage,
 		isOwner,
+		isAutoConfiguring,
+		globalConfigs,
 		router,
 		searchSpaceId,
 		hasCheckedOnboarding,
+		updatePreferences,
+		refetchPreferences,
 	]);
 
 	// Synchronize active search space and chat IDs with URL
@@ -124,14 +190,25 @@ export function DashboardClientLayout({
 		setActiveSearchSpaceIdState(activeSeacrhSpaceId);
 	}, [search_space_id, setActiveSearchSpaceIdState]);
 
-	// Show loading screen while checking onboarding status (only on first load)
-	if (!hasCheckedOnboarding && (loading || accessLoading) && !isOnboardingPage) {
+	// Show loading screen while checking onboarding status or auto-configuring
+	if (
+		(!hasCheckedOnboarding &&
+			(loading || accessLoading || globalConfigsLoading) &&
+			!isOnboardingPage) ||
+		isAutoConfiguring
+	) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
 				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">{t("loading_config")}</CardTitle>
-						<CardDescription>{t("checking_llm_prefs")}</CardDescription>
+						<CardTitle className="text-xl font-medium">
+							{isAutoConfiguring ? "Setting up AI..." : t("loading_config")}
+						</CardTitle>
+						<CardDescription>
+							{isAutoConfiguring
+								? "Auto-configuring with available settings"
+								: t("checking_llm_prefs")}
+						</CardDescription>
 					</CardHeader>
 					<CardContent className="flex justify-center py-6">
 						<Loader2 className="h-12 w-12 text-primary animate-spin" />

@@ -7,8 +7,11 @@ import {
 	MessagePrimitive,
 	ThreadPrimitive,
 	useAssistantState,
+	useThreadViewport,
 } from "@assistant-ui/react";
+import { useAtomValue } from "jotai";
 import {
+	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
 	Brain,
@@ -40,7 +43,14 @@ import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import {
+	globalNewLLMConfigsAtom,
+	llmPreferencesAtom,
+	newLLMConfigsAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -57,11 +67,13 @@ import {
 	ChainOfThoughtTrigger,
 } from "@/components/prompt-kit/chain-of-thought";
 import { DocumentsDataTable, type DocumentsDataTableRef } from "@/components/new-chat/DocumentsDataTable";
+import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
-import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 
 /**
  * Props for the Thread component
@@ -78,35 +90,38 @@ const ThinkingStepsContext = createContext<Map<string, ThinkingStep[]>>(new Map(
  */
 function getStepIcon(status: "pending" | "in_progress" | "completed", title: string) {
 	const titleLower = title.toLowerCase();
-	
+
 	if (status === "in_progress") {
 		return <Loader2 className="size-4 animate-spin text-primary" />;
 	}
-	
+
 	if (status === "completed") {
 		return <CheckCircle2 className="size-4 text-emerald-500" />;
 	}
-	
+
 	if (titleLower.includes("search") || titleLower.includes("knowledge")) {
 		return <Search className="size-4 text-muted-foreground" />;
 	}
-	
+
 	if (titleLower.includes("analy") || titleLower.includes("understand")) {
 		return <Brain className="size-4 text-muted-foreground" />;
 	}
-	
+
 	return <Sparkles className="size-4 text-muted-foreground" />;
 }
 
 /**
  * Chain of thought display component with smart expand/collapse behavior
  */
-const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolean }> = ({ steps, isThreadRunning = true }) => {
+const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolean }> = ({
+	steps,
+	isThreadRunning = true,
+}) => {
 	// Track which steps the user has manually toggled (overrides auto behavior)
 	const [manualOverrides, setManualOverrides] = useState<Record<string, boolean>>({});
 	// Track previous step statuses to detect changes
 	const prevStatusesRef = useRef<Record<string, string>>({});
-	
+
 	// Derive effective status: if thread stopped and step is in_progress, treat as completed
 	const getEffectiveStatus = (step: ThinkingStep): "pending" | "in_progress" | "completed" => {
 		if (step.status === "in_progress" && !isThreadRunning) {
@@ -114,24 +129,24 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 		}
 		return step.status;
 	};
-	
+
 	// Check if any step is effectively in progress
-	const hasInProgressStep = steps.some(step => getEffectiveStatus(step) === "in_progress");
-	
+	const hasInProgressStep = steps.some((step) => getEffectiveStatus(step) === "in_progress");
+
 	// Find the last completed step index (using effective status)
 	const lastCompletedIndex = steps
-		.map((s, i) => getEffectiveStatus(s) === "completed" ? i : -1)
-		.filter(i => i !== -1)
+		.map((s, i) => (getEffectiveStatus(s) === "completed" ? i : -1))
+		.filter((i) => i !== -1)
 		.pop();
-	
+
 	// Clear manual overrides when a step's status changes
 	useEffect(() => {
 		const currentStatuses: Record<string, string> = {};
-		steps.forEach(step => {
+		steps.forEach((step) => {
 			currentStatuses[step.id] = step.status;
 			// If status changed, clear any manual override for this step
 			if (prevStatusesRef.current[step.id] && prevStatusesRef.current[step.id] !== step.status) {
-				setManualOverrides(prev => {
+				setManualOverrides((prev) => {
 					const next = { ...prev };
 					delete next[step.id];
 					return next;
@@ -140,9 +155,9 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 		});
 		prevStatusesRef.current = currentStatuses;
 	}, [steps]);
-	
+
 	if (steps.length === 0) return null;
-	
+
 	const getStepOpenState = (step: ThinkingStep, index: number): boolean => {
 		const effectiveStatus = getEffectiveStatus(step);
 		// If user has manually toggled, respect that
@@ -160,14 +175,14 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 		// Default: collapsed
 		return false;
 	};
-	
+
 	const handleToggle = (stepId: string, currentOpen: boolean) => {
-		setManualOverrides(prev => ({
+		setManualOverrides((prev) => ({
 			...prev,
 			[stepId]: !currentOpen,
 		}));
 	};
-	
+
 	return (
 		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
 			<ChainOfThought>
@@ -176,8 +191,8 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 					const icon = getStepIcon(effectiveStatus, step.title);
 					const isOpen = getStepOpenState(step, index);
 					return (
-						<ChainOfThoughtStep 
-							key={step.id} 
+						<ChainOfThoughtStep
+							key={step.id}
 							open={isOpen}
 							onOpenChange={() => handleToggle(step.id, isOpen)}
 						>
@@ -194,9 +209,7 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 							{step.items && step.items.length > 0 && (
 								<ChainOfThoughtContent>
 									{step.items.map((item, idx) => (
-										<ChainOfThoughtItem key={`${step.id}-item-${idx}`}>
-											{item}
-										</ChainOfThoughtItem>
+										<ChainOfThoughtItem key={`${step.id}-item-${idx}`}>{item}</ChainOfThoughtItem>
 									))}
 								</ChainOfThoughtContent>
 							)}
@@ -206,6 +219,56 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 			</ChainOfThought>
 		</div>
 	);
+};
+
+/**
+ * Component that handles auto-scroll when thinking steps update.
+ * Uses useThreadViewport to scroll to bottom when thinking steps change,
+ * ensuring the user always sees the latest content during streaming.
+ */
+const ThinkingStepsScrollHandler: FC = () => {
+	const thinkingStepsMap = useContext(ThinkingStepsContext);
+	const viewport = useThreadViewport();
+	const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+	// Track the serialized state to detect any changes
+	const prevStateRef = useRef<string>("");
+
+	useEffect(() => {
+		// Only act during streaming
+		if (!isRunning) {
+			prevStateRef.current = "";
+			return;
+		}
+
+		// Serialize the thinking steps state to detect any changes
+		// This catches new steps, status changes, and item additions
+		let stateString = "";
+		thinkingStepsMap.forEach((steps, msgId) => {
+			steps.forEach((step) => {
+				stateString += `${msgId}:${step.id}:${step.status}:${step.items?.length || 0};`;
+			});
+		});
+
+		// If state changed at all during streaming, scroll
+		if (stateString !== prevStateRef.current && stateString !== "") {
+			prevStateRef.current = stateString;
+
+			// Multiple attempts to ensure scroll happens after DOM updates
+			const scrollAttempt = () => {
+				try {
+					viewport.scrollToBottom();
+				} catch (e) {
+					// Ignore errors - viewport might not be ready
+				}
+			};
+
+			// Delayed attempts to handle async DOM updates
+			requestAnimationFrame(scrollAttempt);
+			setTimeout(scrollAttempt, 100);
+		}
+	}, [thinkingStepsMap, viewport, isRunning]);
+
+	return null; // This component doesn't render anything
 };
 
 export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
@@ -221,6 +284,9 @@ export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) =>
 					turnAnchor="top"
 					className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
 				>
+					{/* Auto-scroll handler for thinking steps - must be inside Viewport */}
+					<ThinkingStepsScrollHandler />
+
 					<AssistantIf condition={({ thread }) => thread.isEmpty}>
 						<ThreadWelcome />
 					</AssistantIf>
@@ -263,49 +329,24 @@ const ThreadScrollToBottom: FC = () => {
 
 const getTimeBasedGreeting = (userEmail?: string): string => {
 	const hour = new Date().getHours();
-	
+
 	// Extract first name from email if available
 	const firstName = userEmail
-		? userEmail.split("@")[0].split(".")[0].charAt(0).toUpperCase() + 
-		  userEmail.split("@")[0].split(".")[0].slice(1)
+		? userEmail.split("@")[0].split(".")[0].charAt(0).toUpperCase() +
+			userEmail.split("@")[0].split(".")[0].slice(1)
 		: null;
-	
+
 	// Array of greeting variations for each time period
-	const morningGreetings = [
-		"Good morning",
-		"Rise and shine",
-		"Morning",
-		"Hey there",
-	];
-	
-	const afternoonGreetings = [
-		"Good afternoon",
-		"Afternoon",
-		"Hey there",
-		"Hi there",
-	];
-	
-	const eveningGreetings = [
-		"Good evening",
-		"Evening",
-		"Hey there",
-		"Hi there",
-	];
-	
-	const nightGreetings = [
-		"Good night",
-		"Evening",
-		"Hey there",
-		"Winding down",
-	];
-	
-	const lateNightGreetings = [
-		"Still up",
-		"Night owl mode",
-		"The night is young",
-		"Hi there",
-	];
-	
+	const morningGreetings = ["Good morning", "Rise and shine", "Morning", "Hey there"];
+
+	const afternoonGreetings = ["Good afternoon", "Afternoon", "Hey there", "Hi there"];
+
+	const eveningGreetings = ["Good evening", "Evening", "Hey there", "Hi there"];
+
+	const nightGreetings = ["Good night", "Evening", "Hey there", "Winding down"];
+
+	const lateNightGreetings = ["Still up", "Night owl mode", "The night is young", "Hi there"];
+
 	// Select a random greeting based on time
 	let greeting: string;
 	if (hour < 5) {
@@ -321,12 +362,12 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 		// Night: 10 PM to midnight
 		greeting = nightGreetings[Math.floor(Math.random() * nightGreetings.length)];
 	}
-	
+
 	// Add personalization with first name if available
 	if (firstName) {
 		return `${greeting}, ${firstName}!`;
 	}
-	
+
 	return `${greeting}!`;
 };
 
@@ -335,14 +376,14 @@ const ThreadWelcome: FC = () => {
 	
 	// Memoize greeting so it doesn't change on re-renders (only on user change)
 	const greeting = useMemo(() => getTimeBasedGreeting(user?.email), [user?.email]);
-	
+
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer - fixed position */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center z-10">
-			<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both">
-				{greeting}
-			</h1>
+				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both">
+					{greeting}
+				</h1>
 			</div>
 			{/* Composer - top edge fixed, expands downward only */}
 			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
@@ -490,6 +531,23 @@ const Composer: FC = () => {
 		setMentionedDocuments((prev) => prev.filter((doc) => doc.id !== docId));
 	};
 
+	// Check if a model is configured - needed to disable input
+	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
+	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
+	const { data: preferences } = useAtomValue(llmPreferencesAtom);
+
+	const hasModelConfigured = useMemo(() => {
+		if (!preferences) return false;
+		const agentLlmId = preferences.agent_llm_id;
+		if (agentLlmId === null || agentLlmId === undefined) return false;
+
+		// Check if the configured model actually exists
+		if (agentLlmId < 0) {
+			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
+		}
+		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
+	}, [preferences, globalConfigs, userConfigs]);
+
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
@@ -571,22 +629,26 @@ const Composer: FC = () => {
 
 const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { connectors, isLoading: connectorsLoading } = useSearchSourceConnectors(false, searchSpaceId ? Number(searchSpaceId) : undefined);
-	const { data: documentTypeCounts, isLoading: documentTypesLoading } = useAtomValue(documentTypeCountsAtom);
+	const { connectors, isLoading: connectorsLoading } = useSearchSourceConnectors(
+		false,
+		searchSpaceId ? Number(searchSpaceId) : undefined
+	);
+	const { data: documentTypeCounts, isLoading: documentTypesLoading } =
+		useAtomValue(documentTypeCountsAtom);
 	const [isOpen, setIsOpen] = useState(false);
 	const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	
+
 	const isLoading = connectorsLoading || documentTypesLoading;
-	
+
 	// Get document types that have documents in the search space
-	const activeDocumentTypes = documentTypeCounts 
+	const activeDocumentTypes = documentTypeCounts
 		? Object.entries(documentTypeCounts).filter(([_, count]) => count > 0)
 		: [];
-	
+
 	const hasConnectors = connectors.length > 0;
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
 	const totalSourceCount = connectors.length + activeDocumentTypes.length;
-	
+
 	const handleMouseEnter = useCallback(() => {
 		// Clear any pending close timeout
 		if (closeTimeoutRef.current) {
@@ -595,16 +657,16 @@ const ConnectorIndicator: FC = () => {
 		}
 		setIsOpen(true);
 	}, []);
-	
+
 	const handleMouseLeave = useCallback(() => {
 		// Delay closing by 150ms for better UX
 		closeTimeoutRef.current = setTimeout(() => {
 			setIsOpen(false);
 		}, 150);
 	}, []);
-	
+
 	if (!searchSpaceId) return null;
-	
+
 	return (
 		<Popover open={isOpen} onOpenChange={setIsOpen}>
 			<PopoverTrigger asChild>
@@ -618,7 +680,9 @@ const ConnectorIndicator: FC = () => {
 						"data-[state=open]:bg-transparent data-[state=open]:shadow-none data-[state=open]:ring-0",
 						"text-muted-foreground"
 					)}
-					aria-label={hasSources ? `View ${totalSourceCount} connected sources` : "Add your first connector"}
+					aria-label={
+						hasSources ? `View ${totalSourceCount} connected sources` : "Add your first connector"
+					}
 					onMouseEnter={handleMouseEnter}
 					onMouseLeave={handleMouseLeave}
 				>
@@ -640,9 +704,9 @@ const ConnectorIndicator: FC = () => {
 					)}
 				</button>
 			</PopoverTrigger>
-			<PopoverContent 
-				side="bottom" 
-				align="start" 
+			<PopoverContent
+				side="bottom"
+				align="start"
 				className="w-64 p-3"
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
@@ -650,9 +714,7 @@ const ConnectorIndicator: FC = () => {
 				{hasSources ? (
 					<div className="space-y-3">
 						<div className="flex items-center justify-between">
-							<p className="text-xs font-medium text-muted-foreground">
-								Connected Sources
-							</p>
+							<p className="text-xs font-medium text-muted-foreground">Connected Sources</p>
 							<span className="text-xs font-medium bg-muted px-1.5 py-0.5 rounded">
 								{totalSourceCount}
 							</span>
@@ -681,11 +743,11 @@ const ConnectorIndicator: FC = () => {
 						</div>
 						<div className="pt-1 border-t border-border/50">
 							<Link
-								href={`/dashboard/${searchSpaceId}/connectors`}
+								href={`/dashboard/${searchSpaceId}/connectors/add`}
 								className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
 							>
-								<Plug2 className="size-3" />
-								Manage connectors
+								<Plus className="size-3" />
+								Add more sources
 								<ChevronRightIcon className="size-3" />
 							</Link>
 						</div>
@@ -728,7 +790,24 @@ const ComposerAction: FC = () => {
 		return text.length === 0;
 	});
 
-	const isSendDisabled = hasProcessingAttachments || isComposerEmpty;
+	// Check if a model is configured
+	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
+	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
+	const { data: preferences } = useAtomValue(llmPreferencesAtom);
+
+	const hasModelConfigured = useMemo(() => {
+		if (!preferences) return false;
+		const agentLlmId = preferences.agent_llm_id;
+		if (agentLlmId === null || agentLlmId === undefined) return false;
+
+		// Check if the configured model actually exists
+		if (agentLlmId < 0) {
+			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
+		}
+		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
+	}, [preferences, globalConfigs, userConfigs]);
+
+	const isSendDisabled = hasProcessingAttachments || isComposerEmpty || !hasModelConfigured;
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
@@ -745,15 +824,25 @@ const ComposerAction: FC = () => {
 				</div>
 			)}
 
+			{/* Show warning when no model is configured */}
+			{!hasModelConfigured && !hasProcessingAttachments && (
+				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
+					<AlertCircle className="size-3" />
+					<span>Select a model</span>
+				</div>
+			)}
+
 			<AssistantIf condition={({ thread }) => !thread.isRunning}>
 				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 					<TooltipIconButton
 						tooltip={
-							hasProcessingAttachments
-								? "Wait for attachments to process"
-								: isComposerEmpty
-									? "Enter a message to send"
-									: "Send message"
+							!hasModelConfigured
+								? "Please select a model from the header to start chatting"
+								: hasProcessingAttachments
+									? "Wait for attachments to process"
+									: isComposerEmpty
+										? "Enter a message to send"
+										: "Send message"
 						}
 						side="bottom"
 						type="submit"
@@ -798,25 +887,34 @@ const MessageError: FC = () => {
 	);
 };
 
-const AssistantMessageInner: FC = () => {
+/**
+ * Custom component to render thinking steps from Context
+ */
+const ThinkingStepsPart: FC = () => {
 	const thinkingStepsMap = useContext(ThinkingStepsContext);
-	
+
 	// Get the current message ID to look up thinking steps
 	const messageId = useAssistantState(({ message }) => message?.id);
 	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
-	
+
 	// Check if thread is still running (for stopping the spinner when cancelled)
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
-	
+
+	if (thinkingSteps.length === 0) return null;
+
+	return (
+		<div className="mb-3">
+			<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isThreadRunning} />
+		</div>
+	);
+};
+
+const AssistantMessageInner: FC = () => {
 	return (
 		<>
-			{/* Show thinking steps BEFORE the text response */}
-			{thinkingSteps.length > 0 && (
-				<div className="mb-3">
-					<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isThreadRunning} />
-				</div>
-			)}
-			
+			{/* Render thinking steps from message content - this ensures proper scroll tracking */}
+			<ThinkingStepsPart />
+
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
 				<MessagePrimitive.Parts
 					components={{

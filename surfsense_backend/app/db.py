@@ -452,9 +452,10 @@ class SearchSpace(BaseModel, TimestampMixin):
 
     # Search space-level LLM preferences (shared by all members)
     # Note: These can be negative IDs for global configs (from YAML) or positive IDs for custom configs (from DB)
-    long_context_llm_id = Column(Integer, nullable=True)
-    fast_llm_id = Column(Integer, nullable=True)
-    strategic_llm_id = Column(Integer, nullable=True)
+    agent_llm_id = Column(Integer, nullable=True)  # For agent/chat operations
+    document_summary_llm_id = Column(
+        Integer, nullable=True
+    )  # For document summarization
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
@@ -491,10 +492,10 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="SearchSourceConnector.id",
         cascade="all, delete-orphan",
     )
-    llm_configs = relationship(
-        "LLMConfig",
+    new_llm_configs = relationship(
+        "NewLLMConfig",
         back_populates="search_space",
-        order_by="LLMConfig.id",
+        order_by="NewLLMConfig.id",
         cascade="all, delete-orphan",
     )
 
@@ -553,10 +554,24 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     )
 
 
-class LLMConfig(BaseModel, TimestampMixin):
-    __tablename__ = "llm_configs"
+class NewLLMConfig(BaseModel, TimestampMixin):
+    """
+    New LLM configuration table that combines model settings with prompt configuration.
+
+    This table provides:
+    - LLM model configuration (provider, model_name, api_key, etc.)
+    - Configurable system instructions (defaults to SURFSENSE_SYSTEM_INSTRUCTIONS)
+    - Citation toggle (enable/disable citation instructions)
+
+    Note: SURFSENSE_TOOLS_INSTRUCTIONS is always used and not configurable.
+    """
+
+    __tablename__ = "new_llm_configs"
 
     name = Column(String(100), nullable=False, index=True)
+    description = Column(String(500), nullable=True)
+
+    # === LLM Model Configuration (from original LLMConfig, excluding 'language') ===
     # Provider from the enum
     provider = Column(SQLAlchemyEnum(LiteLLMProvider), nullable=False)
     # Custom provider name when provider is CUSTOM
@@ -566,16 +581,29 @@ class LLMConfig(BaseModel, TimestampMixin):
     # API Key should be encrypted before storing
     api_key = Column(String, nullable=False)
     api_base = Column(String(500), nullable=True)
-
-    language = Column(String(50), nullable=True, default="English")
-
     # For any other parameters that litellm supports
     litellm_params = Column(JSON, nullable=True, default={})
 
+    # === Prompt Configuration ===
+    # Configurable system instructions (defaults to SURFSENSE_SYSTEM_INSTRUCTIONS)
+    # Users can customize this from the UI
+    system_instructions = Column(
+        Text,
+        nullable=False,
+        default="",  # Empty string means use default SURFSENSE_SYSTEM_INSTRUCTIONS
+    )
+    # Whether to use the default system instructions when system_instructions is empty
+    use_default_system_instructions = Column(Boolean, nullable=False, default=True)
+
+    # Citation toggle - when enabled, SURFSENSE_CITATION_INSTRUCTIONS is injected
+    # When disabled, an anti-citation prompt is injected instead
+    citations_enabled = Column(Boolean, nullable=False, default=True)
+
+    # === Relationships ===
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
-    search_space = relationship("SearchSpace", back_populates="llm_configs")
+    search_space = relationship("SearchSpace", back_populates="new_llm_configs")
 
 
 class Log(BaseModel, TimestampMixin):

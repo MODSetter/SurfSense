@@ -78,9 +78,7 @@ function ParsedArticle({ result }: { result: unknown }) {
 		<Article
 			{...article}
 			maxWidth="480px"
-			responseActions={[
-				{ id: "open", label: "Open Source", variant: "default" },
-			]}
+			responseActions={[{ id: "open", label: "Open Source", variant: "default" }]}
 			onResponseAction={(id) => {
 				if (id === "open" && article.href) {
 					window.open(article.href, "_blank", "noopener,noreferrer");
@@ -102,10 +100,7 @@ function ParsedArticle({ result }: { result: unknown }) {
  * - Word count
  * - Link to original source
  */
-export const ScrapeWebpageToolUI = makeAssistantToolUI<
-	ScrapeWebpageArgs,
-	ScrapeWebpageResult
->({
+export const ScrapeWebpageToolUI = makeAssistantToolUI<ScrapeWebpageArgs, ScrapeWebpageResult>({
 	toolName: "scrape_webpage",
 	render: function ScrapeWebpageUI({ args, result, status }) {
 		const url = args.url || "Unknown URL";
@@ -160,4 +155,3 @@ export const ScrapeWebpageToolUI = makeAssistantToolUI<
 });
 
 export type { ScrapeWebpageArgs, ScrapeWebpageResult };
-

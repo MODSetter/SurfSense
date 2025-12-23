@@ -28,11 +28,14 @@ COPY surfsense_web/package.json surfsense_web/pnpm-lock.yaml* ./
 COPY surfsense_web/source.config.ts ./
 COPY surfsense_web/content ./content
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (skip postinstall which requires all source files)
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source
 COPY surfsense_web/ ./
+
+# Run fumadocs-mdx postinstall now that source files are available
+RUN pnpm fumadocs-mdx
 
 # Build args for frontend
 ARG NEXT_PUBLIC_FASTAPI_BACKEND_URL=http://localhost:8000

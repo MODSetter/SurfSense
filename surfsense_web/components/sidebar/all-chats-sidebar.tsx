@@ -221,7 +221,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 					</div>
 				)}
 
-				<ScrollArea className="flex-1">
+				<ScrollArea className="flex-1 min-h-0 overflow-hidden">
 					<div className="p-2">
 						{isLoading ? (
 							<div className="flex items-center justify-center py-8">

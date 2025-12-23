@@ -13,15 +13,6 @@ Available tools:
 """
 
 # Registry exports
-from .registry import (
-    BUILTIN_TOOLS,
-    ToolDefinition,
-    build_tools,
-    get_all_tool_names,
-    get_default_enabled_tools,
-    get_tool_by_name,
-)
-
 # Tool factory exports (for direct use)
 from .display_image import create_display_image_tool
 from .knowledge_base import (
@@ -31,6 +22,14 @@ from .knowledge_base import (
 )
 from .link_preview import create_link_preview_tool
 from .podcast import create_generate_podcast_tool
+from .registry import (
+    BUILTIN_TOOLS,
+    ToolDefinition,
+    build_tools,
+    get_all_tool_names,
+    get_default_enabled_tools,
+    get_tool_by_name,
+)
 from .scrape_webpage import create_scrape_webpage_tool
 
 __all__ = [
@@ -38,9 +37,6 @@ __all__ = [
     "BUILTIN_TOOLS",
     "ToolDefinition",
     "build_tools",
-    "get_all_tool_names",
-    "get_default_enabled_tools",
-    "get_tool_by_name",
     # Tool factories
     "create_display_image_tool",
     "create_generate_podcast_tool",
@@ -49,6 +45,8 @@ __all__ = [
     "create_search_knowledge_base_tool",
     # Knowledge base utilities
     "format_documents_for_context",
+    "get_all_tool_names",
+    "get_default_enabled_tools",
+    "get_tool_by_name",
     "search_knowledge_base_async",
 ]
-

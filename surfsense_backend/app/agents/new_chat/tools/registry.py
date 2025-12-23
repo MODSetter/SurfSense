@@ -37,10 +37,17 @@ Example of adding a new tool:
     ),
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from langchain_core.tools import BaseTool
+
+from .display_image import create_display_image_tool
+from .knowledge_base import create_search_knowledge_base_tool
+from .link_preview import create_link_preview_tool
+from .podcast import create_generate_podcast_tool
+from .scrape_webpage import create_scrape_webpage_tool
 
 # =============================================================================
 # Tool Definition
@@ -70,13 +77,6 @@ class ToolDefinition:
 # =============================================================================
 # Built-in Tools Registry
 # =============================================================================
-
-# Import tool factory functions
-from .display_image import create_display_image_tool
-from .knowledge_base import create_search_knowledge_base_tool
-from .link_preview import create_link_preview_tool
-from .podcast import create_generate_podcast_tool
-from .scrape_webpage import create_scrape_webpage_tool
 
 # Registry of all built-in tools
 # Contributors: Add your new tools here!
@@ -228,4 +228,3 @@ def build_tools(
         tools.extend(additional_tools)
 
     return tools
-

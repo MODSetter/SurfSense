@@ -73,12 +73,7 @@ function ImageCancelledState({ src }: { src: string }) {
 function ParsedImage({ result }: { result: unknown }) {
 	const image = parseSerializableImage(result);
 
-	return (
-		<Image
-			{...image}
-			maxWidth="420px"
-		/>
-	);
+	return <Image {...image} maxWidth="420px" />;
 }
 
 /**
@@ -93,10 +88,7 @@ function ParsedImage({ result }: { result: unknown }) {
  * - Hover overlay effects
  * - Click to open full size
  */
-export const DisplayImageToolUI = makeAssistantToolUI<
-	DisplayImageArgs,
-	DisplayImageResult
->({
+export const DisplayImageToolUI = makeAssistantToolUI<DisplayImageArgs, DisplayImageResult>({
 	toolName: "display_image",
 	render: function DisplayImageUI({ args, result, status }) {
 		const src = args.src || "Unknown";
@@ -151,4 +143,3 @@ export const DisplayImageToolUI = makeAssistantToolUI<
 });
 
 export type { DisplayImageArgs, DisplayImageResult };
-

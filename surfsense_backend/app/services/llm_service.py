@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.config import config
-from app.db import LLMConfig, SearchSpace
+from app.db import NewLLMConfig, SearchSpace
 
 # Configure litellm to automatically drop unsupported parameters
 litellm.drop_params = True
@@ -16,9 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class LLMRole:
-    LONG_CONTEXT = "long_context"
-    FAST = "fast"
-    STRATEGIC = "strategic"
+    AGENT = "agent"  # For agent/chat operations
+    DOCUMENT_SUMMARY = "document_summary"  # For document summarization
 
 
 def get_global_llm_config(llm_config_id: int) -> dict | None:
@@ -155,7 +154,7 @@ async def get_search_space_llm_instance(
     Args:
         session: Database session
         search_space_id: Search Space ID
-        role: LLM role ('long_context', 'fast', or 'strategic')
+        role: LLM role ('agent' or 'document_summary')
 
     Returns:
         ChatLiteLLM instance or None if not found
@@ -173,12 +172,10 @@ async def get_search_space_llm_instance(
 
         # Get the appropriate LLM config ID based on role
         llm_config_id = None
-        if role == LLMRole.LONG_CONTEXT:
-            llm_config_id = search_space.long_context_llm_id
-        elif role == LLMRole.FAST:
-            llm_config_id = search_space.fast_llm_id
-        elif role == LLMRole.STRATEGIC:
-            llm_config_id = search_space.strategic_llm_id
+        if role == LLMRole.AGENT:
+            llm_config_id = search_space.agent_llm_id
+        elif role == LLMRole.DOCUMENT_SUMMARY:
+            llm_config_id = search_space.document_summary_llm_id
         else:
             logger.error(f"Invalid LLM role: {role}")
             return None
@@ -250,11 +247,11 @@ async def get_search_space_llm_instance(
 
             return ChatLiteLLM(**litellm_kwargs)
 
-        # Get the LLM configuration from database (user-specific config)
+        # Get the LLM configuration from database (NewLLMConfig)
         result = await session.execute(
-            select(LLMConfig).where(
-                LLMConfig.id == llm_config_id,
-                LLMConfig.search_space_id == search_space_id,
+            select(NewLLMConfig).where(
+                NewLLMConfig.id == llm_config_id,
+                NewLLMConfig.search_space_id == search_space_id,
             )
         )
         llm_config = result.scalars().first()
@@ -265,11 +262,11 @@ async def get_search_space_llm_instance(
             )
             return None
 
-        # Build the model string for litellm / 构建 LiteLLM 的模型字符串
+        # Build the model string for litellm
         if llm_config.custom_provider:
             model_string = f"{llm_config.custom_provider}/{llm_config.model_name}"
         else:
-            # Map provider enum to litellm format / 将提供商枚举映射为 LiteLLM 格式
+            # Map provider enum to litellm format
             provider_map = {
                 "OPENAI": "openai",
                 "ANTHROPIC": "anthropic",
@@ -283,7 +280,7 @@ async def get_search_space_llm_instance(
                 "COMETAPI": "cometapi",
                 "XAI": "xai",
                 "BEDROCK": "bedrock",
-                "AWS_BEDROCK": "bedrock",  # Legacy support (backward compatibility)
+                "AWS_BEDROCK": "bedrock",
                 "VERTEX_AI": "vertex_ai",
                 "TOGETHER_AI": "together_ai",
                 "FIREWORKS_AI": "fireworks_ai",
@@ -296,7 +293,6 @@ async def get_search_space_llm_instance(
                 "AI21": "ai21",
                 "CLOUDFLARE": "cloudflare",
                 "DATABRICKS": "databricks",
-                # Chinese LLM providers
                 "DEEPSEEK": "openai",
                 "ALIBABA_QWEN": "openai",
                 "MOONSHOT": "openai",
@@ -330,28 +326,19 @@ async def get_search_space_llm_instance(
         return None
 
 
-async def get_long_context_llm(
+async def get_agent_llm(
     session: AsyncSession, search_space_id: int
 ) -> ChatLiteLLM | None:
-    """Get the search space's long context LLM instance."""
+    """Get the search space's agent LLM instance for chat operations."""
+    return await get_search_space_llm_instance(session, search_space_id, LLMRole.AGENT)
+
+
+async def get_document_summary_llm(
+    session: AsyncSession, search_space_id: int
+) -> ChatLiteLLM | None:
+    """Get the search space's document summary LLM instance."""
     return await get_search_space_llm_instance(
-        session, search_space_id, LLMRole.LONG_CONTEXT
-    )
-
-
-async def get_fast_llm(
-    session: AsyncSession, search_space_id: int
-) -> ChatLiteLLM | None:
-    """Get the search space's fast LLM instance."""
-    return await get_search_space_llm_instance(session, search_space_id, LLMRole.FAST)
-
-
-async def get_strategic_llm(
-    session: AsyncSession, search_space_id: int
-) -> ChatLiteLLM | None:
-    """Get the search space's strategic LLM instance."""
-    return await get_search_space_llm_instance(
-        session, search_space_id, LLMRole.STRATEGIC
+        session, search_space_id, LLMRole.DOCUMENT_SUMMARY
     )
 
 
@@ -366,22 +353,54 @@ async def get_user_llm_instance(
     return await get_search_space_llm_instance(session, search_space_id, role)
 
 
+# Legacy aliases for backward compatibility
+async def get_long_context_llm(
+    session: AsyncSession, search_space_id: int
+) -> ChatLiteLLM | None:
+    """Deprecated: Use get_document_summary_llm instead."""
+    return await get_document_summary_llm(session, search_space_id)
+
+
+async def get_fast_llm(
+    session: AsyncSession, search_space_id: int
+) -> ChatLiteLLM | None:
+    """Deprecated: Use get_agent_llm instead."""
+    return await get_agent_llm(session, search_space_id)
+
+
+async def get_strategic_llm(
+    session: AsyncSession, search_space_id: int
+) -> ChatLiteLLM | None:
+    """Deprecated: Use get_document_summary_llm instead."""
+    return await get_document_summary_llm(session, search_space_id)
+
+
+# User-based legacy aliases (LLM preferences are now per-search-space, not per-user)
 async def get_user_long_context_llm(
     session: AsyncSession, user_id: str, search_space_id: int
 ) -> ChatLiteLLM | None:
-    """Deprecated: Use get_long_context_llm instead."""
-    return await get_long_context_llm(session, search_space_id)
+    """
+    Deprecated: Use get_document_summary_llm instead.
+    The user_id parameter is ignored as LLM preferences are now per-search-space.
+    """
+    return await get_document_summary_llm(session, search_space_id)
 
 
 async def get_user_fast_llm(
     session: AsyncSession, user_id: str, search_space_id: int
 ) -> ChatLiteLLM | None:
-    """Deprecated: Use get_fast_llm instead."""
-    return await get_fast_llm(session, search_space_id)
+    """
+    Deprecated: Use get_agent_llm instead.
+    The user_id parameter is ignored as LLM preferences are now per-search-space.
+    """
+    return await get_agent_llm(session, search_space_id)
 
 
 async def get_user_strategic_llm(
     session: AsyncSession, user_id: str, search_space_id: int
 ) -> ChatLiteLLM | None:
-    """Deprecated: Use get_strategic_llm instead."""
-    return await get_strategic_llm(session, search_space_id)
+    """
+    Deprecated: Use get_document_summary_llm instead.
+    The user_id parameter is ignored as LLM preferences are now per-search-space.
+    """
+    return await get_document_summary_llm(session, search_space_id)

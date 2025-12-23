@@ -3,10 +3,16 @@ System prompt building for SurfSense agents.
 
 This module provides functions and constants for building the SurfSense system prompt
 with configurable user instructions and citation support.
+
+The prompt is composed of three parts:
+1. System Instructions (configurable via NewLLMConfig)
+2. Tools Instructions (always included, not configurable)
+3. Citation Instructions (toggleable via NewLLMConfig.citations_enabled)
 """
 
 from datetime import UTC, datetime
 
+# Default system instructions - can be overridden via NewLLMConfig.system_instructions
 SURFSENSE_SYSTEM_INSTRUCTIONS = """
 <system_instruction>
 You are SurfSense, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
@@ -219,12 +225,38 @@ However, from your video learning, it's important to note that asyncio is not su
 </citation_instructions>
 """
 
+# Anti-citation prompt - used when citations are disabled
+# This explicitly tells the model NOT to include citations
+SURFSENSE_NO_CITATION_INSTRUCTIONS = """
+<citation_instructions>
+IMPORTANT: Citations are DISABLED for this configuration.
+
+DO NOT include any citations in your responses. Specifically:
+1. Do NOT use the [citation:chunk_id] format anywhere in your response.
+2. Do NOT reference document IDs, chunk IDs, or source IDs.
+3. Simply provide the information naturally without any citation markers.
+4. Write your response as if you're having a normal conversation, incorporating the information from your knowledge seamlessly.
+
+When answering questions based on documents from the knowledge base:
+- Present the information directly and confidently
+- Do not mention that information comes from specific documents or chunks
+- Integrate facts naturally into your response without attribution markers
+
+Your goal is to provide helpful, informative answers in a clean, readable format without any citation notation.
+</citation_instructions>
+"""
+
 
 def build_surfsense_system_prompt(
     today: datetime | None = None,
 ) -> str:
     """
-    Build the SurfSense system prompt.
+    Build the SurfSense system prompt with default settings.
+
+    This is a convenience function that builds the prompt with:
+    - Default system instructions
+    - Tools instructions (always included)
+    - Citation instructions enabled
 
     Args:
         today: Optional datetime for today's date (defaults to current UTC date)
@@ -239,6 +271,76 @@ def build_surfsense_system_prompt(
         + SURFSENSE_TOOLS_INSTRUCTIONS
         + SURFSENSE_CITATION_INSTRUCTIONS
     )
+
+
+def build_configurable_system_prompt(
+    custom_system_instructions: str | None = None,
+    use_default_system_instructions: bool = True,
+    citations_enabled: bool = True,
+    today: datetime | None = None,
+) -> str:
+    """
+    Build a configurable SurfSense system prompt based on NewLLMConfig settings.
+
+    The prompt is composed of three parts:
+    1. System Instructions - either custom or default SURFSENSE_SYSTEM_INSTRUCTIONS
+    2. Tools Instructions - always included (SURFSENSE_TOOLS_INSTRUCTIONS)
+    3. Citation Instructions - either SURFSENSE_CITATION_INSTRUCTIONS or SURFSENSE_NO_CITATION_INSTRUCTIONS
+
+    Args:
+        custom_system_instructions: Custom system instructions to use. If empty/None and
+                                   use_default_system_instructions is True, defaults to
+                                   SURFSENSE_SYSTEM_INSTRUCTIONS.
+        use_default_system_instructions: Whether to use default instructions when
+                                        custom_system_instructions is empty/None.
+        citations_enabled: Whether to include citation instructions (True) or
+                          anti-citation instructions (False).
+        today: Optional datetime for today's date (defaults to current UTC date)
+
+    Returns:
+        Complete system prompt string
+    """
+    resolved_today = (today or datetime.now(UTC)).astimezone(UTC).date().isoformat()
+
+    # Determine system instructions
+    if custom_system_instructions and custom_system_instructions.strip():
+        # Use custom instructions, injecting the date placeholder if present
+        system_instructions = custom_system_instructions.format(
+            resolved_today=resolved_today
+        )
+    elif use_default_system_instructions:
+        # Use default instructions
+        system_instructions = SURFSENSE_SYSTEM_INSTRUCTIONS.format(
+            resolved_today=resolved_today
+        )
+    else:
+        # No system instructions (edge case)
+        system_instructions = ""
+
+    # Tools instructions are always included
+    tools_instructions = SURFSENSE_TOOLS_INSTRUCTIONS
+
+    # Citation instructions based on toggle
+    citation_instructions = (
+        SURFSENSE_CITATION_INSTRUCTIONS
+        if citations_enabled
+        else SURFSENSE_NO_CITATION_INSTRUCTIONS
+    )
+
+    return system_instructions + tools_instructions + citation_instructions
+
+
+def get_default_system_instructions() -> str:
+    """
+    Get the default system instructions template.
+
+    This is useful for populating the UI with the default value when
+    creating a new NewLLMConfig.
+
+    Returns:
+        Default system instructions string (with {resolved_today} placeholder)
+    """
+    return SURFSENSE_SYSTEM_INSTRUCTIONS.strip()
 
 
 SURFSENSE_SYSTEM_PROMPT = build_surfsense_system_prompt()

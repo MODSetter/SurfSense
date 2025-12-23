@@ -70,12 +70,12 @@ export interface MediaCardProps {
  */
 export function parseSerializableMediaCard(result: unknown): SerializableMediaCard {
 	const parsed = SerializableMediaCardSchema.safeParse(result);
-	
+
 	if (!parsed.success) {
 		console.warn("Invalid media card data:", parsed.error.issues);
-		throw new Error(`Invalid media card: ${parsed.error.issues.map(i => i.message).join(", ")}`);
+		throw new Error(`Invalid media card: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
 	}
-	
+
 	return parsed.data;
 }
 
@@ -164,10 +164,7 @@ export class MediaCardErrorBoundary extends Component<
  */
 export function MediaCardSkeleton({ maxWidth = "420px" }: { maxWidth?: string }) {
 	return (
-		<Card
-			className="w-full overflow-hidden animate-pulse"
-			style={{ maxWidth }}
-		>
+		<Card className="w-full overflow-hidden animate-pulse" style={{ maxWidth }}>
 			<div className="aspect-[2/1] bg-muted" />
 			<CardContent className="p-4">
 				<div className="h-4 w-3/4 rounded bg-muted" />
@@ -180,7 +177,7 @@ export function MediaCardSkeleton({ maxWidth = "420px" }: { maxWidth?: string })
 
 /**
  * MediaCard Component
- * 
+ *
  * A rich media card for displaying link previews, images, and other media
  * in AI chat applications. Supports thumbnails, descriptions, and actions.
  */
@@ -353,4 +350,3 @@ export function MediaCardLoading({ title = "Loading preview..." }: { title?: str
 		</Card>
 	);
 }
-

@@ -12,7 +12,7 @@ from litellm import aspeech
 
 from app.config import config as app_config
 from app.services.kokoro_tts_service import get_kokoro_tts_service
-from app.services.llm_service import get_long_context_llm
+from app.services.llm_service import get_document_summary_llm
 
 from .configuration import Configuration
 from .prompts import get_podcast_generation_prompt
@@ -30,10 +30,12 @@ async def create_podcast_transcript(
     search_space_id = configuration.search_space_id
     user_prompt = configuration.user_prompt
 
-    # Get search space's long context LLM
-    llm = await get_long_context_llm(state.db_session, search_space_id)
+    # Get search space's document summary LLM
+    llm = await get_document_summary_llm(state.db_session, search_space_id)
     if not llm:
-        error_message = f"No long context LLM configured for search space {search_space_id}"
+        error_message = (
+            f"No document summary LLM configured for search space {search_space_id}"
+        )
         print(error_message)
         raise RuntimeError(error_message)
 

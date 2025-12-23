@@ -4,7 +4,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.llm_service import get_strategic_llm
+from app.services.llm_service import get_document_summary_llm
 
 
 class QueryService:
@@ -20,7 +20,7 @@ class QueryService:
         chat_history_str: str | None = None,
     ) -> str:
         """
-        Reformulate the user query using the search space's strategic LLM to make it more
+        Reformulate the user query using the search space's document summary LLM to make it more
         effective for information retrieval and research purposes.
 
         Args:
@@ -36,11 +36,11 @@ class QueryService:
             return user_query
 
         try:
-            # Get the search space's strategic LLM instance
-            llm = await get_strategic_llm(session, search_space_id)
+            # Get the search space's document summary LLM instance
+            llm = await get_document_summary_llm(session, search_space_id)
             if not llm:
                 print(
-                    f"Warning: No strategic LLM configured for search space {search_space_id}. Using original query."
+                    f"Warning: No document summary LLM configured for search space {search_space_id}. Using original query."
                 )
                 return user_query
 

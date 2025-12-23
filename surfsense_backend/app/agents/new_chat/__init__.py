@@ -31,56 +31,50 @@ from .system_prompt import (
 )
 
 # Tools - registry exports
+# Tools - factory exports (for direct use)
+# Tools - knowledge base utilities
 from .tools import (
     BUILTIN_TOOLS,
     ToolDefinition,
     build_tools,
-    get_all_tool_names,
-    get_default_enabled_tools,
-    get_tool_by_name,
-)
-
-# Tools - factory exports (for direct use)
-from .tools import (
     create_display_image_tool,
     create_generate_podcast_tool,
     create_link_preview_tool,
     create_scrape_webpage_tool,
     create_search_knowledge_base_tool,
-)
-
-# Tools - knowledge base utilities
-from .tools import (
     format_documents_for_context,
+    get_all_tool_names,
+    get_default_enabled_tools,
+    get_tool_by_name,
     search_knowledge_base_async,
 )
 
 __all__ = [
-    # Agent factory
-    "create_surfsense_deep_agent",
-    # Context
-    "SurfSenseContextSchema",
-    # LLM config
-    "create_chat_litellm_from_config",
-    "load_llm_config_from_yaml",
+    # Tools registry
+    "BUILTIN_TOOLS",
     # System prompt
     "SURFSENSE_CITATION_INSTRUCTIONS",
     "SURFSENSE_SYSTEM_PROMPT",
-    "build_surfsense_system_prompt",
-    # Tools registry
-    "BUILTIN_TOOLS",
+    # Context
+    "SurfSenseContextSchema",
     "ToolDefinition",
+    "build_surfsense_system_prompt",
     "build_tools",
-    "get_all_tool_names",
-    "get_default_enabled_tools",
-    "get_tool_by_name",
+    # LLM config
+    "create_chat_litellm_from_config",
     # Tool factories
     "create_display_image_tool",
     "create_generate_podcast_tool",
     "create_link_preview_tool",
     "create_scrape_webpage_tool",
     "create_search_knowledge_base_tool",
+    # Agent factory
+    "create_surfsense_deep_agent",
     # Knowledge base utilities
     "format_documents_for_context",
+    "get_all_tool_names",
+    "get_default_enabled_tools",
+    "get_tool_by_name",
+    "load_llm_config_from_yaml",
     "search_knowledge_base_async",
 ]

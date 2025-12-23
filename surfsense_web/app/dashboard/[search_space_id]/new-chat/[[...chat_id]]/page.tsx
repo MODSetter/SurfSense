@@ -12,11 +12,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { mentionedDocumentIdsAtom, mentionedDocumentsAtom, messageDocumentsMapAtom, type MentionedDocumentInfo } from "@/atoms/chat/mentioned-documents.atom";
 import { Thread } from "@/components/assistant-ui/thread";
+import { ChatHeader } from "@/components/new-chat/chat-header";
+import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
+import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
-import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
-import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
 import {
@@ -36,15 +37,15 @@ import {
  */
 function extractThinkingSteps(content: unknown): ThinkingStep[] {
 	if (!Array.isArray(content)) return [];
-	
+
 	const thinkingPart = content.find(
-		(part: unknown) => 
-			typeof part === "object" && 
-			part !== null && 
-			"type" in part && 
+		(part: unknown) =>
+			typeof part === "object" &&
+			part !== null &&
+			"type" in part &&
 			(part as { type: string }).type === "thinking-steps"
 	) as { type: "thinking-steps"; steps: ThinkingStep[] } | undefined;
-	
+
 	return thinkingPart?.steps || [];
 }
 
@@ -67,7 +68,7 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 
 /**
  * Convert backend message to assistant-ui ThreadMessageLike format
- * Filters out 'thinking-steps' part as it's handled separately
+ * Filters out 'thinking-steps' part as it's handled separately via messageThinkingSteps
  */
 function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	let content: ThreadMessageLike["content"];
@@ -77,16 +78,18 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	} else if (Array.isArray(msg.content)) {
 		// Filter out custom metadata parts - they're handled separately
 		const filteredContent = msg.content.filter(
-			(part: unknown) => {
-				if (typeof part !== "object" || part === null || !("type" in part)) return true;
-				const partType = (part as { type: string }).type;
-				// Filter out thinking-steps and mentioned-documents
-				return partType !== "thinking-steps" && partType !== "mentioned-documents";
-			}
+			(part: unknown) =>
+				!(
+					typeof part === "object" &&
+					part !== null &&
+					"type" in part &&
+					(part as { type: string }).type === "thinking-steps"
+				)
 		);
-		content = filteredContent.length > 0 
-			? (filteredContent as ThreadMessageLike["content"])
-			: [{ type: "text", text: "" }];
+		content =
+			filteredContent.length > 0
+				? (filteredContent as ThreadMessageLike["content"])
+				: [{ type: "text", text: "" }];
 	} else {
 		content = [{ type: "text", text: String(msg.content) }];
 	}
@@ -102,7 +105,12 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 /**
  * Tools that should render custom UI in the chat.
  */
-const TOOLS_WITH_UI = new Set(["generate_podcast", "link_preview", "display_image", "scrape_webpage"]);
+const TOOLS_WITH_UI = new Set([
+	"generate_podcast",
+	"link_preview",
+	"display_image",
+	"scrape_webpage",
+]);
 
 /**
  * Type for thinking step data from the backend
@@ -121,10 +129,11 @@ export default function NewChatPage() {
 	const [threadId, setThreadId] = useState<number | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
-	// Store thinking steps per message ID
-	const [messageThinkingSteps, setMessageThinkingSteps] = useState<
-		Map<string, ThinkingStep[]>
-	>(new Map());
+	// Store thinking steps per message ID - kept separate from content to avoid
+	// "unsupported part type" errors from assistant-ui
+	const [messageThinkingSteps, setMessageThinkingSteps] = useState<Map<string, ThinkingStep[]>>(
+		new Map()
+	);
 	const abortControllerRef = useRef<AbortController | null>(null);
 
 	// Get mentioned document IDs from the composer
@@ -168,7 +177,7 @@ export default function NewChatPage() {
 				if (response.messages && response.messages.length > 0) {
 					const loadedMessages = response.messages.map(convertToThreadMessage);
 					setMessages(loadedMessages);
-					
+
 					// Extract and restore thinking steps from persisted messages
 					const restoredThinkingSteps = new Map<string, ThinkingStep[]>();
 					// Extract and restore mentioned documents from persisted messages
@@ -309,10 +318,10 @@ export default function NewChatPage() {
 			// Prepare assistant message
 			const assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
-			
+
 			// Ordered content parts to preserve inline tool call positions
 			// Each part is either a text segment or a tool call
-			type ContentPart = 
+			type ContentPart =
 				| { type: "text"; text: string }
 				| {
 						type: "tool-call";
@@ -322,13 +331,13 @@ export default function NewChatPage() {
 						result?: unknown;
 				  };
 			const contentParts: ContentPart[] = [];
-			
+
 			// Track the current text segment index (for appending text deltas)
 			let currentTextPartIndex = -1;
-			
+
 			// Map to track tool call indices for updating results
 			const toolCallIndices = new Map<string, number>();
-			
+
 			// Helper to get or create the current text part for appending text
 			const appendText = (delta: string) => {
 				if (currentTextPartIndex >= 0 && contentParts[currentTextPartIndex]?.type === "text") {
@@ -340,7 +349,7 @@ export default function NewChatPage() {
 					currentTextPartIndex = contentParts.length - 1;
 				}
 			};
-			
+
 			// Helper to add a tool call (this "breaks" the current text segment)
 			const addToolCall = (toolCallId: string, toolName: string, args: Record<string, unknown>) => {
 				if (TOOLS_WITH_UI.has(toolName)) {
@@ -355,9 +364,12 @@ export default function NewChatPage() {
 					currentTextPartIndex = -1;
 				}
 			};
-			
+
 			// Helper to update a tool call's args or result
-			const updateToolCall = (toolCallId: string, update: { args?: Record<string, unknown>; result?: unknown }) => {
+			const updateToolCall = (
+				toolCallId: string,
+				update: { args?: Record<string, unknown>; result?: unknown }
+			) => {
 				const index = toolCallIndices.get(toolCallId);
 				if (index !== undefined && contentParts[index]?.type === "tool-call") {
 					const tc = contentParts[index] as ContentPart & { type: "tool-call" };
@@ -366,7 +378,7 @@ export default function NewChatPage() {
 				}
 			};
 
-			// Helper to build content for UI (without thinking-steps)
+			// Helper to build content for UI (without thinking-steps to avoid assistant-ui errors)
 			const buildContentForUI = (): ThreadMessageLike["content"] => {
 				// Filter to only include text parts with content and tool-calls with UI
 				const filtered = contentParts.filter((part) => {
@@ -379,10 +391,10 @@ export default function NewChatPage() {
 					: [{ type: "text", text: "" }];
 			};
 
-			// Helper to build content for persistence (includes thinking-steps)
+			// Helper to build content for persistence (includes thinking-steps for restoration)
 			const buildContentForPersistence = (): unknown[] => {
 				const parts: unknown[] = [];
-				
+
 				// Include thinking steps for persistence
 				if (currentThinkingSteps.size > 0) {
 					parts.push({
@@ -390,7 +402,7 @@ export default function NewChatPage() {
 						steps: Array.from(currentThinkingSteps.values()),
 					});
 				}
-				
+
 				// Add content parts (filtered)
 				for (const part of contentParts) {
 					if (part.type === "text" && part.text.length > 0) {
@@ -399,7 +411,7 @@ export default function NewChatPage() {
 						parts.push(part);
 					}
 				}
-				
+
 				return parts.length > 0 ? parts : [{ type: "text", text: "" }];
 			};
 
@@ -554,13 +566,12 @@ export default function NewChatPage() {
 											const stepData = parsed.data as ThinkingStepData;
 											if (stepData?.id) {
 												currentThinkingSteps.set(stepData.id, stepData);
-												// Update message-specific thinking steps
+												// Update thinking steps state for rendering
+												// The ThinkingStepsScrollHandler in Thread component
+												// will handle auto-scrolling when this state changes
 												setMessageThinkingSteps((prev) => {
 													const newMap = new Map(prev);
-													newMap.set(
-														assistantMsgId,
-														Array.from(currentThinkingSteps.values())
-													);
+													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
 													return newMap;
 												});
 											}
@@ -686,8 +697,11 @@ export default function NewChatPage() {
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
-			<div className="h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden">
-				<Thread messageThinkingSteps={messageThinkingSteps} />
+			<div className="flex flex-col h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden">
+				<ChatHeader searchSpaceId={searchSpaceId} />
+				<div className="flex-1 min-h-0 overflow-hidden">
+					<Thread messageThinkingSteps={messageThinkingSteps} />
+				</div>
 			</div>
 		</AssistantRuntimeProvider>
 	);
