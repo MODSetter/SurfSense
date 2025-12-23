@@ -77,15 +77,12 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 		content = [{ type: "text", text: msg.content }];
 	} else if (Array.isArray(msg.content)) {
 		// Filter out custom metadata parts - they're handled separately
-		const filteredContent = msg.content.filter(
-			(part: unknown) =>
-				!(
-					typeof part === "object" &&
-					part !== null &&
-					"type" in part &&
-					(part as { type: string }).type === "thinking-steps"
-				)
-		);
+		const filteredContent = msg.content.filter((part: unknown) => {
+			if (typeof part !== "object" || part === null || !("type" in part)) return true;
+			const partType = (part as { type: string }).type;
+			// Filter out thinking-steps and mentioned-documents
+			return partType !== "thinking-steps" && partType !== "mentioned-documents";
+		});
 		content =
 			filteredContent.length > 0
 				? (filteredContent as ThreadMessageLike["content"])
@@ -219,7 +216,7 @@ export default function NewChatPage() {
 		} finally {
 			setIsInitializing(false);
 		}
-	}, [urlChatId, searchSpaceId, router]);
+	}, [urlChatId, searchSpaceId, router, setMessageDocumentsMap]);
 
 	// Initialize on mount
 	useEffect(() => {

@@ -9,7 +9,7 @@ import {
 	useAssistantState,
 	useThreadViewport,
 } from "@assistant-ui/react";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircle,
 	ArrowDownIcon,
@@ -32,17 +32,11 @@ import {
 	SquareIcon,
 	X,
 } from "lucide-react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
-import { type FC, useState, useRef, useCallback, useEffect, createContext, useContext, useMemo } from "react";
+import { useParams } from "next/navigation";
+import { type FC, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { mentionedDocumentIdsAtom, mentionedDocumentsAtom, messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -59,6 +53,7 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { DocumentsDataTable, type DocumentsDataTableRef } from "@/components/new-chat/DocumentsDataTable";
 import {
 	ChainOfThought,
 	ChainOfThoughtContent,
@@ -66,12 +61,12 @@ import {
 	ChainOfThoughtStep,
 	ChainOfThoughtTrigger,
 } from "@/components/prompt-kit/chain-of-thought";
-import { DocumentsDataTable, type DocumentsDataTableRef } from "@/components/new-chat/DocumentsDataTable";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
-import type { Document } from "@/contracts/types/document.types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { Document } from "@/contracts/types/document.types";
+import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
@@ -257,7 +252,7 @@ const ThinkingStepsScrollHandler: FC = () => {
 			const scrollAttempt = () => {
 				try {
 					viewport.scrollToBottom();
-				} catch (e) {
+				} catch {
 					// Ignore errors - viewport might not be ready
 				}
 			};
@@ -530,23 +525,6 @@ const Composer: FC = () => {
 	const handleRemoveDocument = (docId: number) => {
 		setMentionedDocuments((prev) => prev.filter((doc) => doc.id !== docId));
 	};
-
-	// Check if a model is configured - needed to disable input
-	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
-	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
-	const { data: preferences } = useAtomValue(llmPreferencesAtom);
-
-	const hasModelConfigured = useMemo(() => {
-		if (!preferences) return false;
-		const agentLlmId = preferences.agent_llm_id;
-		if (agentLlmId === null || agentLlmId === undefined) return false;
-
-		// Check if the configured model actually exists
-		if (agentLlmId < 0) {
-			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
-		}
-		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
-	}, [preferences, globalConfigs, userConfigs]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
