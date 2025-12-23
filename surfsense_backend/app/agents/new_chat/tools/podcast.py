@@ -1,5 +1,5 @@
 """
-Podcast generation tool for the new chat agent.
+Podcast generation tool for the SurfSense agent.
 
 This module provides a factory function for creating the generate_podcast tool
 that submits a Celery task for background podcast generation. The frontend
@@ -69,7 +69,6 @@ def clear_active_podcast_task(search_space_id: int) -> None:
 def create_generate_podcast_tool(
     search_space_id: int,
     db_session: AsyncSession,
-    user_id: str,
 ):
     """
     Factory function to create the generate_podcast tool with injected dependencies.
@@ -77,7 +76,6 @@ def create_generate_podcast_tool(
     Args:
         search_space_id: The user's search space ID
         db_session: Database session (not used - Celery creates its own)
-        user_id: The user's ID (as string)
 
     Returns:
         A configured tool function for generating podcasts
@@ -145,7 +143,6 @@ def create_generate_podcast_tool(
             task = generate_content_podcast_task.delay(
                 source_content=source_content,
                 search_space_id=search_space_id,
-                user_id=str(user_id),
                 podcast_title=podcast_title,
                 user_prompt=user_prompt,
             )
@@ -174,3 +171,4 @@ def create_generate_podcast_tool(
             }
 
     return generate_podcast
+

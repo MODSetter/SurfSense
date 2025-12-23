@@ -1,5 +1,5 @@
 """
-Knowledge base search functionality for the new chat agent.
+Knowledge base search tool for the SurfSense agent.
 
 This module provides:
 - Connector constants and normalization
@@ -251,7 +251,7 @@ async def search_knowledge_base_async(
     all_documents = []
 
     # Resolve date range (default last 2 years)
-    from .utils import resolve_date_range
+    from app.agents.new_chat.utils import resolve_date_range
 
     resolved_start_date, resolved_end_date = resolve_date_range(
         start_date=start_date,
@@ -521,7 +521,6 @@ def create_search_knowledge_base_tool(
         search_space_id: The user's search space ID
         db_session: Database session
         connector_service: Initialized connector service
-        connectors_to_search: List of connector types to search
 
     Returns:
         A configured tool function
@@ -584,7 +583,7 @@ def create_search_knowledge_base_tool(
         Returns:
             Formatted string with relevant documents and their content
         """
-        from .utils import parse_date_or_datetime
+        from app.agents.new_chat.utils import parse_date_or_datetime
 
         parsed_start: datetime | None = None
         parsed_end: datetime | None = None
@@ -606,3 +605,4 @@ def create_search_knowledge_base_tool(
         )
 
     return search_knowledge_base
+

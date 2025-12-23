@@ -65,7 +65,6 @@ def generate_content_podcast_task(
     self,
     source_content: str,
     search_space_id: int,
-    user_id: str,
     podcast_title: str = "SurfSense Podcast",
     user_prompt: str | None = None,
 ) -> dict:
@@ -77,7 +76,6 @@ def generate_content_podcast_task(
     Args:
         source_content: The text content to convert into a podcast
         search_space_id: ID of the search space
-        user_id: ID of the user (as string)
         podcast_title: Title for the podcast
         user_prompt: Optional instructions for podcast style/tone
 
@@ -92,7 +90,6 @@ def generate_content_podcast_task(
             _generate_content_podcast(
                 source_content,
                 search_space_id,
-                user_id,
                 podcast_title,
                 user_prompt,
             )
@@ -112,7 +109,6 @@ def generate_content_podcast_task(
 async def _generate_content_podcast(
     source_content: str,
     search_space_id: int,
-    user_id: str,
     podcast_title: str = "SurfSense Podcast",
     user_prompt: str | None = None,
 ) -> dict:
@@ -123,7 +119,6 @@ async def _generate_content_podcast(
             graph_config = {
                 "configurable": {
                     "podcast_title": podcast_title,
-                    "user_id": str(user_id),
                     "search_space_id": search_space_id,
                     "user_prompt": user_prompt,
                 }

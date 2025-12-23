@@ -2,7 +2,7 @@
 SurfSense deep agent implementation.
 
 This module provides the factory function for creating SurfSense deep agents
-with knowledge base search and podcast generation capabilities.
+with configurable tools via the tools registry.
 """
 
 from collections.abc import Sequence
@@ -14,9 +14,8 @@ from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
-from app.agents.new_chat.knowledge_base import create_search_knowledge_base_tool
-from app.agents.new_chat.podcast import create_generate_podcast_tool
 from app.agents.new_chat.system_prompt import build_surfsense_system_prompt
+from app.agents.new_chat.tools import build_tools
 from app.services.connector_service import ConnectorService
 
 # =============================================================================
@@ -30,67 +29,85 @@ def create_surfsense_deep_agent(
     db_session: AsyncSession,
     connector_service: ConnectorService,
     checkpointer: Checkpointer,
-    user_id: str | None = None,
-    user_instructions: str | None = None,
-    enable_citations: bool = True,
-    enable_podcast: bool = True,
+    enabled_tools: list[str] | None = None,
+    disabled_tools: list[str] | None = None,
     additional_tools: Sequence[BaseTool] | None = None,
+    firecrawl_api_key: str | None = None,
 ):
     """
-    Create a SurfSense deep agent with knowledge base search and podcast generation capabilities.
+    Create a SurfSense deep agent with configurable tools.
+
+    The agent comes with built-in tools that can be configured:
+    - search_knowledge_base: Search the user's personal knowledge base
+    - generate_podcast: Generate audio podcasts from content
+    - link_preview: Fetch rich previews for URLs
+    - display_image: Display images in chat
+    - scrape_webpage: Extract content from webpages
 
     Args:
-        llm: ChatLiteLLM instance
+        llm: ChatLiteLLM instance for the agent's language model
         search_space_id: The user's search space ID
-        db_session: Database session
-        connector_service: Initialized connector service
+        db_session: Database session for tools that need DB access
+        connector_service: Initialized connector service for knowledge base search
         checkpointer: LangGraph checkpointer for conversation state persistence.
                       Use AsyncPostgresSaver for production or MemorySaver for testing.
-        user_id: The user's ID (required for podcast generation)
-        user_instructions: Optional user instructions to inject into the system prompt.
-                          These will be added to the system prompt to customize agent behavior.
-        enable_citations: Whether to include citation instructions in the system prompt (default: True).
-                         When False, the agent will not be instructed to add citations to responses.
-        enable_podcast: Whether to include the podcast generation tool (default: True).
-                       When True and user_id is provided, the agent can generate podcasts.
-        additional_tools: Optional sequence of additional tools to inject into the agent.
-                         The search_knowledge_base tool will always be included.
+        enabled_tools: Explicit list of tool names to enable. If None, all default tools
+                      are enabled. Use this to limit which tools are available.
+        disabled_tools: List of tool names to disable. Applied after enabled_tools.
+                       Use this to exclude specific tools from the defaults.
+        additional_tools: Extra custom tools to add beyond the built-in ones.
+                         These are always added regardless of enabled/disabled settings.
+        firecrawl_api_key: Optional Firecrawl API key for premium web scraping.
+                          Falls back to Chromium/Trafilatura if not provided.
 
     Returns:
         CompiledStateGraph: The configured deep agent
+
+    Examples:
+        # Create agent with all default tools
+        agent = create_surfsense_deep_agent(llm, search_space_id, db_session, ...)
+
+        # Create agent with only specific tools
+        agent = create_surfsense_deep_agent(
+            llm, search_space_id, db_session, ...,
+            enabled_tools=["search_knowledge_base", "link_preview"]
+        )
+
+        # Create agent without podcast generation
+        agent = create_surfsense_deep_agent(
+            llm, search_space_id, db_session, ...,
+            disabled_tools=["generate_podcast"]
+        )
+
+        # Add custom tools
+        agent = create_surfsense_deep_agent(
+            llm, search_space_id, db_session, ...,
+            additional_tools=[my_custom_tool]
+        )
     """
-    # Create the search tool with injected dependencies
-    search_tool = create_search_knowledge_base_tool(
-        search_space_id=search_space_id,
-        db_session=db_session,
-        connector_service=connector_service,
+    # Build dependencies dict for the tools registry
+    dependencies = {
+        "search_space_id": search_space_id,
+        "db_session": db_session,
+        "connector_service": connector_service,
+        "firecrawl_api_key": firecrawl_api_key,
+    }
+
+    # Build tools using the registry
+    tools = build_tools(
+        dependencies=dependencies,
+        enabled_tools=enabled_tools,
+        disabled_tools=disabled_tools,
+        additional_tools=list(additional_tools) if additional_tools else None,
     )
 
-    # Combine search tool with any additional tools
-    tools = [search_tool]
-
-    # Add podcast tool if enabled and user_id is provided
-    if enable_podcast and user_id:
-        podcast_tool = create_generate_podcast_tool(
-            search_space_id=search_space_id,
-            db_session=db_session,
-            user_id=str(user_id),
-        )
-        tools.append(podcast_tool)
-
-    if additional_tools:
-        tools.extend(additional_tools)
-
-    # Create the deep agent with user-configurable system prompt and checkpointer
+    # Create the deep agent with system prompt and checkpointer
     agent = create_deep_agent(
         model=llm,
         tools=tools,
-        system_prompt=build_surfsense_system_prompt(
-            user_instructions=user_instructions,
-            enable_citations=enable_citations,
-        ),
+        system_prompt=build_surfsense_system_prompt(),
         context_schema=SurfSenseContextSchema,
-        checkpointer=checkpointer,  # Enable conversation memory via thread_id
+        checkpointer=checkpointer,
     )
 
     return agent
