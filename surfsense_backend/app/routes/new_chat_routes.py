@@ -686,7 +686,7 @@ async def handle_new_chat(
         search_space = search_space_result.scalars().first()
 
         # TODO: Add new llm config arch then complete this
-        llm_config_id = -1  
+        llm_config_id = -4
 
         # Return streaming response
         return StreamingResponse(
@@ -698,6 +698,7 @@ async def handle_new_chat(
                 llm_config_id=llm_config_id,
                 messages=request.messages,
                 attachments=request.attachments,
+                mentioned_document_ids=request.mentioned_document_ids,
             ),
             media_type="text/event-stream",
             headers={

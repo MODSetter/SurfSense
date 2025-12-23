@@ -7,7 +7,6 @@ import {
 	MessagePrimitive,
 	ThreadPrimitive,
 	useAssistantState,
-	useMessage,
 } from "@assistant-ui/react";
 import {
 	ArrowDownIcon,
@@ -27,18 +26,20 @@ import {
 	Search,
 	Sparkles,
 	SquareIcon,
+	X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { type FC, useState, useRef, useCallback, useEffect } from "react";
-import { useAtomValue } from "jotai";
+import { type FC, useState, useRef, useCallback, useEffect, createContext, useContext, useMemo } from "react";
+import { createPortal } from "react-dom";
+import { useAtomValue, useSetAtom } from "jotai";
+import { mentionedDocumentIdsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useRef, useState } from "react";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -69,8 +70,6 @@ interface ThreadProps {
 }
 
 // Context to pass thinking steps to AssistantMessage
-import { createContext, useContext } from "react";
-
 const ThinkingStepsContext = createContext<Map<string, ThinkingStep[]>>(new Map());
 
 /**
@@ -333,12 +332,15 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 const ThreadWelcome: FC = () => {
 	const { data: user } = useAtomValue(currentUserAtom);
 	
+	// Memoize greeting so it doesn't change on re-renders (only on user change)
+	const greeting = useMemo(() => getTimeBasedGreeting(user?.email), [user?.email]);
+	
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer - fixed position */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center z-10">
 			<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both">
-				{getTimeBasedGreeting(user?.email)}
+				{greeting}
 			</h1>
 			</div>
 			{/* Composer - top edge fixed, expands downward only */}
@@ -351,122 +353,155 @@ const ThreadWelcome: FC = () => {
 
 const Composer: FC = () => {
 	// ---- State for document mentions ----
-	const [allSelectedDocuments, setAllSelectedDocuments] = useState<Document[]>([]);
 	const [mentionedDocuments, setMentionedDocuments] = useState<Document[]>([]);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
-	const [inputValue, setInputValue] = useState("");
 	const inputRef = useRef<HTMLTextAreaElement | null>(null);
 	const { search_space_id } = useParams();
+	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 
-	const handleInputOrKeyUp = (
-		e: React.FormEvent<HTMLTextAreaElement> | React.KeyboardEvent<HTMLTextAreaElement>
-	) => {
+	// Sync mentioned document IDs to atom for use in chat request
+	useEffect(() => {
+		setMentionedDocumentIds(mentionedDocuments.map((doc) => doc.id));
+	}, [mentionedDocuments, setMentionedDocumentIds]);
+
+	const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		const textarea = e.currentTarget;
 		const value = textarea.value;
-		setInputValue(value);
 
-		// Regex: finds all [title] occurrences
-		const mentionRegex = /\[([^\]]+)\]/g;
-		const titlesMentioned: string[] = [];
-		let match;
-		while ((match = mentionRegex.exec(value)) !== null) {
-			titlesMentioned.push(match[1]);
+		// Open document picker when user types '@'
+		if (e.key === "@" || (e.key === "2" && e.shiftKey)) {
+			setShowDocumentPopover(true);
 		}
 
-		// Use allSelectedDocuments to filter down for current chips
-		setMentionedDocuments(
-			allSelectedDocuments.filter((doc) => titlesMentioned.includes(doc.title))
-		);
-
-		const selectionStart = textarea.selectionStart;
-		// Only open if the last character before the caret is exactly '@'
-		if (
-			selectionStart !== null &&
-			value[selectionStart - 1] === "@" &&
-			value.length === selectionStart
-		) {
-			setShowDocumentPopover(true);
-		} else {
+		// Close popover if '@' is no longer in the input (user deleted it)
+		if (showDocumentPopover && !value.includes("@")) {
 			setShowDocumentPopover(false);
 		}
 	};
 
-	const handleDocumentsMention = (documents: Document[]) => {
-		// Add newly selected docs to allSelectedDocuments
-		setAllSelectedDocuments((prev) => {
-			const toAdd = documents.filter((doc) => !prev.find((p) => p.id === doc.id));
-			return [...prev, ...toAdd];
-		});
-		let newValue = inputValue;
-		documents.forEach((doc) => {
-			const refString = `[${doc.title}]`;
-			if (!newValue.includes(refString)) {
-				if (newValue.trim() !== "" && !newValue.endsWith(" ")) {
-					newValue += " ";
-				}
-				newValue += refString;
-			}
-		});
-		setInputValue(newValue);
-		// Run the chip update as well right after change
-		const mentionRegex = /\[([^\]]+)\]/g;
-		const titlesMentioned: string[] = [];
-		let match;
-		while ((match = mentionRegex.exec(newValue)) !== null) {
-			titlesMentioned.push(match[1]);
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		// Close popover on Escape
+		if (e.key === "Escape" && showDocumentPopover) {
+			e.preventDefault();
+			setShowDocumentPopover(false);
+			return;
 		}
-		setMentionedDocuments(
-			allSelectedDocuments.filter((doc) => titlesMentioned.includes(doc.title))
-		);
+
+		// Remove last document chip when pressing backspace at the beginning of input
+		if (e.key === "Backspace" && mentionedDocuments.length > 0) {
+			const textarea = e.currentTarget;
+			const selectionStart = textarea.selectionStart;
+			const selectionEnd = textarea.selectionEnd;
+
+			// Only remove chip if cursor is at position 0 and nothing is selected
+			if (selectionStart === 0 && selectionEnd === 0) {
+				e.preventDefault();
+				// Remove the last document chip
+				setMentionedDocuments((prev) => prev.slice(0, -1));
+			}
+		}
+	};
+
+	const handleDocumentsMention = (documents: Document[]) => {
+		// Update mentioned documents (merge with existing, avoid duplicates)
+		setMentionedDocuments((prev) => {
+			const existingIds = new Set(prev.map((d) => d.id));
+			const newDocs = documents.filter((doc) => !existingIds.has(doc.id));
+			return [...prev, ...newDocs];
+		});
+
+		// Clean up the '@' trigger from input if present
+		if (inputRef.current) {
+			const input = inputRef.current;
+			const currentValue = input.value;
+			// Remove trailing @ if it exists
+			if (currentValue.endsWith("@")) {
+				// Use a native input event to properly update the controlled component
+				const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+					window.HTMLTextAreaElement.prototype,
+					"value"
+				)?.set;
+				if (nativeInputValueSetter) {
+					nativeInputValueSetter.call(input, currentValue.slice(0, -1));
+					input.dispatchEvent(new Event("input", { bubbles: true }));
+				}
+			}
+			// Focus the input so user can continue typing
+			input.focus();
+		}
+	};
+
+	const handleRemoveDocument = (docId: number) => {
+		setMentionedDocuments((prev) => prev.filter((doc) => doc.id !== docId));
 	};
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
-				{/* -------- Input field w/ refs and handlers -------- */}
-				<ComposerPrimitive.Input
-					ref={inputRef}
-					value={inputValue}
-					onInput={handleInputOrKeyUp}
-					onKeyUp={handleInputOrKeyUp}
-					placeholder="Ask SurfSense"
-					className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-					rows={1}
-					autoFocus
-					aria-label="Message input"
-				/>
+				{/* -------- Input field with inline document chips -------- */}
+				<div className="aui-composer-input-wrapper flex flex-wrap items-center gap-1.5 px-3 pt-2 pb-6">
+					{/* Inline document chips */}
+					{mentionedDocuments.map((doc) => (
+						<span
+							key={doc.id}
+							className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20 shrink-0"
+							title={doc.title}
+						>
+							<span className="max-w-[120px] truncate">{doc.title}</span>
+							<button
+								type="button"
+								onClick={() => handleRemoveDocument(doc.id)}
+								className="size-4 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors"
+								aria-label={`Remove ${doc.title}`}
+							>
+								<X className="size-3" />
+							</button>
+						</span>
+					))}
+					{/* Text input */}
+					<ComposerPrimitive.Input
+						ref={inputRef}
+						onKeyUp={handleKeyUp}
+						onKeyDown={handleKeyDown}
+						placeholder={mentionedDocuments.length > 0 ? "Ask about these documents..." : "Ask SurfSense (type @ to mention docs)"}
+						className="aui-composer-input flex-1 min-w-[120px] max-h-32 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0 py-1"
+						rows={1}
+						autoFocus
+						aria-label="Message input"
+					/>
+				</div>
 
-				{/* -------- Document mention popover (simple version) -------- */}
-				{showDocumentPopover && (
-					<div
-						style={{ position: "absolute", bottom: "8rem", left: 0, zIndex: 50 }}
-						className="shadow-lg rounded-md border bg-popover"
-					>
-						<div className="p-2 max-h-96 w-full overflow-auto">
+				{/* -------- Document mention popover (rendered via portal) -------- */}
+				{showDocumentPopover && typeof document !== "undefined" && createPortal(
+					<>
+						{/* Backdrop */}
+						<button
+							type="button"
+							className="fixed inset-0 cursor-default"
+							style={{ zIndex: 9998 }}
+							onClick={() => setShowDocumentPopover(false)}
+							aria-label="Close document picker"
+						/>
+						{/* Popover positioned above input */}
+						<div
+							className="fixed shadow-2xl rounded-lg border border-border overflow-hidden"
+							style={{ 
+								zIndex: 9999, 
+								backgroundColor: "#18181b",
+								bottom: inputRef.current ? `${window.innerHeight - inputRef.current.getBoundingClientRect().top + 8}px` : "200px",
+								left: inputRef.current ? `${inputRef.current.getBoundingClientRect().left}px` : "50%",
+							}}
+						>
 							<DocumentsDataTable
 								searchSpaceId={Number(search_space_id)}
 								onSelectionChange={handleDocumentsMention}
 								onDone={() => setShowDocumentPopover(false)}
 								initialSelectedDocuments={mentionedDocuments}
-								viewOnly={true}
 							/>
 						</div>
-					</div>
-				)}
-				{/* ---- Mention chips for selected/mentioned documents ---- */}
-				{mentionedDocuments.length > 0 && (
-					<div className="aui-composer-mentioned-docs mx-2 flex flex-wrap gap-2">
-						{mentionedDocuments.map((doc) => (
-							<span
-								key={doc.id}
-								className="px-2 py-1 rounded bg-accent text-xs font-semibold max-w-xs truncate"
-								title={doc.title}
-							>
-								{doc.title}
-							</span>
-						))}
-					</div>
+					</>,
+					document.body
 				)}
 				<ComposerAction />
 			</ComposerPrimitive.AttachmentDropzone>
@@ -564,7 +599,7 @@ const ConnectorIndicator: FC = () => {
 						</div>
 						<div className="flex flex-wrap gap-2">
 							{/* Document types from the search space */}
-							{activeDocumentTypes.map(([docType, count]) => (
+							{activeDocumentTypes.map(([docType]) => (
 								<div
 									key={docType}
 									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
@@ -707,7 +742,7 @@ const AssistantMessageInner: FC = () => {
 	const thinkingStepsMap = useContext(ThinkingStepsContext);
 	
 	// Get the current message ID to look up thinking steps
-	const messageId = useMessage((m) => m.id);
+	const messageId = useAssistantState(({ message }) => message?.id);
 	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
 	
 	// Check if thread is still running (for stopping the spinner when cancelled)

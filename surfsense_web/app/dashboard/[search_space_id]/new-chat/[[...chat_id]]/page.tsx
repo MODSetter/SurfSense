@@ -6,9 +6,11 @@ import {
 	type ThreadMessageLike,
 	useExternalStoreRuntime,
 } from "@assistant-ui/react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { mentionedDocumentIdsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { Thread } from "@/components/assistant-ui/thread";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
@@ -106,6 +108,10 @@ export default function NewChatPage() {
 		Map<string, ThinkingStep[]>
 	>(new Map());
 	const abortControllerRef = useRef<AbortController | null>(null);
+
+	// Get mentioned document IDs from the composer
+	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
+	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
@@ -372,6 +378,14 @@ export default function NewChatPage() {
 				// Extract attachment content to send with the request
 				const attachments = extractAttachmentContent(messageAttachments);
 
+				// Get mentioned document IDs for context
+				const documentIds = mentionedDocumentIds.length > 0 ? [...mentionedDocumentIds] : undefined;
+
+				// Clear mentioned documents after capturing them
+				if (mentionedDocumentIds.length > 0) {
+					setMentionedDocumentIds([]);
+				}
+
 				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
 					method: "POST",
 					headers: {
@@ -384,6 +398,7 @@ export default function NewChatPage() {
 						search_space_id: searchSpaceId,
 						messages: messageHistory,
 						attachments: attachments.length > 0 ? attachments : undefined,
+						mentioned_document_ids: documentIds,
 					}),
 					signal: controller.signal,
 				});
@@ -546,7 +561,7 @@ export default function NewChatPage() {
 				// Note: We no longer clear thinking steps - they persist with the message
 			}
 		},
-		[threadId, searchSpaceId, messages]
+		[threadId, searchSpaceId, messages, mentionedDocumentIds, setMentionedDocumentIds]
 	);
 
 	// Convert message (pass through since already in correct format)

@@ -9,6 +9,7 @@ import json
 from collections.abc import AsyncGenerator
 from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
@@ -16,6 +17,7 @@ from app.agents.new_chat.llm_config import (
     create_chat_litellm_from_config,
     load_llm_config_from_yaml,
 )
+from app.db import Document
 from app.schemas.new_chat import ChatAttachment, ChatMessage
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
@@ -38,6 +40,27 @@ def format_attachments_as_context(attachments: list[ChatAttachment]) -> str:
     return "\n".join(context_parts)
 
 
+def format_mentioned_documents_as_context(documents: list[Document]) -> str:
+    """Format mentioned documents as context for the agent."""
+    if not documents:
+        return ""
+
+    context_parts = ["<mentioned_documents>"]
+    context_parts.append(
+        "The user has explicitly mentioned the following documents from their knowledge base. "
+        "These documents are directly relevant to the query and should be prioritized as primary sources."
+    )
+    for i, doc in enumerate(documents, 1):
+        context_parts.append(
+            f"<document index='{i}' id='{doc.id}' title='{doc.title}' type='{doc.document_type.value}'>"
+        )
+        context_parts.append(f"<![CDATA[{doc.content}]]>")
+        context_parts.append("</document>")
+    context_parts.append("</mentioned_documents>")
+
+    return "\n".join(context_parts)
+
+
 async def stream_new_chat(
     user_query: str,
     search_space_id: int,
@@ -46,6 +69,7 @@ async def stream_new_chat(
     llm_config_id: int = -1,
     messages: list[ChatMessage] | None = None,
     attachments: list[ChatAttachment] | None = None,
+    mentioned_document_ids: list[int] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -61,6 +85,8 @@ async def stream_new_chat(
         session: The database session
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
         messages: Optional chat history from frontend (list of ChatMessage)
+        attachments: Optional attachments with extracted content
+        mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
 
     Yields:
         str: SSE formatted response strings
@@ -105,13 +131,30 @@ async def stream_new_chat(
         # Build input with message history from frontend
         langchain_messages = []
 
-        # Format the user query with attachment context if any
-        final_query = user_query
-        if attachments:
-            attachment_context = format_attachments_as_context(attachments)
-            final_query = (
-                f"{attachment_context}\n\n<user_query>{user_query}</user_query>"
+        # Fetch mentioned documents if any
+        mentioned_documents: list[Document] = []
+        if mentioned_document_ids:
+            result = await session.execute(
+                select(Document).filter(
+                    Document.id.in_(mentioned_document_ids),
+                    Document.search_space_id == search_space_id,
+                )
             )
+            mentioned_documents = list(result.scalars().all())
+
+        # Format the user query with context (attachments + mentioned documents)
+        final_query = user_query
+        context_parts = []
+
+        if attachments:
+            context_parts.append(format_attachments_as_context(attachments))
+
+        if mentioned_documents:
+            context_parts.append(format_mentioned_documents_as_context(mentioned_documents))
+
+        if context_parts:
+            context = "\n\n".join(context_parts)
+            final_query = f"{context}\n\n<user_query>{user_query}</user_query>"
 
         # if messages:
         #     # Convert frontend messages to LangChain format
