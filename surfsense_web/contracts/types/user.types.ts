@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const user = z.object({
-	id: z.string().uuid(),
-	email: z.string().email(),
+	id: z.uuid(),
+	email: z.email(),
 	is_active: z.boolean(),
 	is_superuser: z.boolean(),
 	is_verified: z.boolean(),

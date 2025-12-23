@@ -2,7 +2,16 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Loader2, MessageCircleMore, MoreHorizontal, Search, Trash2, X } from "lucide-react";
+import {
+	ArchiveIcon,
+	Loader2,
+	MessageCircleMore,
+	MoreHorizontal,
+	RotateCcwIcon,
+	Search,
+	Trash2,
+	X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
@@ -12,6 +21,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -25,7 +35,13 @@ import {
 } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { chatsApiService } from "@/lib/apis/chats-api.service";
+import {
+	deleteThread,
+	fetchThreads,
+	searchThreads,
+	type ThreadListItem,
+	updateThread,
+} from "@/lib/chat/thread-persistence";
 import { cn } from "@/lib/utils";
 
 interface AllChatsSidebarProps {
@@ -38,70 +54,85 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const queryClient = useQueryClient();
-	const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
+	const [deletingThreadId, setDeletingThreadId] = useState<number | null>(null);
+	const [archivingThreadId, setArchivingThreadId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
+	const [showArchived, setShowArchived] = useState(false);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
-	// Fetch all chats (when not searching)
+	// Fetch all threads (when not searching)
 	const {
-		data: chatsData,
-		error: chatsError,
-		isLoading: isLoadingChats,
+		data: threadsData,
+		error: threadsError,
+		isLoading: isLoadingThreads,
 	} = useQuery({
-		queryKey: ["all-chats", searchSpaceId],
-		queryFn: () =>
-			chatsApiService.getChats({
-				queryParams: {
-					search_space_id: Number(searchSpaceId),
-				},
-			}),
+		queryKey: ["all-threads", searchSpaceId],
+		queryFn: () => fetchThreads(Number(searchSpaceId)),
 		enabled: !!searchSpaceId && open && !isSearchMode,
 	});
 
-	// Search chats (when searching)
+	// Search threads (when searching)
 	const {
 		data: searchData,
 		error: searchError,
 		isLoading: isLoadingSearch,
 	} = useQuery({
-		queryKey: ["search-chats", searchSpaceId, debouncedSearchQuery],
-		queryFn: () =>
-			chatsApiService.searchChats({
-				queryParams: {
-					title: debouncedSearchQuery.trim(),
-					search_space_id: Number(searchSpaceId),
-				},
-			}),
+		queryKey: ["search-threads", searchSpaceId, debouncedSearchQuery],
+		queryFn: () => searchThreads(Number(searchSpaceId), debouncedSearchQuery.trim()),
 		enabled: !!searchSpaceId && open && isSearchMode,
 	});
 
-	// Handle chat navigation
-	const handleChatClick = useCallback(
-		(chatId: number, chatSearchSpaceId: number) => {
-			router.push(`/dashboard/${chatSearchSpaceId}/researcher/${chatId}`);
+	// Handle thread navigation
+	const handleThreadClick = useCallback(
+		(threadId: number) => {
+			router.push(`/dashboard/${searchSpaceId}/new-chat/${threadId}`);
 			onOpenChange(false);
 		},
-		[router, onOpenChange]
+		[router, onOpenChange, searchSpaceId]
 	);
 
-	// Handle chat deletion
-	const handleDeleteChat = useCallback(
-		async (chatId: number) => {
-			setDeletingChatId(chatId);
+	// Handle thread deletion
+	const handleDeleteThread = useCallback(
+		async (threadId: number) => {
+			setDeletingThreadId(threadId);
 			try {
-				await chatsApiService.deleteChat({ id: chatId });
+				await deleteThread(threadId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 				// Invalidate queries to refresh the list
-				queryClient.invalidateQueries({ queryKey: ["all-chats", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["search-chats", searchSpaceId] });
-				queryClient.invalidateQueries({ queryKey: ["chats"] });
+				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			} catch (error) {
-				console.error("Error deleting chat:", error);
+				console.error("Error deleting thread:", error);
 				toast.error(t("error_deleting_chat") || "Failed to delete chat");
 			} finally {
-				setDeletingChatId(null);
+				setDeletingThreadId(null);
+			}
+		},
+		[queryClient, searchSpaceId, t]
+	);
+
+	// Handle thread archive/unarchive
+	const handleToggleArchive = useCallback(
+		async (threadId: number, currentlyArchived: boolean) => {
+			setArchivingThreadId(threadId);
+			try {
+				await updateThread(threadId, { archived: !currentlyArchived });
+				toast.success(
+					currentlyArchived
+						? t("chat_unarchived") || "Chat restored"
+						: t("chat_archived") || "Chat archived"
+				);
+				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
+			} catch (error) {
+				console.error("Error archiving thread:", error);
+				toast.error(t("error_archiving_chat") || "Failed to archive chat");
+			} finally {
+				setArchivingThreadId(null);
 			}
 		},
 		[queryClient, searchSpaceId, t]
@@ -112,10 +143,20 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 		setSearchQuery("");
 	}, []);
 
-	// Determine which data source to use and loading/error states
-	const chats = isSearchMode ? (searchData ?? []) : (chatsData ?? []);
-	const isLoading = isSearchMode ? isLoadingSearch : isLoadingChats;
-	const error = isSearchMode ? searchError : chatsError;
+	// Determine which data source to use
+	let threads: ThreadListItem[] = [];
+	if (isSearchMode) {
+		threads = searchData ?? [];
+	} else if (threadsData) {
+		threads = showArchived ? threadsData.archived_threads : threadsData.threads;
+	}
+
+	const isLoading = isSearchMode ? isLoadingSearch : isLoadingThreads;
+	const error = isSearchMode ? searchError : threadsError;
+
+	// Get counts for tabs
+	const activeCount = threadsData?.threads.length ?? 0;
+	const archivedCount = threadsData?.archived_threads.length ?? 0;
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
@@ -150,7 +191,37 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 					</div>
 				</SheetHeader>
 
-				<ScrollArea className="flex-1">
+				{/* Tab toggle for active/archived (only show when not searching) */}
+				{!isSearchMode && (
+					<div className="flex border-b mx-3">
+						<button
+							type="button"
+							onClick={() => setShowArchived(false)}
+							className={cn(
+								"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
+								!showArchived
+									? "border-b-2 border-primary text-primary"
+									: "text-muted-foreground hover:text-foreground"
+							)}
+						>
+							Active ({activeCount})
+						</button>
+						<button
+							type="button"
+							onClick={() => setShowArchived(true)}
+							className={cn(
+								"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
+								showArchived
+									? "border-b-2 border-primary text-primary"
+									: "text-muted-foreground hover:text-foreground"
+							)}
+						>
+							Archived ({archivedCount})
+						</button>
+					</div>
+				)}
+
+				<ScrollArea className="flex-1 min-h-0 overflow-hidden">
 					<div className="p-2">
 						{isLoading ? (
 							<div className="flex items-center justify-center py-8">
@@ -160,19 +231,21 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 							<div className="text-center py-8 text-sm text-destructive">
 								{t("error_loading_chats") || "Error loading chats"}
 							</div>
-						) : chats.length > 0 ? (
+						) : threads.length > 0 ? (
 							<div className="space-y-1">
-								{chats.map((chat) => {
-									const isDeleting = deletingChatId === chat.id;
+								{threads.map((thread) => {
+									const isDeleting = deletingThreadId === thread.id;
+									const isArchiving = archivingThreadId === thread.id;
+									const isBusy = isDeleting || isArchiving;
 
 									return (
 										<div
-											key={chat.id}
+											key={thread.id}
 											className={cn(
 												"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 												"hover:bg-accent hover:text-accent-foreground",
 												"transition-colors cursor-pointer",
-												isDeleting && "opacity-50 pointer-events-none"
+												isBusy && "opacity-50 pointer-events-none"
 											)}
 										>
 											{/* Main clickable area for navigation */}
@@ -180,23 +253,23 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 												<TooltipTrigger asChild>
 													<button
 														type="button"
-														onClick={() => handleChatClick(chat.id, chat.search_space_id)}
-														disabled={isDeleting}
+														onClick={() => handleThreadClick(thread.id)}
+														disabled={isBusy}
 														className="flex items-center gap-2 flex-1 min-w-0 text-left"
 													>
 														<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
-														<span className="truncate">{chat.title}</span>
+														<span className="truncate">{thread.title || "New Chat"}</span>
 													</button>
 												</TooltipTrigger>
 												<TooltipContent side="right">
 													<p>
-														{t("created") || "Created"}:{" "}
-														{format(new Date(chat.created_at), "MMM d, yyyy 'at' h:mm a")}
+														{t("updated") || "Updated"}:{" "}
+														{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
 													</p>
 												</TooltipContent>
 											</Tooltip>
 
-											{/* Actions dropdown - separate from main click area */}
+											{/* Actions dropdown */}
 											<DropdownMenu>
 												<DropdownMenuTrigger asChild>
 													<Button
@@ -207,7 +280,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 															"opacity-0 group-hover:opacity-100 focus:opacity-100",
 															"transition-opacity"
 														)}
-														disabled={isDeleting}
+														disabled={isBusy}
 													>
 														{isDeleting ? (
 															<Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -219,7 +292,24 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align="end" className="w-40">
 													<DropdownMenuItem
-														onClick={() => handleDeleteChat(chat.id)}
+														onClick={() => handleToggleArchive(thread.id, thread.archived)}
+														disabled={isArchiving}
+													>
+														{thread.archived ? (
+															<>
+																<RotateCcwIcon className="mr-2 h-4 w-4" />
+																<span>{t("unarchive") || "Restore"}</span>
+															</>
+														) : (
+															<>
+																<ArchiveIcon className="mr-2 h-4 w-4" />
+																<span>{t("archive") || "Archive"}</span>
+															</>
+														)}
+													</DropdownMenuItem>
+													<DropdownMenuSeparator />
+													<DropdownMenuItem
+														onClick={() => handleDeleteThread(thread.id)}
 														className="text-destructive focus:text-destructive"
 													>
 														<Trash2 className="mr-2 h-4 w-4" />
@@ -244,10 +334,16 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 						) : (
 							<div className="text-center py-8">
 								<MessageCircleMore className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-								<p className="text-sm text-muted-foreground">{t("no_chats") || "No chats yet"}</p>
-								<p className="text-xs text-muted-foreground/70 mt-1">
-									{t("start_new_chat_hint") || "Start a new chat from the researcher"}
+								<p className="text-sm text-muted-foreground">
+									{showArchived
+										? t("no_archived_chats") || "No archived chats"
+										: t("no_chats") || "No chats yet"}
 								</p>
+								{!showArchived && (
+									<p className="text-xs text-muted-foreground/70 mt-1">
+										{t("start_new_chat_hint") || "Start a new chat from the chat page"}
+									</p>
+								)}
 							</div>
 						)}
 					</div>

@@ -1,4 +1,4 @@
-import type z from "zod";
+import type { ZodType } from "zod";
 import { getBearerToken, handleUnauthorized } from "../auth-utils";
 import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
 
@@ -37,7 +37,7 @@ class BaseApiService {
 
 	async request<T, R extends ResponseType = ResponseType.JSON>(
 		url: string,
-		responseSchema?: z.ZodSchema<T>,
+		responseSchema?: ZodType<T>,
 		options?: RequestOptions & { responseType?: R }
 	): Promise<
 		R extends ResponseType.JSON
@@ -206,7 +206,7 @@ class BaseApiService {
 
 	async get<T>(
 		url: string,
-		responseSchema?: z.ZodSchema<T>,
+		responseSchema?: ZodType<T>,
 		options?: Omit<RequestOptions, "method" | "responseType">
 	) {
 		return this.request(url, responseSchema, {
@@ -221,7 +221,7 @@ class BaseApiService {
 
 	async post<T>(
 		url: string,
-		responseSchema?: z.ZodSchema<T>,
+		responseSchema?: ZodType<T>,
 		options?: Omit<RequestOptions, "method" | "responseType">
 	) {
 		return this.request(url, responseSchema, {
@@ -236,7 +236,7 @@ class BaseApiService {
 
 	async put<T>(
 		url: string,
-		responseSchema?: z.ZodSchema<T>,
+		responseSchema?: ZodType<T>,
 		options?: Omit<RequestOptions, "method" | "responseType">
 	) {
 		return this.request(url, responseSchema, {
@@ -251,7 +251,7 @@ class BaseApiService {
 
 	async delete<T>(
 		url: string,
-		responseSchema?: z.ZodSchema<T>,
+		responseSchema?: ZodType<T>,
 		options?: Omit<RequestOptions, "method" | "responseType">
 	) {
 		return this.request(url, responseSchema, {
@@ -274,7 +274,7 @@ class BaseApiService {
 
 	async postFormData<T>(
 		url: string,
-		responseSchema?: z.ZodSchema<T>,
+		responseSchema?: ZodType<T>,
 		options?: Omit<RequestOptions, "method" | "responseType" | "body"> & { body: FormData }
 	) {
 		// Remove Content-Type from options headers if present

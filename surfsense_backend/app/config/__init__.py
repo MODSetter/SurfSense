@@ -35,12 +35,6 @@ def load_global_llm_configs():
     # Try main config file first
     global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
 
-    # Fall back to example file for testing
-    # if not global_config_file.exists():
-    #     global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.example.yaml"
-    #     if global_config_file.exists():
-    #         print("Info: Using global_llm_config.example.yaml (copy to global_llm_config.yaml for production)")
-
     if not global_config_file.exists():
         # No global configs available
         return []

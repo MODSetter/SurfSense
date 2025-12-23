@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
 // Define validation schema matching the database schema
 const contactFormSchema = z.object({
 	name: z.string().min(1, "Name is required").max(255, "Name is too long"),
-	email: z.string().email("Invalid email address").max(255, "Email is too long"),
+	email: z.email("Invalid email address").max(255, "Email is too long"),
 	company: z.string().min(1, "Company is required").max(255, "Company name is too long"),
-	message: z.string().optional().default(""),
+	message: z.string().optional().prefault(""),
 });
 
 type ContactFormData = z.infer<typeof contactFormSchema>;

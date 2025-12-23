@@ -1,0 +1,384 @@
+"use client";
+
+import { useAtomValue } from "jotai";
+import {
+	Bot,
+	Check,
+	ChevronDown,
+	Cloud,
+	Edit3,
+	Globe,
+	Loader2,
+	Plus,
+	Settings2,
+	Sparkles,
+	User,
+	Zap,
+} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
+import {
+	globalNewLLMConfigsAtom,
+	llmPreferencesAtom,
+	newLLMConfigsAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+	CommandSeparator,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type {
+	GlobalNewLLMConfig,
+	NewLLMConfigPublic,
+} from "@/contracts/types/new-llm-config.types";
+import { cn } from "@/lib/utils";
+
+// Provider icons mapping
+const getProviderIcon = (provider: string) => {
+	const iconClass = "size-4";
+	switch (provider?.toUpperCase()) {
+		case "OPENAI":
+			return <Sparkles className={cn(iconClass, "text-emerald-500")} />;
+		case "ANTHROPIC":
+			return <Bot className={cn(iconClass, "text-amber-600")} />;
+		case "GOOGLE":
+			return <Cloud className={cn(iconClass, "text-blue-500")} />;
+		case "GROQ":
+			return <Zap className={cn(iconClass, "text-orange-500")} />;
+		case "OLLAMA":
+			return <Settings2 className={cn(iconClass, "text-gray-500")} />;
+		case "XAI":
+			return <Bot className={cn(iconClass, "text-violet-500")} />;
+		default:
+			return <Bot className={cn(iconClass, "text-muted-foreground")} />;
+	}
+};
+
+interface ModelSelectorProps {
+	onEdit: (config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => void;
+	onAddNew: () => void;
+	className?: string;
+}
+
+export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProps) {
+	const [open, setOpen] = useState(false);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [isSwitching, setIsSwitching] = useState(false);
+
+	// Fetch configs
+	const { data: userConfigs, isLoading: userConfigsLoading } = useAtomValue(newLLMConfigsAtom);
+	const { data: globalConfigs, isLoading: globalConfigsLoading } =
+		useAtomValue(globalNewLLMConfigsAtom);
+	const { data: preferences, isLoading: preferencesLoading } = useAtomValue(llmPreferencesAtom);
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
+
+	const isLoading = userConfigsLoading || globalConfigsLoading || preferencesLoading;
+
+	// Get current agent LLM config
+	const currentConfig = useMemo(() => {
+		if (!preferences) return null;
+
+		const agentLlmId = preferences.agent_llm_id;
+		if (agentLlmId === null || agentLlmId === undefined) return null;
+
+		// Check if it's a global config (negative ID)
+		if (agentLlmId < 0) {
+			return globalConfigs?.find((c) => c.id === agentLlmId) ?? null;
+		}
+		// Otherwise, check user configs
+		return userConfigs?.find((c) => c.id === agentLlmId) ?? null;
+	}, [preferences, globalConfigs, userConfigs]);
+
+	// Filter configs based on search
+	const filteredGlobalConfigs = useMemo(() => {
+		if (!globalConfigs) return [];
+		if (!searchQuery) return globalConfigs;
+		const query = searchQuery.toLowerCase();
+		return globalConfigs.filter(
+			(c) =>
+				c.name.toLowerCase().includes(query) ||
+				c.model_name.toLowerCase().includes(query) ||
+				c.provider.toLowerCase().includes(query)
+		);
+	}, [globalConfigs, searchQuery]);
+
+	const filteredUserConfigs = useMemo(() => {
+		if (!userConfigs) return [];
+		if (!searchQuery) return userConfigs;
+		const query = searchQuery.toLowerCase();
+		return userConfigs.filter(
+			(c) =>
+				c.name.toLowerCase().includes(query) ||
+				c.model_name.toLowerCase().includes(query) ||
+				c.provider.toLowerCase().includes(query)
+		);
+	}, [userConfigs, searchQuery]);
+
+	const handleSelectConfig = useCallback(
+		async (config: NewLLMConfigPublic | GlobalNewLLMConfig) => {
+			// If already selected, just close
+			if (currentConfig?.id === config.id) {
+				setOpen(false);
+				return;
+			}
+
+			if (!searchSpaceId) {
+				toast.error("No search space selected");
+				return;
+			}
+
+			setIsSwitching(true);
+			try {
+				await updatePreferences({
+					search_space_id: Number(searchSpaceId),
+					data: {
+						agent_llm_id: config.id,
+					},
+				});
+				toast.success(`Switched to ${config.name}`);
+				setOpen(false);
+			} catch (error) {
+				console.error("Failed to switch model:", error);
+				toast.error("Failed to switch model");
+			} finally {
+				setIsSwitching(false);
+			}
+		},
+		[currentConfig, searchSpaceId, updatePreferences]
+	);
+
+	const handleEditConfig = useCallback(
+		(e: React.MouseEvent, config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => {
+			e.stopPropagation();
+			onEdit(config, isGlobal);
+			setOpen(false);
+		},
+		[onEdit]
+	);
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<Button
+					variant="ghost"
+					size="sm"
+					role="combobox"
+					aria-expanded={open}
+					className={cn(
+						"h-9 gap-2 px-3 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm",
+						"hover:bg-muted/80 hover:border-border transition-all duration-200",
+						"text-sm font-medium text-foreground",
+						className
+					)}
+				>
+					{isLoading ? (
+						<>
+							<Loader2 className="size-4 animate-spin text-muted-foreground" />
+							<span className="text-muted-foreground">Loading...</span>
+						</>
+					) : currentConfig ? (
+						<>
+							{getProviderIcon(currentConfig.provider)}
+							<span className="max-w-[150px] truncate">{currentConfig.name}</span>
+							<Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4 bg-muted/80">
+								{currentConfig.model_name.split("/").pop()?.slice(0, 15) ||
+									currentConfig.model_name.slice(0, 15)}
+							</Badge>
+						</>
+					) : (
+						<>
+							<Bot className="size-4 text-muted-foreground" />
+							<span className="text-muted-foreground">Select Model</span>
+						</>
+					)}
+					<ChevronDown className="size-3.5 text-muted-foreground ml-1 shrink-0" />
+				</Button>
+			</PopoverTrigger>
+
+			<PopoverContent
+				className="w-[360px] p-0 rounded-xl shadow-lg border-border/50"
+				align="start"
+				sideOffset={8}
+			>
+				<Command shouldFilter={false} className="rounded-xl relative">
+					{/* Switching overlay */}
+					{isSwitching && (
+						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								<Loader2 className="size-4 animate-spin" />
+								<span>Switching model...</span>
+							</div>
+						</div>
+					)}
+
+					<div className="flex items-center gap-2 border-b px-3 py-2 bg-muted/30">
+						<Bot className="size-4 text-muted-foreground" />
+						<CommandInput
+							placeholder="Search models..."
+							value={searchQuery}
+							onValueChange={setSearchQuery}
+							className="h-8 border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
+							disabled={isSwitching}
+						/>
+					</div>
+
+					<CommandList className="max-h-[400px] overflow-y-auto">
+						<CommandEmpty className="py-8 text-center">
+							<div className="flex flex-col items-center gap-2">
+								<Bot className="size-8 text-muted-foreground/40" />
+								<p className="text-sm text-muted-foreground">No models found</p>
+								<p className="text-xs text-muted-foreground/60">Try a different search term</p>
+							</div>
+						</CommandEmpty>
+
+						{/* Global Configs Section */}
+						{filteredGlobalConfigs.length > 0 && (
+							<CommandGroup>
+								<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+									<Globe className="size-3.5" />
+									Global Models
+								</div>
+								{filteredGlobalConfigs.map((config) => {
+									const isSelected = currentConfig?.id === config.id;
+									return (
+										<CommandItem
+											key={`global-${config.id}`}
+											value={`global-${config.id}`}
+											onSelect={() => handleSelectConfig(config)}
+											className={cn(
+												"mx-2 rounded-lg mb-1 cursor-pointer",
+												"aria-selected:bg-accent/50",
+												isSelected && "bg-accent/80"
+											)}
+										>
+											<div className="flex items-center justify-between w-full gap-2">
+												<div className="flex items-center gap-3 min-w-0 flex-1">
+													<div className="shrink-0">{getProviderIcon(config.provider)}</div>
+													<div className="min-w-0 flex-1">
+														<div className="flex items-center gap-2">
+															<span className="font-medium truncate">{config.name}</span>
+															{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+														</div>
+														<div className="flex items-center gap-1.5 mt-0.5">
+															<span className="text-xs text-muted-foreground truncate">
+																{config.model_name}
+															</span>
+															{config.citations_enabled && (
+																<Badge
+																	variant="outline"
+																	className="text-[9px] px-1 py-0 h-3.5 bg-primary/10 text-primary border-primary/20"
+																>
+																	Citations
+																</Badge>
+															)}
+														</div>
+													</div>
+												</div>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="size-7 shrink-0 rounded-md hover:bg-muted"
+													onClick={(e) => handleEditConfig(e, config, true)}
+												>
+													<Edit3 className="size-3.5 text-muted-foreground" />
+												</Button>
+											</div>
+										</CommandItem>
+									);
+								})}
+							</CommandGroup>
+						)}
+
+						{filteredGlobalConfigs.length > 0 && filteredUserConfigs.length > 0 && (
+							<CommandSeparator className="my-1" />
+						)}
+
+						{/* User Configs Section */}
+						{filteredUserConfigs.length > 0 && (
+							<CommandGroup>
+								<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+									<User className="size-3.5" />
+									Your Configurations
+								</div>
+								{filteredUserConfigs.map((config) => {
+									const isSelected = currentConfig?.id === config.id;
+									return (
+										<CommandItem
+											key={`user-${config.id}`}
+											value={`user-${config.id}`}
+											onSelect={() => handleSelectConfig(config)}
+											className={cn(
+												"mx-2 rounded-lg mb-1 cursor-pointer",
+												"aria-selected:bg-accent/50",
+												isSelected && "bg-accent/80"
+											)}
+										>
+											<div className="flex items-center justify-between w-full gap-2">
+												<div className="flex items-center gap-3 min-w-0 flex-1">
+													<div className="shrink-0">{getProviderIcon(config.provider)}</div>
+													<div className="min-w-0 flex-1">
+														<div className="flex items-center gap-2">
+															<span className="font-medium truncate">{config.name}</span>
+															{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+														</div>
+														<div className="flex items-center gap-1.5 mt-0.5">
+															<span className="text-xs text-muted-foreground truncate">
+																{config.model_name}
+															</span>
+															{config.citations_enabled && (
+																<Badge
+																	variant="outline"
+																	className="text-[9px] px-1 py-0 h-3.5 bg-primary/10 text-primary border-primary/20"
+																>
+																	Citations
+																</Badge>
+															)}
+														</div>
+													</div>
+												</div>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="size-7 shrink-0 rounded-md hover:bg-muted"
+													onClick={(e) => handleEditConfig(e, config, false)}
+												>
+													<Edit3 className="size-3.5 text-muted-foreground" />
+												</Button>
+											</div>
+										</CommandItem>
+									);
+								})}
+							</CommandGroup>
+						)}
+
+						{/* Add New Config Button */}
+						<div className="p-2 border-t border-border/50 bg-muted/20">
+							<Button
+								variant="ghost"
+								size="sm"
+								className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50"
+								onClick={() => {
+									setOpen(false);
+									onAddNew();
+								}}
+							>
+								<Plus className="size-4 text-primary" />
+								<span className="text-sm font-medium">Add New Configuration</span>
+							</Button>
+						</div>
+					</CommandList>
+				</Command>
+			</PopoverContent>
+		</Popover>
+	);
+}

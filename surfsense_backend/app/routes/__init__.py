@@ -3,7 +3,6 @@ from fastapi import APIRouter
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
-from .chats_routes import router as chats_router
 from .documents_routes import router as documents_router
 from .editor_routes import router as editor_router
 from .google_calendar_add_connector_route import (
@@ -12,9 +11,10 @@ from .google_calendar_add_connector_route import (
 from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
-from .llm_config_routes import router as llm_config_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
+from .new_chat_routes import router as new_chat_router
+from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
 from .podcasts_routes import router as podcasts_router
 from .rbac_routes import router as rbac_router
@@ -28,12 +28,12 @@ router.include_router(rbac_router)  # RBAC routes for roles, members, invites
 router.include_router(editor_router)
 router.include_router(documents_router)
 router.include_router(notes_router)
-router.include_router(podcasts_router)
-router.include_router(chats_router)
+router.include_router(new_chat_router)  # Chat with assistant-ui persistence
+router.include_router(podcasts_router)  # Podcast task status and audio
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
 router.include_router(airtable_add_connector_router)
 router.include_router(luma_add_connector_router)
-router.include_router(llm_config_router)
+router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
 router.include_router(logs_router)

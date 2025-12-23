@@ -450,6 +450,35 @@ class VercelStreamingService:
         """
         return self.format_data("further-questions", {"questions": questions})
 
+    def format_thinking_step(
+        self,
+        step_id: str,
+        title: str,
+        status: str = "in_progress",
+        items: list[str] | None = None,
+    ) -> str:
+        """
+        Format a thinking step for chain-of-thought display (SurfSense specific).
+
+        Args:
+            step_id: Unique identifier for the step
+            title: The step title (e.g., "Analyzing your request")
+            status: Step status - "pending", "in_progress", or "completed"
+            items: Optional list of sub-items/details for this step
+
+        Returns:
+            str: SSE formatted thinking step data part
+        """
+        return self.format_data(
+            "thinking-step",
+            {
+                "id": step_id,
+                "title": title,
+                "status": status,
+                "items": items or [],
+            },
+        )
+
     # =========================================================================
     # Error Part
     # =========================================================================
