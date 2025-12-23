@@ -14,8 +14,11 @@ from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.new_chat.display_image import create_display_image_tool
 from app.agents.new_chat.knowledge_base import create_search_knowledge_base_tool
+from app.agents.new_chat.link_preview import create_link_preview_tool
 from app.agents.new_chat.podcast import create_generate_podcast_tool
+from app.agents.new_chat.scrape_webpage import create_scrape_webpage_tool
 from app.agents.new_chat.system_prompt import build_surfsense_system_prompt
 from app.services.connector_service import ConnectorService
 
@@ -34,6 +37,10 @@ def create_surfsense_deep_agent(
     user_instructions: str | None = None,
     enable_citations: bool = True,
     enable_podcast: bool = True,
+    enable_link_preview: bool = True,
+    enable_display_image: bool = True,
+    enable_scrape_webpage: bool = True,
+    firecrawl_api_key: str | None = None,
     additional_tools: Sequence[BaseTool] | None = None,
 ):
     """
@@ -53,6 +60,14 @@ def create_surfsense_deep_agent(
                          When False, the agent will not be instructed to add citations to responses.
         enable_podcast: Whether to include the podcast generation tool (default: True).
                        When True and user_id is provided, the agent can generate podcasts.
+        enable_link_preview: Whether to include the link preview tool (default: True).
+                            When True, the agent can fetch and display rich link previews.
+        enable_display_image: Whether to include the display image tool (default: True).
+                             When True, the agent can display images with metadata.
+        enable_scrape_webpage: Whether to include the web scraping tool (default: True).
+                              When True, the agent can scrape and read webpage content.
+        firecrawl_api_key: Optional Firecrawl API key for premium web scraping.
+                          Falls back to Chromium/Trafilatura if not provided.
         additional_tools: Optional sequence of additional tools to inject into the agent.
                          The search_knowledge_base tool will always be included.
 
@@ -77,6 +92,21 @@ def create_surfsense_deep_agent(
             user_id=str(user_id),
         )
         tools.append(podcast_tool)
+
+    # Add link preview tool if enabled
+    if enable_link_preview:
+        link_preview_tool = create_link_preview_tool()
+        tools.append(link_preview_tool)
+
+    # Add display image tool if enabled
+    if enable_display_image:
+        display_image_tool = create_display_image_tool()
+        tools.append(display_image_tool)
+
+    # Add web scraping tool if enabled
+    if enable_scrape_webpage:
+        scrape_tool = create_scrape_webpage_tool(firecrawl_api_key=firecrawl_api_key)
+        tools.append(scrape_tool)
 
     if additional_tools:
         tools.extend(additional_tools)

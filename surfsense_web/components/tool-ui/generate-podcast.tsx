@@ -3,37 +3,79 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, Loader2Icon, MicIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import { Audio } from "@/components/tool-ui/audio";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { clearActivePodcastTaskId, setActivePodcastTaskId } from "@/lib/chat/podcast-state";
 
 /**
- * Type definitions for the generate_podcast tool
+ * Zod schemas for runtime validation
  */
-interface GeneratePodcastArgs {
-	source_content: string;
-	podcast_title?: string;
-	user_prompt?: string;
+const GeneratePodcastArgsSchema = z.object({
+	source_content: z.string(),
+	podcast_title: z.string().optional(),
+	user_prompt: z.string().optional(),
+});
+
+const GeneratePodcastResultSchema = z.object({
+	status: z.enum(["processing", "already_generating", "success", "error"]),
+	task_id: z.string().optional(),
+	podcast_id: z.number().optional(),
+	title: z.string().optional(),
+	transcript_entries: z.number().optional(),
+	message: z.string().optional(),
+	error: z.string().optional(),
+});
+
+const TaskStatusResponseSchema = z.object({
+	status: z.enum(["processing", "success", "error"]),
+	podcast_id: z.number().optional(),
+	title: z.string().optional(),
+	transcript_entries: z.number().optional(),
+	state: z.string().optional(),
+	error: z.string().optional(),
+});
+
+const PodcastTranscriptEntrySchema = z.object({
+	speaker_id: z.number(),
+	dialog: z.string(),
+});
+
+const PodcastDetailsSchema = z.object({
+	podcast_transcript: z.array(PodcastTranscriptEntrySchema).optional(),
+});
+
+/**
+ * Types derived from Zod schemas
+ */
+type GeneratePodcastArgs = z.infer<typeof GeneratePodcastArgsSchema>;
+type GeneratePodcastResult = z.infer<typeof GeneratePodcastResultSchema>;
+type TaskStatusResponse = z.infer<typeof TaskStatusResponseSchema>;
+type PodcastTranscriptEntry = z.infer<typeof PodcastTranscriptEntrySchema>;
+
+/**
+ * Parse and validate task status response
+ */
+function parseTaskStatusResponse(data: unknown): TaskStatusResponse {
+	const result = TaskStatusResponseSchema.safeParse(data);
+	if (!result.success) {
+		console.warn("Invalid task status response:", result.error.issues);
+		return { status: "error", error: "Invalid response from server" };
+	}
+	return result.data;
 }
 
-interface GeneratePodcastResult {
-	status: "processing" | "already_generating" | "success" | "error";
-	task_id?: string;
-	podcast_id?: number;
-	title?: string;
-	transcript_entries?: number;
-	message?: string;
-	error?: string;
-}
-
-interface TaskStatusResponse {
-	status: "processing" | "success" | "error";
-	podcast_id?: number;
-	title?: string;
-	transcript_entries?: number;
-	state?: string;
-	error?: string;
+/**
+ * Parse and validate podcast details
+ */
+function parsePodcastDetails(data: unknown): { podcast_transcript?: PodcastTranscriptEntry[] } {
+	const result = PodcastDetailsSchema.safeParse(data);
+	if (!result.success) {
+		console.warn("Invalid podcast details:", result.error.issues);
+		return {};
+	}
+	return result.data;
 }
 
 /**
@@ -112,14 +154,6 @@ function AudioLoadingState({ title }: { title: string }) {
 /**
  * Podcast Player Component - Fetches audio and transcript with authentication
  */
-/**
- * Transcript entry type for podcast transcripts
- */
-interface PodcastTranscriptEntry {
-	speaker_id: number;
-	dialog: string;
-}
-
 function PodcastPlayer({
 	podcastId,
 	title,
@@ -163,12 +197,12 @@ function PodcastPlayer({
 
 			try {
 				// Fetch audio blob and podcast details in parallel
-				const [audioResponse, podcastDetails] = await Promise.all([
+				const [audioResponse, rawPodcastDetails] = await Promise.all([
 					authenticatedFetch(
 						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcastId}/audio`,
 						{ method: "GET", signal: controller.signal }
 					),
-					baseApiService.get<{ podcast_transcript?: PodcastTranscriptEntry[] }>(
+					baseApiService.get<unknown>(
 						`/api/v1/podcasts/${podcastId}`
 					),
 				]);
@@ -184,8 +218,9 @@ function PodcastPlayer({
 				objectUrlRef.current = objectUrl;
 				setAudioSrc(objectUrl);
 
-				// Set transcript from podcast details
-				if (podcastDetails?.podcast_transcript) {
+				// Parse and validate podcast details, then set transcript
+				const podcastDetails = parsePodcastDetails(rawPodcastDetails);
+				if (podcastDetails.podcast_transcript) {
 					setTranscript(podcastDetails.podcast_transcript);
 				}
 			} finally {
@@ -268,9 +303,10 @@ function PodcastTaskPoller({ taskId, title }: { taskId: string; title: string })
 	useEffect(() => {
 		const pollStatus = async () => {
 			try {
-				const response = await baseApiService.get<TaskStatusResponse>(
+				const rawResponse = await baseApiService.get<unknown>(
 					`/api/v1/podcasts/task/${taskId}/status`
 				);
+				const response = parseTaskStatusResponse(rawResponse);
 				setTaskStatus(response);
 
 				// Stop polling if task is complete or errored

@@ -145,6 +145,57 @@ You have access to the following tools:
   - Returns: A task_id for tracking. The podcast will be generated in the background.
   - IMPORTANT: Only one podcast can be generated at a time. If a podcast is already being generated, the tool will return status "already_generating".
   - After calling this tool, inform the user that podcast generation has started and they will see the player when it's ready (takes 3-5 minutes).
+
+3. link_preview: Fetch metadata for a URL to display a rich preview card.
+  - IMPORTANT: Use this tool WHENEVER the user shares or mentions a URL/link in their message.
+  - This fetches the page's Open Graph metadata (title, description, thumbnail) to show a preview card.
+  - NOTE: This tool only fetches metadata, NOT the full page content. It cannot read the article text.
+  - Trigger scenarios:
+    * User shares a URL (e.g., "Check out https://example.com")
+    * User pastes a link in their message
+    * User asks about a URL or link
+  - Args:
+    - url: The URL to fetch metadata for (must be a valid HTTP/HTTPS URL)
+  - Returns: A rich preview card with title, description, thumbnail, and domain
+  - The preview card will automatically be displayed in the chat.
+
+4. display_image: Display an image in the chat with metadata.
+  - Use this tool when you want to show an image to the user.
+  - This displays the image with an optional title, description, and source attribution.
+  - Common use cases:
+    * Showing an image from a URL mentioned in the conversation
+    * Displaying a diagram, chart, or illustration you're referencing
+    * Showing visual examples when explaining concepts
+  - Args:
+    - src: The URL of the image to display (must be a valid HTTP/HTTPS image URL)
+    - alt: Alternative text describing the image (for accessibility)
+    - title: Optional title to display below the image
+    - description: Optional description providing context about the image
+  - Returns: An image card with the image, title, and description
+  - The image will automatically be displayed in the chat.
+
+5. scrape_webpage: Scrape and extract the main content from a webpage.
+  - Use this when the user wants you to READ and UNDERSTAND the actual content of a webpage.
+  - IMPORTANT: This is different from link_preview:
+    * link_preview: Only fetches metadata (title, description, thumbnail) for display
+    * scrape_webpage: Actually reads the FULL page content so you can analyze/summarize it
+  - Trigger scenarios:
+    * "Read this article and summarize it"
+    * "What does this page say about X?"
+    * "Summarize this blog post for me"
+    * "Tell me the key points from this article"
+    * "What's in this webpage?"
+    * "Can you analyze this article?"
+  - Args:
+    - url: The URL of the webpage to scrape (must be HTTP/HTTPS)
+    - max_length: Maximum content length to return (default: 50000 chars)
+  - Returns: The page title, description, full content (in markdown), word count, and metadata
+  - After scraping, you will have the full article text and can analyze, summarize, or answer questions about it.
+  - IMAGES: The scraped content may contain image URLs in markdown format like `![alt text](image_url)`.
+    * When you find relevant/important images in the scraped content, use the `display_image` tool to show them to the user.
+    * This makes your response more visual and engaging.
+    * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
+    * Don't show every image - just the most relevant 1-3 images that enhance understanding.
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -162,6 +213,39 @@ You have access to the following tools:
 - User: "Make a podcast about quantum computing"
   - First search: `search_knowledge_base(query="quantum computing")`
   - Then: `generate_podcast(source_content="Key insights about quantum computing from the knowledge base:\n\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", podcast_title="Quantum Computing Explained")`
+
+- User: "Check out https://dev.to/some-article"
+  - Call: `link_preview(url="https://dev.to/some-article")`
+
+- User: "What's this blog post about? https://example.com/blog/post"
+  - Call: `link_preview(url="https://example.com/blog/post")`
+
+- User: "https://github.com/some/repo"
+  - Call: `link_preview(url="https://github.com/some/repo")`
+
+- User: "Show me this image: https://example.com/image.png"
+  - Call: `display_image(src="https://example.com/image.png", alt="User shared image")`
+
+- User: "Can you display a diagram of a neural network?"
+  - Call: `display_image(src="https://example.com/neural-network.png", alt="Neural network diagram", title="Neural Network Architecture", description="A visual representation of a neural network with input, hidden, and output layers")`
+
+- User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
+  - Call: `scrape_webpage(url="https://example.com/blog/ai-trends")`
+  - After getting the content, provide a summary based on the scraped text
+
+- User: "What does this page say about machine learning? https://docs.example.com/ml-guide"
+  - Call: `scrape_webpage(url="https://docs.example.com/ml-guide")`
+  - Then answer the question using the extracted content
+
+- User: "Summarize this blog post: https://medium.com/some-article"
+  - Call: `scrape_webpage(url="https://medium.com/some-article")`
+  - Provide a comprehensive summary of the article content
+
+- User: "Read this tutorial and explain it: https://example.com/ml-tutorial"
+  - First: `scrape_webpage(url="https://example.com/ml-tutorial")`
+  - Then, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
+    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
+  - Then provide your explanation, referencing the displayed image
 </tool_call_examples>{citation_section}
 """
 

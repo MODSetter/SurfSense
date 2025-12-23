@@ -7,10 +7,13 @@ import {
 	MessagePrimitive,
 	ThreadPrimitive,
 	useAssistantState,
+	useMessage,
 } from "@assistant-ui/react";
 import {
 	ArrowDownIcon,
 	ArrowUpIcon,
+	Brain,
+	CheckCircle2,
 	CheckIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
@@ -18,10 +21,21 @@ import {
 	DownloadIcon,
 	Loader2,
 	PencilIcon,
+	Plug2,
+	Plus,
 	RefreshCwIcon,
+	Search,
+	Sparkles,
 	SquareIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { type FC, useState, useRef, useCallback, useEffect } from "react";
+import { useAtomValue } from "jotai";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -30,39 +44,201 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import {
+	ChainOfThought,
+	ChainOfThoughtContent,
+	ChainOfThoughtItem,
+	ChainOfThoughtStep,
+	ChainOfThoughtTrigger,
+} from "@/components/prompt-kit/chain-of-thought";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 
-export const Thread: FC = () => {
+/**
+ * Props for the Thread component
+ */
+interface ThreadProps {
+	messageThinkingSteps?: Map<string, ThinkingStep[]>;
+}
+
+// Context to pass thinking steps to AssistantMessage
+import { createContext, useContext } from "react";
+
+const ThinkingStepsContext = createContext<Map<string, ThinkingStep[]>>(new Map());
+
+/**
+ * Get icon based on step status and title
+ */
+function getStepIcon(status: "pending" | "in_progress" | "completed", title: string) {
+	const titleLower = title.toLowerCase();
+	
+	if (status === "in_progress") {
+		return <Loader2 className="size-4 animate-spin text-primary" />;
+	}
+	
+	if (status === "completed") {
+		return <CheckCircle2 className="size-4 text-emerald-500" />;
+	}
+	
+	if (titleLower.includes("search") || titleLower.includes("knowledge")) {
+		return <Search className="size-4 text-muted-foreground" />;
+	}
+	
+	if (titleLower.includes("analy") || titleLower.includes("understand")) {
+		return <Brain className="size-4 text-muted-foreground" />;
+	}
+	
+	return <Sparkles className="size-4 text-muted-foreground" />;
+}
+
+/**
+ * Chain of thought display component with smart expand/collapse behavior
+ */
+const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolean }> = ({ steps, isThreadRunning = true }) => {
+	// Track which steps the user has manually toggled (overrides auto behavior)
+	const [manualOverrides, setManualOverrides] = useState<Record<string, boolean>>({});
+	// Track previous step statuses to detect changes
+	const prevStatusesRef = useRef<Record<string, string>>({});
+	
+	// Derive effective status: if thread stopped and step is in_progress, treat as completed
+	const getEffectiveStatus = (step: ThinkingStep): "pending" | "in_progress" | "completed" => {
+		if (step.status === "in_progress" && !isThreadRunning) {
+			return "completed"; // Thread was stopped, so mark as completed
+		}
+		return step.status;
+	};
+	
+	// Check if any step is effectively in progress
+	const hasInProgressStep = steps.some(step => getEffectiveStatus(step) === "in_progress");
+	
+	// Find the last completed step index (using effective status)
+	const lastCompletedIndex = steps
+		.map((s, i) => getEffectiveStatus(s) === "completed" ? i : -1)
+		.filter(i => i !== -1)
+		.pop();
+	
+	// Clear manual overrides when a step's status changes
+	useEffect(() => {
+		const currentStatuses: Record<string, string> = {};
+		steps.forEach(step => {
+			currentStatuses[step.id] = step.status;
+			// If status changed, clear any manual override for this step
+			if (prevStatusesRef.current[step.id] && prevStatusesRef.current[step.id] !== step.status) {
+				setManualOverrides(prev => {
+					const next = { ...prev };
+					delete next[step.id];
+					return next;
+				});
+			}
+		});
+		prevStatusesRef.current = currentStatuses;
+	}, [steps]);
+	
+	if (steps.length === 0) return null;
+	
+	const getStepOpenState = (step: ThinkingStep, index: number): boolean => {
+		const effectiveStatus = getEffectiveStatus(step);
+		// If user has manually toggled, respect that
+		if (manualOverrides[step.id] !== undefined) {
+			return manualOverrides[step.id];
+		}
+		// Auto behavior: open if in progress
+		if (effectiveStatus === "in_progress") {
+			return true;
+		}
+		// Auto behavior: keep last completed step open if no in-progress step
+		if (!hasInProgressStep && index === lastCompletedIndex) {
+			return true;
+		}
+		// Default: collapsed
+		return false;
+	};
+	
+	const handleToggle = (stepId: string, currentOpen: boolean) => {
+		setManualOverrides(prev => ({
+			...prev,
+			[stepId]: !currentOpen,
+		}));
+	};
+	
 	return (
-		<ThreadPrimitive.Root
-			className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
-			style={{
-				["--thread-max-width" as string]: "44rem",
-			}}
-		>
-			<ThreadPrimitive.Viewport
-				turnAnchor="top"
-				className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
+			<ChainOfThought>
+				{steps.map((step, index) => {
+					const effectiveStatus = getEffectiveStatus(step);
+					const icon = getStepIcon(effectiveStatus, step.title);
+					const isOpen = getStepOpenState(step, index);
+					return (
+						<ChainOfThoughtStep 
+							key={step.id} 
+							open={isOpen}
+							onOpenChange={() => handleToggle(step.id, isOpen)}
+						>
+							<ChainOfThoughtTrigger
+								leftIcon={icon}
+								swapIconOnHover={effectiveStatus !== "in_progress"}
+								className={cn(
+									effectiveStatus === "in_progress" && "text-foreground font-medium",
+									effectiveStatus === "completed" && "text-muted-foreground"
+								)}
+							>
+								{step.title}
+							</ChainOfThoughtTrigger>
+							{step.items && step.items.length > 0 && (
+								<ChainOfThoughtContent>
+									{step.items.map((item, idx) => (
+										<ChainOfThoughtItem key={`${step.id}-item-${idx}`}>
+											{item}
+										</ChainOfThoughtItem>
+									))}
+								</ChainOfThoughtContent>
+							)}
+						</ChainOfThoughtStep>
+					);
+				})}
+			</ChainOfThought>
+		</div>
+	);
+};
+
+export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
+	return (
+		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
+			<ThreadPrimitive.Root
+				className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
+				style={{
+					["--thread-max-width" as string]: "44rem",
+				}}
 			>
-				<AssistantIf condition={({ thread }) => thread.isEmpty}>
-					<ThreadWelcome />
-				</AssistantIf>
+				<ThreadPrimitive.Viewport
+					turnAnchor="top"
+					className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+				>
+					<AssistantIf condition={({ thread }) => thread.isEmpty}>
+						<ThreadWelcome />
+					</AssistantIf>
 
-				<ThreadPrimitive.Messages
-					components={{
-						UserMessage,
-						EditComposer,
-						AssistantMessage,
-					}}
-				/>
+					<ThreadPrimitive.Messages
+						components={{
+							UserMessage,
+							EditComposer,
+							AssistantMessage,
+						}}
+					/>
 
-				<ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
-					<ThreadScrollToBottom />
-					<Composer />
-				</ThreadPrimitive.ViewportFooter>
-			</ThreadPrimitive.Viewport>
-		</ThreadPrimitive.Root>
+					<ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+						<ThreadScrollToBottom />
+						<AssistantIf condition={({ thread }) => !thread.isEmpty}>
+							<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
+								<Composer />
+							</div>
+						</AssistantIf>
+					</ThreadPrimitive.ViewportFooter>
+				</ThreadPrimitive.Viewport>
+			</ThreadPrimitive.Root>
+		</ThinkingStepsContext.Provider>
 	);
 };
 
@@ -80,62 +256,116 @@ const ThreadScrollToBottom: FC = () => {
 	);
 };
 
-const ThreadWelcome: FC = () => {
-	return (
-		<div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
-			<div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
-				<div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
-					<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in font-semibold text-2xl duration-200">
-						Hello there!
-					</h1>
-					<p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in text-muted-foreground text-xl delay-75 duration-200">
-						How can I help you today?
-					</p>
-				</div>
-			</div>
-			<ThreadSuggestions />
-		</div>
-	);
+const getTimeBasedGreeting = (userEmail?: string): string => {
+	const hour = new Date().getHours();
+	
+	// Extract first name from email if available
+	const firstName = userEmail
+		? userEmail.split("@")[0].split(".")[0].charAt(0).toUpperCase() + 
+		  userEmail.split("@")[0].split(".")[0].slice(1)
+		: null;
+	
+	// Array of greeting variations for each time period
+	const morningGreetings = [
+		"Good morning",
+		"Rise and shine",
+		"Morning",
+		"Hey there",
+	];
+	
+	const afternoonGreetings = [
+		"Good afternoon",
+		"Afternoon",
+		"Hey there",
+		"Hi there",
+	];
+	
+	const eveningGreetings = [
+		"Good evening",
+		"Evening",
+		"Hey there",
+		"Hi there",
+	];
+	
+	const nightGreetings = [
+		"Good night",
+		"Evening",
+		"Hey there",
+		"Winding down",
+	];
+	
+	const lateNightGreetings = [
+		"Still up",
+		"Night owl mode",
+		"The night is young",
+		"Hi there",
+	];
+	
+	// Select a random greeting based on time
+	let greeting: string;
+	if (hour < 5) {
+		// Late night: midnight to 5 AM
+		greeting = lateNightGreetings[Math.floor(Math.random() * lateNightGreetings.length)];
+	} else if (hour < 12) {
+		greeting = morningGreetings[Math.floor(Math.random() * morningGreetings.length)];
+	} else if (hour < 18) {
+		greeting = afternoonGreetings[Math.floor(Math.random() * afternoonGreetings.length)];
+	} else if (hour < 22) {
+		greeting = eveningGreetings[Math.floor(Math.random() * eveningGreetings.length)];
+	} else {
+		// Night: 10 PM to midnight
+		greeting = nightGreetings[Math.floor(Math.random() * nightGreetings.length)];
+	}
+	
+	// Add personalization with first name if available
+	if (firstName) {
+		return `${greeting}, ${firstName}!`;
+	}
+	
+	return `${greeting}!`;
 };
 
-const SUGGESTIONS = [
-	{
-		title: "What's the weather",
-		label: "in San Francisco?",
-		prompt: "What's the weather in San Francisco?",
-	},
-	{
-		title: "Explain React hooks",
-		label: "like useState and useEffect",
-		prompt: "Explain React hooks like useState and useEffect",
-	},
-] as const;
-
-const ThreadSuggestions: FC = () => {
+const ThreadWelcome: FC = () => {
+	const { data: user } = useAtomValue(currentUserAtom);
+	
 	return (
-		<div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
-			{SUGGESTIONS.map((suggestion, index) => (
-				<div
-					key={suggestion.prompt}
-					className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-200"
-					style={{ animationDelay: `${100 + index * 50}ms` }}
-				>
-					<ThreadPrimitive.Suggestion prompt={suggestion.prompt} autoSend asChild>
-						<Button
-							variant="ghost"
-							className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
-							aria-label={suggestion.prompt}
-						>
-							<span className="aui-thread-welcome-suggestion-text-1 font-medium">
-								{suggestion.title}
-							</span>
-							<span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
-								{suggestion.label}
-							</span>
-						</Button>
-					</ThreadPrimitive.Suggestion>
-				</div>
-			))}
+		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
+			{/* Greeting positioned above the composer - fixed position */}
+			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center z-10">
+				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both flex items-center gap-4">
+					{/** biome-ignore lint/a11y/noStaticElementInteractions: wrong lint error, this is a workaround to fix the lint error */}
+					<div
+						className="relative cursor-pointer"
+						onMouseMove={(e) => {
+							const rect = e.currentTarget.getBoundingClientRect();
+							const x = (e.clientX - rect.left - rect.width / 2) / 3;
+							const y = (e.clientY - rect.top - rect.height / 2) / 3;
+							e.currentTarget.style.setProperty("--mag-x", `${x}px`);
+							e.currentTarget.style.setProperty("--mag-y", `${y}px`);
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.setProperty("--mag-x", "0px");
+							e.currentTarget.style.setProperty("--mag-y", "0px");
+						}}
+					>
+						<Image
+							src="/icon-128.png"
+							alt="SurfSense"
+							width={48}
+							height={48}
+							className="rounded-full transition-transform duration-200 ease-out"
+							style={{
+								transform: "translate(var(--mag-x, 0), var(--mag-y, 0))",
+							}}
+						/>
+					</div>
+					{getTimeBasedGreeting(user?.email)}
+				</h1>
+			</div>
+			{/* Composer - top edge fixed, expands downward only */}
+			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
+				<Composer />
+			</div>
 		</div>
 	);
 };
@@ -143,10 +373,10 @@ const ThreadSuggestions: FC = () => {
 const Composer: FC = () => {
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
+			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
 				<ComposerPrimitive.Input
-					placeholder="Send a message..."
+					placeholder="Ask SurfSense"
 					className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
 					rows={1}
 					autoFocus
@@ -155,6 +385,115 @@ const Composer: FC = () => {
 				<ComposerAction />
 			</ComposerPrimitive.AttachmentDropzone>
 		</ComposerPrimitive.Root>
+	);
+};
+
+const ConnectorIndicator: FC = () => {
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const { connectors, isLoading } = useSearchSourceConnectors(false, searchSpaceId ? Number(searchSpaceId) : undefined);
+	const [isOpen, setIsOpen] = useState(false);
+	const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	
+	const hasConnectors = connectors.length > 0;
+	
+	const handleMouseEnter = useCallback(() => {
+		// Clear any pending close timeout
+		if (closeTimeoutRef.current) {
+			clearTimeout(closeTimeoutRef.current);
+			closeTimeoutRef.current = null;
+		}
+		setIsOpen(true);
+	}, []);
+	
+	const handleMouseLeave = useCallback(() => {
+		// Delay closing by 150ms for better UX
+		closeTimeoutRef.current = setTimeout(() => {
+			setIsOpen(false);
+		}, 150);
+	}, []);
+	
+	if (!searchSpaceId) return null;
+	
+	return (
+		<Popover open={isOpen} onOpenChange={setIsOpen}>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					className={cn(
+						"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors",
+						"hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30",
+						"outline-none focus:outline-none focus-visible:outline-none",
+						"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none",
+						"data-[state=open]:bg-transparent data-[state=open]:shadow-none data-[state=open]:ring-0",
+						"text-muted-foreground"
+					)}
+					aria-label={hasConnectors ? "View connected sources" : "Add your first connector"}
+					onMouseEnter={handleMouseEnter}
+					onMouseLeave={handleMouseLeave}
+				>
+					{isLoading ? (
+						<Loader2 className="size-4 animate-spin" />
+					) : (
+						<Plug2 className="size-4" />
+					)}
+				</button>
+			</PopoverTrigger>
+			<PopoverContent 
+				side="bottom" 
+				align="start" 
+				className="w-64 p-3"
+				onMouseEnter={handleMouseEnter}
+				onMouseLeave={handleMouseLeave}
+			>
+				{hasConnectors ? (
+					<div className="space-y-3">
+						<div className="flex items-center justify-between">
+							<p className="text-xs font-medium text-muted-foreground">
+								Connected Sources
+							</p>
+							<span className="text-xs font-medium bg-muted px-1.5 py-0.5 rounded">
+								{connectors.length}
+							</span>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							{connectors.map((connector) => (
+								<div
+									key={connector.id}
+									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
+								>
+									{getConnectorIcon(connector.connector_type, "size-3.5")}
+									<span className="truncate max-w-[100px]">{connector.name}</span>
+								</div>
+							))}
+						</div>
+						<div className="pt-1 border-t border-border/50">
+							<Link
+								href={`/dashboard/${searchSpaceId}/connectors`}
+								className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+							>
+								<Plug2 className="size-3" />
+								Manage connectors
+								<ChevronRightIcon className="size-3" />
+							</Link>
+						</div>
+					</div>
+				) : (
+					<div className="space-y-2">
+						<p className="text-sm font-medium">No connectors yet</p>
+						<p className="text-xs text-muted-foreground">
+							Connect your first data source to enhance search results.
+						</p>
+						<Link
+							href={`/dashboard/${searchSpaceId}/connectors/add`}
+							className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors mt-1"
+						>
+							<Plus className="size-3" />
+							Add Connector
+						</Link>
+					</div>
+				)}
+			</PopoverContent>
+		</Popover>
 	);
 };
 
@@ -170,9 +509,20 @@ const ComposerAction: FC = () => {
 		})
 	);
 
+	// Check if composer text is empty
+	const isComposerEmpty = useAssistantState(({ composer }) => {
+		const text = composer.text?.trim() || "";
+		return text.length === 0;
+	});
+
+	const isSendDisabled = hasProcessingAttachments || isComposerEmpty;
+
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
-			<ComposerAddAttachment />
+			<div className="flex items-center gap-1">
+				<ComposerAddAttachment />
+				<ConnectorIndicator />
+			</div>
 
 			{/* Show processing indicator when attachments are being processed */}
 			{hasProcessingAttachments && (
@@ -183,19 +533,25 @@ const ComposerAction: FC = () => {
 			)}
 
 			<AssistantIf condition={({ thread }) => !thread.isRunning}>
-				<ComposerPrimitive.Send asChild disabled={hasProcessingAttachments}>
+				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 					<TooltipIconButton
-						tooltip={hasProcessingAttachments ? "Wait for attachments to process" : "Send message"}
+						tooltip={
+							hasProcessingAttachments
+								? "Wait for attachments to process"
+								: isComposerEmpty
+									? "Enter a message to send"
+									: "Send message"
+						}
 						side="bottom"
 						type="submit"
 						variant="default"
 						size="icon"
 						className={cn(
 							"aui-composer-send size-8 rounded-full",
-							hasProcessingAttachments && "cursor-not-allowed opacity-50"
+							isSendDisabled && "cursor-not-allowed opacity-50"
 						)}
 						aria-label="Send message"
-						disabled={hasProcessingAttachments}
+						disabled={isSendDisabled}
 					>
 						<ArrowUpIcon className="aui-composer-send-icon size-4" />
 					</TooltipIconButton>
@@ -229,12 +585,25 @@ const MessageError: FC = () => {
 	);
 };
 
-const AssistantMessage: FC = () => {
+const AssistantMessageInner: FC = () => {
+	const thinkingStepsMap = useContext(ThinkingStepsContext);
+	
+	// Get the current message ID to look up thinking steps
+	const messageId = useMessage((m) => m.id);
+	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
+	
+	// Check if thread is still running (for stopping the spinner when cancelled)
+	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	
 	return (
-		<MessagePrimitive.Root
-			className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
-			data-role="assistant"
-		>
+		<>
+			{/* Show thinking steps BEFORE the text response */}
+			{thinkingSteps.length > 0 && (
+				<div className="mb-3">
+					<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isThreadRunning} />
+				</div>
+			)}
+			
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
 				<MessagePrimitive.Parts
 					components={{
@@ -249,6 +618,17 @@ const AssistantMessage: FC = () => {
 				<BranchPicker />
 				<AssistantActionBar />
 			</div>
+		</>
+	);
+};
+
+const AssistantMessage: FC = () => {
+	return (
+		<MessagePrimitive.Root
+			className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
+			data-role="assistant"
+		>
+			<AssistantMessageInner />
 		</MessagePrimitive.Root>
 	);
 };
