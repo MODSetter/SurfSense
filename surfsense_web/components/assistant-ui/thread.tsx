@@ -18,6 +18,7 @@ import {
 	ChevronRightIcon,
 	CopyIcon,
 	DownloadIcon,
+	FileText,
 	Loader2,
 	PencilIcon,
 	Plug2,
@@ -32,8 +33,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { type FC, useState, useRef, useCallback, useEffect, createContext, useContext, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useAtomValue, useSetAtom } from "jotai";
-import { mentionedDocumentIdsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { mentionedDocumentIdsAtom, mentionedDocumentsAtom, messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
@@ -55,7 +56,7 @@ import {
 	ChainOfThoughtStep,
 	ChainOfThoughtTrigger,
 } from "@/components/prompt-kit/chain-of-thought";
-import { DocumentsDataTable } from "@/components/new-chat/DocumentsDataTable";
+import { DocumentsDataTable, type DocumentsDataTableRef } from "@/components/new-chat/DocumentsDataTable";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
@@ -352,10 +353,12 @@ const ThreadWelcome: FC = () => {
 };
 
 const Composer: FC = () => {
-	// ---- State for document mentions ----
-	const [mentionedDocuments, setMentionedDocuments] = useState<Document[]>([]);
+	// ---- State for document mentions (using atoms to persist across remounts) ----
+	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
+	const [mentionQuery, setMentionQuery] = useState("");
 	const inputRef = useRef<HTMLTextAreaElement | null>(null);
+	const documentPickerRef = useRef<DocumentsDataTableRef>(null);
 	const { search_space_id } = useParams();
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 
@@ -364,6 +367,13 @@ const Composer: FC = () => {
 		setMentionedDocumentIds(mentionedDocuments.map((doc) => doc.id));
 	}, [mentionedDocuments, setMentionedDocumentIds]);
 
+	// Extract mention query (text after @)
+	const extractMentionQuery = useCallback((value: string): string => {
+		const atIndex = value.lastIndexOf("@");
+		if (atIndex === -1) return "";
+		return value.slice(atIndex + 1);
+	}, []);
+
 	const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 		const textarea = e.currentTarget;
 		const value = textarea.value;
@@ -371,20 +381,60 @@ const Composer: FC = () => {
 		// Open document picker when user types '@'
 		if (e.key === "@" || (e.key === "2" && e.shiftKey)) {
 			setShowDocumentPopover(true);
+			setMentionQuery("");
+			return;
 		}
 
-		// Close popover if '@' is no longer in the input (user deleted it)
-		if (showDocumentPopover && !value.includes("@")) {
-			setShowDocumentPopover(false);
+		// Check if value contains @ and extract query
+		if (value.includes("@")) {
+			const query = extractMentionQuery(value);
+			
+			// Close popup if query starts with space (user typed "@ ")
+			if (query.startsWith(" ")) {
+				setShowDocumentPopover(false);
+				setMentionQuery("");
+				return;
+			}
+			
+			// Reopen popup if @ is present and query doesn't start with space
+			// (handles case where user deleted the space after @)
+			if (!showDocumentPopover) {
+				setShowDocumentPopover(true);
+			}
+			setMentionQuery(query);
+		} else {
+			// Close popover if '@' is no longer in the input (user deleted it)
+			if (showDocumentPopover) {
+				setShowDocumentPopover(false);
+				setMentionQuery("");
+			}
 		}
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		// Close popover on Escape
-		if (e.key === "Escape" && showDocumentPopover) {
-			e.preventDefault();
-			setShowDocumentPopover(false);
-			return;
+		// When popup is open, handle navigation keys
+		if (showDocumentPopover) {
+			if (e.key === "ArrowDown") {
+				e.preventDefault();
+				documentPickerRef.current?.moveDown();
+				return;
+			}
+			if (e.key === "ArrowUp") {
+				e.preventDefault();
+				documentPickerRef.current?.moveUp();
+				return;
+			}
+			if (e.key === "Enter") {
+				e.preventDefault();
+				documentPickerRef.current?.selectHighlighted();
+				return;
+			}
+			if (e.key === "Escape") {
+				e.preventDefault();
+				setShowDocumentPopover(false);
+				setMentionQuery("");
+				return;
+			}
 		}
 
 		// Remove last document chip when pressing backspace at the beginning of input
@@ -410,25 +460,30 @@ const Composer: FC = () => {
 			return [...prev, ...newDocs];
 		});
 
-		// Clean up the '@' trigger from input if present
+		// Clean up the '@...' mention text from input
 		if (inputRef.current) {
 			const input = inputRef.current;
 			const currentValue = input.value;
-			// Remove trailing @ if it exists
-			if (currentValue.endsWith("@")) {
-				// Use a native input event to properly update the controlled component
+			const atIndex = currentValue.lastIndexOf("@");
+			
+			if (atIndex !== -1) {
+				// Remove @ and everything after it
+				const newValue = currentValue.slice(0, atIndex);
 				const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 					window.HTMLTextAreaElement.prototype,
 					"value"
 				)?.set;
 				if (nativeInputValueSetter) {
-					nativeInputValueSetter.call(input, currentValue.slice(0, -1));
+					nativeInputValueSetter.call(input, newValue);
 					input.dispatchEvent(new Event("input", { bubbles: true }));
 				}
 			}
 			// Focus the input so user can continue typing
 			input.focus();
 		}
+		
+		// Reset mention query
+		setMentionQuery("");
 	};
 
 	const handleRemoveDocument = (docId: number) => {
@@ -494,10 +549,15 @@ const Composer: FC = () => {
 							}}
 						>
 							<DocumentsDataTable
+								ref={documentPickerRef}
 								searchSpaceId={Number(search_space_id)}
 								onSelectionChange={handleDocumentsMention}
-								onDone={() => setShowDocumentPopover(false)}
+								onDone={() => {
+									setShowDocumentPopover(false);
+									setMentionQuery("");
+								}}
 								initialSelectedDocuments={mentionedDocuments}
+								externalSearch={mentionQuery}
 							/>
 						</div>
 					</>,
@@ -819,6 +879,10 @@ const AssistantActionBar: FC = () => {
 };
 
 const UserMessage: FC = () => {
+	const messageId = useAssistantState(({ message }) => message?.id);
+	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
+	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
+
 	return (
 		<MessagePrimitive.Root
 			className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
@@ -827,6 +891,21 @@ const UserMessage: FC = () => {
 			<UserMessageAttachments />
 
 			<div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
+				{/* Display mentioned documents as chips */}
+				{mentionedDocs && mentionedDocs.length > 0 && (
+					<div className="flex flex-wrap gap-1.5 mb-2 justify-end">
+						{mentionedDocs.map((doc) => (
+							<span
+								key={doc.id}
+								className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
+								title={doc.title}
+							>
+								<FileText className="size-3" />
+								<span className="max-w-[150px] truncate">{doc.title}</span>
+							</span>
+						))}
+					</div>
+				)}
 				<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
 					<MessagePrimitive.Parts />
 				</div>
