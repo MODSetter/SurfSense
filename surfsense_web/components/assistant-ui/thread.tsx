@@ -262,6 +262,55 @@ const ThinkingStepsScrollHandler: FC = () => {
 	return null; // This component doesn't render anything
 };
 
+/**
+ * Component that handles auto-scroll when a new user query is submitted.
+ * Scrolls to position the new user message at the top of the viewport,
+ * similar to Cursor's behavior where the current query stays at the top.
+ */
+const NewQueryScrollHandler: FC = () => {
+	const messages = useAssistantState(({ thread }) => thread.messages);
+	const prevMessageCountRef = useRef<number>(0);
+	const prevLastUserMsgIdRef = useRef<string>("");
+
+	useEffect(() => {
+		const currentCount = messages.length;
+
+		// Find the last user message
+		const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+		const lastUserMsgId = lastUserMessage?.id || "";
+
+		// Check if a new user message was added (not on initial load)
+		if (
+			prevMessageCountRef.current > 0 && // Not initial load
+			currentCount > prevMessageCountRef.current &&
+			lastUserMsgId !== prevLastUserMsgIdRef.current &&
+			lastUserMsgId
+		) {
+			// New user message added - scroll to make it visible at the top
+			// Use multiple attempts to ensure the DOM has updated
+			const scrollToNewQuery = () => {
+				// Find the last user message element
+				const userMessages = document.querySelectorAll('[data-role="user"]');
+				const lastUserMsgElement = userMessages[userMessages.length - 1];
+				if (lastUserMsgElement) {
+					// Scroll so the user message is at the top of the viewport
+					lastUserMsgElement.scrollIntoView({ behavior: "smooth", block: "start" });
+				}
+			};
+
+			// Delayed attempts to handle async DOM updates
+			requestAnimationFrame(scrollToNewQuery);
+			setTimeout(scrollToNewQuery, 50);
+			setTimeout(scrollToNewQuery, 150);
+		}
+
+		prevMessageCountRef.current = currentCount;
+		prevLastUserMsgIdRef.current = lastUserMsgId;
+	}, [messages]);
+
+	return null; // This component doesn't render anything
+};
+
 export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
 	return (
 		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
@@ -275,6 +324,8 @@ export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) =>
 					turnAnchor="top"
 					className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
 				>
+					{/* Auto-scroll handler for new queries - positions new user messages at the top */}
+					<NewQueryScrollHandler />
 					{/* Auto-scroll handler for thinking steps - must be inside Viewport */}
 					<ThinkingStepsScrollHandler />
 
