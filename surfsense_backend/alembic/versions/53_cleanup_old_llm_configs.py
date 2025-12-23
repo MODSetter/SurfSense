@@ -209,4 +209,3 @@ def downgrade():
         END$$;
         """
     )
-

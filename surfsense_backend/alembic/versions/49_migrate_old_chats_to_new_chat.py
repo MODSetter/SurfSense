@@ -95,7 +95,7 @@ def upgrade() -> None:
             thread_title = title or "Migrated Chat"
             if len(thread_title) > 500:
                 thread_title = thread_title[:497] + "..."
-            
+
             result = connection.execute(
                 sa.text("""
                     INSERT INTO new_chat_threads 
