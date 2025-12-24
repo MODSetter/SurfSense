@@ -62,10 +62,31 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Support for local TTS providers (Kokoro TTS)
 - Support for multiple TTS providers (OpenAI, Azure, Google Vertex AI)
 
+### 🤖 **Deep Agent Architecture**
+
+#### Built-in Agent Tools
+| Tool | Description |
+|------|-------------|
+| **search_knowledge_base** | Search your personal knowledge base with semantic + full-text hybrid search, date filtering, and connector-specific queries |
+| **generate_podcast** | Generate audio podcasts from chat conversations or knowledge base content |
+| **link_preview** | Fetch rich Open Graph metadata for URLs to display preview cards |
+| **display_image** | Display images in chat with metadata and source attribution |
+| **scrape_webpage** | Extract full content from webpages for analysis and summarization (supports Firecrawl or local Chromium/Trafilatura) |
+
+#### Extensible Tools Registry
+Contributors can easily add new tools via the registry pattern:
+1. Create a tool factory function in `surfsense_backend/app/agents/new_chat/tools/`
+2. Register it in the `BUILTIN_TOOLS` list in `registry.py`
+
+#### Configurable System Prompts
+- Custom system instructions via LLM configuration
+- Toggle citations on/off per configuration
+- Supports 100+ LLMs via LiteLLM integration
+
 ### 📊 **Advanced RAG Techniques**
 - Supports 100+ LLM's
 - Supports 6000+ Embedding Models.
-- Supports all major Rerankers (Pinecode, Cohere, Flashrank etc)
+- Supports all major Rerankers (Pinecone, Cohere, Flashrank etc)
 - Uses Hierarchical Indices (2 tiered RAG setup).
 - Utilizes Hybrid Search (Semantic + Full Text Search combined with Reciprocal Rank Fusion).
 
@@ -224,11 +245,13 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 
 -  **FastAPI Users**: Authentication and user management with JWT and OAuth support
 
--  **LangGraph**: Framework for developing AI-agents.
-  
+-  **Deep Agents**: Custom agent framework built on LangGraph for reasoning and acting AI agents with configurable tools
+
+-  **LangGraph**: Framework for developing stateful AI agents with conversation persistence
+
 -  **LangChain**: Framework for developing AI-powered applications.
 
--  **LLM Integration**: Integration with LLM models through LiteLLM
+-  **LiteLLM**: Universal LLM integration supporting 100+ models (OpenAI, Anthropic, Ollama, etc.)
 
 -  **Rerankers**: Advanced result ranking for improved search relevance
 
@@ -258,13 +281,14 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 -  **React**: JavaScript library for building user interfaces.
 
 -  **TypeScript**: Static type-checking for JavaScript, enhancing code quality and developer experience.
+
 - **Vercel AI SDK Kit UI Stream Protocol**: To create scalable chat UI.
 
 -  **Tailwind CSS**: Utility-first CSS framework for building custom UI designs.
 
 -  **Shadcn**: Headless components library.
 
--  **Framer Motion**: Animation library for React.
+-  **Motion (Framer Motion)**: Animation library for React.
 
 
 
@@ -285,6 +309,25 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 
 Contributions are very welcome! A contribution can be as small as a ⭐ or even finding and creating issues.
 Fine-tuning the Backend is always desired.
+
+### Adding New Agent Tools
+
+Want to add a new tool to the SurfSense agent? It's easy:
+
+1. Create your tool file in `surfsense_backend/app/agents/new_chat/tools/my_tool.py`
+2. Register it in `registry.py`:
+
+```python
+ToolDefinition(
+    name="my_tool",
+    description="What my tool does",
+    factory=lambda deps: create_my_tool(
+        search_space_id=deps["search_space_id"],
+        db_session=deps["db_session"],
+    ),
+    requires=["search_space_id", "db_session"],
+),
+```
 
 For detailed contribution guidelines, please see our [CONTRIBUTING.md](CONTRIBUTING.md) file.
 
