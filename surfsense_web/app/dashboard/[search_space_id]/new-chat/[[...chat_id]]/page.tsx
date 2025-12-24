@@ -6,9 +6,16 @@ import {
 	type ThreadMessageLike,
 	useExternalStoreRuntime,
 } from "@assistant-ui/react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+	type MentionedDocumentInfo,
+	mentionedDocumentIdsAtom,
+	mentionedDocumentsAtom,
+	messageDocumentsMapAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
@@ -48,6 +55,23 @@ function extractThinkingSteps(content: unknown): ThinkingStep[] {
 }
 
 /**
+ * Extract mentioned documents from message content
+ */
+function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
+	if (!Array.isArray(content)) return [];
+
+	const docsPart = content.find(
+		(part: unknown) =>
+			typeof part === "object" &&
+			part !== null &&
+			"type" in part &&
+			(part as { type: string }).type === "mentioned-documents"
+	) as { type: "mentioned-documents"; documents: MentionedDocumentInfo[] } | undefined;
+
+	return docsPart?.documents || [];
+}
+
+/**
  * Convert backend message to assistant-ui ThreadMessageLike format
  * Filters out 'thinking-steps' part as it's handled separately via messageThinkingSteps
  */
@@ -57,16 +81,13 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	if (typeof msg.content === "string") {
 		content = [{ type: "text", text: msg.content }];
 	} else if (Array.isArray(msg.content)) {
-		// Filter out thinking-steps part - it's handled separately via messageThinkingSteps
-		const filteredContent = msg.content.filter(
-			(part: unknown) =>
-				!(
-					typeof part === "object" &&
-					part !== null &&
-					"type" in part &&
-					(part as { type: string }).type === "thinking-steps"
-				)
-		);
+		// Filter out custom metadata parts - they're handled separately
+		const filteredContent = msg.content.filter((part: unknown) => {
+			if (typeof part !== "object" || part === null || !("type" in part)) return true;
+			const partType = (part as { type: string }).type;
+			// Filter out thinking-steps and mentioned-documents
+			return partType !== "thinking-steps" && partType !== "mentioned-documents";
+		});
 		content =
 			filteredContent.length > 0
 				? (filteredContent as ThreadMessageLike["content"])
@@ -117,6 +138,13 @@ export default function NewChatPage() {
 	);
 	const abortControllerRef = useRef<AbortController | null>(null);
 
+	// Get mentioned document IDs from the composer
+	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
+	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
+	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
+	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
+	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
+
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
 
@@ -154,6 +182,9 @@ export default function NewChatPage() {
 
 					// Extract and restore thinking steps from persisted messages
 					const restoredThinkingSteps = new Map<string, ThinkingStep[]>();
+					// Extract and restore mentioned documents from persisted messages
+					const restoredDocsMap: Record<string, MentionedDocumentInfo[]> = {};
+
 					for (const msg of response.messages) {
 						if (msg.role === "assistant") {
 							const steps = extractThinkingSteps(msg.content);
@@ -161,9 +192,18 @@ export default function NewChatPage() {
 								restoredThinkingSteps.set(`msg-${msg.id}`, steps);
 							}
 						}
+						if (msg.role === "user") {
+							const docs = extractMentionedDocuments(msg.content);
+							if (docs.length > 0) {
+								restoredDocsMap[`msg-${msg.id}`] = docs;
+							}
+						}
 					}
 					if (restoredThinkingSteps.size > 0) {
 						setMessageThinkingSteps(restoredThinkingSteps);
+					}
+					if (Object.keys(restoredDocsMap).length > 0) {
+						setMessageDocumentsMap(restoredDocsMap);
 					}
 				}
 			} else {
@@ -181,7 +221,7 @@ export default function NewChatPage() {
 		} finally {
 			setIsInitializing(false);
 		}
-	}, [urlChatId, searchSpaceId, router]);
+	}, [urlChatId, searchSpaceId, router, setMessageDocumentsMap]);
 
 	// Initialize on mount
 	useEffect(() => {
@@ -243,10 +283,37 @@ export default function NewChatPage() {
 			};
 			setMessages((prev) => [...prev, userMessage]);
 
-			// Persist user message (don't await, fire and forget)
+			// Store mentioned documents with this message for display
+			if (mentionedDocuments.length > 0) {
+				const docsInfo: MentionedDocumentInfo[] = mentionedDocuments.map((doc) => ({
+					id: doc.id,
+					title: doc.title,
+					document_type: doc.document_type,
+				}));
+				setMessageDocumentsMap((prev) => ({
+					...prev,
+					[userMsgId]: docsInfo,
+				}));
+			}
+
+			// Persist user message with mentioned documents (don't await, fire and forget)
+			const persistContent =
+				mentionedDocuments.length > 0
+					? [
+							...message.content,
+							{
+								type: "mentioned-documents",
+								documents: mentionedDocuments.map((doc) => ({
+									id: doc.id,
+									title: doc.title,
+									document_type: doc.document_type,
+								})),
+							},
+						]
+					: message.content;
 			appendMessage(threadId, {
 				role: "user",
-				content: message.content,
+				content: persistContent,
 			}).catch((err) => console.error("Failed to persist user message:", err));
 
 			// Start streaming response
@@ -385,6 +452,15 @@ export default function NewChatPage() {
 				// Extract attachment content to send with the request
 				const attachments = extractAttachmentContent(messageAttachments);
 
+				// Get mentioned document IDs for context
+				const documentIds = mentionedDocumentIds.length > 0 ? [...mentionedDocumentIds] : undefined;
+
+				// Clear mentioned documents after capturing them
+				if (mentionedDocumentIds.length > 0) {
+					setMentionedDocumentIds([]);
+					setMentionedDocuments([]);
+				}
+
 				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
 					method: "POST",
 					headers: {
@@ -397,6 +473,7 @@ export default function NewChatPage() {
 						search_space_id: searchSpaceId,
 						messages: messageHistory,
 						attachments: attachments.length > 0 ? attachments : undefined,
+						mentioned_document_ids: documentIds,
 					}),
 					signal: controller.signal,
 				});
@@ -558,7 +635,16 @@ export default function NewChatPage() {
 				// Note: We no longer clear thinking steps - they persist with the message
 			}
 		},
-		[threadId, searchSpaceId, messages]
+		[
+			threadId,
+			searchSpaceId,
+			messages,
+			mentionedDocumentIds,
+			mentionedDocuments,
+			setMentionedDocumentIds,
+			setMentionedDocuments,
+			setMessageDocumentsMap,
+		]
 	);
 
 	// Convert message (pass through since already in correct format)
