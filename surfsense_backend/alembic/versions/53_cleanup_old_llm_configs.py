@@ -6,8 +6,8 @@ Create Date: 2024-12-22
 
 This migration:
 1. Migrates data from old llm_configs table to new_llm_configs (preserving user configs)
-2. Drops the old llm_configs table (no longer used)
-3. Removes the is_default column from new_llm_configs (roles now determine which config to use)
+2. Updates searchspaces to point to migrated configs
+3. Drops the old llm_configs table (no longer used)
 """
 
 from alembic import op
@@ -47,7 +47,6 @@ def upgrade():
                     system_instructions,
                     use_default_system_instructions,
                     citations_enabled,
-                    is_default,
                     search_space_id,
                     created_at
                 )
@@ -59,11 +58,10 @@ def upgrade():
                     lc.model_name,
                     lc.api_key,
                     lc.api_base,
-                    COALESCE(lc.litellm_params, '{}'::jsonb),
+                    COALESCE(lc.litellm_params::json, '{}'::json),
                     '' as system_instructions,  -- Use defaults
                     TRUE as use_default_system_instructions,
                     TRUE as citations_enabled,
-                    FALSE as is_default,
                     lc.search_space_id,
                     COALESCE(lc.created_at, NOW())
                 FROM llm_configs lc
@@ -130,23 +128,7 @@ def upgrade():
         """
     )
 
-    # STEP 3: Drop the is_default column from new_llm_configs
-    # (role assignments now determine which config to use)
-    op.execute(
-        """
-        DO $$
-        BEGIN
-            IF EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'new_llm_configs' AND column_name = 'is_default'
-            ) THEN
-                ALTER TABLE new_llm_configs DROP COLUMN is_default;
-            END IF;
-        END$$;
-        """
-    )
-
-    # STEP 4: Drop the old llm_configs table (data has been migrated)
+    # STEP 3: Drop the old llm_configs table (data has been migrated)
     op.execute("DROP TABLE IF EXISTS llm_configs CASCADE")
 
 
@@ -213,7 +195,7 @@ def downgrade():
                     nlc.api_key,
                     nlc.api_base,
                     'English' as language,  -- Default language
-                    COALESCE(nlc.litellm_params, '{}'::jsonb),
+                    COALESCE(nlc.litellm_params::jsonb, '{}'::jsonb),
                     nlc.search_space_id,
                     nlc.created_at
                 FROM new_llm_configs nlc
@@ -223,21 +205,6 @@ def downgrade():
                     WHERE lc.name = nlc.name 
                     AND lc.search_space_id = nlc.search_space_id
                 );
-            END IF;
-        END$$;
-        """
-    )
-
-    # Add back the is_default column to new_llm_configs
-    op.execute(
-        """
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'new_llm_configs' AND column_name = 'is_default'
-            ) THEN
-                ALTER TABLE new_llm_configs ADD COLUMN is_default BOOLEAN NOT NULL DEFAULT FALSE;
             END IF;
         END$$;
         """

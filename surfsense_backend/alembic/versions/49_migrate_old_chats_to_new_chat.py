@@ -6,9 +6,8 @@ Create Date: 2025-12-21
 
 This migration:
 1. Migrates data from old 'chats' table to 'new_chat_threads' and 'new_chat_messages'
-2. Drops the 'podcasts' table (podcast data is not migrated as per user request)
-3. Drops the 'chats' table
-4. Removes the 'chattype' enum
+2. Drops the 'chats' table
+3. Removes the 'chattype' enum
 """
 
 import json
@@ -92,7 +91,11 @@ def upgrade() -> None:
                 print(f"[Migration 49] Skipping empty chat {chat_id}")
                 continue
 
-            # Create new thread
+            # Create new thread - truncate title to 500 chars (VARCHAR(500) limit)
+            thread_title = title or "Migrated Chat"
+            if len(thread_title) > 500:
+                thread_title = thread_title[:497] + "..."
+
             result = connection.execute(
                 sa.text("""
                     INSERT INTO new_chat_threads 
@@ -101,7 +104,7 @@ def upgrade() -> None:
                     RETURNING id
                 """),
                 {
-                    "title": title or "Migrated Chat",
+                    "title": thread_title,
                     "search_space_id": search_space_id,
                     "created_at": created_at,
                 },
@@ -162,11 +165,7 @@ def upgrade() -> None:
 
     print(f"[Migration 49] Successfully migrated {migrated_count} chats")
 
-    # Drop podcasts table (FK references chats, so drop first)
-    print("[Migration 49] Dropping podcasts table...")
-    op.drop_table("podcasts")
-
-    # Drop chats table
+    # Drop chats table (podcasts table was already updated to remove chat_id FK)
     print("[Migration 49] Dropping chats table...")
     op.drop_table("chats")
 
@@ -178,7 +177,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Recreate old tables (data cannot be restored)."""
+    """Recreate old chats table (data cannot be restored)."""
     # Recreate chattype enum
     op.execute(
         sa.text("""
@@ -209,32 +208,4 @@ def downgrade() -> None:
         ),
     )
 
-    # Recreate podcasts table
-    op.create_table(
-        "podcasts",
-        sa.Column("id", sa.Integer(), primary_key=True, index=True),
-        sa.Column("title", sa.String(), nullable=False, index=True),
-        sa.Column("podcast_transcript", sa.JSON(), nullable=False, server_default="{}"),
-        sa.Column("file_location", sa.String(500), nullable=False, server_default=""),
-        sa.Column(
-            "chat_id",
-            sa.Integer(),
-            sa.ForeignKey("chats.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column("chat_state_version", sa.BigInteger(), nullable=True),
-        sa.Column(
-            "search_space_id",
-            sa.Integer(),
-            sa.ForeignKey("searchspaces.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-    )
-
-    print("[Migration 49 Downgrade] Tables recreated (data not restored)")
+    print("[Migration 49 Downgrade] Chats table recreated (data not restored)")

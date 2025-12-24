@@ -34,7 +34,7 @@ export default function AddSourcesPage() {
 	};
 
 	return (
-		<div className="container mx-auto py-8 px-4">
+		<div className="container mx-auto py-8 px-4 min-h-[calc(100vh-64px)]">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}

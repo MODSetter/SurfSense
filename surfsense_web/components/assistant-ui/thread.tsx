@@ -8,6 +8,7 @@ import {
 	ThreadPrimitive,
 	useAssistantState,
 	useThreadViewport,
+	useMessage,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -75,6 +76,8 @@ import { cn } from "@/lib/utils";
  */
 interface ThreadProps {
 	messageThinkingSteps?: Map<string, ThinkingStep[]>;
+	/** Optional header component to render at the top of the viewport (sticky) */
+	header?: React.ReactNode;
 }
 
 // Context to pass thinking steps to AssistantMessage
@@ -267,20 +270,21 @@ const ThinkingStepsScrollHandler: FC = () => {
 };
 
 export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
+export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), header }) => {
 	return (
 		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
 			<ThreadPrimitive.Root
-				className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
+				className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
 				style={{
 					["--thread-max-width" as string]: "44rem",
 				}}
 			>
 				<ThreadPrimitive.Viewport
 					turnAnchor="top"
-					className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+					className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
 				>
-					{/* Auto-scroll handler for thinking steps - must be inside Viewport */}
-					<ThinkingStepsScrollHandler />
+					{/* Optional sticky header for model selector etc. */}
+					{header && <div className="sticky top-0 z-10 mb-4">{header}</div>}
 
 					<AssistantIf condition={({ thread }) => thread.isEmpty}>
 						<ThreadWelcome />
@@ -375,7 +379,7 @@ const ThreadWelcome: FC = () => {
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer - fixed position */}
-			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center z-10">
+			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
 				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both">
 					{greeting}
 				</h1>
