@@ -93,19 +93,21 @@ export function HeroSection() {
 				<div className="rounded-[24px] border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-black">
 					{/* Light mode image */}
 					<Image
-						src="/homepage/temp_hero_light.png"
+						src="/homepage/main_demo.webp"
 						alt="header"
 						width={1920}
 						height={1080}
 						className="rounded-[20px] block dark:hidden"
+						unoptimized
 					/>
 					{/* Dark mode image */}
 					<Image
-						src="/homepage/temp_hero_dark.png"
+						src="/homepage/main_demo.webp"
 						alt="header"
 						width={1920}
 						height={1080}
 						className="rounded-[20px] hidden dark:block"
+						unoptimized
 					/>
 				</div>
 			</div>
