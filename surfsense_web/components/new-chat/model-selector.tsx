@@ -211,7 +211,10 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 				align="start"
 				sideOffset={8}
 			>
-				<Command shouldFilter={false} className="rounded-xl relative [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2">
+				<Command
+					shouldFilter={false}
+					className="rounded-xl relative [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
+				>
 					{/* Switching overlay */}
 					{isSwitching && (
 						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
