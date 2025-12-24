@@ -8,8 +8,9 @@ import {
 	ThreadPrimitive,
 	useAssistantState,
 	useMessage,
+	useThreadViewport,
 } from "@assistant-ui/react";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircle,
 	ArrowDownIcon,
@@ -21,6 +22,7 @@ import {
 	ChevronRightIcon,
 	CopyIcon,
 	DownloadIcon,
+	FileText,
 	Loader2,
 	PencilIcon,
 	Plug2,
@@ -29,10 +31,27 @@ import {
 	Search,
 	Sparkles,
 	SquareIcon,
+	X,
 } from "lucide-react";
 import Link from "next/link";
-import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
+import {
+	createContext,
+	type FC,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import {
+	mentionedDocumentIdsAtom,
+	mentionedDocumentsAtom,
+	messageDocumentsMapAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -50,6 +69,10 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
+	DocumentsDataTable,
+	type DocumentsDataTableRef,
+} from "@/components/new-chat/DocumentsDataTable";
+import {
 	ChainOfThought,
 	ChainOfThoughtContent,
 	ChainOfThoughtItem,
@@ -60,6 +83,7 @@ import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { Document } from "@/contracts/types/document.types";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
@@ -73,8 +97,6 @@ interface ThreadProps {
 }
 
 // Context to pass thinking steps to AssistantMessage
-import { createContext, useContext } from "react";
-
 const ThinkingStepsContext = createContext<Map<string, ThinkingStep[]>>(new Map());
 
 /**
@@ -213,6 +235,56 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 	);
 };
 
+/**
+ * Component that handles auto-scroll when thinking steps update.
+ * Uses useThreadViewport to scroll to bottom when thinking steps change,
+ * ensuring the user always sees the latest content during streaming.
+ */
+const ThinkingStepsScrollHandler: FC = () => {
+	const thinkingStepsMap = useContext(ThinkingStepsContext);
+	const viewport = useThreadViewport();
+	const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+	// Track the serialized state to detect any changes
+	const prevStateRef = useRef<string>("");
+
+	useEffect(() => {
+		// Only act during streaming
+		if (!isRunning) {
+			prevStateRef.current = "";
+			return;
+		}
+
+		// Serialize the thinking steps state to detect any changes
+		// This catches new steps, status changes, and item additions
+		let stateString = "";
+		thinkingStepsMap.forEach((steps, msgId) => {
+			steps.forEach((step) => {
+				stateString += `${msgId}:${step.id}:${step.status}:${step.items?.length || 0};`;
+			});
+		});
+
+		// If state changed at all during streaming, scroll
+		if (stateString !== prevStateRef.current && stateString !== "") {
+			prevStateRef.current = stateString;
+
+			// Multiple attempts to ensure scroll happens after DOM updates
+			const scrollAttempt = () => {
+				try {
+					viewport.scrollToBottom();
+				} catch {
+					// Ignore errors - viewport might not be ready
+				}
+			};
+
+			// Delayed attempts to handle async DOM updates
+			requestAnimationFrame(scrollAttempt);
+			setTimeout(scrollAttempt, 100);
+		}
+	}, [thinkingStepsMap, viewport, isRunning]);
+
+	return null; // This component doesn't render anything
+};
+
 export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), header }) => {
 	return (
 		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
@@ -316,12 +388,15 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 const ThreadWelcome: FC = () => {
 	const { data: user } = useAtomValue(currentUserAtom);
 
+	// Memoize greeting so it doesn't change on re-renders (only on user change)
+	const greeting = useMemo(() => getTimeBasedGreeting(user?.email), [user?.email]);
+
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer - fixed position */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
 				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both">
-					{getTimeBasedGreeting(user?.email)}
+					{greeting}
 				</h1>
 			</div>
 			{/* Composer - top edge fixed, expands downward only */}
@@ -333,42 +408,226 @@ const ThreadWelcome: FC = () => {
 };
 
 const Composer: FC = () => {
-	// Check if a model is configured - needed to disable input
-	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
-	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
-	const { data: preferences } = useAtomValue(llmPreferencesAtom);
+	// ---- State for document mentions (using atoms to persist across remounts) ----
+	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
+	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
+	const [mentionQuery, setMentionQuery] = useState("");
+	const inputRef = useRef<HTMLTextAreaElement | null>(null);
+	const documentPickerRef = useRef<DocumentsDataTableRef>(null);
+	const { search_space_id } = useParams();
+	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 
-	const hasModelConfigured = useMemo(() => {
-		if (!preferences) return false;
-		const agentLlmId = preferences.agent_llm_id;
-		if (agentLlmId === null || agentLlmId === undefined) return false;
+	// Sync mentioned document IDs to atom for use in chat request
+	useEffect(() => {
+		setMentionedDocumentIds(mentionedDocuments.map((doc) => doc.id));
+	}, [mentionedDocuments, setMentionedDocumentIds]);
 
-		// Check if the configured model actually exists
-		if (agentLlmId < 0) {
-			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
+	// Extract mention query (text after @)
+	const extractMentionQuery = useCallback((value: string): string => {
+		const atIndex = value.lastIndexOf("@");
+		if (atIndex === -1) return "";
+		return value.slice(atIndex + 1);
+	}, []);
+
+	const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		const textarea = e.currentTarget;
+		const value = textarea.value;
+
+		// Open document picker when user types '@'
+		if (e.key === "@" || (e.key === "2" && e.shiftKey)) {
+			setShowDocumentPopover(true);
+			setMentionQuery("");
+			return;
 		}
-		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
-	}, [preferences, globalConfigs, userConfigs]);
+
+		// Check if value contains @ and extract query
+		if (value.includes("@")) {
+			const query = extractMentionQuery(value);
+
+			// Close popup if query starts with space (user typed "@ ")
+			if (query.startsWith(" ")) {
+				setShowDocumentPopover(false);
+				setMentionQuery("");
+				return;
+			}
+
+			// Reopen popup if @ is present and query doesn't start with space
+			// (handles case where user deleted the space after @)
+			if (!showDocumentPopover) {
+				setShowDocumentPopover(true);
+			}
+			setMentionQuery(query);
+		} else {
+			// Close popover if '@' is no longer in the input (user deleted it)
+			if (showDocumentPopover) {
+				setShowDocumentPopover(false);
+				setMentionQuery("");
+			}
+		}
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		// When popup is open, handle navigation keys
+		if (showDocumentPopover) {
+			if (e.key === "ArrowDown") {
+				e.preventDefault();
+				documentPickerRef.current?.moveDown();
+				return;
+			}
+			if (e.key === "ArrowUp") {
+				e.preventDefault();
+				documentPickerRef.current?.moveUp();
+				return;
+			}
+			if (e.key === "Enter") {
+				e.preventDefault();
+				documentPickerRef.current?.selectHighlighted();
+				return;
+			}
+			if (e.key === "Escape") {
+				e.preventDefault();
+				setShowDocumentPopover(false);
+				setMentionQuery("");
+				return;
+			}
+		}
+
+		// Remove last document chip when pressing backspace at the beginning of input
+		if (e.key === "Backspace" && mentionedDocuments.length > 0) {
+			const textarea = e.currentTarget;
+			const selectionStart = textarea.selectionStart;
+			const selectionEnd = textarea.selectionEnd;
+
+			// Only remove chip if cursor is at position 0 and nothing is selected
+			if (selectionStart === 0 && selectionEnd === 0) {
+				e.preventDefault();
+				// Remove the last document chip
+				setMentionedDocuments((prev) => prev.slice(0, -1));
+			}
+		}
+	};
+
+	const handleDocumentsMention = (documents: Document[]) => {
+		// Update mentioned documents (merge with existing, avoid duplicates)
+		setMentionedDocuments((prev) => {
+			const existingIds = new Set(prev.map((d) => d.id));
+			const newDocs = documents.filter((doc) => !existingIds.has(doc.id));
+			return [...prev, ...newDocs];
+		});
+
+		// Clean up the '@...' mention text from input
+		if (inputRef.current) {
+			const input = inputRef.current;
+			const currentValue = input.value;
+			const atIndex = currentValue.lastIndexOf("@");
+
+			if (atIndex !== -1) {
+				// Remove @ and everything after it
+				const newValue = currentValue.slice(0, atIndex);
+				const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+					window.HTMLTextAreaElement.prototype,
+					"value"
+				)?.set;
+				if (nativeInputValueSetter) {
+					nativeInputValueSetter.call(input, newValue);
+					input.dispatchEvent(new Event("input", { bubbles: true }));
+				}
+			}
+			// Focus the input so user can continue typing
+			input.focus();
+		}
+
+		// Reset mention query
+		setMentionQuery("");
+	};
+
+	const handleRemoveDocument = (docId: number) => {
+		setMentionedDocuments((prev) => prev.filter((doc) => doc.id !== docId));
+	};
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
-				<ComposerPrimitive.Input
-					placeholder={
-						hasModelConfigured
-							? "Ask SurfSense"
-							: "Select a model from the header to start chatting..."
-					}
-					className={cn(
-						"aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0",
-						!hasModelConfigured && "cursor-not-allowed opacity-60"
+				{/* -------- Input field with inline document chips -------- */}
+				<div className="aui-composer-input-wrapper flex flex-wrap items-center gap-1.5 px-3 pt-2 pb-6">
+					{/* Inline document chips */}
+					{mentionedDocuments.map((doc) => (
+						<span
+							key={doc.id}
+							className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20 shrink-0"
+							title={doc.title}
+						>
+							<span className="max-w-[120px] truncate">{doc.title}</span>
+							<button
+								type="button"
+								onClick={() => handleRemoveDocument(doc.id)}
+								className="size-4 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors"
+								aria-label={`Remove ${doc.title}`}
+							>
+								<X className="size-3" />
+							</button>
+						</span>
+					))}
+					{/* Text input */}
+					<ComposerPrimitive.Input
+						ref={inputRef}
+						onKeyUp={handleKeyUp}
+						onKeyDown={handleKeyDown}
+						placeholder={
+							mentionedDocuments.length > 0
+								? "Ask about these documents..."
+								: "Ask SurfSense (type @ to mention docs)"
+						}
+						className="aui-composer-input flex-1 min-w-[120px] max-h-32 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0 py-1"
+						rows={1}
+						autoFocus
+						aria-label="Message input"
+					/>
+				</div>
+
+				{/* -------- Document mention popover (rendered via portal) -------- */}
+				{showDocumentPopover &&
+					typeof document !== "undefined" &&
+					createPortal(
+						<>
+							{/* Backdrop */}
+							<button
+								type="button"
+								className="fixed inset-0 cursor-default"
+								style={{ zIndex: 9998 }}
+								onClick={() => setShowDocumentPopover(false)}
+								aria-label="Close document picker"
+							/>
+							{/* Popover positioned above input */}
+							<div
+								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden"
+								style={{
+									zIndex: 9999,
+									backgroundColor: "#18181b",
+									bottom: inputRef.current
+										? `${window.innerHeight - inputRef.current.getBoundingClientRect().top + 8}px`
+										: "200px",
+									left: inputRef.current
+										? `${inputRef.current.getBoundingClientRect().left}px`
+										: "50%",
+								}}
+							>
+								<DocumentsDataTable
+									ref={documentPickerRef}
+									searchSpaceId={Number(search_space_id)}
+									onSelectionChange={handleDocumentsMention}
+									onDone={() => {
+										setShowDocumentPopover(false);
+										setMentionQuery("");
+									}}
+									initialSelectedDocuments={mentionedDocuments}
+									externalSearch={mentionQuery}
+								/>
+							</div>
+						</>,
+						document.body
 					)}
-					rows={1}
-					autoFocus={hasModelConfigured}
-					aria-label="Message input"
-					disabled={!hasModelConfigured}
-				/>
 				<ComposerAction />
 			</ComposerPrimitive.AttachmentDropzone>
 		</ComposerPrimitive.Root>
@@ -469,7 +728,7 @@ const ConnectorIndicator: FC = () => {
 						</div>
 						<div className="flex flex-wrap gap-2">
 							{/* Document types from the search space */}
-							{activeDocumentTypes.map(([docType, count]) => (
+							{activeDocumentTypes.map(([docType]) => (
 								<div
 									key={docType}
 									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
@@ -642,7 +901,7 @@ const ThinkingStepsPart: FC = () => {
 	const thinkingStepsMap = useContext(ThinkingStepsContext);
 
 	// Get the current message ID to look up thinking steps
-	const messageId = useMessage((m) => m.id);
+	const messageId = useAssistantState(({ message }) => message?.id);
 	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
 
 	// Check if thread is still running (for stopping the spinner when cancelled)
@@ -725,6 +984,10 @@ const AssistantActionBar: FC = () => {
 };
 
 const UserMessage: FC = () => {
+	const messageId = useAssistantState(({ message }) => message?.id);
+	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
+	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
+
 	return (
 		<MessagePrimitive.Root
 			className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
@@ -733,10 +996,25 @@ const UserMessage: FC = () => {
 			<UserMessageAttachments />
 
 			<div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
+				{/* Display mentioned documents as chips */}
+				{mentionedDocs && mentionedDocs.length > 0 && (
+					<div className="flex flex-wrap gap-1.5 mb-2 justify-end">
+						{mentionedDocs.map((doc) => (
+							<span
+								key={doc.id}
+								className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
+								title={doc.title}
+							>
+								<FileText className="size-3" />
+								<span className="max-w-[150px] truncate">{doc.title}</span>
+							</span>
+						))}
+					</div>
+				)}
 				<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
 					<MessagePrimitive.Parts />
 				</div>
-				<div className="aui-user-action-bar-wrapper -translate-x-full -translate-y-1/2 absolute top-1/2 left-0 pr-2">
+				<div className="aui-user-action-bar-wrapper -translate-x-full -translate-y-full absolute top-full left-0 pr-2">
 					<UserActionBar />
 				</div>
 			</div>

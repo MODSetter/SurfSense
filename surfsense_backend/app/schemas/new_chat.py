@@ -160,3 +160,6 @@ class NewChatRequest(BaseModel):
     attachments: list[ChatAttachment] | None = (
         None  # Optional attachments with extracted content
     )
+    mentioned_document_ids: list[int] | None = (
+        None  # Optional document IDs mentioned with @ in the chat
+    )
