@@ -24,8 +24,8 @@ While tools like NotebookLM and Perplexity are impressive and highly effective f
 
 # Video 
 
+https://github.com/user-attachments/assets/42a29ea1-d4d8-4213-9c69-972b5b806d58
 
-https://github.com/user-attachments/assets/d9221908-e0de-4b2f-ac3a-691cf4b202da
 
 
 ## Podcast Sample
@@ -207,32 +207,6 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
   - LlamaIndex API key (enhanced parsing, supports 50+ formats)
 - Other API keys as needed for your use case
 
-## Screenshots
-
-**Research Agent** 
-
-![updated_researcher](https://github.com/user-attachments/assets/e22c5d86-f511-4c72-8c50-feba0c1561b4)
-
-**Search Spaces** 
-
-![search_spaces](https://github.com/user-attachments/assets/e254c38c-f937-44b6-9e9d-770db583d099)
-
-**Manage Documents** 
-![documents](https://github.com/user-attachments/assets/7001e306-eb06-4009-89c6-8fadfdc3fc4d)
-
-**Podcast Agent** 
-![podcasts](https://github.com/user-attachments/assets/6cb82ffd-9e14-4172-bc79-67faf34c4c1c)
-
-
-**Agent Chat** 
-
-![git_chat](https://github.com/user-attachments/assets/bb352d52-1c6d-4020-926b-722d0b98b491)
-
-**Browser Extension**
-
-![ext1](https://github.com/user-attachments/assets/1f042b7a-6349-422b-94fb-d40d0df16c40)
-
-![ext2](https://github.com/user-attachments/assets/a9b9f1aa-2677-404d-b0a0-c1b2dddf24a7)
 
 
 ## Tech Stack
@@ -279,32 +253,19 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 ---
  ### **FrontEnd**
 
--  **Next.js 15.2.3**: React framework featuring App Router, server components, automatic code-splitting, and optimized rendering.
+-  **Next.js**: React framework featuring App Router, server components, automatic code-splitting, and optimized rendering.
 
--  **React 19.0.0**: JavaScript library for building user interfaces.
+-  **React**: JavaScript library for building user interfaces.
 
 -  **TypeScript**: Static type-checking for JavaScript, enhancing code quality and developer experience.
 - **Vercel AI SDK Kit UI Stream Protocol**: To create scalable chat UI.
 
--  **Tailwind CSS 4.x**: Utility-first CSS framework for building custom UI designs.
+-  **Tailwind CSS**: Utility-first CSS framework for building custom UI designs.
 
 -  **Shadcn**: Headless components library.
 
--  **Lucide React**: Icon set implemented as React components.
-
 -  **Framer Motion**: Animation library for React.
 
--  **Sonner**: Toast notification library.
-
--  **Geist**: Font family from Vercel.
-
--  **React Hook Form**: Form state management and validation.
-
--  **Zod**: TypeScript-first schema validation with static type inference.
-
--  **@hookform/resolvers**: Resolvers for using validation libraries with React Hook Form.
-
--  **@tanstack/react-table**: Headless UI for building powerful tables & datagrids.
 
 
  ### **DevOps**
