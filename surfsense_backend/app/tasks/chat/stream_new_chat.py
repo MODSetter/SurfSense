@@ -59,11 +59,28 @@ def format_mentioned_documents_as_context(documents: list[Document]) -> str:
         "These documents are directly relevant to the query and should be prioritized as primary sources."
     )
     for i, doc in enumerate(documents, 1):
-        context_parts.append(
-            f"<document index='{i}' id='{doc.id}' title='{doc.title}' type='{doc.document_type.value}'>"
-        )
-        context_parts.append(f"<![CDATA[{doc.content}]]>")
-        context_parts.append("</document>")
+        # Prepare retriever-style structure
+        doc_metadata = doc.document_metadata if doc.document_metadata else {}
+        xml_doc = f"""
+        <document index='{i}'>
+            <document_id>{doc.id}</document_id>
+            <content><![CDATA[{doc.content}]]></content>
+            <score>1.0</score>
+            <chunks>
+                <chunk>
+                    <chunk_id>{doc.id}-full</chunk_id>
+                    <content><![CDATA[{doc.content}]]></content>
+                </chunk>
+            </chunks>
+            <document_info>
+                <id>{doc.id}</id>
+                <title><![CDATA[{doc.title}]]></title>
+                <document_type>{doc.document_type.value}</document_type>
+                <metadata><![CDATA[{json.dumps(doc_metadata)}]]></metadata>
+            </document_info>
+            <source>{doc.document_type.value}</source>
+        </document>"""
+        context_parts.append(xml_doc.strip())
     context_parts.append("</mentioned_documents>")
 
     return "\n".join(context_parts)
