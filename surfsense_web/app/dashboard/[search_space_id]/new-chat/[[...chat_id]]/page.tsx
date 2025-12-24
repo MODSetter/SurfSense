@@ -10,7 +10,12 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { mentionedDocumentIdsAtom, mentionedDocumentsAtom, messageDocumentsMapAtom, type MentionedDocumentInfo } from "@/atoms/chat/mentioned-documents.atom";
+import {
+	type MentionedDocumentInfo,
+	mentionedDocumentIdsAtom,
+	mentionedDocumentsAtom,
+	messageDocumentsMapAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
@@ -54,15 +59,15 @@ function extractThinkingSteps(content: unknown): ThinkingStep[] {
  */
 function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 	if (!Array.isArray(content)) return [];
-	
+
 	const docsPart = content.find(
-		(part: unknown) => 
-			typeof part === "object" && 
-			part !== null && 
-			"type" in part && 
+		(part: unknown) =>
+			typeof part === "object" &&
+			part !== null &&
+			"type" in part &&
 			(part as { type: string }).type === "mentioned-documents"
 	) as { type: "mentioned-documents"; documents: MentionedDocumentInfo[] } | undefined;
-	
+
 	return docsPart?.documents || [];
 }
 
@@ -179,7 +184,7 @@ export default function NewChatPage() {
 					const restoredThinkingSteps = new Map<string, ThinkingStep[]>();
 					// Extract and restore mentioned documents from persisted messages
 					const restoredDocsMap: Record<string, MentionedDocumentInfo[]> = {};
-					
+
 					for (const msg of response.messages) {
 						if (msg.role === "assistant") {
 							const steps = extractThinkingSteps(msg.content);
@@ -292,16 +297,20 @@ export default function NewChatPage() {
 			}
 
 			// Persist user message with mentioned documents (don't await, fire and forget)
-			const persistContent = mentionedDocuments.length > 0
-				? [
-					...message.content,
-					{ type: "mentioned-documents", documents: mentionedDocuments.map((doc) => ({
-						id: doc.id,
-						title: doc.title,
-						document_type: doc.document_type,
-					})) },
-				]
-				: message.content;
+			const persistContent =
+				mentionedDocuments.length > 0
+					? [
+							...message.content,
+							{
+								type: "mentioned-documents",
+								documents: mentionedDocuments.map((doc) => ({
+									id: doc.id,
+									title: doc.title,
+									document_type: doc.document_type,
+								})),
+							},
+						]
+					: message.content;
 			appendMessage(threadId, {
 				role: "user",
 				content: persistContent,
@@ -626,7 +635,16 @@ export default function NewChatPage() {
 				// Note: We no longer clear thinking steps - they persist with the message
 			}
 		},
-		[threadId, searchSpaceId, messages, mentionedDocumentIds, mentionedDocuments, setMentionedDocumentIds, setMentionedDocuments, setMessageDocumentsMap]
+		[
+			threadId,
+			searchSpaceId,
+			messages,
+			mentionedDocumentIds,
+			mentionedDocuments,
+			setMentionedDocumentIds,
+			setMentionedDocuments,
+			setMessageDocumentsMap,
+		]
 	);
 
 	// Convert message (pass through since already in correct format)

@@ -7,8 +7,8 @@ import {
 	MessagePrimitive,
 	ThreadPrimitive,
 	useAssistantState,
-	useThreadViewport,
 	useMessage,
+	useThreadViewport,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -35,9 +35,23 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { type FC, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+	createContext,
+	type FC,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
-import { mentionedDocumentIdsAtom, mentionedDocumentsAtom, messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import {
+	mentionedDocumentIdsAtom,
+	mentionedDocumentsAtom,
+	messageDocumentsMapAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -54,7 +68,10 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { DocumentsDataTable, type DocumentsDataTableRef } from "@/components/new-chat/DocumentsDataTable";
+import {
+	DocumentsDataTable,
+	type DocumentsDataTableRef,
+} from "@/components/new-chat/DocumentsDataTable";
 import {
 	ChainOfThought,
 	ChainOfThoughtContent,
@@ -67,7 +84,6 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
-import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
@@ -371,7 +387,7 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 
 const ThreadWelcome: FC = () => {
 	const { data: user } = useAtomValue(currentUserAtom);
-	
+
 	// Memoize greeting so it doesn't change on re-renders (only on user change)
 	const greeting = useMemo(() => getTimeBasedGreeting(user?.email), [user?.email]);
 
@@ -427,14 +443,14 @@ const Composer: FC = () => {
 		// Check if value contains @ and extract query
 		if (value.includes("@")) {
 			const query = extractMentionQuery(value);
-			
+
 			// Close popup if query starts with space (user typed "@ ")
 			if (query.startsWith(" ")) {
 				setShowDocumentPopover(false);
 				setMentionQuery("");
 				return;
 			}
-			
+
 			// Reopen popup if @ is present and query doesn't start with space
 			// (handles case where user deleted the space after @)
 			if (!showDocumentPopover) {
@@ -504,7 +520,7 @@ const Composer: FC = () => {
 			const input = inputRef.current;
 			const currentValue = input.value;
 			const atIndex = currentValue.lastIndexOf("@");
-			
+
 			if (atIndex !== -1) {
 				// Remove @ and everything after it
 				const newValue = currentValue.slice(0, atIndex);
@@ -520,7 +536,7 @@ const Composer: FC = () => {
 			// Focus the input so user can continue typing
 			input.focus();
 		}
-		
+
 		// Reset mention query
 		setMentionQuery("");
 	};
@@ -558,7 +574,11 @@ const Composer: FC = () => {
 						ref={inputRef}
 						onKeyUp={handleKeyUp}
 						onKeyDown={handleKeyDown}
-						placeholder={mentionedDocuments.length > 0 ? "Ask about these documents..." : "Ask SurfSense (type @ to mention docs)"}
+						placeholder={
+							mentionedDocuments.length > 0
+								? "Ask about these documents..."
+								: "Ask SurfSense (type @ to mention docs)"
+						}
 						className="aui-composer-input flex-1 min-w-[120px] max-h-32 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0 py-1"
 						rows={1}
 						autoFocus
@@ -567,41 +587,47 @@ const Composer: FC = () => {
 				</div>
 
 				{/* -------- Document mention popover (rendered via portal) -------- */}
-				{showDocumentPopover && typeof document !== "undefined" && createPortal(
-					<>
-						{/* Backdrop */}
-						<button
-							type="button"
-							className="fixed inset-0 cursor-default"
-							style={{ zIndex: 9998 }}
-							onClick={() => setShowDocumentPopover(false)}
-							aria-label="Close document picker"
-						/>
-						{/* Popover positioned above input */}
-						<div
-							className="fixed shadow-2xl rounded-lg border border-border overflow-hidden"
-							style={{ 
-								zIndex: 9999, 
-								backgroundColor: "#18181b",
-								bottom: inputRef.current ? `${window.innerHeight - inputRef.current.getBoundingClientRect().top + 8}px` : "200px",
-								left: inputRef.current ? `${inputRef.current.getBoundingClientRect().left}px` : "50%",
-							}}
-						>
-							<DocumentsDataTable
-								ref={documentPickerRef}
-								searchSpaceId={Number(search_space_id)}
-								onSelectionChange={handleDocumentsMention}
-								onDone={() => {
-									setShowDocumentPopover(false);
-									setMentionQuery("");
-								}}
-								initialSelectedDocuments={mentionedDocuments}
-								externalSearch={mentionQuery}
+				{showDocumentPopover &&
+					typeof document !== "undefined" &&
+					createPortal(
+						<>
+							{/* Backdrop */}
+							<button
+								type="button"
+								className="fixed inset-0 cursor-default"
+								style={{ zIndex: 9998 }}
+								onClick={() => setShowDocumentPopover(false)}
+								aria-label="Close document picker"
 							/>
-						</div>
-					</>,
-					document.body
-				)}
+							{/* Popover positioned above input */}
+							<div
+								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden"
+								style={{
+									zIndex: 9999,
+									backgroundColor: "#18181b",
+									bottom: inputRef.current
+										? `${window.innerHeight - inputRef.current.getBoundingClientRect().top + 8}px`
+										: "200px",
+									left: inputRef.current
+										? `${inputRef.current.getBoundingClientRect().left}px`
+										: "50%",
+								}}
+							>
+								<DocumentsDataTable
+									ref={documentPickerRef}
+									searchSpaceId={Number(search_space_id)}
+									onSelectionChange={handleDocumentsMention}
+									onDone={() => {
+										setShowDocumentPopover(false);
+										setMentionQuery("");
+									}}
+									initialSelectedDocuments={mentionedDocuments}
+									externalSearch={mentionQuery}
+								/>
+							</div>
+						</>,
+						document.body
+					)}
 				<ComposerAction />
 			</ComposerPrimitive.AttachmentDropzone>
 		</ComposerPrimitive.Root>

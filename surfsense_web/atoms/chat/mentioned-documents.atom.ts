@@ -29,4 +29,3 @@ export interface MentionedDocumentInfo {
  * This allows displaying which documents were mentioned with each user message.
  */
 export const messageDocumentsMapAtom = atom<Record<string, MentionedDocumentInfo[]>>({});
-

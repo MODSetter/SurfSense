@@ -181,7 +181,9 @@ async def stream_new_chat(
             context_parts.append(format_attachments_as_context(attachments))
 
         if mentioned_documents:
-            context_parts.append(format_mentioned_documents_as_context(mentioned_documents))
+            context_parts.append(
+                format_mentioned_documents_as_context(mentioned_documents)
+            )
 
         if context_parts:
             context = "\n\n".join(context_parts)

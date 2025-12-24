@@ -2,7 +2,15 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -33,13 +41,16 @@ function useDebounced<T>(value: T, delay = 300) {
 }
 
 export const DocumentsDataTable = forwardRef<DocumentsDataTableRef, DocumentsDataTableProps>(
-	function DocumentsDataTable({
-		searchSpaceId,
-		onSelectionChange,
-		onDone,
-		initialSelectedDocuments = [],
-		externalSearch = "",
-	}, ref) {
+	function DocumentsDataTable(
+		{
+			searchSpaceId,
+			onSelectionChange,
+			onDone,
+			initialSelectedDocuments = [],
+			externalSearch = "",
+		},
+		ref
+	) {
 		// Use external search
 		const search = externalSearch;
 		const debouncedSearch = useDebounced(search, 150);
@@ -97,10 +108,13 @@ export const DocumentsDataTable = forwardRef<DocumentsDataTableRef, DocumentsDat
 			[actualDocuments, selectedIds]
 		);
 
-		const handleSelectDocument = useCallback((doc: Document) => {
-			onSelectionChange([...initialSelectedDocuments, doc]);
-			onDone();
-		}, [initialSelectedDocuments, onSelectionChange, onDone]);
+		const handleSelectDocument = useCallback(
+			(doc: Document) => {
+				onSelectionChange([...initialSelectedDocuments, doc]);
+				onDone();
+			},
+			[initialSelectedDocuments, onSelectionChange, onDone]
+		);
 
 		// Scroll highlighted item into view
 		useEffect(() => {
@@ -120,56 +134,55 @@ export const DocumentsDataTable = forwardRef<DocumentsDataTableRef, DocumentsDat
 		}
 
 		// Expose methods to parent via ref
-		useImperativeHandle(ref, () => ({
-			selectHighlighted: () => {
-				if (selectableDocuments[highlightedIndex]) {
-					handleSelectDocument(selectableDocuments[highlightedIndex]);
-				}
-			},
-			moveUp: () => {
-				setHighlightedIndex((prev) => 
-					prev > 0 ? prev - 1 : selectableDocuments.length - 1
-				);
-			},
-			moveDown: () => {
-				setHighlightedIndex((prev) => 
-					prev < selectableDocuments.length - 1 ? prev + 1 : 0
-				);
-			},
-		}), [selectableDocuments, highlightedIndex, handleSelectDocument]);
-
-		// Handle keyboard navigation
-		const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-			if (selectableDocuments.length === 0) return;
-
-			switch (e.key) {
-				case "ArrowDown":
-					e.preventDefault();
-					setHighlightedIndex((prev) => 
-						prev < selectableDocuments.length - 1 ? prev + 1 : 0
-					);
-					break;
-				case "ArrowUp":
-					e.preventDefault();
-					setHighlightedIndex((prev) => 
-						prev > 0 ? prev - 1 : selectableDocuments.length - 1
-					);
-					break;
-				case "Enter":
-					e.preventDefault();
+		useImperativeHandle(
+			ref,
+			() => ({
+				selectHighlighted: () => {
 					if (selectableDocuments[highlightedIndex]) {
 						handleSelectDocument(selectableDocuments[highlightedIndex]);
 					}
-					break;
-				case "Escape":
-					e.preventDefault();
-					onDone();
-					break;
-			}
-		}, [selectableDocuments, highlightedIndex, handleSelectDocument, onDone]);
+				},
+				moveUp: () => {
+					setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
+				},
+				moveDown: () => {
+					setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
+				},
+			}),
+			[selectableDocuments, highlightedIndex, handleSelectDocument]
+		);
+
+		// Handle keyboard navigation
+		const handleKeyDown = useCallback(
+			(e: React.KeyboardEvent) => {
+				if (selectableDocuments.length === 0) return;
+
+				switch (e.key) {
+					case "ArrowDown":
+						e.preventDefault();
+						setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
+						break;
+					case "ArrowUp":
+						e.preventDefault();
+						setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
+						break;
+					case "Enter":
+						e.preventDefault();
+						if (selectableDocuments[highlightedIndex]) {
+							handleSelectDocument(selectableDocuments[highlightedIndex]);
+						}
+						break;
+					case "Escape":
+						e.preventDefault();
+						onDone();
+						break;
+				}
+			},
+			[selectableDocuments, highlightedIndex, handleSelectDocument, onDone]
+		);
 
 		return (
-			<div 
+			<div
 				className="flex flex-col w-[280px] sm:w-[320px] bg-zinc-900 rounded-lg"
 				onKeyDown={handleKeyDown}
 				role="listbox"
@@ -192,7 +205,7 @@ export const DocumentsDataTable = forwardRef<DocumentsDataTableRef, DocumentsDat
 								const isAlreadySelected = selectedIds.has(doc.id);
 								const selectableIndex = selectableDocuments.findIndex((d) => d.id === doc.id);
 								const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
-								
+
 								return (
 									<button
 										key={doc.id}
@@ -211,9 +224,7 @@ export const DocumentsDataTable = forwardRef<DocumentsDataTableRef, DocumentsDat
 										disabled={isAlreadySelected}
 										className={cn(
 											"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
-											isAlreadySelected
-												? "opacity-50 cursor-not-allowed"
-												: "cursor-pointer",
+											isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
 											isHighlighted && "bg-accent"
 										)}
 									>
