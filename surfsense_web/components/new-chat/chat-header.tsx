@@ -47,12 +47,7 @@ export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
 
 	return (
 		<>
-			{/* Header Bar */}
-			<div className="flex items-center justify-between px-4 py-2 bg-background/80 backdrop-blur-sm">
-				<ModelSelector onEdit={handleEditConfig} onAddNew={handleAddNew} />
-			</div>
-
-			{/* Config Sidebar */}
+			<ModelSelector onEdit={handleEditConfig} onAddNew={handleAddNew} />
 			<ModelConfigSidebar
 				open={sidebarOpen}
 				onOpenChange={handleSidebarClose}

@@ -265,7 +265,7 @@ export function DashboardClientLayout({
 							</div>
 						</div>
 					</header>
-					<div className="grow flex-1 overflow-auto min-h-[calc(100vh-64px)]">{children}</div>
+					<div className="flex-1 overflow-hidden">{children}</div>
 				</main>
 			</SidebarInset>
 		</SidebarProvider>

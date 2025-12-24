@@ -626,11 +626,11 @@ export default function NewChatPage() {
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
-			<div className="flex flex-col h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden">
-				<ChatHeader searchSpaceId={searchSpaceId} />
-				<div className="flex-1 min-h-0 overflow-hidden">
-					<Thread messageThinkingSteps={messageThinkingSteps} />
-				</div>
+			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+				<Thread
+					messageThinkingSteps={messageThinkingSteps}
+					header={<ChatHeader searchSpaceId={searchSpaceId} />}
+				/>
 			</div>
 		</AssistantRuntimeProvider>
 	);
