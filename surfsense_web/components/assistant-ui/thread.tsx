@@ -269,7 +269,6 @@ const ThinkingStepsScrollHandler: FC = () => {
 	return null; // This component doesn't render anything
 };
 
-export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
 export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), header }) => {
 	return (
 		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
@@ -989,7 +988,7 @@ const UserMessage: FC = () => {
 				<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
 					<MessagePrimitive.Parts />
 				</div>
-				<div className="aui-user-action-bar-wrapper -translate-x-full -translate-y-1/2 absolute top-1/2 left-0 pr-2">
+				<div className="aui-user-action-bar-wrapper -translate-x-full -translate-y-full absolute top-full left-0 pr-2">
 					<UserActionBar />
 				</div>
 			</div>
