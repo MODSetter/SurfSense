@@ -12,9 +12,11 @@ import {
 	Trash2,
 	X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,14 +27,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
@@ -58,9 +52,38 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 	const [archivingThreadId, setArchivingThreadId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [showArchived, setShowArchived] = useState(false);
+	const [mounted, setMounted] = useState(false);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
+
+	// Handle mounting for portal
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	// Handle escape key
+	useEffect(() => {
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape" && open) {
+				onOpenChange(false);
+			}
+		};
+		document.addEventListener("keydown", handleEscape);
+		return () => document.removeEventListener("keydown", handleEscape);
+	}, [open, onOpenChange]);
+
+	// Lock body scroll when open
+	useEffect(() => {
+		if (open) {
+			document.body.style.overflow = "hidden";
+		} else {
+			document.body.style.overflow = "";
+		}
+		return () => {
+			document.body.style.overflow = "";
+		};
+	}, [open]);
 
 	// Fetch all threads (when not searching)
 	const {
@@ -100,7 +123,6 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 			try {
 				await deleteThread(threadId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
-				// Invalidate queries to refresh the list
 				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
@@ -158,197 +180,233 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 	const activeCount = threadsData?.threads.length ?? 0;
 	const archivedCount = threadsData?.archived_threads.length ?? 0;
 
-	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-80 p-0 flex flex-col border-0">
-				<SheetHeader className="mx-3 px-4 pt-4 pb-0 space-y-2">
-					<SheetTitle>{t("all_chats") || "All Chats"}</SheetTitle>
-					<SheetDescription className="sr-only">
-						{t("all_chats_description") || "Browse and manage all your chats"}
-					</SheetDescription>
+	if (!mounted) return null;
 
-					{/* Search Input */}
-					<div className="relative">
-						<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-						<Input
-							type="text"
-							placeholder={t("search_chats") || "Search chats..."}
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-9 pr-8 h-9 border-0 focus-visible:ring-0 focus-visible:border-0 shadow-none"
-						/>
-						{searchQuery && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-								onClick={handleClearSearch}
-							>
-								<X className="h-3.5 w-3.5" />
-								<span className="sr-only">{t("clear_search") || "Clear search"}</span>
-							</Button>
-						)}
-					</div>
-				</SheetHeader>
+	return createPortal(
+		<AnimatePresence>
+			{open && (
+				<>
+					{/* Backdrop */}
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.2 }}
+						className="fixed inset-0 z-50 bg-black/50"
+						onClick={() => onOpenChange(false)}
+						aria-hidden="true"
+					/>
 
-				{/* Tab toggle for active/archived (only show when not searching) */}
-				{!isSearchMode && (
-					<div className="flex border-b mx-3 -mt-3">
-						<button
-							type="button"
-							onClick={() => setShowArchived(false)}
-							className={cn(
-								"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
-								!showArchived
-									? "border-b-2 border-primary text-primary"
-									: "text-muted-foreground hover:text-foreground"
-							)}
-						>
-							Active ({activeCount})
-						</button>
-						<button
-							type="button"
-							onClick={() => setShowArchived(true)}
-							className={cn(
-								"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
-								showArchived
-									? "border-b-2 border-primary text-primary"
-									: "text-muted-foreground hover:text-foreground"
-							)}
-						>
-							Archived ({archivedCount})
-						</button>
-					</div>
-				)}
-
-				<ScrollArea className="flex-1 min-h-0 overflow-hidden">
-					<div className="p-2">
-						{isLoading ? (
-							<div className="flex items-center justify-center py-8">
-								<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+					{/* Panel */}
+					<motion.div
+						initial={{ x: "-100%" }}
+						animate={{ x: 0 }}
+						exit={{ x: "-100%" }}
+						transition={{ type: "spring", damping: 25, stiffness: 300 }}
+						className="fixed inset-y-0 left-0 z-50 w-80 bg-background shadow-xl flex flex-col"
+						role="dialog"
+						aria-modal="true"
+						aria-label={t("all_chats") || "All Chats"}
+					>
+						{/* Header */}
+						<div className="flex-shrink-0 p-4 pb-2 space-y-3">
+							<div className="flex items-center justify-between">
+								<h2 className="text-lg font-semibold">{t("all_chats") || "All Chats"}</h2>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full"
+									onClick={() => onOpenChange(false)}
+								>
+									<X className="h-4 w-4" />
+									<span className="sr-only">Close</span>
+								</Button>
 							</div>
-						) : error ? (
-							<div className="text-center py-8 text-sm text-destructive">
-								{t("error_loading_chats") || "Error loading chats"}
-							</div>
-						) : threads.length > 0 ? (
-							<div className="space-y-1">
-								{threads.map((thread) => {
-									const isDeleting = deletingThreadId === thread.id;
-									const isArchiving = archivingThreadId === thread.id;
-									const isBusy = isDeleting || isArchiving;
 
-									return (
-										<div
-											key={thread.id}
-											className={cn(
-												"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-												"hover:bg-accent hover:text-accent-foreground",
-												"transition-colors cursor-pointer",
-												isBusy && "opacity-50 pointer-events-none"
-											)}
-										>
-											{/* Main clickable area for navigation */}
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<button
-														type="button"
-														onClick={() => handleThreadClick(thread.id)}
-														disabled={isBusy}
-														className="flex items-center gap-2 flex-1 min-w-0 text-left"
-													>
-														<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
-														<span className="truncate">{thread.title || "New Chat"}</span>
-													</button>
-												</TooltipTrigger>
-												<TooltipContent side="right">
-													<p>
-														{t("updated") || "Updated"}:{" "}
-														{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
-													</p>
-												</TooltipContent>
-											</Tooltip>
-
-											{/* Actions dropdown */}
-											<DropdownMenu>
-												<DropdownMenuTrigger asChild>
-													<Button
-														variant="ghost"
-														size="icon"
-														className={cn(
-															"h-6 w-6 shrink-0",
-															"opacity-0 group-hover:opacity-100 focus:opacity-100",
-															"transition-opacity"
-														)}
-														disabled={isBusy}
-													>
-														{isDeleting ? (
-															<Loader2 className="h-3.5 w-3.5 animate-spin" />
-														) : (
-															<MoreHorizontal className="h-3.5 w-3.5" />
-														)}
-														<span className="sr-only">{t("more_options") || "More options"}</span>
-													</Button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align="end" className="w-40">
-													<DropdownMenuItem
-														onClick={() => handleToggleArchive(thread.id, thread.archived)}
-														disabled={isArchiving}
-													>
-														{thread.archived ? (
-															<>
-																<RotateCcwIcon className="mr-2 h-4 w-4" />
-																<span>{t("unarchive") || "Restore"}</span>
-															</>
-														) : (
-															<>
-																<ArchiveIcon className="mr-2 h-4 w-4" />
-																<span>{t("archive") || "Archive"}</span>
-															</>
-														)}
-													</DropdownMenuItem>
-													<DropdownMenuSeparator />
-													<DropdownMenuItem
-														onClick={() => handleDeleteThread(thread.id)}
-														className="text-destructive focus:text-destructive"
-													>
-														<Trash2 className="mr-2 h-4 w-4" />
-														<span>{t("delete") || "Delete"}</span>
-													</DropdownMenuItem>
-												</DropdownMenuContent>
-											</DropdownMenu>
-										</div>
-									);
-								})}
-							</div>
-						) : isSearchMode ? (
-							<div className="text-center py-8">
-								<Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-								<p className="text-sm text-muted-foreground">
-									{t("no_chats_found") || "No chats found"}
-								</p>
-								<p className="text-xs text-muted-foreground/70 mt-1">
-									{t("try_different_search") || "Try a different search term"}
-								</p>
-							</div>
-						) : (
-							<div className="text-center py-8">
-								<MessageCircleMore className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-								<p className="text-sm text-muted-foreground">
-									{showArchived
-										? t("no_archived_chats") || "No archived chats"
-										: t("no_chats") || "No chats yet"}
-								</p>
-								{!showArchived && (
-									<p className="text-xs text-muted-foreground/70 mt-1">
-										{t("start_new_chat_hint") || "Start a new chat from the chat page"}
-									</p>
+							{/* Search Input */}
+							<div className="relative">
+								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+								<Input
+									type="text"
+									placeholder={t("search_chats") || "Search chats..."}
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
+									className="pl-9 pr-8 h-9"
+								/>
+								{searchQuery && (
+									<Button
+										variant="ghost"
+										size="icon"
+										className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+										onClick={handleClearSearch}
+									>
+										<X className="h-3.5 w-3.5" />
+										<span className="sr-only">{t("clear_search") || "Clear search"}</span>
+									</Button>
 								)}
 							</div>
+						</div>
+
+						{/* Tab toggle for active/archived (only show when not searching) */}
+						{!isSearchMode && (
+							<div className="flex-shrink-0 flex border-b mx-4">
+								<button
+									type="button"
+									onClick={() => setShowArchived(false)}
+									className={cn(
+										"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
+										!showArchived
+											? "border-b-2 border-primary text-primary"
+											: "text-muted-foreground hover:text-foreground"
+									)}
+								>
+									Active ({activeCount})
+								</button>
+								<button
+									type="button"
+									onClick={() => setShowArchived(true)}
+									className={cn(
+										"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
+										showArchived
+											? "border-b-2 border-primary text-primary"
+											: "text-muted-foreground hover:text-foreground"
+									)}
+								>
+									Archived ({archivedCount})
+								</button>
+							</div>
 						)}
-					</div>
-				</ScrollArea>
-			</SheetContent>
-		</Sheet>
+
+						{/* Scrollable Content */}
+						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
+							{isLoading ? (
+								<div className="flex items-center justify-center py-8">
+									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+								</div>
+							) : error ? (
+								<div className="text-center py-8 text-sm text-destructive">
+									{t("error_loading_chats") || "Error loading chats"}
+								</div>
+							) : threads.length > 0 ? (
+								<div className="space-y-1">
+									{threads.map((thread) => {
+										const isDeleting = deletingThreadId === thread.id;
+										const isArchiving = archivingThreadId === thread.id;
+										const isBusy = isDeleting || isArchiving;
+
+										return (
+											<div
+												key={thread.id}
+												className={cn(
+													"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+													"hover:bg-accent hover:text-accent-foreground",
+													"transition-colors cursor-pointer",
+													isBusy && "opacity-50 pointer-events-none"
+												)}
+											>
+												{/* Main clickable area for navigation */}
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<button
+															type="button"
+															onClick={() => handleThreadClick(thread.id)}
+															disabled={isBusy}
+															className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
+														>
+															<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
+															<span className="truncate">{thread.title || "New Chat"}</span>
+														</button>
+													</TooltipTrigger>
+													<TooltipContent side="bottom" align="start">
+														<p>
+															{t("updated") || "Updated"}:{" "}
+															{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+														</p>
+													</TooltipContent>
+												</Tooltip>
+
+												{/* Actions dropdown */}
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button
+															variant="ghost"
+															size="icon"
+															className={cn(
+																"h-6 w-6 shrink-0",
+																"opacity-0 group-hover:opacity-100 focus:opacity-100",
+																"transition-opacity"
+															)}
+															disabled={isBusy}
+														>
+															{isDeleting ? (
+																<Loader2 className="h-3.5 w-3.5 animate-spin" />
+															) : (
+																<MoreHorizontal className="h-3.5 w-3.5" />
+															)}
+															<span className="sr-only">{t("more_options") || "More options"}</span>
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end" className="w-40">
+														<DropdownMenuItem
+															onClick={() => handleToggleArchive(thread.id, thread.archived)}
+															disabled={isArchiving}
+														>
+															{thread.archived ? (
+																<>
+																	<RotateCcwIcon className="mr-2 h-4 w-4" />
+																	<span>{t("unarchive") || "Restore"}</span>
+																</>
+															) : (
+																<>
+																	<ArchiveIcon className="mr-2 h-4 w-4" />
+																	<span>{t("archive") || "Archive"}</span>
+																</>
+															)}
+														</DropdownMenuItem>
+														<DropdownMenuSeparator />
+														<DropdownMenuItem
+															onClick={() => handleDeleteThread(thread.id)}
+															className="text-destructive focus:text-destructive"
+														>
+															<Trash2 className="mr-2 h-4 w-4" />
+															<span>{t("delete") || "Delete"}</span>
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+											</div>
+										);
+									})}
+								</div>
+							) : isSearchMode ? (
+								<div className="text-center py-8">
+									<Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+									<p className="text-sm text-muted-foreground">
+										{t("no_chats_found") || "No chats found"}
+									</p>
+									<p className="text-xs text-muted-foreground/70 mt-1">
+										{t("try_different_search") || "Try a different search term"}
+									</p>
+								</div>
+							) : (
+								<div className="text-center py-8">
+									<MessageCircleMore className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+									<p className="text-sm text-muted-foreground">
+										{showArchived
+											? t("no_archived_chats") || "No archived chats"
+											: t("no_chats") || "No chats yet"}
+									</p>
+									{!showArchived && (
+										<p className="text-xs text-muted-foreground/70 mt-1">
+											{t("start_new_chat_hint") || "Start a new chat from the chat page"}
+										</p>
+									)}
+								</div>
+							)}
+						</div>
+					</motion.div>
+				</>
+			)}
+		</AnimatePresence>,
+		document.body
 	);
 }
