@@ -175,9 +175,10 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 					role="combobox"
 					aria-expanded={open}
 					className={cn(
-						"h-9 gap-2 px-3 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm",
-						"hover:bg-muted/80 hover:border-border transition-all duration-200",
+						"h-9 gap-2 px-3 rounded-xl border border-border/30 bg-background/50 backdrop-blur-sm",
+						"hover:bg-muted/80 hover:border-border/30 transition-all duration-200",
 						"text-sm font-medium text-foreground",
+						"focus-visible:ring-0 focus-visible:ring-offset-0",
 						className
 					)}
 				>
@@ -206,11 +207,14 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 			</PopoverTrigger>
 
 			<PopoverContent
-				className="w-[360px] p-0 rounded-xl shadow-lg border-border/50"
+				className="w-[360px] p-0 rounded-xl shadow-lg border-border/30"
 				align="start"
 				sideOffset={8}
 			>
-				<Command shouldFilter={false} className="rounded-xl relative">
+				<Command
+					shouldFilter={false}
+					className="rounded-xl relative [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
+				>
 					{/* Switching overlay */}
 					{isSwitching && (
 						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
@@ -221,8 +225,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						</div>
 					)}
 
-					<div className="flex items-center gap-2 border-b px-3 py-2 bg-muted/30">
-						<Bot className="size-4 text-muted-foreground" />
+					<div className="flex items-center gap-2 border-b border-border/30 px-3 py-2">
 						<CommandInput
 							placeholder="Search models..."
 							value={searchQuery}
@@ -300,7 +303,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						)}
 
 						{filteredGlobalConfigs.length > 0 && filteredUserConfigs.length > 0 && (
-							<CommandSeparator className="my-1" />
+							<CommandSeparator className="my-1 bg-border/30" />
 						)}
 
 						{/* User Configs Section */}
@@ -362,7 +365,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						)}
 
 						{/* Add New Config Button */}
-						<div className="p-2 border-t border-border/50 bg-muted/20">
+						<div className="p-2 bg-muted/20">
 							<Button
 								variant="ghost"
 								size="sm"

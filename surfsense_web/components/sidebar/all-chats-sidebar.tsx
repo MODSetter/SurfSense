@@ -160,8 +160,8 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-80 p-0 flex flex-col">
-				<SheetHeader className="mx-3 px-4 py-4 border-b space-y-3">
+			<SheetContent side="left" className="w-80 p-0 flex flex-col border-0">
+				<SheetHeader className="mx-3 px-4 pt-4 pb-0 space-y-2">
 					<SheetTitle>{t("all_chats") || "All Chats"}</SheetTitle>
 					<SheetDescription className="sr-only">
 						{t("all_chats_description") || "Browse and manage all your chats"}
@@ -175,7 +175,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 							placeholder={t("search_chats") || "Search chats..."}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-9 pr-8 h-9"
+							className="pl-9 pr-8 h-9 border-0 focus-visible:ring-0 focus-visible:border-0 shadow-none"
 						/>
 						{searchQuery && (
 							<Button
@@ -193,7 +193,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 
 				{/* Tab toggle for active/archived (only show when not searching) */}
 				{!isSearchMode && (
-					<div className="flex border-b mx-3">
+					<div className="flex border-b mx-3 -mt-3">
 						<button
 							type="button"
 							onClick={() => setShowArchived(false)}

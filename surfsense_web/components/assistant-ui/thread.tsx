@@ -8,7 +8,6 @@ import {
 	ThreadPrimitive,
 	useAssistantState,
 	useMessage,
-	useThreadViewport,
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import {
@@ -69,6 +68,8 @@ import { cn } from "@/lib/utils";
  */
 interface ThreadProps {
 	messageThinkingSteps?: Map<string, ThinkingStep[]>;
+	/** Optional header component to render at the top of the viewport (sticky) */
+	header?: React.ReactNode;
 }
 
 // Context to pass thinking steps to AssistantMessage
@@ -212,71 +213,21 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 	);
 };
 
-/**
- * Component that handles auto-scroll when thinking steps update.
- * Uses useThreadViewport to scroll to bottom when thinking steps change,
- * ensuring the user always sees the latest content during streaming.
- */
-const ThinkingStepsScrollHandler: FC = () => {
-	const thinkingStepsMap = useContext(ThinkingStepsContext);
-	const viewport = useThreadViewport();
-	const isRunning = useAssistantState(({ thread }) => thread.isRunning);
-	// Track the serialized state to detect any changes
-	const prevStateRef = useRef<string>("");
-
-	useEffect(() => {
-		// Only act during streaming
-		if (!isRunning) {
-			prevStateRef.current = "";
-			return;
-		}
-
-		// Serialize the thinking steps state to detect any changes
-		// This catches new steps, status changes, and item additions
-		let stateString = "";
-		thinkingStepsMap.forEach((steps, msgId) => {
-			steps.forEach((step) => {
-				stateString += `${msgId}:${step.id}:${step.status}:${step.items?.length || 0};`;
-			});
-		});
-
-		// If state changed at all during streaming, scroll
-		if (stateString !== prevStateRef.current && stateString !== "") {
-			prevStateRef.current = stateString;
-
-			// Multiple attempts to ensure scroll happens after DOM updates
-			const scrollAttempt = () => {
-				try {
-					viewport.scrollToBottom();
-				} catch (e) {
-					// Ignore errors - viewport might not be ready
-				}
-			};
-
-			// Delayed attempts to handle async DOM updates
-			requestAnimationFrame(scrollAttempt);
-			setTimeout(scrollAttempt, 100);
-		}
-	}, [thinkingStepsMap, viewport, isRunning]);
-
-	return null; // This component doesn't render anything
-};
-
-export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
+export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), header }) => {
 	return (
 		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
 			<ThreadPrimitive.Root
-				className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
+				className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
 				style={{
 					["--thread-max-width" as string]: "44rem",
 				}}
 			>
 				<ThreadPrimitive.Viewport
 					turnAnchor="top"
-					className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+					className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
 				>
-					{/* Auto-scroll handler for thinking steps - must be inside Viewport */}
-					<ThinkingStepsScrollHandler />
+					{/* Optional sticky header for model selector etc. */}
+					{header && <div className="sticky top-0 z-10 mb-4">{header}</div>}
 
 					<AssistantIf condition={({ thread }) => thread.isEmpty}>
 						<ThreadWelcome />

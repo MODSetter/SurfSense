@@ -159,8 +159,8 @@ export function AllNotesSidebar({
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-80 p-0 flex flex-col">
-				<SheetHeader className="mx-3 px-4 py-4 border-b space-y-3">
+			<SheetContent side="left" className="w-80 p-0 flex flex-col border-0">
+				<SheetHeader className="mx-3 px-4 pt-4 pb-2 border-b space-y-2">
 					<SheetTitle>{t("all_notes") || "All Notes"}</SheetTitle>
 					<SheetDescription className="sr-only">
 						{t("all_notes_description") || "Browse and manage all your notes"}
@@ -174,7 +174,7 @@ export function AllNotesSidebar({
 							placeholder={t("search_notes") || "Search notes..."}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-9 pr-8 h-9"
+							className="pl-9 pr-8 h-9 border-0 focus-visible:ring-0 focus-visible:border-0 shadow-none"
 						/>
 						{searchQuery && (
 							<Button
