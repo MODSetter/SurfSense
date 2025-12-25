@@ -74,7 +74,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
-} from "@/components/new-chat/DocumentMentionPicker";
+} from "@/components/new-chat/document-mention-picker";
 import {
 	ChainOfThought,
 	ChainOfThoughtContent,
