@@ -1,14 +1,16 @@
 "use client";
 
-import { X } from "lucide-react";
 import {
 	forwardRef,
 	useCallback,
+	createElement,
 	useEffect,
 	useImperativeHandle,
 	useRef,
 	useState,
 } from "react";
+import { X } from "lucide-react";
+import ReactDOMServer from "react-dom/server";
 import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +67,6 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			() => new Map(initialDocuments.map((d) => [d.id, d]))
 		);
 		const isComposingRef = useRef(false);
-		const lastCaretPositionRef = useRef<{ node: Node; offset: number } | null>(null);
 
 		// Sync initial documents
 		useEffect(() => {
@@ -73,36 +74,6 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				setMentionedDocs(new Map(initialDocuments.map((d) => [d.id, d])));
 			}
 		}, [initialDocuments]);
-
-		// Save caret position before any operations that might lose it
-		const saveCaretPosition = useCallback(() => {
-			const selection = window.getSelection();
-			if (selection && selection.rangeCount > 0) {
-				const range = selection.getRangeAt(0);
-				lastCaretPositionRef.current = {
-					node: range.startContainer,
-					offset: range.startOffset,
-				};
-			}
-		}, []);
-
-		// Restore caret position
-		const restoreCaretPosition = useCallback(() => {
-			if (lastCaretPositionRef.current && editorRef.current) {
-				const { node, offset } = lastCaretPositionRef.current;
-				try {
-					const selection = window.getSelection();
-					const range = document.createRange();
-					range.setStart(node, offset);
-					range.collapse(true);
-					selection?.removeAllRanges();
-					selection?.addRange(range);
-				} catch {
-					// Node might not exist anymore, focus at end
-					focusAtEnd();
-				}
-			}
-		}, []);
 
 		// Focus at the end of the editor
 		const focusAtEnd = useCallback(() => {
@@ -139,11 +110,12 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				}
 			);
 
-			let node: Node | null;
-			while ((node = walker.nextNode())) {
+			let node: Node | null = walker.nextNode();
+			while (node) {
 				if (node.nodeType === Node.TEXT_NODE) {
 					text += node.textContent;
 				}
+				node = walker.nextNode();
 			}
 
 			return text.trim();
@@ -161,7 +133,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			chip.setAttribute(CHIP_ID_ATTR, String(doc.id));
 			chip.contentEditable = "false";
 			chip.className =
-				"inline-flex items-center gap-0.5 mx-0.5 px-1 rounded bg-primary/10 text-xs font-medium text-primary border border-primary/20 select-none";
+				"inline-flex items-center gap-0.5 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary border border-primary/10 select-none";
 			chip.style.userSelect = "none";
 			chip.style.verticalAlign = "baseline";
 
@@ -174,7 +146,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			removeBtn.type = "button";
 			removeBtn.className =
 				"size-3 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors ml-0.5";
-			removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+			removeBtn.innerHTML = ReactDOMServer.renderToString(
+				createElement(X, { className: "h-2.5 w-2.5", strokeWidth: 2.5 })
+			);
 			removeBtn.onclick = (e) => {
 				e.preventDefault();
 				e.stopPropagation();
@@ -248,8 +222,8 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 						// Replace text node content
 						const parent = textNode.parentNode;
 						if (parent) {
-							const beforeNode = document.createTextNode(beforeAt);
-							const afterNode = document.createTextNode(" " + afterCursor);
+						const beforeNode = document.createTextNode(beforeAt);
+						const afterNode = document.createTextNode(` ${afterCursor}`);
 
 							parent.insertBefore(beforeNode, textNode);
 							parent.insertBefore(chip, textNode);
@@ -325,6 +299,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 			// Check for @ mentions
 			const selection = window.getSelection();
+			let shouldTriggerMention = false;
+			let mentionQuery = "";
+
 			if (selection && selection.rangeCount > 0) {
 				const range = selection.getRangeAt(0);
 				const textNode = range.startContainer;
@@ -350,14 +327,24 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 						const query = textContent.slice(atIndex + 1, cursorPos);
 						// Only trigger if query doesn't start with space
 						if (!query.startsWith(" ")) {
-							onMentionTrigger?.(query);
-						} else {
-							onMentionClose?.();
+							shouldTriggerMention = true;
+							mentionQuery = query;
 						}
-					} else {
-						onMentionClose?.();
 					}
 				}
+			}
+
+			// If no @ found before cursor, check if text contains @ at all
+			// If text is empty or doesn't contain @, close the mention
+			if (!shouldTriggerMention) {
+				if (text.length === 0 || !text.includes("@")) {
+					onMentionClose?.();
+				} else {
+					// Text contains @ but not before cursor, close mention
+					onMentionClose?.();
+				}
+			} else {
+				onMentionTrigger?.(mentionQuery);
 			}
 
 			// Notify parent of change
@@ -404,6 +391,24 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 									});
 									// Notify parent that a document was removed
 									onDocumentRemove?.(chipId);
+									return;
+								}
+								// Check if we're about to delete @ at the start
+								const textContent = node.textContent || "";
+								if (textContent.length > 0 && textContent[0] === "@") {
+									// Will delete @, close mention popover
+									setTimeout(() => {
+										onMentionClose?.();
+									}, 0);
+								}
+							} else if (node.nodeType === Node.TEXT_NODE && offset > 0) {
+								// Check if we're about to delete @
+								const textContent = node.textContent || "";
+								if (textContent[offset - 1] === "@") {
+									// Will delete @, close mention popover
+									setTimeout(() => {
+										onMentionClose?.();
+									}, 0);
 								}
 							} else if (node.nodeType === Node.ELEMENT_NODE && offset > 0) {
 								// Check if previous child is a chip
@@ -425,7 +430,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					}
 				}
 			},
-			[onKeyDown, onSubmit, onDocumentRemove]
+			[onKeyDown, onSubmit, onDocumentRemove, onMentionClose]
 		);
 
 		// Handle paste - strip formatting
@@ -447,10 +452,12 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 		return (
 			<div className="relative w-full">
+				{/** biome-ignore lint/a11y/useSemanticElements: <not important> */}
 				<div
 					ref={editorRef}
 					contentEditable={!disabled}
 					suppressContentEditableWarning
+					tabIndex={disabled ? -1 : 0}
 					onInput={handleInput}
 					onKeyDown={handleKeyDown}
 					onPaste={handlePaste}

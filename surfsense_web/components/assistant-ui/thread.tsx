@@ -421,6 +421,29 @@ const Composer: FC = () => {
 	const { search_space_id } = useParams();
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const composerRuntime = useComposerRuntime();
+	const hasAutoFocusedRef = useRef(false);
+
+	// Check if thread is empty (new chat)
+	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
+
+	// Auto-focus editor when on new chat page
+	useEffect(() => {
+		if (isThreadEmpty && !hasAutoFocusedRef.current && editorRef.current) {
+			// Small delay to ensure the editor is fully mounted
+			const timeoutId = setTimeout(() => {
+				editorRef.current?.focus();
+				hasAutoFocusedRef.current = true;
+			}, 100);
+			return () => clearTimeout(timeoutId);
+		}
+	}, [isThreadEmpty]);
+
+	// Reset auto-focus flag when thread becomes non-empty (user sent a message)
+	useEffect(() => {
+		if (!isThreadEmpty) {
+			hasAutoFocusedRef.current = false;
+		}
+	}, [isThreadEmpty]);
 
 	// Sync mentioned document IDs to atom for use in chat request
 	useEffect(() => {
