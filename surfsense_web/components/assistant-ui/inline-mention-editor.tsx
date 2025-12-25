@@ -45,6 +45,27 @@ interface InlineMentionEditorProps {
 const CHIP_DATA_ATTR = "data-mention-chip";
 const CHIP_ID_ATTR = "data-mention-id";
 
+/**
+ * Type guard to check if a node is a chip element
+ */
+function isChipElement(node: Node | null): node is HTMLSpanElement {
+	return (
+		node !== null &&
+		node.nodeType === Node.ELEMENT_NODE &&
+		(node as Element).hasAttribute(CHIP_DATA_ATTR)
+	);
+}
+
+/**
+ * Safely parse chip ID from element attribute
+ */
+function getChipId(element: Element): number | null {
+	const idStr = element.getAttribute(CHIP_ID_ATTR);
+	if (!idStr) return null;
+	const id = parseInt(idStr, 10);
+	return Number.isNaN(id) ? null : id;
+}
+
 export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMentionEditorProps>(
 	(
 		{
@@ -176,6 +197,12 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		const insertDocumentChip = useCallback(
 			(doc: Document) => {
 				if (!editorRef.current) return;
+
+				// Validate required fields for type safety
+				if (typeof doc.id !== "number" || typeof doc.title !== "string") {
+					console.warn("[InlineMentionEditor] Invalid document passed to insertDocumentChip:", doc);
+					return;
+				}
 
 				const mentionDoc: MentionedDocument = {
 					id: doc.id,
@@ -381,19 +408,21 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 							const offset = range.startOffset;
 
 							if (node.nodeType === Node.TEXT_NODE && offset === 0) {
-								// Check previous sibling
+								// Check previous sibling using type guard
 								const prevSibling = node.previousSibling;
-								if (prevSibling && (prevSibling as Element).hasAttribute?.(CHIP_DATA_ATTR)) {
+								if (isChipElement(prevSibling)) {
 									e.preventDefault();
-									const chipId = Number((prevSibling as Element).getAttribute(CHIP_ID_ATTR));
-									prevSibling.parentNode?.removeChild(prevSibling);
-									setMentionedDocs((prev) => {
-										const next = new Map(prev);
-										next.delete(chipId);
-										return next;
-									});
-									// Notify parent that a document was removed
-									onDocumentRemove?.(chipId);
+									const chipId = getChipId(prevSibling);
+									if (chipId !== null) {
+										prevSibling.remove();
+										setMentionedDocs((prev) => {
+											const next = new Map(prev);
+											next.delete(chipId);
+											return next;
+										});
+										// Notify parent that a document was removed
+										onDocumentRemove?.(chipId);
+									}
 									return;
 								}
 								// Check if we're about to delete @ at the start
@@ -414,19 +443,21 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 									}, 0);
 								}
 							} else if (node.nodeType === Node.ELEMENT_NODE && offset > 0) {
-								// Check if previous child is a chip
+								// Check if previous child is a chip using type guard
 								const prevChild = (node as Element).childNodes[offset - 1];
-								if (prevChild && (prevChild as Element).hasAttribute?.(CHIP_DATA_ATTR)) {
+								if (isChipElement(prevChild)) {
 									e.preventDefault();
-									const chipId = Number((prevChild as Element).getAttribute(CHIP_ID_ATTR));
-									prevChild.parentNode?.removeChild(prevChild);
-									setMentionedDocs((prev) => {
-										const next = new Map(prev);
-										next.delete(chipId);
-										return next;
-									});
-									// Notify parent that a document was removed
-									onDocumentRemove?.(chipId);
+									const chipId = getChipId(prevChild);
+									if (chipId !== null) {
+										prevChild.remove();
+										setMentionedDocs((prev) => {
+											const next = new Map(prev);
+											next.delete(chipId);
+											return next;
+										});
+										// Notify parent that a document was removed
+										onDocumentRemove?.(chipId);
+									}
 								}
 							}
 						}

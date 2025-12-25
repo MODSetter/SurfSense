@@ -72,9 +72,9 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
-	DocumentsDataTable,
-	type DocumentsDataTableRef,
-} from "@/components/new-chat/DocumentsDataTable";
+	DocumentMentionPicker,
+	type DocumentMentionPickerRef,
+} from "@/components/new-chat/DocumentMentionPicker";
 import {
 	ChainOfThought,
 	ChainOfThoughtContent,
@@ -404,7 +404,7 @@ const Composer: FC = () => {
 	const [mentionQuery, setMentionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
-	const documentPickerRef = useRef<DocumentsDataTableRef>(null);
+	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id } = useParams();
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const composerRuntime = useComposerRuntime();
@@ -598,7 +598,7 @@ const Composer: FC = () => {
 										: "50%",
 								}}
 							>
-								<DocumentsDataTable
+								<DocumentMentionPicker
 									ref={documentPickerRef}
 									searchSpaceId={Number(search_space_id)}
 									onSelectionChange={handleDocumentsMention}

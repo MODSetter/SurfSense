@@ -172,63 +172,63 @@ async def fetch_with_chromium(url: str) -> dict[str, Any] | None:
     """
     Fetch page content using headless Chromium browser.
     Used as a fallback when simple HTTP requests are blocked (403, etc.).
-    
+
     Args:
         url: URL to fetch
-        
+
     Returns:
         Dict with title, description, image, and raw_html, or None if failed
     """
     try:
         logger.info(f"[link_preview] Falling back to Chromium for {url}")
-        
+
         # Generate a realistic User-Agent to avoid bot detection
         ua = UserAgent()
         user_agent = ua.random
-        
+
         # Use AsyncChromiumLoader to fetch the page
         crawl_loader = AsyncChromiumLoader(
             urls=[url], headless=True, user_agent=user_agent
         )
         documents = await crawl_loader.aload()
-        
+
         if not documents:
             logger.warning(f"[link_preview] Chromium returned no documents for {url}")
             return None
-        
+
         doc = documents[0]
         raw_html = doc.page_content
-        
+
         if not raw_html or len(raw_html.strip()) == 0:
             logger.warning(f"[link_preview] Chromium returned empty content for {url}")
             return None
-        
+
         # Extract metadata using Trafilatura
         trafilatura_metadata = trafilatura.extract_metadata(raw_html)
-        
+
         # Extract OG image from raw HTML (trafilatura doesn't extract this)
         image = extract_image(raw_html)
-        
+
         result = {
             "title": None,
             "description": None,
             "image": image,
             "raw_html": raw_html,
         }
-        
+
         if trafilatura_metadata:
             result["title"] = trafilatura_metadata.title
             result["description"] = trafilatura_metadata.description
-        
+
         # If trafilatura didn't get the title/description, try OG tags
         if not result["title"]:
             result["title"] = extract_title(raw_html)
         if not result["description"]:
             result["description"] = extract_description(raw_html)
-        
+
         logger.info(f"[link_preview] Successfully fetched {url} via Chromium")
         return result
-        
+
     except Exception as e:
         logger.error(f"[link_preview] Chromium fallback failed for {url}: {e}")
         return None
@@ -346,13 +346,15 @@ def create_link_preview_tool():
 
         except httpx.TimeoutException:
             # Timeout - try Chromium fallback
-            logger.warning(f"[link_preview] Timeout for {url}, trying Chromium fallback")
+            logger.warning(
+                f"[link_preview] Timeout for {url}, trying Chromium fallback"
+            )
             chromium_result = await fetch_with_chromium(url)
             if chromium_result:
                 title = chromium_result.get("title") or domain
                 description = chromium_result.get("description")
                 image = chromium_result.get("image")
-                
+
                 # Clean up and truncate
                 if title:
                     title = _unescape_html(title)
@@ -360,11 +362,11 @@ def create_link_preview_tool():
                     description = _unescape_html(description)
                     if len(description) > 200:
                         description = description[:197] + "..."
-                
+
                 # Make sure image URL is absolute
                 if image:
                     image = _make_absolute_url(image, url)
-                
+
                 return {
                     "id": preview_id,
                     "assetId": url,
@@ -375,7 +377,7 @@ def create_link_preview_tool():
                     "thumb": image,
                     "domain": domain,
                 }
-            
+
             return {
                 "id": preview_id,
                 "assetId": url,
@@ -387,7 +389,7 @@ def create_link_preview_tool():
             }
         except httpx.HTTPStatusError as e:
             status_code = e.response.status_code
-            
+
             # For 403 (Forbidden) and similar bot-detection errors, try Chromium fallback
             if status_code in (403, 401, 406, 429):
                 logger.warning(
@@ -398,7 +400,7 @@ def create_link_preview_tool():
                     title = chromium_result.get("title") or domain
                     description = chromium_result.get("description")
                     image = chromium_result.get("image")
-                    
+
                     # Clean up and truncate
                     if title:
                         title = _unescape_html(title)
@@ -406,11 +408,11 @@ def create_link_preview_tool():
                         description = _unescape_html(description)
                         if len(description) > 200:
                             description = description[:197] + "..."
-                    
+
                     # Make sure image URL is absolute
                     if image:
                         image = _make_absolute_url(image, url)
-                    
+
                     return {
                         "id": preview_id,
                         "assetId": url,
@@ -421,7 +423,7 @@ def create_link_preview_tool():
                         "thumb": image,
                         "domain": domain,
                     }
-            
+
             return {
                 "id": preview_id,
                 "assetId": url,
