@@ -10,6 +10,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
@@ -55,20 +56,33 @@ function extractThinkingSteps(content: unknown): ThinkingStep[] {
 }
 
 /**
- * Extract mentioned documents from message content
+ * Zod schema for mentioned document info (for type-safe parsing)
+ */
+const MentionedDocumentInfoSchema = z.object({
+	id: z.number(),
+	title: z.string(),
+	document_type: z.string(),
+});
+
+const MentionedDocumentsPartSchema = z.object({
+	type: z.literal("mentioned-documents"),
+	documents: z.array(MentionedDocumentInfoSchema),
+});
+
+/**
+ * Extract mentioned documents from message content (type-safe with Zod)
  */
 function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 	if (!Array.isArray(content)) return [];
 
-	const docsPart = content.find(
-		(part: unknown) =>
-			typeof part === "object" &&
-			part !== null &&
-			"type" in part &&
-			(part as { type: string }).type === "mentioned-documents"
-	) as { type: "mentioned-documents"; documents: MentionedDocumentInfo[] } | undefined;
+	for (const part of content) {
+		const result = MentionedDocumentsPartSchema.safeParse(part);
+		if (result.success) {
+			return result.data.documents;
+		}
+	}
 
-	return docsPart?.documents || [];
+	return [];
 }
 
 /**

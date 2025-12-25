@@ -24,7 +24,7 @@ const SerializableImageSchema = z.object({
 	id: z.string(),
 	assetId: z.string(),
 	src: z.string(),
-	alt: z.string().nullish(),  // Made optional - will use fallback if missing
+	alt: z.string().nullish(), // Made optional - will use fallback if missing
 	title: z.string().nullish(),
 	description: z.string().nullish(),
 	href: z.string().nullish(),
@@ -48,7 +48,7 @@ export interface ImageProps {
 	id: string;
 	assetId: string;
 	src: string;
-	alt?: string;  // Optional with default fallback
+	alt?: string; // Optional with default fallback
 	title?: string;
 	description?: string;
 	href?: string;
@@ -69,10 +69,10 @@ export function parseSerializableImage(result: unknown): SerializableImage & { a
 
 	if (!parsed.success) {
 		console.warn("Invalid image data:", parsed.error.issues);
-		
+
 		// Try to extract basic info and return a fallback object
 		const obj = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
-		
+
 		// If we have at least id, assetId, and src, we can still render the image
 		if (
 			typeof obj.id === "string" &&
@@ -92,7 +92,7 @@ export function parseSerializableImage(result: unknown): SerializableImage & { a
 				source: undefined,
 			};
 		}
-		
+
 		throw new Error(`Invalid image: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
 	}
 
