@@ -188,19 +188,6 @@ export function Audio({ id, src, title, description, artwork, durationMs, classN
 								<Volume2Icon className="size-8 text-primary/50" />
 							</div>
 						)}
-						{/* Play overlay on artwork */}
-						<button
-							type="button"
-							onClick={togglePlayPause}
-							className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100"
-							aria-label={isPlaying ? "Pause" : "Play"}
-						>
-							{isPlaying ? (
-								<PauseIcon className="size-8 text-white drop-shadow-lg" />
-							) : (
-								<PlayIcon className="size-8 text-white drop-shadow-lg" />
-							)}
-						</button>
 					</div>
 				</div>
 
@@ -254,17 +241,29 @@ export function Audio({ id, src, title, description, artwork, durationMs, classN
 					</Button>
 
 					{/* Volume control */}
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-1.5">
 						<Button variant="ghost" size="icon" onClick={toggleMute} className="size-8">
 							{isMuted ? <VolumeXIcon className="size-4" /> : <Volume2Icon className="size-4" />}
 						</Button>
-						<Slider
-							value={[isMuted ? 0 : volume]}
-							max={1}
-							step={0.01}
-							onValueChange={handleVolumeChange}
-							className="w-20"
-						/>
+						{/* Custom volume bar - visually distinct from progress slider */}
+						<div className="relative flex h-6 w-16 items-center">
+							<div className="relative h-1 w-full rounded-full bg-muted-foreground/20">
+								<div
+									className="absolute left-0 top-0 h-full rounded-full bg-muted-foreground/60 transition-all"
+									style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
+								/>
+							</div>
+							<input
+								type="range"
+								min={0}
+								max={1}
+								step={0.01}
+								value={isMuted ? 0 : volume}
+								onChange={(e) => handleVolumeChange([Number.parseFloat(e.target.value)])}
+								className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+								aria-label="Volume"
+							/>
+						</div>
 					</div>
 				</div>
 

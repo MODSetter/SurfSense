@@ -7,9 +7,10 @@ import {
 	useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
@@ -55,20 +56,33 @@ function extractThinkingSteps(content: unknown): ThinkingStep[] {
 }
 
 /**
- * Extract mentioned documents from message content
+ * Zod schema for mentioned document info (for type-safe parsing)
+ */
+const MentionedDocumentInfoSchema = z.object({
+	id: z.number(),
+	title: z.string(),
+	document_type: z.string(),
+});
+
+const MentionedDocumentsPartSchema = z.object({
+	type: z.literal("mentioned-documents"),
+	documents: z.array(MentionedDocumentInfoSchema),
+});
+
+/**
+ * Extract mentioned documents from message content (type-safe with Zod)
  */
 function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 	if (!Array.isArray(content)) return [];
 
-	const docsPart = content.find(
-		(part: unknown) =>
-			typeof part === "object" &&
-			part !== null &&
-			"type" in part &&
-			(part as { type: string }).type === "mentioned-documents"
-	) as { type: "mentioned-documents"; documents: MentionedDocumentInfo[] } | undefined;
+	for (const part of content) {
+		const result = MentionedDocumentsPartSchema.safeParse(part);
+		if (result.success) {
+			return result.data.documents;
+		}
+	}
 
-	return docsPart?.documents || [];
+	return [];
 }
 
 /**
@@ -126,7 +140,6 @@ interface ThinkingStepData {
 
 export default function NewChatPage() {
 	const params = useParams();
-	const router = useRouter();
 	const [isInitializing, setIsInitializing] = useState(true);
 	const [threadId, setThreadId] = useState<number | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
@@ -168,8 +181,17 @@ export default function NewChatPage() {
 	}, [params.chat_id]);
 
 	// Initialize thread and load messages
+	// For new chats (no urlChatId), we use lazy creation - thread is created on first message
 	const initializeThread = useCallback(async () => {
 		setIsInitializing(true);
+
+		// Reset all state when switching between chats to prevent stale data
+		setMessages([]);
+		setThreadId(null);
+		setMessageThinkingSteps(new Map());
+		setMentionedDocumentIds([]);
+		setMentionedDocuments([]);
+		setMessageDocumentsMap({});
 
 		try {
 			if (urlChatId > 0) {
@@ -206,22 +228,20 @@ export default function NewChatPage() {
 						setMessageDocumentsMap(restoredDocsMap);
 					}
 				}
-			} else {
-				// Create new thread
-				const newThread = await createThread(searchSpaceId, "New Chat");
-				setThreadId(newThread.id);
-				router.replace(`/dashboard/${searchSpaceId}/new-chat/${newThread.id}`);
 			}
+			// For new chats (urlChatId === 0), don't create thread yet
+			// Thread will be created lazily when user sends first message
+			// This improves UX (instant load) and avoids orphan threads
 		} catch (error) {
 			console.error("[NewChatPage] Failed to initialize thread:", error);
 			// Keep threadId as null - don't use Date.now() as it creates an invalid ID
 			// that will cause 404 errors on subsequent API calls
 			setThreadId(null);
-			toast.error("Failed to initialize chat. Please try again.");
+			toast.error("Failed to load chat. Please try again.");
 		} finally {
 			setIsInitializing(false);
 		}
-	}, [urlChatId, searchSpaceId, router, setMessageDocumentsMap]);
+	}, [urlChatId, setMessageDocumentsMap, setMentionedDocumentIds, setMentionedDocuments]);
 
 	// Initialize on mount
 	useEffect(() => {
@@ -240,7 +260,12 @@ export default function NewChatPage() {
 	// Handle new message from user
 	const onNew = useCallback(
 		async (message: AppendMessage) => {
-			if (!threadId) return;
+			// Abort any previous streaming request to prevent race conditions
+			// when user sends a second query while the first is still streaming
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+				abortControllerRef.current = null;
+			}
 
 			// Extract user query text from content parts
 			let userQuery = "";
@@ -273,6 +298,27 @@ export default function NewChatPage() {
 				return;
 			}
 
+			// Lazy thread creation: create thread on first message if it doesn't exist
+			let currentThreadId = threadId;
+			if (!currentThreadId) {
+				try {
+					const newThread = await createThread(searchSpaceId, "New Chat");
+					currentThreadId = newThread.id;
+					setThreadId(currentThreadId);
+					// Update URL silently using browser API (not router.replace) to avoid
+					// interrupting the ongoing fetch/streaming with React navigation
+					window.history.replaceState(
+						null,
+						"",
+						`/dashboard/${searchSpaceId}/new-chat/${currentThreadId}`
+					);
+				} catch (error) {
+					console.error("[NewChatPage] Failed to create thread:", error);
+					toast.error("Failed to start chat. Please try again.");
+					return;
+				}
+			}
+
 			// Add user message to state
 			const userMsgId = `msg-user-${Date.now()}`;
 			const userMessage: ThreadMessageLike = {
@@ -280,6 +326,8 @@ export default function NewChatPage() {
 				role: "user",
 				content: message.content,
 				createdAt: new Date(),
+				// Include attachments so they can be displayed
+				attachments: message.attachments || [],
 			};
 			setMessages((prev) => [...prev, userMessage]);
 
@@ -311,7 +359,7 @@ export default function NewChatPage() {
 							},
 						]
 					: message.content;
-			appendMessage(threadId, {
+			appendMessage(currentThreadId, {
 				role: "user",
 				content: persistContent,
 			}).catch((err) => console.error("Failed to persist user message:", err));
@@ -468,7 +516,7 @@ export default function NewChatPage() {
 						Authorization: `Bearer ${token}`,
 					},
 					body: JSON.stringify({
-						chat_id: threadId,
+						chat_id: currentThreadId,
 						user_query: userQuery.trim(),
 						search_space_id: searchSpaceId,
 						messages: messageHistory,
@@ -601,7 +649,7 @@ export default function NewChatPage() {
 				// Persist assistant message (with thinking steps for restoration on refresh)
 				const finalContent = buildContentForPersistence();
 				if (contentParts.length > 0) {
-					appendMessage(threadId, {
+					appendMessage(currentThreadId, {
 						role: "assistant",
 						content: finalContent,
 					}).catch((err) => console.error("Failed to persist assistant message:", err));
@@ -678,7 +726,7 @@ export default function NewChatPage() {
 		},
 	});
 
-	// Show loading state
+	// Show loading state only when loading an existing thread
 	if (isInitializing) {
 		return (
 			<div className="flex h-[calc(100vh-64px)] items-center justify-center">
@@ -687,11 +735,12 @@ export default function NewChatPage() {
 		);
 	}
 
-	// Show error state if thread initialization failed
-	if (!threadId) {
+	// Show error state only if we tried to load an existing thread but failed
+	// For new chats (urlChatId === 0), threadId being null is expected (lazy creation)
+	if (!threadId && urlChatId > 0) {
 		return (
 			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
-				<div className="text-destructive">Failed to initialize chat</div>
+				<div className="text-destructive">Failed to load chat</div>
 				<button
 					type="button"
 					onClick={() => {

@@ -23,7 +23,7 @@ interface DisplayImageResult {
 	id: string;
 	assetId: string;
 	src: string;
-	alt: string;
+	alt?: string; // Made optional - parseSerializableImage provides fallback
 	title?: string;
 	description?: string;
 	domain?: string;

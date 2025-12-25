@@ -7,7 +7,7 @@ import {
 	MessagePrimitive,
 	ThreadPrimitive,
 	useAssistantState,
-	useMessage,
+	useComposerRuntime,
 	useThreadViewport,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -31,7 +31,6 @@ import {
 	Search,
 	Sparkles,
 	SquareIcon,
-	X,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -65,13 +64,17 @@ import {
 	ComposerAttachments,
 	UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
+import {
+	InlineMentionEditor,
+	type InlineMentionEditorRef,
+} from "@/components/assistant-ui/inline-mention-editor";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
-	DocumentsDataTable,
-	type DocumentsDataTableRef,
-} from "@/components/new-chat/DocumentsDataTable";
+	DocumentMentionPicker,
+	type DocumentMentionPickerRef,
+} from "@/components/new-chat/document-mention-picker";
 import {
 	ChainOfThought,
 	ChainOfThoughtContent,
@@ -144,15 +147,6 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 		return step.status;
 	};
 
-	// Check if any step is effectively in progress
-	const hasInProgressStep = steps.some((step) => getEffectiveStatus(step) === "in_progress");
-
-	// Find the last completed step index (using effective status)
-	const lastCompletedIndex = steps
-		.map((s, i) => (getEffectiveStatus(s) === "completed" ? i : -1))
-		.filter((i) => i !== -1)
-		.pop();
-
 	// Clear manual overrides when a step's status changes
 	useEffect(() => {
 		const currentStatuses: Record<string, string> = {};
@@ -172,7 +166,7 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 
 	if (steps.length === 0) return null;
 
-	const getStepOpenState = (step: ThinkingStep, index: number): boolean => {
+	const getStepOpenState = (step: ThinkingStep): boolean => {
 		const effectiveStatus = getEffectiveStatus(step);
 		// If user has manually toggled, respect that
 		if (manualOverrides[step.id] !== undefined) {
@@ -182,11 +176,7 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 		if (effectiveStatus === "in_progress") {
 			return true;
 		}
-		// Auto behavior: keep last completed step open if no in-progress step
-		if (!hasInProgressStep && index === lastCompletedIndex) {
-			return true;
-		}
-		// Default: collapsed
+		// Default: collapsed (all steps collapse when processing is done)
 		return false;
 	};
 
@@ -200,10 +190,10 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 	return (
 		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
 			<ChainOfThought>
-				{steps.map((step, index) => {
+				{steps.map((step) => {
 					const effectiveStatus = getEffectiveStatus(step);
 					const icon = getStepIcon(effectiveStatus, step.title);
-					const isOpen = getStepOpenState(step, index);
+					const isOpen = getStepOpenState(step);
 					return (
 						<ChainOfThoughtStep
 							key={step.id}
@@ -240,7 +230,7 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
  * Uses useThreadViewport to scroll to bottom when thinking steps change,
  * ensuring the user always sees the latest content during streaming.
  */
-const ThinkingStepsScrollHandler: FC = () => {
+const _ThinkingStepsScrollHandler: FC = () => {
 	const thinkingStepsMap = useContext(ThinkingStepsContext);
 	const viewport = useThreadViewport();
 	const isRunning = useAssistantState(({ thread }) => thread.isRunning);
@@ -351,7 +341,7 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 		: null;
 
 	// Array of greeting variations for each time period
-	const morningGreetings = ["Good morning", "Rise and shine", "Morning", "Hey there"];
+	const morningGreetings = ["Good morning", "Fresh start today", "Morning", "Hey there"];
 
 	const afternoonGreetings = ["Good afternoon", "Afternoon", "Hey there", "Hi there"];
 
@@ -359,7 +349,7 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 
 	const nightGreetings = ["Good night", "Evening", "Hey there", "Winding down"];
 
-	const lateNightGreetings = ["Still up", "Night owl mode", "The night is young", "Hi there"];
+	const lateNightGreetings = ["Still up", "Night owl mode", "Up past bedtime", "Hi there"];
 
 	// Select a random greeting based on time
 	let greeting: string;
@@ -412,177 +402,173 @@ const Composer: FC = () => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
-	const inputRef = useRef<HTMLTextAreaElement | null>(null);
-	const documentPickerRef = useRef<DocumentsDataTableRef>(null);
+	const editorRef = useRef<InlineMentionEditorRef>(null);
+	const editorContainerRef = useRef<HTMLDivElement>(null);
+	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id } = useParams();
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
+	const composerRuntime = useComposerRuntime();
+	const hasAutoFocusedRef = useRef(false);
+
+	// Check if thread is empty (new chat)
+	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
+
+	// Check if thread is currently running (streaming response)
+	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+
+	// Auto-focus editor when on new chat page
+	useEffect(() => {
+		if (isThreadEmpty && !hasAutoFocusedRef.current && editorRef.current) {
+			// Small delay to ensure the editor is fully mounted
+			const timeoutId = setTimeout(() => {
+				editorRef.current?.focus();
+				hasAutoFocusedRef.current = true;
+			}, 100);
+			return () => clearTimeout(timeoutId);
+		}
+	}, [isThreadEmpty]);
+
+	// Reset auto-focus flag when thread becomes non-empty (user sent a message)
+	useEffect(() => {
+		if (!isThreadEmpty) {
+			hasAutoFocusedRef.current = false;
+		}
+	}, [isThreadEmpty]);
 
 	// Sync mentioned document IDs to atom for use in chat request
 	useEffect(() => {
 		setMentionedDocumentIds(mentionedDocuments.map((doc) => doc.id));
 	}, [mentionedDocuments, setMentionedDocumentIds]);
 
-	// Extract mention query (text after @)
-	const extractMentionQuery = useCallback((value: string): string => {
-		const atIndex = value.lastIndexOf("@");
-		if (atIndex === -1) return "";
-		return value.slice(atIndex + 1);
+	// Handle text change from inline editor - sync with assistant-ui composer
+	const handleEditorChange = useCallback(
+		(text: string) => {
+			composerRuntime.setText(text);
+		},
+		[composerRuntime]
+	);
+
+	// Handle @ mention trigger from inline editor
+	const handleMentionTrigger = useCallback((query: string) => {
+		setShowDocumentPopover(true);
+		setMentionQuery(query);
 	}, []);
 
-	const handleKeyUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		const textarea = e.currentTarget;
-		const value = textarea.value;
-
-		// Open document picker when user types '@'
-		if (e.key === "@" || (e.key === "2" && e.shiftKey)) {
-			setShowDocumentPopover(true);
-			setMentionQuery("");
-			return;
-		}
-
-		// Check if value contains @ and extract query
-		if (value.includes("@")) {
-			const query = extractMentionQuery(value);
-
-			// Close popup if query starts with space (user typed "@ ")
-			if (query.startsWith(" ")) {
-				setShowDocumentPopover(false);
-				setMentionQuery("");
-				return;
-			}
-
-			// Reopen popup if @ is present and query doesn't start with space
-			// (handles case where user deleted the space after @)
-			if (!showDocumentPopover) {
-				setShowDocumentPopover(true);
-			}
-			setMentionQuery(query);
-		} else {
-			// Close popover if '@' is no longer in the input (user deleted it)
-			if (showDocumentPopover) {
-				setShowDocumentPopover(false);
-				setMentionQuery("");
-			}
-		}
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-		// When popup is open, handle navigation keys
+	// Handle mention close
+	const handleMentionClose = useCallback(() => {
 		if (showDocumentPopover) {
-			if (e.key === "ArrowDown") {
-				e.preventDefault();
-				documentPickerRef.current?.moveDown();
-				return;
-			}
-			if (e.key === "ArrowUp") {
-				e.preventDefault();
-				documentPickerRef.current?.moveUp();
-				return;
-			}
-			if (e.key === "Enter") {
-				e.preventDefault();
-				documentPickerRef.current?.selectHighlighted();
-				return;
-			}
-			if (e.key === "Escape") {
-				e.preventDefault();
-				setShowDocumentPopover(false);
-				setMentionQuery("");
-				return;
-			}
+			setShowDocumentPopover(false);
+			setMentionQuery("");
 		}
+	}, [showDocumentPopover]);
 
-		// Remove last document chip when pressing backspace at the beginning of input
-		if (e.key === "Backspace" && mentionedDocuments.length > 0) {
-			const textarea = e.currentTarget;
-			const selectionStart = textarea.selectionStart;
-			const selectionEnd = textarea.selectionEnd;
-
-			// Only remove chip if cursor is at position 0 and nothing is selected
-			if (selectionStart === 0 && selectionEnd === 0) {
-				e.preventDefault();
-				// Remove the last document chip
-				setMentionedDocuments((prev) => prev.slice(0, -1));
-			}
-		}
-	};
-
-	const handleDocumentsMention = (documents: Document[]) => {
-		// Update mentioned documents (merge with existing, avoid duplicates)
-		setMentionedDocuments((prev) => {
-			const existingIds = new Set(prev.map((d) => d.id));
-			const newDocs = documents.filter((doc) => !existingIds.has(doc.id));
-			return [...prev, ...newDocs];
-		});
-
-		// Clean up the '@...' mention text from input
-		if (inputRef.current) {
-			const input = inputRef.current;
-			const currentValue = input.value;
-			const atIndex = currentValue.lastIndexOf("@");
-
-			if (atIndex !== -1) {
-				// Remove @ and everything after it
-				const newValue = currentValue.slice(0, atIndex);
-				const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-					window.HTMLTextAreaElement.prototype,
-					"value"
-				)?.set;
-				if (nativeInputValueSetter) {
-					nativeInputValueSetter.call(input, newValue);
-					input.dispatchEvent(new Event("input", { bubbles: true }));
+	// Handle keyboard navigation when popover is open
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (showDocumentPopover) {
+				if (e.key === "ArrowDown") {
+					e.preventDefault();
+					documentPickerRef.current?.moveDown();
+					return;
+				}
+				if (e.key === "ArrowUp") {
+					e.preventDefault();
+					documentPickerRef.current?.moveUp();
+					return;
+				}
+				if (e.key === "Enter") {
+					e.preventDefault();
+					documentPickerRef.current?.selectHighlighted();
+					return;
+				}
+				if (e.key === "Escape") {
+					e.preventDefault();
+					setShowDocumentPopover(false);
+					setMentionQuery("");
+					return;
 				}
 			}
-			// Focus the input so user can continue typing
-			input.focus();
+		},
+		[showDocumentPopover]
+	);
+
+	// Handle submit from inline editor (Enter key)
+	const handleSubmit = useCallback(() => {
+		// Prevent sending while a response is still streaming
+		if (isThreadRunning) {
+			return;
 		}
+		if (!showDocumentPopover) {
+			composerRuntime.send();
+			// Clear the editor after sending
+			editorRef.current?.clear();
+			setMentionedDocuments([]);
+			setMentionedDocumentIds([]);
+		}
+	}, [
+		showDocumentPopover,
+		isThreadRunning,
+		composerRuntime,
+		setMentionedDocuments,
+		setMentionedDocumentIds,
+	]);
 
-		// Reset mention query
-		setMentionQuery("");
-	};
+	// Handle document removal from inline editor
+	const handleDocumentRemove = useCallback(
+		(docId: number) => {
+			setMentionedDocuments((prev) => {
+				const updated = prev.filter((doc) => doc.id !== docId);
+				// Immediately sync document IDs to avoid race conditions
+				setMentionedDocumentIds(updated.map((doc) => doc.id));
+				return updated;
+			});
+		},
+		[setMentionedDocuments, setMentionedDocumentIds]
+	);
 
-	const handleRemoveDocument = (docId: number) => {
-		setMentionedDocuments((prev) => prev.filter((doc) => doc.id !== docId));
-	};
+	// Handle document selection from picker
+	const handleDocumentsMention = useCallback(
+		(documents: Document[]) => {
+			// Insert chips into the inline editor for each new document
+			const existingIds = new Set(mentionedDocuments.map((d) => d.id));
+			const newDocs = documents.filter((doc) => !existingIds.has(doc.id));
+
+			for (const doc of newDocs) {
+				editorRef.current?.insertDocumentChip(doc);
+			}
+
+			// Update mentioned documents state
+			setMentionedDocuments((prev) => {
+				const existingIdSet = new Set(prev.map((d) => d.id));
+				const uniqueNewDocs = documents.filter((doc) => !existingIdSet.has(doc.id));
+				const updated = [...prev, ...uniqueNewDocs];
+				// Immediately sync document IDs to avoid race conditions
+				setMentionedDocumentIds(updated.map((doc) => doc.id));
+				return updated;
+			});
+
+			// Reset mention query but keep popover open for more selections
+			setMentionQuery("");
+		},
+		[mentionedDocuments, setMentionedDocuments, setMentionedDocumentIds]
+	);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
-				{/* -------- Input field with inline document chips -------- */}
-				<div className="aui-composer-input-wrapper flex flex-wrap items-center gap-1.5 px-3 pt-2 pb-6">
-					{/* Inline document chips */}
-					{mentionedDocuments.map((doc) => (
-						<span
-							key={doc.id}
-							className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20 shrink-0"
-							title={doc.title}
-						>
-							<span className="max-w-[120px] truncate">{doc.title}</span>
-							<button
-								type="button"
-								onClick={() => handleRemoveDocument(doc.id)}
-								className="size-4 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors"
-								aria-label={`Remove ${doc.title}`}
-							>
-								<X className="size-3" />
-							</button>
-						</span>
-					))}
-					{/* Text input */}
-					<ComposerPrimitive.Input
-						ref={inputRef}
-						onKeyUp={handleKeyUp}
+				{/* -------- Inline Mention Editor -------- */}
+				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
+					<InlineMentionEditor
+						ref={editorRef}
+						placeholder="Ask SurfSense (type @ to mention docs)"
+						onMentionTrigger={handleMentionTrigger}
+						onMentionClose={handleMentionClose}
+						onChange={handleEditorChange}
+						onDocumentRemove={handleDocumentRemove}
+						onSubmit={handleSubmit}
 						onKeyDown={handleKeyDown}
-						placeholder={
-							mentionedDocuments.length > 0
-								? "Ask about these documents..."
-								: "Ask SurfSense (type @ to mention docs)"
-						}
-						className="aui-composer-input flex-1 min-w-[120px] max-h-32 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0 py-1"
-						rows={1}
-						autoFocus
-						aria-label="Message input"
+						className="min-h-[24px]"
 					/>
 				</div>
 
@@ -601,19 +587,18 @@ const Composer: FC = () => {
 							/>
 							{/* Popover positioned above input */}
 							<div
-								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden"
+								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover"
 								style={{
 									zIndex: 9999,
-									backgroundColor: "#18181b",
-									bottom: inputRef.current
-										? `${window.innerHeight - inputRef.current.getBoundingClientRect().top + 8}px`
+									bottom: editorContainerRef.current
+										? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
 										: "200px",
-									left: inputRef.current
-										? `${inputRef.current.getBoundingClientRect().left}px`
+									left: editorContainerRef.current
+										? `${editorContainerRef.current.getBoundingClientRect().left}px`
 										: "50%",
 								}}
 							>
-								<DocumentsDataTable
+								<DocumentMentionPicker
 									ref={documentPickerRef}
 									searchSpaceId={Number(search_space_id)}
 									onSelectionChange={handleDocumentsMention}
@@ -987,19 +972,23 @@ const UserMessage: FC = () => {
 	const messageId = useAssistantState(({ message }) => message?.id);
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
+	const hasAttachments = useAssistantState(
+		({ message }) => message?.attachments && message.attachments.length > 0
+	);
 
 	return (
 		<MessagePrimitive.Root
 			className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
 			data-role="user"
 		>
-			<UserMessageAttachments />
-
-			<div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-				{/* Display mentioned documents as chips */}
-				{mentionedDocs && mentionedDocs.length > 0 && (
-					<div className="flex flex-wrap gap-1.5 mb-2 justify-end">
-						{mentionedDocs.map((doc) => (
+			<div className="aui-user-message-content-wrapper col-start-2 min-w-0">
+				{/* Display attachments and mentioned documents */}
+				{(hasAttachments || (mentionedDocs && mentionedDocs.length > 0)) && (
+					<div className="flex flex-wrap items-end gap-2 mb-2 justify-end">
+						{/* Attachments (images show as thumbnails, documents as chips) */}
+						<UserMessageAttachments />
+						{/* Mentioned documents as chips */}
+						{mentionedDocs?.map((doc) => (
 							<span
 								key={doc.id}
 								className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
@@ -1011,11 +1000,14 @@ const UserMessage: FC = () => {
 						))}
 					</div>
 				)}
-				<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
-					<MessagePrimitive.Parts />
-				</div>
-				<div className="aui-user-action-bar-wrapper -translate-x-full -translate-y-full absolute top-full left-0 pr-2">
-					<UserActionBar />
+				{/* Message bubble with action bar positioned relative to it */}
+				<div className="relative">
+					<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
+						<MessagePrimitive.Parts />
+					</div>
+					<div className="aui-user-action-bar-wrapper absolute top-1/2 right-full -translate-y-1/2 pr-1">
+						<UserActionBar />
+					</div>
 				</div>
 			</div>
 

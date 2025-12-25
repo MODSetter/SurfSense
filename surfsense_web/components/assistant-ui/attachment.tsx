@@ -41,13 +41,23 @@ const useAttachmentSrc = () => {
 	const { file, src } = useAssistantState(
 		useShallow(({ attachment }): { file?: File; src?: string } => {
 			if (!attachment || attachment.type !== "image") return {};
+
+			// First priority: use File object if available (for new uploads)
 			if (attachment.file) return { file: attachment.file };
-			// Only try to filter if content is an array (standard assistant-ui format)
-			// Our custom ChatAttachment has content as a string, so skip this
-			if (Array.isArray(attachment.content)) {
-				const src = attachment.content.filter((c) => c.type === "image")[0]?.image;
-				if (src) return { src };
+
+			// Second priority: use stored imageDataUrl (for persisted messages)
+			// This is stored in our custom ChatAttachment interface
+			const customAttachment = attachment as { imageDataUrl?: string };
+			if (customAttachment.imageDataUrl) {
+				return { src: customAttachment.imageDataUrl };
 			}
+
+			// Third priority: try to extract from content array (standard assistant-ui format)
+			if (Array.isArray(attachment.content)) {
+				const contentSrc = attachment.content.filter((c) => c.type === "image")[0]?.image;
+				if (contentSrc) return { src: contentSrc };
+			}
+
 			return {};
 		})
 	);
@@ -218,12 +228,76 @@ const AttachmentRemove: FC = () => {
 	);
 };
 
-export const UserMessageAttachments: FC = () => {
+/**
+ * Image attachment with preview thumbnail (click to expand)
+ */
+const MessageImageAttachment: FC = () => {
+	const attachmentName = useAssistantState(({ attachment }) => attachment?.name || "Image");
+	const src = useAttachmentSrc();
+
+	if (!src) return null;
+
 	return (
-		<div className="aui-user-message-attachments-end col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2">
-			<MessagePrimitive.Attachments components={{ Attachment: AttachmentUI }} />
-		</div>
+		<AttachmentPreviewDialog>
+			<div
+				className="relative group cursor-pointer overflow-hidden rounded-xl border border-border/50 bg-muted transition-all hover:border-primary/30 hover:shadow-md"
+				title={`Click to expand: ${attachmentName}`}
+			>
+				<Image
+					src={src}
+					alt={attachmentName}
+					width={120}
+					height={90}
+					className="object-cover w-[120px] h-[90px] transition-transform group-hover:scale-105"
+				/>
+				{/* Hover overlay with filename */}
+				<div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+					<div className="absolute bottom-1.5 left-1.5 right-1.5">
+						<span className="text-[10px] text-white/90 font-medium truncate block">
+							{attachmentName}
+						</span>
+					</div>
+				</div>
+			</div>
+		</AttachmentPreviewDialog>
 	);
+};
+
+/**
+ * Document/file attachment as chip (similar to mentioned documents)
+ */
+const MessageDocumentAttachment: FC = () => {
+	const attachmentName = useAssistantState(({ attachment }) => attachment?.name || "Attachment");
+
+	return (
+		<AttachmentPreviewDialog>
+			<span
+				className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors"
+				title={attachmentName}
+			>
+				<FileText className="size-3" />
+				<span className="max-w-[150px] truncate">{attachmentName}</span>
+			</span>
+		</AttachmentPreviewDialog>
+	);
+};
+
+/**
+ * Attachment component for user messages
+ * Shows image preview for images, chip for documents
+ */
+const MessageAttachmentChip: FC = () => {
+	const isImage = useAssistantState(({ attachment }) => attachment?.type === "image");
+
+	if (isImage) {
+		return <MessageImageAttachment />;
+	}
+
+	return <MessageDocumentAttachment />;
+};
+
+export const UserMessageAttachments: FC = () => {
+	return <MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentChip }} />;
 };
 
 export const ComposerAttachments: FC = () => {

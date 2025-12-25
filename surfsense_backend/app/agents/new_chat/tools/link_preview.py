@@ -6,12 +6,18 @@ Open Graph image, etc.) to display rich link previews in the chat UI.
 """
 
 import hashlib
+import logging
 import re
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+import trafilatura
+from fake_useragent import UserAgent
+from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_core.tools import tool
+
+logger = logging.getLogger(__name__)
 
 
 def extract_domain(url: str) -> str:
@@ -138,6 +144,96 @@ def generate_preview_id(url: str) -> str:
     return f"link-preview-{hash_val}"
 
 
+def _unescape_html(text: str) -> str:
+    """Unescape common HTML entities."""
+    return (
+        text.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", '"')
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+    )
+
+
+def _make_absolute_url(image_url: str, base_url: str) -> str:
+    """Convert a relative image URL to an absolute URL."""
+    if image_url.startswith(("http://", "https://")):
+        return image_url
+    if image_url.startswith("//"):
+        return f"https:{image_url}"
+    if image_url.startswith("/"):
+        parsed = urlparse(base_url)
+        return f"{parsed.scheme}://{parsed.netloc}{image_url}"
+    return image_url
+
+
+async def fetch_with_chromium(url: str) -> dict[str, Any] | None:
+    """
+    Fetch page content using headless Chromium browser.
+    Used as a fallback when simple HTTP requests are blocked (403, etc.).
+
+    Args:
+        url: URL to fetch
+
+    Returns:
+        Dict with title, description, image, and raw_html, or None if failed
+    """
+    try:
+        logger.info(f"[link_preview] Falling back to Chromium for {url}")
+
+        # Generate a realistic User-Agent to avoid bot detection
+        ua = UserAgent()
+        user_agent = ua.random
+
+        # Use AsyncChromiumLoader to fetch the page
+        crawl_loader = AsyncChromiumLoader(
+            urls=[url], headless=True, user_agent=user_agent
+        )
+        documents = await crawl_loader.aload()
+
+        if not documents:
+            logger.warning(f"[link_preview] Chromium returned no documents for {url}")
+            return None
+
+        doc = documents[0]
+        raw_html = doc.page_content
+
+        if not raw_html or len(raw_html.strip()) == 0:
+            logger.warning(f"[link_preview] Chromium returned empty content for {url}")
+            return None
+
+        # Extract metadata using Trafilatura
+        trafilatura_metadata = trafilatura.extract_metadata(raw_html)
+
+        # Extract OG image from raw HTML (trafilatura doesn't extract this)
+        image = extract_image(raw_html)
+
+        result = {
+            "title": None,
+            "description": None,
+            "image": image,
+            "raw_html": raw_html,
+        }
+
+        if trafilatura_metadata:
+            result["title"] = trafilatura_metadata.title
+            result["description"] = trafilatura_metadata.description
+
+        # If trafilatura didn't get the title/description, try OG tags
+        if not result["title"]:
+            result["title"] = extract_title(raw_html)
+        if not result["description"]:
+            result["description"] = extract_description(raw_html)
+
+        logger.info(f"[link_preview] Successfully fetched {url} via Chromium")
+        return result
+
+    except Exception as e:
+        logger.error(f"[link_preview] Chromium fallback failed for {url}: {e}")
+        return None
+
+
 def create_link_preview_tool():
     """
     Factory function to create the link_preview tool.
@@ -184,13 +280,20 @@ def create_link_preview_tool():
             url = f"https://{url}"
 
         try:
+            # Use a browser-like User-Agent to fetch Open Graph metadata.
+            # This is the same approach used by Slack, Discord, Twitter, etc. for link previews.
+            # We're only fetching publicly available metadata (title, description, thumbnail)
+            # that websites intentionally expose via OG tags for link preview purposes.
             async with httpx.AsyncClient(
                 timeout=10.0,
                 follow_redirects=True,
                 headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; SurfSenseBot/1.0; +https://surfsense.net)",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "en-US,en;q=0.5",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache",
                 },
             ) as client:
                 response = await client.get(url)
@@ -218,32 +321,14 @@ def create_link_preview_tool():
                 image = extract_image(html)
 
                 # Make sure image URL is absolute
-                if image and not image.startswith(("http://", "https://")):
-                    if image.startswith("//"):
-                        image = f"https:{image}"
-                    elif image.startswith("/"):
-                        parsed = urlparse(url)
-                        image = f"{parsed.scheme}://{parsed.netloc}{image}"
+                if image:
+                    image = _make_absolute_url(image, url)
 
                 # Clean up title and description (unescape HTML entities)
                 if title:
-                    title = (
-                        title.replace("&amp;", "&")
-                        .replace("&lt;", "<")
-                        .replace("&gt;", ">")
-                        .replace("&quot;", '"')
-                        .replace("&#39;", "'")
-                        .replace("&apos;", "'")
-                    )
+                    title = _unescape_html(title)
                 if description:
-                    description = (
-                        description.replace("&amp;", "&")
-                        .replace("&lt;", "<")
-                        .replace("&gt;", ">")
-                        .replace("&quot;", '"')
-                        .replace("&#39;", "'")
-                        .replace("&apos;", "'")
-                    )
+                    description = _unescape_html(description)
                     # Truncate long descriptions
                     if len(description) > 200:
                         description = description[:197] + "..."
@@ -260,6 +345,39 @@ def create_link_preview_tool():
                 }
 
         except httpx.TimeoutException:
+            # Timeout - try Chromium fallback
+            logger.warning(
+                f"[link_preview] Timeout for {url}, trying Chromium fallback"
+            )
+            chromium_result = await fetch_with_chromium(url)
+            if chromium_result:
+                title = chromium_result.get("title") or domain
+                description = chromium_result.get("description")
+                image = chromium_result.get("image")
+
+                # Clean up and truncate
+                if title:
+                    title = _unescape_html(title)
+                if description:
+                    description = _unescape_html(description)
+                    if len(description) > 200:
+                        description = description[:197] + "..."
+
+                # Make sure image URL is absolute
+                if image:
+                    image = _make_absolute_url(image, url)
+
+                return {
+                    "id": preview_id,
+                    "assetId": url,
+                    "kind": "link",
+                    "href": url,
+                    "title": title,
+                    "description": description,
+                    "thumb": image,
+                    "domain": domain,
+                }
+
             return {
                 "id": preview_id,
                 "assetId": url,
@@ -270,6 +388,42 @@ def create_link_preview_tool():
                 "error": "Request timed out",
             }
         except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+
+            # For 403 (Forbidden) and similar bot-detection errors, try Chromium fallback
+            if status_code in (403, 401, 406, 429):
+                logger.warning(
+                    f"[link_preview] HTTP {status_code} for {url}, trying Chromium fallback"
+                )
+                chromium_result = await fetch_with_chromium(url)
+                if chromium_result:
+                    title = chromium_result.get("title") or domain
+                    description = chromium_result.get("description")
+                    image = chromium_result.get("image")
+
+                    # Clean up and truncate
+                    if title:
+                        title = _unescape_html(title)
+                    if description:
+                        description = _unescape_html(description)
+                        if len(description) > 200:
+                            description = description[:197] + "..."
+
+                    # Make sure image URL is absolute
+                    if image:
+                        image = _make_absolute_url(image, url)
+
+                    return {
+                        "id": preview_id,
+                        "assetId": url,
+                        "kind": "link",
+                        "href": url,
+                        "title": title,
+                        "description": description,
+                        "thumb": image,
+                        "domain": domain,
+                    }
+
             return {
                 "id": preview_id,
                 "assetId": url,
@@ -277,11 +431,11 @@ def create_link_preview_tool():
                 "href": url,
                 "title": domain or "Link",
                 "domain": domain,
-                "error": f"HTTP {e.response.status_code}",
+                "error": f"HTTP {status_code}",
             }
         except Exception as e:
             error_message = str(e)
-            print(f"[link_preview] Error fetching {url}: {error_message}")
+            logger.error(f"[link_preview] Error fetching {url}: {error_message}")
             return {
                 "id": preview_id,
                 "assetId": url,

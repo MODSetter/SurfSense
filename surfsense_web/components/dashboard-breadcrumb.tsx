@@ -165,14 +165,11 @@ export function DashboardBreadcrumb() {
 					}
 
 					// Handle new-chat sub-sections (thread IDs)
+					// Don't show thread ID in breadcrumb - users identify chats by content, not by ID
 					if (section === "new-chat") {
 						breadcrumbs.push({
 							label: t("chat") || "Chat",
-							href: `/dashboard/${segments[1]}/new-chat`,
 						});
-						if (subSection) {
-							breadcrumbs.push({ label: `Thread ${subSection}` });
-						}
 						return breadcrumbs;
 					}
 
