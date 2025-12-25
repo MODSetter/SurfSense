@@ -25,7 +25,9 @@ class WebCrawlerConnector:
         Initialize the WebCrawlerConnector class.
 
         Args:
-            firecrawl_api_key: Firecrawl API key (optional, will use AsyncChromiumLoader if not provided)
+            firecrawl_api_key: Firecrawl API key (optional). If provided, Firecrawl will be tried first
+                             and Chromium will be used as fallback if Firecrawl fails. If not provided,
+                             Chromium will be used directly.
         """
         self.firecrawl_api_key = firecrawl_api_key
         self.use_firecrawl = bool(firecrawl_api_key)
@@ -46,6 +48,9 @@ class WebCrawlerConnector:
         """
         Crawl a single URL and extract its content.
 
+        If Firecrawl API key is provided, tries Firecrawl first and falls back to Chromium
+        if Firecrawl fails. If no Firecrawl API key is provided, uses Chromium directly.
+
         Args:
             url: URL to crawl
             formats: List of formats to extract (e.g., ["markdown", "html"]) - only for Firecrawl
@@ -56,19 +61,32 @@ class WebCrawlerConnector:
                 - content: Extracted content (markdown or HTML)
                 - metadata: Page metadata (title, description, etc.)
                 - source: Original URL
-                - crawler_type: Type of crawler used
+                - crawler_type: Type of crawler used ("firecrawl" or "chromium")
         """
         try:
             # Validate URL
             if not validators.url(url):
                 return None, f"Invalid URL: {url}"
 
+            # Try Firecrawl first if API key is provided
             if self.use_firecrawl:
-                result = await self._crawl_with_firecrawl(url, formats)
+                try:
+                    logger.info(f"[webcrawler] Using Firecrawl for: {url}")
+                    result = await self._crawl_with_firecrawl(url, formats)
+                    return result, None
+                except Exception as firecrawl_error:
+                    # Firecrawl failed, fallback to Chromium
+                    logger.warning(f"[webcrawler] Firecrawl failed, falling back to Chromium+Trafilatura for: {url}")
+                    try:
+                        result = await self._crawl_with_chromium(url)
+                        return result, None
+                    except Exception as chromium_error:
+                        return None, f"Both Firecrawl and Chromium failed. Firecrawl error: {firecrawl_error!s}, Chromium error: {chromium_error!s}"
             else:
+                # No Firecrawl API key, use Chromium directly
+                logger.info(f"[webcrawler] Using Chromium+Trafilatura for: {url}")
                 result = await self._crawl_with_chromium(url)
-
-            return result, None
+                return result, None
 
         except Exception as e:
             return None, f"Error crawling URL {url}: {e!s}"
@@ -162,10 +180,6 @@ class WebCrawlerConnector:
         trafilatura_metadata = None
 
         try:
-            logger.info(
-                f"Attempting to extract main content from {url} using Trafilatura"
-            )
-
             # Extract main content as markdown
             extracted_content = trafilatura.extract(
                 raw_html,
@@ -179,23 +193,10 @@ class WebCrawlerConnector:
             # Extract metadata using Trafilatura
             trafilatura_metadata = trafilatura.extract_metadata(raw_html)
 
-            if extracted_content and len(extracted_content.strip()) > 0:
-                logger.info(
-                    f"Successfully extracted main content from {url} using Trafilatura "
-                    f"({len(extracted_content)} chars vs {len(raw_html)} chars raw HTML)"
-                )
-            else:
-                logger.warning(
-                    f"Trafilatura extraction returned empty content for {url}, "
-                    "falling back to raw HTML"
-                )
+            if not extracted_content or len(extracted_content.strip()) == 0:
                 extracted_content = None
 
-        except Exception as e:
-            logger.warning(
-                f"Trafilatura extraction failed for {url}: {e}. "
-                "Falling back to raw HTML"
-            )
+        except Exception:
             extracted_content = None
 
         # Build metadata, preferring Trafilatura metadata when available

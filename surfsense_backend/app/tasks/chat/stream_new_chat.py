@@ -146,6 +146,16 @@ async def stream_new_chat(
         # Create connector service
         connector_service = ConnectorService(session, search_space_id=search_space_id)
 
+        # Get Firecrawl API key from webcrawler connector if configured
+        from app.db import SearchSourceConnectorType
+
+        firecrawl_api_key = None
+        webcrawler_connector = await connector_service.get_connector_by_type(
+            SearchSourceConnectorType.WEBCRAWLER_CONNECTOR, search_space_id
+        )
+        if webcrawler_connector and webcrawler_connector.config:
+            firecrawl_api_key = webcrawler_connector.config.get("FIRECRAWL_API_KEY")
+
         # Get the PostgreSQL checkpointer for persistent conversation memory
         checkpointer = await get_checkpointer()
 
@@ -157,6 +167,7 @@ async def stream_new_chat(
             connector_service=connector_service,
             checkpointer=checkpointer,
             agent_config=agent_config,  # Pass prompt configuration
+            firecrawl_api_key=firecrawl_api_key,  # Pass Firecrawl API key if configured
         )
 
         # Build input with message history from frontend
