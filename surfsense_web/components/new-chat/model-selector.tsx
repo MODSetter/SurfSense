@@ -175,7 +175,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 					role="combobox"
 					aria-expanded={open}
 					className={cn(
-						"h-9 gap-2 px-3 rounded-xl border border-border/30 bg-background/50 backdrop-blur-sm",
+						"h-9 gap-2 px-3 rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm",
 						"hover:bg-muted/80 hover:border-border/30 transition-all duration-200",
 						"text-sm font-medium text-foreground",
 						"focus-visible:ring-0 focus-visible:ring-offset-0",

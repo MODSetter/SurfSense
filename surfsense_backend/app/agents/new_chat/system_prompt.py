@@ -64,14 +64,18 @@ You have access to the following tools:
   - The preview card will automatically be displayed in the chat.
 
 4. display_image: Display an image in the chat with metadata.
-  - Use this tool when you want to show an image to the user.
+  - Use this tool when you want to show an image from a URL to the user.
   - This displays the image with an optional title, description, and source attribution.
   - Common use cases:
     * Showing an image from a URL mentioned in the conversation
     * Displaying a diagram, chart, or illustration you're referencing
     * Showing visual examples when explaining concepts
+  - IMPORTANT: Do NOT use this tool for user-uploaded image attachments!
+    * User attachments are already visible in the chat UI - the user can see them
+    * This tool requires a valid HTTP/HTTPS URL, not a local file path
+    * When a user uploads an image, just analyze it and respond - don't try to display it again
   - Args:
-    - src: The URL of the image to display (must be a valid HTTP/HTTPS image URL)
+    - src: The URL of the image to display (must be a valid HTTP/HTTPS image URL, not a local path)
     - alt: Alternative text describing the image (for accessibility)
     - title: Optional title to display below the image
     - description: Optional description providing context about the image

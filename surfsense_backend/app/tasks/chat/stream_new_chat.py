@@ -255,13 +255,59 @@ async def stream_new_chat(
         # Initial thinking step - analyzing the request
         analyze_step_id = next_thinking_step_id()
         last_active_step_id = analyze_step_id
-        last_active_step_title = "Understanding your request"
-        last_active_step_items = [
-            f"Processing: {user_query[:80]}{'...' if len(user_query) > 80 else ''}"
-        ]
+
+        # Determine step title and action verb based on context
+        if attachments and mentioned_documents:
+            last_active_step_title = "Analyzing your content"
+            action_verb = "Reading"
+        elif attachments:
+            last_active_step_title = "Reading your content"
+            action_verb = "Reading"
+        elif mentioned_documents:
+            last_active_step_title = "Analyzing referenced content"
+            action_verb = "Analyzing"
+        else:
+            last_active_step_title = "Understanding your request"
+            action_verb = "Processing"
+
+        # Build the message with inline context about attachments/documents
+        processing_parts = []
+
+        # Add the user query
+        query_text = user_query[:80] + ("..." if len(user_query) > 80 else "")
+        processing_parts.append(query_text)
+
+        # Add file attachment names inline
+        if attachments:
+            attachment_names = []
+            for attachment in attachments:
+                name = attachment.name
+                if len(name) > 30:
+                    name = name[:27] + "..."
+                attachment_names.append(name)
+            if len(attachment_names) == 1:
+                processing_parts.append(f"[{attachment_names[0]}]")
+            else:
+                processing_parts.append(f"[{len(attachment_names)} files]")
+
+        # Add mentioned document names inline
+        if mentioned_documents:
+            doc_names = []
+            for doc in mentioned_documents:
+                title = doc.title
+                if len(title) > 30:
+                    title = title[:27] + "..."
+                doc_names.append(title)
+            if len(doc_names) == 1:
+                processing_parts.append(f"[{doc_names[0]}]")
+            else:
+                processing_parts.append(f"[{len(doc_names)} documents]")
+
+        last_active_step_items = [f"{action_verb}: {' '.join(processing_parts)}"]
+
         yield streaming_service.format_thinking_step(
             step_id=analyze_step_id,
-            title="Understanding your request",
+            title=last_active_step_title,
             status="in_progress",
             items=last_active_step_items,
         )
@@ -369,13 +415,13 @@ async def stream_new_chat(
                         if isinstance(tool_input, dict)
                         else ""
                     )
-                    last_active_step_title = "Displaying image"
+                    last_active_step_title = "Analyzing the image"
                     last_active_step_items = [
-                        f"Image: {title[:50] if title else src[:50]}{'...' if len(title or src) > 50 else ''}"
+                        f"Analyzing: {title[:50] if title else src[:50]}{'...' if len(title or src) > 50 else ''}"
                     ]
                     yield streaming_service.format_thinking_step(
                         step_id=tool_step_id,
-                        title="Displaying image",
+                        title="Analyzing the image",
                         status="in_progress",
                         items=last_active_step_items,
                     )
@@ -471,7 +517,7 @@ async def stream_new_chat(
                         else str(tool_input)
                     )
                     yield streaming_service.format_terminal_info(
-                        f"Displaying image: {src[:60]}{'...' if len(src) > 60 else ''}",
+                        f"Analyzing image: {src[:60]}{'...' if len(src) > 60 else ''}",
                         "info",
                     )
                 elif tool_name == "scrape_webpage":
@@ -575,20 +621,20 @@ async def stream_new_chat(
                         items=completed_items,
                     )
                 elif tool_name == "display_image":
-                    # Build completion items for image display
+                    # Build completion items for image analysis
                     if isinstance(tool_output, dict):
                         title = tool_output.get("title", "")
                         alt = tool_output.get("alt", "Image")
                         display_name = title or alt
                         completed_items = [
                             *last_active_step_items,
-                            f"Showing: {display_name[:50]}{'...' if len(display_name) > 50 else ''}",
+                            f"Analyzed: {display_name[:50]}{'...' if len(display_name) > 50 else ''}",
                         ]
                     else:
-                        completed_items = [*last_active_step_items, "Image displayed"]
+                        completed_items = [*last_active_step_items, "Image analyzed"]
                     yield streaming_service.format_thinking_step(
                         step_id=original_step_id,
-                        title="Displaying image",
+                        title="Analyzing the image",
                         status="completed",
                         items=completed_items,
                     )
@@ -744,7 +790,7 @@ async def stream_new_chat(
                             "alt", "Image"
                         )
                         yield streaming_service.format_terminal_info(
-                            f"Image displayed: {title[:40]}{'...' if len(title) > 40 else ''}",
+                            f"Image analyzed: {title[:40]}{'...' if len(title) > 40 else ''}",
                             "success",
                         )
                 elif tool_name == "scrape_webpage":
