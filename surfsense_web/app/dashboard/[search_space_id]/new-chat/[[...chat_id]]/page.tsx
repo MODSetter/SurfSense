@@ -37,6 +37,12 @@ import {
 	getThreadMessages,
 	type MessageRecord,
 } from "@/lib/chat/thread-persistence";
+import {
+	trackChatCreated,
+	trackChatError,
+	trackChatMessageSent,
+	trackChatResponseReceived,
+} from "@/lib/posthog/events";
 
 /**
  * Extract thinking steps from message content
@@ -305,6 +311,10 @@ export default function NewChatPage() {
 					const newThread = await createThread(searchSpaceId, "New Chat");
 					currentThreadId = newThread.id;
 					setThreadId(currentThreadId);
+
+					// Track chat creation
+					trackChatCreated(searchSpaceId, currentThreadId);
+
 					// Update URL silently using browser API (not router.replace) to avoid
 					// interrupting the ongoing fetch/streaming with React navigation
 					window.history.replaceState(
@@ -330,6 +340,13 @@ export default function NewChatPage() {
 				attachments: message.attachments || [],
 			};
 			setMessages((prev) => [...prev, userMessage]);
+
+			// Track message sent
+			trackChatMessageSent(searchSpaceId, currentThreadId, {
+				hasAttachments: messageAttachments.length > 0,
+				hasMentionedDocuments: mentionedDocumentIds.length > 0,
+				messageLength: userQuery.length,
+			});
 
 			// Store mentioned documents with this message for display
 			if (mentionedDocuments.length > 0) {
@@ -653,6 +670,9 @@ export default function NewChatPage() {
 						role: "assistant",
 						content: finalContent,
 					}).catch((err) => console.error("Failed to persist assistant message:", err));
+
+					// Track successful response
+					trackChatResponseReceived(searchSpaceId, currentThreadId);
 				}
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") {
@@ -660,6 +680,14 @@ export default function NewChatPage() {
 					return;
 				}
 				console.error("[NewChatPage] Chat error:", error);
+
+				// Track chat error
+				trackChatError(
+					searchSpaceId,
+					currentThreadId,
+					error instanceof Error ? error.message : "Unknown error"
+				);
+
 				toast.error("Failed to get response. Please try again.");
 				// Update assistant message with error
 				setMessages((prev) =>
