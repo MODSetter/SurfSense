@@ -41,23 +41,23 @@ const useAttachmentSrc = () => {
 	const { file, src } = useAssistantState(
 		useShallow(({ attachment }): { file?: File; src?: string } => {
 			if (!attachment || attachment.type !== "image") return {};
-			
+
 			// First priority: use File object if available (for new uploads)
 			if (attachment.file) return { file: attachment.file };
-			
+
 			// Second priority: use stored imageDataUrl (for persisted messages)
 			// This is stored in our custom ChatAttachment interface
 			const customAttachment = attachment as { imageDataUrl?: string };
 			if (customAttachment.imageDataUrl) {
 				return { src: customAttachment.imageDataUrl };
 			}
-			
+
 			// Third priority: try to extract from content array (standard assistant-ui format)
 			if (Array.isArray(attachment.content)) {
 				const contentSrc = attachment.content.filter((c) => c.type === "image")[0]?.image;
 				if (contentSrc) return { src: contentSrc };
 			}
-			
+
 			return {};
 		})
 	);
@@ -297,9 +297,7 @@ const MessageAttachmentChip: FC = () => {
 };
 
 export const UserMessageAttachments: FC = () => {
-	return (
-		<MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentChip }} />
-	);
+	return <MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentChip }} />;
 };
 
 export const ComposerAttachments: FC = () => {

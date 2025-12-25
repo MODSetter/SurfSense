@@ -505,7 +505,13 @@ const Composer: FC = () => {
 			setMentionedDocuments([]);
 			setMentionedDocumentIds([]);
 		}
-	}, [showDocumentPopover, isThreadRunning, composerRuntime, setMentionedDocuments, setMentionedDocumentIds]);
+	}, [
+		showDocumentPopover,
+		isThreadRunning,
+		composerRuntime,
+		setMentionedDocuments,
+		setMentionedDocumentIds,
+	]);
 
 	// Handle document removal from inline editor
 	const handleDocumentRemove = useCallback(

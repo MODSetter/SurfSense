@@ -69,10 +69,7 @@ function useEntranceAnimation(delay = 0): boolean {
 /**
  * Check if an extension belongs to a specific category
  */
-function isExtensionInCategory(
-	ext: string,
-	category: FileExtensionCategory
-): boolean {
+function isExtensionInCategory(ext: string, category: FileExtensionCategory): boolean {
 	return (FILE_EXTENSIONS[category] as readonly string[]).includes(ext);
 }
 
@@ -172,8 +169,7 @@ function parseAndRenderWithBadges(text: string): React.ReactNode {
 // Chain of Thought Components
 // ============================================================================
 
-export interface ChainOfThoughtItemProps
-	extends React.HTMLAttributes<HTMLDivElement> {
+export interface ChainOfThoughtItemProps extends React.HTMLAttributes<HTMLDivElement> {
 	children: React.ReactNode;
 }
 
@@ -183,10 +179,7 @@ export const ChainOfThoughtItem: React.FC<ChainOfThoughtItemProps> = ({
 	...props
 }) => (
 	<div
-		className={cn(
-			"text-muted-foreground text-sm flex flex-wrap items-center gap-1",
-			className
-		)}
+		className={cn("text-muted-foreground text-sm flex flex-wrap items-center gap-1", className)}
 		{...props}
 	>
 		{typeof children === "string" ? parseAndRenderWithBadges(children) : children}
@@ -290,10 +283,7 @@ export interface ChainOfThoughtProps {
 	className?: string;
 }
 
-export const ChainOfThought: React.FC<ChainOfThoughtProps> = ({
-	children,
-	className,
-}) => {
+export const ChainOfThought: React.FC<ChainOfThoughtProps> = ({ children, className }) => {
 	const childrenArray = React.Children.toArray(children);
 
 	return (

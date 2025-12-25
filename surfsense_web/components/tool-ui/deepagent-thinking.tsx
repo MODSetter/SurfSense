@@ -135,10 +135,7 @@ export function parseThinkingResult(data: unknown): DeepAgentThinkingResult {
 /**
  * Check if title contains any of the keywords
  */
-function titleContainsKeywords(
-	title: string,
-	keywords: readonly string[]
-): boolean {
+function titleContainsKeywords(title: string, keywords: readonly string[]): boolean {
 	const titleLower = title.toLowerCase();
 	return keywords.some((keyword) => titleLower.includes(keyword));
 }
@@ -180,15 +177,8 @@ interface ThinkingStepDisplayProps {
 /**
  * Component to display a single thinking step with controlled open state
  */
-const ThinkingStepDisplay: FC<ThinkingStepDisplayProps> = ({
-	step,
-	isOpen,
-	onToggle,
-}) => {
-	const icon = useMemo(
-		() => getStepIcon(step.status, step.title),
-		[step.status, step.title]
-	);
+const ThinkingStepDisplay: FC<ThinkingStepDisplayProps> = ({ step, isOpen, onToggle }) => {
+	const icon = useMemo(() => getStepIcon(step.status, step.title), [step.status, step.title]);
 
 	const isInProgress = step.status === STEP_STATUS.IN_PROGRESS;
 	const isCompleted = step.status === STEP_STATUS.COMPLETED;

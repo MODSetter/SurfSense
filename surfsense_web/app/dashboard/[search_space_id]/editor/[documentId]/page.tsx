@@ -26,7 +26,9 @@ import { notesApiService } from "@/lib/apis/notes-api.service";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 // BlockNote types
-type BlockNoteInlineContent = string | { text?: string; type?: string; styles?: Record<string, unknown> };
+type BlockNoteInlineContent =
+	| string
+	| { text?: string; type?: string; styles?: Record<string, unknown> };
 
 interface BlockNoteBlock {
 	type: string;
