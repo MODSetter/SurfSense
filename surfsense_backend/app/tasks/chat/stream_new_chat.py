@@ -52,41 +52,21 @@ def format_mentioned_documents_as_context(documents: list[Document]) -> str:
     """Format mentioned documents as context for the agent."""
     if not documents:
         return ""
-    import json
 
-    parts = []
-    for doc in documents:
-        metadata = doc.document_metadata or {}
-        chunks = (
-            [
-                {"chunk_id": c.id, "content": c.content}
-                for c in getattr(doc, "chunks", [])
-            ]
-            if hasattr(doc, "chunks") and doc.chunks
-            else [{"chunk_id": doc.id, "content": doc.content}]
+    context_parts = ["<mentioned_documents>"]
+    context_parts.append(
+        "The user has explicitly mentioned the following documents from their knowledge base. "
+        "These documents are directly relevant to the query and should be prioritized as primary sources."
+    )
+    for i, doc in enumerate(documents, 1):
+        context_parts.append(
+            f"<document index='{i}' id='{doc.id}' title='{doc.title}' type='{doc.document_type.value}'>"
         )
-        metadata_json = json.dumps(metadata, ensure_ascii=False)
-        parts.append("<document>")
-        parts.append("<document_metadata>")
-        parts.append(f"  <document_id>{doc.id}</document_id>")
-        parts.append(f"  <document_type>{doc.document_type.value}</document_type>")
-        parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
-        parts.append("  <url><![CDATA[]]></url>")
-        parts.append(f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>")
-        parts.append("</document_metadata>")
-        parts.append("")
-        parts.append("<document_content>")
-        for ch in chunks:
-            ch_content = ch["content"]
-            ch_id = ch["chunk_id"]
-            if ch_id is None:
-                parts.append(f"  <chunk><![CDATA[{ch_content}]]></chunk>")
-            else:
-                parts.append(f"  <chunk id='{ch_id}'><![CDATA[{ch_content}]]></chunk>")
-        parts.append("</document_content>")
-        parts.append("</document>")
-        parts.append("")
-    return "\n".join(parts).strip()
+        context_parts.append(f"<![CDATA[{doc.content}]]>")
+        context_parts.append("</document>")
+    context_parts.append("</mentioned_documents>")
+
+    return "\n".join(context_parts)
 
 
 async def stream_new_chat(
