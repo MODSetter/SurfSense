@@ -1,0 +1,487 @@
+"use client";
+
+import { X } from "lucide-react";
+import {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useRef,
+	useState,
+} from "react";
+import type { Document } from "@/contracts/types/document.types";
+import { cn } from "@/lib/utils";
+
+export interface MentionedDocument {
+	id: number;
+	title: string;
+	document_type?: string;
+}
+
+export interface InlineMentionEditorRef {
+	focus: () => void;
+	clear: () => void;
+	getText: () => string;
+	getMentionedDocuments: () => MentionedDocument[];
+	insertDocumentChip: (doc: Document) => void;
+}
+
+interface InlineMentionEditorProps {
+	placeholder?: string;
+	onMentionTrigger?: (query: string) => void;
+	onMentionClose?: () => void;
+	onSubmit?: () => void;
+	onChange?: (text: string, docs: MentionedDocument[]) => void;
+	onDocumentRemove?: (docId: number) => void;
+	onKeyDown?: (e: React.KeyboardEvent) => void;
+	disabled?: boolean;
+	className?: string;
+	initialDocuments?: MentionedDocument[];
+}
+
+// Unique data attribute to identify chip elements
+const CHIP_DATA_ATTR = "data-mention-chip";
+const CHIP_ID_ATTR = "data-mention-id";
+
+export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMentionEditorProps>(
+	(
+		{
+			placeholder = "Type @ to mention documents...",
+			onMentionTrigger,
+			onMentionClose,
+			onSubmit,
+			onChange,
+			onDocumentRemove,
+			onKeyDown,
+			disabled = false,
+			className,
+			initialDocuments = [],
+		},
+		ref
+	) => {
+		const editorRef = useRef<HTMLDivElement>(null);
+		const [isEmpty, setIsEmpty] = useState(true);
+		const [mentionedDocs, setMentionedDocs] = useState<Map<number, MentionedDocument>>(
+			() => new Map(initialDocuments.map((d) => [d.id, d]))
+		);
+		const isComposingRef = useRef(false);
+		const lastCaretPositionRef = useRef<{ node: Node; offset: number } | null>(null);
+
+		// Sync initial documents
+		useEffect(() => {
+			if (initialDocuments.length > 0) {
+				setMentionedDocs(new Map(initialDocuments.map((d) => [d.id, d])));
+			}
+		}, [initialDocuments]);
+
+		// Save caret position before any operations that might lose it
+		const saveCaretPosition = useCallback(() => {
+			const selection = window.getSelection();
+			if (selection && selection.rangeCount > 0) {
+				const range = selection.getRangeAt(0);
+				lastCaretPositionRef.current = {
+					node: range.startContainer,
+					offset: range.startOffset,
+				};
+			}
+		}, []);
+
+		// Restore caret position
+		const restoreCaretPosition = useCallback(() => {
+			if (lastCaretPositionRef.current && editorRef.current) {
+				const { node, offset } = lastCaretPositionRef.current;
+				try {
+					const selection = window.getSelection();
+					const range = document.createRange();
+					range.setStart(node, offset);
+					range.collapse(true);
+					selection?.removeAllRanges();
+					selection?.addRange(range);
+				} catch {
+					// Node might not exist anymore, focus at end
+					focusAtEnd();
+				}
+			}
+		}, []);
+
+		// Focus at the end of the editor
+		const focusAtEnd = useCallback(() => {
+			if (!editorRef.current) return;
+			editorRef.current.focus();
+			const selection = window.getSelection();
+			const range = document.createRange();
+			range.selectNodeContents(editorRef.current);
+			range.collapse(false);
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+		}, []);
+
+		// Get plain text content (excluding chips)
+		const getText = useCallback((): string => {
+			if (!editorRef.current) return "";
+			
+			let text = "";
+			const walker = document.createTreeWalker(
+				editorRef.current,
+				NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+				{
+					acceptNode: (node) => {
+						// Skip chip elements entirely
+						if (node.nodeType === Node.ELEMENT_NODE) {
+							const el = node as Element;
+							if (el.hasAttribute(CHIP_DATA_ATTR)) {
+								return NodeFilter.FILTER_REJECT; // Skip this subtree
+							}
+							return NodeFilter.FILTER_SKIP; // Continue into children
+						}
+						return NodeFilter.FILTER_ACCEPT;
+					},
+				}
+			);
+
+			let node: Node | null;
+			while ((node = walker.nextNode())) {
+				if (node.nodeType === Node.TEXT_NODE) {
+					text += node.textContent;
+				}
+			}
+
+			return text.trim();
+		}, []);
+
+		// Get all mentioned documents
+		const getMentionedDocuments = useCallback((): MentionedDocument[] => {
+			return Array.from(mentionedDocs.values());
+		}, [mentionedDocs]);
+
+		// Create a chip element for a document
+		const createChipElement = useCallback((doc: MentionedDocument): HTMLSpanElement => {
+			const chip = document.createElement("span");
+			chip.setAttribute(CHIP_DATA_ATTR, "true");
+			chip.setAttribute(CHIP_ID_ATTR, String(doc.id));
+			chip.contentEditable = "false";
+			chip.className =
+				"inline-flex items-center gap-0.5 mx-0.5 px-1 rounded bg-primary/10 text-xs font-medium text-primary border border-primary/20 select-none";
+			chip.style.userSelect = "none";
+			chip.style.verticalAlign = "baseline";
+
+			const titleSpan = document.createElement("span");
+			titleSpan.className = "max-w-[80px] truncate";
+			titleSpan.textContent = doc.title;
+			titleSpan.title = doc.title;
+
+			const removeBtn = document.createElement("button");
+			removeBtn.type = "button";
+			removeBtn.className =
+				"size-3 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors ml-0.5";
+			removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+			removeBtn.onclick = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				chip.remove();
+				setMentionedDocs((prev) => {
+					const next = new Map(prev);
+					next.delete(doc.id);
+					return next;
+				});
+				// Notify parent that a document was removed
+				onDocumentRemove?.(doc.id);
+				focusAtEnd();
+			};
+
+			chip.appendChild(titleSpan);
+			chip.appendChild(removeBtn);
+
+			return chip;
+		}, [focusAtEnd, onDocumentRemove]);
+
+		// Insert a document chip at the current cursor position
+		const insertDocumentChip = useCallback(
+			(doc: Document) => {
+				if (!editorRef.current) return;
+
+				const mentionDoc: MentionedDocument = {
+					id: doc.id,
+					title: doc.title,
+					document_type: doc.document_type,
+				};
+
+				// Add to mentioned docs map
+				setMentionedDocs((prev) => new Map(prev).set(doc.id, mentionDoc));
+
+				// Find and remove the @query text
+				const selection = window.getSelection();
+				if (!selection || selection.rangeCount === 0) {
+					// No selection, just append
+					const chip = createChipElement(mentionDoc);
+					editorRef.current.appendChild(chip);
+					editorRef.current.appendChild(document.createTextNode(" "));
+					focusAtEnd();
+					return;
+				}
+
+				// Find the @ symbol before the cursor and remove it along with any query text
+				const range = selection.getRangeAt(0);
+				const textNode = range.startContainer;
+
+				if (textNode.nodeType === Node.TEXT_NODE) {
+					const text = textNode.textContent || "";
+					const cursorPos = range.startOffset;
+
+					// Find the @ symbol before cursor
+					let atIndex = -1;
+					for (let i = cursorPos - 1; i >= 0; i--) {
+						if (text[i] === "@") {
+							atIndex = i;
+							break;
+						}
+					}
+
+					if (atIndex !== -1) {
+						// Remove @query and insert chip
+						const beforeAt = text.slice(0, atIndex);
+						const afterCursor = text.slice(cursorPos);
+
+						// Create chip
+						const chip = createChipElement(mentionDoc);
+
+						// Replace text node content
+						const parent = textNode.parentNode;
+						if (parent) {
+							const beforeNode = document.createTextNode(beforeAt);
+							const afterNode = document.createTextNode(" " + afterCursor);
+
+							parent.insertBefore(beforeNode, textNode);
+							parent.insertBefore(chip, textNode);
+							parent.insertBefore(afterNode, textNode);
+							parent.removeChild(textNode);
+
+							// Set cursor after the chip
+							const newRange = document.createRange();
+							newRange.setStart(afterNode, 1);
+							newRange.collapse(true);
+							selection.removeAllRanges();
+							selection.addRange(newRange);
+						}
+					} else {
+						// No @ found, just insert at cursor
+						const chip = createChipElement(mentionDoc);
+						range.insertNode(chip);
+						range.setStartAfter(chip);
+						range.collapse(true);
+						
+						// Add space after chip
+						const space = document.createTextNode(" ");
+						range.insertNode(space);
+						range.setStartAfter(space);
+						range.collapse(true);
+					}
+				} else {
+					// Not in a text node, append to editor
+					const chip = createChipElement(mentionDoc);
+					editorRef.current.appendChild(chip);
+					editorRef.current.appendChild(document.createTextNode(" "));
+					focusAtEnd();
+				}
+
+				// Update empty state
+				setIsEmpty(false);
+
+				// Trigger onChange
+				if (onChange) {
+					setTimeout(() => {
+						onChange(getText(), getMentionedDocuments());
+					}, 0);
+				}
+			},
+			[createChipElement, focusAtEnd, getText, getMentionedDocuments, onChange]
+		);
+
+		// Clear the editor
+		const clear = useCallback(() => {
+			if (editorRef.current) {
+				editorRef.current.innerHTML = "";
+				setIsEmpty(true);
+				setMentionedDocs(new Map());
+			}
+		}, []);
+
+		// Expose methods via ref
+		useImperativeHandle(ref, () => ({
+			focus: () => editorRef.current?.focus(),
+			clear,
+			getText,
+			getMentionedDocuments,
+			insertDocumentChip,
+		}));
+
+		// Handle input changes
+		const handleInput = useCallback(() => {
+			if (!editorRef.current) return;
+
+			const text = getText();
+			const empty = text.length === 0 && mentionedDocs.size === 0;
+			setIsEmpty(empty);
+
+			// Check for @ mentions
+			const selection = window.getSelection();
+			if (selection && selection.rangeCount > 0) {
+				const range = selection.getRangeAt(0);
+				const textNode = range.startContainer;
+
+				if (textNode.nodeType === Node.TEXT_NODE) {
+					const textContent = textNode.textContent || "";
+					const cursorPos = range.startOffset;
+
+					// Look for @ before cursor
+					let atIndex = -1;
+					for (let i = cursorPos - 1; i >= 0; i--) {
+						if (textContent[i] === "@") {
+							atIndex = i;
+							break;
+						}
+						// Stop if we hit a space (@ must be at word boundary)
+						if (textContent[i] === " " || textContent[i] === "\n") {
+							break;
+						}
+					}
+
+					if (atIndex !== -1) {
+						const query = textContent.slice(atIndex + 1, cursorPos);
+						// Only trigger if query doesn't start with space
+						if (!query.startsWith(" ")) {
+							onMentionTrigger?.(query);
+						} else {
+							onMentionClose?.();
+						}
+					} else {
+						onMentionClose?.();
+					}
+				}
+			}
+
+			// Notify parent of change
+			onChange?.(text, Array.from(mentionedDocs.values()));
+		}, [getText, mentionedDocs, onChange, onMentionTrigger, onMentionClose]);
+
+		// Handle keydown
+		const handleKeyDown = useCallback(
+			(e: React.KeyboardEvent<HTMLDivElement>) => {
+				// Let parent handle navigation keys when mention popover is open
+				if (onKeyDown) {
+					onKeyDown(e);
+					if (e.defaultPrevented) return;
+				}
+
+				// Handle Enter for submit (without shift)
+				if (e.key === "Enter" && !e.shiftKey) {
+					e.preventDefault();
+					onSubmit?.();
+					return;
+				}
+
+				// Handle backspace on chips
+				if (e.key === "Backspace") {
+					const selection = window.getSelection();
+					if (selection && selection.rangeCount > 0) {
+						const range = selection.getRangeAt(0);
+						if (range.collapsed) {
+							// Check if cursor is right after a chip
+							const node = range.startContainer;
+							const offset = range.startOffset;
+
+							if (node.nodeType === Node.TEXT_NODE && offset === 0) {
+								// Check previous sibling
+								const prevSibling = node.previousSibling;
+								if (prevSibling && (prevSibling as Element).hasAttribute?.(CHIP_DATA_ATTR)) {
+									e.preventDefault();
+									const chipId = Number((prevSibling as Element).getAttribute(CHIP_ID_ATTR));
+									prevSibling.parentNode?.removeChild(prevSibling);
+									setMentionedDocs((prev) => {
+										const next = new Map(prev);
+										next.delete(chipId);
+										return next;
+									});
+									// Notify parent that a document was removed
+									onDocumentRemove?.(chipId);
+								}
+							} else if (node.nodeType === Node.ELEMENT_NODE && offset > 0) {
+								// Check if previous child is a chip
+								const prevChild = (node as Element).childNodes[offset - 1];
+								if (prevChild && (prevChild as Element).hasAttribute?.(CHIP_DATA_ATTR)) {
+									e.preventDefault();
+									const chipId = Number((prevChild as Element).getAttribute(CHIP_ID_ATTR));
+									prevChild.parentNode?.removeChild(prevChild);
+									setMentionedDocs((prev) => {
+										const next = new Map(prev);
+										next.delete(chipId);
+										return next;
+									});
+									// Notify parent that a document was removed
+									onDocumentRemove?.(chipId);
+								}
+							}
+						}
+					}
+				}
+			},
+			[onKeyDown, onSubmit, onDocumentRemove]
+		);
+
+		// Handle paste - strip formatting
+		const handlePaste = useCallback((e: React.ClipboardEvent) => {
+			e.preventDefault();
+			const text = e.clipboardData.getData("text/plain");
+			document.execCommand("insertText", false, text);
+		}, []);
+
+		// Handle composition (for IME input)
+		const handleCompositionStart = useCallback(() => {
+			isComposingRef.current = true;
+		}, []);
+
+		const handleCompositionEnd = useCallback(() => {
+			isComposingRef.current = false;
+			handleInput();
+		}, [handleInput]);
+
+		return (
+			<div className="relative w-full">
+				<div
+					ref={editorRef}
+					contentEditable={!disabled}
+					suppressContentEditableWarning
+					onInput={handleInput}
+					onKeyDown={handleKeyDown}
+					onPaste={handlePaste}
+					onCompositionStart={handleCompositionStart}
+					onCompositionEnd={handleCompositionEnd}
+					className={cn(
+						"min-h-[24px] max-h-32 overflow-y-auto",
+						"text-sm outline-none",
+						"whitespace-pre-wrap break-words",
+						disabled && "opacity-50 cursor-not-allowed",
+						className
+					)}
+					style={{ wordBreak: "break-word" }}
+					data-placeholder={placeholder}
+					aria-label="Message input with inline mentions"
+					role="textbox"
+					aria-multiline="true"
+				/>
+				{/* Placeholder */}
+				{isEmpty && (
+					<div
+						className="absolute top-0 left-0 pointer-events-none text-muted-foreground text-sm"
+						aria-hidden="true"
+					>
+						{placeholder}
+					</div>
+				)}
+			</div>
+		);
+	}
+);
+
+InlineMentionEditor.displayName = "InlineMentionEditor";
+
