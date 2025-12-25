@@ -6,6 +6,7 @@ import {
 	type ThreadMessageLike,
 	useExternalStoreRuntime,
 } from "@assistant-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -140,6 +141,7 @@ interface ThinkingStepData {
 
 export default function NewChatPage() {
 	const params = useParams();
+	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
 	const [threadId, setThreadId] = useState<number | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
@@ -300,11 +302,13 @@ export default function NewChatPage() {
 
 			// Lazy thread creation: create thread on first message if it doesn't exist
 			let currentThreadId = threadId;
+			let isNewThread = false;
 			if (!currentThreadId) {
 				try {
 					const newThread = await createThread(searchSpaceId, "New Chat");
 					currentThreadId = newThread.id;
 					setThreadId(currentThreadId);
+					isNewThread = true;
 					// Update URL silently using browser API (not router.replace) to avoid
 					// interrupting the ongoing fetch/streaming with React navigation
 					window.history.replaceState(
@@ -362,7 +366,15 @@ export default function NewChatPage() {
 			appendMessage(currentThreadId, {
 				role: "user",
 				content: persistContent,
-			}).catch((err) => console.error("Failed to persist user message:", err));
+			})
+				.then(() => {
+					// For new threads, the backend updates the title from the first user message
+					// Invalidate threads query so sidebar shows the updated title in real-time
+					if (isNewThread) {
+						queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
+					}
+				})
+				.catch((err) => console.error("Failed to persist user message:", err));
 
 			// Start streaming response
 			setIsRunning(true);
@@ -692,6 +704,7 @@ export default function NewChatPage() {
 			setMentionedDocumentIds,
 			setMentionedDocuments,
 			setMessageDocumentsMap,
+			queryClient,
 		]
 	);
 

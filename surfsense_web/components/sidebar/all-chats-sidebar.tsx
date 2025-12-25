@@ -13,7 +13,7 @@ import {
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -47,7 +47,15 @@ interface AllChatsSidebarProps {
 export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const params = useParams();
 	const queryClient = useQueryClient();
+
+	// Get the current chat ID from URL to check if user is deleting the currently open chat
+	const currentChatId = Array.isArray(params.chat_id)
+		? Number(params.chat_id[0])
+		: params.chat_id
+			? Number(params.chat_id)
+			: null;
 	const [deletingThreadId, setDeletingThreadId] = useState<number | null>(null);
 	const [archivingThreadId, setArchivingThreadId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -126,6 +134,15 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
+
+				// If the deleted chat is currently open, close sidebar first then redirect
+				if (currentChatId === threadId) {
+					onOpenChange(false);
+					// Wait for sidebar close animation to complete before navigating
+					setTimeout(() => {
+						router.push(`/dashboard/${searchSpaceId}/new-chat`);
+					}, 250);
+				}
 			} catch (error) {
 				console.error("Error deleting thread:", error);
 				toast.error(t("error_deleting_chat") || "Failed to delete chat");
@@ -133,7 +150,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 				setDeletingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t]
+		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange]
 	);
 
 	// Handle thread archive/unarchive

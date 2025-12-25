@@ -149,6 +149,8 @@ export function AppSidebarProvider({
 			await deleteThread(threadToDelete.id);
 			// Invalidate threads query to refresh the list
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
+			// Navigate to new-chat after successful deletion
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		} catch (error) {
 			console.error("Error deleting thread:", error);
 		} finally {
@@ -156,7 +158,7 @@ export function AppSidebarProvider({
 			setShowDeleteDialog(false);
 			setThreadToDelete(null);
 		}
-	}, [threadToDelete, queryClient, searchSpaceId]);
+	}, [threadToDelete, queryClient, searchSpaceId, router]);
 
 	// Handle delete note with confirmation
 	const handleDeleteNote = useCallback(async () => {
