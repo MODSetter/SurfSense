@@ -587,10 +587,9 @@ const Composer: FC = () => {
 							/>
 							{/* Popover positioned above input */}
 							<div
-								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden"
+								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover"
 								style={{
 									zIndex: 9999,
-									backgroundColor: "#18181b",
 									bottom: editorContainerRef.current
 										? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
 										: "200px",

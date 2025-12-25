@@ -183,7 +183,7 @@ export const DocumentsDataTable = forwardRef<DocumentsDataTableRef, DocumentsDat
 
 		return (
 			<div
-				className="flex flex-col w-[280px] sm:w-[320px] bg-zinc-900 rounded-lg"
+				className="flex flex-col w-[280px] sm:w-[320px] bg-popover rounded-lg"
 				onKeyDown={handleKeyDown}
 				role="listbox"
 				tabIndex={-1}
