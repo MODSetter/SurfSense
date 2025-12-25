@@ -25,17 +25,29 @@ import { Separator } from "@/components/ui/separator";
 import { notesApiService } from "@/lib/apis/notes-api.service";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
+// BlockNote types
+type BlockNoteInlineContent = string | { text?: string; type?: string; styles?: Record<string, unknown> };
+
+interface BlockNoteBlock {
+	type: string;
+	content?: BlockNoteInlineContent[];
+	children?: BlockNoteBlock[];
+	props?: Record<string, unknown>;
+}
+
+type BlockNoteDocument = BlockNoteBlock[] | null | undefined;
+
 interface EditorContent {
 	document_id: number;
 	title: string;
 	document_type?: string;
-	blocknote_document: any;
+	blocknote_document: BlockNoteDocument;
 	updated_at: string | null;
 }
 
 // Helper function to extract title from BlockNote document
 // Takes the text content from the first block (should be a heading for notes)
-function extractTitleFromBlockNote(blocknoteDocument: any[] | null | undefined): string {
+function extractTitleFromBlockNote(blocknoteDocument: BlockNoteDocument): string {
 	if (!blocknoteDocument || !Array.isArray(blocknoteDocument) || blocknoteDocument.length === 0) {
 		return "Untitled";
 	}
@@ -49,9 +61,9 @@ function extractTitleFromBlockNote(blocknoteDocument: any[] | null | undefined):
 	// BlockNote blocks have a content array with inline content
 	if (firstBlock.content && Array.isArray(firstBlock.content)) {
 		const textContent = firstBlock.content
-			.map((item: any) => {
+			.map((item: BlockNoteInlineContent) => {
 				if (typeof item === "string") return item;
-				if (item?.text) return item.text;
+				if (typeof item === "object" && item?.text) return item.text;
 				return "";
 			})
 			.join("")
@@ -73,7 +85,7 @@ export default function EditorPage() {
 	const [document, setDocument] = useState<EditorContent | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
-	const [editorContent, setEditorContent] = useState<any>(null);
+	const [editorContent, setEditorContent] = useState<BlockNoteDocument>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
@@ -410,7 +422,7 @@ export default function EditorPage() {
 		<motion.div
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
-			className="flex flex-col h-full w-full"
+			className="flex flex-col min-h-screen w-full"
 		>
 			{/* Toolbar */}
 			<div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-4 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-6">
@@ -444,7 +456,7 @@ export default function EditorPage() {
 			</div>
 
 			{/* Editor Container */}
-			<div className="flex-1 overflow-visible relative">
+			<div className="flex-1 min-h-0 overflow-hidden relative">
 				<div className="h-full w-full overflow-auto p-6">
 					{error && (
 						<motion.div
