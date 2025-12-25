@@ -351,7 +351,7 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 		: null;
 
 	// Array of greeting variations for each time period
-	const morningGreetings = ["Good morning", "Rise and shine", "Morning", "Hey there"];
+	const morningGreetings = ["Good morning", "Fresh start today", "Morning", "Hey there"];
 
 	const afternoonGreetings = ["Good afternoon", "Afternoon", "Hey there", "Hi there"];
 
@@ -359,7 +359,7 @@ const getTimeBasedGreeting = (userEmail?: string): string => {
 
 	const nightGreetings = ["Good night", "Evening", "Hey there", "Winding down"];
 
-	const lateNightGreetings = ["Still up", "Night owl mode", "The night is young", "Hi there"];
+	const lateNightGreetings = ["Still up", "Night owl mode", "Up past bedtime", "Hi there"];
 
 	// Select a random greeting based on time
 	let greeting: string;
@@ -995,7 +995,7 @@ const UserMessage: FC = () => {
 		>
 			<UserMessageAttachments />
 
-			<div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
+			<div className="aui-user-message-content-wrapper col-start-2 min-w-0">
 				{/* Display mentioned documents as chips */}
 				{mentionedDocs && mentionedDocs.length > 0 && (
 					<div className="flex flex-wrap gap-1.5 mb-2 justify-end">
@@ -1011,11 +1011,14 @@ const UserMessage: FC = () => {
 						))}
 					</div>
 				)}
-				<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
-					<MessagePrimitive.Parts />
-				</div>
-				<div className="aui-user-action-bar-wrapper -translate-x-full -translate-y-full absolute top-full left-0 pr-2">
-					<UserActionBar />
+				{/* Message bubble with action bar positioned relative to it */}
+				<div className="relative">
+					<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
+						<MessagePrimitive.Parts />
+					</div>
+					<div className="aui-user-action-bar-wrapper absolute top-1/2 right-full -translate-y-1/2 pr-1">
+						<UserActionBar />
+					</div>
 				</div>
 			</div>
 

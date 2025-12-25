@@ -323,7 +323,7 @@ export default function EditorPage() {
 		if (hasUnsavedChanges) {
 			setShowUnsavedDialog(true);
 		} else {
-			router.push(`/dashboard/${searchSpaceId}/researcher`);
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
 	};
 
@@ -333,12 +333,12 @@ export default function EditorPage() {
 		setGlobalHasUnsavedChanges(false);
 		setHasUnsavedChanges(false);
 
-		// If there's a pending navigation (from sidebar), use that; otherwise go back to researcher
+		// If there's a pending navigation (from sidebar), use that; otherwise go back to chat
 		if (pendingNavigation) {
 			router.push(pendingNavigation);
 			setPendingNavigation(null);
 		} else {
-			router.push(`/dashboard/${searchSpaceId}/researcher`);
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
 	};
 
@@ -379,7 +379,7 @@ export default function EditorPage() {
 						</CardHeader>
 						<CardContent>
 							<Button
-								onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)}
+								onClick={() => router.push(`/dashboard/${searchSpaceId}/new-chat`)}
 								variant="outline"
 								className="gap-2"
 							>
