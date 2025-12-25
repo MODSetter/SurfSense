@@ -9,6 +9,7 @@ import { ConnectorsTab } from "@/components/sources/ConnectorsTab";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
 import { YouTubeTab } from "@/components/sources/YouTubeTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { trackSourcesTabViewed } from "@/lib/posthog/events";
 
 export default function AddSourcesPage() {
 	const params = useParams();
@@ -30,8 +31,15 @@ export default function AddSourcesPage() {
 			router.push(`/dashboard/${search_space_id}/connectors/add/webcrawler-connector`);
 		} else {
 			setActiveTab(value);
+			// Track tab view
+			trackSourcesTabViewed(Number(search_space_id), value);
 		}
 	};
+
+	// Track initial tab view
+	useEffect(() => {
+		trackSourcesTabViewed(Number(search_space_id), activeTab);
+	}, []);
 
 	return (
 		<div className="container mx-auto py-8 px-4 min-h-[calc(100vh-64px)]">
