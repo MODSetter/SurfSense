@@ -147,15 +147,6 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 		return step.status;
 	};
 
-	// Check if any step is effectively in progress
-	const hasInProgressStep = steps.some((step) => getEffectiveStatus(step) === "in_progress");
-
-	// Find the last completed step index (using effective status)
-	const lastCompletedIndex = steps
-		.map((s, i) => (getEffectiveStatus(s) === "completed" ? i : -1))
-		.filter((i) => i !== -1)
-		.pop();
-
 	// Clear manual overrides when a step's status changes
 	useEffect(() => {
 		const currentStatuses: Record<string, string> = {};
@@ -175,7 +166,7 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 
 	if (steps.length === 0) return null;
 
-	const getStepOpenState = (step: ThinkingStep, index: number): boolean => {
+	const getStepOpenState = (step: ThinkingStep): boolean => {
 		const effectiveStatus = getEffectiveStatus(step);
 		// If user has manually toggled, respect that
 		if (manualOverrides[step.id] !== undefined) {
@@ -185,11 +176,7 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 		if (effectiveStatus === "in_progress") {
 			return true;
 		}
-		// Auto behavior: keep last completed step open if no in-progress step
-		if (!hasInProgressStep && index === lastCompletedIndex) {
-			return true;
-		}
-		// Default: collapsed
+		// Default: collapsed (all steps collapse when processing is done)
 		return false;
 	};
 
@@ -203,10 +190,10 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 	return (
 		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
 			<ChainOfThought>
-				{steps.map((step, index) => {
+				{steps.map((step) => {
 					const effectiveStatus = getEffectiveStatus(step);
 					const icon = getStepIcon(effectiveStatus, step.title);
-					const isOpen = getStepOpenState(step, index);
+					const isOpen = getStepOpenState(step);
 					return (
 						<ChainOfThoughtStep
 							key={step.id}

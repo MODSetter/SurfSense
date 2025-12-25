@@ -15,11 +15,43 @@ import React, { useEffect, useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Animation timing constants (in milliseconds) */
+const ANIMATION = {
+	/** Delay between each step appearing */
+	STAGGER_DELAY_MS: 50,
+	/** Additional delay for connection line animation */
+	CONNECTION_LINE_DELAY_MS: 150,
+} as const;
+
+/** File extension categories for icon mapping */
+const FILE_EXTENSIONS = {
+	DOCUMENT: ["pdf", "doc", "docx"] as const,
+	SPREADSHEET: ["xls", "xlsx", "csv"] as const,
+	IMAGE: ["png", "jpg", "jpeg", "gif", "webp", "svg"] as const,
+	AUDIO: ["mp3", "wav", "m4a", "ogg", "webm"] as const,
+	VIDEO: ["mp4", "mov", "avi", "mkv"] as const,
+	CODE: ["js", "ts", "tsx", "jsx", "py", "html", "css", "json", "md"] as const,
+} as const;
+
+/** Type for file extension categories */
+type FileExtensionCategory = keyof typeof FILE_EXTENSIONS;
+
+/** Icon size class for file icons */
+const FILE_ICON_SIZE_CLASS = "size-3.5" as const;
+
+// ============================================================================
+// Hooks
+// ============================================================================
+
 /**
  * Custom hook for entrance animation
  * Returns true after mount to trigger CSS transitions
  */
-function useEntranceAnimation(delay = 0) {
+function useEntranceAnimation(delay = 0): boolean {
 	const [isVisible, setIsVisible] = useState(false);
 
 	useEffect(() => {
@@ -30,44 +62,60 @@ function useEntranceAnimation(delay = 0) {
 	return isVisible;
 }
 
+// ============================================================================
+// File Icon Utilities
+// ============================================================================
+
+/**
+ * Check if an extension belongs to a specific category
+ */
+function isExtensionInCategory(
+	ext: string,
+	category: FileExtensionCategory
+): boolean {
+	return (FILE_EXTENSIONS[category] as readonly string[]).includes(ext);
+}
+
 /**
  * Get file icon based on file extension (all icons are muted/gray)
  */
 function getFileIcon(name: string): React.ReactNode {
-	const ext = name.split(".").pop()?.toLowerCase() || "";
+	const ext = name.split(".").pop()?.toLowerCase() ?? "";
 
-	// PDF / Word documents
-	if (ext === "pdf" || ["doc", "docx"].includes(ext)) {
-		return <FileText className="size-3.5" />;
+	if (isExtensionInCategory(ext, "DOCUMENT")) {
+		return <FileText className={FILE_ICON_SIZE_CLASS} />;
 	}
-	// Spreadsheets
-	if (["xls", "xlsx", "csv"].includes(ext)) {
-		return <FileSpreadsheet className="size-3.5" />;
+	if (isExtensionInCategory(ext, "SPREADSHEET")) {
+		return <FileSpreadsheet className={FILE_ICON_SIZE_CLASS} />;
 	}
-	// Images
-	if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) {
-		return <FileImage className="size-3.5" />;
+	if (isExtensionInCategory(ext, "IMAGE")) {
+		return <FileImage className={FILE_ICON_SIZE_CLASS} />;
 	}
-	// Audio
-	if (["mp3", "wav", "m4a", "ogg", "webm"].includes(ext)) {
-		return <FileAudio className="size-3.5" />;
+	if (isExtensionInCategory(ext, "AUDIO")) {
+		return <FileAudio className={FILE_ICON_SIZE_CLASS} />;
 	}
-	// Video
-	if (["mp4", "mov", "avi", "mkv"].includes(ext)) {
-		return <FileVideo className="size-3.5" />;
+	if (isExtensionInCategory(ext, "VIDEO")) {
+		return <FileVideo className={FILE_ICON_SIZE_CLASS} />;
 	}
-	// Code files
-	if (["js", "ts", "tsx", "jsx", "py", "html", "css", "json", "md"].includes(ext)) {
-		return <FileCode className="size-3.5" />;
+	if (isExtensionInCategory(ext, "CODE")) {
+		return <FileCode className={FILE_ICON_SIZE_CLASS} />;
 	}
-	// Default
-	return <File className="size-3.5" />;
+	return <File className={FILE_ICON_SIZE_CLASS} />;
+}
+
+// ============================================================================
+// Attachment Components
+// ============================================================================
+
+interface AttachmentTileProps {
+	/** File name to display */
+	name: string;
 }
 
 /**
  * Compact attachment tile component - matches the chat UI style
  */
-const AttachmentTile: React.FC<{ name: string }> = ({ name }) => {
+const AttachmentTile: React.FC<AttachmentTileProps> = ({ name }) => {
 	const icon = getFileIcon(name);
 
 	return (
@@ -120,26 +168,46 @@ function parseAndRenderWithBadges(text: string): React.ReactNode {
 	return parts;
 }
 
-export type ChainOfThoughtItemProps = React.ComponentProps<"div">;
+// ============================================================================
+// Chain of Thought Components
+// ============================================================================
 
-export const ChainOfThoughtItem = ({ children, className, ...props }: ChainOfThoughtItemProps) => (
-	<div className={cn("text-muted-foreground text-sm flex flex-wrap items-center gap-1", className)} {...props}>
+export interface ChainOfThoughtItemProps
+	extends React.HTMLAttributes<HTMLDivElement> {
+	children: React.ReactNode;
+}
+
+export const ChainOfThoughtItem: React.FC<ChainOfThoughtItemProps> = ({
+	children,
+	className,
+	...props
+}) => (
+	<div
+		className={cn(
+			"text-muted-foreground text-sm flex flex-wrap items-center gap-1",
+			className
+		)}
+		{...props}
+	>
 		{typeof children === "string" ? parseAndRenderWithBadges(children) : children}
 	</div>
 );
 
-export type ChainOfThoughtTriggerProps = React.ComponentProps<typeof CollapsibleTrigger> & {
+export interface ChainOfThoughtTriggerProps
+	extends React.ComponentProps<typeof CollapsibleTrigger> {
+	/** Optional icon to display on the left side */
 	leftIcon?: React.ReactNode;
+	/** Whether to swap the icon with chevron on hover */
 	swapIconOnHover?: boolean;
-};
+}
 
-export const ChainOfThoughtTrigger = ({
+export const ChainOfThoughtTrigger: React.FC<ChainOfThoughtTriggerProps> = ({
 	children,
 	className,
 	leftIcon,
 	swapIconOnHover = true,
 	...props
-}: ChainOfThoughtTriggerProps) => (
+}) => (
 	<CollapsibleTrigger
 		className={cn(
 			"group text-muted-foreground hover:text-foreground flex cursor-pointer items-center justify-start gap-1 text-left text-sm transition-colors",
@@ -170,13 +238,14 @@ export const ChainOfThoughtTrigger = ({
 	</CollapsibleTrigger>
 );
 
-export type ChainOfThoughtContentProps = React.ComponentProps<typeof CollapsibleContent>;
+export interface ChainOfThoughtContentProps
+	extends React.ComponentProps<typeof CollapsibleContent> {}
 
-export const ChainOfThoughtContent = ({
+export const ChainOfThoughtContent: React.FC<ChainOfThoughtContentProps> = ({
 	children,
 	className,
 	...props
-}: ChainOfThoughtContentProps) => {
+}) => {
 	return (
 		<CollapsibleContent
 			className={cn(
@@ -201,7 +270,10 @@ export const ChainOfThoughtContent = ({
 							<div
 								key={key}
 								className="animate-in fade-in slide-in-from-left-2 duration-200"
-								style={{ animationDelay: `${index * 50}ms`, animationFillMode: "backwards" }}
+								style={{
+									animationDelay: `${index * ANIMATION.STAGGER_DELAY_MS}ms`,
+									animationFillMode: "backwards",
+								}}
 							>
 								{child}
 							</div>
@@ -213,12 +285,15 @@ export const ChainOfThoughtContent = ({
 	);
 };
 
-export type ChainOfThoughtProps = {
+export interface ChainOfThoughtProps {
 	children: React.ReactNode;
 	className?: string;
-};
+}
 
-export function ChainOfThought({ children, className }: ChainOfThoughtProps) {
+export const ChainOfThought: React.FC<ChainOfThoughtProps> = ({
+	children,
+	className,
+}) => {
 	const childrenArray = React.Children.toArray(children);
 
 	return (
@@ -238,25 +313,31 @@ export function ChainOfThought({ children, className }: ChainOfThoughtProps) {
 			})}
 		</div>
 	);
-}
-
-export type ChainOfThoughtStepProps = {
-	children: React.ReactNode;
-	className?: string;
-	isLast?: boolean;
-	/** Index of the step for staggered animation */
-	stepIndex?: number;
 };
 
-export const ChainOfThoughtStep = ({
+export interface ChainOfThoughtStepProps
+	extends Omit<React.ComponentProps<typeof Collapsible>, "children"> {
+	children: React.ReactNode;
+	className?: string;
+	/** Whether this is the last step (hides connection line) */
+	isLast?: boolean;
+	/** Index of the step for staggered animation timing */
+	stepIndex?: number;
+}
+
+export const ChainOfThoughtStep: React.FC<ChainOfThoughtStepProps> = ({
 	children,
 	className,
 	isLast = false,
 	stepIndex = 0,
 	...props
-}: ChainOfThoughtStepProps & React.ComponentProps<typeof Collapsible>) => {
+}) => {
 	// Staggered entrance animation based on step index
-	const isVisible = useEntranceAnimation(stepIndex * 50);
+	const isVisible = useEntranceAnimation(stepIndex * ANIMATION.STAGGER_DELAY_MS);
+
+	// Calculate connection line delay: step delay + additional offset
+	const connectionLineDelay =
+		stepIndex * ANIMATION.STAGGER_DELAY_MS + ANIMATION.CONNECTION_LINE_DELAY_MS;
 
 	return (
 		<Collapsible
@@ -278,7 +359,7 @@ export const ChainOfThoughtStep = ({
 						// Animate line height from 0 to full
 						isVisible ? "h-4 scale-y-100" : "h-0 scale-y-0"
 					)}
-					style={{ transitionDelay: `${stepIndex * 50 + 150}ms` }}
+					style={{ transitionDelay: `${connectionLineDelay}ms` }}
 				/>
 			</div>
 		</Collapsible>

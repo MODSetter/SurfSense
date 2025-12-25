@@ -2,7 +2,8 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { Brain, CheckCircle2, Loader2, Search, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { FC, ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import {
 	ChainOfThought,
@@ -13,14 +14,59 @@ import {
 } from "@/components/prompt-kit/chain-of-thought";
 import { cn } from "@/lib/utils";
 
-/**
- * Zod schemas for runtime validation
- */
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Step status values */
+const STEP_STATUS = {
+	PENDING: "pending",
+	IN_PROGRESS: "in_progress",
+	COMPLETED: "completed",
+} as const;
+
+/** Agent thinking status values */
+const THINKING_STATUS = {
+	THINKING: "thinking",
+	SEARCHING: "searching",
+	SYNTHESIZING: "synthesizing",
+	COMPLETED: "completed",
+} as const;
+
+/** Keywords for icon detection */
+const STEP_KEYWORDS = {
+	SEARCH: ["search", "knowledge"] as const,
+	ANALYSIS: ["analy", "understand"] as const,
+} as const;
+
+/** Icon size class */
+const ICON_SIZE_CLASS = "size-4" as const;
+
+/** Status text mapping */
+const STATUS_TEXT_MAP: Record<string, string> = {
+	[THINKING_STATUS.SEARCHING]: "Searching knowledge base...",
+	[THINKING_STATUS.SYNTHESIZING]: "Synthesizing response...",
+	[THINKING_STATUS.THINKING]: "Thinking...",
+} as const;
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+type StepStatus = (typeof STEP_STATUS)[keyof typeof STEP_STATUS];
+type ThinkingStatus = (typeof THINKING_STATUS)[keyof typeof THINKING_STATUS];
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
 const ThinkingStepSchema = z.object({
 	id: z.string(),
 	title: z.string(),
 	items: z.array(z.string()).default([]),
-	status: z.enum(["pending", "in_progress", "completed"]).default("pending"),
+	status: z
+		.enum([STEP_STATUS.PENDING, STEP_STATUS.IN_PROGRESS, STEP_STATUS.COMPLETED])
+		.default(STEP_STATUS.PENDING),
 });
 
 const DeepAgentThinkingArgsSchema = z.object({
@@ -30,16 +76,33 @@ const DeepAgentThinkingArgsSchema = z.object({
 
 const DeepAgentThinkingResultSchema = z.object({
 	steps: z.array(ThinkingStepSchema).optional(),
-	status: z.enum(["thinking", "searching", "synthesizing", "completed"]).optional(),
+	status: z
+		.enum([
+			THINKING_STATUS.THINKING,
+			THINKING_STATUS.SEARCHING,
+			THINKING_STATUS.SYNTHESIZING,
+			THINKING_STATUS.COMPLETED,
+		])
+		.optional(),
 	summary: z.string().optional(),
 });
 
-/**
- * Types derived from Zod schemas
- */
+/** Types derived from Zod schemas */
 type ThinkingStep = z.infer<typeof ThinkingStepSchema>;
 type DeepAgentThinkingArgs = z.infer<typeof DeepAgentThinkingArgsSchema>;
 type DeepAgentThinkingResult = z.infer<typeof DeepAgentThinkingResultSchema>;
+
+// ============================================================================
+// Parser Functions
+// ============================================================================
+
+/** Default fallback step when parsing fails */
+const DEFAULT_FALLBACK_STEP: ThinkingStep = {
+	id: "unknown",
+	title: "Processing...",
+	items: [],
+	status: STEP_STATUS.PENDING,
+} as const;
 
 /**
  * Parse and validate a single thinking step
@@ -48,13 +111,7 @@ export function parseThinkingStep(data: unknown): ThinkingStep {
 	const result = ThinkingStepSchema.safeParse(data);
 	if (!result.success) {
 		console.warn("Invalid thinking step data:", result.error.issues);
-		// Return a fallback step
-		return {
-			id: "unknown",
-			title: "Processing...",
-			items: [],
-			status: "pending",
-		};
+		return DEFAULT_FALLBACK_STEP;
 	}
 	return result.data;
 }
@@ -71,55 +128,79 @@ export function parseThinkingResult(data: unknown): DeepAgentThinkingResult {
 	return result.data;
 }
 
+// ============================================================================
+// Icon Utilities
+// ============================================================================
+
 /**
- * Get icon based on step status and type
+ * Check if title contains any of the keywords
  */
-function getStepIcon(status: "pending" | "in_progress" | "completed", title: string) {
-	// Check for specific step types based on title keywords
+function titleContainsKeywords(
+	title: string,
+	keywords: readonly string[]
+): boolean {
 	const titleLower = title.toLowerCase();
+	return keywords.some((keyword) => titleLower.includes(keyword));
+}
 
-	if (status === "in_progress") {
-		return <Loader2 className="size-4 animate-spin text-primary" />;
+/**
+ * Get icon based on step status and title
+ */
+function getStepIcon(status: StepStatus, title: string): ReactNode {
+	if (status === STEP_STATUS.IN_PROGRESS) {
+		return <Loader2 className={cn(ICON_SIZE_CLASS, "animate-spin text-primary")} />;
 	}
 
-	if (status === "completed") {
-		return <CheckCircle2 className="size-4 text-emerald-500" />;
+	if (status === STEP_STATUS.COMPLETED) {
+		return <CheckCircle2 className={cn(ICON_SIZE_CLASS, "text-emerald-500")} />;
 	}
 
-	// Default icons based on step type
-	if (titleLower.includes("search") || titleLower.includes("knowledge")) {
-		return <Search className="size-4 text-muted-foreground" />;
+	// Default icons based on step type keywords
+	if (titleContainsKeywords(title, STEP_KEYWORDS.SEARCH)) {
+		return <Search className={cn(ICON_SIZE_CLASS, "text-muted-foreground")} />;
 	}
 
-	if (titleLower.includes("analy") || titleLower.includes("understand")) {
-		return <Brain className="size-4 text-muted-foreground" />;
+	if (titleContainsKeywords(title, STEP_KEYWORDS.ANALYSIS)) {
+		return <Brain className={cn(ICON_SIZE_CLASS, "text-muted-foreground")} />;
 	}
 
-	return <Sparkles className="size-4 text-muted-foreground" />;
+	return <Sparkles className={cn(ICON_SIZE_CLASS, "text-muted-foreground")} />;
+}
+
+// ============================================================================
+// Sub-Components
+// ============================================================================
+
+interface ThinkingStepDisplayProps {
+	step: ThinkingStep;
+	isOpen: boolean;
+	onToggle: () => void;
 }
 
 /**
  * Component to display a single thinking step with controlled open state
  */
-function ThinkingStepDisplay({
+const ThinkingStepDisplay: FC<ThinkingStepDisplayProps> = ({
 	step,
 	isOpen,
 	onToggle,
-}: {
-	step: ThinkingStep;
-	isOpen: boolean;
-	onToggle: () => void;
-}) {
-	const icon = useMemo(() => getStepIcon(step.status, step.title), [step.status, step.title]);
+}) => {
+	const icon = useMemo(
+		() => getStepIcon(step.status, step.title),
+		[step.status, step.title]
+	);
+
+	const isInProgress = step.status === STEP_STATUS.IN_PROGRESS;
+	const isCompleted = step.status === STEP_STATUS.COMPLETED;
 
 	return (
 		<ChainOfThoughtStep open={isOpen} onOpenChange={onToggle}>
 			<ChainOfThoughtTrigger
 				leftIcon={icon}
-				swapIconOnHover={step.status !== "in_progress"}
+				swapIconOnHover={!isInProgress}
 				className={cn(
-					step.status === "in_progress" && "text-foreground font-medium",
-					step.status === "completed" && "text-muted-foreground"
+					isInProgress && "text-foreground font-medium",
+					isCompleted && "text-muted-foreground"
 				)}
 			>
 				{step.title}
@@ -131,22 +212,21 @@ function ThinkingStepDisplay({
 			</ChainOfThoughtContent>
 		</ChainOfThoughtStep>
 	);
+};
+
+interface ThinkingLoadingStateProps {
+	status?: ThinkingStatus | string;
 }
 
 /**
  * Loading state with animated thinking indicator
  */
-function ThinkingLoadingState({ status }: { status?: string }) {
+const ThinkingLoadingState: FC<ThinkingLoadingStateProps> = ({ status }) => {
 	const statusText = useMemo(() => {
-		switch (status) {
-			case "searching":
-				return "Searching knowledge base...";
-			case "synthesizing":
-				return "Synthesizing response...";
-			case "thinking":
-			default:
-				return "Thinking...";
+		if (status && status in STATUS_TEXT_MAP) {
+			return STATUS_TEXT_MAP[status];
 		}
+		return STATUS_TEXT_MAP[THINKING_STATUS.THINKING];
 	}, [status]);
 
 	return (
@@ -161,33 +241,35 @@ function ThinkingLoadingState({ status }: { status?: string }) {
 			<span className="text-sm text-muted-foreground">{statusText}</span>
 		</div>
 	);
+};
+
+interface SmartChainOfThoughtProps {
+	steps: ThinkingStep[];
 }
+
+/** Type for tracking step override states */
+type StepOverrides = Record<string, boolean>;
+
+/** Type for tracking step status history */
+type StepStatusHistory = Record<string, StepStatus>;
 
 /**
  * Smart chain of thought renderer with state management
  */
-function SmartChainOfThought({ steps }: { steps: ThinkingStep[] }) {
+const SmartChainOfThought: FC<SmartChainOfThoughtProps> = ({ steps }) => {
 	// Track which steps the user has manually toggled
-	const [manualOverrides, setManualOverrides] = useState<Record<string, boolean>>({});
+	const [manualOverrides, setManualOverrides] = useState<StepOverrides>({});
 	// Track previous step statuses to detect changes
-	const prevStatusesRef = useRef<Record<string, string>>({});
-
-	// Check if any step is currently in progress
-	const hasInProgressStep = steps.some((step) => step.status === "in_progress");
-
-	// Find the last completed step index
-	const lastCompletedIndex = steps
-		.map((s, i) => (s.status === "completed" ? i : -1))
-		.filter((i) => i !== -1)
-		.pop();
+	const prevStatusesRef = useRef<StepStatusHistory>({});
 
 	// Clear manual overrides when a step's status changes
 	useEffect(() => {
-		const currentStatuses: Record<string, string> = {};
+		const currentStatuses: StepStatusHistory = {};
 		steps.forEach((step) => {
 			currentStatuses[step.id] = step.status;
 			// If status changed, clear any manual override for this step
-			if (prevStatusesRef.current[step.id] && prevStatusesRef.current[step.id] !== step.status) {
+			const prevStatus = prevStatusesRef.current[step.id];
+			if (prevStatus && prevStatus !== step.status) {
 				setManualOverrides((prev) => {
 					const next = { ...prev };
 					delete next[step.id];
@@ -198,34 +280,33 @@ function SmartChainOfThought({ steps }: { steps: ThinkingStep[] }) {
 		prevStatusesRef.current = currentStatuses;
 	}, [steps]);
 
-	const getStepOpenState = (step: ThinkingStep, index: number): boolean => {
-		// If user has manually toggled, respect that
-		if (manualOverrides[step.id] !== undefined) {
-			return manualOverrides[step.id];
-		}
-		// Auto behavior: open if in progress
-		if (step.status === "in_progress") {
-			return true;
-		}
-		// Auto behavior: keep last completed step open if no in-progress step
-		if (!hasInProgressStep && index === lastCompletedIndex) {
-			return true;
-		}
-		// Default: collapsed
-		return false;
-	};
+	const getStepOpenState = useCallback(
+		(step: ThinkingStep): boolean => {
+			// If user has manually toggled, respect that
+			if (manualOverrides[step.id] !== undefined) {
+				return manualOverrides[step.id];
+			}
+			// Auto behavior: open if in progress
+			if (step.status === STEP_STATUS.IN_PROGRESS) {
+				return true;
+			}
+			// Default: collapsed (all steps collapse when processing is done)
+			return false;
+		},
+		[manualOverrides]
+	);
 
-	const handleToggle = (stepId: string, currentOpen: boolean) => {
+	const handleToggle = useCallback((stepId: string, currentOpen: boolean) => {
 		setManualOverrides((prev) => ({
 			...prev,
 			[stepId]: !currentOpen,
 		}));
-	};
+	}, []);
 
 	return (
 		<ChainOfThought>
-			{steps.map((step, index) => {
-				const isOpen = getStepOpenState(step, index);
+			{steps.map((step) => {
+				const isOpen = getStepOpenState(step);
 				return (
 					<ThinkingStepDisplay
 						key={step.id}
@@ -237,7 +318,7 @@ function SmartChainOfThought({ steps }: { steps: ThinkingStep[] }) {
 			})}
 		</ChainOfThought>
 	);
-}
+};
 
 /**
  * DeepAgent Thinking Tool UI Component
@@ -281,21 +362,30 @@ export const DeepAgentThinkingToolUI = makeAssistantToolUI<
 	},
 });
 
+// ============================================================================
+// Public Components
+// ============================================================================
+
+export interface InlineThinkingDisplayProps {
+	/** The thinking steps to display */
+	steps: ThinkingStep[];
+	/** Whether content is currently streaming */
+	isStreaming?: boolean;
+	/** Additional CSS class names */
+	className?: string;
+}
+
 /**
  * Inline Thinking Display Component
  *
  * A simpler version that can be used inline with the message content
  * for displaying reasoning without the full tool UI infrastructure.
  */
-export function InlineThinkingDisplay({
+export const InlineThinkingDisplay: FC<InlineThinkingDisplayProps> = ({
 	steps,
 	isStreaming = false,
 	className,
-}: {
-	steps: ThinkingStep[];
-	isStreaming?: boolean;
-	className?: string;
-}) {
+}) => {
 	if (steps.length === 0 && !isStreaming) {
 		return null;
 	}
@@ -309,6 +399,18 @@ export function InlineThinkingDisplay({
 			)}
 		</div>
 	);
-}
+};
 
-export type { ThinkingStep, DeepAgentThinkingArgs, DeepAgentThinkingResult };
+// ============================================================================
+// Exports
+// ============================================================================
+
+export type {
+	ThinkingStep,
+	DeepAgentThinkingArgs,
+	DeepAgentThinkingResult,
+	StepStatus,
+	ThinkingStatus,
+};
+
+export { STEP_STATUS, THINKING_STATUS };
