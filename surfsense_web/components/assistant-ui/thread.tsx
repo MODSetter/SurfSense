@@ -426,6 +426,9 @@ const Composer: FC = () => {
 	// Check if thread is empty (new chat)
 	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
 
+	// Check if thread is currently running (streaming response)
+	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+
 	// Auto-focus editor when on new chat page
 	useEffect(() => {
 		if (isThreadEmpty && !hasAutoFocusedRef.current && editorRef.current) {
@@ -504,6 +507,10 @@ const Composer: FC = () => {
 
 	// Handle submit from inline editor (Enter key)
 	const handleSubmit = useCallback(() => {
+		// Prevent sending while a response is still streaming
+		if (isThreadRunning) {
+			return;
+		}
 		if (!showDocumentPopover) {
 			composerRuntime.send();
 			// Clear the editor after sending
@@ -511,7 +518,7 @@ const Composer: FC = () => {
 			setMentionedDocuments([]);
 			setMentionedDocumentIds([]);
 		}
-	}, [showDocumentPopover, composerRuntime, setMentionedDocuments, setMentionedDocumentIds]);
+	}, [showDocumentPopover, isThreadRunning, composerRuntime, setMentionedDocuments, setMentionedDocumentIds]);
 
 	// Handle document removal from inline editor
 	const handleDocumentRemove = useCallback(
@@ -973,19 +980,23 @@ const UserMessage: FC = () => {
 	const messageId = useAssistantState(({ message }) => message?.id);
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
+	const hasAttachments = useAssistantState(
+		({ message }) => message?.attachments && message.attachments.length > 0
+	);
 
 	return (
 		<MessagePrimitive.Root
 			className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
 			data-role="user"
 		>
-			<UserMessageAttachments />
-
 			<div className="aui-user-message-content-wrapper col-start-2 min-w-0">
-				{/* Display mentioned documents as chips */}
-				{mentionedDocs && mentionedDocs.length > 0 && (
-					<div className="flex flex-wrap gap-1.5 mb-2 justify-end">
-						{mentionedDocs.map((doc) => (
+				{/* Display attachments and mentioned documents */}
+				{(hasAttachments || (mentionedDocs && mentionedDocs.length > 0)) && (
+					<div className="flex flex-wrap items-end gap-2 mb-2 justify-end">
+						{/* Attachments (images show as thumbnails, documents as chips) */}
+						<UserMessageAttachments />
+						{/* Mentioned documents as chips */}
+						{mentionedDocs?.map((doc) => (
 							<span
 								key={doc.id}
 								className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"

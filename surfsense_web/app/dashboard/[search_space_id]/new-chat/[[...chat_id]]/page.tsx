@@ -171,6 +171,14 @@ export default function NewChatPage() {
 	const initializeThread = useCallback(async () => {
 		setIsInitializing(true);
 
+		// Reset all state when switching between chats to prevent stale data
+		setMessages([]);
+		setThreadId(null);
+		setMessageThinkingSteps(new Map());
+		setMentionedDocumentIds([]);
+		setMentionedDocuments([]);
+		setMessageDocumentsMap({});
+
 		try {
 			if (urlChatId > 0) {
 				// Thread exists - load messages
@@ -219,7 +227,7 @@ export default function NewChatPage() {
 		} finally {
 			setIsInitializing(false);
 		}
-	}, [urlChatId, setMessageDocumentsMap]);
+	}, [urlChatId, setMessageDocumentsMap, setMentionedDocumentIds, setMentionedDocuments]);
 
 	// Initialize on mount
 	useEffect(() => {
@@ -238,6 +246,13 @@ export default function NewChatPage() {
 	// Handle new message from user
 	const onNew = useCallback(
 		async (message: AppendMessage) => {
+			// Abort any previous streaming request to prevent race conditions
+			// when user sends a second query while the first is still streaming
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+				abortControllerRef.current = null;
+			}
+
 			// Extract user query text from content parts
 			let userQuery = "";
 			for (const part of message.content) {
@@ -297,6 +312,8 @@ export default function NewChatPage() {
 				role: "user",
 				content: message.content,
 				createdAt: new Date(),
+				// Include attachments so they can be displayed
+				attachments: message.attachments || [],
 			};
 			setMessages((prev) => [...prev, userMessage]);
 

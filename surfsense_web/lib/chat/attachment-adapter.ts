@@ -60,9 +60,11 @@ interface ProcessAttachmentResponse {
 /**
  * Extended CompleteAttachment with our custom extractedContent field
  * We store the extracted text in a custom field so we can access it in onNew
+ * For images, we also store the data URL so it can be displayed after persistence
  */
 export interface ChatAttachment extends CompleteAttachment {
 	extractedContent: string;
+	imageDataUrl?: string; // Base64 data URL for images (persists across page reloads)
 }
 
 /**
@@ -118,6 +120,21 @@ async function processAttachment(file: File): Promise<ProcessAttachmentResponse>
 // Store processed results for the send() method
 const processedAttachments = new Map<string, ProcessAttachmentResponse>();
 
+// Store image data URLs for attachments (so they persist after File objects are lost)
+const imageDataUrls = new Map<string, string>();
+
+/**
+ * Convert a File to a data URL (base64) for images
+ */
+async function fileToDataUrl(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(reader.result as string);
+		reader.onerror = reject;
+		reader.readAsDataURL(file);
+	});
+}
+
 /**
  * Create the attachment adapter for assistant-ui
  *
@@ -170,6 +187,12 @@ export function createAttachmentAdapter(): AttachmentAdapter {
 			} as PendingAttachment;
 
 			try {
+				// For images, convert to data URL so we can display them after persistence
+				if (attachmentType === "image") {
+					const dataUrl = await fileToDataUrl(file);
+					imageDataUrls.set(id, dataUrl);
+				}
+
 				// Process the file through the backend ETL service
 				const result = await processAttachment(file);
 
@@ -204,10 +227,14 @@ export function createAttachmentAdapter(): AttachmentAdapter {
 		 */
 		async send(pendingAttachment: PendingAttachment): Promise<ChatAttachment> {
 			const result = processedAttachments.get(pendingAttachment.id);
+			const imageDataUrl = imageDataUrls.get(pendingAttachment.id);
 
 			if (result) {
 				// Clean up stored result
 				processedAttachments.delete(pendingAttachment.id);
+				if (imageDataUrl) {
+					imageDataUrls.delete(pendingAttachment.id);
+				}
 
 				return {
 					id: result.id,
@@ -222,6 +249,7 @@ export function createAttachmentAdapter(): AttachmentAdapter {
 						},
 					],
 					extractedContent: result.content,
+					imageDataUrl, // Store data URL for images so they can be displayed after persistence
 				};
 			}
 
@@ -238,6 +266,7 @@ export function createAttachmentAdapter(): AttachmentAdapter {
 				status: { type: "complete" },
 				content: [],
 				extractedContent: "",
+				imageDataUrl, // Still include data URL if available
 			};
 		},
 
