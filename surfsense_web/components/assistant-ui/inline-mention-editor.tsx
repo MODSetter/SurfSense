@@ -90,7 +90,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		// Get plain text content (excluding chips)
 		const getText = useCallback((): string => {
 			if (!editorRef.current) return "";
-			
+
 			let text = "";
 			const walker = document.createTreeWalker(
 				editorRef.current,
@@ -127,47 +127,50 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		}, [mentionedDocs]);
 
 		// Create a chip element for a document
-		const createChipElement = useCallback((doc: MentionedDocument): HTMLSpanElement => {
-			const chip = document.createElement("span");
-			chip.setAttribute(CHIP_DATA_ATTR, "true");
-			chip.setAttribute(CHIP_ID_ATTR, String(doc.id));
-			chip.contentEditable = "false";
-			chip.className =
-				"inline-flex items-center gap-0.5 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary border border-primary/10 select-none";
-			chip.style.userSelect = "none";
-			chip.style.verticalAlign = "baseline";
+		const createChipElement = useCallback(
+			(doc: MentionedDocument): HTMLSpanElement => {
+				const chip = document.createElement("span");
+				chip.setAttribute(CHIP_DATA_ATTR, "true");
+				chip.setAttribute(CHIP_ID_ATTR, String(doc.id));
+				chip.contentEditable = "false";
+				chip.className =
+					"inline-flex items-center gap-0.5 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary border border-primary/10 select-none";
+				chip.style.userSelect = "none";
+				chip.style.verticalAlign = "baseline";
 
-			const titleSpan = document.createElement("span");
-			titleSpan.className = "max-w-[80px] truncate";
-			titleSpan.textContent = doc.title;
-			titleSpan.title = doc.title;
+				const titleSpan = document.createElement("span");
+				titleSpan.className = "max-w-[80px] truncate";
+				titleSpan.textContent = doc.title;
+				titleSpan.title = doc.title;
 
-			const removeBtn = document.createElement("button");
-			removeBtn.type = "button";
-			removeBtn.className =
-				"size-3 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors ml-0.5";
-			removeBtn.innerHTML = ReactDOMServer.renderToString(
-				createElement(X, { className: "h-2.5 w-2.5", strokeWidth: 2.5 })
-			);
-			removeBtn.onclick = (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				chip.remove();
-				setMentionedDocs((prev) => {
-					const next = new Map(prev);
-					next.delete(doc.id);
-					return next;
-				});
-				// Notify parent that a document was removed
-				onDocumentRemove?.(doc.id);
-				focusAtEnd();
-			};
+				const removeBtn = document.createElement("button");
+				removeBtn.type = "button";
+				removeBtn.className =
+					"size-3 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors ml-0.5";
+				removeBtn.innerHTML = ReactDOMServer.renderToString(
+					createElement(X, { className: "h-2.5 w-2.5", strokeWidth: 2.5 })
+				);
+				removeBtn.onclick = (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					chip.remove();
+					setMentionedDocs((prev) => {
+						const next = new Map(prev);
+						next.delete(doc.id);
+						return next;
+					});
+					// Notify parent that a document was removed
+					onDocumentRemove?.(doc.id);
+					focusAtEnd();
+				};
 
-			chip.appendChild(titleSpan);
-			chip.appendChild(removeBtn);
+				chip.appendChild(titleSpan);
+				chip.appendChild(removeBtn);
 
-			return chip;
-		}, [focusAtEnd, onDocumentRemove]);
+				return chip;
+			},
+			[focusAtEnd, onDocumentRemove]
+		);
 
 		// Insert a document chip at the current cursor position
 		const insertDocumentChip = useCallback(
@@ -222,8 +225,8 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 						// Replace text node content
 						const parent = textNode.parentNode;
 						if (parent) {
-						const beforeNode = document.createTextNode(beforeAt);
-						const afterNode = document.createTextNode(` ${afterCursor}`);
+							const beforeNode = document.createTextNode(beforeAt);
+							const afterNode = document.createTextNode(` ${afterCursor}`);
 
 							parent.insertBefore(beforeNode, textNode);
 							parent.insertBefore(chip, textNode);
@@ -243,7 +246,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 						range.insertNode(chip);
 						range.setStartAfter(chip);
 						range.collapse(true);
-						
+
 						// Add space after chip
 						const space = document.createTextNode(" ");
 						range.insertNode(space);
@@ -491,4 +494,3 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 );
 
 InlineMentionEditor.displayName = "InlineMentionEditor";
-

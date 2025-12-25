@@ -558,10 +558,7 @@ const Composer: FC = () => {
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
 				{/* -------- Inline Mention Editor -------- */}
-				<div
-					ref={editorContainerRef}
-					className="aui-composer-input-wrapper px-3 pt-3 pb-6"
-				>
+				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
 						placeholder="Ask SurfSense (type @ to mention docs)"
