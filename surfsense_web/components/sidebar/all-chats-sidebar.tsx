@@ -121,7 +121,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 		async (threadId: number) => {
 			setDeletingThreadId(threadId);
 			try {
-				await deleteThread(threadId);
+				await deleteThread(threadId, searchSpaceId);
 				toast.success(t("chat_deleted") || "Chat deleted successfully");
 				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });

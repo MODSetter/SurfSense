@@ -359,10 +359,14 @@ export default function NewChatPage() {
 							},
 						]
 					: message.content;
-			appendMessage(currentThreadId, {
-				role: "user",
-				content: persistContent,
-			}).catch((err) => console.error("Failed to persist user message:", err));
+			appendMessage(
+				currentThreadId,
+				{
+					role: "user",
+					content: persistContent,
+				},
+				searchSpaceId
+			).catch((err) => console.error("Failed to persist user message:", err));
 
 			// Start streaming response
 			setIsRunning(true);

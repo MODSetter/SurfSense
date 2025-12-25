@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { trackConnectorAdded, trackConnectorDeleted, trackConnectorIndexed } from "@/lib/analytics";
 import { authenticatedFetch, getBearerToken, handleUnauthorized } from "@/lib/auth-utils";
 
 export interface SearchSourceConnector {
@@ -191,6 +192,14 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			const updatedConnectors = [...connectors, newConnector];
 			setConnectors(updatedConnectors);
 			updateConnectorSourceItems(updatedConnectors);
+
+			// Track connector creation
+			trackConnectorAdded({
+				search_space_id: spaceId,
+				connector_type: connectorData.connector_type,
+				connector_id: newConnector.id,
+			});
+
 			return newConnector;
 		} catch (err) {
 			console.error("Error creating search source connector:", err);
@@ -239,6 +248,9 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	 */
 	const deleteConnector = async (connectorId: number) => {
 		try {
+			// Find connector before deleting to get its type for tracking
+			const connectorToDelete = connectors.find((c) => c.id === connectorId);
+
 			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{
@@ -254,6 +266,15 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			const updatedConnectors = connectors.filter((connector) => connector.id !== connectorId);
 			setConnectors(updatedConnectors);
 			updateConnectorSourceItems(updatedConnectors);
+
+			// Track connector deletion
+			if (connectorToDelete) {
+				trackConnectorDeleted({
+					search_space_id: connectorToDelete.search_space_id,
+					connector_type: connectorToDelete.connector_type,
+					connector_id: connectorId,
+				});
+			}
 		} catch (err) {
 			console.error("Error deleting search source connector:", err);
 			throw err;
@@ -297,6 +318,9 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 
 			const result = await response.json();
 
+			// Find the connector to get its type for tracking
+			const indexedConnector = connectors.find((c) => c.id === connectorId);
+
 			// Update the connector's last_indexed_at timestamp
 			const updatedConnectors = connectors.map((connector) =>
 				connector.id === connectorId
@@ -307,6 +331,15 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 					: connector
 			);
 			setConnectors(updatedConnectors);
+
+			// Track connector indexing
+			if (indexedConnector) {
+				trackConnectorIndexed({
+					search_space_id: Number(searchSpaceId),
+					connector_type: indexedConnector.connector_type,
+					connector_id: connectorId,
+				});
+			}
 
 			return result;
 		} catch (err) {

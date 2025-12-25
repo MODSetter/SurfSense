@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { trackUserLoggedIn } from "@/lib/analytics";
 import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
 
 interface TokenHandlerProps {
@@ -39,6 +40,10 @@ const TokenHandler = ({
 				// Store token in localStorage using both methods for compatibility
 				localStorage.setItem(storageKey, token);
 				setBearerToken(token);
+
+				// Track successful login (works for both email and Google OAuth)
+				const authType = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE";
+				trackUserLoggedIn({ method: authType === "GOOGLE" ? "google" : "email" });
 
 				// Check if there's a saved redirect path from before the auth flow
 				const savedRedirectPath = getAndClearRedirectPath();

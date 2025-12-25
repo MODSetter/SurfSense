@@ -4,6 +4,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
 import { I18nProvider } from "@/components/providers/I18nProvider";
+import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/contexts/LocaleContext";
@@ -102,7 +103,9 @@ export default function RootLayout({
 							defaultTheme="light"
 						>
 							<RootProvider>
-								<ReactQueryClientProvider>{children}</ReactQueryClientProvider>
+								<ReactQueryClientProvider>
+									<PostHogProvider>{children}</PostHogProvider>
+								</ReactQueryClientProvider>
 								<Toaster />
 							</RootProvider>
 						</ThemeProvider>

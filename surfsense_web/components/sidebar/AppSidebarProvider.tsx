@@ -146,7 +146,7 @@ export function AppSidebarProvider({
 
 		setIsDeletingThread(true);
 		try {
-			await deleteThread(threadToDelete.id);
+			await deleteThread(threadToDelete.id, searchSpaceId);
 			// Invalidate threads query to refresh the list
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 		} catch (error) {

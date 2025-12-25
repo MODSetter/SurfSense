@@ -8,6 +8,7 @@ import type {
 	UpdateDocumentRequest,
 	UploadDocumentRequest,
 } from "@/contracts/types/document.types";
+import { trackDocumentDeleted, trackDocumentIndexed } from "@/lib/analytics";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
@@ -24,7 +25,15 @@ export const createDocumentMutationAtom = atomWithMutation((get) => {
 			return documentsApiService.createDocument(request);
 		},
 
-		onSuccess: () => {
+		onSuccess: (data, request: CreateDocumentRequest) => {
+			// Track document creation/indexing
+			if (searchSpaceId) {
+				trackDocumentIndexed({
+					search_space_id: Number(searchSpaceId),
+					document_type: request.document_type,
+				});
+			}
+
 			toast.success("Document created successfully");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.documents.globalQueryParams(documentsQueryParams),
@@ -91,6 +100,14 @@ export const deleteDocumentMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: (_, request: DeleteDocumentRequest) => {
+			// Track document deletion
+			if (searchSpaceId) {
+				trackDocumentDeleted({
+					search_space_id: Number(searchSpaceId),
+					document_id: request.id,
+				});
+			}
+
 			toast.success("Document deleted successfully");
 			queryClient.setQueryData(
 				cacheKeys.documents.globalQueryParams(documentsQueryParams),

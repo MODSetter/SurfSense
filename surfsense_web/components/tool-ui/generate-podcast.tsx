@@ -2,9 +2,11 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, Loader2Icon, MicIcon } from "lucide-react";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Audio } from "@/components/tool-ui/audio";
+import { trackPodcastGenerated } from "@/lib/analytics";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { clearActivePodcastTaskId, setActivePodcastTaskId } from "@/lib/chat/podcast-state";
@@ -287,6 +289,9 @@ function PodcastPlayer({
 function PodcastTaskPoller({ taskId, title }: { taskId: string; title: string }) {
 	const [taskStatus, setTaskStatus] = useState<TaskStatusResponse>({ status: "processing" });
 	const pollingRef = useRef<NodeJS.Timeout | null>(null);
+	const hasTrackedRef = useRef(false);
+	const params = useParams();
+	const searchSpaceId = params.search_space_id ? Number(params.search_space_id) : undefined;
 
 	// Set active podcast state when this component mounts
 	useEffect(() => {
@@ -317,6 +322,20 @@ function PodcastTaskPoller({ taskId, title }: { taskId: string; title: string })
 					}
 					// Clear the active podcast state when task completes
 					clearActivePodcastTaskId();
+
+					// Track successful podcast generation (only once)
+					if (
+						response.status === "success" &&
+						response.podcast_id &&
+						searchSpaceId &&
+						!hasTrackedRef.current
+					) {
+						hasTrackedRef.current = true;
+						trackPodcastGenerated({
+							search_space_id: searchSpaceId,
+							podcast_id: response.podcast_id,
+						});
+					}
 				}
 			} catch (err) {
 				console.error("Error polling task status:", err);
@@ -335,7 +354,7 @@ function PodcastTaskPoller({ taskId, title }: { taskId: string; title: string })
 				clearInterval(pollingRef.current);
 			}
 		};
-	}, [taskId]);
+	}, [taskId, searchSpaceId]);
 
 	// Show loading state while processing
 	if (taskStatus.status === "processing") {

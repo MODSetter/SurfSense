@@ -3,6 +3,7 @@
  * Provides API functions and thread list management.
  */
 
+import { trackChatCreated, trackChatDeleted, trackMessageSent } from "@/lib/analytics";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
 // =============================================================================
@@ -80,13 +81,18 @@ export async function createThread(
 	searchSpaceId: number,
 	title = "New Chat"
 ): Promise<ThreadRecord> {
-	return baseApiService.post<ThreadRecord>("/api/v1/threads", undefined, {
+	const thread = await baseApiService.post<ThreadRecord>("/api/v1/threads", undefined, {
 		body: {
 			title,
 			archived: false,
 			search_space_id: searchSpaceId,
 		},
 	});
+
+	// Track chat creation event
+	trackChatCreated({ search_space_id: searchSpaceId, thread_id: thread.id });
+
+	return thread;
 }
 
 /**
@@ -101,11 +107,27 @@ export async function getThreadMessages(threadId: number): Promise<ThreadHistory
  */
 export async function appendMessage(
 	threadId: number,
-	message: { role: "user" | "assistant" | "system"; content: unknown }
+	message: { role: "user" | "assistant" | "system"; content: unknown },
+	searchSpaceId?: number
 ): Promise<MessageRecord> {
-	return baseApiService.post<MessageRecord>(`/api/v1/threads/${threadId}/messages`, undefined, {
-		body: message,
-	});
+	const result = await baseApiService.post<MessageRecord>(
+		`/api/v1/threads/${threadId}/messages`,
+		undefined,
+		{
+			body: message,
+		}
+	);
+
+	// Track message sent event (only for user messages to avoid double-counting)
+	if (message.role === "user" && searchSpaceId) {
+		trackMessageSent({
+			search_space_id: searchSpaceId,
+			thread_id: threadId,
+			role: message.role,
+		});
+	}
+
+	return result;
 }
 
 /**
@@ -123,8 +145,13 @@ export async function updateThread(
 /**
  * Delete a thread
  */
-export async function deleteThread(threadId: number): Promise<void> {
+export async function deleteThread(threadId: number, searchSpaceId?: number): Promise<void> {
 	await baseApiService.delete(`/api/v1/threads/${threadId}`);
+
+	// Track chat deletion event
+	if (searchSpaceId) {
+		trackChatDeleted({ search_space_id: searchSpaceId, thread_id: threadId });
+	}
 }
 
 // =============================================================================
@@ -218,7 +245,7 @@ export function createThreadListManager(config: ThreadListAdapterConfig) {
 
 		async deleteThread(threadId: number): Promise<boolean> {
 			try {
-				await deleteThread(threadId);
+				await deleteThread(threadId, config.searchSpaceId);
 				return true;
 			} catch (error) {
 				console.error("[ThreadListManager] Failed to delete thread:", error);

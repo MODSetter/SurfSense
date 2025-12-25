@@ -8,6 +8,7 @@ import type {
 	UpdateNewLLMConfigRequest,
 	UpdateNewLLMConfigResponse,
 } from "@/contracts/types/new-llm-config.types";
+import { trackLLMConfigCreated } from "@/lib/analytics";
 import { newLLMConfigApiService } from "@/lib/apis/new-llm-config-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
@@ -25,7 +26,16 @@ export const createNewLLMConfigMutationAtom = atomWithMutation((get) => {
 		mutationFn: async (request: CreateNewLLMConfigRequest) => {
 			return newLLMConfigApiService.createConfig(request);
 		},
-		onSuccess: () => {
+		onSuccess: (_, request: CreateNewLLMConfigRequest) => {
+			// Track LLM config creation
+			if (searchSpaceId) {
+				trackLLMConfigCreated({
+					search_space_id: Number(searchSpaceId),
+					provider: request.provider,
+					model_name: request.model_name,
+				});
+			}
+
 			toast.success("Configuration created successfully");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.newLLMConfigs.all(Number(searchSpaceId)),

@@ -5,6 +5,7 @@ import type {
 	DeleteSearchSpaceRequest,
 	UpdateSearchSpaceRequest,
 } from "@/contracts/types/search-space.types";
+import { trackSearchSpaceCreated, trackSearchSpaceDeleted } from "@/lib/analytics";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
@@ -17,7 +18,10 @@ export const createSearchSpaceMutationAtom = atomWithMutation(() => {
 			return searchSpacesApiService.createSearchSpace(request);
 		},
 
-		onSuccess: () => {
+		onSuccess: (data, request: CreateSearchSpaceRequest) => {
+			// Track search space creation
+			trackSearchSpaceCreated({ search_space_id: data.id, name: request.name });
+
 			toast.success("Search space created successfully");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.searchSpaces.all,
@@ -61,6 +65,11 @@ export const deleteSearchSpaceMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: (_, request: DeleteSearchSpaceRequest) => {
+			// Track search space deletion
+			if (request.id) {
+				trackSearchSpaceDeleted({ search_space_id: request.id });
+			}
+
 			toast.success("Search space deleted successfully");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.searchSpaces.all,
