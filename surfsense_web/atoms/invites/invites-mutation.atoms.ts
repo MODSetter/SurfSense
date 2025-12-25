@@ -6,7 +6,6 @@ import type {
 	DeleteInviteRequest,
 	UpdateInviteRequest,
 } from "@/contracts/types/invites.types";
-import { trackInviteAccepted, trackInviteCreated } from "@/lib/analytics";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
@@ -19,12 +18,6 @@ export const createInviteMutationAtom = atomWithMutation(() => ({
 		return invitesApiService.createInvite(request);
 	},
 	onSuccess: (_, variables) => {
-		// Track invite creation
-		trackInviteCreated({
-			search_space_id: variables.search_space_id,
-			role_name: variables.data.role_id ? `role_${variables.data.role_id}` : undefined,
-		});
-
 		queryClient.invalidateQueries({
 			queryKey: cacheKeys.invites.all(variables.search_space_id.toString()),
 		});
@@ -81,13 +74,7 @@ export const acceptInviteMutationAtom = atomWithMutation(() => ({
 	mutationFn: async (request: AcceptInviteRequest) => {
 		return invitesApiService.acceptInvite(request);
 	},
-	onSuccess: (data, variables) => {
-		// Track invite acceptance
-		trackInviteAccepted({
-			search_space_id: data.search_space_id,
-			invite_code: variables.invite_code,
-		});
-
+	onSuccess: () => {
 		queryClient.invalidateQueries({ queryKey: cacheKeys.searchSpaces.all });
 		toast.success("Invite accepted successfully");
 	},

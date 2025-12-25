@@ -9,7 +9,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
-import { trackUserSignedUp } from "@/lib/analytics";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { AppError, ValidationError } from "@/lib/error";
 import { AmbientBackground } from "../login/AmbientBackground";
@@ -64,9 +63,6 @@ export default function RegisterPage() {
 				is_superuser: false,
 				is_verified: false,
 			});
-
-			// Track successful registration
-			trackUserSignedUp({ method: "email" });
 
 			// Success toast
 			toast.success(t("register_success"), {
