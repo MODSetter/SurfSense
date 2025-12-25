@@ -70,12 +70,12 @@ const ThinkingStepSchema = z.object({
 });
 
 const DeepAgentThinkingArgsSchema = z.object({
-	query: z.string().optional(),
-	context: z.string().optional(),
+	query: z.string().nullish(),
+	context: z.string().nullish(),
 });
 
 const DeepAgentThinkingResultSchema = z.object({
-	steps: z.array(ThinkingStepSchema).optional(),
+	steps: z.array(ThinkingStepSchema).nullish(),
 	status: z
 		.enum([
 			THINKING_STATUS.THINKING,
@@ -83,8 +83,8 @@ const DeepAgentThinkingResultSchema = z.object({
 			THINKING_STATUS.SYNTHESIZING,
 			THINKING_STATUS.COMPLETED,
 		])
-		.optional(),
-	summary: z.string().optional(),
+		.nullish(),
+	summary: z.string().nullish(),
 });
 
 /** Types derived from Zod schemas */
@@ -325,7 +325,7 @@ export const DeepAgentThinkingToolUI = makeAssistantToolUI<
 	render: function DeepAgentThinkingUI({ result, status }) {
 		// Loading state - tool is still running
 		if (status.type === "running" || status.type === "requires-action") {
-			return <ThinkingLoadingState status={result?.status} />;
+			return <ThinkingLoadingState status={result?.status ?? undefined} />;
 		}
 
 		// Incomplete/cancelled state

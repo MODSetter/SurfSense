@@ -11,26 +11,26 @@ import { cn } from "@/lib/utils";
 /**
  * Zod schemas for runtime validation
  */
-const AspectRatioSchema = z.enum(["1:1", "4:3", "16:9", "9:16", "auto"]);
+const AspectRatioSchema = z.enum(["1:1", "4:3", "16:9", "9:16", "21:9", "auto"]);
 const ImageFitSchema = z.enum(["cover", "contain"]);
 
 const ImageSourceSchema = z.object({
 	label: z.string(),
-	iconUrl: z.string().optional(),
-	url: z.string().optional(),
+	iconUrl: z.string().nullish(),
+	url: z.string().nullish(),
 });
 
 const SerializableImageSchema = z.object({
 	id: z.string(),
 	assetId: z.string(),
 	src: z.string(),
-	alt: z.string(),
-	title: z.string().optional(),
-	description: z.string().optional(),
-	href: z.string().optional(),
-	domain: z.string().optional(),
-	ratio: AspectRatioSchema.optional(),
-	source: ImageSourceSchema.optional(),
+	alt: z.string().nullish(),  // Made optional - will use fallback if missing
+	title: z.string().nullish(),
+	description: z.string().nullish(),
+	href: z.string().nullish(),
+	domain: z.string().nullish(),
+	ratio: AspectRatioSchema.nullish(),
+	source: ImageSourceSchema.nullish(),
 });
 
 /**
@@ -48,7 +48,7 @@ export interface ImageProps {
 	id: string;
 	assetId: string;
 	src: string;
-	alt: string;
+	alt?: string;  // Optional with default fallback
 	title?: string;
 	description?: string;
 	href?: string;
@@ -62,18 +62,45 @@ export interface ImageProps {
 
 /**
  * Parse and validate serializable image from tool result
+ * Returns a valid SerializableImage with fallback values for missing optional fields
  */
-export function parseSerializableImage(result: unknown): SerializableImage {
+export function parseSerializableImage(result: unknown): SerializableImage & { alt: string } {
 	const parsed = SerializableImageSchema.safeParse(result);
 
 	if (!parsed.success) {
 		console.warn("Invalid image data:", parsed.error.issues);
-		// Try to extract basic info for error display
+		
+		// Try to extract basic info and return a fallback object
 		const obj = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
+		
+		// If we have at least id, assetId, and src, we can still render the image
+		if (
+			typeof obj.id === "string" &&
+			typeof obj.assetId === "string" &&
+			typeof obj.src === "string"
+		) {
+			return {
+				id: obj.id,
+				assetId: obj.assetId,
+				src: obj.src,
+				alt: typeof obj.alt === "string" ? obj.alt : "Image",
+				title: typeof obj.title === "string" ? obj.title : undefined,
+				description: typeof obj.description === "string" ? obj.description : undefined,
+				href: typeof obj.href === "string" ? obj.href : undefined,
+				domain: typeof obj.domain === "string" ? obj.domain : undefined,
+				ratio: undefined, // Use default ratio
+				source: undefined,
+			};
+		}
+		
 		throw new Error(`Invalid image: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
 	}
 
-	return parsed.data;
+	// Provide fallback for alt if it's null/undefined
+	return {
+		...parsed.data,
+		alt: parsed.data.alt ?? "Image",
+	};
 }
 
 /**
@@ -89,6 +116,8 @@ function getAspectRatioClass(ratio?: AspectRatio): string {
 			return "aspect-video";
 		case "9:16":
 			return "aspect-[9/16]";
+		case "21:9":
+			return "aspect-[21/9]";
 		case "auto":
 		default:
 			return "aspect-[4/3]";
@@ -172,7 +201,7 @@ export function ImageLoading({ title = "Loading image..." }: { title?: string })
 export function Image({
 	id,
 	src,
-	alt,
+	alt = "Image",
 	title,
 	description,
 	href,

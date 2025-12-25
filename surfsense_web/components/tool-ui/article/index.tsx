@@ -19,20 +19,20 @@ import { cn } from "@/lib/utils";
  */
 const SerializableArticleSchema = z.object({
 	id: z.string().default("article-unknown"),
-	assetId: z.string().optional(),
-	kind: z.literal("article").optional(),
+	assetId: z.string().nullish(),
+	kind: z.literal("article").nullish(),
 	title: z.string().default("Untitled Article"),
-	description: z.string().optional(),
-	content: z.string().optional(),
-	href: z.string().url().optional(),
-	domain: z.string().optional(),
-	author: z.string().optional(),
-	date: z.string().optional(),
-	word_count: z.number().optional(),
-	wordCount: z.number().optional(),
-	was_truncated: z.boolean().optional(),
-	wasTruncated: z.boolean().optional(),
-	error: z.string().optional(),
+	description: z.string().nullish(),
+	content: z.string().nullish(),
+	href: z.string().url().nullish(),
+	domain: z.string().nullish(),
+	author: z.string().nullish(),
+	date: z.string().nullish(),
+	word_count: z.number().nullish(),
+	wordCount: z.number().nullish(),
+	was_truncated: z.boolean().nullish(),
+	wasTruncated: z.boolean().nullish(),
+	error: z.string().nullish(),
 });
 
 /**

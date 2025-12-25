@@ -14,27 +14,27 @@ import { clearActivePodcastTaskId, setActivePodcastTaskId } from "@/lib/chat/pod
  */
 const GeneratePodcastArgsSchema = z.object({
 	source_content: z.string(),
-	podcast_title: z.string().optional(),
-	user_prompt: z.string().optional(),
+	podcast_title: z.string().nullish(),
+	user_prompt: z.string().nullish(),
 });
 
 const GeneratePodcastResultSchema = z.object({
 	status: z.enum(["processing", "already_generating", "success", "error"]),
-	task_id: z.string().optional(),
-	podcast_id: z.number().optional(),
-	title: z.string().optional(),
-	transcript_entries: z.number().optional(),
-	message: z.string().optional(),
-	error: z.string().optional(),
+	task_id: z.string().nullish(),
+	podcast_id: z.number().nullish(),
+	title: z.string().nullish(),
+	transcript_entries: z.number().nullish(),
+	message: z.string().nullish(),
+	error: z.string().nullish(),
 });
 
 const TaskStatusResponseSchema = z.object({
 	status: z.enum(["processing", "success", "error"]),
-	podcast_id: z.number().optional(),
-	title: z.string().optional(),
-	transcript_entries: z.number().optional(),
-	state: z.string().optional(),
-	error: z.string().optional(),
+	podcast_id: z.number().nullish(),
+	title: z.string().nullish(),
+	transcript_entries: z.number().nullish(),
+	state: z.string().nullish(),
+	error: z.string().nullish(),
 });
 
 const PodcastTranscriptEntrySchema = z.object({
@@ -43,7 +43,7 @@ const PodcastTranscriptEntrySchema = z.object({
 });
 
 const PodcastDetailsSchema = z.object({
-	podcast_transcript: z.array(PodcastTranscriptEntrySchema).optional(),
+	podcast_transcript: z.array(PodcastTranscriptEntrySchema).nullish(),
 });
 
 /**
@@ -75,7 +75,9 @@ function parsePodcastDetails(data: unknown): { podcast_transcript?: PodcastTrans
 		console.warn("Invalid podcast details:", result.error.issues);
 		return {};
 	}
-	return result.data;
+	return {
+		podcast_transcript: result.data.podcast_transcript ?? undefined,
+	};
 }
 
 /**

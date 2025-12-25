@@ -13,27 +13,27 @@ import { cn } from "@/lib/utils";
 /**
  * Zod schemas for runtime validation
  */
-const AspectRatioSchema = z.enum(["1:1", "4:3", "16:9", "21:9", "auto"]);
+const AspectRatioSchema = z.enum(["1:1", "4:3", "16:9", "9:16", "21:9", "auto"]);
 const MediaCardKindSchema = z.enum(["link", "image", "video", "audio"]);
 
 const ResponseActionSchema = z.object({
 	id: z.string(),
 	label: z.string(),
-	variant: z.enum(["default", "secondary", "outline", "destructive", "ghost"]).optional(),
-	confirmLabel: z.string().optional(),
+	variant: z.enum(["default", "secondary", "outline", "destructive", "ghost"]).nullish(),
+	confirmLabel: z.string().nullish(),
 });
 
 const SerializableMediaCardSchema = z.object({
 	id: z.string(),
 	assetId: z.string(),
 	kind: MediaCardKindSchema,
-	href: z.string().optional(),
-	src: z.string().optional(),
+	href: z.string().nullish(),
+	src: z.string().nullish(),
 	title: z.string(),
-	description: z.string().optional(),
-	thumb: z.string().optional(),
-	ratio: AspectRatioSchema.optional(),
-	domain: z.string().optional(),
+	description: z.string().nullish(),
+	thumb: z.string().nullish(),
+	ratio: AspectRatioSchema.nullish(),
+	domain: z.string().nullish(),
 });
 
 /**
@@ -90,6 +90,8 @@ function getAspectRatioClass(ratio?: AspectRatio): string {
 			return "aspect-[4/3]";
 		case "16:9":
 			return "aspect-video";
+		case "9:16":
+			return "aspect-[9/16]";
 		case "21:9":
 			return "aspect-[21/9]";
 		case "auto":
