@@ -30,19 +30,27 @@ import type { PlanTodo, TodoStatus } from "./schema";
 interface StatusIconProps {
   status: TodoStatus;
   className?: string;
+  /** When false, in_progress items show as static (no spinner) */
+  isStreaming?: boolean;
 }
 
-const StatusIcon: FC<StatusIconProps> = ({ status, className }) => {
+const StatusIcon: FC<StatusIconProps> = ({ status, className, isStreaming = true }) => {
   const baseClass = cn("size-4 shrink-0", className);
 
   switch (status) {
     case "completed":
       return <CheckCircle2 className={cn(baseClass, "text-emerald-500")} />;
     case "in_progress":
+      // Only animate the spinner if we're actively streaming
+      // When streaming is stopped, show as a static dashed circle
       return (
         <CircleDashed
-          className={cn(baseClass, "text-primary animate-spin")}
-          style={{ animationDuration: "3s" }}
+          className={cn(
+            baseClass,
+            "text-primary",
+            isStreaming && "animate-spin"
+          )}
+          style={isStreaming ? { animationDuration: "3s" } : undefined}
         />
       );
     case "cancelled":
@@ -59,18 +67,21 @@ const StatusIcon: FC<StatusIconProps> = ({ status, className }) => {
 
 interface TodoItemProps {
   todo: PlanTodo;
+  /** When false, in_progress items show as static (no spinner/pulse) */
+  isStreaming?: boolean;
 }
 
-const TodoItem: FC<TodoItemProps> = ({ todo }) => {
+const TodoItem: FC<TodoItemProps> = ({ todo, isStreaming = true }) => {
   const isStrikethrough = todo.status === "completed" || todo.status === "cancelled";
-  const isShimmer = todo.status === "in_progress";
+  // Only show pulse animation if streaming and in progress
+  const isShimmer = todo.status === "in_progress" && isStreaming;
 
   if (todo.description) {
     return (
       <AccordionItem value={todo.id} className="border-0">
         <AccordionTrigger className="py-2 hover:no-underline">
           <div className="flex items-center gap-2">
-            <StatusIcon status={todo.status} />
+            <StatusIcon status={todo.status} isStreaming={isStreaming} />
             <span
               className={cn(
                 "text-sm text-left",
@@ -91,7 +102,7 @@ const TodoItem: FC<TodoItemProps> = ({ todo }) => {
 
   return (
     <div className="flex items-center gap-2 py-2">
-      <StatusIcon status={todo.status} />
+      <StatusIcon status={todo.status} isStreaming={isStreaming} />
       <span
         className={cn(
           "text-sm",
@@ -116,6 +127,8 @@ export interface PlanProps {
   todos: PlanTodo[];
   maxVisibleTodos?: number;
   showProgress?: boolean;
+  /** When false, in_progress items show as static (no spinner/pulse animations) */
+  isStreaming?: boolean;
   responseActions?: Action[] | ActionsConfig;
   className?: string;
   onResponseAction?: (actionId: string) => void;
@@ -129,6 +142,7 @@ export const Plan: FC<PlanProps> = ({
   todos,
   maxVisibleTodos = 4,
   showProgress = true,
+  isStreaming = true,
   responseActions,
   className,
   onResponseAction,
@@ -176,7 +190,7 @@ export const Plan: FC<PlanProps> = ({
       return (
         <Accordion type="single" collapsible className="w-full">
           {items.map((todo) => (
-            <TodoItem key={todo.id} todo={todo} />
+            <TodoItem key={todo.id} todo={todo} isStreaming={isStreaming} />
           ))}
         </Accordion>
       );
@@ -185,7 +199,7 @@ export const Plan: FC<PlanProps> = ({
     return (
       <div className="space-y-0">
         {items.map((todo) => (
-          <TodoItem key={todo.id} todo={todo} />
+          <TodoItem key={todo.id} todo={todo} isStreaming={isStreaming} />
         ))}
       </div>
     );

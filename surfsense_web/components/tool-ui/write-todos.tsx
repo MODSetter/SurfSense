@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import { makeAssistantToolUI, useAssistantState } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -91,6 +91,10 @@ export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosArgs, WriteTodosRe
   render: function WriteTodosUI({ args, result, status, toolCallId }) {
     const updatePlanState = useSetAtom(updatePlanStateAtom);
     const planStates = useAtomValue(planStatesAtom);
+    
+    // Check if the THREAD is running (not just this tool)
+    // This hook subscribes to state changes, so it re-renders when thread stops
+    const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
 
     // Get the plan data (from result or args)
     const planData = result || transformArgsToResult(args);
@@ -140,7 +144,7 @@ export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosArgs, WriteTodosRe
       return null;
     }
 
-    // Loading state - tool is still running
+    // Loading state - tool is still running (no data yet)
     if (status.type === "running" || status.type === "requires-action") {
       // Try to show partial results from args while streaming
       const partialResult = transformArgsToResult(args);
@@ -149,7 +153,7 @@ export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosArgs, WriteTodosRe
         return (
           <div className="my-4">
             <PlanErrorBoundary>
-              <Plan {...plan} showProgress={true} />
+              <Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
             </PlanErrorBoundary>
           </div>
         );
@@ -159,17 +163,15 @@ export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosArgs, WriteTodosRe
 
     // Incomplete/cancelled state
     if (status.type === "incomplete") {
-      if (status.reason === "cancelled") {
-        return null;
-      }
-      // For errors, try to show what we have from args or shared state
+      // For cancelled or errors, try to show what we have from args or shared state
+      // Use isThreadRunning to determine if we should still animate
       const fallbackResult = currentPlanState || transformArgsToResult(args);
       if (fallbackResult) {
         const plan = parseSerializablePlan(fallbackResult);
         return (
           <div className="my-4">
             <PlanErrorBoundary>
-              <Plan {...plan} showProgress={true} />
+              <Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
             </PlanErrorBoundary>
           </div>
         );
@@ -178,7 +180,8 @@ export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosArgs, WriteTodosRe
     }
 
     // Success - render the plan using the LATEST shared state
-    // This way, even if our result is old, we show the latest data
+    // Use isThreadRunning to determine if we should animate in_progress items
+    // (LLM may still be working on tasks even though this tool call completed)
     const planToRender = currentPlanState || result;
     if (!planToRender) {
       return <WriteTodosLoading />;
@@ -188,7 +191,7 @@ export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosArgs, WriteTodosRe
     return (
       <div className="my-4">
         <PlanErrorBoundary>
-          <Plan {...plan} showProgress={true} />
+          <Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
         </PlanErrorBoundary>
       </div>
     );

@@ -755,7 +755,21 @@ export default function NewChatPage() {
 				}
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") {
-					// Request was cancelled
+					// Request was cancelled by user - persist partial response if any content was received
+					const hasContent = contentParts.some(
+						(part) =>
+							(part.type === "text" && part.text.length > 0) ||
+							(part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName))
+					);
+					if (hasContent && currentThreadId) {
+						const partialContent = buildContentForPersistence();
+						appendMessage(currentThreadId, {
+							role: "assistant",
+							content: partialContent,
+						}).catch((err) =>
+							console.error("Failed to persist partial assistant message:", err)
+						);
+					}
 					return;
 				}
 				console.error("[NewChatPage] Chat error:", error);
