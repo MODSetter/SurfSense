@@ -23,6 +23,7 @@ import {
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 export default function GoogleCalendarConnectorPage() {
 	const router = useRouter();
@@ -31,18 +32,19 @@ export default function GoogleCalendarConnectorPage() {
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { data: connectors } = useAtomValue(connectorsAtom);
+	const { refetch : fetchConnectors } = useAtomValue(connectorsAtom);
 
 	useEffect(() => {
-		if (connectors) {
+		fetchConnectors().then((data) => {
+			const connectors = data.data || [];
 			const connector = connectors.find(
-				(c) => c.connector_type === EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR
+				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
 			}
-		}
-	}, [connectors]);
+		});
+	}, []);
 
 	// Handle Google OAuth connection
 	const handleConnectGoogle = async () => {
