@@ -409,7 +409,6 @@ const Composer: FC = () => {
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const composerRuntime = useComposerRuntime();
 	const hasAutoFocusedRef = useRef(false);
-	const prevIsThreadEmptyRef = useRef(true);
 
 	// Check if thread is empty (new chat)
 	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
@@ -427,22 +426,6 @@ const Composer: FC = () => {
 			}, 100);
 			return () => clearTimeout(timeoutId);
 		}
-	}, [isThreadEmpty]);
-
-	// Auto-focus editor immediately after first message is sent (when thread transitions from empty to non-empty)
-	// This allows the user to start typing the second query right away
-	useEffect(() => {
-		// Only focus when transitioning from empty to non-empty (first message sent)
-		if (prevIsThreadEmptyRef.current && !isThreadEmpty && editorRef.current) {
-			// Small delay to ensure the editor is ready after the message is sent
-			const timeoutId = setTimeout(() => {
-				editorRef.current?.focus();
-			}, 50);
-			prevIsThreadEmptyRef.current = isThreadEmpty;
-			return () => clearTimeout(timeoutId);
-		}
-		// Update the ref to track the previous state
-		prevIsThreadEmptyRef.current = isThreadEmpty;
 	}, [isThreadEmpty]);
 
 	// Sync mentioned document IDs to atom for use in chat request
