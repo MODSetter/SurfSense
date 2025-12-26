@@ -24,7 +24,6 @@ export const createConnectorMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: () => {
-			toast.success("Connector created successfully");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.connectors.all(searchSpaceId!),
 			});
@@ -43,7 +42,6 @@ export const updateConnectorMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: (_, request: UpdateConnectorRequest) => {
-			toast.success("Connector updated successfully");
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.connectors.all(searchSpaceId!),
 			});
@@ -65,7 +63,6 @@ export const deleteConnectorMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: (_, request: DeleteConnectorRequest) => {
-			toast.success("Connector deleted successfully");
 			queryClient.setQueryData(
 				cacheKeys.connectors.all(searchSpaceId!),
 				(oldData: GetConnectorsResponse | undefined) => {
