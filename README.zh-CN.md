@@ -25,8 +25,7 @@
 
 # 视频演示
 
-
-https://github.com/user-attachments/assets/d9221908-e0de-4b2f-ac3a-691cf4b202da
+https://github.com/user-attachments/assets/42a29ea1-d4d8-4213-9c69-972b5b806d58
 
 
 ## 播客示例
@@ -236,32 +235,6 @@ Docker 和手动安装指南都包含适用于 Windows、macOS 和 Linux 的详�
   - LlamaIndex API 密钥（增强解析，支持 50+ 种格式）
 - 其他根据用例需要的 API 密钥
 
-## 截图
-
-**研究助手** 
-
-![updated_researcher](https://github.com/user-attachments/assets/e22c5d86-f511-4c72-8c50-feba0c1561b4)
-
-**搜索空间** 
-
-![search_spaces](https://github.com/user-attachments/assets/e254c38c-f937-44b6-9e9d-770db583d099)
-
-**管理文档** 
-![documents](https://github.com/user-attachments/assets/7001e306-eb06-4009-89c6-8fadfdc3fc4d)
-
-**播客助手** 
-![podcasts](https://github.com/user-attachments/assets/6cb82ffd-9e14-4172-bc79-67faf34c4c1c)
-
-
-**对话助手** 
-
-![git_chat](https://github.com/user-attachments/assets/bb352d52-1c6d-4020-926b-722d0b98b491)
-
-**浏览器扩展**
-
-![ext1](https://github.com/user-attachments/assets/1f042b7a-6349-422b-94fb-d40d0df16c40)
-
-![ext2](https://github.com/user-attachments/assets/a9b9f1aa-2677-404d-b0a0-c1b2dddf24a7)
 
 
 ## 技术栈
