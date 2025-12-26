@@ -34,13 +34,22 @@ class LogsApiService {
 			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
-		const transformedQueryParams = Object.fromEntries(
-			Object.entries(parsedRequest.data).map(([k, v]) => [
-				k,
-				Array.isArray(v) ? v.join(",") : String(v),
-			])
-		);
-		const queryParams = new URLSearchParams(transformedQueryParams).toString();
+		// Transform query params to be string values
+		const transformedQueryParams = parsedRequest.data.queryParams
+			? Object.fromEntries(
+					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
+						// Handle array values (document_type)
+						if (Array.isArray(v)) {
+							return [k, v.join(",")];
+						}
+						return [k, String(v)];
+					})
+				)
+			: undefined;
+
+		const queryParams = transformedQueryParams
+			? new URLSearchParams(transformedQueryParams).toString()
+			: "";
 		return baseApiService.get(`/api/v1/logs?${queryParams}`, getLogsResponse);
 	};
 
