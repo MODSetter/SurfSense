@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 // Define the form schema with Zod
 const webcrawlerConnectorFormSchema = z.object({
@@ -54,7 +55,7 @@ export default function WebcrawlerConnectorPage() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { data: connectors } = useAtomValue(connectorsAtom);
+	const { refetch : fetchConnectors } = useAtomValue(connectorsAtom);
 	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	// Initialize the form
@@ -68,15 +69,16 @@ export default function WebcrawlerConnectorPage() {
 	});
 
 	useEffect(() => {
-		if (connectors) {
+		fetchConnectors().then((data) => {
+			const connectors = data.data || [];
 			const connector = connectors.find(
-				(c) => c.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR
+				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
 			}
-		}
-	}, [connectors]);
+		});
+	}, []);
 
 	// Handle form submission
 	const onSubmit = async (values: WebcrawlerConnectorFormValues) => {
