@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paginationQueryParams } from ".";
 
 /**
  * ENUMS
@@ -54,9 +55,18 @@ export const logFilters = z.object({
 	start_date: z.string().optional(),
 	end_date: z.string().optional(),
 });
-export const getLogsRequest = logFilters.extend({
-	skip: z.number().optional(),
-	limit: z.number().optional(),
+
+export const getLogsRequest = z.object({
+	queryParams: paginationQueryParams
+		.extend({
+			search_space_id: z.number().optional(),
+			level: logLevelEnum.optional(),
+			status: logStatusEnum.optional(),
+			source: z.string().optional(),
+			start_date: z.string().optional(),
+			end_date: z.string().optional(),
+		})
+		.nullish(),
 });
 export const getLogsResponse = z.array(log);
 

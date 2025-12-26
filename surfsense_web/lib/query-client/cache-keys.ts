@@ -1,4 +1,5 @@
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
+import type { GetLogsRequest } from "@/contracts/types/log.types";
 import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
 
 export const cacheKeys = {
@@ -22,6 +23,8 @@ export const cacheKeys = {
 		list: (searchSpaceId?: number | string) => ["logs", "list", searchSpaceId] as const,
 		detail: (logId: number | string) => ["logs", "detail", logId] as const,
 		summary: (searchSpaceId?: number | string) => ["logs", "summary", searchSpaceId] as const,
+		withQueryParams: (queries: GetLogsRequest["queryParams"]) =>
+			["logs", "with-query-params", ...(queries ? Object.values(queries) : [])] as const,
 	},
 	newLLMConfigs: {
 		all: (searchSpaceId: number) => ["new-llm-configs", searchSpaceId] as const,

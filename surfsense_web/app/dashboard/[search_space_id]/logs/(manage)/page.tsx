@@ -95,8 +95,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import type { CreateLogRequest, UpdateLogRequest } from "@/contracts/types/log.types";
-import { type Log, type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
+import type { CreateLogRequest, Log, UpdateLogRequest } from "@/contracts/types/log.types";
+import { type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
 import { cn } from "@/lib/utils";
 
 // Define animation variants for reuse
@@ -481,7 +481,7 @@ export default function LogsManagePage() {
 		<LogsContext.Provider
 			value={{
 				deleteLog: deleteLog || (() => Promise.resolve(false)),
-				refreshLogs: refreshLogs || (() => Promise.resolve()),
+				refreshLogs: () => refreshLogs().then(() => void 0),
 			}}
 		>
 			<motion.div
@@ -568,7 +568,7 @@ export default function LogsManagePage() {
 					table={table}
 					logs={logs}
 					loading={logsLoading}
-					error={logsError}
+					error={logsError?.message ?? null}
 					onRefresh={refreshLogs}
 					id={id}
 					t={t}

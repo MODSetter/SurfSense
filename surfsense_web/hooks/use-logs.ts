@@ -1,7 +1,10 @@
 "use client";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { logsApiService } from "@/lib/apis/logs-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 export type LogStatus = "IN_PROGRESS" | "SUCCESS" | "FAILED";
@@ -50,223 +53,69 @@ export interface LogSummary {
 }
 
 export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
-	const [logs, setLogs] = useState<Log[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-
 	// Memoize filters to prevent infinite re-renders
 	const memoizedFilters = useMemo(() => filters, [JSON.stringify(filters)]);
 
 	const buildQueryParams = useCallback(
 		(customFilters: LogFilters = {}) => {
-			const params = new URLSearchParams();
+			const params: Record<string, string> = {};
 
 			const allFilters = { ...memoizedFilters, ...customFilters };
 
 			if (allFilters.search_space_id) {
-				params.append("search_space_id", allFilters.search_space_id.toString());
+				params["search_space_id"] = allFilters.search_space_id.toString();
 			}
 			if (allFilters.level) {
-				params.append("level", allFilters.level);
+				params["level"] = allFilters.level;
 			}
 			if (allFilters.status) {
-				params.append("status", allFilters.status);
+				params["status"] = allFilters.status;
 			}
 			if (allFilters.source) {
-				params.append("source", allFilters.source);
+				params["source"] = allFilters.source;
 			}
 			if (allFilters.start_date) {
-				params.append("start_date", allFilters.start_date);
+				params["start_date"] = allFilters.start_date;
 			}
 			if (allFilters.end_date) {
-				params.append("end_date", allFilters.end_date);
+				params["end_date"] = allFilters.end_date;
 			}
 
-			return params.toString();
+			return params;
 		},
 		[memoizedFilters]
 	);
 
-	const fetchLogs = useCallback(
-		async (customFilters: LogFilters = {}, options: { skip?: number; limit?: number } = {}) => {
-			try {
-				setLoading(true);
-
-				const params = new URLSearchParams(buildQueryParams(customFilters));
-				if (options.skip !== undefined) params.append("skip", options.skip.toString());
-				if (options.limit !== undefined) params.append("limit", options.limit.toString());
-
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs?${params}`,
-					{ method: "GET" }
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => ({}));
-					throw new Error(errorData.detail || "Failed to fetch logs");
-				}
-
-				const data = await response.json();
-				setLogs(data);
-				setError(null);
-				return data;
-			} catch (err: any) {
-				setError(err.message || "Failed to fetch logs");
-				console.error("Error fetching logs:", err);
-				throw err;
-			} finally {
-				setLoading(false);
-			}
-		},
-		[buildQueryParams]
-	);
-
-	// Initial fetch
-	useEffect(() => {
-		const initialFilters = searchSpaceId
-			? { ...memoizedFilters, search_space_id: searchSpaceId }
-			: memoizedFilters;
-		fetchLogs(initialFilters);
-	}, [searchSpaceId, fetchLogs, memoizedFilters]);
-
-	// Function to refresh the logs list
-	const refreshLogs = useCallback(
-		async (customFilters: LogFilters = {}) => {
-			const finalFilters = searchSpaceId
-				? { ...customFilters, search_space_id: searchSpaceId }
-				: customFilters;
-			return await fetchLogs(finalFilters);
-		},
-		[searchSpaceId, fetchLogs]
-	);
-
-	// Function to create a new log
-	// Use silent: true to suppress toast notifications (for internal/background operations)
-	const createLog = useCallback(
-		async (logData: Omit<Log, "id" | "created_at">, options?: { silent?: boolean }) => {
-			const { silent = false } = options || {};
-			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs`,
-					{
-						headers: { "Content-Type": "application/json" },
-						method: "POST",
-						body: JSON.stringify(logData),
-					}
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => ({}));
-					throw new Error(errorData.detail || "Failed to create log");
-				}
-
-				const newLog = await response.json();
-				setLogs((prevLogs) => [newLog, ...prevLogs]);
-				// Only show toast if not silent
-				if (!silent) {
-					toast.success("Log created successfully");
-				}
-				return newLog;
-			} catch (err: any) {
-				// Only show error toast if not silent
-				if (!silent) {
-					toast.error(err.message || "Failed to create log");
-				}
-				console.error("Error creating log:", err);
-				throw err;
-			}
-		},
-		[]
-	);
-
-	// Function to update a log
-	const updateLog = useCallback(
-		async (
-			logId: number,
-			updateData: Partial<Omit<Log, "id" | "created_at" | "search_space_id">>
-		) => {
-			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}`,
-					{
-						headers: { "Content-Type": "application/json" },
-						method: "PUT",
-						body: JSON.stringify(updateData),
-					}
-				);
-
-				if (!response.ok) {
-					const errorData = await response.json().catch(() => ({}));
-					throw new Error(errorData.detail || "Failed to update log");
-				}
-
-				const updatedLog = await response.json();
-				setLogs((prevLogs) => prevLogs.map((log) => (log.id === logId ? updatedLog : log)));
-				toast.success("Log updated successfully");
-				return updatedLog;
-			} catch (err: any) {
-				toast.error(err.message || "Failed to update log");
-				console.error("Error updating log:", err);
-				throw err;
-			}
-		},
-		[]
-	);
-
-	// Function to delete a log
-	const deleteLog = useCallback(async (logId: number) => {
-		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}`,
-				{ method: "DELETE" }
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.detail || "Failed to delete log");
-			}
-
-			setLogs((prevLogs) => prevLogs.filter((log) => log.id !== logId));
-			toast.success("Log deleted successfully");
-			return true;
-		} catch (err: any) {
-			toast.error(err.message || "Failed to delete log");
-			console.error("Error deleting log:", err);
-			return false;
-		}
-	}, []);
-
-	// Function to get a single log
-	const getLog = useCallback(async (logId: number) => {
-		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}`,
-				{ method: "GET" }
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.detail || "Failed to fetch log");
-			}
-
-			return await response.json();
-		} catch (err: any) {
-			toast.error(err.message || "Failed to fetch log");
-			console.error("Error fetching log:", err);
-			throw err;
-		}
-	}, []);
+	const {
+		data: logs,
+		isLoading: loading,
+		error,
+		refetch,
+	} = useQuery({
+		queryKey: cacheKeys.logs.withQueryParams({
+			search_space_id: searchSpaceId,
+			skip: 0,
+			limit: 5,
+			...buildQueryParams(filters ?? {}),
+		}),
+		queryFn: () =>
+			logsApiService.getLogs({
+				queryParams: {
+					search_space_id: searchSpaceId,
+					skip: 0,
+					limit: 5,
+					...buildQueryParams(filters ?? {}),
+				},
+			}),
+		enabled: !!searchSpaceId,
+		staleTime: 3 * 60 * 1000,
+	});
 
 	return {
-		logs,
+		logs: logs ?? [],
 		loading,
 		error,
-		refreshLogs,
-		createLog,
-		updateLog,
-		deleteLog,
-		getLog,
-		fetchLogs,
+		refreshLogs: refetch,
 	};
 }
 
