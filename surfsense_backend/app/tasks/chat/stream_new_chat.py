@@ -718,6 +718,25 @@ async def stream_new_chat(
                         status="completed",
                         items=completed_items,
                     )
+                elif tool_name == "write_todos":
+                    # Build completion items for planning
+                    if isinstance(tool_output, dict):
+                        plan_title = tool_output.get("title", "Plan")
+                        todos = tool_output.get("todos", [])
+                        todo_count = len(todos) if isinstance(todos, list) else 0
+                        completed_items = [
+                            *last_active_step_items,
+                            f"Plan: {plan_title[:50]}{'...' if len(plan_title) > 50 else ''}",
+                            f"Tasks: {todo_count} steps defined",
+                        ]
+                    else:
+                        completed_items = [*last_active_step_items, "Plan created"]
+                    yield streaming_service.format_thinking_step(
+                        step_id=original_step_id,
+                        title="Creating plan",
+                        status="completed",
+                        items=completed_items,
+                    )
                 else:
                     yield streaming_service.format_thinking_step(
                         step_id=original_step_id,
@@ -854,6 +873,28 @@ async def stream_new_chat(
                     yield streaming_service.format_terminal_info(
                         "Knowledge base search completed", "success"
                     )
+                elif tool_name == "write_todos":
+                    # Stream the full write_todos result so frontend can render the Plan component
+                    yield streaming_service.format_tool_output_available(
+                        tool_call_id,
+                        tool_output
+                        if isinstance(tool_output, dict)
+                        else {"result": tool_output},
+                    )
+                    # Send terminal message with plan info
+                    if isinstance(tool_output, dict):
+                        title = tool_output.get("title", "Plan")
+                        todos = tool_output.get("todos", [])
+                        todo_count = len(todos) if isinstance(todos, list) else 0
+                        yield streaming_service.format_terminal_info(
+                            f"Plan created: {title} ({todo_count} tasks)",
+                            "success",
+                        )
+                    else:
+                        yield streaming_service.format_terminal_info(
+                            "Plan created",
+                            "success",
+                        )
                 else:
                     # Default handling for other tools
                     yield streaming_service.format_tool_output_available(

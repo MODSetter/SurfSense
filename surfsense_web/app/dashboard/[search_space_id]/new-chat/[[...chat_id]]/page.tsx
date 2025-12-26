@@ -18,6 +18,11 @@ import {
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import {
+	clearPlanOwnerRegistry,
+	extractWriteTodosFromContent,
+	hydratePlanStateAtom,
+} from "@/atoms/chat/plan-state.atom";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
@@ -25,6 +30,7 @@ import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
+import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
 import {
@@ -93,6 +99,7 @@ const PersistedAttachmentSchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	type: z.string(),
+	contentType: z.string().optional(),
 	imageDataUrl: z.string().optional(),
 	extractedContent: z.string().optional(),
 });
@@ -155,6 +162,7 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 				id: att.id,
 				name: att.name,
 				type: att.type as "document" | "image" | "file",
+				contentType: att.contentType || "application/octet-stream",
 				status: { type: "complete" as const },
 				content: [],
 				// Custom fields for our ChatAttachment interface
@@ -181,6 +189,7 @@ const TOOLS_WITH_UI = new Set([
 	"link_preview",
 	"display_image",
 	"scrape_webpage",
+	"write_todos",
 ]);
 
 /**
@@ -213,6 +222,7 @@ export default function NewChatPage() {
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
+	const hydratePlanState = useSetAtom(hydratePlanStateAtom);
 
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
@@ -248,6 +258,7 @@ export default function NewChatPage() {
 		setMentionedDocumentIds([]);
 		setMentionedDocuments([]);
 		setMessageDocumentsMap({});
+		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
 
 		try {
 			if (urlChatId > 0) {
@@ -268,6 +279,11 @@ export default function NewChatPage() {
 							const steps = extractThinkingSteps(msg.content);
 							if (steps.length > 0) {
 								restoredThinkingSteps.set(`msg-${msg.id}`, steps);
+							}
+							// Hydrate write_todos plan state from persisted tool calls
+							const writeTodosCalls = extractWriteTodosFromContent(msg.content);
+							for (const todoData of writeTodosCalls) {
+								hydratePlanState(todoData);
 							}
 						}
 						if (msg.role === "user") {
@@ -297,7 +313,7 @@ export default function NewChatPage() {
 		} finally {
 			setIsInitializing(false);
 		}
-	}, [urlChatId, setMessageDocumentsMap, setMentionedDocumentIds, setMentionedDocuments]);
+	}, [urlChatId, setMessageDocumentsMap, setMentionedDocumentIds, setMentionedDocuments, hydratePlanState]);
 
 	// Initialize on mount
 	useEffect(() => {
@@ -425,6 +441,7 @@ export default function NewChatPage() {
 						id: att.id,
 						name: att.name,
 						type: att.type,
+						contentType: (att as { contentType?: string }).contentType,
 						// Include imageDataUrl for images so they can be displayed after reload
 						imageDataUrl: (att as { imageDataUrl?: string }).imageDataUrl,
 						// Include extractedContent for context (already extracted, no re-processing needed)
@@ -844,6 +861,7 @@ export default function NewChatPage() {
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
+			<WriteTodosToolUI />
 			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 				<Thread
 					messageThinkingSteps={messageThinkingSteps}

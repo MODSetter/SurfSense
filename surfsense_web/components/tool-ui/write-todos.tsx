@@ -1,0 +1,199 @@
+"use client";
+
+import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { Loader2 } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import {
+  getCanonicalPlanTitle,
+  planStatesAtom,
+  registerPlanOwner,
+  updatePlanStateAtom,
+} from "@/atoms/chat/plan-state.atom";
+import { Plan, PlanErrorBoundary, parseSerializablePlan } from "./plan";
+
+/**
+ * Tool arguments for write_todos
+ */
+interface WriteTodosArgs {
+  title?: string;
+  description?: string;
+  todos?: Array<{
+    id: string;
+    content: string;
+    status: "pending" | "in_progress" | "completed" | "cancelled";
+  }>;
+}
+
+/**
+ * Tool result for write_todos
+ */
+interface WriteTodosResult {
+  id: string;
+  title: string;
+  description?: string;
+  todos: Array<{
+    id: string;
+    label: string;
+    status: "pending" | "in_progress" | "completed" | "cancelled";
+    description?: string;
+  }>;
+}
+
+/**
+ * Loading state component
+ */
+function WriteTodosLoading() {
+  return (
+    <div className="my-4 w-full max-w-xl rounded-2xl border bg-card/60 px-5 py-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <Loader2 className="size-5 animate-spin text-primary" />
+        <span className="text-sm text-muted-foreground">Creating plan...</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Transform tool args to result format
+ * This handles the case where the LLM is streaming the tool call
+ */
+function transformArgsToResult(args: WriteTodosArgs): WriteTodosResult | null {
+  if (!args.todos || !Array.isArray(args.todos) || args.todos.length === 0) {
+    return null;
+  }
+
+  return {
+    id: `plan-${Date.now()}`,
+    title: args.title || "Planning Approach",
+    description: args.description,
+    todos: args.todos.map((todo, index) => ({
+      id: todo.id || `todo-${index}`,
+      label: todo.content || "Task",
+      status: todo.status || "pending",
+    })),
+  };
+}
+
+/**
+ * WriteTodos Tool UI Component
+ *
+ * Displays the agent's planning/todo list with a beautiful UI.
+ * Shows progress, status indicators, and expandable details.
+ *
+ * FIXED POSITION: When the same plan (by title) is updated multiple times,
+ * only the FIRST component renders. Subsequent updates just update the
+ * shared state, and the first component reads from it. This prevents
+ * layout shift when plans are updated.
+ */
+export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosArgs, WriteTodosResult>({
+  toolName: "write_todos",
+  render: function WriteTodosUI({ args, result, status, toolCallId }) {
+    const updatePlanState = useSetAtom(updatePlanStateAtom);
+    const planStates = useAtomValue(planStatesAtom);
+
+    // Get the plan data (from result or args)
+    const planData = result || transformArgsToResult(args);
+    const rawTitle = planData?.title || args.title || "Planning Approach";
+
+    // SYNCHRONOUS ownership check - happens immediately, no race conditions
+    // ONE PLAN PER CONVERSATION: Only first write_todos call becomes owner
+    const isOwner = useMemo(() => {
+      return registerPlanOwner(rawTitle, toolCallId);
+    }, [rawTitle, toolCallId]);
+    
+    // Get canonical title - always use the FIRST plan's title
+    // This ensures all updates go to the same plan state
+    const planTitle = useMemo(() => getCanonicalPlanTitle(rawTitle), [rawTitle]);
+
+    // Register/update the plan state - ALWAYS use canonical title
+    useEffect(() => {
+      if (planData) {
+        updatePlanState({
+          id: planData.id,
+          title: planTitle, // Use canonical title, not raw title
+          description: planData.description,
+          todos: planData.todos,
+          toolCallId,
+        });
+      }
+    }, [planData, planTitle, updatePlanState, toolCallId]);
+
+    // Update when result changes (for streaming updates)
+    useEffect(() => {
+      if (result) {
+        updatePlanState({
+          id: result.id,
+          title: planTitle, // Use canonical title, not raw title
+          description: result.description,
+          todos: result.todos,
+          toolCallId,
+        });
+      }
+    }, [result, planTitle, updatePlanState, toolCallId]);
+
+    // Get the current plan state (may be updated by other components)
+    const currentPlanState = planStates.get(planTitle);
+
+    // If we're NOT the owner, render nothing (the owner will render)
+    if (!isOwner) {
+      return null;
+    }
+
+    // Loading state - tool is still running
+    if (status.type === "running" || status.type === "requires-action") {
+      // Try to show partial results from args while streaming
+      const partialResult = transformArgsToResult(args);
+      if (partialResult) {
+        const plan = parseSerializablePlan(partialResult);
+        return (
+          <div className="my-4">
+            <PlanErrorBoundary>
+              <Plan {...plan} showProgress={true} />
+            </PlanErrorBoundary>
+          </div>
+        );
+      }
+      return <WriteTodosLoading />;
+    }
+
+    // Incomplete/cancelled state
+    if (status.type === "incomplete") {
+      if (status.reason === "cancelled") {
+        return null;
+      }
+      // For errors, try to show what we have from args or shared state
+      const fallbackResult = currentPlanState || transformArgsToResult(args);
+      if (fallbackResult) {
+        const plan = parseSerializablePlan(fallbackResult);
+        return (
+          <div className="my-4">
+            <PlanErrorBoundary>
+              <Plan {...plan} showProgress={true} />
+            </PlanErrorBoundary>
+          </div>
+        );
+      }
+      return null;
+    }
+
+    // Success - render the plan using the LATEST shared state
+    // This way, even if our result is old, we show the latest data
+    const planToRender = currentPlanState || result;
+    if (!planToRender) {
+      return <WriteTodosLoading />;
+    }
+    
+    const plan = parseSerializablePlan(planToRender);
+    return (
+      <div className="my-4">
+        <PlanErrorBoundary>
+          <Plan {...plan} showProgress={true} />
+        </PlanErrorBoundary>
+      </div>
+    );
+  },
+});
+
+export type { WriteTodosArgs, WriteTodosResult };
+

@@ -109,6 +109,65 @@ You have access to the following tools:
     * This makes your response more visual and engaging.
     * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
+
+6. write_todos: Create and update a planning/todo list to break down complex tasks.
+  - Use this tool when you need to plan your approach to a complex task.
+  - This displays a visual plan with progress tracking and status indicators.
+  
+  - USAGE PATTERN:
+    * First call: Create the plan with first task as "in_progress", rest as "pending"
+    * Subsequent calls: ONLY update task statuses (mark completed/in_progress)
+    * Use the EXACT SAME title and task IDs for all updates
+  
+  - ABSOLUTELY FORBIDDEN - WILL BREAK THE SYSTEM:
+    * ONLY ONE PLAN PER CONVERSATION - NEVER call write_todos a second time to create a new plan
+    * When all tasks in your plan are "completed", your response is FINISHED - STOP
+    * NEVER restart your response after completing it
+    * NEVER generate the same explanation twice
+    * NEVER create a second introduction or overview after the first one
+    * NEVER say "Let me explain..." twice for the same topic
+    * If you've already explained something, DO NOT explain it again
+    * After your response ends, STOP - do not continue generating
+    * NEVER say you're creating a "document", "report", "roadmap", "analysis", or any artifact
+    * Do NOT use phrases like "This report is based on..." or "Based on my research..."
+    * Just answer the question directly - do not roleplay producing a deliverable
+  
+  - CORRECT BEHAVIOR:
+    * Call write_todos to update statuses as you progress
+    * Each section of your response appears EXACTLY ONCE
+    * When you finish explaining all tasks, your response is COMPLETE
+    * Do NOT generate additional content after concluding
+  
+  - CONTENT QUALITY:
+    * Provide thorough, detailed explanations for each task
+    * The restriction is on DUPLICATING content, not on depth or detail
+    * Each task deserves a complete, comprehensive explanation
+    * Be as detailed as needed - just don't repeat yourself
+  
+  - When to use:
+    * Breaking down a complex multi-step task (3-5 tasks recommended)
+    * Showing the user what steps you'll take to solve their problem
+    * Creating an implementation roadmap
+  
+  - Args:
+    - todos: List of todo items, each with:
+      * id: Unique identifier (KEEP SAME IDs across updates)
+      * content: Description of the task (KEEP SAME content across updates)
+      * status: "pending", "in_progress", or "completed"
+    - title: Title for the plan (MUST BE IDENTICAL across all updates)
+    - description: Optional context description
+  
+  - Returns: A visual plan card with progress bar and status indicators
+  
+  - CORRECT PATTERN:
+    1. Create plan with task 1 as "in_progress"
+    2. Explain task 1 content in detail
+    3. Update plan: task 1 "completed", task 2 "in_progress"
+    4. Explain task 2 content (NEW content, not repeating task 1)
+    5. Continue until all tasks are "completed"
+    6. When all tasks are "completed", your response is FINISHED
+    7. STOP IMMEDIATELY - do NOT create another plan or continue generating
+    8. ONE PLAN ONLY - never call write_todos again after completing all tasks
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -166,6 +225,22 @@ You have access to the following tools:
   - Then, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
     - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
   - Then provide your explanation, referencing the displayed image
+
+- User: "Help me implement a user authentication system"
+  - Step 1: Create plan with task 1 in_progress:
+    `write_todos(title="Auth Plan", todos=[{"id": "1", "content": "Design database schema", "status": "in_progress"}, {"id": "2", "content": "Set up password hashing", "status": "pending"}, {"id": "3", "content": "Create endpoints", "status": "pending"}])`
+  - Step 2: Provide DETAILED explanation of database schema design
+  - Step 3: Update plan (task 1 done, task 2 in_progress):
+    `write_todos(title="Auth Plan", todos=[{"id": "1", "content": "Design database schema", "status": "completed"}, {"id": "2", "content": "Set up password hashing", "status": "in_progress"}, {"id": "3", "content": "Create endpoints", "status": "pending"}])`
+  - Step 4: Provide DETAILED explanation of password hashing (NEW content only)
+  - Step 5: Update plan, explain endpoints in detail
+  - Step 6: Mark all complete, END response - DO NOT restart or regenerate
+  - FORBIDDEN: Do not go back and explain schema again after step 2
+
+- User: "How should I approach refactoring this large codebase?"
+  - Create plan, explain each step with thorough detail, update statuses as you go
+  - Each explanation is comprehensive but appears ONLY ONCE
+  - When finished with all tasks, STOP - do not continue generating
 </tool_call_examples>
 """
 
