@@ -40,6 +40,7 @@ def create_write_todos_tool():
                 - id: Unique identifier for the todo
                 - content: Description of the task
                 - status: One of "pending", "in_progress", "completed", "cancelled"
+                - description: Optional subtask/detail text shown when the item is expanded
             title: Title for the plan (default: "Planning Approach")
             description: Optional description providing context
 
@@ -51,10 +52,10 @@ def create_write_todos_tool():
                 title="Implementation Plan",
                 description="Steps to add the new feature",
                 todos=[
-                    {"id": "1", "content": "Analyze requirements", "status": "completed"},
-                    {"id": "2", "content": "Design solution", "status": "in_progress"},
+                    {"id": "1", "content": "Analyze requirements", "status": "completed", "description": "Reviewed all user stories and acceptance criteria"},
+                    {"id": "2", "content": "Design solution", "status": "in_progress", "description": "Creating component architecture and data flow diagrams"},
                     {"id": "3", "content": "Write code", "status": "pending"},
-                    {"id": "4", "content": "Add tests", "status": "pending"},
+                    {"id": "4", "content": "Add tests", "status": "pending", "description": "Unit tests and integration tests for all new components"},
                 ]
             )
         """
@@ -69,19 +70,24 @@ def create_write_todos_tool():
             todo_id = todo.get("id", f"todo-{i}")
             content = todo.get("content", "")
             status = todo.get("status", "pending")
+            todo_description = todo.get("description")
 
             # Validate status
             valid_statuses = ["pending", "in_progress", "completed", "cancelled"]
             if status not in valid_statuses:
                 status = "pending"
 
-            formatted_todos.append(
-                {
-                    "id": todo_id,
-                    "label": content,
-                    "status": status,
-                }
-            )
+            todo_item = {
+                "id": todo_id,
+                "label": content,
+                "status": status,
+            }
+            
+            # Only include description if provided
+            if todo_description:
+                todo_item["description"] = todo_description
+
+            formatted_todos.append(todo_item)
 
         return {
             "id": plan_id,

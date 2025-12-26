@@ -172,10 +172,15 @@ export const Plan: FC<PlanProps> = ({
 		].filter(Boolean) as Action[];
 	}, [responseActions]);
 
+	// Get default expanded items (in_progress items with descriptions)
+	const defaultExpandedIds = useMemo(() => {
+		return todos.filter((t) => t.description && t.status === "in_progress").map((t) => t.id);
+	}, [todos]);
+
 	const TodoList: FC<{ items: PlanTodo[] }> = ({ items }) => {
 		if (hasDescriptions) {
 			return (
-				<Accordion type="single" collapsible className="w-full">
+				<Accordion type="multiple" defaultValue={defaultExpandedIds} className="w-full">
 					{items.map((todo) => (
 						<TodoItem key={todo.id} todo={todo} isStreaming={isStreaming} />
 					))}

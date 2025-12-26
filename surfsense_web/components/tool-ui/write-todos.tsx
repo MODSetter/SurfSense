@@ -19,39 +19,59 @@ import { Plan, PlanErrorBoundary, parseSerializablePlan, TodoStatusSchema } from
 
 /**
  * Schema for a single todo item in the args
+ * Note: Using nullish() with transform to convert null → undefined for Plan compatibility
  */
 const WriteTodosArgsTodoSchema = z.object({
 	id: z.string(),
 	content: z.string(),
 	status: TodoStatusSchema,
+	description: z
+		.string()
+		.nullish()
+		.transform((v) => v ?? undefined),
 });
 
 /**
  * Schema for write_todos tool arguments
+ * Note: Using nullish() with transform to convert null → undefined for Plan compatibility
  */
 const WriteTodosArgsSchema = z.object({
-	title: z.string().nullish(),
-	description: z.string().nullish(),
+	title: z
+		.string()
+		.nullish()
+		.transform((v) => v ?? undefined),
+	description: z
+		.string()
+		.nullish()
+		.transform((v) => v ?? undefined),
 	todos: z.array(WriteTodosArgsTodoSchema).nullish(),
 });
 
 /**
  * Schema for a single todo item in the result
+ * Note: Using nullish() with transform to convert null → undefined for Plan compatibility
  */
 const WriteTodosResultTodoSchema = z.object({
 	id: z.string(),
 	label: z.string(),
 	status: TodoStatusSchema,
-	description: z.string().nullish(),
+	description: z
+		.string()
+		.nullish()
+		.transform((v) => v ?? undefined),
 });
 
 /**
  * Schema for write_todos tool result
+ * Note: Using nullish() with transform to convert null → undefined for Plan compatibility
  */
 const WriteTodosResultSchema = z.object({
 	id: z.string(),
 	title: z.string(),
-	description: z.string().nullish(),
+	description: z
+		.string()
+		.nullish()
+		.transform((v) => v ?? undefined),
 	todos: z.array(WriteTodosResultTodoSchema),
 });
 
@@ -93,6 +113,7 @@ function transformArgsToResult(args: WriteTodosArgs): WriteTodosResult | null {
 			id: todo.id || `todo-${index}`,
 			label: todo.content || "Task",
 			status: todo.status || "pending",
+			description: todo.description,
 		})),
 	};
 }

@@ -111,27 +111,13 @@ You have access to the following tools:
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
 
 6. write_todos: Create and update a planning/todo list to break down complex tasks.
-  
-  - STRICT USAGE CRITERIA - MUST MEET ALL CONDITIONS:
-    * Condition 1: User EXPLICITLY requests structured output using trigger words (see below)
-    * Condition 2: Task requires 4+ DISTINCT phases/steps to achieve
-    * Condition 3: Task involves CREATING, BUILDING, ACHIEVING, or PRODUCING something
-  
-  - VALID TRIGGER WORDS/PHRASES (user must use one of these):
-    * "plan" / "make a plan" / "create a plan" / "planning"
-    * "roadmap" / "create a roadmap"
-    * "step-by-step" / "step by step"
-    * "break down" / "breakdown"
-    * "walk me through"
-    * "guide me through"
-    * "how should I approach"
-    * "help me create" / "help me build" / "help me achieve"
+  - Use this tool when you need to plan your approach to a complex task.
+  - This displays a visual plan with progress tracking and status indicators.
   
   - USAGE PATTERN:
     * First call: Create the plan with first task as "in_progress", rest as "pending"
     * Subsequent calls: ONLY update task statuses (mark completed/in_progress)
     * Use the EXACT SAME title and task IDs for all updates
-    * ONLY ONE PLAN PER CONVERSATION - never create a second plan
   
   - ABSOLUTELY FORBIDDEN - WILL BREAK THE SYSTEM:
     * ONLY ONE PLAN PER CONVERSATION - NEVER call write_todos a second time to create a new plan
@@ -146,63 +132,29 @@ You have access to the following tools:
     * Do NOT use phrases like "This report is based on..." or "Based on my research..."
     * Just answer the question directly - do not roleplay producing a deliverable
   
+  - CORRECT BEHAVIOR:
+    * Call write_todos to update statuses as you progress
+    * Each section of your response appears EXACTLY ONCE
+    * When you finish explaining all tasks, your response is COMPLETE
+    * Do NOT generate additional content after concluding
+  
   - CONTENT QUALITY:
     * Provide thorough, detailed explanations for each task
     * The restriction is on DUPLICATING content, not on depth or detail
     * Each task deserves a complete, comprehensive explanation
     * Be as detailed as needed - just don't repeat yourself
   
-  - VALID USE CASES BY USER TYPE:
-  
-    RESEARCHERS/STUDENTS:
-    * "Help me plan my thesis research on X" - has "plan" + multi-phase project
-    * "Create a roadmap for my dissertation" - has "roadmap" + structured work
-    * "Break down my literature review process" - has "break down" + phases
-    
-    WRITERS/CONTENT CREATORS:
-    * "Help me plan my book outline" - has "plan" + creative project
-    * "Walk me through writing a research paper" - has trigger + structured work
-    
-    BUSINESS/PROFESSIONALS:
-    * "Create a plan for launching my product" - has "plan" + business goal
-    * "Break down the hiring process for my team" - has "break down" + phases
-    
-    PERSONAL/LIFESTYLE:
-    * "Help me plan my career transition" - has "plan" + life goal
-    * "Create a roadmap for learning a new skill" - has "roadmap" + phases
-    
-    TECHNICAL:
-    * "Help me plan implementing authentication" - has "plan" + implementation
-    * "Create a roadmap for this API" - has "roadmap" + technical project
-  
-  - ABSOLUTELY DO NOT USE FOR (even if task seems complex):
-    * Simple questions: "What is X?", "How does Y work?", "Explain Z"
-    * Summaries: "Summarize this", "Key points of", "Overview of"
-    * Document explanations: "Explain this PDF", "What does this article say"
-    * Comparisons: "Compare X and Y", "Difference between"
-    * Searches/Lookups: "Find X", "Search for Y", "What did I save about"
-    * Quick recommendations: "What should I read about X"
-    * Opinions/Analysis: "What do you think of", "Analyze this"
-    * Podcast generation, link previews, image display, single searches
-    * Any single-response task that does not require multiple phases
-  
-  - CRITICAL DISTINCTION:
-    * EXPLAINING something = NO write_todos (just explain directly)
-    * CREATING/PLANNING something = YES write_todos (if 4+ phases and trigger word used)
-  
-  - SELF-CHECK (must answer YES to ALL before using):
-    1. Did the user use a valid trigger word from the list above? If NO -> DO NOT USE
-    2. Is user asking to CREATE/PLAN/ACHIEVE something (not just explain)? If NO -> DO NOT USE
-    3. Does this require 4+ distinct phases to complete? If NO -> DO NOT USE
-    4. Would a direct response be faster and better for the user? If YES -> DO NOT USE
-  
-  - DEFAULT BEHAVIOR: When in doubt, DO NOT use write_todos. Fast responses beat unnecessary plans.
+  - When to use:
+    * Breaking down a complex multi-step task (3-5 tasks recommended)
+    * Showing the user what steps you'll take to solve their problem
+    * Creating an implementation roadmap
   
   - Args:
     - todos: List of todo items, each with:
       * id: Unique identifier (KEEP SAME IDs across updates)
       * content: Description of the task (KEEP SAME content across updates)
       * status: "pending", "in_progress", or "completed"
+      * description: Optional subtask/detail text shown when the item is expanded (e.g., "Analyzing document structure and key concepts")
     - title: Title for the plan (MUST BE IDENTICAL across all updates)
     - description: Optional context description
   
@@ -275,54 +227,21 @@ You have access to the following tools:
     - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
   - Then provide your explanation, referencing the displayed image
 
-- User: "Help me plan implementing a user authentication system"
-  - Has trigger word "plan" + implementation task with 4+ phases -> USE write_todos
+- User: "Help me implement a user authentication system"
   - Step 1: Create plan with task 1 in_progress:
-    `write_todos(title="Auth Plan", todos=[{"id": "1", "content": "Design database schema", "status": "in_progress"}, {"id": "2", "content": "Set up password hashing", "status": "pending"}, {"id": "3", "content": "Create endpoints", "status": "pending"}, {"id": "4", "content": "Add session management", "status": "pending"}])`
+    `write_todos(title="Auth Plan", todos=[{"id": "1", "content": "Design database schema", "status": "in_progress"}, {"id": "2", "content": "Set up password hashing", "status": "pending"}, {"id": "3", "content": "Create endpoints", "status": "pending"}])`
   - Step 2: Provide DETAILED explanation of database schema design
   - Step 3: Update plan (task 1 done, task 2 in_progress):
-    `write_todos(title="Auth Plan", todos=[{"id": "1", "content": "Design database schema", "status": "completed"}, {"id": "2", "content": "Set up password hashing", "status": "in_progress"}, {"id": "3", "content": "Create endpoints", "status": "pending"}, {"id": "4", "content": "Add session management", "status": "pending"}])`
+    `write_todos(title="Auth Plan", todos=[{"id": "1", "content": "Design database schema", "status": "completed"}, {"id": "2", "content": "Set up password hashing", "status": "in_progress"}, {"id": "3", "content": "Create endpoints", "status": "pending"}])`
   - Step 4: Provide DETAILED explanation of password hashing (NEW content only)
-  - Step 5: Continue updating plan and explaining each task
+  - Step 5: Update plan, explain endpoints in detail
   - Step 6: Mark all complete, END response - DO NOT restart or regenerate
   - FORBIDDEN: Do not go back and explain schema again after step 2
 
-- User: "Create a roadmap for my thesis research"
-  - Has trigger word "roadmap" + multi-phase project -> USE write_todos
-  - Create plan with 4+ research phases, update as you explain each
-
-- User: "Walk me through building a marketing campaign step-by-step"
-  - Has trigger words "walk me through" and "step-by-step" + creation task -> USE write_todos
-
-EXAMPLES OF WHEN NOT TO USE write_todos:
-
-- User: "Explain this PDF document"
-  - NO trigger word, EXPLAINING not creating -> DO NOT use write_todos
-  - Just explain the document content directly
-
-- User: "What is machine learning?"
-  - Simple question, NO trigger word -> DO NOT use write_todos
-  - Just answer directly
-
-- User: "Summarize this article for me"
-  - Summary request, NO trigger word -> DO NOT use write_todos
-  - Just provide the summary directly
-
-- User: "Compare React and Vue"
-  - Comparison request, NO trigger word -> DO NOT use write_todos
-  - Just compare them directly
-
-- User: "What did I discuss on Slack last week?"
-  - Search request, NO trigger word -> DO NOT use write_todos
-  - Just search and present results
-
-- User: "Give me an overview of this research paper"
-  - Explanation request, NO trigger word -> DO NOT use write_todos
-  - Just provide the overview directly
-
-- User: "How does async/await work in JavaScript?"
-  - Explanation request, NO trigger word -> DO NOT use write_todos
-  - Just explain directly
+- User: "How should I approach refactoring this large codebase?"
+  - Create plan, explain each step with thorough detail, update statuses as you go
+  - Each explanation is comprehensive but appears ONLY ONCE
+  - When finished with all tasks, STOP - do not continue generating
 </tool_call_examples>
 """
 
