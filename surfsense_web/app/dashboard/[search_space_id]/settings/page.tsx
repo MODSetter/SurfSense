@@ -13,11 +13,12 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
 import { Button } from "@/components/ui/button";
+import { trackSettingsViewed } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
 interface SettingsNavItem {
@@ -270,6 +271,11 @@ export default function SettingsPage() {
 	const searchSpaceId = Number(params.search_space_id);
 	const [activeSection, setActiveSection] = useState("models");
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+	// Track settings section view
+	useEffect(() => {
+		trackSettingsViewed(searchSpaceId, activeSection);
+	}, [searchSpaceId, activeSection]);
 
 	const handleBackToApp = useCallback(() => {
 		router.push(`/dashboard/${searchSpaceId}/new-chat`);

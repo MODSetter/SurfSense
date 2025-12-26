@@ -9,13 +9,17 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import {
+	trackDocumentUploadFailure,
+	trackDocumentUploadStarted,
+	trackDocumentUploadSuccess,
+} from "@/lib/posthog/events";
 import { GridPattern } from "./GridPattern";
 
 interface DocumentUploadTabProps {
@@ -154,6 +158,10 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 	const handleUpload = async () => {
 		setUploadProgress(0);
 
+		// Track upload started
+		const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+		trackDocumentUploadStarted(Number(searchSpaceId), files.length, totalSize);
+
 		// Create a progress interval to simulate progress
 		const progressInterval = setInterval(() => {
 			setUploadProgress((prev) => {
@@ -172,6 +180,10 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				onSuccess: () => {
 					clearInterval(progressInterval);
 					setUploadProgress(100);
+
+					// Track upload success
+					trackDocumentUploadSuccess(Number(searchSpaceId), files.length);
+
 					toast(t("upload_initiated"), {
 						description: t("upload_initiated_desc"),
 					});
@@ -180,6 +192,10 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				onError: (error: any) => {
 					clearInterval(progressInterval);
 					setUploadProgress(0);
+
+					// Track upload failure
+					trackDocumentUploadFailure(Number(searchSpaceId), error.message || "Upload failed");
+
 					toast(t("upload_error"), {
 						description: `${t("upload_error_desc")}: ${error.message || "Upload failed"}`,
 					});

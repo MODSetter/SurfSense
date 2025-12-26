@@ -3,12 +3,16 @@ import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { Logo } from "@/components/Logo";
+import { trackLoginAttempt, trackLoginFailure } from "@/lib/posthog/events";
 import { AmbientBackground } from "./AmbientBackground";
 
 export function GoogleLoginButton() {
 	const t = useTranslations("auth");
 
 	const handleGoogleLogin = () => {
+		// Track Google login attempt
+		trackLoginAttempt("google");
+
 		// Redirect to Google OAuth authorization URL
 		// credentials: 'include' is required to accept the CSRF cookie from cross-origin response
 		fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize`, {
@@ -24,10 +28,12 @@ export function GoogleLoginButton() {
 				if (data.authorization_url) {
 					window.location.href = data.authorization_url;
 				} else {
+					trackLoginFailure("google", "No authorization URL received");
 					console.error("No authorization URL received");
 				}
 			})
 			.catch((error) => {
+				trackLoginFailure("google", error?.message || "Unknown error");
 				console.error("Error during Google login:", error);
 			});
 	};

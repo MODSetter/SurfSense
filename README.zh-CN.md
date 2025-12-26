@@ -16,7 +16,7 @@
 
 # SurfSense
 
-虽然像 NotebookLM 和 Perplexity 这样的工具在对任何主题/查询进行研究时令人印象深刻且非常有效，但 SurfSense 通过与您的个人知识库集成，将这一能力提升到了新的高度。它是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Slack、Linear、Jira、ClickUp、Confluence、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Elasticsearch 等，未来还会支持更多。
+虽然像 NotebookLM 和 Perplexity 这样的工具在对任何主题/查询进行研究时令人印象深刻且非常有效，但 SurfSense 通过与您的个人知识库集成，将这一能力提升到了新的高度。它是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Slack、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Elasticsearch 等，未来还会支持更多。
 
 <div align="center">
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -25,8 +25,7 @@
 
 # 视频演示
 
-
-https://github.com/user-attachments/assets/d9221908-e0de-4b2f-ac3a-691cf4b202da
+https://github.com/user-attachments/assets/42a29ea1-d4d8-4213-9c69-972b5b806d58
 
 
 ## 播客示例
@@ -71,6 +70,27 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - 支持本地 TTS 提供商（Kokoro TTS）
 - 支持多个 TTS 提供商（OpenAI、Azure、Google Vertex AI）
 
+### 🤖 **深度代理架构**
+
+#### 内置代理工具
+| 工具 | 描述 |
+|------|------|
+| **search_knowledge_base** | 使用语义+全文混合搜索、日期过滤和连接器特定查询搜索您的个人知识库 |
+| **generate_podcast** | 从聊天对话或知识库内容生成音频播客 |
+| **link_preview** | 获取 URL 的 Open Graph 元数据以显示预览卡片 |
+| **display_image** | 在聊天中显示带有元数据和来源归属的图像 |
+| **scrape_webpage** | 从网页中提取完整内容用于分析和总结（支持 Firecrawl 或本地 Chromium/Trafilatura） |
+
+#### 可扩展工具注册表
+贡献者可以通过注册表模式轻松添加新工具：
+1. 在 `surfsense_backend/app/agents/new_chat/tools/` 中创建工具工厂函数
+2. 在 `registry.py` 的 `BUILTIN_TOOLS` 列表中注册
+
+#### 可配置的系统提示词
+- 通过 LLM 配置自定义系统指令
+- 按配置切换引用开关
+- 通过 LiteLLM 集成支持 100+ 种 LLM
+
 ### 📊 **先进的 RAG 技术**
 - 支持 100+ 种大语言模型
 - 支持 6000+ 种嵌入模型
@@ -86,6 +106,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Jira
 - ClickUp
 - Confluence
+- BookStack
 - Notion
 - Gmail
 - YouTube 视频
@@ -214,32 +235,6 @@ Docker 和手动安装指南都包含适用于 Windows、macOS 和 Linux 的详�
   - LlamaIndex API 密钥（增强解析，支持 50+ 种格式）
 - 其他根据用例需要的 API 密钥
 
-## 截图
-
-**研究助手** 
-
-![updated_researcher](https://github.com/user-attachments/assets/e22c5d86-f511-4c72-8c50-feba0c1561b4)
-
-**搜索空间** 
-
-![search_spaces](https://github.com/user-attachments/assets/e254c38c-f937-44b6-9e9d-770db583d099)
-
-**管理文档** 
-![documents](https://github.com/user-attachments/assets/7001e306-eb06-4009-89c6-8fadfdc3fc4d)
-
-**播客助手** 
-![podcasts](https://github.com/user-attachments/assets/6cb82ffd-9e14-4172-bc79-67faf34c4c1c)
-
-
-**对话助手** 
-
-![git_chat](https://github.com/user-attachments/assets/bb352d52-1c6d-4020-926b-722d0b98b491)
-
-**浏览器扩展**
-
-![ext1](https://github.com/user-attachments/assets/1f042b7a-6349-422b-94fb-d40d0df16c40)
-
-![ext2](https://github.com/user-attachments/assets/a9b9f1aa-2677-404d-b0a0-c1b2dddf24a7)
 
 
 ## 技术栈
@@ -257,11 +252,13 @@ Docker 和手动安装指南都包含适用于 Windows、macOS 和 Linux 的详�
 
 -  **FastAPI Users**：使用 JWT 和 OAuth 支持的身份验证和用户管理
 
--  **LangGraph**：用于开发 AI 代理的框架
-  
+-  **深度代理**：基于 LangGraph 构建的自定义代理框架，用于推理和行动的 AI 代理，支持可配置工具
+
+-  **LangGraph**：用于开发具有对话持久性的有状态 AI 代理的框架
+
 -  **LangChain**：用于开发 AI 驱动应用程序的框架
 
--  **LLM 集成**：通过 LiteLLM 与大语言模型集成
+-  **LiteLLM**：通用 LLM 集成，支持 100+ 种模型（OpenAI、Anthropic、Ollama 等）
 
 -  **Rerankers**：先进的结果排序，提高搜索相关性
 
@@ -285,33 +282,19 @@ Docker 和手动安装指南都包含适用于 Windows、macOS 和 Linux 的详�
 ---
  ### **前端**
 
--  **Next.js 15.2.3**：React 框架，具有应用路由器、服务器组件、自动代码拆分和优化渲染功能
+-  **Next.js**：React 框架，具有应用路由器、服务器组件、自动代码拆分和优化渲染功能
 
--  **React 19.0.0**：用于构建用户界面的 JavaScript 库
+-  **React**：用于构建用户界面的 JavaScript 库
 
 -  **TypeScript**：JavaScript 的静态类型检查，提升代码质量和开发体验
 
 - **Vercel AI SDK Kit UI Stream Protocol**：创建可扩展的聊天 UI
 
--  **Tailwind CSS 4.x**：实用优先的 CSS 框架，用于构建自定义 UI 设计
+-  **Tailwind CSS**：实用优先的 CSS 框架，用于构建自定义 UI 设计
 
 -  **Shadcn**：无头组件库
 
--  **Lucide React**：作为 React 组件实现的图标集
-
--  **Framer Motion**：React 动画库
-
--  **Sonner**：Toast 通知库
-
--  **Geist**：Vercel 的字体系列
-
--  **React Hook Form**：表单状态管理和验证
-
--  **Zod**：TypeScript 优先的模式验证，带静态类型推断
-
--  **@hookform/resolvers**：用于在 React Hook Form 中使用验证库的解析器
-
--  **@tanstack/react-table**：用于构建强大表格和数据网格的无头 UI
+-  **Motion（Framer Motion）**：React 动画库
 
 
  ### **DevOps**
@@ -331,6 +314,25 @@ Docker 和手动安装指南都包含适用于 Windows、macOS 和 Linux 的详�
 
 非常欢迎贡献！贡献可以小到一个 ⭐，甚至是发现和创建问题。
 后端的微调总是受欢迎的。
+
+### 添加新的代理工具
+
+想要为 SurfSense 代理添加新工具？非常简单：
+
+1. 在 `surfsense_backend/app/agents/new_chat/tools/my_tool.py` 中创建您的工具文件
+2. 在 `registry.py` 中注册：
+
+```python
+ToolDefinition(
+    name="my_tool",
+    description="What my tool does",
+    factory=lambda deps: create_my_tool(
+        search_space_id=deps["search_space_id"],
+        db_session=deps["db_session"],
+    ),
+    requires=["search_space_id", "db_session"],
+),
+```
 
 有关详细的贡献指南，请参阅我们的 [CONTRIBUTING.md](CONTRIBUTING.md) 文件。
 
