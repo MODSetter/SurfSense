@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 // Define the form schema with Zod
 const lumaConnectorFormSchema = z.object({
@@ -66,16 +67,19 @@ export default function LumaConnectorPage() {
 		},
 	});
 
+	const { refetch : fetchConnectors } = useAtomValue(connectorsAtom);
+
 	useEffect(() => {
-		if (connectors) {
+		fetchConnectors().then((data) => {
+			const connectors = data.data || [];
 			const connector = connectors.find(
-				(c) => c.connector_type === EnumConnectorName.LUMA_CONNECTOR
+				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.LUMA_CONNECTOR
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
 			}
-		}
-	}, [connectors]);
+		});
+	}, []);
 
 	// Handle form submission
 	const onSubmit = async (values: LumaConnectorFormValues) => {
