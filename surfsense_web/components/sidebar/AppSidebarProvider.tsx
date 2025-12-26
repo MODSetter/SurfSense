@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
@@ -50,7 +50,13 @@ export function AppSidebarProvider({
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
 	const router = useRouter();
+	const params = useParams();
 	const queryClient = useQueryClient();
+
+	// Get current chat ID from URL params
+	const currentChatId = params?.chat_id
+		? Number(Array.isArray(params.chat_id) ? params.chat_id[0] : params.chat_id)
+		: null;
 	const [isDeletingThread, setIsDeletingThread] = useState(false);
 
 	// Editor state for handling unsaved changes
@@ -61,7 +67,6 @@ export function AppSidebarProvider({
 	const {
 		data: threadsData,
 		error: threadError,
-		isLoading: isLoadingThreads,
 		refetch: refetchThreads,
 	} = useQuery({
 		queryKey: ["threads", searchSpaceId],
@@ -73,7 +78,6 @@ export function AppSidebarProvider({
 		data: searchSpace,
 		isLoading: isLoadingSearchSpace,
 		error: searchSpaceError,
-		refetch: fetchSearchSpace,
 	} = useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: Number(searchSpaceId) }),
@@ -83,12 +87,7 @@ export function AppSidebarProvider({
 	const { data: user } = useAtomValue(currentUserAtom);
 
 	// Fetch notes
-	const {
-		data: notesData,
-		error: notesError,
-		isLoading: isLoadingNotes,
-		refetch: refetchNotes,
-	} = useQuery({
+	const { data: notesData, refetch: refetchNotes } = useQuery({
 		queryKey: ["notes", searchSpaceId],
 		queryFn: () =>
 			notesApiService.getNotes({
@@ -107,11 +106,6 @@ export function AppSidebarProvider({
 		search_space_id: number;
 	} | null>(null);
 	const [isDeletingNote, setIsDeletingNote] = useState(false);
-
-	// Retry function
-	const retryFetch = useCallback(() => {
-		fetchSearchSpace();
-	}, [fetchSearchSpace]);
 
 	// Transform threads to the format expected by AppSidebar
 	const recentChats = useMemo(() => {
@@ -149,8 +143,10 @@ export function AppSidebarProvider({
 			await deleteThread(threadToDelete.id);
 			// Invalidate threads query to refresh the list
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
-			// Navigate to new-chat after successful deletion
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			// Only navigate to new-chat if the deleted chat is currently open
+			if (currentChatId === threadToDelete.id) {
+				router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			}
 		} catch (error) {
 			console.error("Error deleting thread:", error);
 		} finally {
@@ -158,7 +154,7 @@ export function AppSidebarProvider({
 			setShowDeleteDialog(false);
 			setThreadToDelete(null);
 		}
-	}, [threadToDelete, queryClient, searchSpaceId, router]);
+	}, [threadToDelete, queryClient, searchSpaceId, router, currentChatId]);
 
 	// Handle delete note with confirmation
 	const handleDeleteNote = useCallback(async () => {

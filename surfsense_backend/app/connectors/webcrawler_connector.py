@@ -76,12 +76,17 @@ class WebCrawlerConnector:
                     return result, None
                 except Exception as firecrawl_error:
                     # Firecrawl failed, fallback to Chromium
-                    logger.warning(f"[webcrawler] Firecrawl failed, falling back to Chromium+Trafilatura for: {url}")
+                    logger.warning(
+                        f"[webcrawler] Firecrawl failed, falling back to Chromium+Trafilatura for: {url}"
+                    )
                     try:
                         result = await self._crawl_with_chromium(url)
                         return result, None
                     except Exception as chromium_error:
-                        return None, f"Both Firecrawl and Chromium failed. Firecrawl error: {firecrawl_error!s}, Chromium error: {chromium_error!s}"
+                        return (
+                            None,
+                            f"Both Firecrawl and Chromium failed. Firecrawl error: {firecrawl_error!s}, Chromium error: {chromium_error!s}",
+                        )
             else:
                 # No Firecrawl API key, use Chromium directly
                 logger.info(f"[webcrawler] Using Chromium+Trafilatura for: {url}")

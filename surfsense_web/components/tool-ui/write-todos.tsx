@@ -4,54 +4,76 @@ import { makeAssistantToolUI, useAssistantState } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo } from "react";
+import { z } from "zod";
 import {
-  getCanonicalPlanTitle,
-  planStatesAtom,
-  registerPlanOwner,
-  updatePlanStateAtom,
+	getCanonicalPlanTitle,
+	planStatesAtom,
+	registerPlanOwner,
+	updatePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
-import { Plan, PlanErrorBoundary, parseSerializablePlan } from "./plan";
+import { Plan, PlanErrorBoundary, parseSerializablePlan, TodoStatusSchema } from "./plan";
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
 
 /**
- * Tool arguments for write_todos
+ * Schema for a single todo item in the args
  */
-interface WriteTodosArgs {
-  title?: string;
-  description?: string;
-  todos?: Array<{
-    id: string;
-    content: string;
-    status: "pending" | "in_progress" | "completed" | "cancelled";
-  }>;
-}
+const WriteTodosArgsTodoSchema = z.object({
+	id: z.string(),
+	content: z.string(),
+	status: TodoStatusSchema,
+});
 
 /**
- * Tool result for write_todos
+ * Schema for write_todos tool arguments
  */
-interface WriteTodosResult {
-  id: string;
-  title: string;
-  description?: string;
-  todos: Array<{
-    id: string;
-    label: string;
-    status: "pending" | "in_progress" | "completed" | "cancelled";
-    description?: string;
-  }>;
-}
+const WriteTodosArgsSchema = z.object({
+	title: z.string().nullish(),
+	description: z.string().nullish(),
+	todos: z.array(WriteTodosArgsTodoSchema).nullish(),
+});
+
+/**
+ * Schema for a single todo item in the result
+ */
+const WriteTodosResultTodoSchema = z.object({
+	id: z.string(),
+	label: z.string(),
+	status: TodoStatusSchema,
+	description: z.string().nullish(),
+});
+
+/**
+ * Schema for write_todos tool result
+ */
+const WriteTodosResultSchema = z.object({
+	id: z.string(),
+	title: z.string(),
+	description: z.string().nullish(),
+	todos: z.array(WriteTodosResultTodoSchema),
+});
+
+// ============================================================================
+// Types
+// ============================================================================
+
+type WriteTodosArgs = z.infer<typeof WriteTodosArgsSchema>;
+type WriteTodosResult = z.infer<typeof WriteTodosResultSchema>;
 
 /**
  * Loading state component
  */
 function WriteTodosLoading() {
-  return (
-    <div className="my-4 w-full max-w-xl rounded-2xl border bg-card/60 px-5 py-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <Loader2 className="size-5 animate-spin text-primary" />
-        <span className="text-sm text-muted-foreground">Creating plan...</span>
-      </div>
-    </div>
-  );
+	return (
+		<div className="my-4 w-full max-w-xl rounded-2xl border bg-card/60 px-5 py-4 shadow-sm">
+			<div className="flex items-center gap-3">
+				<Loader2 className="size-5 animate-spin text-primary" />
+				<span className="text-sm text-muted-foreground">Creating plan...</span>
+			</div>
+		</div>
+	);
 }
 
 /**
@@ -59,20 +81,20 @@ function WriteTodosLoading() {
  * This handles the case where the LLM is streaming the tool call
  */
 function transformArgsToResult(args: WriteTodosArgs): WriteTodosResult | null {
-  if (!args.todos || !Array.isArray(args.todos) || args.todos.length === 0) {
-    return null;
-  }
+	if (!args.todos || !Array.isArray(args.todos) || args.todos.length === 0) {
+		return null;
+	}
 
-  return {
-    id: `plan-${Date.now()}`,
-    title: args.title || "Planning Approach",
-    description: args.description,
-    todos: args.todos.map((todo, index) => ({
-      id: todo.id || `todo-${index}`,
-      label: todo.content || "Task",
-      status: todo.status || "pending",
-    })),
-  };
+	return {
+		id: `plan-${Date.now()}`,
+		title: args.title || "Planning Approach",
+		description: args.description,
+		todos: args.todos.map((todo, index) => ({
+			id: todo.id || `todo-${index}`,
+			label: todo.content || "Task",
+			status: todo.status || "pending",
+		})),
+	};
 }
 
 /**
@@ -87,116 +109,115 @@ function transformArgsToResult(args: WriteTodosArgs): WriteTodosResult | null {
  * layout shift when plans are updated.
  */
 export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosArgs, WriteTodosResult>({
-  toolName: "write_todos",
-  render: function WriteTodosUI({ args, result, status, toolCallId }) {
-    const updatePlanState = useSetAtom(updatePlanStateAtom);
-    const planStates = useAtomValue(planStatesAtom);
-    
-    // Check if the THREAD is running (not just this tool)
-    // This hook subscribes to state changes, so it re-renders when thread stops
-    const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	toolName: "write_todos",
+	render: function WriteTodosUI({ args, result, status, toolCallId }) {
+		const updatePlanState = useSetAtom(updatePlanStateAtom);
+		const planStates = useAtomValue(planStatesAtom);
 
-    // Get the plan data (from result or args)
-    const planData = result || transformArgsToResult(args);
-    const rawTitle = planData?.title || args.title || "Planning Approach";
+		// Check if the THREAD is running (not just this tool)
+		// This hook subscribes to state changes, so it re-renders when thread stops
+		const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
 
-    // SYNCHRONOUS ownership check - happens immediately, no race conditions
-    // ONE PLAN PER CONVERSATION: Only first write_todos call becomes owner
-    const isOwner = useMemo(() => {
-      return registerPlanOwner(rawTitle, toolCallId);
-    }, [rawTitle, toolCallId]);
-    
-    // Get canonical title - always use the FIRST plan's title
-    // This ensures all updates go to the same plan state
-    const planTitle = useMemo(() => getCanonicalPlanTitle(rawTitle), [rawTitle]);
+		// Get the plan data (from result or args)
+		const planData = result || transformArgsToResult(args);
+		const rawTitle = planData?.title || args.title || "Planning Approach";
 
-    // Register/update the plan state - ALWAYS use canonical title
-    useEffect(() => {
-      if (planData) {
-        updatePlanState({
-          id: planData.id,
-          title: planTitle, // Use canonical title, not raw title
-          description: planData.description,
-          todos: planData.todos,
-          toolCallId,
-        });
-      }
-    }, [planData, planTitle, updatePlanState, toolCallId]);
+		// SYNCHRONOUS ownership check - happens immediately, no race conditions
+		// ONE PLAN PER CONVERSATION: Only first write_todos call becomes owner
+		const isOwner = useMemo(() => {
+			return registerPlanOwner(rawTitle, toolCallId);
+		}, [rawTitle, toolCallId]);
 
-    // Update when result changes (for streaming updates)
-    useEffect(() => {
-      if (result) {
-        updatePlanState({
-          id: result.id,
-          title: planTitle, // Use canonical title, not raw title
-          description: result.description,
-          todos: result.todos,
-          toolCallId,
-        });
-      }
-    }, [result, planTitle, updatePlanState, toolCallId]);
+		// Get canonical title - always use the FIRST plan's title
+		// This ensures all updates go to the same plan state
+		const planTitle = useMemo(() => getCanonicalPlanTitle(rawTitle), [rawTitle]);
 
-    // Get the current plan state (may be updated by other components)
-    const currentPlanState = planStates.get(planTitle);
+		// Register/update the plan state - ALWAYS use canonical title
+		useEffect(() => {
+			if (planData) {
+				updatePlanState({
+					id: planData.id,
+					title: planTitle, // Use canonical title, not raw title
+					description: planData.description,
+					todos: planData.todos,
+					toolCallId,
+				});
+			}
+		}, [planData, planTitle, updatePlanState, toolCallId]);
 
-    // If we're NOT the owner, render nothing (the owner will render)
-    if (!isOwner) {
-      return null;
-    }
+		// Update when result changes (for streaming updates)
+		useEffect(() => {
+			if (result) {
+				updatePlanState({
+					id: result.id,
+					title: planTitle, // Use canonical title, not raw title
+					description: result.description,
+					todos: result.todos,
+					toolCallId,
+				});
+			}
+		}, [result, planTitle, updatePlanState, toolCallId]);
 
-    // Loading state - tool is still running (no data yet)
-    if (status.type === "running" || status.type === "requires-action") {
-      // Try to show partial results from args while streaming
-      const partialResult = transformArgsToResult(args);
-      if (partialResult) {
-        const plan = parseSerializablePlan(partialResult);
-        return (
-          <div className="my-4">
-            <PlanErrorBoundary>
-              <Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
-            </PlanErrorBoundary>
-          </div>
-        );
-      }
-      return <WriteTodosLoading />;
-    }
+		// Get the current plan state (may be updated by other components)
+		const currentPlanState = planStates.get(planTitle);
 
-    // Incomplete/cancelled state
-    if (status.type === "incomplete") {
-      // For cancelled or errors, try to show what we have from args or shared state
-      // Use isThreadRunning to determine if we should still animate
-      const fallbackResult = currentPlanState || transformArgsToResult(args);
-      if (fallbackResult) {
-        const plan = parseSerializablePlan(fallbackResult);
-        return (
-          <div className="my-4">
-            <PlanErrorBoundary>
-              <Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
-            </PlanErrorBoundary>
-          </div>
-        );
-      }
-      return null;
-    }
+		// If we're NOT the owner, render nothing (the owner will render)
+		if (!isOwner) {
+			return null;
+		}
 
-    // Success - render the plan using the LATEST shared state
-    // Use isThreadRunning to determine if we should animate in_progress items
-    // (LLM may still be working on tasks even though this tool call completed)
-    const planToRender = currentPlanState || result;
-    if (!planToRender) {
-      return <WriteTodosLoading />;
-    }
-    
-    const plan = parseSerializablePlan(planToRender);
-    return (
-      <div className="my-4">
-        <PlanErrorBoundary>
-          <Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
-        </PlanErrorBoundary>
-      </div>
-    );
-  },
+		// Loading state - tool is still running (no data yet)
+		if (status.type === "running" || status.type === "requires-action") {
+			// Try to show partial results from args while streaming
+			const partialResult = transformArgsToResult(args);
+			if (partialResult) {
+				const plan = parseSerializablePlan(partialResult);
+				return (
+					<div className="my-4">
+						<PlanErrorBoundary>
+							<Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
+						</PlanErrorBoundary>
+					</div>
+				);
+			}
+			return <WriteTodosLoading />;
+		}
+
+		// Incomplete/cancelled state
+		if (status.type === "incomplete") {
+			// For cancelled or errors, try to show what we have from args or shared state
+			// Use isThreadRunning to determine if we should still animate
+			const fallbackResult = currentPlanState || transformArgsToResult(args);
+			if (fallbackResult) {
+				const plan = parseSerializablePlan(fallbackResult);
+				return (
+					<div className="my-4">
+						<PlanErrorBoundary>
+							<Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
+						</PlanErrorBoundary>
+					</div>
+				);
+			}
+			return null;
+		}
+
+		// Success - render the plan using the LATEST shared state
+		// Use isThreadRunning to determine if we should animate in_progress items
+		// (LLM may still be working on tasks even though this tool call completed)
+		const planToRender = currentPlanState || result;
+		if (!planToRender) {
+			return <WriteTodosLoading />;
+		}
+
+		const plan = parseSerializablePlan(planToRender);
+		return (
+			<div className="my-4">
+				<PlanErrorBoundary>
+					<Plan {...plan} showProgress={true} isStreaming={isThreadRunning} />
+				</PlanErrorBoundary>
+			</div>
+		);
+	},
 });
 
-export type { WriteTodosArgs, WriteTodosResult };
-
+export { WriteTodosArgsSchema, WriteTodosResultSchema, type WriteTodosArgs, type WriteTodosResult };

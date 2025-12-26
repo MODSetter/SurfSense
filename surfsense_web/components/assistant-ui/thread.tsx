@@ -910,7 +910,7 @@ const AssistantMessageInner: FC = () => {
 				<MessageError />
 			</div>
 
-			<div className="aui-assistant-message-footer mt-1 ml-2 flex">
+			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
 				<BranchPicker />
 				<AssistantActionBar />
 			</div>

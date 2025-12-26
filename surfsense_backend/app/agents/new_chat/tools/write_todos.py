@@ -5,7 +5,7 @@ This module provides a tool for creating and displaying a planning/todo list
 in the chat UI. It helps the agent break down complex tasks into steps.
 """
 
-from typing import Any, Literal
+from typing import Any
 
 from langchain_core.tools import tool
 
@@ -91,4 +91,3 @@ def create_write_todos_tool():
         }
 
     return write_todos
-

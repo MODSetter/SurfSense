@@ -149,7 +149,11 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 			if (typeof part !== "object" || part === null || !("type" in part)) return true;
 			const partType = (part as { type: string }).type;
 			// Filter out thinking-steps, mentioned-documents, and attachments
-			return partType !== "thinking-steps" && partType !== "mentioned-documents" && partType !== "attachments";
+			return (
+				partType !== "thinking-steps" &&
+				partType !== "mentioned-documents" &&
+				partType !== "attachments"
+			);
 		});
 		content =
 			filteredContent.length > 0
@@ -319,7 +323,13 @@ export default function NewChatPage() {
 		} finally {
 			setIsInitializing(false);
 		}
-	}, [urlChatId, setMessageDocumentsMap, setMentionedDocumentIds, setMentionedDocuments, hydratePlanState]);
+	}, [
+		urlChatId,
+		setMessageDocumentsMap,
+		setMentionedDocumentIds,
+		setMentionedDocuments,
+		hydratePlanState,
+	]);
 
 	// Initialize on mount
 	useEffect(() => {
@@ -786,9 +796,7 @@ export default function NewChatPage() {
 						appendMessage(currentThreadId, {
 							role: "assistant",
 							content: partialContent,
-						}).catch((err) =>
-							console.error("Failed to persist partial assistant message:", err)
-						);
+						}).catch((err) => console.error("Failed to persist partial assistant message:", err));
 					}
 					return;
 				}
