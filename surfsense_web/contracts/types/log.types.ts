@@ -3,32 +3,22 @@ import { z } from "zod";
 /**
  * ENUMS
  */
-export const logLevelEnum = z.enum([
-  "DEBUG",
-  "INFO",
-  "WARNING",
-  "ERROR",
-  "CRITICAL"
-]);
+export const logLevelEnum = z.enum(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]);
 
-export const logStatusEnum = z.enum([
-  "IN_PROGRESS",
-  "SUCCESS",
-  "FAILED"
-]);
+export const logStatusEnum = z.enum(["IN_PROGRESS", "SUCCESS", "FAILED"]);
 
 /**
  * Base log schema
  */
 export const log = z.object({
-  id: z.number(),
-  level: logLevelEnum,
-  status: logStatusEnum,
-  message: z.string(),
-  source: z.string().nullable().optional(),
-  log_metadata: z.record(z.string(), z.any()).nullable().optional(),
-  created_at: z.string(),
-  search_space_id: z.number(),
+	id: z.number(),
+	level: logLevelEnum,
+	status: logStatusEnum,
+	message: z.string(),
+	source: z.string().nullable().optional(),
+	log_metadata: z.record(z.string(), z.any()).nullable().optional(),
+	created_at: z.string(),
+	search_space_id: z.number(),
 });
 
 export const logBase = log.omit({ id: true, created_at: true });
@@ -49,22 +39,24 @@ export const updateLogResponse = log;
  * Delete log
  */
 export const deleteLogRequest = z.object({ id: z.number() });
-export const deleteLogResponse = z.object({ message: z.string().default("Log deleted successfully") });
+export const deleteLogResponse = z.object({
+	message: z.string().default("Log deleted successfully"),
+});
 
 /**
  * Get logs (list)
  */
 export const logFilters = z.object({
-  search_space_id: z.number().optional(),
-  level: logLevelEnum.optional(),
-  status: logStatusEnum.optional(),
-  source: z.string().optional(),
-  start_date: z.string().optional(),
-  end_date: z.string().optional(),
+	search_space_id: z.number().optional(),
+	level: logLevelEnum.optional(),
+	status: logStatusEnum.optional(),
+	source: z.string().optional(),
+	start_date: z.string().optional(),
+	end_date: z.string().optional(),
 });
 export const getLogsRequest = logFilters.extend({
-  skip: z.number().optional(),
-  limit: z.number().optional()
+	skip: z.number().optional(),
+	limit: z.number().optional(),
 });
 export const getLogsResponse = z.array(log);
 
@@ -78,32 +70,32 @@ export const getLogResponse = log;
  * Log summary (used for summary dashboard)
  */
 export const logActiveTask = z.object({
-  id: z.number(),
-  task_name: z.string(),
-  message: z.string(),
-  started_at: z.string(),
-  source: z.string().nullable().optional()
+	id: z.number(),
+	task_name: z.string(),
+	message: z.string(),
+	started_at: z.string(),
+	source: z.string().nullable().optional(),
 });
 export const logFailure = z.object({
-  id: z.number(),
-  task_name: z.string(),
-  message: z.string(),
-  failed_at: z.string(),
-  source: z.string().nullable().optional(),
-  error_details: z.string().nullable().optional(),
+	id: z.number(),
+	task_name: z.string(),
+	message: z.string(),
+	failed_at: z.string(),
+	source: z.string().nullable().optional(),
+	error_details: z.string().nullable().optional(),
 });
 export const logSummary = z.object({
-  total_logs: z.number(),
-  time_window_hours: z.number(),
-  by_status: z.record(z.string(), z.number()),
-  by_level: z.record(z.string(), z.number()),
-  by_source: z.record(z.string(), z.number()),
-  active_tasks: z.array(logActiveTask),
-  recent_failures: z.array(logFailure),
+	total_logs: z.number(),
+	time_window_hours: z.number(),
+	by_status: z.record(z.string(), z.number()),
+	by_level: z.record(z.string(), z.number()),
+	by_source: z.record(z.string(), z.number()),
+	active_tasks: z.array(logActiveTask),
+	recent_failures: z.array(logFailure),
 });
 export const getLogSummaryRequest = z.object({
-  search_space_id: z.number(),
-  hours: z.number().optional(),
+	search_space_id: z.number(),
+	hours: z.number().optional(),
 });
 export const getLogSummaryResponse = logSummary;
 
