@@ -1,9 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useMemo } from "react";
 import { logsApiService } from "@/lib/apis/logs-api.service";
-import { authenticatedFetch } from "@/lib/auth-utils";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
@@ -121,45 +119,21 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 
 // Separate hook for log summary
 export function useLogsSummary(searchSpaceId: number, hours: number = 24) {
-	const [summary, setSummary] = useState<LogSummary | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const {
+		data: summary,
+		isLoading: loading,
+		error,
+		refetch,
+	} = useQuery({
+		queryKey: cacheKeys.logs.summary(searchSpaceId),
+		queryFn: () =>
+			logsApiService.getLogSummary({
+				search_space_id: searchSpaceId,
+				hours: hours,
+			}),
+		enabled: !!searchSpaceId,
+		staleTime: 3 * 60 * 1000,
+	});
 
-	const fetchSummary = useCallback(async () => {
-		if (!searchSpaceId) return;
-
-		try {
-			setLoading(true);
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/search-space/${searchSpaceId}/summary?hours=${hours}`,
-				{ method: "GET" }
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.detail || "Failed to fetch logs summary");
-			}
-
-			const data = await response.json();
-			setSummary(data);
-			setError(null);
-			return data;
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch logs summary");
-			console.error("Error fetching logs summary:", err);
-			throw err;
-		} finally {
-			setLoading(false);
-		}
-	}, [searchSpaceId, hours]);
-
-	useEffect(() => {
-		fetchSummary();
-	}, [fetchSummary]);
-
-	const refreshSummary = useCallback(() => {
-		return fetchSummary();
-	}, [fetchSummary]);
-
-	return { summary, loading, error, refreshSummary };
+	return { summary, loading, error, refreshSummary: refetch };
 }
