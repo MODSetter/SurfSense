@@ -298,6 +298,4 @@ class BaseApiService {
 	}
 }
 
-export const baseApiService = new BaseApiService(
-	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || ""
-);
+export const baseApiService = new BaseApiService(process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "");
