@@ -18,6 +18,11 @@ export const cacheKeys = {
 		typeCounts: (searchSpaceId?: string) => ["documents", "type-counts", searchSpaceId] as const,
 		byChunk: (chunkId: string) => ["documents", "by-chunk", chunkId] as const,
 	},
+	logs: {
+		list: (searchSpaceId?: number | string) => ["logs", "list", searchSpaceId] as const,
+		detail: (logId: number | string) => ["logs", "detail", logId] as const,
+		summary: (searchSpaceId?: number | string) => ["logs", "summary", searchSpaceId] as const,
+	},
 	newLLMConfigs: {
 		all: (searchSpaceId: number) => ["new-llm-configs", searchSpaceId] as const,
 		byId: (configId: number) => ["new-llm-configs", "detail", configId] as const,
