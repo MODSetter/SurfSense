@@ -7,7 +7,7 @@ import {
   PartyPopper,
   XCircle,
 } from "lucide-react";
-import type { FC, ReactNode } from "react";
+import type { FC } from "react";
 import { useMemo, useState } from "react";
 import {
   Accordion,
@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { Action, ActionsConfig } from "../shared/schema";
@@ -73,8 +74,25 @@ interface TodoItemProps {
 
 const TodoItem: FC<TodoItemProps> = ({ todo, isStreaming = true }) => {
   const isStrikethrough = todo.status === "completed" || todo.status === "cancelled";
-  // Only show pulse animation if streaming and in progress
+  // Only show shimmer animation if streaming and in progress
   const isShimmer = todo.status === "in_progress" && isStreaming;
+
+  // Render the label with optional shimmer effect
+  const renderLabel = () => {
+    if (isShimmer) {
+      return <TextShimmerLoader text={todo.label} size="md" />;
+    }
+    return (
+      <span
+        className={cn(
+          "text-sm",
+          isStrikethrough && "line-through text-muted-foreground"
+        )}
+      >
+        {todo.label}
+      </span>
+    );
+  };
 
   if (todo.description) {
     return (
@@ -82,15 +100,7 @@ const TodoItem: FC<TodoItemProps> = ({ todo, isStreaming = true }) => {
         <AccordionTrigger className="py-2 hover:no-underline">
           <div className="flex items-center gap-2">
             <StatusIcon status={todo.status} isStreaming={isStreaming} />
-            <span
-              className={cn(
-                "text-sm text-left",
-                isStrikethrough && "line-through text-muted-foreground",
-                isShimmer && "animate-pulse"
-              )}
-            >
-              {todo.label}
-            </span>
+            {renderLabel()}
           </div>
         </AccordionTrigger>
         <AccordionContent className="pb-2 pl-6">
@@ -103,15 +113,7 @@ const TodoItem: FC<TodoItemProps> = ({ todo, isStreaming = true }) => {
   return (
     <div className="flex items-center gap-2 py-2">
       <StatusIcon status={todo.status} isStreaming={isStreaming} />
-      <span
-        className={cn(
-          "text-sm",
-          isStrikethrough && "line-through text-muted-foreground",
-          isShimmer && "animate-pulse"
-        )}
-      >
-        {todo.label}
-      </span>
+      {renderLabel()}
     </div>
   );
 };
