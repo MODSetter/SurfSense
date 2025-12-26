@@ -12,9 +12,6 @@ const nextConfig: NextConfig = {
 	typescript: {
 		ignoreBuildErrors: true,
 	},
-	eslint: {
-		ignoreDuringBuilds: true,
-	},
 	images: {
 		remotePatterns: [
 			{
@@ -34,6 +31,27 @@ const nextConfig: NextConfig = {
 		}
 		return config;
 	},
+
+	// PostHog reverse proxy configuration
+	// This helps bypass ad blockers by routing requests through your domain
+	async rewrites() {
+		return [
+			{
+				source: "/ingest/static/:path*",
+				destination: "https://us-assets.i.posthog.com/static/:path*",
+			},
+			{
+				source: "/ingest/:path*",
+				destination: "https://us.i.posthog.com/:path*",
+			},
+			{
+				source: "/ingest/decide",
+				destination: "https://us.i.posthog.com/decide",
+			},
+		];
+	},
+	// Required for PostHog reverse proxy to work correctly
+	skipTrailingSlashRedirect: true,
 };
 
 // Wrap the config with MDX and next-intl plugins

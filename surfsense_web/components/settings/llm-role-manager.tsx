@@ -4,24 +4,22 @@ import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
 	Bot,
-	Brain,
 	CheckCircle,
+	FileText,
 	Loader2,
 	RefreshCw,
 	RotateCcw,
 	Save,
-	Settings2,
-	Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
+import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import {
-	globalLLMConfigsAtom,
-	llmConfigsAtom,
+	globalNewLLMConfigsAtom,
 	llmPreferencesAtom,
-} from "@/atoms/llm-config/llm-config-query.atoms";
+	newLLMConfigsAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,29 +34,21 @@ import {
 } from "@/components/ui/select";
 
 const ROLE_DESCRIPTIONS = {
-	long_context: {
-		icon: Brain,
-		title: "Long Context LLM",
-		description: "Handles summarization of long documents and complex Q&A",
-		color: "bg-blue-100 text-blue-800 border-blue-200",
-		examples: "Document analysis, research synthesis, complex Q&A",
-		characteristics: ["Large context window", "Deep reasoning", "Complex analysis"],
-	},
-	fast: {
-		icon: Zap,
-		title: "Fast LLM",
-		description: "Optimized for quick responses and real-time interactions",
-		color: "bg-green-100 text-green-800 border-green-200",
-		examples: "Quick searches, simple questions, instant responses",
-		characteristics: ["Low latency", "Quick responses", "Real-time chat"],
-	},
-	strategic: {
+	agent: {
 		icon: Bot,
-		title: "Strategic LLM",
-		description: "Advanced reasoning for planning and strategic decision making",
+		title: "Agent LLM",
+		description: "Primary LLM for chat interactions and agent operations",
+		color: "bg-blue-100 text-blue-800 border-blue-200",
+		examples: "Chat responses, agent tasks, real-time interactions",
+		characteristics: ["Fast responses", "Conversational", "Agent operations"],
+	},
+	document_summary: {
+		icon: FileText,
+		title: "Document Summary LLM",
+		description: "Handles document summarization, long context analysis, and query reformulation",
 		color: "bg-purple-100 text-purple-800 border-purple-200",
-		examples: "Planning workflows, strategic analysis, complex problem solving",
-		characteristics: ["Strategic thinking", "Long-term planning", "Complex reasoning"],
+		examples: "Document analysis, podcasts, research synthesis",
+		characteristics: ["Large context window", "Deep reasoning", "Summarization"],
 	},
 };
 
@@ -67,18 +57,19 @@ interface LLMRoleManagerProps {
 }
 
 export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
+	// Use new LLM config system
 	const {
-		data: llmConfigs = [],
+		data: newLLMConfigs = [],
 		isFetching: configsLoading,
 		error: configsError,
 		refetch: refreshConfigs,
-	} = useAtomValue(llmConfigsAtom);
+	} = useAtomValue(newLLMConfigsAtom);
 	const {
 		data: globalConfigs = [],
 		isFetching: globalConfigsLoading,
 		error: globalConfigsError,
 		refetch: refreshGlobalConfigs,
-	} = useAtomValue(globalLLMConfigsAtom);
+	} = useAtomValue(globalNewLLMConfigsAtom);
 	const {
 		data: preferences = {},
 		isFetching: preferencesLoading,
@@ -89,9 +80,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const [assignments, setAssignments] = useState({
-		long_context_llm_id: preferences.long_context_llm_id || "",
-		fast_llm_id: preferences.fast_llm_id || "",
-		strategic_llm_id: preferences.strategic_llm_id || "",
+		agent_llm_id: preferences.agent_llm_id || "",
+		document_summary_llm_id: preferences.document_summary_llm_id || "",
 	});
 
 	const [hasChanges, setHasChanges] = useState(false);
@@ -99,9 +89,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 	useEffect(() => {
 		const newAssignments = {
-			long_context_llm_id: preferences.long_context_llm_id || "",
-			fast_llm_id: preferences.fast_llm_id || "",
-			strategic_llm_id: preferences.strategic_llm_id || "",
+			agent_llm_id: preferences.agent_llm_id || "",
+			document_summary_llm_id: preferences.document_summary_llm_id || "",
 		};
 		setAssignments(newAssignments);
 		setHasChanges(false);
@@ -117,9 +106,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 		// Check if there are changes compared to current preferences
 		const currentPrefs = {
-			long_context_llm_id: preferences.long_context_llm_id || "",
-			fast_llm_id: preferences.fast_llm_id || "",
-			strategic_llm_id: preferences.strategic_llm_id || "",
+			agent_llm_id: preferences.agent_llm_id || "",
+			document_summary_llm_id: preferences.document_summary_llm_id || "",
 		};
 
 		const hasChangesNow = Object.keys(newAssignments).some(
@@ -135,24 +123,18 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		setIsSaving(true);
 
 		const numericAssignments = {
-			long_context_llm_id:
-				typeof assignments.long_context_llm_id === "string"
-					? assignments.long_context_llm_id
-						? parseInt(assignments.long_context_llm_id)
+			agent_llm_id:
+				typeof assignments.agent_llm_id === "string"
+					? assignments.agent_llm_id
+						? parseInt(assignments.agent_llm_id)
 						: undefined
-					: assignments.long_context_llm_id,
-			fast_llm_id:
-				typeof assignments.fast_llm_id === "string"
-					? assignments.fast_llm_id
-						? parseInt(assignments.fast_llm_id)
+					: assignments.agent_llm_id,
+			document_summary_llm_id:
+				typeof assignments.document_summary_llm_id === "string"
+					? assignments.document_summary_llm_id
+						? parseInt(assignments.document_summary_llm_id)
 						: undefined
-					: assignments.fast_llm_id,
-			strategic_llm_id:
-				typeof assignments.strategic_llm_id === "string"
-					? assignments.strategic_llm_id
-						? parseInt(assignments.strategic_llm_id)
-						: undefined
-					: assignments.strategic_llm_id,
+					: assignments.document_summary_llm_id,
 		};
 
 		await updatePreferences({
@@ -168,21 +150,18 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 	const handleReset = () => {
 		setAssignments({
-			long_context_llm_id: preferences.long_context_llm_id || "",
-			fast_llm_id: preferences.fast_llm_id || "",
-			strategic_llm_id: preferences.strategic_llm_id || "",
+			agent_llm_id: preferences.agent_llm_id || "",
+			document_summary_llm_id: preferences.document_summary_llm_id || "",
 		});
 		setHasChanges(false);
 	};
 
-	const isAssignmentComplete =
-		assignments.long_context_llm_id && assignments.fast_llm_id && assignments.strategic_llm_id;
-	const assignedConfigIds = Object.values(assignments).filter((id) => id !== "");
+	const isAssignmentComplete = assignments.agent_llm_id && assignments.document_summary_llm_id;
 
-	// Combine global and custom configs
+	// Combine global and custom configs (new system)
 	const allConfigs = [
 		...globalConfigs.map((config) => ({ ...config, is_global: true })),
-		...llmConfigs.filter((config) => config.id && config.id.toString().trim() !== ""),
+		...newLLMConfigs.filter((config) => config.id && config.id.toString().trim() !== ""),
 	];
 
 	const availableConfigs = allConfigs;
@@ -194,19 +173,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-				<div className="space-y-1">
-					<div className="flex items-center space-x-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
-							<Settings2 className="h-5 w-5 text-purple-600" />
-						</div>
-						<div>
-							<h2 className="text-2xl font-bold tracking-tight">LLM Role Management</h2>
-							<p className="text-muted-foreground">
-								Assign your LLM configurations to specific roles for different purposes.
-							</p>
-						</div>
-					</div>
-				</div>
 				<div className="flex flex-wrap gap-2">
 					<Button
 						variant="outline"
@@ -263,99 +229,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				</Card>
 			)}
 
-			{/* Stats Overview */}
-			{!isLoading && !hasError && (
-				<div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-					<Card className="overflow-hidden">
-						<div className="h-1 bg-blue-500" />
-						<CardContent className="p-4">
-							<div className="flex items-start justify-between gap-2">
-								<div className="space-y-1 min-w-0">
-									<p className="text-2xl font-bold tracking-tight">{availableConfigs.length}</p>
-									<p className="text-xs font-medium text-muted-foreground">Available Models</p>
-									<div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
-										<span>{globalConfigs.length} Global</span>
-										<span>{llmConfigs.length} Custom</span>
-									</div>
-								</div>
-								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-									<Bot className="h-4 w-4 text-blue-600" />
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card className="overflow-hidden">
-						<div className="h-1 bg-purple-500" />
-						<CardContent className="p-4">
-							<div className="flex items-start justify-between gap-2">
-								<div className="space-y-1 min-w-0">
-									<p className="text-2xl font-bold tracking-tight">{assignedConfigIds.length}</p>
-									<p className="text-xs font-medium text-muted-foreground">Assigned Roles</p>
-								</div>
-								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/10">
-									<CheckCircle className="h-4 w-4 text-purple-600" />
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card className="overflow-hidden">
-						<div className={`h-1 ${isAssignmentComplete ? "bg-green-500" : "bg-yellow-500"}`} />
-						<CardContent className="p-4">
-							<div className="flex items-start justify-between gap-2">
-								<div className="space-y-1 min-w-0">
-									<p className="text-2xl font-bold tracking-tight">
-										{Math.round((assignedConfigIds.length / 3) * 100)}%
-									</p>
-									<p className="text-xs font-medium text-muted-foreground">Completion</p>
-								</div>
-								<div
-									className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-										isAssignmentComplete ? "bg-green-500/10" : "bg-yellow-500/10"
-									}`}
-								>
-									{isAssignmentComplete ? (
-										<CheckCircle className="h-4 w-4 text-green-600" />
-									) : (
-										<AlertCircle className="h-4 w-4 text-yellow-600" />
-									)}
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card className="overflow-hidden">
-						<div className={`h-1 ${isAssignmentComplete ? "bg-emerald-500" : "bg-orange-500"}`} />
-						<CardContent className="p-4">
-							<div className="flex items-start justify-between gap-2">
-								<div className="space-y-1 min-w-0">
-									<p
-										className={`text-2xl font-bold tracking-tight ${
-											isAssignmentComplete ? "text-emerald-600" : "text-orange-600"
-										}`}
-									>
-										{isAssignmentComplete ? "Ready" : "Setup"}
-									</p>
-									<p className="text-xs font-medium text-muted-foreground">Status</p>
-								</div>
-								<div
-									className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-										isAssignmentComplete ? "bg-emerald-500/10" : "bg-orange-500/10"
-									}`}
-								>
-									{isAssignmentComplete ? (
-										<CheckCircle className="h-4 w-4 text-emerald-600" />
-									) : (
-										<RefreshCw className="h-4 w-4 text-orange-600" />
-									)}
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-			)}
-
 			{/* Info Alert */}
 			{!isLoading && !hasError && (
 				<div className="space-y-6">
@@ -363,7 +236,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						<Alert variant="destructive">
 							<AlertCircle className="h-4 w-4" />
 							<AlertDescription>
-								No LLM configurations found. Please add at least one LLM provider in the Model
+								No LLM configurations found. Please add at least one LLM provider in the Agent
 								Configs tab before assigning roles.
 							</AlertDescription>
 						</Alert>
@@ -459,12 +332,12 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 															)}
 
 															{/* Custom Configurations */}
-															{llmConfigs.length > 0 && (
+															{newLLMConfigs.length > 0 && (
 																<>
 																	<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
 																		Your Configurations
 																	</div>
-																	{llmConfigs
+																	{newLLMConfigs
 																		.filter(
 																			(config) => config.id && config.id.toString().trim() !== ""
 																		)
@@ -536,38 +409,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 							</Button>
 						</div>
 					)}
-
-					{/* Status Indicator */}
-					{isAssignmentComplete && !hasChanges && (
-						<div className="flex justify-center pt-4">
-							<div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200">
-								<CheckCircle className="w-4 h-4" />
-								<span className="text-sm font-medium">All roles assigned and saved!</span>
-							</div>
-						</div>
-					)}
-
-					{/* Progress Indicator */}
-					<div className="flex justify-center">
-						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							<span>Progress:</span>
-							<div className="flex gap-1">
-								{Object.keys(ROLE_DESCRIPTIONS).map((key) => (
-									<div
-										key={key}
-										className={`w-2 h-2 rounded-full ${
-											assignments[`${key}_llm_id` as keyof typeof assignments]
-												? "bg-primary"
-												: "bg-muted"
-										}`}
-									/>
-								))}
-							</div>
-							<span>
-								{assignedConfigIds.length} of {Object.keys(ROLE_DESCRIPTIONS).length} roles assigned
-							</span>
-						</div>
-					</div>
 				</div>
 			)}
 		</div>

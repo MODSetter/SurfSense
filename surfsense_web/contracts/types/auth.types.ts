@@ -12,7 +12,7 @@ export const loginResponse = z.object({
 });
 
 export const registerRequest = loginRequest.omit({ grant_type: true, username: true }).extend({
-	email: z.string().email("Invalid email address"),
+	email: z.email("Invalid email address"),
 	is_active: z.boolean().optional(),
 	is_superuser: z.boolean().optional(),
 	is_verified: z.boolean().optional(),

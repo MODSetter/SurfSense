@@ -13,11 +13,12 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
 import { Button } from "@/components/ui/button";
+import { trackSettingsViewed } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
 interface SettingsNavItem {
@@ -30,20 +31,20 @@ interface SettingsNavItem {
 const settingsNavItems: SettingsNavItem[] = [
 	{
 		id: "models",
-		label: "Model Configs",
-		description: "Configure AI models and providers",
+		label: "Agent Configs",
+		description: "LLM models with prompts & citations",
 		icon: Bot,
 	},
 	{
 		id: "roles",
-		label: "LLM Roles",
-		description: "Manage language model roles",
+		label: "Role Assignments",
+		description: "Assign configs to agent roles",
 		icon: Brain,
 	},
 	{
 		id: "prompts",
 		label: "System Instructions",
-		description: "Customize system prompts",
+		description: "SearchSpace-wide AI instructions",
 		icon: MessageSquare,
 	},
 ];
@@ -236,9 +237,6 @@ function SettingsContent({
 									<h1 className="text-xl md:text-2xl font-bold tracking-tight truncate">
 										{activeItem?.label}
 									</h1>
-									<p className="text-sm text-muted-foreground mt-0.5 truncate">
-										{activeItem?.description}
-									</p>
 								</div>
 							</div>
 						</motion.div>
@@ -274,8 +272,13 @@ export default function SettingsPage() {
 	const [activeSection, setActiveSection] = useState("models");
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+	// Track settings section view
+	useEffect(() => {
+		trackSettingsViewed(searchSpaceId, activeSection);
+	}, [searchSpaceId, activeSection]);
+
 	const handleBackToApp = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/researcher`);
+		router.push(`/dashboard/${searchSpaceId}/new-chat`);
 	}, [router, searchSpaceId]);
 
 	return (

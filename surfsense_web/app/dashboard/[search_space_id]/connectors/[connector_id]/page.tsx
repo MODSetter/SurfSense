@@ -40,7 +40,6 @@ const apiConnectorFormSchema = z.object({
 // Helper function to get connector type display name
 const getConnectorTypeDisplay = (type: string): string => {
 	const typeMap: Record<string, string> = {
-		SERPER_API: "Serper API",
 		TAVILY_API: "Tavily API",
 		SLACK_CONNECTOR: "Slack Connector",
 		NOTION_CONNECTOR: "Notion Connector",
@@ -68,7 +67,6 @@ type ApiConnectorFormValues = z.infer<typeof apiConnectorFormSchema>;
 // Get API key field name based on connector type
 const getApiKeyFieldName = (connectorType: string): string => {
 	const fieldMap: Record<string, string> = {
-		SERPER_API: "SERPER_API_KEY",
 		TAVILY_API: "TAVILY_API_KEY",
 		SLACK_CONNECTOR: "SLACK_BOT_TOKEN",
 		NOTION_CONNECTOR: "NOTION_INTEGRATION_TOKEN",

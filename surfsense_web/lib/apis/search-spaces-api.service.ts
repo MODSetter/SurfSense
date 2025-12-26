@@ -7,7 +7,6 @@ import {
 	deleteSearchSpaceResponse,
 	type GetSearchSpaceRequest,
 	type GetSearchSpacesRequest,
-	getCommunityPromptsResponse,
 	getSearchSpaceRequest,
 	getSearchSpaceResponse,
 	getSearchSpacesRequest,
@@ -29,7 +28,7 @@ class SearchSpacesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -58,23 +57,13 @@ class SearchSpacesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
 		return baseApiService.post(`/api/v1/searchspaces`, createSearchSpaceResponse, {
 			body: parsedRequest.data,
 		});
-	};
-
-	/**
-	 * Get community-curated prompts for search space system instructions
-	 */
-	getCommunityPrompts = async () => {
-		return baseApiService.get(
-			`/api/v1/searchspaces/prompts/community`,
-			getCommunityPromptsResponse
-		);
 	};
 
 	/**
@@ -86,7 +75,7 @@ class SearchSpacesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -102,7 +91,7 @@ class SearchSpacesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -120,7 +109,7 @@ class SearchSpacesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 

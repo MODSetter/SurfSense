@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { ValidationError } from "@/lib/error";
+import { trackLoginAttempt, trackLoginFailure, trackLoginSuccess } from "@/lib/posthog/events";
 
 export function LocalLoginForm() {
 	const t = useTranslations("auth");
@@ -37,6 +38,9 @@ export function LocalLoginForm() {
 		e.preventDefault();
 		setError({ title: null, message: null }); // Clear any previous errors
 
+		// Track login attempt
+		trackLoginAttempt("local");
+
 		// Show loading toast
 		const loadingToast = toast.loading(tCommon("loading"));
 
@@ -46,6 +50,9 @@ export function LocalLoginForm() {
 				password,
 				grant_type: "password",
 			});
+
+			// Track successful login
+			trackLoginSuccess("local");
 
 			// Success toast
 			toast.success(t("login_success"), {
@@ -60,6 +67,7 @@ export function LocalLoginForm() {
 			}, 500);
 		} catch (err) {
 			if (err instanceof ValidationError) {
+				trackLoginFailure("local", err.message);
 				setError({ title: err.name, message: err.message });
 				toast.error(err.name, {
 					id: loadingToast,
@@ -77,6 +85,9 @@ export function LocalLoginForm() {
 			} else if (isNetworkError(err)) {
 				errorCode = "NETWORK_ERROR";
 			}
+
+			// Track login failure
+			trackLoginFailure("local", errorCode);
 
 			// Get detailed error information from auth-errors utility
 			const errorDetails = getAuthErrorDetails(errorCode);

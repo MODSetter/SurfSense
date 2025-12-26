@@ -5,6 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from app.agents.new_chat.checkpointer import (
+    close_checkpointer,
+    setup_checkpointer_tables,
+)
 from app.config import config
 from app.db import User, create_db_and_tables, get_async_session
 from app.routes import router as crud_router
@@ -16,7 +20,11 @@ from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 async def lifespan(app: FastAPI):
     # Not needed if you setup a migration system like Alembic
     await create_db_and_tables()
+    # Setup LangGraph checkpointer tables for conversation persistence
+    await setup_checkpointer_tables()
     yield
+    # Cleanup: close checkpointer connection on shutdown
+    await close_checkpointer()
 
 
 def registration_allowed():
@@ -34,9 +42,40 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Add CORS middleware
+# When using credentials, we must specify exact origins (not "*")
+# Build allowed origins list from NEXT_FRONTEND_URL
+allowed_origins = []
+if config.NEXT_FRONTEND_URL:
+    allowed_origins.append(config.NEXT_FRONTEND_URL)
+    # Also allow without trailing slash and with www/without www variants
+    frontend_url = config.NEXT_FRONTEND_URL.rstrip("/")
+    if frontend_url not in allowed_origins:
+        allowed_origins.append(frontend_url)
+    # Handle www variants
+    if "://www." in frontend_url:
+        non_www = frontend_url.replace("://www.", "://")
+        if non_www not in allowed_origins:
+            allowed_origins.append(non_www)
+    elif "://" in frontend_url and "://www." not in frontend_url:
+        # Add www variant
+        www_url = frontend_url.replace("://", "://www.")
+        if www_url not in allowed_origins:
+            allowed_origins.append(www_url)
+
+# For local development, also allow common localhost origins
+if not config.BACKEND_URL or (
+    config.NEXT_FRONTEND_URL and "localhost" in config.NEXT_FRONTEND_URL
+):
+    allowed_origins.extend(
+        [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
@@ -70,9 +109,24 @@ app.include_router(
 if config.AUTH_TYPE == "GOOGLE":
     from app.users import google_oauth_client
 
+    # Determine if we're in a secure context (HTTPS) or local development (HTTP)
+    # The CSRF cookie must have secure=False for HTTP (localhost development)
+    is_secure_context = config.BACKEND_URL and config.BACKEND_URL.startswith("https://")
+
+    # For cross-origin OAuth (frontend and backend on different domains):
+    # - SameSite=None is required to allow cross-origin cookie setting
+    # - Secure=True is required when SameSite=None
+    # For same-origin or local development, use SameSite=Lax (default)
+    csrf_cookie_samesite = "none" if is_secure_context else "lax"
+
     app.include_router(
         fastapi_users.get_oauth_router(
-            google_oauth_client, auth_backend, SECRET, is_verified_by_default=True
+            google_oauth_client,
+            auth_backend,
+            SECRET,
+            is_verified_by_default=True,
+            csrf_token_cookie_secure=is_secure_context,
+            csrf_token_cookie_samesite=csrf_cookie_samesite,
         )
         if not config.BACKEND_URL
         else fastapi_users.get_oauth_router(
@@ -81,6 +135,8 @@ if config.AUTH_TYPE == "GOOGLE":
             SECRET,
             is_verified_by_default=True,
             redirect_url=f"{config.BACKEND_URL}/auth/google/callback",
+            csrf_token_cookie_secure=is_secure_context,
+            csrf_token_cookie_samesite=csrf_cookie_samesite,
         ),
         prefix="/auth/google",
         tags=["auth"],

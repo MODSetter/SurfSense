@@ -46,6 +46,15 @@ import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+	createInviteMutationAtom,
+	deleteInviteMutationAtom,
+} from "@/atoms/invites/invites-mutation.atoms";
+import {
+	deleteMemberMutationAtom,
+	updateMemberMutationAtom,
+} from "@/atoms/members/members-mutation.atoms";
+import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import {
 	createRoleMutationAtom,
@@ -108,19 +117,22 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type {
+	CreateInviteRequest,
+	DeleteInviteRequest,
+	Invite,
+} from "@/contracts/types/invites.types";
+import type {
+	DeleteMembershipRequest,
+	Membership,
+	UpdateMembershipRequest,
+} from "@/contracts/types/members.types";
+import type {
 	CreateRoleRequest,
 	DeleteRoleRequest,
 	Role,
 	UpdateRoleRequest,
 } from "@/contracts/types/roles.types";
-import {
-	type Invite,
-	type InviteCreate,
-	type Member,
-	useInvites,
-	useMembers,
-	useUserAccess,
-} from "@/hooks/use-rbac";
+import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
@@ -154,18 +166,54 @@ export default function TeamManagementPage() {
 	const searchSpaceId = Number(params.search_space_id);
 	const [activeTab, setActiveTab] = useState("members");
 
-	const { access, loading: accessLoading, hasPermission } = useUserAccess(searchSpaceId);
+	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
+
+	const hasPermission = useCallback(
+		(permission: string) => {
+			if (!access) return false;
+			if (access.is_owner) return true;
+			return access.permissions?.includes(permission) ?? false;
+		},
+		[access]
+	);
+
 	const {
-		members,
-		loading: membersLoading,
-		fetchMembers,
-		updateMemberRole,
-		removeMember,
-	} = useMembers(searchSpaceId);
+		data: members = [],
+		isLoading: membersLoading,
+		refetch: fetchMembers,
+	} = useAtomValue(membersAtom);
 
 	const { mutateAsync: createRole } = useAtomValue(createRoleMutationAtom);
 	const { mutateAsync: updateRole } = useAtomValue(updateRoleMutationAtom);
 	const { mutateAsync: deleteRole } = useAtomValue(deleteRoleMutationAtom);
+	const { mutateAsync: updateMember } = useAtomValue(updateMemberMutationAtom);
+
+	const { mutateAsync: deleteMember } = useAtomValue(deleteMemberMutationAtom);
+	const { mutateAsync: createInvite } = useAtomValue(createInviteMutationAtom);
+	const { mutateAsync: revokeInvite } = useAtomValue(deleteInviteMutationAtom);
+
+	const handleRevokeInvite = useCallback(
+		async (inviteId: number): Promise<boolean> => {
+			const request: DeleteInviteRequest = {
+				search_space_id: searchSpaceId,
+				invite_id: inviteId,
+			};
+			await revokeInvite(request);
+			return true;
+		},
+		[revokeInvite, searchSpaceId]
+	);
+
+	const handleCreateInvite = useCallback(
+		async (inviteData: CreateInviteRequest["data"]) => {
+			const request: CreateInviteRequest = {
+				search_space_id: searchSpaceId,
+				data: inviteData,
+			};
+			return await createInvite(request);
+		},
+		[createInvite, searchSpaceId]
+	);
 
 	const handleUpdateRole = useCallback(
 		async (roleId: number, data: { permissions?: string[] }): Promise<Role> => {
@@ -202,6 +250,32 @@ export default function TeamManagementPage() {
 		[createRole, searchSpaceId]
 	);
 
+	const handleUpdateMember = useCallback(
+		async (membershipId: number, roleId: number | null): Promise<Membership> => {
+			const request: UpdateMembershipRequest = {
+				search_space_id: searchSpaceId,
+				membership_id: membershipId,
+				data: {
+					role_id: roleId,
+				},
+			};
+			return (await updateMember(request)) as Membership;
+		},
+		[updateMember, searchSpaceId]
+	);
+
+	const handleRemoveMember = useCallback(
+		async (membershipId: number) => {
+			const request: DeleteMembershipRequest = {
+				search_space_id: searchSpaceId,
+				membership_id: membershipId,
+			};
+			await deleteMember(request);
+
+			return true;
+		},
+		[deleteMember, searchSpaceId]
+	);
 	const {
 		data: roles = [],
 		isLoading: rolesLoading,
@@ -212,12 +286,14 @@ export default function TeamManagementPage() {
 		enabled: !!searchSpaceId,
 	});
 	const {
-		invites,
-		loading: invitesLoading,
-		fetchInvites,
-		createInvite,
-		revokeInvite,
-	} = useInvites(searchSpaceId);
+		data: invites = [],
+		isLoading: invitesLoading,
+		refetch: fetchInvites,
+	} = useQuery({
+		queryKey: cacheKeys.invites.all(searchSpaceId.toString()),
+		queryFn: () => invitesApiService.getInvites({ search_space_id: searchSpaceId }),
+		staleTime: 5 * 60 * 1000,
+	});
 
 	const { data: permissionsData, isLoading: permissionsLoading } = useAtomValue(permissionsAtom);
 	const permissions = permissionsData?.permissions || [];
@@ -387,7 +463,7 @@ export default function TeamManagementPage() {
 							{activeTab === "invites" && canInvite && (
 								<CreateInviteDialog
 									roles={roles}
-									onCreateInvite={createInvite}
+									onCreateInvite={handleCreateInvite}
 									searchSpaceId={searchSpaceId}
 								/>
 							)}
@@ -404,8 +480,8 @@ export default function TeamManagementPage() {
 								members={members}
 								roles={roles}
 								loading={membersLoading}
-								onUpdateRole={updateMemberRole}
-								onRemoveMember={removeMember}
+								onUpdateRole={handleUpdateMember}
+								onRemoveMember={handleRemoveMember}
 								canManageRoles={hasPermission("members:manage_roles")}
 								canRemove={hasPermission("members:remove")}
 							/>
@@ -427,7 +503,7 @@ export default function TeamManagementPage() {
 							<InvitesTab
 								invites={invites}
 								loading={invitesLoading}
-								onRevokeInvite={revokeInvite}
+								onRevokeInvite={handleRevokeInvite}
 								canRevoke={canInvite}
 							/>
 						</TabsContent>
@@ -449,10 +525,10 @@ function MembersTab({
 	canManageRoles,
 	canRemove,
 }: {
-	members: Member[];
+	members: Membership[];
 	roles: Role[];
 	loading: boolean;
-	onUpdateRole: (membershipId: number, roleId: number | null) => Promise<Member>;
+	onUpdateRole: (membershipId: number, roleId: number | null) => Promise<Membership>;
 	onRemoveMember: (membershipId: number) => Promise<boolean>;
 	canManageRoles: boolean;
 	canRemove: boolean;
@@ -731,7 +807,6 @@ function RolesTab({
 												<DropdownMenuItem
 													onClick={() => {
 														// TODO: Implement edit role dialog/modal
-														console.log("Edit role not yet implemented", role);
 													}}
 												>
 													<Edit2 className="h-4 w-4 mr-2" />
@@ -1016,7 +1091,7 @@ function CreateInviteDialog({
 	searchSpaceId,
 }: {
 	roles: Role[];
-	onCreateInvite: (data: InviteCreate) => Promise<Invite>;
+	onCreateInvite: (data: CreateInviteRequest["data"]) => Promise<Invite>;
 	searchSpaceId: number;
 }) {
 	const [open, setOpen] = useState(false);
@@ -1031,7 +1106,7 @@ function CreateInviteDialog({
 	const handleCreate = async () => {
 		setCreating(true);
 		try {
-			const data: InviteCreate = {};
+			const data: CreateInviteRequest["data"] = {};
 			if (name) data.name = name;
 			if (roleId && roleId !== "default") data.role_id = Number(roleId);
 			if (maxUses) data.max_uses = Number(maxUses);

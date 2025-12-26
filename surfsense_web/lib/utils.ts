@@ -11,3 +11,11 @@ export function getChatTitleFromMessages(messages: Message[]) {
 	if (userMessages.length === 0) return "Untitled Chat";
 	return userMessages[0].content;
 }
+
+export const formatDate = (date: Date): string => {
+	return date.toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+};

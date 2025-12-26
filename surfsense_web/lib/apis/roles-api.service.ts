@@ -25,7 +25,7 @@ class RolesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -44,7 +44,7 @@ class RolesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -60,7 +60,7 @@ class RolesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -76,7 +76,7 @@ class RolesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -95,7 +95,7 @@ class RolesApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 

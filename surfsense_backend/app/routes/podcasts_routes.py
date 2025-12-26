@@ -1,14 +1,22 @@
+"""
+Podcast routes for task status polling and audio retrieval.
+
+These routes support the podcast generation feature in new-chat.
+Note: The old Chat-based podcast generation has been removed.
+"""
+
 import os
 from pathlib import Path
 
+from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
+from app.celery_app import celery_app
 from app.db import (
-    Chat,
     Permission,
     Podcast,
     SearchSpace,
@@ -16,60 +24,11 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.schemas import (
-    PodcastCreate,
-    PodcastGenerateRequest,
-    PodcastRead,
-    PodcastUpdate,
-)
-from app.tasks.podcast_tasks import generate_chat_podcast
+from app.schemas import PodcastRead
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
 router = APIRouter()
-
-
-@router.post("/podcasts", response_model=PodcastRead)
-async def create_podcast(
-    podcast: PodcastCreate,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """
-    Create a new podcast.
-    Requires PODCASTS_CREATE permission.
-    """
-    try:
-        await check_permission(
-            session,
-            user,
-            podcast.search_space_id,
-            Permission.PODCASTS_CREATE.value,
-            "You don't have permission to create podcasts in this search space",
-        )
-        db_podcast = Podcast(**podcast.model_dump())
-        session.add(db_podcast)
-        await session.commit()
-        await session.refresh(db_podcast)
-        return db_podcast
-    except HTTPException as he:
-        raise he
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Podcast creation failed due to constraint violation",
-        ) from None
-    except SQLAlchemyError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail="Database error occurred while creating podcast"
-        ) from None
-    except Exception:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail="An unexpected error occurred"
-        ) from None
 
 
 @router.get("/podcasts", response_model=list[PodcastRead])
@@ -159,53 +118,6 @@ async def read_podcast(
         ) from None
 
 
-@router.put("/podcasts/{podcast_id}", response_model=PodcastRead)
-async def update_podcast(
-    podcast_id: int,
-    podcast_update: PodcastUpdate,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """
-    Update a podcast.
-    Requires PODCASTS_UPDATE permission for the search space.
-    """
-    try:
-        result = await session.execute(select(Podcast).filter(Podcast.id == podcast_id))
-        db_podcast = result.scalars().first()
-
-        if not db_podcast:
-            raise HTTPException(status_code=404, detail="Podcast not found")
-
-        # Check permission for the search space
-        await check_permission(
-            session,
-            user,
-            db_podcast.search_space_id,
-            Permission.PODCASTS_UPDATE.value,
-            "You don't have permission to update podcasts in this search space",
-        )
-
-        update_data = podcast_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_podcast, key, value)
-        await session.commit()
-        await session.refresh(db_podcast)
-        return db_podcast
-    except HTTPException as he:
-        raise he
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=400, detail="Update failed due to constraint violation"
-        ) from None
-    except SQLAlchemyError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail="Database error occurred while updating podcast"
-        ) from None
-
-
 @router.delete("/podcasts/{podcast_id}", response_model=dict)
 async def delete_podcast(
     podcast_id: int,
@@ -244,108 +156,8 @@ async def delete_podcast(
         ) from None
 
 
-async def generate_chat_podcast_with_new_session(
-    chat_id: int,
-    search_space_id: int,
-    user_id: int,
-    podcast_title: str | None = None,
-    user_prompt: str | None = None,
-):
-    """Create a new session and process chat podcast generation."""
-    from app.db import async_session_maker
-
-    async with async_session_maker() as session:
-        try:
-            await generate_chat_podcast(
-                session, chat_id, search_space_id, user_id, podcast_title, user_prompt
-            )
-        except Exception as e:
-            import logging
-
-            logging.error(f"Error generating podcast from chat: {e!s}")
-
-
-@router.post("/podcasts/generate")
-async def generate_podcast(
-    request: PodcastGenerateRequest,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """
-    Generate a podcast from a chat or document.
-    Requires PODCASTS_CREATE permission.
-    """
-    try:
-        # Check if the user has permission to create podcasts
-        await check_permission(
-            session,
-            user,
-            request.search_space_id,
-            Permission.PODCASTS_CREATE.value,
-            "You don't have permission to create podcasts in this search space",
-        )
-
-        if request.type == "CHAT":
-            # Verify that all chat IDs belong to this user and search space
-            query = (
-                select(Chat)
-                .filter(
-                    Chat.id.in_(request.ids),
-                    Chat.search_space_id == request.search_space_id,
-                )
-                .join(SearchSpace)
-                .filter(SearchSpace.user_id == user.id)
-            )
-
-            result = await session.execute(query)
-            valid_chats = result.scalars().all()
-            valid_chat_ids = [chat.id for chat in valid_chats]
-
-            # If any requested ID is not in valid IDs, raise error immediately
-            if len(valid_chat_ids) != len(request.ids):
-                raise HTTPException(
-                    status_code=403,
-                    detail="One or more chat IDs do not belong to this user or search space",
-                )
-
-            from app.tasks.celery_tasks.podcast_tasks import (
-                generate_chat_podcast_task,
-            )
-
-            # Add Celery tasks for each chat ID
-            for chat_id in valid_chat_ids:
-                generate_chat_podcast_task.delay(
-                    chat_id,
-                    request.search_space_id,
-                    user.id,
-                    request.podcast_title,
-                    request.user_prompt,
-                )
-
-        return {
-            "message": "Podcast generation started",
-        }
-    except HTTPException as he:
-        raise he
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Podcast generation failed due to constraint violation",
-        ) from None
-    except SQLAlchemyError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail="Database error occurred while generating podcast"
-        ) from None
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {e!s}"
-        ) from e
-
-
 @router.get("/podcasts/{podcast_id}/stream")
+@router.get("/podcasts/{podcast_id}/audio")
 async def stream_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -354,6 +166,8 @@ async def stream_podcast(
     """
     Stream a podcast audio file.
     Requires PODCASTS_READ permission for the search space.
+
+    Note: Both /stream and /audio endpoints are supported for compatibility.
     """
     try:
         result = await session.execute(select(Podcast).filter(Podcast.id == podcast_id))
@@ -378,7 +192,7 @@ async def stream_podcast(
         file_path = podcast.file_location
 
         # Check if the file exists
-        if not os.path.isfile(file_path):
+        if not file_path or not os.path.isfile(file_path):
             raise HTTPException(status_code=404, detail="Podcast audio file not found")
 
         # Define a generator function to stream the file
@@ -404,43 +218,60 @@ async def stream_podcast(
         ) from e
 
 
-@router.get("/podcasts/by-chat/{chat_id}", response_model=PodcastRead | None)
-async def get_podcast_by_chat_id(
-    chat_id: int,
-    session: AsyncSession = Depends(get_async_session),
+@router.get("/podcasts/task/{task_id}/status")
+async def get_podcast_task_status(
+    task_id: str,
     user: User = Depends(current_active_user),
 ):
     """
-    Get a podcast by its associated chat ID.
-    Requires PODCASTS_READ permission for the search space.
+    Get the status of a podcast generation task.
+    Used by new-chat frontend to poll for completion.
+
+    Returns:
+    - status: "processing" | "success" | "error"
+    - podcast_id: (only if status == "success")
+    - title: (only if status == "success")
+    - error: (only if status == "error")
     """
     try:
-        # First get the chat to find its search space
-        chat_result = await session.execute(select(Chat).filter(Chat.id == chat_id))
-        chat = chat_result.scalars().first()
+        result = AsyncResult(task_id, app=celery_app)
 
-        if not chat:
-            return None
+        if result.ready():
+            # Task completed
+            if result.successful():
+                task_result = result.result
+                if isinstance(task_result, dict):
+                    if task_result.get("status") == "success":
+                        return {
+                            "status": "success",
+                            "podcast_id": task_result.get("podcast_id"),
+                            "title": task_result.get("title"),
+                            "transcript_entries": task_result.get("transcript_entries"),
+                        }
+                    else:
+                        return {
+                            "status": "error",
+                            "error": task_result.get("error", "Unknown error"),
+                        }
+                else:
+                    return {
+                        "status": "error",
+                        "error": "Unexpected task result format",
+                    }
+            else:
+                # Task failed
+                return {
+                    "status": "error",
+                    "error": str(result.result) if result.result else "Task failed",
+                }
+        else:
+            # Task still processing
+            return {
+                "status": "processing",
+                "state": result.state,
+            }
 
-        # Check permission for the search space
-        await check_permission(
-            session,
-            user,
-            chat.search_space_id,
-            Permission.PODCASTS_READ.value,
-            "You don't have permission to read podcasts in this search space",
-        )
-
-        # Get the podcast
-        result = await session.execute(
-            select(Podcast).filter(Podcast.chat_id == chat_id)
-        )
-        podcast = result.scalars().first()
-
-        return podcast
-    except HTTPException as he:
-        raise he
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Error fetching podcast: {e!s}"
+            status_code=500, detail=f"Error checking task status: {e!s}"
         ) from e

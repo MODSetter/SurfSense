@@ -1,312 +1,268 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { FileText, MessageSquare, UserPlus, Users } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { updateLLMPreferencesMutationAtom } from "@/atoms/llm-config/llm-config-mutation.atoms";
 import {
-	globalLLMConfigsAtom,
-	llmConfigsAtom,
+	createNewLLMConfigMutationAtom,
+	updateLLMPreferencesMutationAtom,
+} from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
+import {
+	globalNewLLMConfigsAtom,
 	llmPreferencesAtom,
-} from "@/atoms/llm-config/llm-config-query.atoms";
-import { OnboardActionCard } from "@/components/onboard/onboard-action-card";
-import { OnboardAdvancedSettings } from "@/components/onboard/onboard-advanced-settings";
-import { OnboardHeader } from "@/components/onboard/onboard-header";
-import { OnboardLLMSetup } from "@/components/onboard/onboard-llm-setup";
-import { OnboardLoading } from "@/components/onboard/onboard-loading";
-import { OnboardStats } from "@/components/onboard/onboard-stats";
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+import { Logo } from "@/components/Logo";
+import { LLMConfigForm, type LLMConfigFormData } from "@/components/shared/llm-config-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
-const OnboardPage = () => {
-	const t = useTranslations("onboard");
+export default function OnboardPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
+	// Queries
 	const {
-		data: llmConfigs = [],
-		isFetching: configsLoading,
-		refetch: refreshConfigs,
-	} = useAtomValue(llmConfigsAtom);
-	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
-		useAtomValue(globalLLMConfigsAtom);
-	const {
-		data: preferences = {},
-		isFetching: preferencesLoading,
-		refetch: refreshPreferences,
-	} = useAtomValue(llmPreferencesAtom);
-	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
+		data: globalConfigs = [],
+		isFetching: globalConfigsLoading,
+		isSuccess: globalConfigsLoaded,
+	} = useAtomValue(globalNewLLMConfigsAtom);
+	const { data: preferences = {}, isFetching: preferencesLoading } =
+		useAtomValue(llmPreferencesAtom);
 
-	// Compute isOnboardingComplete
-	const isOnboardingComplete = useMemo(() => {
-		return !!(
-			preferences.long_context_llm_id &&
-			preferences.fast_llm_id &&
-			preferences.strategic_llm_id
-		);
-	}, [preferences]);
+	// Mutations
+	const { mutateAsync: createConfig, isPending: isCreating } = useAtomValue(
+		createNewLLMConfigMutationAtom
+	);
+	const { mutateAsync: updatePreferences, isPending: isUpdatingPreferences } = useAtomValue(
+		updateLLMPreferencesMutationAtom
+	);
 
+	// State
 	const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
-	const [autoConfigComplete, setAutoConfigComplete] = useState(false);
-	const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-	const [showPromptSettings, setShowPromptSettings] = useState(false);
-
-	const handleRefreshPreferences = useCallback(async () => {
-		await refreshPreferences();
-	}, []);
-
-	// Track if we've already attempted auto-configuration
 	const hasAttemptedAutoConfig = useRef(false);
 
-	// Track if onboarding was complete on initial mount
-	const wasCompleteOnMount = useRef<boolean | null>(null);
-	const hasCheckedInitialState = useRef(false);
-
-	// Check if user is authenticated
+	// Check authentication
 	useEffect(() => {
 		const token = getBearerToken();
 		if (!token) {
-			// Save current path and redirect to login
 			redirectToLogin();
-			return;
 		}
 	}, []);
 
-	// Capture onboarding state on first load
+	// Check if onboarding is already complete
+	const isOnboardingComplete = preferences.agent_llm_id && preferences.document_summary_llm_id;
+
+	// If onboarding is already complete, redirect immediately
 	useEffect(() => {
-		if (
-			!hasCheckedInitialState.current &&
-			!preferencesLoading &&
-			!configsLoading &&
-			!globalConfigsLoading
-		) {
-			wasCompleteOnMount.current = isOnboardingComplete;
-			hasCheckedInitialState.current = true;
+		if (!preferencesLoading && isOnboardingComplete) {
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
-	}, [preferencesLoading, configsLoading, globalConfigsLoading, isOnboardingComplete]);
+	}, [preferencesLoading, isOnboardingComplete, router, searchSpaceId]);
 
-	// Redirect to dashboard if onboarding was already complete
+	// Auto-configure if global configs are available
 	useEffect(() => {
-		if (
-			wasCompleteOnMount.current === true &&
-			!preferencesLoading &&
-			!configsLoading &&
-			!globalConfigsLoading
-		) {
-			const timer = setTimeout(() => {
-				router.push(`/dashboard/${searchSpaceId}`);
-			}, 300);
-			return () => clearTimeout(timer);
-		}
-	}, [preferencesLoading, configsLoading, globalConfigsLoading, router, searchSpaceId]);
+		const autoConfigureWithGlobal = async () => {
+			if (hasAttemptedAutoConfig.current) return;
+			if (globalConfigsLoading || preferencesLoading) return;
+			if (!globalConfigsLoaded) return;
+			if (isOnboardingComplete) return;
 
-	// Auto-configure LLM roles if global configs are available
-	const autoConfigureLLMs = useCallback(async () => {
-		if (hasAttemptedAutoConfig.current) return;
-		if (globalConfigs.length === 0) return;
-		if (isOnboardingComplete) {
-			setAutoConfigComplete(true);
-			return;
-		}
+			// Only auto-configure if we have global configs
+			if (globalConfigs.length > 0) {
+				hasAttemptedAutoConfig.current = true;
+				setIsAutoConfiguring(true);
 
-		hasAttemptedAutoConfig.current = true;
-		setIsAutoConfiguring(true);
+				try {
+					const firstGlobalConfig = globalConfigs[0];
 
-		try {
-			const allConfigs = [...globalConfigs, ...llmConfigs];
+					await updatePreferences({
+						search_space_id: searchSpaceId,
+						data: {
+							agent_llm_id: firstGlobalConfig.id,
+							document_summary_llm_id: firstGlobalConfig.id,
+						},
+					});
 
-			if (allConfigs.length === 0) {
-				setIsAutoConfiguring(false);
-				return;
+					toast.success("AI configured automatically!", {
+						description: `Using ${firstGlobalConfig.name}. You can customize this later in Settings.`,
+					});
+
+					// Redirect to new-chat
+					router.push(`/dashboard/${searchSpaceId}/new-chat`);
+				} catch (error) {
+					console.error("Auto-configuration failed:", error);
+					toast.error("Auto-configuration failed. Please add a configuration manually.");
+					setIsAutoConfiguring(false);
+				}
 			}
+		};
 
-			// Use first available config for all roles
-			const defaultConfigId = allConfigs[0].id;
+		autoConfigureWithGlobal();
+	}, [
+		globalConfigs,
+		globalConfigsLoading,
+		globalConfigsLoaded,
+		preferencesLoading,
+		isOnboardingComplete,
+		updatePreferences,
+		searchSpaceId,
+		router,
+	]);
 
-			const newPreferences = {
-				long_context_llm_id: defaultConfigId,
-				fast_llm_id: defaultConfigId,
-				strategic_llm_id: defaultConfigId,
-			};
+	// Handle form submission
+	const handleSubmit = async (formData: LLMConfigFormData) => {
+		try {
+			// Create the config
+			const newConfig = await createConfig(formData);
 
+			// Auto-assign to all roles
 			await updatePreferences({
 				search_space_id: searchSpaceId,
-				data: newPreferences,
+				data: {
+					agent_llm_id: newConfig.id,
+					document_summary_llm_id: newConfig.id,
+				},
 			});
-			await refreshPreferences();
-			setAutoConfigComplete(true);
-			toast.success("AI models configured automatically!", {
-				description: "You can customize these in advanced settings.",
+
+			toast.success("Configuration created!", {
+				description: "Redirecting to chat...",
 			});
+
+			// Redirect to new-chat
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		} catch (error) {
-			console.error("Auto-configuration failed:", error);
-		} finally {
-			setIsAutoConfiguring(false);
+			console.error("Failed to create config:", error);
+			if (error instanceof Error) {
+				toast.error(error.message || "Failed to create configuration");
+			}
 		}
-	}, [globalConfigs, llmConfigs, isOnboardingComplete, updatePreferences, refreshPreferences]);
+	};
 
-	// Trigger auto-configuration once data is loaded
-	useEffect(() => {
-		if (!configsLoading && !globalConfigsLoading && !preferencesLoading) {
-			autoConfigureLLMs();
-		}
-	}, [configsLoading, globalConfigsLoading, preferencesLoading, autoConfigureLLMs]);
-
-	const allConfigs = [...globalConfigs, ...llmConfigs];
-	const isReady = autoConfigComplete || isOnboardingComplete;
+	const isSubmitting = isCreating || isUpdatingPreferences;
 
 	// Loading state
-	if (configsLoading || preferencesLoading || globalConfigsLoading || isAutoConfiguring) {
+	if (globalConfigsLoading || preferencesLoading || isAutoConfiguring) {
 		return (
-			<OnboardLoading
-				title={isAutoConfiguring ? "Setting up your AI assistant..." : t("loading_config")}
-				subtitle={
-					isAutoConfiguring
-						? "Auto-configuring optimal settings for you"
-						: "Please wait while we load your configuration"
-				}
-			/>
-		);
-	}
-
-	// Show LLM setup if no configs available OR if roles are not assigned yet
-	// This forces users to complete role assignment before seeing the final screen
-	if (allConfigs.length === 0 || !isOnboardingComplete) {
-		return (
-			<OnboardLLMSetup
-				searchSpaceId={searchSpaceId}
-				title={t("welcome_title")}
-				configTitle={
-					allConfigs.length === 0 ? t("setup_llm_configuration") : t("assign_llm_roles_title")
-				}
-				configDescription={
-					allConfigs.length === 0
-						? t("configure_providers_and_assign_roles")
-						: t("complete_role_assignment")
-				}
-				onConfigCreated={() => refreshConfigs()}
-				onConfigDeleted={() => refreshConfigs()}
-				onPreferencesUpdated={handleRefreshPreferences}
-			/>
-		);
-	}
-
-	// Main onboarding view
-	return (
-		<div className="min-h-screen bg-background">
-			<div className="flex items-center justify-center min-h-screen p-4 md:p-8">
+			<div className="min-h-screen bg-gradient-to-b from-background to-muted/20 flex items-center justify-center">
 				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					transition={{ duration: 0.6 }}
-					className="w-full max-w-5xl"
+					initial={{ opacity: 0, scale: 0.95 }}
+					animate={{ opacity: 1, scale: 1 }}
+					className="text-center space-y-6"
+				>
+					<div className="relative">
+						<div className="absolute inset-0 blur-3xl bg-gradient-to-r from-violet-500/20 to-cyan-500/20 rounded-full" />
+						<div className="relative flex items-center justify-center w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-2xl shadow-violet-500/25">
+							<Loader2 className="h-12 w-12 text-white animate-spin" />
+						</div>
+					</div>
+					<div className="space-y-2">
+						<h2 className="text-2xl font-bold tracking-tight">
+							{isAutoConfiguring ? "Setting up your AI..." : "Loading..."}
+						</h2>
+						<p className="text-muted-foreground">
+							{isAutoConfiguring
+								? "Auto-configuring with available settings"
+								: "Please wait while we check your configuration"}
+						</p>
+					</div>
+					<div className="flex justify-center gap-1">
+						{[0, 1, 2].map((i) => (
+							<motion.div
+								key={i}
+								className="w-2 h-2 rounded-full bg-violet-500"
+								animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+								transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+							/>
+						))}
+					</div>
+				</motion.div>
+			</div>
+		);
+	}
+
+	// If global configs exist but auto-config failed, show simple message
+	if (globalConfigs.length > 0 && !isAutoConfiguring) {
+		return null; // Will redirect via useEffect
+	}
+
+	// No global configs - show the config form
+	return (
+		<div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+			<div className="container mx-auto px-4 py-8 md:py-12 max-w-3xl">
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.5 }}
+					className="space-y-8"
 				>
 					{/* Header */}
-					<OnboardHeader
-						title={t("welcome_title")}
-						subtitle={
-							isReady ? "You're all set! Choose what you'd like to do next." : t("welcome_subtitle")
-						}
-						isReady={isReady}
-					/>
+					<div className="text-center space-y-4">
+						<motion.div
+							initial={{ scale: 0 }}
+							animate={{ scale: 1 }}
+							transition={{ type: "spring", delay: 0.2 }}
+							className="relative inline-block"
+						>
+							<Logo className="w-20 h-20 mx-auto rounded-full" />
+						</motion.div>
 
-					{/* Quick Stats */}
-					<OnboardStats
-						globalConfigsCount={globalConfigs.length}
-						userConfigsCount={llmConfigs.length}
-					/>
+						<div className="space-y-2">
+							<h1 className="text-3xl font-bold tracking-tight">Configure Your AI</h1>
+							<p className="text-muted-foreground text-lg">
+								Add your LLM provider to get started with SurfSense
+							</p>
+						</div>
+					</div>
 
-					{/* Action Cards */}
+					{/* Config Form */}
 					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ delay: 0.6 }}
-						className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ delay: 0.3 }}
 					>
-						<OnboardActionCard
-							title="Start Chatting"
-							description="Jump right into the AI researcher and start asking questions"
-							icon={MessageSquare}
-							features={[
-								"AI-powered conversations",
-								"Research and explore topics",
-								"Get instant insights",
-							]}
-							buttonText="Start Chatting"
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)}
-							colorScheme="violet"
-							delay={0.9}
-						/>
-
-						<OnboardActionCard
-							title="Add Sources"
-							description="Connect your data sources to start building your knowledge base"
-							icon={FileText}
-							features={[
-								"Connect documents and files",
-								"Import from various sources",
-								"Build your knowledge base",
-							]}
-							buttonText="Add Sources"
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/sources/add`)}
-							colorScheme="blue"
-							delay={0.8}
-						/>
-
-						<OnboardActionCard
-							title="Manage Team"
-							description="Invite team members and collaborate on your search space"
-							icon={Users}
-							features={[
-								"Invite team members",
-								"Assign roles & permissions",
-								"Collaborate together",
-							]}
-							buttonText="Manage Team"
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/team`)}
-							colorScheme="emerald"
-							delay={0.7}
-						/>
+						<Card className="border-2 border-muted shadow-xl overflow-hidden">
+							<CardHeader className="pb-4">
+								<CardTitle className="text-xl">LLM Configuration</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<LLMConfigForm
+									searchSpaceId={searchSpaceId}
+									onSubmit={handleSubmit}
+									isSubmitting={isSubmitting}
+									mode="create"
+									showAdvanced={true}
+									submitLabel="Start Using SurfSense"
+									initialData={{
+										citations_enabled: true,
+										use_default_system_instructions: true,
+									}}
+								/>
+							</CardContent>
+						</Card>
 					</motion.div>
 
-					{/* Advanced Settings */}
-					<OnboardAdvancedSettings
-						searchSpaceId={searchSpaceId}
-						showLLMSettings={showAdvancedSettings}
-						setShowLLMSettings={setShowAdvancedSettings}
-						showPromptSettings={showPromptSettings}
-						setShowPromptSettings={setShowPromptSettings}
-						onConfigCreated={() => refreshConfigs()}
-						onConfigDeleted={() => refreshConfigs()}
-						onPreferencesUpdated={handleRefreshPreferences}
-					/>
-
-					{/* Footer */}
-					<motion.div
+					{/* Footer note */}
+					<motion.p
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
-						transition={{ delay: 1.1 }}
-						className="text-center mt-10 text-muted-foreground text-sm"
+						transition={{ delay: 0.5 }}
+						className="text-center text-sm text-muted-foreground"
 					>
-						<p>
-							You can always adjust these settings later in{" "}
-							<button
-								type="button"
-								onClick={() => router.push(`/dashboard/${searchSpaceId}/settings`)}
-								className="text-primary hover:underline underline-offset-2 transition-colors"
-							>
-								Settings
-							</button>
-						</p>
-					</motion.div>
+						You can add more configurations and customize settings anytime in{" "}
+						<button
+							type="button"
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/settings`)}
+							className="text-violet-500 hover:underline"
+						>
+							Settings
+						</button>
+					</motion.p>
 				</motion.div>
 			</div>
 		</div>
 	);
-};
-
-export default OnboardPage;
+}

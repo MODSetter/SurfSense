@@ -1,0 +1,46 @@
+---
+title: "SurfSense v0.0.9 - Introducing the Agentic Architecture"
+description: "SurfSense v0.0.9 introduces a new agentic architecture with intelligent source selection, temporal query understanding, and MCP compatibility."
+date: "2025-12-24"
+tags: ["Agentic", "Agent", "MCP"]
+version: "0.0.9"
+---
+
+<Video src="/demo.mp4" />
+
+## What's New in v0.0.9
+
+This release introduces the **SurfSense Agent**, a shift from pre-determined workflows (DAG) to dynamic, LLM-driven decision making.
+
+- **Smarter Source Selection**: Intelligently searches all connected sources based on your query, not just the ones you specify
+- **Temporal Queries**: Understands time-based questions like *"Slack messages from last week"*
+- **Reasoning & Refinement**: Iteratively refines answers for better accuracy
+- **Better Prompt Handling**: Knows when to respond in chat vs generate a podcast
+- **Faster Indexing**: Improved speed when syncing connected sources
+- **MCP Compatibility**: Extensible architecture supporting Model Context Protocol servers
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>For Developers</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>More extensible architecture for adding connectors and tools</li>
+        <li>Supports long-running agents for complex tasks</li>
+        <li>Cleaner codebase enables faster contributions</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-2">
+    <AccordionTrigger>Notes</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>May increase API costs due to dynamic LLM calls</li>
+        <li>Users with small local models may see varied performance</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+SurfSense is an AI-powered federated search solution that connects all your knowledge sources in one place.
+
+🎄 Merry Christmas from the SurfSense team!

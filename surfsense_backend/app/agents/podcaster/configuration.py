@@ -16,7 +16,6 @@ class Configuration:
     # create assistants (https://langchain-ai.github.io/langgraph/cloud/how-tos/configuration_cloud/)
     # and when you invoke the graph
     podcast_title: str
-    user_id: str
     search_space_id: int
     user_prompt: str | None = None
 

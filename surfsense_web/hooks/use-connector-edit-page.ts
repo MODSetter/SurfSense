@@ -77,7 +77,6 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			name: "",
 			SLACK_BOT_TOKEN: "",
 			NOTION_INTEGRATION_TOKEN: "",
-			SERPER_API_KEY: "",
 			TAVILY_API_KEY: "",
 			SEARXNG_HOST: "",
 			SEARXNG_API_KEY: "",
@@ -116,7 +115,6 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					name: currentConnector.name,
 					SLACK_BOT_TOKEN: config.SLACK_BOT_TOKEN || "",
 					NOTION_INTEGRATION_TOKEN: config.NOTION_INTEGRATION_TOKEN || "",
-					SERPER_API_KEY: config.SERPER_API_KEY || "",
 					TAVILY_API_KEY: config.TAVILY_API_KEY || "",
 					SEARXNG_HOST: config.SEARXNG_HOST || "",
 					SEARXNG_API_KEY: config.SEARXNG_API_KEY || "",
@@ -278,16 +276,6 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						newConfig = {
 							NOTION_INTEGRATION_TOKEN: formData.NOTION_INTEGRATION_TOKEN,
 						};
-					}
-					break;
-				case "SERPER_API":
-					if (formData.SERPER_API_KEY !== originalConfig.SERPER_API_KEY) {
-						if (!formData.SERPER_API_KEY) {
-							toast.error("Serper Key empty.");
-							setIsSaving(false);
-							return;
-						}
-						newConfig = { SERPER_API_KEY: formData.SERPER_API_KEY };
 					}
 					break;
 				case "TAVILY_API":
@@ -574,8 +562,6 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							"NOTION_INTEGRATION_TOKEN",
 							newlySavedConfig.NOTION_INTEGRATION_TOKEN || ""
 						);
-					} else if (connector.connector_type === "SERPER_API") {
-						editForm.setValue("SERPER_API_KEY", newlySavedConfig.SERPER_API_KEY || "");
 					} else if (connector.connector_type === "TAVILY_API") {
 						editForm.setValue("TAVILY_API_KEY", newlySavedConfig.TAVILY_API_KEY || "");
 					} else if (connector.connector_type === "SEARXNG_API") {

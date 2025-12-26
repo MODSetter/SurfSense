@@ -1,68 +1,11 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Any
 
 import yaml
 from chonkie import AutoEmbeddings, CodeChunker, RecursiveChunker
-from chonkie.embeddings.azure_openai import AzureOpenAIEmbeddings
-from chonkie.embeddings.registry import EmbeddingsRegistry
 from dotenv import load_dotenv
 from rerankers import Reranker
-
-
-# Monkey patch AzureOpenAIEmbeddings to fix parameter order issue
-# This is a temporary workaround until the upstream chonkie library is fixed
-class FixedAzureOpenAIEmbeddings(AzureOpenAIEmbeddings):
-    """Wrapper around AzureOpenAIEmbeddings with fixed parameter order."""
-
-    def __init__(
-        self,
-        model: str = "text-embedding-3-small",
-        azure_endpoint: str | None = None,
-        tokenizer: Any | None = None,
-        dimension: int | None = None,
-        azure_api_key: str | None = None,
-        api_version: str = "2024-10-21",
-        deployment: str | None = None,
-        max_retries: int = 3,
-        timeout: float = 60.0,
-        batch_size: int = 128,
-        **kwargs: dict[str, Any],
-    ):
-        """Initialize with model as first parameter to avoid conflicts."""
-        # Call parent's __init__ by explicitly passing azure_endpoint as first arg
-        # to maintain compatibility with the original signature
-        super().__init__(
-            azure_endpoint=azure_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
-            model=model,
-            tokenizer=tokenizer,
-            dimension=dimension,
-            azure_api_key=azure_api_key,
-            api_version=api_version,
-            deployment=deployment,
-            max_retries=max_retries,
-            timeout=timeout,
-            batch_size=batch_size,
-            **kwargs,
-        )
-
-
-# TODO: Fix this in chonkie upstream
-# Register our fixed Azure OpenAI embeddings with pattern
-# This automatically infers the following arguments from their corresponding environment variables if they are not provided:
-# - `api_key` from `AZURE_OPENAI_API_KEY`
-# - `organization` from `OPENAI_ORG_ID`
-# - `project` from `OPENAI_PROJECT_ID`
-# - `azure_ad_token` from `AZURE_OPENAI_AD_TOKEN`
-# - `api_version` from `OPENAI_API_VERSION`
-# - `azure_endpoint` from `AZURE_OPENAI_ENDPOINT`
-EmbeddingsRegistry.register_provider("azure_openai", FixedAzureOpenAIEmbeddings)
-EmbeddingsRegistry.register_pattern(r"^text-embedding-", FixedAzureOpenAIEmbeddings)
-EmbeddingsRegistry.register_model("text-embedding-ada-002", FixedAzureOpenAIEmbeddings)
-EmbeddingsRegistry.register_model("text-embedding-3-small", FixedAzureOpenAIEmbeddings)
-EmbeddingsRegistry.register_model("text-embedding-3-large", FixedAzureOpenAIEmbeddings)
-
 
 # Get the base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -91,12 +34,6 @@ def load_global_llm_configs():
     """
     # Try main config file first
     global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
-
-    # Fall back to example file for testing
-    # if not global_config_file.exists():
-    #     global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.example.yaml"
-    #     if global_config_file.exists():
-    #         print("Info: Using global_llm_config.example.yaml (copy to global_llm_config.yaml for production)")
 
     if not global_config_file.exists():
         # No global configs available

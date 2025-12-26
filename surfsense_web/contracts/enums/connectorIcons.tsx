@@ -21,7 +21,6 @@ import {
 	File,
 	FileText,
 	Globe,
-	Link,
 	Microscope,
 	Search,
 	Sparkles,
@@ -40,8 +39,6 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconLayoutKanban {...iconProps} />;
 		case EnumConnectorName.GITHUB_CONNECTOR:
 			return <IconBrandGithub {...iconProps} />;
-		case EnumConnectorName.SERPER_API:
-			return <Link {...iconProps} />;
 		case EnumConnectorName.TAVILY_API:
 			return <IconWorldWww {...iconProps} />;
 		case EnumConnectorName.SEARXNG_API:

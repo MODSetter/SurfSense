@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { createSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { SearchSpaceForm } from "@/components/search-space-form";
+import { trackSearchSpaceCreated } from "@/lib/posthog/events";
 
 export default function SearchSpacesPage() {
 	const router = useRouter();
@@ -15,6 +16,9 @@ export default function SearchSpacesPage() {
 			name: data.name,
 			description: data.description || "",
 		});
+
+		// Track search space creation
+		trackSearchSpaceCreated(result.id, data.name);
 
 		// Redirect to the newly created search space's onboarding
 		router.push(`/dashboard/${result.id}/onboard`);

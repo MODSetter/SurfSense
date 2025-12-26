@@ -23,7 +23,6 @@ export interface CreateConnectorRequest {
 // Get connector type display name
 export const getConnectorTypeDisplay = (type: string): string => {
 	const typeMap: Record<string, string> = {
-		SERPER_API: "Serper API",
 		TAVILY_API: "Tavily API",
 		SEARXNG_API: "SearxNG",
 	};

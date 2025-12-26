@@ -11,6 +11,11 @@ import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { AppError, ValidationError } from "@/lib/error";
+import {
+	trackRegistrationAttempt,
+	trackRegistrationFailure,
+	trackRegistrationSuccess,
+} from "@/lib/posthog/events";
 import { AmbientBackground } from "../login/AmbientBackground";
 
 export default function RegisterPage() {
@@ -52,6 +57,9 @@ export default function RegisterPage() {
 
 		setError({ title: null, message: null }); // Clear any previous errors
 
+		// Track registration attempt
+		trackRegistrationAttempt();
+
 		// Show loading toast
 		const loadingToast = toast.loading(t("creating_account"));
 
@@ -63,6 +71,9 @@ export default function RegisterPage() {
 				is_superuser: false,
 				is_verified: false,
 			});
+
+			// Track successful registration
+			trackRegistrationSuccess();
 
 			// Success toast
 			toast.success(t("register_success"), {
@@ -81,6 +92,7 @@ export default function RegisterPage() {
 					case 403: {
 						const friendlyMessage =
 							"Registrations are currently closed. If you need access, contact your administrator.";
+						trackRegistrationFailure("Registration disabled");
 						setError({ title: "Registration is disabled", message: friendlyMessage });
 						toast.error("Registration is disabled", {
 							id: loadingToast,
@@ -94,6 +106,7 @@ export default function RegisterPage() {
 				}
 
 				if (err instanceof ValidationError) {
+					trackRegistrationFailure(err.message);
 					setError({ title: err.name, message: err.message });
 					toast.error(err.name, {
 						id: loadingToast,
@@ -112,6 +125,9 @@ export default function RegisterPage() {
 			} else if (isNetworkError(err)) {
 				errorCode = "NETWORK_ERROR";
 			}
+
+			// Track registration failure
+			trackRegistrationFailure(errorCode);
 
 			// Get detailed error information from auth-errors utility
 			const errorDetails = getAuthErrorDetails(errorCode);

@@ -1,11 +1,13 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { useAtom } from "jotai";
 import { AlertCircle, ArrowLeft, FileText, Loader2, Save } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
 import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
 import {
 	AlertDialog,
@@ -23,17 +25,31 @@ import { Separator } from "@/components/ui/separator";
 import { notesApiService } from "@/lib/apis/notes-api.service";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
+// BlockNote types
+type BlockNoteInlineContent =
+	| string
+	| { text?: string; type?: string; styles?: Record<string, unknown> };
+
+interface BlockNoteBlock {
+	type: string;
+	content?: BlockNoteInlineContent[];
+	children?: BlockNoteBlock[];
+	props?: Record<string, unknown>;
+}
+
+type BlockNoteDocument = BlockNoteBlock[] | null | undefined;
+
 interface EditorContent {
 	document_id: number;
 	title: string;
 	document_type?: string;
-	blocknote_document: any;
+	blocknote_document: BlockNoteDocument;
 	updated_at: string | null;
 }
 
 // Helper function to extract title from BlockNote document
 // Takes the text content from the first block (should be a heading for notes)
-function extractTitleFromBlockNote(blocknoteDocument: any[] | null | undefined): string {
+function extractTitleFromBlockNote(blocknoteDocument: BlockNoteDocument): string {
 	if (!blocknoteDocument || !Array.isArray(blocknoteDocument) || blocknoteDocument.length === 0) {
 		return "Untitled";
 	}
@@ -47,9 +63,9 @@ function extractTitleFromBlockNote(blocknoteDocument: any[] | null | undefined):
 	// BlockNote blocks have a content array with inline content
 	if (firstBlock.content && Array.isArray(firstBlock.content)) {
 		const textContent = firstBlock.content
-			.map((item: any) => {
+			.map((item: BlockNoteInlineContent) => {
 				if (typeof item === "string") return item;
-				if (item?.text) return item.text;
+				if (typeof item === "object" && item?.text) return item.text;
 				return "";
 			})
 			.join("")
@@ -71,10 +87,50 @@ export default function EditorPage() {
 	const [document, setDocument] = useState<EditorContent | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
-	const [editorContent, setEditorContent] = useState<any>(null);
+	const [editorContent, setEditorContent] = useState<BlockNoteDocument>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+	// Global state for cross-component communication
+	const [, setGlobalHasUnsavedChanges] = useAtom(hasUnsavedEditorChangesAtom);
+	const [pendingNavigation, setPendingNavigation] = useAtom(pendingEditorNavigationAtom);
+
+	// Sync local unsaved changes state with global atom
+	useEffect(() => {
+		setGlobalHasUnsavedChanges(hasUnsavedChanges);
+	}, [hasUnsavedChanges, setGlobalHasUnsavedChanges]);
+
+	// Cleanup global state when component unmounts
+	useEffect(() => {
+		return () => {
+			setGlobalHasUnsavedChanges(false);
+			setPendingNavigation(null);
+		};
+	}, [setGlobalHasUnsavedChanges, setPendingNavigation]);
+
+	// Handle pending navigation from sidebar (e.g., when user clicks "+" to create new note)
+	useEffect(() => {
+		if (pendingNavigation) {
+			if (hasUnsavedChanges) {
+				// Show dialog to confirm navigation
+				setShowUnsavedDialog(true);
+			} else {
+				// No unsaved changes, navigate immediately
+				router.push(pendingNavigation);
+				setPendingNavigation(null);
+			}
+		}
+	}, [pendingNavigation, hasUnsavedChanges, router, setPendingNavigation]);
+
+	// Reset state when documentId changes (e.g., navigating from existing note to new note)
+	useEffect(() => {
+		setDocument(null);
+		setEditorContent(null);
+		setError(null);
+		setHasUnsavedChanges(false);
+		setLoading(true);
+	}, [documentId]);
 
 	// Fetch document content - DIRECT CALL TO FASTAPI
 	// Skip fetching if this is a new note
@@ -281,13 +337,29 @@ export default function EditorPage() {
 		if (hasUnsavedChanges) {
 			setShowUnsavedDialog(true);
 		} else {
-			router.push(`/dashboard/${searchSpaceId}/researcher`);
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
 	};
 
 	const handleConfirmLeave = () => {
 		setShowUnsavedDialog(false);
-		router.push(`/dashboard/${searchSpaceId}/researcher`);
+		// Clear global unsaved state
+		setGlobalHasUnsavedChanges(false);
+		setHasUnsavedChanges(false);
+
+		// If there's a pending navigation (from sidebar), use that; otherwise go back to chat
+		if (pendingNavigation) {
+			router.push(pendingNavigation);
+			setPendingNavigation(null);
+		} else {
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
+		}
+	};
+
+	const handleCancelLeave = () => {
+		setShowUnsavedDialog(false);
+		// Clear pending navigation if user cancels
+		setPendingNavigation(null);
 	};
 
 	if (loading) {
@@ -321,7 +393,7 @@ export default function EditorPage() {
 						</CardHeader>
 						<CardContent>
 							<Button
-								onClick={() => router.push(`/dashboard/${searchSpaceId}/researcher`)}
+								onClick={() => router.push(`/dashboard/${searchSpaceId}/new-chat`)}
 								variant="outline"
 								className="gap-2"
 							>
@@ -352,7 +424,7 @@ export default function EditorPage() {
 		<motion.div
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
-			className="flex flex-col h-full w-full"
+			className="flex flex-col min-h-screen w-full"
 		>
 			{/* Toolbar */}
 			<div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-4 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-6">
@@ -386,7 +458,7 @@ export default function EditorPage() {
 			</div>
 
 			{/* Editor Container */}
-			<div className="flex-1 overflow-visible relative">
+			<div className="flex-1 min-h-0 overflow-hidden relative">
 				<div className="h-full w-full overflow-auto p-6">
 					{error && (
 						<motion.div
@@ -402,6 +474,7 @@ export default function EditorPage() {
 					)}
 					<div className="max-w-4xl mx-auto">
 						<BlockNoteEditor
+							key={documentId} // Force re-mount when document changes
 							initialContent={isNewNote ? undefined : editorContent}
 							onChange={setEditorContent}
 							useTitleBlock={isNote}
@@ -411,7 +484,12 @@ export default function EditorPage() {
 			</div>
 
 			{/* Unsaved Changes Dialog */}
-			<AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+			<AlertDialog
+				open={showUnsavedDialog}
+				onOpenChange={(open) => {
+					if (!open) handleCancelLeave();
+				}}
+			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
@@ -420,7 +498,7 @@ export default function EditorPage() {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogCancel onClick={handleCancelLeave}>Cancel</AlertDialogCancel>
 						<AlertDialogAction onClick={handleConfirmLeave}>OK</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

@@ -9,72 +9,101 @@
 #
 # These configurations will be available to all users as a convenient option
 # Users can choose to use these global configs or add their own
+#
+# Structure matches NewLLMConfig:
+# - LLM model configuration (provider, model_name, api_key, etc.)
+# - Prompt configuration (system_instructions, citations_enabled)
 
 global_llm_configs:
-  # Example: OpenAI GPT-4 Turbo
+  # Example: OpenAI GPT-4 Turbo with citations enabled
   - id: -1
     name: "Global GPT-4 Turbo"
+    description: "OpenAI's GPT-4 Turbo with default prompts and citations"
     provider: "OPENAI"
     model_name: "gpt-4-turbo-preview"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
-    language: "English"
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
+    # Prompt Configuration
+    system_instructions: ""  # Empty = use default SURFSENSE_SYSTEM_INSTRUCTIONS
+    use_default_system_instructions: true
+    citations_enabled: true
 
   # Example: Anthropic Claude 3 Opus
   - id: -2
     name: "Global Claude 3 Opus"
+    description: "Anthropic's most capable model with citations"
     provider: "ANTHROPIC"
     model_name: "claude-3-opus-20240229"
     api_key: "sk-ant-your-anthropic-api-key-here"
     api_base: ""
-    language: "English"
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
+    system_instructions: ""
+    use_default_system_instructions: true
+    citations_enabled: true
 
-  # Example: Fast model - GPT-3.5 Turbo
+  # Example: Fast model - GPT-3.5 Turbo (citations disabled for speed)
   - id: -3
-    name: "Global GPT-3.5 Turbo"
+    name: "Global GPT-3.5 Turbo (Fast)"
+    description: "Fast responses without citations for quick queries"
     provider: "OPENAI"
     model_name: "gpt-3.5-turbo"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
-    language: "English"
     litellm_params:
       temperature: 0.5
       max_tokens: 2000
+    system_instructions: ""
+    use_default_system_instructions: true
+    citations_enabled: false  # Disabled for faster responses
 
-  # Example: Chinese LLM - DeepSeek
+  # Example: Chinese LLM - DeepSeek with custom instructions
   - id: -4
-    name: "Global DeepSeek Chat"
+    name: "Global DeepSeek Chat (Chinese)"
+    description: "DeepSeek optimized for Chinese language responses"
     provider: "DEEPSEEK"
     model_name: "deepseek-chat"
     api_key: "your-deepseek-api-key-here"
     api_base: "https://api.deepseek.com/v1"
-    language: "Chinese"
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
+    # Custom system instructions for Chinese responses
+    system_instructions: |
+      <system_instruction>
+      You are SurfSense, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
+      
+      Today's date (UTC): {resolved_today}
+      
+      IMPORTANT: Please respond in Chinese (简体中文) unless the user specifically requests another language.
+      </system_instruction>
+    use_default_system_instructions: false
+    citations_enabled: true
 
   # Example: Groq - Fast inference
   - id: -5
     name: "Global Groq Llama 3"
+    description: "Ultra-fast Llama 3 70B via Groq"
     provider: "GROQ"
     model_name: "llama3-70b-8192"
     api_key: "your-groq-api-key-here"
     api_base: ""
-    language: "English"
     litellm_params:
       temperature: 0.7
       max_tokens: 8000
+    system_instructions: ""
+    use_default_system_instructions: true
+    citations_enabled: true
 
 # Notes:
-# - Use negative IDs to distinguish global configs from user configs
+# - Use negative IDs to distinguish global configs from user configs (NewLLMConfig in DB)
 # - IDs should be unique and sequential (e.g., -1, -2, -3, etc.)
 # - The 'api_key' field will not be exposed to users via API
-# - Users can select these configs for their long_context, fast, or strategic LLM roles
+# - system_instructions: Custom prompt or empty string to use defaults
+# - use_default_system_instructions: true = use SURFSENSE_SYSTEM_INSTRUCTIONS when system_instructions is empty
+# - citations_enabled: true = include citation instructions, false = include anti-citation instructions
 # - All standard LiteLLM providers are supported
-

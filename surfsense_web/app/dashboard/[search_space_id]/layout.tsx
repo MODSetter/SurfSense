@@ -29,7 +29,7 @@ export default function DashboardLayout({
 	const customNavMain = [
 		{
 			title: "Chat",
-			url: `/dashboard/${search_space_id}/researcher`,
+			url: `/dashboard/${search_space_id}/new-chat`,
 			icon: "SquareTerminal",
 			items: [],
 		},

@@ -1,6 +1,6 @@
 [project]
 name = "surf-new-backend"
-version = "0.0.8"
+version = "0.0.9"
 description = "SurfSense Backend"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -10,7 +10,6 @@ dependencies = [
     "discord-py>=2.5.2",
     "docling>=2.15.0",
     "fastapi>=0.115.8",
-    "fastapi-users[oauth,sqlalchemy]>=14.0.1",
     "github3.py==4.0.1",
     "google-api-python-client>=2.156.0",
     "google-auth-oauthlib>=1.2.1",
@@ -42,7 +41,6 @@ dependencies = [
     "celery[redis]>=5.5.3",
     "flower>=2.0.1",
     "redis>=5.2.1",
-    "chonkie[all]>=1.4.0",
     "firecrawl-py>=4.9.0",
     "boto3>=1.35.0",
     "langchain-community>=0.3.31",
@@ -52,6 +50,12 @@ dependencies = [
     "langchain-litellm>=0.3.5",
     "langgraph>=1.0.5",
     "fake-useragent>=2.2.0",
+    "deepagents>=0.3.0",
+    "trafilatura>=2.0.0",
+    "fastapi-users[oauth,sqlalchemy]>=15.0.3",
+    "chonkie[all]>=1.5.0",
+    "langgraph-checkpoint-postgres>=3.0.2",
+    "psycopg[binary,pool]>=3.3.2",
 ]
 
 [dependency-groups]

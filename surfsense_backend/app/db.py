@@ -9,7 +9,6 @@ from sqlalchemy import (
     ARRAY,
     JSON,
     TIMESTAMP,
-    BigInteger,
     Boolean,
     Column,
     Enum as SQLAlchemyEnum,
@@ -75,10 +74,6 @@ class SearchSourceConnectorType(str, Enum):
     ELASTICSEARCH_CONNECTOR = "ELASTICSEARCH_CONNECTOR"
     WEBCRAWLER_CONNECTOR = "WEBCRAWLER_CONNECTOR"
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
-
-
-class ChatType(str, Enum):
-    QNA = "QNA"
 
 
 class LiteLLMProvider(str, Enum):
@@ -317,19 +312,70 @@ class BaseModel(Base):
     id = Column(Integer, primary_key=True, index=True)
 
 
-class Chat(BaseModel, TimestampMixin):
-    __tablename__ = "chats"
+class NewChatMessageRole(str, Enum):
+    """Role enum for new chat messages."""
 
-    type = Column(SQLAlchemyEnum(ChatType), nullable=False)
-    title = Column(String, nullable=False, index=True)
-    initial_connectors = Column(ARRAY(String), nullable=True)
-    messages = Column(JSON, nullable=False)
-    state_version = Column(BigInteger, nullable=False, default=1)
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
 
+
+class NewChatThread(BaseModel, TimestampMixin):
+    """
+    Thread model for the new chat feature using assistant-ui.
+    Each thread represents a conversation with message history.
+    LangGraph checkpointer uses thread_id for state persistence.
+    """
+
+    __tablename__ = "new_chat_threads"
+
+    title = Column(String(500), nullable=False, default="New Chat", index=True)
+    archived = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    # Foreign keys
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
-    search_space = relationship("SearchSpace", back_populates="chats")
+
+    # Relationships
+    search_space = relationship("SearchSpace", back_populates="new_chat_threads")
+    messages = relationship(
+        "NewChatMessage",
+        back_populates="thread",
+        order_by="NewChatMessage.created_at",
+        cascade="all, delete-orphan",
+    )
+
+
+class NewChatMessage(BaseModel, TimestampMixin):
+    """
+    Message model for the new chat feature.
+    Stores individual messages in assistant-ui format.
+    """
+
+    __tablename__ = "new_chat_messages"
+
+    role = Column(SQLAlchemyEnum(NewChatMessageRole), nullable=False)
+    # Content stored as JSONB to support rich content (text, tool calls, etc.)
+    content = Column(JSONB, nullable=False)
+
+    # Foreign key to thread
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Relationship
+    thread = relationship("NewChatThread", back_populates="messages")
 
 
 class Document(BaseModel, TimestampMixin):
@@ -377,15 +423,13 @@ class Chunk(BaseModel, TimestampMixin):
 
 
 class Podcast(BaseModel, TimestampMixin):
+    """Podcast model for storing generated podcasts."""
+
     __tablename__ = "podcasts"
 
-    title = Column(String, nullable=False, index=True)
-    podcast_transcript = Column(JSON, nullable=False, default={})
-    file_location = Column(String(500), nullable=False, default="")
-    chat_id = Column(
-        Integer, ForeignKey("chats.id", ondelete="CASCADE"), nullable=True
-    )  # If generated from a chat, this will be the chat id, else null ( can be from a document or a chat )
-    chat_state_version = Column(BigInteger, nullable=True)
+    title = Column(String(500), nullable=False)
+    podcast_transcript = Column(JSONB, nullable=True)  # List of transcript entries
+    file_location = Column(Text, nullable=True)  # Path to the audio file
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
@@ -408,9 +452,10 @@ class SearchSpace(BaseModel, TimestampMixin):
 
     # Search space-level LLM preferences (shared by all members)
     # Note: These can be negative IDs for global configs (from YAML) or positive IDs for custom configs (from DB)
-    long_context_llm_id = Column(Integer, nullable=True)
-    fast_llm_id = Column(Integer, nullable=True)
-    strategic_llm_id = Column(Integer, nullable=True)
+    agent_llm_id = Column(Integer, nullable=True)  # For agent/chat operations
+    document_summary_llm_id = Column(
+        Integer, nullable=True
+    )  # For document summarization
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
@@ -423,16 +468,16 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="Document.id",
         cascade="all, delete-orphan",
     )
+    new_chat_threads = relationship(
+        "NewChatThread",
+        back_populates="search_space",
+        order_by="NewChatThread.updated_at.desc()",
+        cascade="all, delete-orphan",
+    )
     podcasts = relationship(
         "Podcast",
         back_populates="search_space",
-        order_by="Podcast.id",
-        cascade="all, delete-orphan",
-    )
-    chats = relationship(
-        "Chat",
-        back_populates="search_space",
-        order_by="Chat.id",
+        order_by="Podcast.id.desc()",
         cascade="all, delete-orphan",
     )
     logs = relationship(
@@ -447,10 +492,10 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="SearchSourceConnector.id",
         cascade="all, delete-orphan",
     )
-    llm_configs = relationship(
-        "LLMConfig",
+    new_llm_configs = relationship(
+        "NewLLMConfig",
         back_populates="search_space",
-        order_by="LLMConfig.id",
+        order_by="NewLLMConfig.id",
         cascade="all, delete-orphan",
     )
 
@@ -509,10 +554,24 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     )
 
 
-class LLMConfig(BaseModel, TimestampMixin):
-    __tablename__ = "llm_configs"
+class NewLLMConfig(BaseModel, TimestampMixin):
+    """
+    New LLM configuration table that combines model settings with prompt configuration.
+
+    This table provides:
+    - LLM model configuration (provider, model_name, api_key, etc.)
+    - Configurable system instructions (defaults to SURFSENSE_SYSTEM_INSTRUCTIONS)
+    - Citation toggle (enable/disable citation instructions)
+
+    Note: SURFSENSE_TOOLS_INSTRUCTIONS is always used and not configurable.
+    """
+
+    __tablename__ = "new_llm_configs"
 
     name = Column(String(100), nullable=False, index=True)
+    description = Column(String(500), nullable=True)
+
+    # === LLM Model Configuration (from original LLMConfig, excluding 'language') ===
     # Provider from the enum
     provider = Column(SQLAlchemyEnum(LiteLLMProvider), nullable=False)
     # Custom provider name when provider is CUSTOM
@@ -522,16 +581,29 @@ class LLMConfig(BaseModel, TimestampMixin):
     # API Key should be encrypted before storing
     api_key = Column(String, nullable=False)
     api_base = Column(String(500), nullable=True)
-
-    language = Column(String(50), nullable=True, default="English")
-
     # For any other parameters that litellm supports
     litellm_params = Column(JSON, nullable=True, default={})
 
+    # === Prompt Configuration ===
+    # Configurable system instructions (defaults to SURFSENSE_SYSTEM_INSTRUCTIONS)
+    # Users can customize this from the UI
+    system_instructions = Column(
+        Text,
+        nullable=False,
+        default="",  # Empty string means use default SURFSENSE_SYSTEM_INSTRUCTIONS
+    )
+    # Whether to use the default system instructions when system_instructions is empty
+    use_default_system_instructions = Column(Boolean, nullable=False, default=True)
+
+    # Citation toggle - when enabled, SURFSENSE_CITATION_INSTRUCTIONS is injected
+    # When disabled, an anti-citation prompt is injected instead
+    citations_enabled = Column(Boolean, nullable=False, default=True)
+
+    # === Relationships ===
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
-    search_space = relationship("SearchSpace", back_populates="llm_configs")
+    search_space = relationship("SearchSpace", back_populates="new_llm_configs")
 
 
 class Log(BaseModel, TimestampMixin):

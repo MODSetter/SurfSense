@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -29,6 +29,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { AllNotesSidebar } from "./all-notes-sidebar";
 
@@ -52,6 +53,7 @@ interface NavNotesProps {
 	onAddNote?: () => void;
 	defaultOpen?: boolean;
 	searchSpaceId?: string;
+	isSourcesExpanded?: boolean;
 }
 
 // Map of icon names to their components
@@ -61,12 +63,26 @@ const actionIconMap: Record<string, LucideIcon> = {
 	MoreHorizontal,
 };
 
-export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }: NavNotesProps) {
+export function NavNotes({
+	notes,
+	onAddNote,
+	defaultOpen = true,
+	searchSpaceId,
+	isSourcesExpanded = false,
+}: NavNotesProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const isMobile = useIsMobile();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
+
+	// Auto-collapse on smaller screens when Sources is expanded
+	useEffect(() => {
+		if (isSourcesExpanded && isMobile) {
+			setIsOpen(false);
+		}
+	}, [isSourcesExpanded, isMobile]);
 
 	// Handle note deletion with loading state
 	const handleDeleteNote = useCallback(async (noteId: number, deleteAction: () => void) => {
@@ -113,7 +129,7 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 									e.stopPropagation();
 									setIsAllNotesSidebarOpen(true);
 								}}
-								aria-label="View all notes"
+								aria-label={t("view_all_notes") || "View all notes"}
 							>
 								<FolderOpen className="h-3.5 w-3.5" />
 							</Button>
@@ -127,7 +143,7 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 									e.stopPropagation();
 									onAddNote();
 								}}
-								aria-label="Add note"
+								aria-label={t("add_note") || "Add note"}
 							>
 								<Plus className="h-3.5 w-3.5" />
 							</Button>
@@ -178,7 +194,9 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 																) : (
 																	<MoreHorizontal className="h-3.5 w-3.5" />
 																)}
-																<span className="sr-only">More options</span>
+																<span className="sr-only">
+																	{t("more_options") || "More options"}
+																</span>
 															</Button>
 														</DropdownMenuTrigger>
 														<DropdownMenuContent align="end" side="right" className="w-40">
@@ -206,7 +224,7 @@ export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }
 																		<ActionIcon className="mr-2 h-4 w-4" />
 																		<span>
 																			{isDeletingNote && isDeleteAction
-																				? "Deleting..."
+																				? t("deleting") || "Deleting..."
 																				: action.name}
 																		</span>
 																	</DropdownMenuItem>
