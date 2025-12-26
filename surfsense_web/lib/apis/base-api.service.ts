@@ -21,18 +21,23 @@ export type RequestOptions = {
 };
 
 class BaseApiService {
-	bearerToken: string;
 	baseUrl: string;
 
 	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh"]; // Add more endpoints as needed
 
-	constructor(bearerToken: string, baseUrl: string) {
-		this.bearerToken = bearerToken;
+	// Use a getter to always read fresh token from localStorage
+	// This ensures the token is always up-to-date after login/logout
+	get bearerToken(): string {
+		return typeof window !== "undefined" ? getBearerToken() || "" : "";
+	}
+
+	constructor(baseUrl: string) {
 		this.baseUrl = baseUrl;
 	}
 
-	setBearerToken(bearerToken: string) {
-		this.bearerToken = bearerToken;
+	// Keep for backward compatibility, but token is now always read from localStorage
+	setBearerToken(_bearerToken: string) {
+		// No-op: token is now always read fresh from localStorage via the getter
 	}
 
 	async request<T, R extends ResponseType = ResponseType.JSON>(
@@ -294,6 +299,5 @@ class BaseApiService {
 }
 
 export const baseApiService = new BaseApiService(
-	typeof window !== "undefined" ? getBearerToken() || "" : "",
 	process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || ""
 );
