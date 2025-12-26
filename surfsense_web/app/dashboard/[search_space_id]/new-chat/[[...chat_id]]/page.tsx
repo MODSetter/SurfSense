@@ -87,8 +87,43 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 }
 
 /**
+ * Zod schema for persisted attachment info
+ */
+const PersistedAttachmentSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	type: z.string(),
+	imageDataUrl: z.string().optional(),
+	extractedContent: z.string().optional(),
+});
+
+const AttachmentsPartSchema = z.object({
+	type: z.literal("attachments"),
+	items: z.array(PersistedAttachmentSchema),
+});
+
+type PersistedAttachment = z.infer<typeof PersistedAttachmentSchema>;
+
+/**
+ * Extract persisted attachments from message content (type-safe with Zod)
+ */
+function extractPersistedAttachments(content: unknown): PersistedAttachment[] {
+	if (!Array.isArray(content)) return [];
+
+	for (const part of content) {
+		const result = AttachmentsPartSchema.safeParse(part);
+		if (result.success) {
+			return result.data.items;
+		}
+	}
+
+	return [];
+}
+
+/**
  * Convert backend message to assistant-ui ThreadMessageLike format
  * Filters out 'thinking-steps' part as it's handled separately via messageThinkingSteps
+ * Restores attachments for user messages from persisted data
  */
 function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	let content: ThreadMessageLike["content"];
@@ -100,8 +135,8 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 		const filteredContent = msg.content.filter((part: unknown) => {
 			if (typeof part !== "object" || part === null || !("type" in part)) return true;
 			const partType = (part as { type: string }).type;
-			// Filter out thinking-steps and mentioned-documents
-			return partType !== "thinking-steps" && partType !== "mentioned-documents";
+			// Filter out thinking-steps, mentioned-documents, and attachments
+			return partType !== "thinking-steps" && partType !== "mentioned-documents" && partType !== "attachments";
 		});
 		content =
 			filteredContent.length > 0
@@ -111,11 +146,30 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 		content = [{ type: "text", text: String(msg.content) }];
 	}
 
+	// Restore attachments for user messages
+	let attachments: ThreadMessageLike["attachments"];
+	if (msg.role === "user") {
+		const persistedAttachments = extractPersistedAttachments(msg.content);
+		if (persistedAttachments.length > 0) {
+			attachments = persistedAttachments.map((att) => ({
+				id: att.id,
+				name: att.name,
+				type: att.type as "document" | "image" | "file",
+				status: { type: "complete" as const },
+				content: [],
+				// Custom fields for our ChatAttachment interface
+				imageDataUrl: att.imageDataUrl,
+				extractedContent: att.extractedContent,
+			}));
+		}
+	}
+
 	return {
 		id: `msg-${msg.id}`,
 		role: msg.role,
 		content,
 		createdAt: new Date(msg.created_at),
+		attachments,
 	};
 }
 
@@ -348,21 +402,37 @@ export default function NewChatPage() {
 				}));
 			}
 
-			// Persist user message with mentioned documents (don't await, fire and forget)
-			const persistContent =
-				mentionedDocuments.length > 0
-					? [
-							...message.content,
-							{
-								type: "mentioned-documents",
-								documents: mentionedDocuments.map((doc) => ({
-									id: doc.id,
-									title: doc.title,
-									document_type: doc.document_type,
-								})),
-							},
-						]
-					: message.content;
+			// Persist user message with mentioned documents and attachments (don't await, fire and forget)
+			const persistContent: unknown[] = [...message.content];
+
+			// Add mentioned documents for persistence
+			if (mentionedDocuments.length > 0) {
+				persistContent.push({
+					type: "mentioned-documents",
+					documents: mentionedDocuments.map((doc) => ({
+						id: doc.id,
+						title: doc.title,
+						document_type: doc.document_type,
+					})),
+				});
+			}
+
+			// Add attachments for persistence (so they survive page reload)
+			if (message.attachments && message.attachments.length > 0) {
+				persistContent.push({
+					type: "attachments",
+					items: message.attachments.map((att) => ({
+						id: att.id,
+						name: att.name,
+						type: att.type,
+						// Include imageDataUrl for images so they can be displayed after reload
+						imageDataUrl: (att as { imageDataUrl?: string }).imageDataUrl,
+						// Include extractedContent for context (already extracted, no re-processing needed)
+						extractedContent: (att as { extractedContent?: string }).extractedContent,
+					})),
+				});
+			}
+
 			appendMessage(currentThreadId, {
 				role: "user",
 				content: persistContent,

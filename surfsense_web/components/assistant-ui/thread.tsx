@@ -571,7 +571,7 @@ const Composer: FC = () => {
 				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
-						placeholder="Ask SurfSense (type @ to mention docs)"
+						placeholder="Ask SurfSense or @mention docs"
 						onMentionTrigger={handleMentionTrigger}
 						onMentionClose={handleMentionClose}
 						onChange={handleEditorChange}
