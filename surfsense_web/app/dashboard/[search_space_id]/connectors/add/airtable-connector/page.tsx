@@ -21,6 +21,7 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 // import { IconBrandAirtable } from "@tabler/icons-react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 export default function AirtableConnectorPage() {
 	const router = useRouter();
@@ -29,18 +30,19 @@ export default function AirtableConnectorPage() {
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { data: connectors } = useAtomValue(connectorsAtom);
+	const { refetch : fetchConnectors } = useAtomValue(connectorsAtom);
 
 	useEffect(() => {
-		if (connectors) {
+		fetchConnectors().then((data) => {
+			const connectors = data.data || [];
 			const connector = connectors.find(
-				(c) => c.connector_type === EnumConnectorName.AIRTABLE_CONNECTOR
+				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.AIRTABLE_CONNECTOR
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
 			}
-		}
-	}, [connectors]);
+		});
+	}, []);
 
 	const handleConnectAirtable = async () => {
 		setIsConnecting(true);
