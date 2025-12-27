@@ -1,22 +1,16 @@
 "use client";
 
-import { CheckCircle2, Circle, CircleDashed, PartyPopper, XCircle } from "lucide-react";
+import { CheckCircle2, Circle, CircleDashed, ListTodo, PartyPopper, XCircle } from "lucide-react";
 import type { FC } from "react";
 import { useMemo, useState } from "react";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { Action, ActionsConfig } from "../shared/schema";
-import type { PlanTodo, TodoStatus } from "./schema";
+import type { TodoStatus } from "./schema";
 
 // ============================================================================
 // Status Icon Component
@@ -57,7 +51,7 @@ const StatusIcon: FC<StatusIconProps> = ({ status, className, isStreaming = true
 // ============================================================================
 
 interface TodoItemProps {
-	todo: PlanTodo;
+	todo: { id: string; content: string; status: TodoStatus };
 	/** When false, in_progress items show as static (no spinner/pulse) */
 	isStreaming?: boolean;
 }
@@ -67,38 +61,22 @@ const TodoItem: FC<TodoItemProps> = ({ todo, isStreaming = true }) => {
 	// Only show shimmer animation if streaming and in progress
 	const isShimmer = todo.status === "in_progress" && isStreaming;
 
-	// Render the label with optional shimmer effect
-	const renderLabel = () => {
+	// Render the content with optional shimmer effect
+	const renderContent = () => {
 		if (isShimmer) {
-			return <TextShimmerLoader text={todo.label} size="md" />;
+			return <TextShimmerLoader text={todo.content} size="md" />;
 		}
 		return (
-			<span className={cn("text-sm", isStrikethrough && "line-through text-muted-foreground")}>
-				{todo.label}
+			<span className={cn("text-sm text-muted-foreground", isStrikethrough && "line-through")}>
+				{todo.content}
 			</span>
 		);
 	};
 
-	if (todo.description) {
-		return (
-			<AccordionItem value={todo.id} className="border-0">
-				<AccordionTrigger className="py-2 hover:no-underline">
-					<div className="flex items-center gap-2">
-						<StatusIcon status={todo.status} isStreaming={isStreaming} />
-						{renderLabel()}
-					</div>
-				</AccordionTrigger>
-				<AccordionContent className="pb-2 pl-6">
-					<p className="text-sm text-muted-foreground">{todo.description}</p>
-				</AccordionContent>
-			</AccordionItem>
-		);
-	}
-
 	return (
 		<div className="flex items-center gap-2 py-2">
 			<StatusIcon status={todo.status} isStreaming={isStreaming} />
-			{renderLabel()}
+			{renderContent()}
 		</div>
 	);
 };
@@ -110,8 +88,7 @@ const TodoItem: FC<TodoItemProps> = ({ todo, isStreaming = true }) => {
 export interface PlanProps {
 	id: string;
 	title: string;
-	description?: string;
-	todos: PlanTodo[];
+	todos: Array<{ id: string; content: string; status: TodoStatus }>;
 	maxVisibleTodos?: number;
 	showProgress?: boolean;
 	/** When false, in_progress items show as static (no spinner/pulse animations) */
@@ -125,7 +102,6 @@ export interface PlanProps {
 export const Plan: FC<PlanProps> = ({
 	id,
 	title,
-	description,
 	todos,
 	maxVisibleTodos = 4,
 	showProgress = true,
@@ -151,9 +127,6 @@ export const Plan: FC<PlanProps> = ({
 	const hiddenTodos = todos.slice(maxVisibleTodos);
 	const hasHiddenTodos = hiddenTodos.length > 0;
 
-	// Check if any todo has a description (for accordion mode)
-	const hasDescriptions = todos.some((t) => t.description);
-
 	// Handle action click
 	const handleAction = (actionId: string) => {
 		if (onBeforeResponseAction && !onBeforeResponseAction(actionId)) {
@@ -172,22 +145,7 @@ export const Plan: FC<PlanProps> = ({
 		].filter(Boolean) as Action[];
 	}, [responseActions]);
 
-	// Get default expanded items (in_progress items with descriptions)
-	const defaultExpandedIds = useMemo(() => {
-		return todos.filter((t) => t.description && t.status === "in_progress").map((t) => t.id);
-	}, [todos]);
-
-	const TodoList: FC<{ items: PlanTodo[] }> = ({ items }) => {
-		if (hasDescriptions) {
-			return (
-				<Accordion type="multiple" defaultValue={defaultExpandedIds} className="w-full">
-					{items.map((todo) => (
-						<TodoItem key={todo.id} todo={todo} isStreaming={isStreaming} />
-					))}
-				</Accordion>
-			);
-		}
-
+	const TodoList: FC<{ items: typeof todos }> = ({ items }) => {
 		return (
 			<div className="space-y-0">
 				{items.map((todo) => (
@@ -201,11 +159,9 @@ export const Plan: FC<PlanProps> = ({
 		<Card id={id} className={cn("w-full max-w-xl", className)}>
 			<CardHeader className="pb-3">
 				<div className="flex items-start justify-between gap-2">
-					<div className="flex-1 min-w-0">
-						<CardTitle className="text-base font-semibold">{title}</CardTitle>
-						{description && (
-							<CardDescription className="mt-1 text-sm">{description}</CardDescription>
-						)}
+					<div className="flex-1 min-w-0 flex items-center gap-2">
+						<ListTodo className="size-5 text-muted-foreground shrink-0" />
+						<CardTitle className="text-base font-semibold text-muted-foreground">{title}</CardTitle>
 					</div>
 					{isAllComplete && (
 						<div className="flex items-center gap-1 text-emerald-500">
@@ -216,13 +172,13 @@ export const Plan: FC<PlanProps> = ({
 
 				{showProgress && (
 					<div className="mt-3 space-y-1.5">
-						<div className="flex items-center justify-between text-xs text-muted-foreground">
-							<span>
-								{progress.completed} of {progress.total} complete
-							</span>
-							<span>{Math.round(progress.percentage)}%</span>
-						</div>
-						<Progress value={progress.percentage} className="h-1.5" />
+					<div className="flex items-center justify-between text-xs text-muted-foreground">
+						<span>
+							{progress.completed} of {progress.total} complete
+						</span>
+						<span>{Math.round(progress.percentage)}%</span>
+					</div>
+						<Progress value={progress.percentage} className="h-1.5 bg-muted [&>div]:bg-muted-foreground" />
 					</div>
 				)}
 			</CardHeader>

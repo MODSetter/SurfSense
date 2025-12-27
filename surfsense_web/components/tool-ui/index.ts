@@ -77,10 +77,4 @@ export {
 	type PlanTodo,
 	type TodoStatus,
 } from "./plan";
-export {
-	WriteTodosToolUI,
-	WriteTodosArgsSchema,
-	WriteTodosResultSchema,
-	type WriteTodosArgs,
-	type WriteTodosResult,
-} from "./write-todos";
+export { WriteTodosToolUI, WriteTodosSchema, type WriteTodosData } from "./write-todos";

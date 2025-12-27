@@ -69,6 +69,30 @@ def format_mentioned_documents_as_context(documents: list[Document]) -> str:
     return "\n".join(context_parts)
 
 
+def extract_todos_from_deepagents(command_output) -> dict:
+    """
+    Extract todos from deepagents' TodoListMiddleware Command output.
+    
+    deepagents returns a Command object with:
+    - Command.update['todos'] = [{'content': '...', 'status': '...'}]
+    
+    Returns the todos directly (no transformation needed - UI matches deepagents format).
+    """
+    todos_data = []
+    if hasattr(command_output, "update"):
+        # It's a Command object from deepagents
+        update = command_output.update
+        todos_data = update.get("todos", [])
+    elif isinstance(command_output, dict):
+        # Already a dict - check if it has todos directly or in update
+        if "todos" in command_output:
+            todos_data = command_output.get("todos", [])
+        elif "update" in command_output and isinstance(command_output["update"], dict):
+            todos_data = command_output["update"].get("todos", [])
+    
+    return {"todos": todos_data}
+
+
 async def stream_new_chat(
     user_query: str,
     search_space_id: int,
@@ -557,9 +581,11 @@ async def stream_new_chat(
                 tool_name = event.get("name", "unknown_tool")
                 raw_output = event.get("data", {}).get("output", "")
 
-                # Extract content from ToolMessage if needed
-                # LangGraph may return a ToolMessage object instead of raw dict
-                if hasattr(raw_output, "content"):
+                # Handle deepagents' write_todos Command object specially
+                if tool_name == "write_todos" and hasattr(raw_output, "update"):
+                    # deepagents returns a Command object - extract todos directly
+                    tool_output = extract_todos_from_deepagents(raw_output)
+                elif hasattr(raw_output, "content"):
                     # It's a ToolMessage object - extract the content
                     content = raw_output.content
                     # If content is a string that looks like JSON, try to parse it
@@ -721,12 +747,10 @@ async def stream_new_chat(
                 elif tool_name == "write_todos":
                     # Build completion items for planning
                     if isinstance(tool_output, dict):
-                        plan_title = tool_output.get("title", "Plan")
                         todos = tool_output.get("todos", [])
                         todo_count = len(todos) if isinstance(todos, list) else 0
                         completed_items = [
                             *last_active_step_items,
-                            f"Plan: {plan_title[:50]}{'...' if len(plan_title) > 50 else ''}",
                             f"Tasks: {todo_count} steps defined",
                         ]
                     else:
@@ -883,11 +907,10 @@ async def stream_new_chat(
                     )
                     # Send terminal message with plan info
                     if isinstance(tool_output, dict):
-                        title = tool_output.get("title", "Plan")
                         todos = tool_output.get("todos", [])
                         todo_count = len(todos) if isinstance(todos, list) else 0
                         yield streaming_service.format_terminal_info(
-                            f"Plan created: {title} ({todo_count} tasks)",
+                            f"Plan created ({todo_count} tasks)",
                             "success",
                         )
                     else:

@@ -11,15 +11,13 @@ import { atom } from "jotai";
 
 export interface PlanTodo {
 	id: string;
-	label: string;
+	content: string;
 	status: "pending" | "in_progress" | "completed" | "cancelled";
-	description?: string;
 }
 
 export interface PlanState {
 	id: string;
 	title: string;
-	description?: string;
 	todos: PlanTodo[];
 	lastUpdated: number;
 	/** The toolCallId of the first component that rendered this plan */
@@ -96,7 +94,6 @@ export const planStatesAtom = atom<Map<string, PlanState>>(new Map());
 export interface UpdatePlanInput {
 	id: string;
 	title: string;
-	description?: string;
 	todos: PlanTodo[];
 	toolCallId: string;
 }
@@ -119,7 +116,6 @@ export const updatePlanStateAtom = atom(null, (get, set, plan: UpdatePlanInput) 
 	states.set(canonicalTitle, {
 		id: plan.id,
 		title: canonicalTitle,
-		description: plan.description,
 		todos: plan.todos,
 		lastUpdated: Date.now(),
 		ownerToolCallId,
@@ -152,12 +148,10 @@ export interface HydratePlanInput {
 	result: {
 		id?: string;
 		title?: string;
-		description?: string;
 		todos?: Array<{
-			id: string;
-			label: string;
+			id?: string;
+			content: string;
 			status: "pending" | "in_progress" | "completed" | "cancelled";
-			description?: string;
 		}>;
 	};
 }
@@ -166,7 +160,7 @@ export const hydratePlanStateAtom = atom(null, (get, set, plan: HydratePlanInput
 	if (!plan.result?.todos || plan.result.todos.length === 0) return;
 
 	const states = new Map(get(planStatesAtom));
-	const title = plan.result.title || "Planning Approach";
+	const title = plan.result.title || "Plan";
 
 	// Register this as the owner if no plan exists yet
 	registerPlanOwner(title, plan.toolCallId);
@@ -181,8 +175,11 @@ export const hydratePlanStateAtom = atom(null, (get, set, plan: HydratePlanInput
 		states.set(canonicalTitle, {
 			id: plan.result.id || `plan-${Date.now()}`,
 			title: canonicalTitle,
-			description: plan.result.description,
-			todos: plan.result.todos,
+			todos: plan.result.todos.map((t, i) => ({
+				id: t.id || `todo-${i}`,
+				content: t.content,
+				status: t.status,
+			})),
 			lastUpdated: Date.now(),
 			ownerToolCallId,
 		});

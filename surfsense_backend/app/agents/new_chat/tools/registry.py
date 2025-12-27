@@ -48,7 +48,6 @@ from .knowledge_base import create_search_knowledge_base_tool
 from .link_preview import create_link_preview_tool
 from .podcast import create_generate_podcast_tool
 from .scrape_webpage import create_scrape_webpage_tool
-from .write_todos import create_write_todos_tool
 
 # =============================================================================
 # Tool Definition
@@ -126,13 +125,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=[],  # firecrawl_api_key is optional
     ),
-    # Planning/Todo tool - creates visual todo lists
-    ToolDefinition(
-        name="write_todos",
-        description="Create a planning/todo list to break down complex tasks",
-        factory=lambda deps: create_write_todos_tool(),
-        requires=[],
-    ),
+    # Note: write_todos is now provided by TodoListMiddleware from deepagents
     # =========================================================================
     # ADD YOUR CUSTOM TOOLS BELOW
     # =========================================================================
