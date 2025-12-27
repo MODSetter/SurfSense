@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, CircleAlert, Github, Info, ListChecks, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { createConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import {
 	Accordion,
 	AccordionContent,
@@ -38,8 +40,6 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-// Assuming useSearchSourceConnectors hook exists and works similarly
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { authenticatedFetch, redirectToLogin } from "@/lib/auth-utils";
 
 // Define the form schema with Zod for GitHub PAT entry step
@@ -85,7 +85,7 @@ export default function GithubConnectorPage() {
 	const [connectorName, setConnectorName] = useState<string>("GitHub Connector");
 	const [validatedPat, setValidatedPat] = useState<string>(""); // Store the validated PAT
 
-	const { createConnector } = useSearchSourceConnectors();
+	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	// Initialize the form for PAT entry
 	const form = useForm<GithubPatFormValues>({
@@ -141,8 +141,8 @@ export default function GithubConnectorPage() {
 
 		setIsCreatingConnector(true);
 		try {
-			await createConnector(
-				{
+			await createConnector({
+				data: {
 					name: connectorName, // Use the stored name
 					connector_type: EnumConnectorName.GITHUB_CONNECTOR,
 					config: {
@@ -155,8 +155,10 @@ export default function GithubConnectorPage() {
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
 				},
-				parseInt(searchSpaceId)
-			);
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 
 			toast.success("GitHub connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);

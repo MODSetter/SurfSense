@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as RadioGroup from "@radix-ui/react-radio-group";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +10,7 @@ import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-
+import { createConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import {
 	Accordion,
 	AccordionContent,
@@ -40,10 +41,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const elasticsearchConnectorFormSchema = z
@@ -91,7 +90,7 @@ export default function ElasticsearchConnectorPage() {
 	const authBasicId = useId();
 	const authApiKeyId = useId();
 
-	const { createConnector } = useSearchSourceConnectors();
+	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	// Initialize the form
 	const form = useForm<ElasticsearchConnectorFormValues>({
@@ -173,19 +172,21 @@ export default function ElasticsearchConnectorPage() {
 				config.ELASTICSEARCH_MAX_DOCUMENTS = values.max_documents;
 			}
 
-			const connectorPayload = {
-				name: values.name,
-				connector_type: EnumConnectorName.ELASTICSEARCH_CONNECTOR,
-				is_indexable: true,
-				last_indexed_at: null,
-				periodic_indexing_enabled: false,
-				indexing_frequency_minutes: null,
-				next_scheduled_at: null,
-				config,
-			};
-
-			// Use existing hook method
-			await createConnector(connectorPayload, searchSpaceIdNum);
+			await createConnector({
+				data: {
+					name: values.name,
+					connector_type: EnumConnectorName.ELASTICSEARCH_CONNECTOR,
+					is_indexable: true,
+					last_indexed_at: null,
+					periodic_indexing_enabled: false,
+					indexing_frequency_minutes: null,
+					next_scheduled_at: null,
+					config,
+				},
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 
 			toast.success("Elasticsearch connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);

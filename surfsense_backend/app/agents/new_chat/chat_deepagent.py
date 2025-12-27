@@ -50,6 +50,9 @@ def create_surfsense_deep_agent(
     - display_image: Display images in chat
     - scrape_webpage: Extract content from webpages
 
+    The agent also includes TodoListMiddleware by default (via create_deep_agent) which provides:
+    - write_todos: Create and update planning/todo lists for complex tasks
+
     The system prompt can be configured via agent_config:
     - Custom system instructions (or use defaults)
     - Citation toggle (enable/disable citation requirements)
@@ -138,6 +141,7 @@ def create_surfsense_deep_agent(
         system_prompt = build_surfsense_system_prompt()
 
     # Create the deep agent with system prompt and checkpointer
+    # Note: TodoListMiddleware (write_todos) is included by default in create_deep_agent
     agent = create_deep_agent(
         model=llm,
         tools=tools,

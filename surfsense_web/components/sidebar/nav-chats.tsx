@@ -10,7 +10,7 @@ import {
 	RefreshCw,
 	Trash2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,7 @@ export function NavChats({
 }: NavChatsProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const pathname = usePathname();
 	const isMobile = useIsMobile();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -142,6 +143,7 @@ export function NavChats({
 							<SidebarMenu>
 								{chats.map((chat) => {
 									const isDeletingChat = isDeleting === chat.id;
+									const isActive = pathname === chat.url;
 
 									return (
 										<SidebarMenuItem key={chat.id || chat.name} className="group/chat">
@@ -151,6 +153,7 @@ export function NavChats({
 												disabled={isDeletingChat}
 												className={cn(
 													"pr-8", // Make room for the action button
+													isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
 													isDeletingChat && "opacity-50"
 												)}
 											>
