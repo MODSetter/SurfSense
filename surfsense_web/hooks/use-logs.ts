@@ -271,7 +271,11 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 }
 
 // Separate hook for log summary
-export function useLogsSummary(searchSpaceId: number, hours: number = 24) {
+export function useLogsSummary(
+	searchSpaceId: number,
+	hours: number = 24,
+	options: { refetchInterval?: number } = {}
+) {
 	const [summary, setSummary] = useState<LogSummary | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -307,6 +311,17 @@ export function useLogsSummary(searchSpaceId: number, hours: number = 24) {
 	useEffect(() => {
 		fetchSummary();
 	}, [fetchSummary]);
+
+	// Set up polling if refetchInterval is provided
+	useEffect(() => {
+		if (!options.refetchInterval || options.refetchInterval <= 0) return;
+
+		const intervalId = setInterval(() => {
+			fetchSummary();
+		}, options.refetchInterval);
+
+		return () => clearInterval(intervalId);
+	}, [fetchSummary, options.refetchInterval]);
 
 	const refreshSummary = useCallback(() => {
 		return fetchSummary();

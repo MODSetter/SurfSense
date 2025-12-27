@@ -220,10 +220,7 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 											{step.items && step.items.length > 0 && (
 												<div className="mt-1 space-y-0.5">
 													{step.items.map((item, idx) => (
-														<ChainOfThoughtItem
-															key={`${step.id}-item-${idx}`}
-															className="text-xs"
-														>
+														<ChainOfThoughtItem key={`${step.id}-item-${idx}`} className="text-xs">
 															{item}
 														</ChainOfThoughtItem>
 													))}
