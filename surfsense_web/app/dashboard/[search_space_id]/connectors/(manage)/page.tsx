@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { useAtomValue } from "jotai";
 import {
 	Calendar as CalendarIcon,
 	Clock,
@@ -15,6 +16,12 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+	deleteConnectorMutationAtom,
+	indexConnectorMutationAtom,
+	updateConnectorMutationAtom,
+} from "@/atoms/connectors/connector-mutation.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -59,7 +66,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
 export default function ConnectorsPage() {
@@ -84,8 +90,12 @@ export default function ConnectorsPage() {
 	const searchSpaceId = params.search_space_id as string;
 	const today = new Date();
 
-	const { connectors, isLoading, error, deleteConnector, indexConnector, updateConnector } =
-		useSearchSourceConnectors(false, parseInt(searchSpaceId));
+	const { data: connectors = [], isLoading, error } = useAtomValue(connectorsAtom);
+
+	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
+	const { mutateAsync: indexConnector } = useAtomValue(indexConnectorMutationAtom);
+	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
+
 	const [connectorToDelete, setConnectorToDelete] = useState<number | null>(null);
 	const [indexingConnectorId, setIndexingConnectorId] = useState<number | null>(null);
 	const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -117,11 +127,9 @@ export default function ConnectorsPage() {
 		if (connectorToDelete === null) return;
 
 		try {
-			await deleteConnector(connectorToDelete);
-			toast.success(t("delete_success"));
+			await deleteConnector({ id: connectorToDelete });
 		} catch (error) {
 			console.error("Error deleting connector:", error);
-			toast.error(t("delete_failed"));
 		} finally {
 			setConnectorToDelete(null);
 		}
@@ -144,7 +152,14 @@ export default function ConnectorsPage() {
 			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
-			await indexConnector(selectedConnectorForIndexing, searchSpaceId, startDateStr, endDateStr);
+			await indexConnector({
+				connector_id: selectedConnectorForIndexing,
+				queryParams: {
+					search_space_id: searchSpaceId,
+					start_date: startDateStr,
+					end_date: endDateStr,
+				},
+			});
 			toast.success(t("indexing_started"));
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
@@ -161,7 +176,12 @@ export default function ConnectorsPage() {
 	const handleQuickIndexConnector = async (connectorId: number) => {
 		setIndexingConnectorId(connectorId);
 		try {
-			await indexConnector(connectorId, searchSpaceId);
+			await indexConnector({
+				connector_id: connectorId,
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 			toast.success(t("indexing_started"));
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
@@ -221,9 +241,12 @@ export default function ConnectorsPage() {
 				}
 			}
 
-			await updateConnector(selectedConnectorForPeriodic, {
-				periodic_indexing_enabled: periodicEnabled,
-				indexing_frequency_minutes: frequency,
+			await updateConnector({
+				id: selectedConnectorForPeriodic,
+				data: {
+					periodic_indexing_enabled: periodicEnabled,
+					indexing_frequency_minutes: frequency,
+				},
 			});
 
 			toast.success(

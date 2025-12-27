@@ -15,6 +15,7 @@ import {
 	useReactTable,
 	type VisibilityState,
 } from "@tanstack/react-table";
+import { useAtomValue } from "jotai";
 import {
 	Activity,
 	AlertCircle,
@@ -44,8 +45,13 @@ import {
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import React, { useContext, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+	createLogMutationAtom,
+	deleteLogMutationAtom,
+	updateLogMutationAtom,
+} from "@/atoms/logs/log-mutation.atoms";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import {
 	AlertDialog,
@@ -89,7 +95,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { type Log, type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
+import type { CreateLogRequest, Log, UpdateLogRequest } from "@/contracts/types/log.types";
+import { type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
 import { cn } from "@/lib/utils";
 
 // Define animation variants for reuse
@@ -334,13 +341,50 @@ export default function LogsManagePage() {
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const {
-		logs,
-		loading: logsLoading,
-		error: logsError,
-		refreshLogs,
-		deleteLog,
-	} = useLogs(searchSpaceId);
+	const { mutateAsync: deleteLogMutation } = useAtomValue(deleteLogMutationAtom);
+	const { mutateAsync: updateLogMutation } = useAtomValue(updateLogMutationAtom);
+	const { mutateAsync: createLogMutation } = useAtomValue(createLogMutationAtom);
+
+	const createLog = useCallback(
+		async (data: CreateLogRequest) => {
+			try {
+				await createLogMutation(data);
+				return true;
+			} catch (error) {
+				console.error("Failed to create log:", error);
+				return false;
+			}
+		},
+		[createLogMutation]
+	);
+
+	const updateLog = useCallback(
+		async (logId: number, data: UpdateLogRequest) => {
+			try {
+				await updateLogMutation({ logId, data });
+				return true;
+			} catch (error) {
+				console.error("Failed to update log:", error);
+				return false;
+			}
+		},
+		[updateLogMutation]
+	);
+
+	const deleteLog = useCallback(
+		async (id: number) => {
+			try {
+				await deleteLogMutation({ id });
+				return true;
+			} catch (error) {
+				console.error("Failed to delete log:", error);
+				return false;
+			}
+		},
+		[deleteLogMutation]
+	);
+
+	const { logs, loading: logsLoading, error: logsError, refreshLogs } = useLogs(searchSpaceId);
 	const {
 		summary,
 		loading: summaryLoading,
@@ -408,7 +452,7 @@ export default function LogsManagePage() {
 			return;
 		}
 
-		const deletePromises = selectedRows.map((row) => deleteLog(row.original.id));
+		const deletePromises = selectedRows.map((row) => deleteLog(row.original.id)); // Already passes { id } via wrapper
 
 		try {
 			const results = await Promise.all(deletePromises);
@@ -437,7 +481,7 @@ export default function LogsManagePage() {
 		<LogsContext.Provider
 			value={{
 				deleteLog: deleteLog || (() => Promise.resolve(false)),
-				refreshLogs: refreshLogs || (() => Promise.resolve()),
+				refreshLogs: () => refreshLogs().then(() => void 0),
 			}}
 		>
 			<motion.div
@@ -524,7 +568,7 @@ export default function LogsManagePage() {
 					table={table}
 					logs={logs}
 					loading={logsLoading}
-					error={logsError}
+					error={logsError?.message ?? null}
 					onRefresh={refreshLogs}
 					id={id}
 					t={t}
