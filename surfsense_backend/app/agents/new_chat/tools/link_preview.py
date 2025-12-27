@@ -14,8 +14,8 @@ from urllib.parse import urlparse
 import httpx
 import trafilatura
 from fake_useragent import UserAgent
-from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_core.tools import tool
+from playwright.async_api import async_playwright
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ def _make_absolute_url(image_url: str, base_url: str) -> str:
 
 async def fetch_with_chromium(url: str) -> dict[str, Any] | None:
     """
-    Fetch page content using headless Chromium browser.
+    Fetch page content using headless Chromium browser via Playwright.
     Used as a fallback when simple HTTP requests are blocked (403, etc.).
 
     Args:
@@ -186,18 +186,17 @@ async def fetch_with_chromium(url: str) -> dict[str, Any] | None:
         ua = UserAgent()
         user_agent = ua.random
 
-        # Use AsyncChromiumLoader to fetch the page
-        crawl_loader = AsyncChromiumLoader(
-            urls=[url], headless=True, user_agent=user_agent
-        )
-        documents = await crawl_loader.aload()
+        # Use Playwright to fetch the page
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(user_agent=user_agent)
+            page = await context.new_page()
 
-        if not documents:
-            logger.warning(f"[link_preview] Chromium returned no documents for {url}")
-            return None
-
-        doc = documents[0]
-        raw_html = doc.page_content
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                raw_html = await page.content()
+            finally:
+                await browser.close()
 
         if not raw_html or len(raw_html.strip()) == 0:
             logger.warning(f"[link_preview] Chromium returned empty content for {url}")

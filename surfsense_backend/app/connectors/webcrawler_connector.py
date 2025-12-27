@@ -1,7 +1,7 @@
 """
 WebCrawler Connector Module
 
-A module for crawling web pages and extracting content using Firecrawl or AsyncChromiumLoader.
+A module for crawling web pages and extracting content using Firecrawl or Playwright.
 Provides a unified interface for web scraping.
 """
 
@@ -12,7 +12,7 @@ import trafilatura
 import validators
 from fake_useragent import UserAgent
 from firecrawl import AsyncFirecrawlApp
-from langchain_community.document_loaders import AsyncChromiumLoader
+from playwright.async_api import async_playwright
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +149,7 @@ class WebCrawlerConnector:
 
     async def _crawl_with_chromium(self, url: str) -> dict[str, Any]:
         """
-        Crawl URL using AsyncChromiumLoader with Trafilatura for content extraction.
+        Crawl URL using Playwright with Trafilatura for content extraction.
         Falls back to raw HTML if Trafilatura extraction fails.
 
         Args:
@@ -165,20 +165,24 @@ class WebCrawlerConnector:
         ua = UserAgent()
         user_agent = ua.random
 
-        # Pass User-Agent to AsyncChromiumLoader
-        crawl_loader = AsyncChromiumLoader(
-            urls=[url], headless=True, user_agent=user_agent
-        )
-        documents = await crawl_loader.aload()
+        # Use Playwright to fetch the page
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(user_agent=user_agent)
+            page = await context.new_page()
 
-        if not documents:
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                raw_html = await page.content()
+                page_title = await page.title()
+            finally:
+                await browser.close()
+
+        if not raw_html:
             raise ValueError(f"Failed to load content from {url}")
 
-        doc = documents[0]
-        raw_html = doc.page_content
-
-        # Extract basic metadata from the document
-        base_metadata = doc.metadata if doc.metadata else {}
+        # Extract basic metadata from the page
+        base_metadata = {"title": page_title} if page_title else {}
 
         # Try to extract main content using Trafilatura
         extracted_content = None
