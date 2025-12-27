@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight, type LucideIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 
@@ -35,6 +36,7 @@ interface NavMainProps {
 
 export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 	const t = useTranslations("nav_menu");
+	const pathname = usePathname();
 
 	// Translation function that handles both exact matches and fallback to original
 	const translateTitle = (title: string): string => {
@@ -54,6 +56,35 @@ export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 		const key = titleMap[title];
 		return key ? t(key) : title;
 	};
+
+	// Check if an item is active based on pathname
+	const isItemActive = useCallback(
+		(item: NavItem): boolean => {
+			if (!pathname) return false;
+
+			// For items without sub-items, check if pathname matches or starts with the URL
+			if (!item.items?.length) {
+				// Chat item: active ONLY when on new-chat page without a specific chat ID
+				// (i.e., exactly /dashboard/{id}/new-chat, not /dashboard/{id}/new-chat/123)
+				if (item.url.includes("/new-chat")) {
+					// Match exactly the new-chat base URL (ends with /new-chat)
+					return pathname.endsWith("/new-chat");
+				}
+				// Logs item: active when on logs page
+				if (item.url.includes("/logs")) {
+					return pathname.includes("/logs");
+				}
+				// Check exact match or prefix match
+				return pathname === item.url || pathname.startsWith(`${item.url}/`);
+			}
+
+			// For items with sub-items (like Sources), check if any sub-item URL matches
+			return item.items.some(
+				(subItem) => pathname === subItem.url || pathname.startsWith(subItem.url)
+			);
+		},
+		[pathname]
+	);
 
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);
@@ -88,14 +119,15 @@ export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 				{memoizedItems.map((item, index) => {
 					const translatedTitle = translateTitle(item.title);
 					const hasSub = !!item.items?.length;
-					const isItemOpen = expandedItems[item.title] ?? item.isActive ?? false;
+					const isActive = isItemActive(item);
+					const isItemOpen = expandedItems[item.title] ?? isActive ?? false;
 					return (
 						<Collapsible
 							key={`${item.title}-${index}`}
 							asChild
 							open={hasSub ? isItemOpen : undefined}
 							onOpenChange={hasSub ? (open) => handleOpenChange(item.title, open) : undefined}
-							defaultOpen={!hasSub ? item.isActive : undefined}
+							defaultOpen={!hasSub ? isActive : undefined}
 						>
 							<SidebarMenuItem>
 								{hasSub ? (
@@ -105,7 +137,7 @@ export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 											<SidebarMenuButton
 												asChild
 												tooltip={translatedTitle}
-												isActive={item.isActive}
+												isActive={isActive}
 												aria-label={`${translatedTitle} with submenu`}
 											>
 												<button type="button" className="flex items-center gap-2 w-full text-left">
@@ -147,7 +179,7 @@ export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 									<SidebarMenuButton
 										asChild
 										tooltip={translatedTitle}
-										isActive={item.isActive}
+										isActive={isActive}
 										aria-label={translatedTitle}
 									>
 										<a href={item.url}>

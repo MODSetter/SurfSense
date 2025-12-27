@@ -24,6 +24,8 @@ export {
 	type ThinkingStep,
 } from "./deepagent-thinking";
 export {
+	DisplayImageArgsSchema,
+	DisplayImageResultSchema,
 	type DisplayImageArgs,
 	type DisplayImageResult,
 	DisplayImageToolUI,
@@ -39,9 +41,13 @@ export {
 	type SerializableImage,
 } from "./image";
 export {
+	LinkPreviewArgsSchema,
+	LinkPreviewResultSchema,
 	type LinkPreviewArgs,
 	type LinkPreviewResult,
 	LinkPreviewToolUI,
+	MultiLinkPreviewArgsSchema,
+	MultiLinkPreviewResultSchema,
 	type MultiLinkPreviewArgs,
 	type MultiLinkPreviewResult,
 	MultiLinkPreviewToolUI,
@@ -56,7 +62,19 @@ export {
 	type SerializableMediaCard,
 } from "./media-card";
 export {
+	ScrapeWebpageArgsSchema,
+	ScrapeWebpageResultSchema,
 	type ScrapeWebpageArgs,
 	type ScrapeWebpageResult,
 	ScrapeWebpageToolUI,
 } from "./scrape-webpage";
+export {
+	Plan,
+	PlanErrorBoundary,
+	type PlanProps,
+	parseSerializablePlan,
+	type SerializablePlan,
+	type PlanTodo,
+	type TodoStatus,
+} from "./plan";
+export { WriteTodosToolUI, WriteTodosSchema, type WriteTodosData } from "./write-todos";

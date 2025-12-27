@@ -6,6 +6,7 @@ import {
 	type ThreadMessageLike,
 	useExternalStoreRuntime,
 } from "@assistant-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,6 +18,11 @@ import {
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import {
+	clearPlanOwnerRegistry,
+	extractWriteTodosFromContent,
+	hydratePlanStateAtom,
+} from "@/atoms/chat/plan-state.atom";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
@@ -24,6 +30,7 @@ import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
+import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
 import {
@@ -92,8 +99,44 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 }
 
 /**
+ * Zod schema for persisted attachment info
+ */
+const PersistedAttachmentSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	type: z.string(),
+	contentType: z.string().optional(),
+	imageDataUrl: z.string().optional(),
+	extractedContent: z.string().optional(),
+});
+
+const AttachmentsPartSchema = z.object({
+	type: z.literal("attachments"),
+	items: z.array(PersistedAttachmentSchema),
+});
+
+type PersistedAttachment = z.infer<typeof PersistedAttachmentSchema>;
+
+/**
+ * Extract persisted attachments from message content (type-safe with Zod)
+ */
+function extractPersistedAttachments(content: unknown): PersistedAttachment[] {
+	if (!Array.isArray(content)) return [];
+
+	for (const part of content) {
+		const result = AttachmentsPartSchema.safeParse(part);
+		if (result.success) {
+			return result.data.items;
+		}
+	}
+
+	return [];
+}
+
+/**
  * Convert backend message to assistant-ui ThreadMessageLike format
  * Filters out 'thinking-steps' part as it's handled separately via messageThinkingSteps
+ * Restores attachments for user messages from persisted data
  */
 function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 	let content: ThreadMessageLike["content"];
@@ -105,8 +148,12 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 		const filteredContent = msg.content.filter((part: unknown) => {
 			if (typeof part !== "object" || part === null || !("type" in part)) return true;
 			const partType = (part as { type: string }).type;
-			// Filter out thinking-steps and mentioned-documents
-			return partType !== "thinking-steps" && partType !== "mentioned-documents";
+			// Filter out thinking-steps, mentioned-documents, and attachments
+			return (
+				partType !== "thinking-steps" &&
+				partType !== "mentioned-documents" &&
+				partType !== "attachments"
+			);
 		});
 		content =
 			filteredContent.length > 0
@@ -116,11 +163,31 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 		content = [{ type: "text", text: String(msg.content) }];
 	}
 
+	// Restore attachments for user messages
+	let attachments: ThreadMessageLike["attachments"];
+	if (msg.role === "user") {
+		const persistedAttachments = extractPersistedAttachments(msg.content);
+		if (persistedAttachments.length > 0) {
+			attachments = persistedAttachments.map((att) => ({
+				id: att.id,
+				name: att.name,
+				type: att.type as "document" | "image" | "file",
+				contentType: att.contentType || "application/octet-stream",
+				status: { type: "complete" as const },
+				content: [],
+				// Custom fields for our ChatAttachment interface
+				imageDataUrl: att.imageDataUrl,
+				extractedContent: att.extractedContent,
+			}));
+		}
+	}
+
 	return {
 		id: `msg-${msg.id}`,
 		role: msg.role,
 		content,
 		createdAt: new Date(msg.created_at),
+		attachments,
 	};
 }
 
@@ -132,6 +199,7 @@ const TOOLS_WITH_UI = new Set([
 	"link_preview",
 	"display_image",
 	"scrape_webpage",
+	"write_todos",
 ]);
 
 /**
@@ -146,6 +214,7 @@ interface ThinkingStepData {
 
 export default function NewChatPage() {
 	const params = useParams();
+	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
 	const [threadId, setThreadId] = useState<number | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
@@ -163,6 +232,7 @@ export default function NewChatPage() {
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
+	const hydratePlanState = useSetAtom(hydratePlanStateAtom);
 
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
@@ -198,6 +268,7 @@ export default function NewChatPage() {
 		setMentionedDocumentIds([]);
 		setMentionedDocuments([]);
 		setMessageDocumentsMap({});
+		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
 
 		try {
 			if (urlChatId > 0) {
@@ -218,6 +289,11 @@ export default function NewChatPage() {
 							const steps = extractThinkingSteps(msg.content);
 							if (steps.length > 0) {
 								restoredThinkingSteps.set(`msg-${msg.id}`, steps);
+							}
+							// Hydrate write_todos plan state from persisted tool calls
+							const writeTodosCalls = extractWriteTodosFromContent(msg.content);
+							for (const todoData of writeTodosCalls) {
+								hydratePlanState(todoData);
 							}
 						}
 						if (msg.role === "user") {
@@ -247,7 +323,13 @@ export default function NewChatPage() {
 		} finally {
 			setIsInitializing(false);
 		}
-	}, [urlChatId, setMessageDocumentsMap, setMentionedDocumentIds, setMentionedDocuments]);
+	}, [
+		urlChatId,
+		setMessageDocumentsMap,
+		setMentionedDocumentIds,
+		setMentionedDocuments,
+		hydratePlanState,
+	]);
 
 	// Initialize on mount
 	useEffect(() => {
@@ -306,6 +388,7 @@ export default function NewChatPage() {
 
 			// Lazy thread creation: create thread on first message if it doesn't exist
 			let currentThreadId = threadId;
+			let isNewThread = false;
 			if (!currentThreadId) {
 				try {
 					const newThread = await createThread(searchSpaceId, "New Chat");
@@ -315,6 +398,7 @@ export default function NewChatPage() {
 					// Track chat creation
 					trackChatCreated(searchSpaceId, currentThreadId);
 
+					isNewThread = true;
 					// Update URL silently using browser API (not router.replace) to avoid
 					// interrupting the ongoing fetch/streaming with React navigation
 					window.history.replaceState(
@@ -361,25 +445,50 @@ export default function NewChatPage() {
 				}));
 			}
 
-			// Persist user message with mentioned documents (don't await, fire and forget)
-			const persistContent =
-				mentionedDocuments.length > 0
-					? [
-							...message.content,
-							{
-								type: "mentioned-documents",
-								documents: mentionedDocuments.map((doc) => ({
-									id: doc.id,
-									title: doc.title,
-									document_type: doc.document_type,
-								})),
-							},
-						]
-					: message.content;
+			// Persist user message with mentioned documents and attachments (don't await, fire and forget)
+			const persistContent: unknown[] = [...message.content];
+
+			// Add mentioned documents for persistence
+			if (mentionedDocuments.length > 0) {
+				persistContent.push({
+					type: "mentioned-documents",
+					documents: mentionedDocuments.map((doc) => ({
+						id: doc.id,
+						title: doc.title,
+						document_type: doc.document_type,
+					})),
+				});
+			}
+
+			// Add attachments for persistence (so they survive page reload)
+			if (message.attachments && message.attachments.length > 0) {
+				persistContent.push({
+					type: "attachments",
+					items: message.attachments.map((att) => ({
+						id: att.id,
+						name: att.name,
+						type: att.type,
+						contentType: (att as { contentType?: string }).contentType,
+						// Include imageDataUrl for images so they can be displayed after reload
+						imageDataUrl: (att as { imageDataUrl?: string }).imageDataUrl,
+						// Include extractedContent for context (already extracted, no re-processing needed)
+						extractedContent: (att as { extractedContent?: string }).extractedContent,
+					})),
+				});
+			}
+
 			appendMessage(currentThreadId, {
 				role: "user",
 				content: persistContent,
-			}).catch((err) => console.error("Failed to persist user message:", err));
+			})
+				.then(() => {
+					// For new threads, the backend updates the title from the first user message
+					// Invalidate threads query so sidebar shows the updated title in real-time
+					if (isNewThread) {
+						queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
+					}
+				})
+				.catch((err) => console.error("Failed to persist user message:", err));
 
 			// Start streaming response
 			setIsRunning(true);
@@ -676,7 +785,19 @@ export default function NewChatPage() {
 				}
 			} catch (error) {
 				if (error instanceof Error && error.name === "AbortError") {
-					// Request was cancelled
+					// Request was cancelled by user - persist partial response if any content was received
+					const hasContent = contentParts.some(
+						(part) =>
+							(part.type === "text" && part.text.length > 0) ||
+							(part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName))
+					);
+					if (hasContent && currentThreadId) {
+						const partialContent = buildContentForPersistence();
+						appendMessage(currentThreadId, {
+							role: "assistant",
+							content: partialContent,
+						}).catch((err) => console.error("Failed to persist partial assistant message:", err));
+					}
 					return;
 				}
 				console.error("[NewChatPage] Chat error:", error);
@@ -720,6 +841,7 @@ export default function NewChatPage() {
 			setMentionedDocumentIds,
 			setMentionedDocuments,
 			setMessageDocumentsMap,
+			queryClient,
 		]
 	);
 
@@ -789,6 +911,7 @@ export default function NewChatPage() {
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
+			<WriteTodosToolUI />
 			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 				<Thread
 					messageThinkingSteps={messageThinkingSteps}

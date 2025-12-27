@@ -280,15 +280,18 @@ def create_link_preview_tool():
             url = f"https://{url}"
 
         try:
+            # Generate a random User-Agent to avoid bot detection
+            ua = UserAgent()
+            user_agent = ua.random
+
             # Use a browser-like User-Agent to fetch Open Graph metadata.
-            # This is the same approach used by Slack, Discord, Twitter, etc. for link previews.
             # We're only fetching publicly available metadata (title, description, thumbnail)
             # that websites intentionally expose via OG tags for link preview purposes.
             async with httpx.AsyncClient(
                 timeout=10.0,
                 follow_redirects=True,
                 headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "User-Agent": user_agent,
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
                     "Accept-Language": "en-US,en;q=0.9",
                     "Accept-Encoding": "gzip, deflate, br",

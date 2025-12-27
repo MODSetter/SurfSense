@@ -2,6 +2,7 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, ImageIcon } from "lucide-react";
+import { z } from "zod";
 import {
 	Image,
 	ImageErrorBoundary,
@@ -9,27 +10,41 @@ import {
 	parseSerializableImage,
 } from "@/components/tool-ui/image";
 
-/**
- * Type definitions for the display_image tool
- */
-interface DisplayImageArgs {
-	src: string;
-	alt?: string;
-	title?: string;
-	description?: string;
-}
+// ============================================================================
+// Zod Schemas
+// ============================================================================
 
-interface DisplayImageResult {
-	id: string;
-	assetId: string;
-	src: string;
-	alt?: string; // Made optional - parseSerializableImage provides fallback
-	title?: string;
-	description?: string;
-	domain?: string;
-	ratio?: string;
-	error?: string;
-}
+/**
+ * Schema for display_image tool arguments
+ */
+const DisplayImageArgsSchema = z.object({
+	src: z.string(),
+	alt: z.string().nullish(),
+	title: z.string().nullish(),
+	description: z.string().nullish(),
+});
+
+/**
+ * Schema for display_image tool result
+ */
+const DisplayImageResultSchema = z.object({
+	id: z.string(),
+	assetId: z.string(),
+	src: z.string(),
+	alt: z.string().nullish(),
+	title: z.string().nullish(),
+	description: z.string().nullish(),
+	domain: z.string().nullish(),
+	ratio: z.string().nullish(),
+	error: z.string().nullish(),
+});
+
+// ============================================================================
+// Types
+// ============================================================================
+
+type DisplayImageArgs = z.infer<typeof DisplayImageArgsSchema>;
+type DisplayImageResult = z.infer<typeof DisplayImageResultSchema>;
 
 /**
  * Error state component shown when image display fails
@@ -142,4 +157,9 @@ export const DisplayImageToolUI = makeAssistantToolUI<DisplayImageArgs, DisplayI
 	},
 });
 
-export type { DisplayImageArgs, DisplayImageResult };
+export {
+	DisplayImageArgsSchema,
+	DisplayImageResultSchema,
+	type DisplayImageArgs,
+	type DisplayImageResult,
+};

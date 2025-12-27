@@ -30,7 +30,7 @@ export default function AirtableConnectorPage() {
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { refetch : fetchConnectors } = useAtomValue(connectorsAtom);
+	const { refetch: fetchConnectors } = useAtomValue(connectorsAtom);
 
 	useEffect(() => {
 		fetchConnectors().then((data) => {
