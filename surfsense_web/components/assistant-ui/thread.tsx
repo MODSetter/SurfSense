@@ -71,6 +71,7 @@ import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
+import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
@@ -219,12 +220,12 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 											{step.items && step.items.length > 0 && (
 												<div className="mt-1 space-y-0.5">
 													{step.items.map((item, idx) => (
-														<div
+														<ChainOfThoughtItem
 															key={`${step.id}-item-${idx}`}
-															className="text-xs text-muted-foreground"
+															className="text-xs"
 														>
 															{item}
-														</div>
+														</ChainOfThoughtItem>
 													))}
 												</div>
 											)}
