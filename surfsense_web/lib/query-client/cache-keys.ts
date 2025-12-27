@@ -1,3 +1,4 @@
+import type { GetConnectorsRequest } from "@/contracts/types/connector.types";
 import type { GetDocumentsRequest } from "@/contracts/types/document.types";
 import type { GetLogsRequest } from "@/contracts/types/log.types";
 import type { GetSearchSpacesRequest } from "@/contracts/types/search-space.types";
@@ -59,5 +60,12 @@ export const cacheKeys = {
 	invites: {
 		all: (searchSpaceId: string) => ["invites", searchSpaceId] as const,
 		info: (inviteCode: string) => ["invites", "info", inviteCode] as const,
+	},
+	connectors: {
+		all: (searchSpaceId: string) => ["connectors", searchSpaceId] as const,
+		withQueryParams: (queries: GetConnectorsRequest["queryParams"]) =>
+			["connectors", ...(queries ? Object.values(queries) : [])] as const,
+		byId: (connectorId: string) => ["connector", connectorId] as const,
+		index: () => ["connector", "index"] as const,
 	},
 };

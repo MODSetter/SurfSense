@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +9,8 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { updateConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,10 +24,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-	type SearchSourceConnector,
-	useSearchSourceConnectors,
-} from "@/hooks/use-search-source-connectors";
+import type { EnumConnectorName } from "@/contracts/enums/connector";
+import type { SearchSourceConnector } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const apiConnectorFormSchema = z.object({
@@ -85,7 +86,8 @@ export default function EditConnectorPage() {
 	const searchSpaceId = params.search_space_id as string;
 	const connectorId = parseInt(params.connector_id as string, 10);
 
-	const { connectors, updateConnector } = useSearchSourceConnectors(false, parseInt(searchSpaceId));
+	const { data: connectors = [] } = useAtomValue(connectorsAtom);
+	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 	const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,14 +101,12 @@ export default function EditConnectorPage() {
 		},
 	});
 
-	// Find connector in the list
 	useEffect(() => {
 		const currentConnector = connectors.find((c) => c.id === connectorId);
 
 		if (currentConnector) {
 			setConnector(currentConnector);
 
-			// Check if connector type is supported
 			const apiKeyField = getApiKeyFieldName(currentConnector.connector_type);
 			if (apiKeyField) {
 				form.reset({
@@ -114,14 +114,12 @@ export default function EditConnectorPage() {
 					api_key: currentConnector.config[apiKeyField] || "",
 				});
 			} else {
-				// Redirect if not a supported connector type
 				toast.error("This connector type is not supported for editing");
 				router.push(`/dashboard/${searchSpaceId}/connectors`);
 			}
 
 			setIsLoading(false);
 		} else if (!isLoading && connectors.length > 0) {
-			// If connectors are loaded but this one isn't found
 			toast.error("Connector not found");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);
 		}
@@ -135,18 +133,20 @@ export default function EditConnectorPage() {
 		try {
 			const apiKeyField = getApiKeyFieldName(connector.connector_type);
 
-			// Only update the API key if a new one was provided
 			const updatedConfig = { ...connector.config };
 			if (values.api_key) {
 				updatedConfig[apiKeyField] = values.api_key;
 			}
 
-			await updateConnector(connectorId, {
-				name: values.name,
-				connector_type: connector.connector_type,
-				config: updatedConfig,
-				is_indexable: connector.is_indexable,
-				last_indexed_at: connector.last_indexed_at,
+			await updateConnector({
+				id: connectorId,
+				data: {
+					name: values.name,
+					connector_type: connector.connector_type as EnumConnectorName,
+					config: updatedConfig,
+					is_indexable: connector.is_indexable,
+					last_indexed_at: connector.last_indexed_at,
+				},
 			});
 
 			toast.success("Connector updated successfully!");
