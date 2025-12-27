@@ -974,3 +974,28 @@ def get_default_roles_config() -> list[dict]:
             "is_system_role": True,
         },
     ]
+
+
+class MCPServerConfig(Base):
+    """
+    MCP Model for the server configurations which are made by the users.
+    """
+
+    __tablename__ = "mcp_server_configs"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("user.id"))
+    name = Column(String, nullable=False)
+    # "stdio" or "http"
+    transport = Column(String)
+    # for stdio
+    command = Column(String, nullable=True)
+    # for stdio
+    args = Column(JSON, nullable=True)
+    # for http
+    url = Column(String, nullable=True)
+    # for http auth
+    headers = Column(JSON, nullable=True)
+    enabled = Column(Boolean, default=True)
+
+    user = relationship("User", back_populates="mcp_servers")
