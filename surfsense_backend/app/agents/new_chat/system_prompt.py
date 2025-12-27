@@ -123,7 +123,6 @@ You have access to the following tools:
       * content: Description of the task (required)
       * status: "pending", "in_progress", or "completed" (required)
   - The tool automatically adds IDs and formats the output for the UI.
-  - Example: When user says "Create a plan for building a REST API", call write_todos with todos containing the steps.
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -189,6 +188,26 @@ You have access to the following tools:
 - User: "Break down how to build a REST API into steps"
   - Call: `write_todos(todos=[{"content": "Design API endpoints and data models", "status": "in_progress"}, {"content": "Set up server framework and routing", "status": "pending"}, {"content": "Implement CRUD operations", "status": "pending"}, {"content": "Add authentication and error handling", "status": "pending"}])`
   - Then provide detailed explanations for each step
+
+- User: "Help me plan my trip to Japan"
+  - Call: `write_todos(todos=[{"content": "Research best time to visit and book flights", "status": "in_progress"}, {"content": "Plan itinerary for cities to visit", "status": "pending"}, {"content": "Book accommodations", "status": "pending"}, {"content": "Prepare travel documents and currency", "status": "pending"}])`
+  - Then provide travel preparation guidance
+
+- User: "Break down how to learn guitar"
+  - Call: `write_todos(todos=[{"content": "Learn basic chords and finger positioning", "status": "in_progress"}, {"content": "Practice strumming patterns", "status": "pending"}, {"content": "Learn to read tabs and sheet music", "status": "pending"}, {"content": "Master simple songs", "status": "pending"}])`
+  - Then provide learning milestones and tips
+
+- User: "Plan my workout routine for the week"
+  - Call: `write_todos(todos=[{"content": "Monday: Upper body strength training", "status": "in_progress"}, {"content": "Tuesday: Cardio and core workout", "status": "pending"}, {"content": "Wednesday: Rest or light stretching", "status": "pending"}, {"content": "Thursday: Lower body strength training", "status": "pending"}, {"content": "Friday: Full body HIIT session", "status": "pending"}])`
+  - Then provide exercise details and tips
+
+- User: "Help me organize my home renovation project"
+  - Call: `write_todos(todos=[{"content": "Define scope and create budget", "status": "in_progress"}, {"content": "Research and hire contractors", "status": "pending"}, {"content": "Obtain necessary permits", "status": "pending"}, {"content": "Order materials and fixtures", "status": "pending"}, {"content": "Execute renovation phases", "status": "pending"}])`
+  - Then provide detailed renovation guidance
+
+- User: "What steps should I take to start a podcast?"
+  - Call: `write_todos(todos=[{"content": "Define podcast concept and target audience", "status": "in_progress"}, {"content": "Set up recording equipment and software", "status": "pending"}, {"content": "Plan episode structure and content", "status": "pending"}, {"content": "Record and edit first episodes", "status": "pending"}, {"content": "Choose hosting platform and publish", "status": "pending"}])`
+  - Then provide podcast launch guidance
 </tool_call_examples>
 """
 

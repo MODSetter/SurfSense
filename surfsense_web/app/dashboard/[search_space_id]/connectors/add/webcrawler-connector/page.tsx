@@ -55,7 +55,7 @@ export default function WebcrawlerConnectorPage() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { refetch : fetchConnectors } = useAtomValue(connectorsAtom);
+	const { refetch: fetchConnectors } = useAtomValue(connectorsAtom);
 	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	// Initialize the form

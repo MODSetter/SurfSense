@@ -80,11 +80,9 @@ export function NavNotes({
 	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
 
 	// Poll for active reindexing tasks to show inline loading indicators
-	const { summary } = useLogsSummary(
-		searchSpaceId ? Number(searchSpaceId) : 0,
-		24,
-		{ refetchInterval: 2000 }
-	);
+	const { summary } = useLogsSummary(searchSpaceId ? Number(searchSpaceId) : 0, 24, {
+		refetchInterval: 2000,
+	});
 
 	// Create a Set of document IDs that are currently being reindexed
 	const reindexingDocumentIds = useMemo(() => {

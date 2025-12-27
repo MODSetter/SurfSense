@@ -67,7 +67,7 @@ export default function LumaConnectorPage() {
 		},
 	});
 
-	const { refetch : fetchConnectors } = useAtomValue(connectorsAtom);
+	const { refetch: fetchConnectors } = useAtomValue(connectorsAtom);
 
 	useEffect(() => {
 		fetchConnectors().then((data) => {

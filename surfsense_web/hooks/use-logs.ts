@@ -139,9 +139,8 @@ export function useLogsSummary(
 		enabled: !!searchSpaceId,
 		staleTime: 3 * 60 * 1000,
 		// Enable refetch interval for document processing indicator polling
-		refetchInterval: options.refetchInterval && options.refetchInterval > 0 
-			? options.refetchInterval 
-			: undefined,
+		refetchInterval:
+			options.refetchInterval && options.refetchInterval > 0 ? options.refetchInterval : undefined,
 	});
 
 	return { summary, loading, error, refreshSummary: refetch };

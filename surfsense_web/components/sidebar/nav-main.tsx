@@ -58,30 +58,33 @@ export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 	};
 
 	// Check if an item is active based on pathname
-	const isItemActive = useCallback((item: NavItem): boolean => {
-		if (!pathname) return false;
+	const isItemActive = useCallback(
+		(item: NavItem): boolean => {
+			if (!pathname) return false;
 
-		// For items without sub-items, check if pathname matches or starts with the URL
-		if (!item.items?.length) {
-			// Chat item: active ONLY when on new-chat page without a specific chat ID
-			// (i.e., exactly /dashboard/{id}/new-chat, not /dashboard/{id}/new-chat/123)
-			if (item.url.includes("/new-chat")) {
-				// Match exactly the new-chat base URL (ends with /new-chat)
-				return pathname.endsWith("/new-chat");
+			// For items without sub-items, check if pathname matches or starts with the URL
+			if (!item.items?.length) {
+				// Chat item: active ONLY when on new-chat page without a specific chat ID
+				// (i.e., exactly /dashboard/{id}/new-chat, not /dashboard/{id}/new-chat/123)
+				if (item.url.includes("/new-chat")) {
+					// Match exactly the new-chat base URL (ends with /new-chat)
+					return pathname.endsWith("/new-chat");
+				}
+				// Logs item: active when on logs page
+				if (item.url.includes("/logs")) {
+					return pathname.includes("/logs");
+				}
+				// Check exact match or prefix match
+				return pathname === item.url || pathname.startsWith(`${item.url}/`);
 			}
-			// Logs item: active when on logs page
-			if (item.url.includes("/logs")) {
-				return pathname.includes("/logs");
-			}
-			// Check exact match or prefix match
-			return pathname === item.url || pathname.startsWith(`${item.url}/`);
-		}
 
-		// For items with sub-items (like Sources), check if any sub-item URL matches
-		return item.items.some(
-			(subItem) => pathname === subItem.url || pathname.startsWith(subItem.url)
-		);
-	}, [pathname]);
+			// For items with sub-items (like Sources), check if any sub-item URL matches
+			return item.items.some(
+				(subItem) => pathname === subItem.url || pathname.startsWith(subItem.url)
+			);
+		},
+		[pathname]
+	);
 
 	// Memoize items to prevent unnecessary re-renders
 	const memoizedItems = useMemo(() => items, [items]);

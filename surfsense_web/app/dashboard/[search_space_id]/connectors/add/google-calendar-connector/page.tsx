@@ -32,13 +32,14 @@ export default function GoogleCalendarConnectorPage() {
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { refetch : fetchConnectors } = useAtomValue(connectorsAtom);
+	const { refetch: fetchConnectors } = useAtomValue(connectorsAtom);
 
 	useEffect(() => {
 		fetchConnectors().then((data) => {
 			const connectors = data.data || [];
 			const connector = connectors.find(
-				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR
+				(c: SearchSourceConnector) =>
+					c.connector_type === EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR
 			);
 			if (connector) {
 				setDoesConnectorExist(true);
