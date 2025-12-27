@@ -319,7 +319,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 													"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 													"hover:bg-accent hover:text-accent-foreground",
 													"transition-colors cursor-pointer",
-													isActive && "bg-accent text-accent-foreground font-medium",
+													isActive && "bg-accent text-accent-foreground",
 													isBusy && "opacity-50 pointer-events-none"
 												)}
 											>

@@ -36,12 +36,21 @@ export function NavSecondary({
 			<SidebarMenu>
 				{memoizedItems.map((item, index) => (
 					<SidebarMenuItem key={`${item.title}-${index}`}>
-						<SidebarMenuButton asChild size="sm" aria-label={item.title}>
-							<a href={item.url}>
-								<item.icon />
-								<span>{item.title}</span>
-							</a>
-						</SidebarMenuButton>
+						{item.url === "#" ? (
+							// Non-interactive display item (e.g., search space name)
+							<div className="flex w-full items-center gap-2 rounded-md p-2 text-sm text-sidebar-foreground">
+								<item.icon className="h-4 w-4 shrink-0" />
+								<span className="truncate">{item.title}</span>
+							</div>
+						) : (
+							// Interactive link item
+							<SidebarMenuButton asChild size="sm" aria-label={item.title}>
+								<a href={item.url}>
+									<item.icon />
+									<span>{item.title}</span>
+								</a>
+							</SidebarMenuButton>
+						)}
 					</SidebarMenuItem>
 				))}
 			</SidebarMenu>

@@ -187,7 +187,7 @@ export function NavNotes({
 												disabled={isDeletingNote}
 												className={cn(
 													"pr-8", // Make room for the action button
-													isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+													isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
 													isDeletingNote && "opacity-50"
 												)}
 											>

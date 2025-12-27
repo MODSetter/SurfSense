@@ -153,7 +153,7 @@ export function NavChats({
 												disabled={isDeletingChat}
 												className={cn(
 													"pr-8", // Make room for the action button
-													isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+													isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
 													isDeletingChat && "opacity-50"
 												)}
 											>
