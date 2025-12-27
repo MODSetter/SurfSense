@@ -299,7 +299,7 @@ export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), head
 			>
 				<ThreadPrimitive.Viewport
 					turnAnchor="top"
-					className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+					className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
 				>
 					{/* Optional sticky header for model selector etc. */}
 					{header && <div className="sticky top-0 z-10 mb-4">{header}</div>}
