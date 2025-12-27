@@ -10,7 +10,7 @@ import {
 	Plus,
 	Trash2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,7 @@ export function NavNotes({
 }: NavNotesProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const pathname = usePathname();
 	const isMobile = useIsMobile();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -157,6 +158,7 @@ export function NavNotes({
 							{notes.length > 0 ? (
 								notes.map((note) => {
 									const isDeletingNote = isDeleting === note.id;
+									const isActive = pathname === note.url;
 
 									return (
 										<SidebarMenuItem key={note.id || note.name} className="group/note">
@@ -166,6 +168,7 @@ export function NavNotes({
 												disabled={isDeletingNote}
 												className={cn(
 													"pr-8", // Make room for the action button
+													isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
 													isDeletingNote && "opacity-50"
 												)}
 											>

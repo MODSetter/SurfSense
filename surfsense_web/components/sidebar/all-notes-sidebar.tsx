@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { FileText, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -37,7 +37,11 @@ export function AllNotesSidebar({
 }: AllNotesSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const params = useParams();
 	const queryClient = useQueryClient();
+
+	// Get the current note ID from URL to highlight the open note
+	const currentNoteId = params.note_id ? Number(params.note_id) : null;
 	const [deletingNoteId, setDeletingNoteId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [mounted, setMounted] = useState(false);
@@ -260,6 +264,7 @@ export function AllNotesSidebar({
 								<div className="space-y-1">
 									{notes.map((note) => {
 										const isDeleting = deletingNoteId === note.id;
+										const isActive = currentNoteId === note.id;
 
 										return (
 											<div
@@ -268,6 +273,7 @@ export function AllNotesSidebar({
 													"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 													"hover:bg-accent hover:text-accent-foreground",
 													"transition-colors cursor-pointer",
+													isActive && "bg-accent text-accent-foreground font-medium",
 													isDeleting && "opacity-50 pointer-events-none"
 												)}
 											>
