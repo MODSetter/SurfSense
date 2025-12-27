@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLogsSummary } from "@/hooks/use-logs";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -77,6 +78,23 @@ export function NavNotes({
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
+
+	// Poll for active reindexing tasks to show inline loading indicators
+	const { summary } = useLogsSummary(
+		searchSpaceId ? Number(searchSpaceId) : 0,
+		24,
+		{ refetchInterval: 2000 }
+	);
+
+	// Create a Set of document IDs that are currently being reindexed
+	const reindexingDocumentIds = useMemo(() => {
+		if (!summary?.active_tasks) return new Set<number>();
+		return new Set(
+			summary.active_tasks
+				.filter((task) => task.document_id != null)
+				.map((task) => task.document_id as number)
+		);
+	}, [summary?.active_tasks]);
 
 	// Auto-collapse on smaller screens when Sources is expanded
 	useEffect(() => {
@@ -159,6 +177,7 @@ export function NavNotes({
 								notes.map((note) => {
 									const isDeletingNote = isDeleting === note.id;
 									const isActive = pathname === note.url;
+									const isReindexing = note.id ? reindexingDocumentIds.has(note.id) : false;
 
 									return (
 										<SidebarMenuItem key={note.id || note.name} className="group/note">
@@ -172,7 +191,11 @@ export function NavNotes({
 													isDeletingNote && "opacity-50"
 												)}
 											>
-												<note.icon className="h-4 w-4 shrink-0" />
+												{isReindexing ? (
+													<Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+												) : (
+													<note.icon className="h-4 w-4 shrink-0" />
+												)}
 												<span className="truncate">{note.name}</span>
 											</SidebarMenuButton>
 

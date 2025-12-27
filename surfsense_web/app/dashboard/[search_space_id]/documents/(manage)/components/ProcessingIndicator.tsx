@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,7 +22,7 @@ export function ProcessingIndicator({ activeTasksCount }: ProcessingIndicatorPro
 				exit={{ opacity: 0, height: 0, marginBottom: 0 }}
 				transition={{ duration: 0.3 }}
 			>
-				<Alert className="border-primary/20 bg-primary/5">
+				<Alert className="border-border bg-primary/5">
 					<div className="flex items-center gap-4">
 						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
 							<Loader2 className="h-5 w-5 animate-spin text-primary" />

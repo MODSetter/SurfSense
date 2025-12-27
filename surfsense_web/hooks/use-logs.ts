@@ -39,6 +39,7 @@ export interface LogSummary {
 		message: string;
 		started_at: string;
 		source?: string;
+		document_id?: number;
 	}>;
 	recent_failures: Array<{
 		id: number;
