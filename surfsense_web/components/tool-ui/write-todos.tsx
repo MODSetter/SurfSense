@@ -139,7 +139,8 @@ export const WriteTodosToolUI = makeAssistantToolUI<WriteTodosData, WriteTodosDa
 		}
 
 		// Success - render the plan
-		const planToRender = currentPlanState || (hasTodos ? parseSerializablePlan({ todos: data.todos }) : null);
+		const planToRender =
+			currentPlanState || (hasTodos ? parseSerializablePlan({ todos: data.todos }) : null);
 		if (!planToRender) {
 			return <WriteTodosLoading />;
 		}

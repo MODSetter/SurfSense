@@ -172,13 +172,16 @@ export const Plan: FC<PlanProps> = ({
 
 				{showProgress && (
 					<div className="mt-3 space-y-1.5">
-					<div className="flex items-center justify-between text-xs text-muted-foreground">
-						<span>
-							{progress.completed} of {progress.total} complete
-						</span>
-						<span>{Math.round(progress.percentage)}%</span>
-					</div>
-						<Progress value={progress.percentage} className="h-1.5 bg-muted [&>div]:bg-muted-foreground" />
+						<div className="flex items-center justify-between text-xs text-muted-foreground">
+							<span>
+								{progress.completed} of {progress.total} complete
+							</span>
+							<span>{Math.round(progress.percentage)}%</span>
+						</div>
+						<Progress
+							value={progress.percentage}
+							className="h-1.5 bg-muted [&>div]:bg-muted-foreground"
+						/>
 					</div>
 				)}
 			</CardHeader>
