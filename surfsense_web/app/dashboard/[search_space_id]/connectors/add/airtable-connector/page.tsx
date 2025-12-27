@@ -20,8 +20,8 @@ import {
 import { EnumConnectorName } from "@/contracts/enums/connector";
 // import { IconBrandAirtable } from "@tabler/icons-react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 export default function AirtableConnectorPage() {
 	const router = useRouter();

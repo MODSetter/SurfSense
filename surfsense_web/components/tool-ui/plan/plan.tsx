@@ -3,10 +3,10 @@
 import { CheckCircle2, Circle, CircleDashed, ListTodo, PartyPopper, XCircle } from "lucide-react";
 import type { FC } from "react";
 import { useMemo, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { Action, ActionsConfig } from "../shared/schema";

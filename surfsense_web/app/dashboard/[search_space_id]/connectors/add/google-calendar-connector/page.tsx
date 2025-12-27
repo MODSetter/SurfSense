@@ -22,8 +22,8 @@ import {
 } from "@/components/ui/card";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 export default function GoogleCalendarConnectorPage() {
 	const router = useRouter();

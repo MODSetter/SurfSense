@@ -33,7 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { SearchSourceConnector } from "@/contracts/types/connector.types";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 // Define the form schema with Zod
 const lumaConnectorFormSchema = z.object({
