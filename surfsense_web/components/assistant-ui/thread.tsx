@@ -186,14 +186,14 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 										<div className="relative flex flex-col items-center w-2">
 											{/* Vertical connection line - extends to next dot */}
 											{!isLast && (
-												<div className="absolute left-1/2 top-[11px] -bottom-[7px] w-px -translate-x-1/2 bg-border" />
+												<div className="absolute left-1/2 top-[15px] -bottom-[7px] w-px -translate-x-1/2 bg-muted-foreground/30" />
 											)}
 											{/* Step dot - on top of line */}
 											<div className="relative z-10 mt-[7px] flex shrink-0 items-center justify-center">
 												{effectiveStatus === "in_progress" ? (
-													<span className="size-2 rounded-full bg-primary" />
+													<span className="size-2 rounded-full bg-muted-foreground/30" />
 												) : (
-													<span className="size-2 rounded-full bg-border" />
+													<span className="size-2 rounded-full bg-muted-foreground/30" />
 												)}
 											</div>
 										</div>

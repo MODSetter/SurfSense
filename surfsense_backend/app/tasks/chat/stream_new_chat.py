@@ -557,15 +557,15 @@ async def stream_new_chat(
                         status="in_progress",
                         items=last_active_step_items,
                     )
-                elif tool_name == "ls":
-                    last_active_step_title = "Exploring files"
-                    last_active_step_items = []
-                    yield streaming_service.format_thinking_step(
-                        step_id=tool_step_id,
-                        title="Exploring files",
-                        status="in_progress",
-                        items=None,
-                    )
+                # elif tool_name == "ls":
+                #     last_active_step_title = "Exploring files"
+                #     last_active_step_items = []
+                #     yield streaming_service.format_thinking_step(
+                #         step_id=tool_step_id,
+                #         title="Exploring files",
+                #         status="in_progress",
+                #         items=None,
+                #     )
                 else:
                     last_active_step_title = f"Using {tool_name.replace('_', ' ')}"
                     last_active_step_items = []

@@ -38,7 +38,7 @@ export function NavSecondary({
 					<SidebarMenuItem key={`${item.title}-${index}`}>
 						{item.url === "#" ? (
 							// Non-interactive display item (e.g., search space name)
-							<div className="flex w-full items-center gap-2 rounded-md p-2 text-sm text-sidebar-foreground">
+							<div className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs text-sidebar-foreground">
 								<item.icon className="h-4 w-4 shrink-0" />
 								<span className="truncate">{item.title}</span>
 							</div>
