@@ -117,8 +117,12 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 	};
 }
 
-// Separate hook for log summary
-export function useLogsSummary(searchSpaceId: number, hours: number = 24) {
+// Separate hook for log summary with optional polling support for document processing indicator UI
+export function useLogsSummary(
+	searchSpaceId: number,
+	hours: number = 24,
+	options: { refetchInterval?: number } = {}
+) {
 	const {
 		data: summary,
 		isLoading: loading,
@@ -133,6 +137,10 @@ export function useLogsSummary(searchSpaceId: number, hours: number = 24) {
 			}),
 		enabled: !!searchSpaceId,
 		staleTime: 3 * 60 * 1000,
+		// Enable refetch interval for document processing indicator polling
+		refetchInterval: options.refetchInterval && options.refetchInterval > 0 
+			? options.refetchInterval 
+			: undefined,
 	});
 
 	return { summary, loading, error, refreshSummary: refetch };
