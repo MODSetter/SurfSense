@@ -2,11 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
+import { RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
@@ -127,7 +129,8 @@ export default function DocumentsTable() {
 		} else {
 			await refetchDocuments();
 		}
-	}, [debouncedSearch, refetchSearch, refetchDocuments]);
+		toast.success(t("refresh_success") || "Documents refreshed");
+	}, [debouncedSearch, refetchSearch, refetchDocuments, t]);
 
 	// Create a delete function for single document deletion
 	const deleteDocument = useCallback(
@@ -189,8 +192,24 @@ export default function DocumentsTable() {
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.3 }}
-			className="w-full px-6 py-4 min-h-[calc(100vh-64px)]"
+			className="w-full px-6 py-4 space-y-6 min-h-[calc(100vh-64px)]"
 		>
+			<motion.div
+				className="flex items-center justify-between"
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ delay: 0.1 }}
+			>
+				<div>
+					<h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
+					<p className="text-muted-foreground">{t("subtitle")}</p>
+				</div>
+				<Button onClick={refreshCurrentView} variant="outline" size="sm">
+					<RefreshCw className="w-4 h-4 mr-2" />
+					{t("refresh")}
+				</Button>
+			</motion.div>
+
 			<DocumentsFilters
 				typeCounts={typeCounts ?? {}}
 				selectedIds={selectedIds}

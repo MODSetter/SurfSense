@@ -267,7 +267,9 @@
 		"content_summary": "内容摘要",
 		"view_full": "查看完整内容",
 		"filter_placeholder": "按标题筛选...",
-		"rows_per_page": "每页行数"
+		"rows_per_page": "每页行数",
+		"refresh": "刷新",
+		"refresh_success": "文档已刷新"
 	},
 	"add_connector": {
 		"title": "连接您的工具",

@@ -267,7 +267,9 @@
 		"content_summary": "Content Summary",
 		"view_full": "View Full Content",
 		"filter_placeholder": "Filter by title...",
-		"rows_per_page": "Rows per page"
+		"rows_per_page": "Rows per page",
+		"refresh": "Refresh",
+		"refresh_success": "Documents refreshed"
 	},
 	"add_connector": {
 		"title": "Connect Your Tools",
