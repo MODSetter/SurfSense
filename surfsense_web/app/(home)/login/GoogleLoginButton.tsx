@@ -40,8 +40,8 @@ export function GoogleLoginButton() {
 	return (
 		<div className="relative w-full overflow-hidden">
 			<AmbientBackground />
-			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-				<Logo className="rounded-full my-8" />
+			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center px-6 md:px-0">
+				<Logo className="h-16 w-16 md:h-32 md:w-32 rounded-full my-4 md:my-8 transition-all" />
 				{/* <h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
 					Login
 				</h1> */}
@@ -93,7 +93,7 @@ export function GoogleLoginButton() {
 				<motion.button
 					whileHover={{ scale: 1.02 }}
 					whileTap={{ scale: 0.98 }}
-					className="group/btn relative flex w-full items-center justify-center space-x-2 rounded-lg bg-white px-6 py-4 text-neutral-700 shadow-lg transition-all duration-200 hover:shadow-xl dark:bg-neutral-800 dark:text-neutral-200"
+					className="group/btn relative flex w-full items-center justify-center space-x-2 rounded-lg bg-white px-6 py-3 md:py-4 text-neutral-700 shadow-lg transition-all duration-200 hover:shadow-xl dark:bg-neutral-800 dark:text-neutral-200"
 					onClick={handleGoogleLogin}
 				>
 					<div className="absolute inset-0 h-full w-full transform opacity-0 transition duration-200 group-hover/btn:opacity-100">
