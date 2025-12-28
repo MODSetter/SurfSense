@@ -1,9 +1,4 @@
-"""
-Change Tracking for Google Drive - Delta Sync Support.
-
-Handles change detection and incremental syncing using Drive API's changes endpoint.
-Small, focused module for tracking file modifications.
-"""
+"""Change tracking for Google Drive delta sync."""
 
 import logging
 from datetime import datetime
@@ -110,7 +105,6 @@ async def _filter_changes_by_folder(
     for change in changes:
         file = change.get("file")
         if not file:
-            # File was removed
             filtered.append(change)
             continue
 
@@ -147,7 +141,6 @@ def categorize_change(change: dict[str, Any]) -> str:
     if file.get("trashed"):
         return "trashed"
 
-    # Check if file was recently created
     created_time = file.get("createdTime")
     modified_time = file.get("modifiedTime")
 
@@ -198,7 +191,6 @@ async def fetch_all_changes(
 
             all_changes.extend(changes)
 
-            # If next_token is None, we've reached the end
             if not next_token or next_token == current_token:
                 break
 

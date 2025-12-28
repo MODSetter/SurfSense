@@ -1,9 +1,4 @@
-"""
-Google Drive API Client.
-
-Core client for interacting with Google Drive API.
-Handles service initialization and basic file operations.
-"""
+"""Google Drive API client."""
 
 from typing import Any
 
@@ -16,12 +11,7 @@ from .credentials import get_valid_credentials
 
 
 class GoogleDriveClient:
-    """
-    Main client for Google Drive API operations.
-
-    Handles service initialization and provides methods for
-    listing files, getting metadata, and downloading content.
-    """
+    """Client for Google Drive API operations."""
 
     def __init__(self, session: AsyncSession, connector_id: int):
         """
@@ -140,7 +130,6 @@ class GoogleDriveClient:
             service = await self.get_service()
             request = service.files().get_media(fileId=file_id)
 
-            # Execute the download
             import io
 
             fh = io.BytesIO()

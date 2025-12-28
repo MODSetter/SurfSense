@@ -1,8 +1,4 @@
-"""
-Content Extraction for Google Drive Files.
-
-Downloads files and delegates to Surfsense's existing file processors.
-"""
+"""Content extraction for Google Drive files."""
 
 import logging
 import os
@@ -31,9 +27,7 @@ async def download_and_process_file(
     log_entry: Log,
 ) -> tuple[Any, str | None, dict[str, Any] | None]:
     """
-    Download Google Drive file and process using Surfsense's existing infrastructure.
-
-    This is the ONLY function needed - it delegates everything to process_file_in_background.
+    Download Google Drive file and process using Surfsense file processors.
 
     Args:
         client: GoogleDriveClient instance
@@ -71,10 +65,8 @@ async def download_and_process_file(
             if error:
                 return None, error
 
-            # Set extension based on export format
             extension = ".pdf" if export_mime == "application/pdf" else ".txt"
         else:
-            # Regular files - download directly
             content_bytes, error = await client.download_file(file_id)
             if error:
                 return None, error
@@ -82,19 +74,15 @@ async def download_and_process_file(
             # Preserve original file extension
             extension = Path(file_name).suffix or ".bin"
 
-        # Save to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp_file:
             tmp_file.write(content_bytes)
             temp_file_path = tmp_file.name
 
-        # Step 2: Delegate to Surfsense's existing file processor
-        # This handles ALL file types: markdown, audio, PDFs, Office docs, images, etc.
         from app.tasks.document_processors.file_processors import (
             process_file_in_background,
         )
         from app.db import DocumentType
 
-        # Prepare connector info
         connector_info = {
             "type": DocumentType.GOOGLE_DRIVE_CONNECTOR,
             "metadata": {
@@ -105,7 +93,6 @@ async def download_and_process_file(
             },
         }
         
-        # If it was a Google Workspace file, note the export format
         if is_google_workspace_file(mime_type):
             connector_info["metadata"]["exported_as"] = "pdf"
             connector_info["metadata"]["original_workspace_type"] = mime_type.split(".")[-1]
@@ -119,10 +106,9 @@ async def download_and_process_file(
             session=session,
             task_logger=task_logger,
             log_entry=log_entry,
-            connector=connector_info,  # Pass connector info
+            connector=connector_info,
         )
 
-        # process_file_in_background doesn't return the document
         return None, None, connector_info["metadata"]
 
     except Exception as e:

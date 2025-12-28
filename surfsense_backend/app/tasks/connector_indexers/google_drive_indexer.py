@@ -1,11 +1,4 @@
-"""
-Google Drive Indexer - Delegates all processing to Surfsense's file processors.
-
-Handles:
-- Folder-specific indexing (user selects folder)
-- Delta sync (only index changed files)
-- Delegates file processing to process_file_in_background
-"""
+"""Google Drive indexer using Surfsense file processors."""
 
 import logging
 from datetime import datetime
@@ -63,7 +56,6 @@ async def index_google_drive_files(
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
-    # Log task start
     log_entry = await task_logger.log_task_start(
         task_name="google_drive_files_indexing",
         source="connector_indexing_task",
@@ -78,7 +70,6 @@ async def index_google_drive_files(
     )
 
     try:
-        # Get connector from database
         connector = await get_connector_by_id(
             session, connector_id, SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
         )
@@ -90,7 +81,6 @@ async def index_google_drive_files(
             )
             return 0, error_msg
 
-        # Initialize Drive client
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Google Drive client for connector {connector_id}",
@@ -99,7 +89,6 @@ async def index_google_drive_files(
 
         drive_client = GoogleDriveClient(session, connector_id)
 
-        # Use folder from request params (required for Google Drive)
         if not folder_id:
             error_msg = "folder_id is required for Google Drive indexing"
             await task_logger.log_task_failure(
@@ -112,7 +101,6 @@ async def index_google_drive_files(
 
         logger.info(f"Indexing Google Drive folder: {target_folder_name} ({target_folder_id})")
 
-        # Decide sync strategy - track tokens per folder
         folder_tokens = connector.config.get("folder_tokens", {})
         start_page_token = folder_tokens.get(target_folder_id)
         can_use_delta_sync = use_delta_sync and start_page_token and connector.last_indexed_at
@@ -150,14 +138,11 @@ async def index_google_drive_files(
 
         documents_indexed, documents_skipped = result
 
-        # Update last indexed timestamp and get new start page token
         if documents_indexed > 0 or can_use_delta_sync:
-            # Get new start page token for next sync
             new_token, token_error = await get_start_page_token(drive_client)
             if new_token and not token_error:
                 from sqlalchemy.orm.attributes import flag_modified
 
-                # Store token per folder
                 if "folder_tokens" not in connector.config:
                     connector.config["folder_tokens"] = {}
                 connector.config["folder_tokens"][target_folder_id] = new_token
@@ -165,13 +150,11 @@ async def index_google_drive_files(
 
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
-        # Final commit
         await session.commit()
         logger.info(
             f"Successfully committed Google Drive indexing changes to database"
         )
 
-        # Log success
         await task_logger.log_task_success(
             log_entry,
             f"Successfully completed Google Drive indexing for connector {connector_id}",
@@ -235,7 +218,6 @@ async def _index_full_scan(
     page_token = None
     files_processed = 0
 
-    # Paginate through all files in folder
     while files_processed < max_files:
         files, next_token, error = await get_files_in_folder(
             drive_client, folder_id, include_subfolders=False, page_token=page_token
@@ -254,7 +236,6 @@ async def _index_full_scan(
 
             files_processed += 1
 
-            # Process file
             indexed, skipped = await _process_single_file(
                 drive_client=drive_client,
                 session=session,
@@ -269,7 +250,6 @@ async def _index_full_scan(
             documents_indexed += indexed
             documents_skipped += skipped
 
-            # Batch commit every 10 files
             if documents_indexed % 10 == 0 and documents_indexed > 0:
                 await session.commit()
                 logger.info(f"Committed batch: {documents_indexed} files indexed so far")
@@ -304,7 +284,6 @@ async def _index_with_delta_sync(
         {"stage": "delta_sync", "start_token": start_page_token},
     )
 
-    # Fetch all changes since last sync
     changes, final_token, error = await fetch_all_changes(
         drive_client, start_page_token, folder_id
     )
@@ -330,14 +309,12 @@ async def _index_with_delta_sync(
         files_processed += 1
         change_type = categorize_change(change)
 
-        # Handle removed/trashed files
         if change_type in ["removed", "trashed"]:
             file_id = change.get("fileId")
             if file_id:
                 await _remove_document(session, file_id, search_space_id)
             continue
 
-        # Handle modified/new files
         file = change.get("file")
         if not file:
             continue
@@ -356,7 +333,6 @@ async def _index_with_delta_sync(
         documents_indexed += indexed
         documents_skipped += skipped
 
-        # Batch commit every 10 files
         if documents_indexed % 10 == 0 and documents_indexed > 0:
             await session.commit()
             logger.info(f"Committed batch: {documents_indexed} changes processed")
@@ -389,10 +365,6 @@ async def _process_single_file(
     try:
         logger.info(f"Processing file: {file_name} ({mime_type})")
 
-        # Download and process using Surfsense's existing infrastructure
-        # This handles: markdown, audio, PDFs, Office docs, images, etc.
-        # It also handles: deduplication, chunking, summarization, embedding
-        # Document type is set to GOOGLE_DRIVE_CONNECTOR during processing
         _, error, _ = await download_and_process_file(
             client=drive_client,
             file=file,
@@ -404,7 +376,6 @@ async def _process_single_file(
         )
 
         if error:
-            # Log and skip - not an error, just unsupported or empty
             await task_logger.log_task_progress(
                 log_entry,
                 f"Skipped {file_name}: {error}",
@@ -412,7 +383,6 @@ async def _process_single_file(
             )
             return 0, 1
 
-        # File was processed successfully (document type already set in processor)
         logger.info(f"Successfully indexed Google Drive file: {file_name}")
         return 1, 0
 

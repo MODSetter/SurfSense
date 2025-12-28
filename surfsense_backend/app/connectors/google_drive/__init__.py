@@ -1,8 +1,4 @@
-"""
-Google Drive Connector Module.
-
-Simple, modular approach to Google Drive indexing.
-"""
+"""Google Drive Connector Module."""
 
 from .change_tracker import categorize_change, fetch_all_changes, get_start_page_token
 from .client import GoogleDriveClient

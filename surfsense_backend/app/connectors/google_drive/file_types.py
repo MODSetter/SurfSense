@@ -1,18 +1,11 @@
-"""
-File Type Handlers for Google Drive.
+"""File type handlers for Google Drive."""
 
-Simple module for basic file type detection.
-"""
-
-# Google Workspace MIME types that need export
 GOOGLE_DOC = "application/vnd.google-apps.document"
 GOOGLE_SHEET = "application/vnd.google-apps.spreadsheet"
 GOOGLE_SLIDE = "application/vnd.google-apps.presentation"
 GOOGLE_FOLDER = "application/vnd.google-apps.folder"
 GOOGLE_SHORTCUT = "application/vnd.google-apps.shortcut"
 
-# Export MIME types for Google Workspace files
-# Export as PDF to preserve formatting, images, and structure
 EXPORT_FORMATS = {
     GOOGLE_DOC: "application/pdf",
     GOOGLE_SHEET: "application/pdf",

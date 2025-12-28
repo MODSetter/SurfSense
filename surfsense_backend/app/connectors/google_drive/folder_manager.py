@@ -1,9 +1,4 @@
-"""
-Folder Management for Google Drive.
-
-Handles folder listing, selection, and hierarchy operations.
-Small, focused module for folder-related operations.
-"""
+"""Folder management for Google Drive."""
 
 import logging
 from typing import Any
@@ -165,11 +160,7 @@ async def list_folder_contents(
     parent_id: str | None = None,
 ) -> tuple[list[dict[str, Any]], str | None]:
     """
-    List both folders and files in a Google Drive folder.
-    
-    Fetches ALL items using pagination (handles folders with >100 items).
-    Returns items sorted with folders first, then files.
-    Each item includes 'isFolder' boolean for frontend rendering.
+    List folders and files in a Google Drive folder with pagination support.
 
     Args:
         client: GoogleDriveClient instance
@@ -212,20 +203,16 @@ async def list_folder_contents(
 
             all_items.extend(items)
             
-            # If no more pages, break
             if not next_token:
                 break
                 
             page_token = next_token
 
-        # Add 'isFolder' flag and sort (folders first, then files)
         for item in all_items:
             item["isFolder"] = item["mimeType"] == "application/vnd.google-apps.folder"
 
-        # Sort: folders first (alphabetically), then files (alphabetically)
         all_items.sort(key=lambda x: (not x["isFolder"], x["name"].lower()))
 
-        # Count folders and files for logging
         folder_count = sum(1 for item in all_items if item["isFolder"])
         file_count = len(all_items) - folder_count
 

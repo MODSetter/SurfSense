@@ -1,9 +1,4 @@
-"""
-Google Drive OAuth Credentials Management.
-
-Handles credential validation, token refresh, and persistence to database.
-Small, focused module for credential operations only.
-"""
+"""Google Drive OAuth credential management."""
 
 import json
 from datetime import datetime
@@ -35,7 +30,6 @@ async def get_valid_credentials(
         ValueError: If credentials are missing or invalid
         Exception: If token refresh fails
     """
-    # Fetch connector from database
     result = await session.execute(
         select(SearchSourceConnector).filter(
             SearchSourceConnector.id == connector_id
@@ -46,11 +40,9 @@ async def get_valid_credentials(
     if not connector:
         raise ValueError(f"Connector {connector_id} not found")
 
-    # Extract credentials from config
     config_data = connector.config
     exp = config_data.get("expiry", "").replace("Z", "")
 
-    # Validate required fields
     if not all(
         [
             config_data.get("client_id"),
@@ -62,7 +54,6 @@ async def get_valid_credentials(
             "Google OAuth credentials (client_id, client_secret, refresh_token) must be set"
         )
 
-    # Create credentials object
     credentials = Credentials(
         token=config_data.get("token"),
         refresh_token=config_data.get("refresh_token"),
@@ -73,12 +64,10 @@ async def get_valid_credentials(
         expiry=datetime.fromisoformat(exp) if exp else None,
     )
 
-    # Refresh token if expired
     if credentials.expired or not credentials.valid:
         try:
             credentials.refresh(Request())
 
-            # Persist refreshed token to database
             connector.config = json.loads(credentials.to_json())
             flag_modified(connector, "config")
             await session.commit()
