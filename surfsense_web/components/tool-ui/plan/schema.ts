@@ -18,7 +18,10 @@ export type TodoStatus = z.infer<typeof TodoStatusSchema>;
 export function normalizeStatus(status: unknown): TodoStatus {
 	if (typeof status !== "string") return "pending";
 
-	const normalized = status.toLowerCase().trim().replace(/[\s_-]+/g, "_");
+	const normalized = status
+		.toLowerCase()
+		.trim()
+		.replace(/[\s_-]+/g, "_");
 
 	// Completed variations
 	// Sources: Linear (Done), Jira (Done), ClickUp (Complete, Closed), GitHub (closed)
