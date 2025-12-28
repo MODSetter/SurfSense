@@ -388,7 +388,8 @@ async def _process_single_file(
         # Download and process using Surfsense's existing infrastructure
         # This handles: markdown, audio, PDFs, Office docs, images, etc.
         # It also handles: deduplication, chunking, summarization, embedding
-        document, error, file_metadata = await download_and_process_file(
+        # Document type is set to GOOGLE_DRIVE_CONNECTOR during processing
+        _, error, _ = await download_and_process_file(
             client=drive_client,
             file=file,
             search_space_id=search_space_id,
@@ -407,58 +408,9 @@ async def _process_single_file(
             )
             return 0, 1
 
-        if document and file_metadata:
-            # Refresh document from database to ensure it's attached to session
-            from app.db import Document
-            from sqlalchemy import select
-            
-            # Get fresh document from database
-            result = await session.execute(
-                select(Document).where(Document.id == document.id)
-            )
-            document = result.scalar_one_or_none()
-            
-            if not document:
-                logger.error(f"Could not find document {document.id} in database")
-                return 0, 1
-            
-            # Update document type to GOOGLE_DRIVE_CONNECTOR and add metadata
-            original_type = document.document_type
-            document.document_type = DocumentType.GOOGLE_DRIVE_CONNECTOR
-            
-            # Add Google Drive specific metadata
-            if not document.metadata:
-                document.metadata = {}
-            
-            document.metadata.update({
-                **file_metadata,
-                "original_document_type": original_type,
-                "source_connector": "google_drive",
-            })
-            
-            # Commit the document type and metadata changes
-            await session.commit()
-            
-            logger.info(
-                f"Updated document {document.id} to GOOGLE_DRIVE_CONNECTOR type with metadata"
-            )
-            
-            # Successfully indexed
-            await task_logger.log_task_progress(
-                log_entry,
-                f"Successfully indexed: {file_name}",
-                {
-                    "status": "indexed",
-                    "document_id": document.id,
-                    "file_name": file_name,
-                    "document_type": DocumentType.GOOGLE_DRIVE_CONNECTOR,
-                },
-            )
-            return 1, 0
-        else:
-            # Likely a duplicate or unsupported type
-            logger.info(f"No document created for {file_name} (duplicate or unsupported)")
-            return 0, 1
+        # File was processed successfully (document type already set in processor)
+        logger.info(f"Successfully indexed Google Drive file: {file_name}")
+        return 1, 0
 
     except Exception as e:
         logger.error(f"Error processing file {file_name}: {e!s}", exc_info=True)

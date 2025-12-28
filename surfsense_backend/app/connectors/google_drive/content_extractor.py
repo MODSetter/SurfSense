@@ -92,9 +92,26 @@ async def download_and_process_file(
         from app.tasks.document_processors.file_processors import (
             process_file_in_background,
         )
+        from app.db import DocumentType
+
+        # Prepare connector info
+        connector_info = {
+            "type": DocumentType.GOOGLE_DRIVE_CONNECTOR,
+            "metadata": {
+                "google_drive_file_id": file_id,
+                "google_drive_file_name": file_name,
+                "google_drive_mime_type": mime_type,
+                "source_connector": "google_drive",
+            },
+        }
+        
+        # If it was a Google Workspace file, note the export format
+        if is_google_workspace_file(mime_type):
+            connector_info["metadata"]["exported_as"] = "pdf"
+            connector_info["metadata"]["original_workspace_type"] = mime_type.split(".")[-1]
 
         logger.info(f"Processing {file_name} with Surfsense's file processor")
-        document = await process_file_in_background(
+        await process_file_in_background(
             file_path=temp_file_path,
             filename=file_name,
             search_space_id=search_space_id,
@@ -102,25 +119,11 @@ async def download_and_process_file(
             session=session,
             task_logger=task_logger,
             log_entry=log_entry,
+            connector=connector_info,  # Pass connector info
         )
 
-        # Note: Document type update happens in the indexer after this returns
-        # to ensure proper session management and commit timing
-        
-        # Prepare file metadata for the indexer to use
-        file_metadata = {
-            "google_drive_file_id": file_id,
-            "google_drive_file_name": file_name,
-            "google_drive_mime_type": mime_type,
-        }
-        
-        # If it was a Google Workspace file, note the export format
-        if is_google_workspace_file(mime_type):
-            file_metadata["exported_as"] = "pdf"
-            file_metadata["original_workspace_type"] = mime_type.split(".")[-1]  # e.g., "document", "spreadsheet"
-        
-        # process_file_in_background returns None on duplicate/error, Document on success
-        return document, None, file_metadata
+        # process_file_in_background doesn't return the document
+        return None, None, connector_info["metadata"]
 
     except Exception as e:
         logger.warning(f"Failed to process {file_name}: {e!s}")
