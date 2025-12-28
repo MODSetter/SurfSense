@@ -268,8 +268,8 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		searchSpaceId: string | number,
 		startDate?: string,
 		endDate?: string,
-		folderId?: string,
-		folderName?: string
+		folderIds?: string,
+		folderNames?: string
 	) => {
 		try {
 			// Build query parameters
@@ -282,11 +282,11 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			if (endDate) {
 				params.append("end_date", endDate);
 			}
-			if (folderId) {
-				params.append("folder_id", folderId);
+			if (folderIds) {
+				params.append("folder_ids", folderIds);
 			}
-			if (folderName) {
-				params.append("folder_name", folderName);
+			if (folderNames) {
+				params.append("folder_names", folderNames);
 			}
 
 			const response = await authenticatedFetch(

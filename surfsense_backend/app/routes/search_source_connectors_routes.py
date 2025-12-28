@@ -543,13 +543,13 @@ async def index_connector_content(
         None,
         description="End date for indexing (YYYY-MM-DD format). If not provided, uses today's date",
     ),
-    folder_id: str = Query(
+    folder_ids: str = Query(
         None,
-        description="[Google Drive only] Folder ID to index. If not provided, uses the connector's saved selected_folder_id",
+        description="[Google Drive only] Comma-separated folder IDs to index",
     ),
-    folder_name: str = Query(
+    folder_names: str = Query(
         None,
-        description="[Google Drive only] Folder name for display purposes",
+        description="[Google Drive only] Comma-separated folder names for display purposes",
     ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
@@ -763,15 +763,22 @@ async def index_connector_content(
                 index_google_drive_files_task,
             )
 
+            if not folder_ids or not folder_names:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Google Drive indexing requires folder_ids and folder_names parameters",
+                )
+
             logger.info(
-                f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, folder: {folder_name or 'default'}"
+                f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, folders: {folder_names}"
             )
+            # Pass comma-separated strings directly to Celery task
             index_google_drive_files_task.delay(
                 connector_id,
                 search_space_id,
                 str(user.id),
-                folder_id,
-                folder_name,
+                folder_ids,  # Pass as comma-separated string
+                folder_names,  # Pass as comma-separated string
             )
             response_message = "Google Drive indexing started in the background."
 

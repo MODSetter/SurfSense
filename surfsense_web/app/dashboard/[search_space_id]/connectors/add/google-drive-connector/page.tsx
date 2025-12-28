@@ -1,11 +1,13 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -17,45 +19,30 @@ import {
 } from "@/components/ui/card";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import {
-	type SearchSourceConnector,
-	useSearchSourceConnectors,
-} from "@/hooks/use-search-source-connectors";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 export default function GoogleDriveConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
-	const searchParams = useSearchParams();
 	const searchSpaceId = params.search_space_id as string;
 	
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { fetchConnectors } = useSearchSourceConnectors(true, Number.parseInt(searchSpaceId));
+	const { refetch: fetchConnectors } = useAtomValue(connectorsAtom);
 
-	// Check if connector exists and handle OAuth success
 	useEffect(() => {
-		const success = searchParams.get("success");
-		
-		fetchConnectors(Number.parseInt(searchSpaceId)).then((data) => {
-			const driveConnector = data.find(
+		fetchConnectors().then((data) => {
+			const connectors = data.data || [];
+			const connector = connectors.find(
 				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR
 			);
-			
-			if (driveConnector) {
+			if (connector) {
 				setDoesConnectorExist(true);
-				
-				// If just connected, show success and redirect
-				if (success === "true") {
-					toast.success("Google Drive connected successfully!");
-					setTimeout(() => {
-						router.push(`/dashboard/${searchSpaceId}/connectors`);
-					}, 1500);
-				}
 			}
 		});
-	}, [searchParams, fetchConnectors, searchSpaceId, router]);
+	}, []);
 
 	const handleConnectGoogle = async () => {
 		try {

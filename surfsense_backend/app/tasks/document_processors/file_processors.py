@@ -511,8 +511,8 @@ async def process_file_in_background(
                 session, filename, markdown_content, search_space_id, user_id
             )
 
-            # Update from connector if provided
-            await _update_document_from_connector(result, connector, session)
+            if connector:
+                await _update_document_from_connector(result, connector, session)
 
             if result:
                 await task_logger.log_task_success(
@@ -630,8 +630,8 @@ async def process_file_in_background(
                 session, filename, transcribed_text, search_space_id, user_id
             )
 
-            # Update from connector if provided
-            await _update_document_from_connector(result, connector, session)
+            if connector:
+                await _update_document_from_connector(result, connector, session)
 
             if result:
                 await task_logger.log_task_success(
@@ -778,8 +778,8 @@ async def process_file_in_background(
                     session, filename, docs, search_space_id, user_id
                 )
 
-                # Update from connector if provided
-                await _update_document_from_connector(result, connector, session)
+                if connector:
+                    await _update_document_from_connector(result, connector, session)
 
                 if result:
                     # Update page usage after successful processing
@@ -925,8 +925,8 @@ async def process_file_in_background(
                         user_id, final_page_count, allow_exceed=True
                     )
 
-                    # Update from connector if provided
-                    await _update_document_from_connector(last_created_doc, connector, session)
+                    if connector:
+                        await _update_document_from_connector(last_created_doc, connector, session)
 
                     await task_logger.log_task_success(
                         log_entry,
@@ -1052,8 +1052,8 @@ async def process_file_in_background(
                         user_id, final_page_count, allow_exceed=True
                     )
 
-                    # Update from connector if provided
-                    await _update_document_from_connector(doc_result, connector, session)
+                    if connector:
+                        await _update_document_from_connector(doc_result, connector, session)
 
                     await task_logger.log_task_success(
                         log_entry,
