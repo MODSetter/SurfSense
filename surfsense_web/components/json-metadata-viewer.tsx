@@ -49,7 +49,9 @@ export function JsonMetadataViewer({
 			<Dialog open={open} onOpenChange={onOpenChange}>
 				<DialogContent className="sm:max-w-4xl max-w-[95vw] w-full max-h-[80vh] overflow-y-auto p-4 sm:p-6">
 					<DialogHeader>
-						<DialogTitle className="text-base sm:text-lg truncate pr-6">{title} - Metadata</DialogTitle>
+						<DialogTitle className="text-base sm:text-lg truncate pr-6">
+							{title} - Metadata
+						</DialogTitle>
 					</DialogHeader>
 					<div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-muted/30 rounded-md text-xs sm:text-sm">
 						<JsonView data={jsonData} style={defaultStyles} />
@@ -72,7 +74,9 @@ export function JsonMetadataViewer({
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-4xl max-w-[95vw] w-full max-h-[80vh] overflow-y-auto p-4 sm:p-6">
 				<DialogHeader>
-					<DialogTitle className="text-base sm:text-lg truncate pr-6">{title} - Metadata</DialogTitle>
+					<DialogTitle className="text-base sm:text-lg truncate pr-6">
+						{title} - Metadata
+					</DialogTitle>
 				</DialogHeader>
 				<div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-muted/30 rounded-md text-xs sm:text-sm">
 					<JsonView data={jsonData} style={defaultStyles} />

@@ -45,7 +45,12 @@ interface AllChatsSidebarProps {
 	onCloseMobileSidebar?: () => void;
 }
 
-export function AllChatsSidebar({ open, onOpenChange, searchSpaceId, onCloseMobileSidebar }: AllChatsSidebarProps) {
+export function AllChatsSidebar({
+	open,
+	onOpenChange,
+	searchSpaceId,
+	onCloseMobileSidebar,
+}: AllChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();

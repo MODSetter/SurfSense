@@ -346,13 +346,17 @@ export default function TeamManagementPage() {
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
-								<Button onClick={handleRefresh} variant="outline" size="sm" className="gap-2 w-full md:w-auto">
+								<Button
+									onClick={handleRefresh}
+									variant="outline"
+									size="sm"
+									className="gap-2 w-full md:w-auto"
+								>
 									<RefreshCw className="h-4 w-4" />
 									Refresh
 								</Button>
 							</div>
 						</div>
-
 					</div>
 
 					{/* Summary Cards */}
@@ -418,21 +422,30 @@ export default function TeamManagementPage() {
 						<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 							<div className="overflow-x-auto pb-1 md:pb-0">
 								<TabsList className="bg-muted/50 p-1 w-full md:w-fit grid grid-cols-3 md:flex">
-									<TabsTrigger value="members" className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1">
+									<TabsTrigger
+										value="members"
+										className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1"
+									>
 										<Users className="h-4 w-4 hidden md:block" />
 										<span>Members</span>
 										<Badge variant="secondary" className="ml-1 text-xs">
 											{members.length}
 										</Badge>
 									</TabsTrigger>
-									<TabsTrigger value="roles" className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1">
+									<TabsTrigger
+										value="roles"
+										className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1"
+									>
 										<Shield className="h-4 w-4 hidden md:block" />
 										<span>Roles</span>
 										<Badge variant="secondary" className="ml-1 text-xs">
 											{roles.length}
 										</Badge>
 									</TabsTrigger>
-									<TabsTrigger value="invites" className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1">
+									<TabsTrigger
+										value="invites"
+										className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1"
+									>
 										<LinkIcon className="h-4 w-4 hidden md:block" />
 										<span>Invites</span>
 										<Badge variant="secondary" className="ml-1 text-xs">
@@ -637,7 +650,10 @@ function MembersTab({
 												</SelectContent>
 											</Select>
 										) : (
-											<Badge variant="secondary" className="gap-1 text-[10px] md:text-xs py-0 md:py-0.5">
+											<Badge
+												variant="secondary"
+												className="gap-1 text-[10px] md:text-xs py-0 md:py-0.5"
+											>
 												<Shield className="h-2.5 w-2.5 md:h-3 md:w-3" />
 												{member.role?.name || "No role"}
 											</Badge>

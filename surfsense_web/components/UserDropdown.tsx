@@ -55,12 +55,17 @@ export function UserDropdown({
 				<DropdownMenuLabel className="font-normal p-2 md:p-3">
 					<div className="flex flex-col space-y-1">
 						<p className="text-xs md:text-sm font-medium leading-none">{user.name}</p>
-						<p className="text-[10px] md:text-xs leading-none text-muted-foreground">{user.email}</p>
+						<p className="text-[10px] md:text-xs leading-none text-muted-foreground">
+							{user.email}
+						</p>
 					</div>
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuItem onClick={() => router.push(`/dashboard/api-key`)} className="text-xs md:text-sm">
+					<DropdownMenuItem
+						onClick={() => router.push(`/dashboard/api-key`)}
+						className="text-xs md:text-sm"
+					>
 						<BadgeCheck className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
 						API Key
 					</DropdownMenuItem>

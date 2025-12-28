@@ -295,7 +295,10 @@ const DashboardPage = () => {
 														<div className="flex items-center gap-2">
 															<h3 className="font-medium text-base md:text-lg">{space.name}</h3>
 															{!space.is_owner && (
-																<Badge variant="secondary" className="text-[10px] md:text-xs font-normal">
+																<Badge
+																	variant="secondary"
+																	className="text-[10px] md:text-xs font-normal"
+																>
 																	{t("shared")}
 																</Badge>
 															)}
@@ -333,7 +336,9 @@ const DashboardPage = () => {
 									<Search className="h-8 w-8 text-muted-foreground" />
 								</div>
 								<h3 className="text-base md:text-lg font-medium mb-2">{t("no_spaces_found")}</h3>
-								<p className="text-xs md:text-sm text-muted-foreground mb-6">{t("create_first_space")}</p>
+								<p className="text-xs md:text-sm text-muted-foreground mb-6">
+									{t("create_first_space")}
+								</p>
 								<Link href="/dashboard/searchspaces">
 									<Button>
 										<Plus className="mr-2 h-4 w-4" />
@@ -358,7 +363,9 @@ const DashboardPage = () => {
 									<Link href="/dashboard/searchspaces" className="flex h-full">
 										<div className="flex flex-col items-center justify-center h-full w-full rounded-xl border border-dashed bg-muted/10 hover:border-primary/50 transition-colors">
 											<Plus className="h-8 w-8 md:h-10 md:w-10 mb-2 md:mb-3 text-muted-foreground" />
-											<span className="text-xs md:text-sm font-medium">{t("add_new_search_space")}</span>
+											<span className="text-xs md:text-sm font-medium">
+												{t("add_new_search_space")}
+											</span>
 										</div>
 									</Link>
 								</Tilt>

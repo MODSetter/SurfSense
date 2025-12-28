@@ -9,9 +9,7 @@ interface ProcessingIndicatorProps {
 	documentProcessorTasksCount: number;
 }
 
-export function ProcessingIndicator({ 
-	documentProcessorTasksCount 
-}: ProcessingIndicatorProps) {
+export function ProcessingIndicator({ documentProcessorTasksCount }: ProcessingIndicatorProps) {
 	const t = useTranslations("documents");
 
 	// Only show when there are document_processor tasks (uploads), not connector_indexing_task (periodic reindexing)

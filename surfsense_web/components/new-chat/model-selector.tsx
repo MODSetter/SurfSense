@@ -192,7 +192,10 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						<>
 							{getProviderIcon(currentConfig.provider)}
 							<span className="max-w-[80px] md:max-w-[150px] truncate">{currentConfig.name}</span>
-							<Badge variant="secondary" className="ml-0.5 md:ml-1 text-[9px] md:text-[10px] px-1 md:px-1.5 py-0 h-3.5 md:h-4 bg-muted/80">
+							<Badge
+								variant="secondary"
+								className="ml-0.5 md:ml-1 text-[9px] md:text-[10px] px-1 md:px-1.5 py-0 h-3.5 md:h-4 bg-muted/80"
+							>
 								{currentConfig.model_name.split("/").pop()?.slice(0, 10) ||
 									currentConfig.model_name.slice(0, 10)}
 							</Badge>

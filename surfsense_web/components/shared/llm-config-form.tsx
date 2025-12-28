@@ -542,11 +542,21 @@ export function LLMConfigForm({
 					)}
 				>
 					{onCancel && (
-						<Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="text-xs sm:text-sm h-9 sm:h-10">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onCancel}
+							disabled={isSubmitting}
+							className="text-xs sm:text-sm h-9 sm:h-10"
+						>
 							Cancel
 						</Button>
 					)}
-					<Button type="submit" disabled={isSubmitting} className="gap-2 min-w-[140px] sm:min-w-[160px] text-xs sm:text-sm h-9 sm:h-10">
+					<Button
+						type="submit"
+						disabled={isSubmitting}
+						className="gap-2 min-w-[140px] sm:min-w-[160px] text-xs sm:text-sm h-9 sm:h-10"
+					>
 						{isSubmitting ? (
 							<>
 								<Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />

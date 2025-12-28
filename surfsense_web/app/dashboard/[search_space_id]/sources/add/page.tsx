@@ -55,7 +55,9 @@ export default function AddSourcesPage() {
 						<Database className="h-6 w-6 sm:h-8 sm:w-8" />
 						Add Sources
 					</h1>
-					<p className="text-muted-foreground text-sm sm:text-lg">Add your sources to your search space</p>
+					<p className="text-muted-foreground text-sm sm:text-lg">
+						Add your sources to your search space
+					</p>
 				</div>
 
 				{/* Tabs */}
