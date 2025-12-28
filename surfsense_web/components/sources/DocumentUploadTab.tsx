@@ -217,7 +217,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 		>
 			<Alert>
 				<Info className="h-4 w-4" />
-				<AlertDescription>{t("file_size_limit")}</AlertDescription>
+				<AlertDescription className="text-xs sm:text-sm">{t("file_size_limit")}</AlertDescription>
 			</Alert>
 
 			<Card className="relative overflow-hidden">
@@ -249,7 +249,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 							>
 								<Upload className="h-12 w-12 text-muted-foreground" />
 								<div className="text-center">
-									<p className="text-lg font-medium">{t("drag_drop")}</p>
+									<p className="text-base sm:text-lg font-medium">{t("drag_drop")}</p>
 									<p className="text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
 								</div>
 							</motion.div>
@@ -284,8 +284,10 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 							<CardHeader>
 								<div className="flex items-center justify-between">
 									<div>
-										<CardTitle>{t("selected_files", { count: files.length })}</CardTitle>
-										<CardDescription>
+										<CardTitle className="text-lg sm:text-2xl">
+											{t("selected_files", { count: files.length })}
+										</CardTitle>
+										<CardDescription className="text-xs sm:text-sm">
 											{t("total_size")}: {formatFileSize(getTotalFileSize())}
 										</CardDescription>
 									</div>
@@ -313,7 +315,9 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 												<div className="flex items-center gap-3 flex-1 min-w-0">
 													<FileType className="h-5 w-5 text-muted-foreground flex-shrink-0" />
 													<div className="flex-1 min-w-0">
-														<p className="font-medium truncate">{file.name}</p>
+														<p className="text-sm sm:text-base font-medium truncate">
+															{file.name}
+														</p>
 														<div className="flex items-center gap-2 mt-1">
 															<Badge variant="secondary" className="text-xs">
 																{formatFileSize(file.size)}
@@ -361,7 +365,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 									animate={{ opacity: 1, y: 0 }}
 								>
 									<Button
-										className="w-full py-6 text-base font-medium"
+										className="w-full py-4 sm:py-6 text-sm sm:text-base font-medium"
 										onClick={handleUpload}
 										disabled={isUploading || files.length === 0}
 									>

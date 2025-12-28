@@ -51,11 +51,11 @@ export default function AddSourcesPage() {
 			>
 				{/* Header */}
 				<div className="text-center space-y-2">
-					<h1 className="text-4xl font-bold tracking-tight flex items-center justify-center gap-3">
-						<Database className="h-8 w-8" />
+					<h1 className="text-2xl sm:text-4xl font-bold tracking-tight flex items-center justify-center gap-3">
+						<Database className="h-6 w-6 sm:h-8 sm:w-8" />
 						Add Sources
 					</h1>
-					<p className="text-muted-foreground text-lg">Add your sources to your search space</p>
+					<p className="text-muted-foreground text-sm sm:text-lg">Add your sources to your search space</p>
 				</div>
 
 				{/* Tabs */}

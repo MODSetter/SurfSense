@@ -125,17 +125,19 @@ export function YouTubeTab({ searchSpaceId }: YouTubeTabProps) {
 		>
 			<Card>
 				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
+					<CardTitle className="text-lg sm:text-2xl flex items-center gap-2">
 						<IconBrandYoutube className="h-5 w-5" />
 						{t("title")}
 					</CardTitle>
-					<CardDescription>{t("subtitle")}</CardDescription>
+					<CardDescription className="text-xs sm:text-sm">{t("subtitle")}</CardDescription>
 				</CardHeader>
 
 				<CardContent>
 					<div className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="video-input">{t("label")}</Label>
+							<Label htmlFor="video-input" className="text-sm sm:text-base">
+								{t("label")}
+							</Label>
 							<TagInput
 								id="video-input"
 								tags={videoTags}
@@ -212,14 +214,17 @@ export function YouTubeTab({ searchSpaceId }: YouTubeTabProps) {
 				<CardFooter className="flex justify-between">
 					<Button
 						variant="outline"
+						size="sm"
 						onClick={() => router.push(`/dashboard/${searchSpaceId}/documents`)}
+						className="text-xs sm:text-sm"
 					>
 						{t("cancel")}
 					</Button>
 					<Button
 						onClick={handleSubmit}
 						disabled={isSubmitting || videoTags.length === 0}
-						className="relative overflow-hidden"
+						size="sm"
+						className="relative overflow-hidden text-xs sm:text-sm"
 					>
 						{isSubmitting ? (
 							<>

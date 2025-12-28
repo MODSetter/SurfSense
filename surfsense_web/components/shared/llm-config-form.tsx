@@ -156,8 +156,8 @@ export function LLMConfigForm({
 			<form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
 				{/* System Instructions & Citations Section */}
 				<div className="space-y-4">
-					<div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-						<MessageSquareQuote className="h-4 w-4" />
+					<div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
+						<MessageSquareQuote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
 						System Instructions
 					</div>
 
@@ -168,7 +168,7 @@ export function LLMConfigForm({
 						render={({ field }) => (
 							<FormItem>
 								<div className="flex items-center justify-between">
-									<FormLabel>Instructions for the AI</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">Instructions for the AI</FormLabel>
 									{defaultInstructions && (
 										<Button
 											type="button"
@@ -177,7 +177,7 @@ export function LLMConfigForm({
 											onClick={() =>
 												field.onChange(defaultInstructions.default_system_instructions)
 											}
-											className="h-7 text-xs text-muted-foreground hover:text-foreground"
+											className="h-7 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground"
 										>
 											Reset to Default
 										</Button>
@@ -187,11 +187,11 @@ export function LLMConfigForm({
 									<Textarea
 										placeholder="Enter system instructions for the AI..."
 										rows={6}
-										className="font-mono text-xs resize-none"
+										className="font-mono text-[11px] sm:text-xs resize-none"
 										{...field}
 									/>
 								</FormControl>
-								<FormDescription className="text-xs">
+								<FormDescription className="text-[10px] sm:text-xs">
 									Use {"{resolved_today}"} to include today's date dynamically
 								</FormDescription>
 								<FormMessage />
@@ -206,8 +206,8 @@ export function LLMConfigForm({
 						render={({ field }) => (
 							<FormItem className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
 								<div className="space-y-0.5">
-									<FormLabel className="text-sm font-medium">Enable Citations</FormLabel>
-									<FormDescription className="text-xs">
+									<FormLabel className="text-xs sm:text-sm font-medium">Enable Citations</FormLabel>
+									<FormDescription className="text-[10px] sm:text-xs">
 										Include [citation:id] references to source documents
 									</FormDescription>
 								</div>
@@ -223,8 +223,8 @@ export function LLMConfigForm({
 
 				{/* Model Configuration Section */}
 				<div className="space-y-4">
-					<div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-						<Bot className="h-4 w-4" />
+					<div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
+						<Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
 						Model Configuration
 					</div>
 
@@ -235,7 +235,7 @@ export function LLMConfigForm({
 							name="name"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="flex items-center gap-2">
+									<FormLabel className="flex items-center gap-2 text-xs sm:text-sm">
 										<Sparkles className="h-3.5 w-3.5 text-violet-500" />
 										Configuration Name
 									</FormLabel>
@@ -256,7 +256,7 @@ export function LLMConfigForm({
 							name="description"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="text-muted-foreground">
+									<FormLabel className="text-muted-foreground text-xs sm:text-sm">
 										Description
 										<Badge variant="outline" className="ml-2 text-[10px]">
 											Optional
@@ -277,7 +277,7 @@ export function LLMConfigForm({
 						name="provider"
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>LLM Provider</FormLabel>
+								<FormLabel className="text-xs sm:text-sm">LLM Provider</FormLabel>
 								<Select value={field.value} onValueChange={handleProviderChange}>
 									<FormControl>
 										<SelectTrigger className="transition-all focus:ring-violet-500/50">
@@ -315,7 +315,7 @@ export function LLMConfigForm({
 									name="custom_provider"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>Custom Provider Name</FormLabel>
+											<FormLabel className="text-xs sm:text-sm">Custom Provider Name</FormLabel>
 											<FormControl>
 												<Input
 													placeholder="my-custom-provider"
@@ -337,7 +337,7 @@ export function LLMConfigForm({
 						name="model_name"
 						render={({ field }) => (
 							<FormItem className="flex flex-col">
-								<FormLabel>Model Name</FormLabel>
+								<FormLabel className="text-xs sm:text-sm">Model Name</FormLabel>
 								<Popover open={modelComboboxOpen} onOpenChange={setModelComboboxOpen}>
 									<PopoverTrigger asChild>
 										<FormControl>
@@ -410,7 +410,7 @@ export function LLMConfigForm({
 									</PopoverContent>
 								</Popover>
 								{selectedProvider?.example && (
-									<FormDescription className="text-xs">
+									<FormDescription className="text-[10px] sm:text-xs">
 										Example: {selectedProvider.example}
 									</FormDescription>
 								)}
@@ -426,7 +426,7 @@ export function LLMConfigForm({
 							name="api_key"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="flex items-center gap-2">
+									<FormLabel className="flex items-center gap-2 text-xs sm:text-sm">
 										<Key className="h-3.5 w-3.5 text-amber-500" />
 										API Key
 									</FormLabel>
@@ -438,7 +438,7 @@ export function LLMConfigForm({
 										/>
 									</FormControl>
 									{watchProvider === "OLLAMA" && (
-										<FormDescription className="text-xs">
+										<FormDescription className="text-[10px] sm:text-xs">
 											Ollama doesn't require auth — enter any value
 										</FormDescription>
 									)}
@@ -452,7 +452,7 @@ export function LLMConfigForm({
 							name="api_base"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="flex items-center gap-2">
+									<FormLabel className="flex items-center gap-2 text-xs sm:text-sm">
 										API Base URL
 										{selectedProvider?.apiBase && (
 											<Badge variant="secondary" className="text-[10px]">
@@ -510,8 +510,8 @@ export function LLMConfigForm({
 					<>
 						<Separator />
 						<div className="space-y-4">
-							<div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-								<Sparkles className="h-4 w-4" />
+							<div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
+								<Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
 								Advanced Parameters
 							</div>
 
@@ -542,19 +542,19 @@ export function LLMConfigForm({
 					)}
 				>
 					{onCancel && (
-						<Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+						<Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="text-xs sm:text-sm h-9 sm:h-10">
 							Cancel
 						</Button>
 					)}
-					<Button type="submit" disabled={isSubmitting} className="gap-2 min-w-[160px]">
+					<Button type="submit" disabled={isSubmitting} className="gap-2 min-w-[140px] sm:min-w-[160px] text-xs sm:text-sm h-9 sm:h-10">
 						{isSubmitting ? (
 							<>
-								<Loader2 className="h-4 w-4 animate-spin" />
+								<Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
 								{mode === "edit" ? "Updating..." : "Creating..."}
 							</>
 						) : (
 							<>
-								{!compact && <Rocket className="h-4 w-4" />}
+								{!compact && <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
 								{submitLabel ?? (mode === "edit" ? "Update Configuration" : "Create Configuration")}
 							</>
 						)}
