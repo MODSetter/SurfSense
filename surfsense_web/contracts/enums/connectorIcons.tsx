@@ -26,6 +26,7 @@ import {
 	Sparkles,
 	Telescope,
 	Webhook,
+	HardDrive,
 } from "lucide-react";
 import { EnumConnectorName } from "./connector";
 
@@ -57,6 +58,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconCalendar {...iconProps} />;
 		case EnumConnectorName.GOOGLE_GMAIL_CONNECTOR:
 			return <IconMail {...iconProps} />;
+		case EnumConnectorName.GOOGLE_DRIVE_CONNECTOR:
+			return <HardDrive {...iconProps} />;
 		case EnumConnectorName.AIRTABLE_CONNECTOR:
 			return <IconTable {...iconProps} />;
 		case EnumConnectorName.CONFLUENCE_CONNECTOR:
