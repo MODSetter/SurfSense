@@ -28,6 +28,7 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,7 @@ export function NavChats({
 	const router = useRouter();
 	const pathname = usePathname();
 	const isMobile = useIsMobile();
+	const { setOpenMobile } = useSidebar();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 	const [isAllChatsSidebarOpen, setIsAllChatsSidebarOpen] = useState(false);
@@ -119,7 +121,7 @@ export function NavChats({
 					</CollapsibleTrigger>
 
 					{/* Action buttons - always visible on hover */}
-					<div className="flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity pr-1">
+					<div className="flex items-center gap-0.5 md:opacity-0 md:group-hover/header:opacity-100 transition-opacity pr-1">
 						{searchSpaceId && chats.length > 0 && (
 							<Button
 								variant="ghost"
@@ -171,7 +173,7 @@ export function NavChats({
 																size="icon"
 																className={cn(
 																	"h-6 w-6",
-																	"opacity-0 group-hover/chat:opacity-100 focus:opacity-100",
+																	"md:opacity-0 md:group-hover/chat:opacity-100 md:focus:opacity-100",
 																	"data-[state=open]:opacity-100",
 																	"transition-opacity"
 																)}
@@ -242,6 +244,7 @@ export function NavChats({
 					open={isAllChatsSidebarOpen}
 					onOpenChange={setIsAllChatsSidebarOpen}
 					searchSpaceId={searchSpaceId}
+					onCloseMobileSidebar={() => setOpenMobile(false)}
 				/>
 			)}
 		</SidebarGroup>

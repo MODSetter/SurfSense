@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Pencil, Trash2 } from "lucide-react";
+import { FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -16,6 +16,12 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Document } from "./types";
 
@@ -57,53 +63,108 @@ export function RowActions({
 
 	return (
 		<div className="flex items-center justify-end gap-1">
-			{/* Edit Button */}
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<motion.div
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.95 }}
-						transition={{ type: "spring", stiffness: 400, damping: 17 }}
-					>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-							onClick={handleEdit}
+			{/* Desktop Actions */}
+			<div className="hidden md:flex items-center gap-1">
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<motion.div
+							whileHover={{ scale: 1.1 }}
+							whileTap={{ scale: 0.95 }}
+							transition={{ type: "spring", stiffness: 400, damping: 17 }}
 						>
-							<Pencil className="h-4 w-4" />
-							<span className="sr-only">Edit Document</span>
-						</Button>
-					</motion.div>
-				</TooltipTrigger>
-				<TooltipContent side="top">
-					<p>Edit Document</p>
-				</TooltipContent>
-			</Tooltip>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
+								onClick={handleEdit}
+							>
+								<Pencil className="h-4 w-4" />
+								<span className="sr-only">Edit Document</span>
+							</Button>
+						</motion.div>
+					</TooltipTrigger>
+					<TooltipContent side="top">
+						<p>Edit Document</p>
+					</TooltipContent>
+				</Tooltip>
 
-			{/* View Metadata Button */}
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<motion.div
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.95 }}
-						transition={{ type: "spring", stiffness: 400, damping: 17 }}
-					>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-							onClick={() => setIsMetadataOpen(true)}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<motion.div
+							whileHover={{ scale: 1.1 }}
+							whileTap={{ scale: 0.95 }}
+							transition={{ type: "spring", stiffness: 400, damping: 17 }}
 						>
-							<FileText className="h-4 w-4" />
-							<span className="sr-only">View Metadata</span>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
+								onClick={() => setIsMetadataOpen(true)}
+							>
+								<FileText className="h-4 w-4" />
+								<span className="sr-only">View Metadata</span>
+							</Button>
+						</motion.div>
+					</TooltipTrigger>
+					<TooltipContent side="top">
+						<p>View Metadata</p>
+					</TooltipContent>
+				</Tooltip>
+
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<motion.div
+							whileHover={{ scale: 1.1 }}
+							whileTap={{ scale: 0.95 }}
+							transition={{ type: "spring", stiffness: 400, damping: 17 }}
+						>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+								onClick={() => setIsDeleteOpen(true)}
+								disabled={isDeleting}
+							>
+								<Trash2 className="h-4 w-4" />
+								<span className="sr-only">Delete</span>
+							</Button>
+						</motion.div>
+					</TooltipTrigger>
+					<TooltipContent side="top">
+						<p>Delete</p>
+					</TooltipContent>
+				</Tooltip>
+			</div>
+
+			{/* Mobile Actions Dropdown */}
+			<div className="flex md:hidden">
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+							<MoreHorizontal className="h-4 w-4" />
+							<span className="sr-only">Open menu</span>
 						</Button>
-					</motion.div>
-				</TooltipTrigger>
-				<TooltipContent side="top">
-					<p>View Metadata</p>
-				</TooltipContent>
-			</Tooltip>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="w-40">
+						<DropdownMenuItem onClick={handleEdit}>
+							<Pencil className="mr-2 h-4 w-4" />
+							<span>Edit</span>
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setIsMetadataOpen(true)}>
+							<FileText className="mr-2 h-4 w-4" />
+							<span>Metadata</span>
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={() => setIsDeleteOpen(true)}
+							className="text-destructive focus:text-destructive"
+						>
+							<Trash2 className="mr-2 h-4 w-4" />
+							<span>Delete</span>
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
+
 			<JsonMetadataViewer
 				title={document.title}
 				metadata={document.document_metadata}
@@ -111,30 +172,6 @@ export function RowActions({
 				onOpenChange={setIsMetadataOpen}
 			/>
 
-			{/* Delete Button */}
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<motion.div
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.95 }}
-						transition={{ type: "spring", stiffness: 400, damping: 17 }}
-					>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-							onClick={() => setIsDeleteOpen(true)}
-							disabled={isDeleting}
-						>
-							<Trash2 className="h-4 w-4" />
-							<span className="sr-only">Delete</span>
-						</Button>
-					</motion.div>
-				</TooltipTrigger>
-				<TooltipContent side="top">
-					<p>Delete</p>
-				</TooltipContent>
-			</Tooltip>
 			<AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
 				<AlertDialogContent>
 					<AlertDialogHeader>

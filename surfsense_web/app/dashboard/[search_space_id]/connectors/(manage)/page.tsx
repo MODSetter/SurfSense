@@ -278,14 +278,17 @@ export default function ConnectorsPage() {
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.5 }}
-				className="mb-8 flex items-center justify-between"
+				className="mb-8 flex items-center justify-between gap-2"
 			>
 				<div>
-					<h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-					<p className="text-muted-foreground mt-2">{t("subtitle")}</p>
+					<h1 className="text-xl md:text-3xl font-bold tracking-tight">{t("title")}</h1>
+					<p className="text-xs md:text-base text-muted-foreground mt-2">{t("subtitle")}</p>
 				</div>
-				<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}>
-					<Plus className="mr-2 h-4 w-4" />
+				<Button
+					className="h-8 text-xs px-3 md:h-10 md:text-sm md:px-4"
+					onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}
+				>
+					<Plus className="mr-2 h-3 w-3 md:h-4 md:w-4" />
 					{t("add_connector")}
 				</Button>
 			</motion.div>

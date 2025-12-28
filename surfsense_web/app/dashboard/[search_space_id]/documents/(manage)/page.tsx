@@ -225,8 +225,8 @@ export default function DocumentsTable() {
 				transition={{ delay: 0.1 }}
 			>
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
-					<p className="text-muted-foreground">{t("subtitle")}</p>
+					<h2 className="text-xl md:text-2xl font-bold tracking-tight">{t("title")}</h2>
+					<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
 				</div>
 				<Button onClick={refreshCurrentView} variant="outline" size="sm">
 					<RefreshCw className="w-4 h-4 mr-2" />

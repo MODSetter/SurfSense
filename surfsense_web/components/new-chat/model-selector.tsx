@@ -175,39 +175,41 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 					role="combobox"
 					aria-expanded={open}
 					className={cn(
-						"h-9 gap-2 px-3 rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm",
+						"h-7 md:h-9 gap-1 md:gap-2 px-2 md:px-3 rounded-lg md:rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm",
 						"hover:bg-muted/80 hover:border-border/30 transition-all duration-200",
-						"text-sm font-medium text-foreground",
+						"text-xs md:text-sm font-medium text-foreground",
 						"focus-visible:ring-0 focus-visible:ring-offset-0",
 						className
 					)}
 				>
 					{isLoading ? (
 						<>
-							<Loader2 className="size-4 animate-spin text-muted-foreground" />
-							<span className="text-muted-foreground">Loading...</span>
+							<Loader2 className="size-3.5 md:size-4 animate-spin text-muted-foreground" />
+							<span className="text-muted-foreground hidden md:inline">Loading...</span>
+							<span className="text-muted-foreground md:hidden">Load...</span>
 						</>
 					) : currentConfig ? (
 						<>
 							{getProviderIcon(currentConfig.provider)}
-							<span className="max-w-[150px] truncate">{currentConfig.name}</span>
-							<Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4 bg-muted/80">
-								{currentConfig.model_name.split("/").pop()?.slice(0, 15) ||
-									currentConfig.model_name.slice(0, 15)}
+							<span className="max-w-[80px] md:max-w-[150px] truncate">{currentConfig.name}</span>
+							<Badge variant="secondary" className="ml-0.5 md:ml-1 text-[9px] md:text-[10px] px-1 md:px-1.5 py-0 h-3.5 md:h-4 bg-muted/80">
+								{currentConfig.model_name.split("/").pop()?.slice(0, 10) ||
+									currentConfig.model_name.slice(0, 10)}
 							</Badge>
 						</>
 					) : (
 						<>
-							<Bot className="size-4 text-muted-foreground" />
-							<span className="text-muted-foreground">Select Model</span>
+							<Bot className="size-3.5 md:size-4 text-muted-foreground" />
+							<span className="text-muted-foreground hidden md:inline">Select Model</span>
+							<span className="text-muted-foreground md:hidden">Model</span>
 						</>
 					)}
-					<ChevronDown className="size-3.5 text-muted-foreground ml-1 shrink-0" />
+					<ChevronDown className="size-3 md:size-3.5 text-muted-foreground ml-1 shrink-0" />
 				</Button>
 			</PopoverTrigger>
 
 			<PopoverContent
-				className="w-[360px] p-0 rounded-xl shadow-lg border-border/30"
+				className="w-[280px] md:w-[360px] p-0 rounded-lg md:rounded-xl shadow-lg border-border/30"
 				align="start"
 				sideOffset={8}
 			>
@@ -225,17 +227,17 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						</div>
 					)}
 
-					<div className="flex items-center gap-2 border-b border-border/30 px-3 py-2">
+					<div className="flex items-center gap-1 md:gap-2 border-b border-border/30 px-2 md:px-3 py-1.5 md:py-2">
 						<CommandInput
 							placeholder="Search models..."
 							value={searchQuery}
 							onValueChange={setSearchQuery}
-							className="h-8 border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
+							className="h-7 md:h-8 text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
 							disabled={isSwitching}
 						/>
 					</div>
 
-					<CommandList className="max-h-[400px] overflow-y-auto">
+					<CommandList className="max-h-[300px] md:max-h-[400px] overflow-y-auto">
 						<CommandEmpty className="py-8 text-center">
 							<div className="flex flex-col items-center gap-2">
 								<Bot className="size-8 text-muted-foreground/40" />

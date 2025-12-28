@@ -83,8 +83,8 @@ export function DocumentsTableShell({
 
 	const toggleAll = (checked: boolean) => {
 		const next = new Set(selectedIds);
-		if (checked) sorted.forEach((d) => next.add(d.id));
-		else sorted.forEach((d) => next.delete(d.id));
+		if (checked) sorted.forEach((d) => { next.add(d.id); });
+		else sorted.forEach((d) => { next.delete(d.id); });
 		setSelectedIds(next);
 	};
 
@@ -323,26 +323,16 @@ export function DocumentsTableShell({
 							const icon = getDocumentTypeIcon(doc.document_type);
 							return (
 								<div key={doc.id} className="p-3">
-									<div className="flex items-start gap-3">
+									<div className="flex items-center gap-3">
 										<Checkbox
 											checked={selectedIds.has(doc.id)}
 											onCheckedChange={(v) => toggleOne(doc.id, !!v)}
 											aria-label="Select row"
 										/>
 										<div className="flex-1 min-w-0">
-											<div className="flex items-center justify-between gap-2">
-												<div className="flex items-center gap-2 min-w-0">
-													<span className="text-muted-foreground shrink-0">{icon}</span>
-													<div className="font-medium truncate">{doc.title}</div>
-												</div>
-												<RowActions
-													document={doc}
-													deleteDocument={deleteDocument}
-													refreshDocuments={async () => {
-														await onRefresh();
-													}}
-													searchSpaceId={searchSpaceId as string}
-												/>
+											<div className="flex items-center gap-2 min-w-0">
+												<span className="text-muted-foreground shrink-0">{icon}</span>
+												<div className="font-medium truncate">{doc.title}</div>
 											</div>
 											<div className="mt-1 flex flex-wrap items-center gap-2">
 												<DocumentTypeChip type={doc.document_type} />
@@ -371,6 +361,14 @@ export function DocumentsTableShell({
 												</div>
 											)}
 										</div>
+										<RowActions
+											document={doc}
+											deleteDocument={deleteDocument}
+											refreshDocuments={async () => {
+												await onRefresh();
+											}}
+											searchSpaceId={searchSpaceId as string}
+										/>
 									</div>
 								</div>
 							);

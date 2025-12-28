@@ -154,8 +154,8 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 						"text-muted-foreground hover:text-foreground"
 					)}
 				>
-					{/* Header text with shimmer if processing or has in-progress step */}
-					{isProcessing && inProgressStep ? (
+					{/* Header text with shimmer if processing (streaming) */}
+					{isProcessing ? (
 						<TextShimmerLoader text={getHeaderText()} size="sm" />
 					) : (
 						<span>{getHeaderText()}</span>
@@ -398,7 +398,7 @@ const ThreadWelcome: FC = () => {
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer - fixed position */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
-				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-5xl delay-100 duration-500 ease-out fill-mode-both">
+				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-3xl md:text-5xl delay-100 duration-500 ease-out fill-mode-both">
 					{greeting}
 				</h1>
 			</div>
@@ -891,14 +891,17 @@ const ThinkingStepsPart: FC = () => {
 	const messageId = useAssistantState(({ message }) => message?.id);
 	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
 
-	// Check if thread is still running (for stopping the spinner when cancelled)
+	// Check if this specific message is currently streaming
+	// A message is streaming if: thread is running AND this is the last assistant message
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
+	const isMessageStreaming = isThreadRunning && isLastMessage;
 
 	if (thinkingSteps.length === 0) return null;
 
 	return (
 		<div className="mb-3">
-			<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isThreadRunning} />
+			<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isMessageStreaming} />
 		</div>
 	);
 };
