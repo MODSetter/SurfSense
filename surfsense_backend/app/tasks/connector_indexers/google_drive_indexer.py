@@ -408,6 +408,20 @@ async def _process_single_file(
             return 0, 1
 
         if document and file_metadata:
+            # Refresh document from database to ensure it's attached to session
+            from app.db import Document
+            from sqlalchemy import select
+            
+            # Get fresh document from database
+            result = await session.execute(
+                select(Document).where(Document.id == document.id)
+            )
+            document = result.scalar_one_or_none()
+            
+            if not document:
+                logger.error(f"Could not find document {document.id} in database")
+                return 0, 1
+            
             # Update document type to GOOGLE_DRIVE_CONNECTOR and add metadata
             original_type = document.document_type
             document.document_type = DocumentType.GOOGLE_DRIVE_CONNECTOR
