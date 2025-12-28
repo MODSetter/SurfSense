@@ -241,7 +241,7 @@ export function DashboardClientLayout({
 
 	return (
 		<SidebarProvider
-			className="h-full bg-red-600 overflow-hidden"
+			className="h-full overflow-hidden"
 			open={open}
 			onOpenChange={setOpen}
 		>
