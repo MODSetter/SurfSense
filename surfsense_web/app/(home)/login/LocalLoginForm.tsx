@@ -118,8 +118,8 @@ export function LocalLoginForm() {
 	};
 
 	return (
-		<div className="w-full max-w-md">
-			<form onSubmit={handleSubmit} className="space-y-4">
+		<div className="w-full max-w-md px-6 md:px-0">
+			<form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
 				{/* Error Display */}
 				<AnimatePresence>
 					{error && error.title && (
@@ -194,7 +194,7 @@ export function LocalLoginForm() {
 						required
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}
-						className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-colors ${
+						className={`mt-1 block w-full rounded-md border px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
 							error.title
 								? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
 								: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
@@ -217,7 +217,7 @@ export function LocalLoginForm() {
 							required
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
-							className={`mt-1 block w-full rounded-md border pr-10 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-colors ${
+							className={`mt-1 block w-full rounded-md border pr-10 px-3 py-1.5 md:py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:bg-gray-800 dark:text-white transition-all ${
 								error.title
 									? "border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700"
 									: "border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700"
@@ -238,7 +238,7 @@ export function LocalLoginForm() {
 				<button
 					type="submit"
 					disabled={isLoggingIn}
-					className="w-full rounded-md bg-blue-600 px-4 py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+					className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base"
 				>
 					{isLoggingIn ? tCommon("loading") : t("sign_in")}
 				</button>

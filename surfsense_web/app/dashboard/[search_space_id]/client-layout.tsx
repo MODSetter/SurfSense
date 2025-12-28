@@ -241,7 +241,7 @@ export function DashboardClientLayout({
 
 	return (
 		<SidebarProvider
-			className="h-full bg-red-600 overflow-hidden"
+			className="h-full overflow-hidden"
 			open={open}
 			onOpenChange={setOpen}
 		>
@@ -257,8 +257,10 @@ export function DashboardClientLayout({
 						<div className="flex items-center justify-between w-full gap-2 px-4">
 							<div className="flex items-center gap-2">
 								<SidebarTrigger className="-ml-1" />
-								<Separator orientation="vertical" className="h-6" />
-								<DashboardBreadcrumb />
+								<div className="hidden md:flex items-center gap-2">
+									<Separator orientation="vertical" className="h-6" />
+									<DashboardBreadcrumb />
+								</div>
 							</div>
 							<div className="flex items-center gap-2">
 								<LanguageSwitcher />

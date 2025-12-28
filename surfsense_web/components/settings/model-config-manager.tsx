@@ -160,7 +160,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		LLM_PROVIDERS.find((p) => p.value === providerValue);
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 md:space-y-6">
 			{/* Header */}
 			<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
 				<div className="flex items-center space-x-2">
@@ -169,9 +169,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						size="sm"
 						onClick={() => refreshConfigs()}
 						disabled={isLoading}
-						className="flex items-center gap-2"
+						className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
 					>
-						<RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+						<RefreshCw className={cn("h-3 w-3 md:h-4 md:w-4", isLoading && "animate-spin")} />
 						Refresh
 					</Button>
 				</div>
@@ -187,9 +187,11 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: -10 }}
 						>
-							<Alert variant="destructive">
-								<AlertCircle className="h-4 w-4" />
-								<AlertDescription>{err?.message ?? "Something went wrong"}</AlertDescription>
+							<Alert variant="destructive" className="py-3 md:py-4">
+								<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+								<AlertDescription className="text-xs md:text-sm">
+									{err?.message ?? "Something went wrong"}
+								</AlertDescription>
 							</Alert>
 						</motion.div>
 					))}
@@ -198,9 +200,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			{/* Global Configs Info */}
 			{globalConfigs.length > 0 && (
 				<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-					<Alert className="border-blue-500/30 bg-blue-500/5">
-						<Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-						<AlertDescription className="text-blue-800 dark:text-blue-200">
+					<Alert className="border-blue-500/30 bg-blue-500/5 py-3 md:py-4">
+						<Sparkles className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+						<AlertDescription className="text-blue-800 dark:text-blue-200 text-xs md:text-sm">
 							<span className="font-medium">{globalConfigs.length} global configuration(s)</span>{" "}
 							available from your administrator. These are pre-configured and ready to use.{" "}
 							<span className="text-blue-600 dark:text-blue-300">
@@ -214,10 +216,12 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			{/* Loading State */}
 			{isLoading && (
 				<Card>
-					<CardContent className="flex items-center justify-center py-16">
-						<div className="flex flex-col items-center gap-3">
-							<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-							<span className="text-sm text-muted-foreground">Loading configurations...</span>
+					<CardContent className="flex items-center justify-center py-10 md:py-16">
+						<div className="flex flex-col items-center gap-2 md:gap-3">
+							<Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-muted-foreground" />
+							<span className="text-xs md:text-sm text-muted-foreground">
+								Loading configurations...
+							</span>
 						</div>
 					</CardContent>
 				</Card>
@@ -225,11 +229,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 			{/* Configurations List */}
 			{!isLoading && (
-				<div className="space-y-6">
+				<div className="space-y-4 md:space-y-6">
 					<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-						<h3 className="text-xl font-semibold tracking-tight">Your Configurations</h3>
-						<Button onClick={openNewDialog} className="flex items-center gap-2">
-							<Plus className="h-4 w-4" />
+						<h3 className="text-lg md:text-xl font-semibold tracking-tight">Your Configurations</h3>
+						<Button
+							onClick={openNewDialog}
+							className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
+						>
+							<Plus className="h-3 w-3 md:h-4 md:w-4" />
 							Add Configuration
 						</Button>
 					</div>
@@ -237,18 +244,22 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					{configs?.length === 0 ? (
 						<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
 							<Card className="border-dashed border-2 border-muted-foreground/25">
-								<CardContent className="flex flex-col items-center justify-center py-16 text-center">
-									<div className="rounded-full bg-gradient-to-br from-violet-500/10 to-purple-500/10 p-6 mb-6">
-										<Wand2 className="h-12 w-12 text-violet-600 dark:text-violet-400" />
+								<CardContent className="flex flex-col items-center justify-center py-10 md:py-16 text-center">
+									<div className="rounded-full bg-gradient-to-br from-violet-500/10 to-purple-500/10 p-4 md:p-6 mb-4 md:mb-6">
+										<Wand2 className="h-8 w-8 md:h-12 md:w-12 text-violet-600 dark:text-violet-400" />
 									</div>
-									<div className="space-y-2 mb-6">
-										<h3 className="text-xl font-semibold">No Configurations Yet</h3>
-										<p className="text-muted-foreground max-w-sm">
+									<div className="space-y-2 mb-4 md:mb-6">
+										<h3 className="text-lg md:text-xl font-semibold">No Configurations Yet</h3>
+										<p className="text-xs md:text-sm text-muted-foreground max-w-sm">
 											Create your first AI configuration to customize how your agent responds
 										</p>
 									</div>
-									<Button onClick={openNewDialog} size="lg" className="gap-2">
-										<Plus className="h-4 w-4" />
+									<Button
+										onClick={openNewDialog}
+										size="lg"
+										className="gap-2 text-xs md:text-sm h-9 md:h-10"
+									>
+										<Plus className="h-3 w-3 md:h-4 md:w-4" />
 										Create First Configuration
 									</Button>
 								</CardContent>
@@ -270,25 +281,25 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 												<CardContent className="p-0">
 													<div className="flex">
 														{/* Left accent bar */}
-														<div className="w-1.5 transition-colors bg-gradient-to-b from-violet-500/50 to-purple-500/50 group-hover:from-violet-500 group-hover:to-purple-500" />
+														<div className="w-1 md:w-1.5 transition-colors bg-gradient-to-b from-violet-500/50 to-purple-500/50 group-hover:from-violet-500 group-hover:to-purple-500" />
 
-														<div className="flex-1 p-5">
-															<div className="flex items-start justify-between gap-4">
+														<div className="flex-1 p-3 md:p-5">
+															<div className="flex items-start justify-between gap-2 md:gap-4">
 																{/* Main content */}
-																<div className="flex items-start gap-4 flex-1 min-w-0">
-																	<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 group-hover:from-violet-500/20 group-hover:to-purple-500/20 transition-colors">
-																		<Bot className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+																<div className="flex items-start gap-2 md:gap-4 flex-1 min-w-0">
+																	<div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 group-hover:from-violet-500/20 group-hover:to-purple-500/20 transition-colors shrink-0">
+																		<Bot className="h-5 w-5 md:h-6 md:w-6 text-violet-600 dark:text-violet-400" />
 																	</div>
-																	<div className="flex-1 min-w-0 space-y-3">
+																	<div className="flex-1 min-w-0 space-y-2 md:space-y-3">
 																		{/* Title row */}
-																		<div className="flex items-center gap-2 flex-wrap">
-																			<h4 className="text-base font-semibold tracking-tight truncate">
+																		<div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+																			<h4 className="text-sm md:text-base font-semibold tracking-tight truncate">
 																				{config.name}
 																			</h4>
-																			<div className="flex items-center gap-1.5 flex-wrap">
+																			<div className="flex items-center gap-1 md:gap-1.5 flex-wrap">
 																				<Badge
 																					variant="secondary"
-																					className="text-[10px] font-medium px-2 py-0.5 bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20"
+																					className="text-[9px] md:text-[10px] font-medium px-1.5 md:px-2 py-0.5 bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20"
 																				>
 																					{config.provider}
 																				</Badge>
@@ -298,9 +309,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																							<TooltipTrigger>
 																								<Badge
 																									variant="outline"
-																									className="text-[10px] px-2 py-0.5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+																									className="text-[9px] md:text-[10px] px-1.5 md:px-2 py-0.5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
 																								>
-																									<MessageSquareQuote className="h-3 w-3 mr-1" />
+																									<MessageSquareQuote className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
 																									Citations
 																								</Badge>
 																							</TooltipTrigger>
@@ -317,9 +328,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																								<TooltipTrigger>
 																									<Badge
 																										variant="outline"
-																										className="text-[10px] px-2 py-0.5 border-blue-500/30 text-blue-700 dark:text-blue-300"
+																										className="text-[9px] md:text-[10px] px-1.5 md:px-2 py-0.5 border-blue-500/30 text-blue-700 dark:text-blue-300"
 																									>
-																										<FileText className="h-3 w-3 mr-1" />
+																										<FileText className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
 																										Custom
 																									</Badge>
 																								</TooltipTrigger>
@@ -333,21 +344,21 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																		</div>
 
 																		{/* Model name */}
-																		<code className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-1 rounded-md inline-block">
+																		<code className="text-[10px] md:text-xs font-mono text-muted-foreground bg-muted/50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md inline-block">
 																			{config.model_name}
 																		</code>
 
 																		{/* Description if any */}
 																		{config.description && (
-																			<p className="text-xs text-muted-foreground line-clamp-1">
+																			<p className="text-[10px] md:text-xs text-muted-foreground line-clamp-1">
 																				{config.description}
 																			</p>
 																		)}
 
 																		{/* Footer row */}
-																		<div className="flex items-center gap-4 pt-1">
-																			<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-																				<Clock className="h-3 w-3" />
+																		<div className="flex items-center gap-2 md:gap-4 pt-1">
+																			<div className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground">
+																				<Clock className="h-2.5 w-2.5 md:h-3 md:w-3" />
 																				<span>
 																					{new Date(config.created_at).toLocaleDateString()}
 																				</span>
@@ -357,7 +368,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																</div>
 
 																{/* Actions */}
-																<div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+																<div className="flex items-center gap-0.5 md:gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
 																	<TooltipProvider>
 																		<Tooltip>
 																			<TooltipTrigger asChild>
@@ -365,9 +376,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																					variant="ghost"
 																					size="sm"
 																					onClick={() => openEditDialog(config)}
-																					className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+																					className="h-7 w-7 md:h-8 md:w-8 p-0 text-muted-foreground hover:text-foreground"
 																				>
-																					<Edit3 className="h-4 w-4" />
+																					<Edit3 className="h-3.5 w-3.5 md:h-4 md:w-4" />
 																				</Button>
 																			</TooltipTrigger>
 																			<TooltipContent>Edit</TooltipContent>
@@ -380,9 +391,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																					variant="ghost"
 																					size="sm"
 																					onClick={() => setConfigToDelete(config)}
-																					className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+																					className="h-7 w-7 md:h-8 md:w-8 p-0 text-muted-foreground hover:text-destructive"
 																				>
-																					<Trash2 className="h-4 w-4" />
+																					<Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
 																				</Button>
 																			</TooltipTrigger>
 																			<TooltipContent>Delete</TooltipContent>

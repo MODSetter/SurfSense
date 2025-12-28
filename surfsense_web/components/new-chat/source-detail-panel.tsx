@@ -352,9 +352,9 @@ export function SourceDetailPanel({
 									size="icon"
 									variant="ghost"
 									onClick={() => onOpenChange(false)}
-									className="rounded-xl h-10 w-10 hover:bg-destructive/10 hover:text-destructive transition-colors"
+									className="h-8 w-8 rounded-full"
 								>
-									<X className="h-5 w-5" />
+									<X className="h-4 w-4" />
 									<span className="sr-only">Close</span>
 								</Button>
 							</div>

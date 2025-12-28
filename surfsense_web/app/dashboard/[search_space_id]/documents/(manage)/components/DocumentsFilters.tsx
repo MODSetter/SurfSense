@@ -75,14 +75,14 @@ export function DocumentsFilters({
 
 	return (
 		<motion.div
-			className="flex flex-wrap items-center justify-between gap-3"
+			className="flex flex-wrap items-center justify-start gap-3 w-full"
 			initial={{ opacity: 0, y: 10 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }}
 		>
-			<div className="flex items-center gap-3">
+			<div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
 				<motion.div
-					className="relative"
+					className="relative w-full sm:w-auto"
 					initial={{ opacity: 0, y: -10 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -90,7 +90,7 @@ export function DocumentsFilters({
 					<Input
 						id={`${id}-input`}
 						ref={inputRef}
-						className="peer min-w-60 ps-9"
+						className="peer w-full sm:min-w-60 ps-9"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
 						placeholder={t("filter_placeholder")}
@@ -231,11 +231,11 @@ export function DocumentsFilters({
 				</DropdownMenu>
 			</div>
 
-			<div className="flex items-center gap-3">
+			<div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto">
 				{selectedIds.size > 0 && (
 					<AlertDialog>
 						<AlertDialogTrigger asChild>
-							<Button className="ml-auto" variant="outline">
+							<Button className="w-full sm:w-auto" variant="outline">
 								<Trash
 									className="-ms-1 me-2 opacity-60"
 									size={16}

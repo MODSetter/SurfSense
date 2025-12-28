@@ -1,29 +1,15 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-	type ColumnDef,
-	type ColumnFiltersState,
-	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	type SortingState,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
 import {
 	ArrowLeft,
 	Calendar,
 	Check,
-	ChevronDown,
-	ChevronUp,
 	Clock,
 	Copy,
 	Crown,
 	Edit2,
-	ExternalLink,
 	Hash,
 	Link2,
 	LinkIcon,
@@ -32,7 +18,6 @@ import {
 	Plus,
 	RefreshCw,
 	Search,
-	Settings,
 	Shield,
 	ShieldCheck,
 	Trash2,
@@ -40,7 +25,6 @@ import {
 	UserMinus,
 	UserPlus,
 	Users,
-	X,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -90,7 +74,6 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -105,7 +88,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
 	Table,
 	TableBody,
@@ -295,7 +277,7 @@ export default function TeamManagementPage() {
 		staleTime: 5 * 60 * 1000,
 	});
 
-	const { data: permissionsData, isLoading: permissionsLoading } = useAtomValue(permissionsAtom);
+	const { data: permissionsData } = useAtomValue(permissionsAtom);
 	const permissions = permissionsData?.permissions || [];
 	const groupedPermissions = useMemo(() => {
 		const groups: Record<string, typeof permissions> = {};
@@ -308,8 +290,6 @@ export default function TeamManagementPage() {
 		return groups;
 	}, [permissions]);
 
-	const canManageMembers = hasPermission("members:view");
-	const canManageRoles = hasPermission("roles:read");
 	const canInvite = hasPermission("members:invite");
 
 	const handleRefresh = useCallback(async () => {
@@ -339,40 +319,44 @@ export default function TeamManagementPage() {
 			variants={staggerContainer}
 			className="min-h-screen bg-background"
 		>
-			<div className="container max-w-7xl mx-auto p-6 lg:p-8">
+			<div className="container max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
 				<motion.div variants={fadeInUp} className="space-y-8">
 					{/* Header */}
 					<div className="space-y-4">
-						<div className="flex items-center justify-between">
-							<div className="flex items-center space-x-4">
+						<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+							<div className="flex items-start space-x-3 md:items-center md:space-x-4">
 								<button
 									onClick={() => router.push(`/dashboard/${searchSpaceId}`)}
-									className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors"
+									className="flex items-center justify-center h-9 w-9 md:h-10 md:w-10 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors shrink-0"
 									aria-label="Back to Dashboard"
 									type="button"
 								>
-									<ArrowLeft className="h-5 w-5 text-primary" />
+									<ArrowLeft className="h-4 w-4 md:h-5 md:w-5 text-primary" />
 								</button>
-								<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/10">
-									<Users className="h-6 w-6 text-primary" />
+								<div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/10 shrink-0">
+									<Users className="h-5 w-5 md:h-6 md:w-6 text-primary" />
 								</div>
-								<div className="space-y-1">
-									<h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+								<div className="space-y-1 min-w-0">
+									<h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
 										Team Management
 									</h1>
-									<p className="text-muted-foreground">
+									<p className="text-xs md:text-sm text-muted-foreground">
 										Manage members, roles, and invite links for your search space
 									</p>
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
-								<Button onClick={handleRefresh} variant="outline" size="sm" className="gap-2">
+								<Button
+									onClick={handleRefresh}
+									variant="outline"
+									size="sm"
+									className="gap-2 w-full md:w-auto"
+								>
 									<RefreshCw className="h-4 w-4" />
 									Refresh
 								</Button>
 							</div>
 						</div>
-						<Separator className="bg-gradient-to-r from-border via-border/50 to-transparent" />
 					</div>
 
 					{/* Summary Cards */}
@@ -435,42 +419,55 @@ export default function TeamManagementPage() {
 
 					{/* Tabs Content */}
 					<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-						<div className="flex items-center justify-between">
-							<TabsList className="bg-muted/50 p-1">
-								<TabsTrigger value="members" className="gap-2 data-[state=active]:bg-background">
-									<Users className="h-4 w-4" />
-									<span>Members</span>
-									<Badge variant="secondary" className="ml-1 text-xs">
-										{members.length}
-									</Badge>
-								</TabsTrigger>
-								<TabsTrigger value="roles" className="gap-2 data-[state=active]:bg-background">
-									<Shield className="h-4 w-4" />
-									<span>Roles</span>
-									<Badge variant="secondary" className="ml-1 text-xs">
-										{roles.length}
-									</Badge>
-								</TabsTrigger>
-								<TabsTrigger value="invites" className="gap-2 data-[state=active]:bg-background">
-									<LinkIcon className="h-4 w-4" />
-									<span>Invites</span>
-									<Badge variant="secondary" className="ml-1 text-xs">
-										{invites.filter((i) => i.is_active).length}
-									</Badge>
-								</TabsTrigger>
-							</TabsList>
+						<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+							<div className="overflow-x-auto pb-1 md:pb-0">
+								<TabsList className="bg-muted/50 p-1 w-full md:w-fit grid grid-cols-3 md:flex">
+									<TabsTrigger
+										value="members"
+										className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1"
+									>
+										<Users className="h-4 w-4 hidden md:block" />
+										<span>Members</span>
+										<Badge variant="secondary" className="ml-1 text-xs">
+											{members.length}
+										</Badge>
+									</TabsTrigger>
+									<TabsTrigger
+										value="roles"
+										className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1"
+									>
+										<Shield className="h-4 w-4 hidden md:block" />
+										<span>Roles</span>
+										<Badge variant="secondary" className="ml-1 text-xs">
+											{roles.length}
+										</Badge>
+									</TabsTrigger>
+									<TabsTrigger
+										value="invites"
+										className="gap-1.5 md:gap-2 data-[state=active]:bg-background whitespace-nowrap w-full text-xs md:text-sm flex-1"
+									>
+										<LinkIcon className="h-4 w-4 hidden md:block" />
+										<span>Invites</span>
+										<Badge variant="secondary" className="ml-1 text-xs">
+											{invites.filter((i) => i.is_active).length}
+										</Badge>
+									</TabsTrigger>
+								</TabsList>
+							</div>
 
 							{activeTab === "invites" && canInvite && (
 								<CreateInviteDialog
 									roles={roles}
 									onCreateInvite={handleCreateInvite}
 									searchSpaceId={searchSpaceId}
+									className="w-full md:w-auto"
 								/>
 							)}
 							{activeTab === "roles" && hasPermission("roles:create") && (
 								<CreateRoleDialog
 									groupedPermissions={groupedPermissions}
 									onCreateRole={handleCreateRole}
+									className="w-full md:w-auto"
 								/>
 							)}
 						</div>
@@ -533,8 +530,6 @@ function MembersTab({
 	canManageRoles: boolean;
 	canRemove: boolean;
 }) {
-	const [sorting, setSorting] = useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [searchQuery, setSearchQuery] = useState("");
 
 	const filteredMembers = useMemo(() => {
@@ -575,13 +570,13 @@ function MembersTab({
 			</div>
 
 			{/* Members List */}
-			<div className="rounded-lg border bg-card overflow-hidden">
+			<div className="rounded-lg border bg-card overflow-x-auto">
 				<Table>
 					<TableHeader>
 						<TableRow className="bg-muted/50">
-							<TableHead className="w-[300px]">Member</TableHead>
-							<TableHead>Role</TableHead>
-							<TableHead>Joined</TableHead>
+							<TableHead className="w-auto md:w-[300px] px-2 md:px-4">Member</TableHead>
+							<TableHead className="px-2 md:px-4">Role</TableHead>
+							<TableHead className="hidden md:table-cell">Joined</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -604,11 +599,11 @@ function MembersTab({
 									transition={{ delay: index * 0.05 }}
 									className="group border-b transition-colors hover:bg-muted/50"
 								>
-									<TableCell>
-										<div className="flex items-center gap-3">
+									<TableCell className="py-2 px-2 md:py-4 md:px-4 align-middle">
+										<div className="flex items-center gap-1.5 md:gap-3">
 											<div className="relative">
-												<div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-2 ring-background">
-													<User className="h-5 w-5 text-primary" />
+												<div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-2 ring-background">
+													<User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
 												</div>
 												{member.is_owner && (
 													<div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center ring-2 ring-background">
@@ -616,12 +611,14 @@ function MembersTab({
 													</div>
 												)}
 											</div>
-											<div>
-												<p className="font-medium">{member.user_email || "Unknown"}</p>
+											<div className="min-w-0">
+												<p className="font-medium text-xs md:text-sm truncate">
+													{member.user_email || "Unknown"}
+												</p>
 												{member.is_owner && (
 													<Badge
 														variant="outline"
-														className="text-xs mt-1 bg-amber-500/10 text-amber-600 border-amber-500/20"
+														className="text-[10px] md:text-xs mt-0.5 md:mt-1 bg-amber-500/10 text-amber-600 border-amber-500/20 hidden md:inline-flex"
 													>
 														Owner
 													</Badge>
@@ -629,7 +626,7 @@ function MembersTab({
 											</div>
 										</div>
 									</TableCell>
-									<TableCell>
+									<TableCell className="py-2 px-2 md:py-4 md:px-4 align-middle">
 										{canManageRoles && !member.is_owner ? (
 											<Select
 												value={member.role_id?.toString() || "none"}
@@ -637,7 +634,7 @@ function MembersTab({
 													onUpdateRole(member.id, value === "none" ? null : Number(value))
 												}
 											>
-												<SelectTrigger className="w-[180px]">
+												<SelectTrigger className="w-full md:w-[180px] h-8 md:h-10 text-xs md:text-sm">
 													<SelectValue placeholder="Select role" />
 												</SelectTrigger>
 												<SelectContent>
@@ -653,19 +650,22 @@ function MembersTab({
 												</SelectContent>
 											</Select>
 										) : (
-											<Badge variant="secondary" className="gap-1">
-												<Shield className="h-3 w-3" />
+											<Badge
+												variant="secondary"
+												className="gap-1 text-[10px] md:text-xs py-0 md:py-0.5"
+											>
+												<Shield className="h-2.5 w-2.5 md:h-3 md:w-3" />
 												{member.role?.name || "No role"}
 											</Badge>
 										)}
 									</TableCell>
-									<TableCell>
+									<TableCell className="hidden md:table-cell">
 										<div className="flex items-center gap-2 text-sm text-muted-foreground">
 											<Calendar className="h-4 w-4" />
 											{new Date(member.joined_at).toLocaleDateString()}
 										</div>
 									</TableCell>
-									<TableCell className="text-right">
+									<TableCell className="text-right py-2 px-2 md:py-4 md:px-4 align-middle">
 										{canRemove && !member.is_owner && (
 											<AlertDialog>
 												<AlertDialogTrigger asChild>
@@ -962,11 +962,11 @@ function InvitesTab({
 							className={cn("relative overflow-hidden transition-all", isInactive && "opacity-60")}
 						>
 							<CardContent className="p-4">
-								<div className="flex items-center justify-between gap-4">
-									<div className="flex items-center gap-4 flex-1 min-w-0">
+								<div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+									<div className="flex items-start md:items-center gap-4 flex-1 min-w-0">
 										<div
 											className={cn(
-												"h-12 w-12 rounded-xl flex items-center justify-center shrink-0",
+												"h-10 w-10 md:h-12 md:w-12 rounded-xl flex items-center justify-center shrink-0",
 												invite.is_active && !isExpired && !isMaxedOut
 													? "bg-emerald-500/20"
 													: "bg-muted"
@@ -974,7 +974,7 @@ function InvitesTab({
 										>
 											<Link2
 												className={cn(
-													"h-6 w-6",
+													"h-5 w-5 md:h-6 md:w-6",
 													invite.is_active && !isExpired && !isMaxedOut
 														? "text-emerald-600"
 														: "text-muted-foreground"
@@ -991,7 +991,7 @@ function InvitesTab({
 												)}
 												{isMaxedOut && (
 													<Badge variant="secondary" className="text-xs">
-														Max uses reached
+														Maxed
 													</Badge>
 												)}
 												{!invite.is_active && !isExpired && !isMaxedOut && (
@@ -1000,44 +1000,44 @@ function InvitesTab({
 													</Badge>
 												)}
 											</div>
-											<div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
+											<div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-1 text-sm text-muted-foreground">
 												<span className="flex items-center gap-1">
 													<Shield className="h-3 w-3" />
 													{invite.role?.name || "Default role"}
 												</span>
 												<span className="flex items-center gap-1">
 													<Hash className="h-3 w-3" />
-													{invite.uses_count} uses
-													{invite.max_uses && ` / ${invite.max_uses}`}
+													{invite.uses_count}
+													{invite.max_uses ? ` / ${invite.max_uses} uses` : " uses"}
 												</span>
 												{invite.expires_at && (
 													<span className="flex items-center gap-1">
 														<Clock className="h-3 w-3" />
 														{isExpired
 															? "Expired"
-															: `Expires ${new Date(invite.expires_at).toLocaleDateString()}`}
+															: `Exp: ${new Date(invite.expires_at).toLocaleDateString()}`}
 													</span>
 												)}
 											</div>
 										</div>
 									</div>
-									<div className="flex items-center gap-2 shrink-0">
+									<div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
 										<Button
 											variant="outline"
 											size="sm"
-											className="gap-2"
+											className="gap-2 flex-1 md:flex-none"
 											onClick={() => copyInviteLink(invite)}
 											disabled={Boolean(isInactive)}
 										>
 											{copiedId === invite.id ? (
 												<>
 													<Check className="h-4 w-4 text-emerald-500" />
-													Copied!
+													<span className="md:inline">Copied!</span>
 												</>
 											) : (
 												<>
 													<Copy className="h-4 w-4" />
-													Copy Link
+													<span className="md:inline">Copy</span>
 												</>
 											)}
 										</Button>
@@ -1088,11 +1088,11 @@ function InvitesTab({
 function CreateInviteDialog({
 	roles,
 	onCreateInvite,
-	searchSpaceId,
+	className,
 }: {
 	roles: Role[];
 	onCreateInvite: (data: CreateInviteRequest["data"]) => Promise<Invite>;
-	searchSpaceId: number;
+	className?: string;
 }) {
 	const [open, setOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
@@ -1142,12 +1142,12 @@ function CreateInviteDialog({
 	return (
 		<Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
 			<DialogTrigger asChild>
-				<Button className="gap-2">
+				<Button className={cn("gap-2", className)}>
 					<UserPlus className="h-4 w-4" />
 					Create Invite
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="sm:max-w-md">
+			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-md p-4 md:p-6">
 				{createdInvite ? (
 					<>
 						<DialogHeader>
@@ -1159,7 +1159,7 @@ function CreateInviteDialog({
 								Share this link to invite people to your search space.
 							</DialogDescription>
 						</DialogHeader>
-						<div className="space-y-4 py-4">
+						<div className="space-y-3 py-2 md:py-4">
 							<div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
 								<code className="flex-1 min-w-0 text-sm break-all">
 									{window.location.origin}/invite/{createdInvite.invite_code}
@@ -1203,7 +1203,7 @@ function CreateInviteDialog({
 								Create a link to invite people to this search space.
 							</DialogDescription>
 						</DialogHeader>
-						<div className="space-y-4 py-4">
+						<div className="space-y-3 py-2 md:py-4">
 							<div className="space-y-2">
 								<Label htmlFor="invite-name">Name (optional)</Label>
 								<Input
@@ -1234,7 +1234,7 @@ function CreateInviteDialog({
 									</SelectContent>
 								</Select>
 							</div>
-							<div className="grid grid-cols-2 gap-4">
+							<div className="flex flex-col md:grid md:grid-cols-2 gap-3 md:gap-4">
 								<div className="space-y-2">
 									<Label htmlFor="max-uses">Max uses (optional)</Label>
 									<Input
@@ -1301,9 +1301,11 @@ function CreateInviteDialog({
 function CreateRoleDialog({
 	groupedPermissions,
 	onCreateRole,
+	className,
 }: {
 	groupedPermissions: Record<string, { value: string; name: string; category: string }[]>;
 	onCreateRole: (data: CreateRoleRequest["data"]) => Promise<Role>;
+	className?: string;
 }) {
 	const [open, setOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
@@ -1358,20 +1360,20 @@ function CreateRoleDialog({
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button className="gap-2">
+				<Button className={cn("gap-2", className)}>
 					<Plus className="h-4 w-4" />
 					Create Role
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="sm:max-w-xl">
+			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-xl p-4 md:p-6">
 				<DialogHeader>
 					<DialogTitle>Create Custom Role</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-xs md:text-sm">
 						Define a new role with specific permissions for this search space.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="space-y-4 py-4">
-					<div className="grid grid-cols-2 gap-4">
+				<div className="space-y-3 py-2 md:py-4">
+					<div className="flex flex-col md:grid md:grid-cols-2 gap-3 md:gap-4">
 						<div className="space-y-2">
 							<Label htmlFor="role-name">Role Name *</Label>
 							<Input

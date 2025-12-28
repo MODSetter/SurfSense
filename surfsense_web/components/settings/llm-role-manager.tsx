@@ -170,7 +170,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const hasError = configsError || preferencesError || globalConfigsError;
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 md:space-y-6">
 			{/* Header */}
 			<div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
 				<div className="flex flex-wrap gap-2">
@@ -179,9 +179,11 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						size="sm"
 						onClick={() => refreshConfigs()}
 						disabled={isLoading}
-						className="flex items-center gap-2"
+						className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
 					>
-						<RefreshCw className={`h-4 w-4 ${configsLoading ? "animate-spin" : ""}`} />
+						<RefreshCw
+							className={`h-3 w-3 md:h-4 md:w-4 ${configsLoading ? "animate-spin" : ""}`}
+						/>
 						<span className="hidden sm:inline">Refresh Configs</span>
 						<span className="sm:hidden">Configs</span>
 					</Button>
@@ -190,9 +192,11 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						size="sm"
 						onClick={() => refreshPreferences()}
 						disabled={isLoading}
-						className="flex items-center gap-2"
+						className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
 					>
-						<RefreshCw className={`h-4 w-4 ${preferencesLoading ? "animate-spin" : ""}`} />
+						<RefreshCw
+							className={`h-3 w-3 md:h-4 md:w-4 ${preferencesLoading ? "animate-spin" : ""}`}
+						/>
 						<span className="hidden sm:inline">Refresh Preferences</span>
 						<span className="sm:hidden">Prefs</span>
 					</Button>
@@ -201,9 +205,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 			{/* Error Alert */}
 			{hasError && (
-				<Alert variant="destructive">
-					<AlertCircle className="h-4 w-4" />
-					<AlertDescription>
+				<Alert variant="destructive" className="py-3 md:py-4">
+					<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+					<AlertDescription className="text-xs md:text-sm">
 						{(configsError?.message ?? "Failed to load LLM configurations") ||
 							(preferencesError?.message ?? "Failed to load preferences") ||
 							(globalConfigsError?.message ?? "Failed to load global configurations")}
@@ -214,10 +218,10 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			{/* Loading State */}
 			{isLoading && (
 				<Card>
-					<CardContent className="flex items-center justify-center py-12">
+					<CardContent className="flex items-center justify-center py-8 md:py-12">
 						<div className="flex items-center gap-2 text-muted-foreground">
-							<Loader2 className="w-5 h-5 animate-spin" />
-							<span>
+							<Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+							<span className="text-xs md:text-sm">
 								{configsLoading && preferencesLoading
 									? "Loading configurations and preferences..."
 									: configsLoading
@@ -231,27 +235,27 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 			{/* Info Alert */}
 			{!isLoading && !hasError && (
-				<div className="space-y-6">
+				<div className="space-y-4 md:space-y-6">
 					{availableConfigs.length === 0 ? (
-						<Alert variant="destructive">
-							<AlertCircle className="h-4 w-4" />
-							<AlertDescription>
+						<Alert variant="destructive" className="py-3 md:py-4">
+							<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+							<AlertDescription className="text-xs md:text-sm">
 								No LLM configurations found. Please add at least one LLM provider in the Agent
 								Configs tab before assigning roles.
 							</AlertDescription>
 						</Alert>
 					) : !isAssignmentComplete ? (
-						<Alert>
-							<AlertCircle className="h-4 w-4" />
-							<AlertDescription>
+						<Alert className="py-3 md:py-4">
+							<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+							<AlertDescription className="text-xs md:text-sm">
 								Complete all role assignments to enable full functionality. Each role serves
 								different purposes in your workflow.
 							</AlertDescription>
 						</Alert>
 					) : (
-						<Alert>
-							<CheckCircle className="h-4 w-4" />
-							<AlertDescription>
+						<Alert className="py-3 md:py-4">
+							<CheckCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+							<AlertDescription className="text-xs md:text-sm">
 								All roles are assigned and ready to use! Your LLM configuration is complete.
 							</AlertDescription>
 						</Alert>
@@ -259,7 +263,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 					{/* Role Assignment Cards */}
 					{availableConfigs.length > 0 && (
-						<div className="grid gap-6">
+						<div className="grid gap-4 md:gap-6">
 							{Object.entries(ROLE_DESCRIPTIONS).map(([key, role]) => {
 								const IconComponent = role.icon;
 								const currentAssignment = assignments[`${key}_llm_id` as keyof typeof assignments];
@@ -277,28 +281,34 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 										<Card
 											className={`border-l-4 ${currentAssignment ? "border-l-primary" : "border-l-muted"} hover:shadow-md transition-shadow`}
 										>
-											<CardHeader className="pb-3">
+											<CardHeader className="pb-2 md:pb-3 px-3 md:px-6 pt-3 md:pt-6">
 												<div className="flex items-center justify-between">
-													<div className="flex items-center gap-3">
-														<div className={`p-2 rounded-lg ${role.color}`}>
-															<IconComponent className="w-5 h-5" />
+													<div className="flex items-center gap-2 md:gap-3">
+														<div className={`p-1.5 md:p-2 rounded-lg ${role.color}`}>
+															<IconComponent className="w-4 h-4 md:w-5 md:h-5" />
 														</div>
 														<div>
-															<CardTitle className="text-lg">{role.title}</CardTitle>
-															<CardDescription className="mt-1">{role.description}</CardDescription>
+															<CardTitle className="text-base md:text-lg">{role.title}</CardTitle>
+															<CardDescription className="mt-0.5 md:mt-1 text-xs md:text-sm">
+																{role.description}
+															</CardDescription>
 														</div>
 													</div>
-													{currentAssignment && <CheckCircle className="w-5 h-5 text-green-500" />}
+													{currentAssignment && (
+														<CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500 shrink-0" />
+													)}
 												</div>
 											</CardHeader>
-											<CardContent className="space-y-4">
-												<div className="space-y-2">
-													<Label className="text-sm font-medium">Assign LLM Configuration:</Label>
+											<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
+												<div className="space-y-1.5 md:space-y-2">
+													<Label className="text-xs md:text-sm font-medium">
+														Assign LLM Configuration:
+													</Label>
 													<Select
 														value={currentAssignment?.toString() || "unassigned"}
 														onValueChange={(value) => handleRoleAssignment(`${key}_llm_id`, value)}
 													>
-														<SelectTrigger>
+														<SelectTrigger className="h-9 md:h-10 text-xs md:text-sm">
 															<SelectValue placeholder="Select an LLM configuration" />
 														</SelectTrigger>
 														<SelectContent>
@@ -361,23 +371,25 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 												</div>
 
 												{assignedConfig && (
-													<div className="mt-3 p-3 bg-muted/50 rounded-lg">
-														<div className="flex items-center gap-2 text-sm flex-wrap">
-															<Bot className="w-4 h-4" />
+													<div className="mt-2 md:mt-3 p-2 md:p-3 bg-muted/50 rounded-lg">
+														<div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm flex-wrap">
+															<Bot className="w-3 h-3 md:w-4 md:h-4 shrink-0" />
 															<span className="font-medium">Assigned:</span>
-															<Badge variant="secondary">{assignedConfig.provider}</Badge>
+															<Badge variant="secondary" className="text-[10px] md:text-xs">
+																{assignedConfig.provider}
+															</Badge>
 															<span>{assignedConfig.name}</span>
 															{"is_global" in assignedConfig && assignedConfig.is_global && (
-																<Badge variant="outline" className="text-xs">
+																<Badge variant="outline" className="text-[9px] md:text-xs">
 																	🌐 Global
 																</Badge>
 															)}
 														</div>
-														<div className="text-xs text-muted-foreground mt-1">
+														<div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
 															Model: {assignedConfig.model_name}
 														</div>
 														{assignedConfig.api_base && (
-															<div className="text-xs text-muted-foreground">
+															<div className="text-[10px] md:text-xs text-muted-foreground">
 																Base: {assignedConfig.api_base}
 															</div>
 														)}
@@ -393,18 +405,22 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 					{/* Action Buttons */}
 					{hasChanges && (
-						<div className="flex justify-center gap-3 pt-4">
-							<Button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2">
-								<Save className="w-4 h-4" />
+						<div className="flex justify-center gap-2 md:gap-3 pt-3 md:pt-4">
+							<Button
+								onClick={handleSave}
+								disabled={isSaving}
+								className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10"
+							>
+								<Save className="w-3.5 h-3.5 md:w-4 md:h-4" />
 								{isSaving ? "Saving..." : "Save Changes"}
 							</Button>
 							<Button
 								variant="outline"
 								onClick={handleReset}
 								disabled={isSaving}
-								className="flex items-center gap-2"
+								className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10"
 							>
-								<RotateCcw className="w-4 h-4" />
+								<RotateCcw className="w-3.5 h-3.5 md:w-4 md:h-4" />
 								Reset
 							</Button>
 						</div>
