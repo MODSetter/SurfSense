@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { authenticatedFetch } from "@/lib/auth-utils";
@@ -36,10 +37,15 @@ interface ItemTreeNode {
 	isLoading: boolean;
 }
 
+interface SelectedFolder {
+	id: string;
+	name: string;
+}
+
 interface GoogleDriveFolderTreeProps {
 	connectorId: number;
-	selectedFolderId: string | null;
-	onSelectFolder: (folderId: string, folderName: string) => void;
+	selectedFolders: SelectedFolder[];
+	onSelectFolders: (folders: SelectedFolder[]) => void;
 }
 
 // Helper to get appropriate icon for file type
@@ -59,24 +65,31 @@ function getFileIcon(mimeType: string, className: string = "h-4 w-4") {
 	return <File className={`${className} text-gray-500`} />;
 }
 
-// Helper to format file size
-function formatFileSize(bytes: number | undefined): string {
-	if (!bytes) return "";
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-	return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-
 export function GoogleDriveFolderTree({
 	connectorId,
-	selectedFolderId,
-	onSelectFolder,
+	selectedFolders,
+	onSelectFolders,
 }: GoogleDriveFolderTreeProps) {
 	const [rootItems, setRootItems] = useState<DriveItem[]>([]);
 	const [itemStates, setItemStates] = useState<Map<string, ItemTreeNode>>(new Map());
 	const [isLoadingRoot, setIsLoadingRoot] = useState(false);
 	const [isInitialized, setIsInitialized] = useState(false);
+
+	// Helper to check if a folder is selected
+	const isFolderSelected = (folderId: string): boolean => {
+		return selectedFolders.some((f) => f.id === folderId);
+	};
+
+	// Handle folder checkbox toggle
+	const toggleFolderSelection = (folderId: string, folderName: string) => {
+		if (isFolderSelected(folderId)) {
+			// Remove from selection
+			onSelectFolders(selectedFolders.filter((f) => f.id !== folderId));
+		} else {
+			// Add to selection
+			onSelectFolders([...selectedFolders, { id: folderId, name: folderName }]);
+		}
+	};
 
 	// Load root items (folders and files) on mount
 	const loadRootItems = async () => {
@@ -215,7 +228,7 @@ export function GoogleDriveFolderTree({
 		const isExpanded = state?.isExpanded || false;
 		const isLoading = state?.isLoading || false;
 		const children = state?.children;
-		const isSelected = selectedFolderId === item.id;
+		const isSelected = isFolderSelected(item.id);
 		const isFolder = item.isFolder;
 
 		// Separate folders and files for children
@@ -224,15 +237,13 @@ export function GoogleDriveFolderTree({
 
 		return (
 			<div key={item.id} className="w-full" style={{ marginLeft: `${level * 1.25}rem` }}>
-				<Button
-					variant="ghost"
+				<div
 					className={cn(
-						"w-full justify-start gap-2 h-auto py-2 px-2 font-normal overflow-hidden",
+						"flex items-center gap-2 h-auto py-2 px-2 rounded-md",
 						isFolder && "hover:bg-accent cursor-pointer",
-						!isFolder && "cursor-default opacity-70 hover:bg-transparent",
-						isSelected && isFolder && "bg-accent"
+						!isFolder && "cursor-default opacity-60",
+						isSelected && isFolder && "bg-accent/50"
 					)}
-					onClick={() => isFolder && onSelectFolder(item.id, item.name)}
 				>
 					{/* Expand/Collapse Icon (only for folders) */}
 					{isFolder ? (
@@ -255,35 +266,50 @@ export function GoogleDriveFolderTree({
 						<span className="w-4 h-4 shrink-0" /> // Empty space for alignment
 					)}
 
-					{/* Icon */}
-					{isFolder ? (
-						isExpanded ? (
-							<FolderOpen className="h-4 w-4 text-blue-500 shrink-0" />
-						) : (
-							<Folder className="h-4 w-4 text-gray-500 shrink-0" />
-						)
-					) : (
-						getFileIcon(item.mimeType, "h-4 w-4 shrink-0")
+					{/* Checkbox (only for folders) */}
+					{isFolder && (
+						<Checkbox
+							checked={isSelected}
+							onCheckedChange={() => toggleFolderSelection(item.id, item.name)}
+							className="shrink-0"
+							onClick={(e) => e.stopPropagation()}
+						/>
 					)}
 
+					{/* Icon */}
+					<div className="shrink-0" style={{ marginLeft: isFolder ? "0" : "1.25rem" }}>
+						{isFolder ? (
+							isExpanded ? (
+								<FolderOpen className="h-4 w-4 text-blue-500" />
+							) : (
+								<Folder className="h-4 w-4 text-gray-500" />
+							)
+						) : (
+							getFileIcon(item.mimeType, "h-4 w-4")
+						)}
+					</div>
+
 					{/* Item Name */}
-					<span className="truncate flex-1 text-left text-sm min-w-0">{item.name}</span>
-				</Button>
+					<span
+						className="truncate flex-1 text-left text-sm min-w-0"
+						onClick={() => isFolder && toggleFolder(item)}
+					>
+						{item.name}
+					</span>
+				</div>
 
 				{/* Render children if expanded (folders first, then files) */}
 				{isExpanded && isFolder && children && (
 					<div className="w-full">
 						{/* Render folders first */}
 						{childFolders.map((child) => renderItem(child, level + 1))}
-						
+
 						{/* Render files */}
 						{childFiles.map((child) => renderItem(child, level + 1))}
-						
+
 						{/* Empty state */}
 						{children.length === 0 && (
-							<div className="text-xs text-muted-foreground py-2 pl-2">
-								Empty folder
-							</div>
+							<div className="text-xs text-muted-foreground py-2 pl-2">Empty folder</div>
 						)}
 					</div>
 				)}
@@ -302,17 +328,17 @@ export function GoogleDriveFolderTree({
 				<div className="p-2 pr-4 w-full overflow-x-hidden">
 					{/* My Drive Header (always visible, selectable) */}
 					<div className="mb-2 pb-2 border-b">
-						<Button
-							variant="ghost"
-							className={cn(
-								"w-full justify-start gap-2 h-auto py-2 px-2 font-normal hover:bg-accent overflow-hidden",
-								selectedFolderId === "root" && "bg-accent"
-							)}
-							onClick={() => onSelectFolder("root", "My Drive")}
-						>
+						<div className="flex items-center gap-2 h-auto py-2 px-2 rounded-md hover:bg-accent cursor-pointer">
+							<Checkbox
+								checked={isFolderSelected("root")}
+								onCheckedChange={() => toggleFolderSelection("root", "My Drive")}
+								className="shrink-0"
+							/>
 							<HardDrive className="h-4 w-4 text-primary shrink-0" />
-							<span className="font-semibold truncate">My Drive</span>
-						</Button>
+							<span className="font-semibold truncate" onClick={() => toggleFolderSelection("root", "My Drive")}>
+								My Drive
+							</span>
+						</div>
 					</div>
 
 					{/* Loading indicator */}
