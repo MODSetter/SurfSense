@@ -7,6 +7,7 @@ import {
 	Edit,
 	Folder,
 	HardDrive,
+	Info,
 	Loader2,
 	Plus,
 	RefreshCw,
@@ -117,8 +118,7 @@ export default function ConnectorsPage() {
 	// Google Drive folder selection state
 	const [driveFolderDialogOpen, setDriveFolderDialogOpen] = useState(false);
 	const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
-	const [selectedFolderId, setSelectedFolderId] = useState<string>("");
-	const [selectedFolderName, setSelectedFolderName] = useState<string>("");
+	const [selectedFolders, setSelectedFolders] = useState<Array<{ id: string; name: string }>>([]);
 	const [isLoadingFolders, setIsLoadingFolders] = useState(false);
 
 	useEffect(() => {
@@ -186,8 +186,8 @@ export default function ConnectorsPage() {
 
 	// Handle Google Drive folder indexing
 	const handleIndexDriveFolder = async () => {
-		if (selectedConnectorForIndexing === null || !selectedFolderId) {
-			toast.error("Please select a folder");
+		if (selectedConnectorForIndexing === null || selectedFolders.length === 0) {
+			toast.error("Please select at least one folder");
 			return;
 		}
 
@@ -195,28 +195,26 @@ export default function ConnectorsPage() {
 
 		try {
 			setIndexingConnectorId(selectedConnectorForIndexing);
-			const selectedFolder = driveFolders.find((f) => f.id === selectedFolderId);
-			const folderName = selectedFolder?.name || "Selected Folder";
 
-			// Call indexConnector with folder_id and folder_name as query params
+			// Call indexConnector with folder_ids and folder_names as query params
 			await indexConnector(
 				selectedConnectorForIndexing,
 				searchSpaceId,
 				undefined,
 				undefined,
-				selectedFolderId,
-				folderName
+				selectedFolders.map((f) => f.id).join(","),
+				selectedFolders.map((f) => f.name).join(", ")
 			);
 			toast.success(t("indexing_started"));
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
 			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
 		} finally {
-			setIndexingConnectorId(null);
-			setSelectedConnectorForIndexing(null);
-			setSelectedFolderId("");
-			setDriveFolders([]);
-		}
+		setIndexingConnectorId(null);
+		setSelectedConnectorForIndexing(null);
+		setSelectedFolders([]);
+		setDriveFolders([]);
+	}
 	};
 
 	// Handle connector indexing with dates
@@ -683,66 +681,62 @@ export default function ConnectorsPage() {
 			{/* Google Drive Folder Selection Dialog */}
 			<Dialog open={driveFolderDialogOpen} onOpenChange={setDriveFolderDialogOpen}>
 				<DialogContent className="w-auto max-w-full">
-					<DialogHeader>
-						<DialogTitle>Select Google Drive Folder</DialogTitle>
-						<DialogDescription className="text-sm">
-							Browse and select a folder to index. Click folders to expand and see subfolders.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="grid gap-4 py-4 overflow-hidden w-full">
+				<DialogHeader>
+					<DialogTitle>Select Google Drive Folders</DialogTitle>
+					<DialogDescription className="flex items-start gap-2 text-sm p-2 border mt-1 rounded ">
+						<Info className="h-4 w-4 shrink-0 text-blue-500" />
+						<span>
+							Select folders to index. Only files <strong>directly in each folder</strong> will be
+							processed—subfolders must be selected separately.
+						</span>
+					</DialogDescription>
+				</DialogHeader>
+					<div className="grid gap-4 overflow-hidden w-full">
 						<div className="space-y-3 w-full overflow-hidden">
 							<Label>Browse Folders</Label>
-							{selectedConnectorForIndexing && (
-								<GoogleDriveFolderTree
-									connectorId={selectedConnectorForIndexing}
-									selectedFolderId={selectedFolderId}
-									onSelectFolder={(folderId, folderName) => {
-										setSelectedFolderId(folderId);
-										setSelectedFolderName(folderName);
-									}}
-								/>
-							)}
-							<p className="text-xs text-muted-foreground">
-								Changes to files in this folder will be automatically detected and re-indexed.
-							</p>
-						</div>
-						{selectedFolderId && selectedFolderName && (
-							<div className="p-3 bg-muted rounded-lg text-sm space-y-2">
-								<div>
-									<p className="font-medium mb-1">Selected folder:</p>
-									<p className="text-sm text-muted-foreground truncate" title={selectedFolderName}>
-										{selectedFolderName}
-									</p>
-								</div>
-								<div>
-									<p className="font-medium mb-1">What will be indexed:</p>
-									<ul className="list-disc list-inside space-y-1 text-muted-foreground text-xs">
-										<li>Google Docs, Sheets, Slides (as PDFs)</li>
-										<li>PDFs, Word, Excel, PowerPoint files</li>
-										<li>Text files, markdown, code files</li>
-										<li>Images (with OCR if enabled)</li>
-									</ul>
-								</div>
-							</div>
+						{selectedConnectorForIndexing && (
+							<GoogleDriveFolderTree
+								connectorId={selectedConnectorForIndexing}
+								selectedFolders={selectedFolders}
+								onSelectFolders={(folders) => {
+									setSelectedFolders(folders);
+								}}
+							/>
 						)}
 					</div>
+					{selectedFolders.length > 0 && (
+						<div className="p-3 bg-muted rounded-lg text-sm space-y-2">
+							<div>
+								<p className="font-medium mb-1">
+									Selected {selectedFolders.length} folder{selectedFolders.length > 1 ? "s" : ""}:
+								</p>
+								<div className="max-h-24 overflow-y-auto">
+									{selectedFolders.map((folder) => (
+										<p key={folder.id} className="text-sm text-muted-foreground truncate" title={folder.name}>
+											• {folder.name}
+										</p>
+									))}
+								</div>
+							</div>
+						</div>
+					)}
+				</div>
 					<DialogFooter>
 						<Button
 							variant="outline"
-							onClick={() => {
-								setDriveFolderDialogOpen(false);
-								setSelectedConnectorForIndexing(null);
-								setSelectedFolderId("");
-								setSelectedFolderName("");
-								setDriveFolders([]);
-							}}
-						>
-							{tCommon("cancel")}
-						</Button>
-						<Button onClick={handleIndexDriveFolder} disabled={!selectedFolderId}>
-							{t("start_indexing")}
-						</Button>
-					</DialogFooter>
+						onClick={() => {
+							setDriveFolderDialogOpen(false);
+							setSelectedConnectorForIndexing(null);
+							setSelectedFolders([]);
+							setDriveFolders([]);
+						}}
+					>
+						{tCommon("cancel")}
+					</Button>
+					<Button onClick={handleIndexDriveFolder} disabled={selectedFolders.length === 0}>
+						{t("start_indexing")}
+					</Button>
+				</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
