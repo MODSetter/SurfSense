@@ -125,6 +125,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=[],  # firecrawl_api_key is optional
     ),
+    # Note: write_todos is now provided by TodoListMiddleware from deepagents
     # =========================================================================
     # ADD YOUR CUSTOM TOOLS BELOW
     # =========================================================================

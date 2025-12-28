@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { createConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import {
 	Accordion,
 	AccordionContent,
@@ -37,7 +39,6 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const slackConnectorFormSchema = z.object({
@@ -57,7 +58,7 @@ export default function SlackConnectorPage() {
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const { createConnector } = useSearchSourceConnectors();
+	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	// Initialize the form
 	const form = useForm<SlackConnectorFormValues>({
@@ -72,8 +73,8 @@ export default function SlackConnectorPage() {
 	const onSubmit = async (values: SlackConnectorFormValues) => {
 		setIsSubmitting(true);
 		try {
-			await createConnector(
-				{
+			await createConnector({
+				data: {
 					name: values.name,
 					connector_type: EnumConnectorName.SLACK_CONNECTOR,
 					config: {
@@ -85,8 +86,10 @@ export default function SlackConnectorPage() {
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
 				},
-				parseInt(searchSpaceId)
-			);
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 
 			toast.success("Slack connector created successfully!");
 

@@ -2,6 +2,7 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, FileTextIcon } from "lucide-react";
+import { z } from "zod";
 import {
 	Article,
 	ArticleErrorBoundary,
@@ -9,30 +10,44 @@ import {
 	parseSerializableArticle,
 } from "@/components/tool-ui/article";
 
-/**
- * Type definitions for the scrape_webpage tool
- */
-interface ScrapeWebpageArgs {
-	url: string;
-	max_length?: number;
-}
+// ============================================================================
+// Zod Schemas
+// ============================================================================
 
-interface ScrapeWebpageResult {
-	id: string;
-	assetId: string;
-	kind: "article";
-	href: string;
-	title: string;
-	description?: string;
-	content?: string;
-	domain?: string;
-	author?: string;
-	date?: string;
-	word_count?: number;
-	was_truncated?: boolean;
-	crawler_type?: string;
-	error?: string;
-}
+/**
+ * Schema for scrape_webpage tool arguments
+ */
+const ScrapeWebpageArgsSchema = z.object({
+	url: z.string(),
+	max_length: z.number().nullish(),
+});
+
+/**
+ * Schema for scrape_webpage tool result
+ */
+const ScrapeWebpageResultSchema = z.object({
+	id: z.string(),
+	assetId: z.string(),
+	kind: z.literal("article"),
+	href: z.string(),
+	title: z.string(),
+	description: z.string().nullish(),
+	content: z.string().nullish(),
+	domain: z.string().nullish(),
+	author: z.string().nullish(),
+	date: z.string().nullish(),
+	word_count: z.number().nullish(),
+	was_truncated: z.boolean().nullish(),
+	crawler_type: z.string().nullish(),
+	error: z.string().nullish(),
+});
+
+// ============================================================================
+// Types
+// ============================================================================
+
+type ScrapeWebpageArgs = z.infer<typeof ScrapeWebpageArgsSchema>;
+type ScrapeWebpageResult = z.infer<typeof ScrapeWebpageResultSchema>;
 
 /**
  * Error state component shown when webpage scraping fails
@@ -154,4 +169,9 @@ export const ScrapeWebpageToolUI = makeAssistantToolUI<ScrapeWebpageArgs, Scrape
 	},
 });
 
-export type { ScrapeWebpageArgs, ScrapeWebpageResult };
+export {
+	ScrapeWebpageArgsSchema,
+	ScrapeWebpageResultSchema,
+	type ScrapeWebpageArgs,
+	type ScrapeWebpageResult,
+};

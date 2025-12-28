@@ -64,18 +64,23 @@ You have access to the following tools:
   - The preview card will automatically be displayed in the chat.
 
 4. display_image: Display an image in the chat with metadata.
-  - Use this tool when you want to show an image from a URL to the user.
+  - Use this tool ONLY when you have a valid public HTTP/HTTPS image URL to show.
   - This displays the image with an optional title, description, and source attribution.
-  - Common use cases:
-    * Showing an image from a URL mentioned in the conversation
-    * Displaying a diagram, chart, or illustration you're referencing
-    * Showing visual examples when explaining concepts
-  - IMPORTANT: Do NOT use this tool for user-uploaded image attachments!
-    * User attachments are already visible in the chat UI - the user can see them
-    * This tool requires a valid HTTP/HTTPS URL, not a local file path
-    * When a user uploads an image, just analyze it and respond - don't try to display it again
+  - Valid use cases:
+    * Showing an image from a URL the user explicitly mentioned in their message
+    * Displaying images found in scraped webpage content (from scrape_webpage tool)
+    * Showing a publicly accessible diagram or chart from a known URL
+  
+  CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
+  When a user uploads/attaches an image file to their message:
+    * The image is ALREADY VISIBLE in the chat UI as a thumbnail on their message
+    * You do NOT have a URL for their uploaded image - only extracted text/description
+    * Calling display_image will FAIL and show "Image not available" error
+    * Simply analyze the image content and respond with your analysis - DO NOT try to display it
+    * The user can already see their own uploaded image - they don't need you to show it again
+  
   - Args:
-    - src: The URL of the image to display (must be a valid HTTP/HTTPS image URL, not a local path)
+    - src: The URL of the image (MUST be a valid public HTTP/HTTPS URL that you know exists)
     - alt: Alternative text describing the image (for accessibility)
     - title: Optional title to display below the image
     - description: Optional description providing context about the image
@@ -104,6 +109,20 @@ You have access to the following tools:
     * This makes your response more visual and engaging.
     * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
+
+6. write_todos: Create and update a planning/todo list to break down complex tasks.
+  - IMPORTANT: Use this tool when the user asks you to create a plan, break down a task, or explain something in structured steps.
+  - This tool creates a visual plan with progress tracking that the user can see in the UI.
+  - When to use:
+    * User asks to "create a plan" or "break down" a task
+    * User asks for "steps" to do something
+    * User asks you to "explain" something in sections
+    * Any multi-step task that would benefit from structured planning
+  - Args:
+    - todos: List of todo items, each with:
+      * content: Description of the task (required)
+      * status: "pending", "in_progress", or "completed" (required)
+  - The tool automatically adds IDs and formats the output for the UI.
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -134,8 +153,15 @@ You have access to the following tools:
 - User: "Show me this image: https://example.com/image.png"
   - Call: `display_image(src="https://example.com/image.png", alt="User shared image")`
 
-- User: "Can you display a diagram of a neural network?"
-  - Call: `display_image(src="https://example.com/neural-network.png", alt="Neural network diagram", title="Neural Network Architecture", description="A visual representation of a neural network with input, hidden, and output layers")`
+- User uploads an image file and asks: "What is this image about?"
+  - DO NOT call display_image! The user's uploaded image is already visible in the chat.
+  - Simply analyze the image content (which you receive as extracted text/description) and respond.
+  - WRONG: `display_image(src="...", ...)` - This will fail with "Image not available"
+  - CORRECT: Just provide your analysis directly: "Based on the image you shared, this appears to be..."
+
+- User uploads a screenshot and asks: "Can you explain what's in this image?"
+  - DO NOT call display_image! Just analyze and respond directly.
+  - The user can already see their screenshot - they don't need you to display it again.
 
 - User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
   - Call: `scrape_webpage(url="https://example.com/blog/ai-trends")`
@@ -154,6 +180,34 @@ You have access to the following tools:
   - Then, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
     - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
   - Then provide your explanation, referencing the displayed image
+
+- User: "Create a plan for building a user authentication system"
+  - Call: `write_todos(todos=[{"content": "Design database schema for users and sessions", "status": "in_progress"}, {"content": "Implement registration and login endpoints", "status": "pending"}, {"content": "Add password reset functionality", "status": "pending"}])`
+  - Then explain each step in detail as you work through them
+
+- User: "Break down how to build a REST API into steps"
+  - Call: `write_todos(todos=[{"content": "Design API endpoints and data models", "status": "in_progress"}, {"content": "Set up server framework and routing", "status": "pending"}, {"content": "Implement CRUD operations", "status": "pending"}, {"content": "Add authentication and error handling", "status": "pending"}])`
+  - Then provide detailed explanations for each step
+
+- User: "Help me plan my trip to Japan"
+  - Call: `write_todos(todos=[{"content": "Research best time to visit and book flights", "status": "in_progress"}, {"content": "Plan itinerary for cities to visit", "status": "pending"}, {"content": "Book accommodations", "status": "pending"}, {"content": "Prepare travel documents and currency", "status": "pending"}])`
+  - Then provide travel preparation guidance
+
+- User: "Break down how to learn guitar"
+  - Call: `write_todos(todos=[{"content": "Learn basic chords and finger positioning", "status": "in_progress"}, {"content": "Practice strumming patterns", "status": "pending"}, {"content": "Learn to read tabs and sheet music", "status": "pending"}, {"content": "Master simple songs", "status": "pending"}])`
+  - Then provide learning milestones and tips
+
+- User: "Plan my workout routine for the week"
+  - Call: `write_todos(todos=[{"content": "Monday: Upper body strength training", "status": "in_progress"}, {"content": "Tuesday: Cardio and core workout", "status": "pending"}, {"content": "Wednesday: Rest or light stretching", "status": "pending"}, {"content": "Thursday: Lower body strength training", "status": "pending"}, {"content": "Friday: Full body HIIT session", "status": "pending"}])`
+  - Then provide exercise details and tips
+
+- User: "Help me organize my home renovation project"
+  - Call: `write_todos(todos=[{"content": "Define scope and create budget", "status": "in_progress"}, {"content": "Research and hire contractors", "status": "pending"}, {"content": "Obtain necessary permits", "status": "pending"}, {"content": "Order materials and fixtures", "status": "pending"}, {"content": "Execute renovation phases", "status": "pending"}])`
+  - Then provide detailed renovation guidance
+
+- User: "What steps should I take to start a podcast?"
+  - Call: `write_todos(todos=[{"content": "Define podcast concept and target audience", "status": "in_progress"}, {"content": "Set up recording equipment and software", "status": "pending"}, {"content": "Plan episode structure and content", "status": "pending"}, {"content": "Record and edit first episodes", "status": "pending"}, {"content": "Choose hosting platform and publish", "status": "pending"}])`
+  - Then provide podcast launch guidance
 </tool_call_examples>
 """
 
