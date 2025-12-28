@@ -388,7 +388,7 @@ async def _process_single_file(
         # Download and process using Surfsense's existing infrastructure
         # This handles: markdown, audio, PDFs, Office docs, images, etc.
         # It also handles: deduplication, chunking, summarization, embedding
-        document, error = await download_and_process_file(
+        document, error, file_metadata = await download_and_process_file(
             client=drive_client,
             file=file,
             search_space_id=search_space_id,
@@ -407,7 +407,28 @@ async def _process_single_file(
             )
             return 0, 1
 
-        if document:
+        if document and file_metadata:
+            # Update document type to GOOGLE_DRIVE_CONNECTOR and add metadata
+            original_type = document.document_type
+            document.document_type = DocumentType.GOOGLE_DRIVE_CONNECTOR
+            
+            # Add Google Drive specific metadata
+            if not document.metadata:
+                document.metadata = {}
+            
+            document.metadata.update({
+                **file_metadata,
+                "original_document_type": original_type,
+                "source_connector": "google_drive",
+            })
+            
+            # Commit the document type and metadata changes
+            await session.commit()
+            
+            logger.info(
+                f"Updated document {document.id} to GOOGLE_DRIVE_CONNECTOR type with metadata"
+            )
+            
             # Successfully indexed
             await task_logger.log_task_progress(
                 log_entry,
@@ -416,6 +437,7 @@ async def _process_single_file(
                     "status": "indexed",
                     "document_id": document.id,
                     "file_name": file_name,
+                    "document_type": DocumentType.GOOGLE_DRIVE_CONNECTOR,
                 },
             )
             return 1, 0

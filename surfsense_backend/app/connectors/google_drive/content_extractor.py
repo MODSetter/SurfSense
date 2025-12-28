@@ -29,7 +29,7 @@ async def download_and_process_file(
     session: AsyncSession,
     task_logger: TaskLoggingService,
     log_entry: Log,
-) -> tuple[Any, str | None]:
+) -> tuple[Any, str | None, dict[str, Any] | None]:
     """
     Download Google Drive file and process using Surfsense's existing infrastructure.
 
@@ -45,7 +45,7 @@ async def download_and_process_file(
         log_entry: Log entry for tracking
 
     Returns:
-        Tuple of (Document object if successful, error message if failed)
+        Tuple of (Document object if successful, error message if failed, file metadata dict)
     """
     file_id = file.get("id")
     file_name = file.get("name", "Unknown")
@@ -53,7 +53,7 @@ async def download_and_process_file(
 
     # Skip folders and shortcuts
     if should_skip_file(mime_type):
-        return None, f"Skipping {mime_type}"
+        return None, f"Skipping {mime_type}", None
 
     logger.info(f"Downloading file: {file_name} ({mime_type})")
 
@@ -104,42 +104,27 @@ async def download_and_process_file(
             log_entry=log_entry,
         )
 
-        # Step 3: Update document type to GOOGLE_DRIVE_CONNECTOR and add metadata
-        if document:
-            from app.db import DocumentType
-
-            # Store original file type in metadata before changing document_type
-            original_type = document.document_type
-            
-            # Update document type to mark it as from Google Drive
-            document.document_type = DocumentType.GOOGLE_DRIVE_CONNECTOR
-            
-            # Add Google Drive specific metadata
-            if not document.metadata:
-                document.metadata = {}
-            
-            document.metadata.update({
-                "google_drive_file_id": file_id,
-                "google_drive_file_name": file_name,
-                "google_drive_mime_type": mime_type,
-                "original_document_type": original_type,
-                "source_connector": "google_drive",
-            })
-            
-            # If it was a Google Workspace file, note the export format
-            if is_google_workspace_file(mime_type):
-                document.metadata["exported_as"] = "pdf"
-                document.metadata["original_workspace_type"] = mime_type.split(".")[-1]  # e.g., "document", "spreadsheet"
-            
-            await session.flush()  # Persist the changes
-            logger.info(f"Updated document type to GOOGLE_DRIVE_CONNECTOR for {file_name}")
-
+        # Note: Document type update happens in the indexer after this returns
+        # to ensure proper session management and commit timing
+        
+        # Prepare file metadata for the indexer to use
+        file_metadata = {
+            "google_drive_file_id": file_id,
+            "google_drive_file_name": file_name,
+            "google_drive_mime_type": mime_type,
+        }
+        
+        # If it was a Google Workspace file, note the export format
+        if is_google_workspace_file(mime_type):
+            file_metadata["exported_as"] = "pdf"
+            file_metadata["original_workspace_type"] = mime_type.split(".")[-1]  # e.g., "document", "spreadsheet"
+        
         # process_file_in_background returns None on duplicate/error, Document on success
-        return document, None
+        return document, None, file_metadata
 
     except Exception as e:
         logger.warning(f"Failed to process {file_name}: {e!s}")
-        return None, str(e)
+        return None, str(e), None
 
     finally:
         # Cleanup temp file (if process_file_in_background didn't already delete it)
