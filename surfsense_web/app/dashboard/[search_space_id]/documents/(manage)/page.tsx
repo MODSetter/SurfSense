@@ -136,6 +136,14 @@ export default function DocumentsTable() {
 
 	// Set up polling for active tasks
 	const { summary } = useLogsSummary(searchSpaceId, 24, { refetchInterval: 5000 });
+	
+	// Filter active tasks to only include document_processor tasks (uploads via "add sources")
+	// Exclude connector_indexing_task tasks (periodic reindexing)
+	const documentProcessorTasks = summary?.active_tasks.filter(
+		task => task.source === "document_processor"
+	) || [];
+	const documentProcessorTasksCount = documentProcessorTasks.length;
+	
 	const activeTasksCount = summary?.active_tasks.length || 0;
 	const prevActiveTasksCount = useRef(activeTasksCount);
 
@@ -226,7 +234,7 @@ export default function DocumentsTable() {
 				</Button>
 			</motion.div>
 
-			<ProcessingIndicator activeTasksCount={activeTasksCount} />
+			<ProcessingIndicator documentProcessorTasksCount={documentProcessorTasksCount} />
 
 			<DocumentsFilters
 				typeCounts={typeCounts ?? {}}
