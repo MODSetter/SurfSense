@@ -155,7 +155,7 @@ const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolea
 					)}
 				>
 					{/* Header text with shimmer if processing or has in-progress step */}
-					{isProcessing || inProgressStep ? (
+					{isProcessing && inProgressStep ? (
 						<TextShimmerLoader text={getHeaderText()} size="sm" />
 					) : (
 						<span>{getHeaderText()}</span>

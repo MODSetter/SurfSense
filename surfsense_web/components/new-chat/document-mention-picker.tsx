@@ -184,8 +184,8 @@ export const DocumentMentionPicker = forwardRef<
 			role="listbox"
 			tabIndex={-1}
 		>
-			{/* Document List */}
-			<div className="max-h-[280px] overflow-y-auto">
+			{/* Document List - Shows max 3 items on mobile, 5 items on desktop */}
+		<div className="max-h-[108px] sm:max-h-[180px] overflow-y-auto">
 				{actualLoading ? (
 					<div className="flex items-center justify-center py-4">
 						<div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
