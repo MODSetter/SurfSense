@@ -75,25 +75,23 @@ export function GoogleDriveFolderTree({
 	const [isLoadingRoot, setIsLoadingRoot] = useState(false);
 	const [isInitialized, setIsInitialized] = useState(false);
 
-	// Helper to check if a folder is selected
 	const isFolderSelected = (folderId: string): boolean => {
 		return selectedFolders.some((f) => f.id === folderId);
 	};
 
-	// Handle folder checkbox toggle
 	const toggleFolderSelection = (folderId: string, folderName: string) => {
 		if (isFolderSelected(folderId)) {
-			// Remove from selection
 			onSelectFolders(selectedFolders.filter((f) => f.id !== folderId));
 		} else {
-			// Add to selection
 			onSelectFolders([...selectedFolders, { id: folderId, name: folderName }]);
 		}
 	};
 
-	// Load root items (folders and files) on mount
+	/**
+	 * Load root-level folders and files from Google Drive.
+	 */
 	const loadRootItems = async () => {
-		if (isInitialized) return; // Already loaded
+		if (isInitialized) return;
 
 		setIsLoadingRoot(true);
 		try {
@@ -112,17 +110,16 @@ export function GoogleDriveFolderTree({
 		}
 	};
 
-	// Helper function to find an item recursively through all loaded items
+	/**
+	 * Find an item by ID across all loaded items (root and nested).
+	 */
 	const findItem = (itemId: string): DriveItem | undefined => {
-		// First check if we have it in itemStates
 		const state = itemStates.get(itemId);
 		if (state?.item) return state.item;
 
-		// Check root items
 		const rootItem = rootItems.find((item) => item.id === itemId);
 		if (rootItem) return rootItem;
 
-		// Recursively search through all loaded children
 		for (const [, nodeState] of itemStates) {
 			if (nodeState.children) {
 				const found = nodeState.children.find((child) => child.id === itemId);
@@ -133,17 +130,17 @@ export function GoogleDriveFolderTree({
 		return undefined;
 	};
 
-	// Load children (folders and files) for a specific folder
+	/**
+	 * Load and display contents of a specific folder.
+	 */
 	const loadFolderContents = async (folderId: string) => {
 		try {
-			// Set loading state
 			setItemStates((prev) => {
 				const newMap = new Map(prev);
 				const existing = newMap.get(folderId);
 				if (existing) {
 					newMap.set(folderId, { ...existing, isLoading: true });
 				} else {
-					// First time loading this folder - create initial state
 					const item = findItem(folderId);
 					if (item) {
 						newMap.set(folderId, {
@@ -165,10 +162,6 @@ export function GoogleDriveFolderTree({
 			const data = await response.json();
 			const items = data.items || [];
 
-			// Check if folder only contains files (no subfolders)
-			const hasSubfolders = items.some((item: DriveItem) => item.isFolder);
-
-			// Update item state with loaded children
 			setItemStates((prev) => {
 				const newMap = new Map(prev);
 				const existing = newMap.get(folderId);
@@ -178,7 +171,7 @@ export function GoogleDriveFolderTree({
 					newMap.set(folderId, {
 						item,
 						children: items,
-						isExpanded: true, // Always expand after loading
+						isExpanded: true,
 						isLoading: false,
 					});
 				} else {
@@ -188,7 +181,6 @@ export function GoogleDriveFolderTree({
 			});
 		} catch (error) {
 			console.error("Error loading folder contents:", error);
-			// Clear loading state on error
 			setItemStates((prev) => {
 				const newMap = new Map(prev);
 				const existing = newMap.get(folderId);
@@ -200,17 +192,17 @@ export function GoogleDriveFolderTree({
 		}
 	};
 
-	// Toggle folder expansion
+	/**
+	 * Toggle folder expand/collapse state.
+	 */
 	const toggleFolder = async (item: DriveItem) => {
-		if (!item.isFolder) return; // Only folders can be expanded
+		if (!item.isFolder) return;
 
 		const state = itemStates.get(item.id);
 
 		if (!state || state.children === null) {
-			// First time expanding - load children
 			await loadFolderContents(item.id);
 		} else {
-			// Toggle expansion state
 			setItemStates((prev) => {
 				const newMap = new Map(prev);
 				newMap.set(item.id, {
@@ -222,7 +214,9 @@ export function GoogleDriveFolderTree({
 		}
 	};
 
-	// Recursive render function for item tree
+	/**
+	 * Render a single item (folder or file) with its children.
+	 */
 	const renderItem = (item: DriveItem, level: number = 0) => {
 		const state = itemStates.get(item.id);
 		const isExpanded = state?.isExpanded || false;
@@ -231,7 +225,6 @@ export function GoogleDriveFolderTree({
 		const isSelected = isFolderSelected(item.id);
 		const isFolder = item.isFolder;
 
-		// Separate folders and files for children
 		const childFolders = children?.filter((c) => c.isFolder) || [];
 		const childFiles = children?.filter((c) => !c.isFolder) || [];
 
@@ -245,7 +238,6 @@ export function GoogleDriveFolderTree({
 						isSelected && isFolder && "bg-accent/50"
 					)}
 				>
-					{/* Expand/Collapse Icon (only for folders) */}
 					{isFolder ? (
 						<span
 							className="flex items-center justify-center w-4 h-4 shrink-0"
@@ -263,10 +255,9 @@ export function GoogleDriveFolderTree({
 							)}
 						</span>
 					) : (
-						<span className="w-4 h-4 shrink-0" /> // Empty space for alignment
+						<span className="w-4 h-4 shrink-0" />
 					)}
 
-					{/* Checkbox (only for folders) */}
 					{isFolder && (
 						<Checkbox
 							checked={isSelected}
@@ -276,7 +267,6 @@ export function GoogleDriveFolderTree({
 						/>
 					)}
 
-					{/* Icon */}
 					<div className="shrink-0" style={{ marginLeft: isFolder ? "0" : "1.25rem" }}>
 						{isFolder ? (
 							isExpanded ? (
@@ -289,7 +279,6 @@ export function GoogleDriveFolderTree({
 						)}
 					</div>
 
-					{/* Item Name */}
 					<span
 						className="truncate flex-1 text-left text-sm min-w-0"
 						onClick={() => isFolder && toggleFolder(item)}
@@ -298,16 +287,11 @@ export function GoogleDriveFolderTree({
 					</span>
 				</div>
 
-				{/* Render children if expanded (folders first, then files) */}
 				{isExpanded && isFolder && children && (
 					<div className="w-full">
-						{/* Render folders first */}
 						{childFolders.map((child) => renderItem(child, level + 1))}
-
-						{/* Render files */}
 						{childFiles.map((child) => renderItem(child, level + 1))}
 
-						{/* Empty state */}
 						{children.length === 0 && (
 							<div className="text-xs text-muted-foreground py-2 pl-2">Empty folder</div>
 						)}
@@ -317,7 +301,6 @@ export function GoogleDriveFolderTree({
 		);
 	};
 
-	// Initialize on first render
 	if (!isInitialized && !isLoadingRoot) {
 		loadRootItems();
 	}
@@ -326,7 +309,6 @@ export function GoogleDriveFolderTree({
 		<div className="border rounded-md w-full overflow-hidden">
 			<ScrollArea className="h-[450px] w-full">
 				<div className="p-2 pr-4 w-full overflow-x-hidden">
-					{/* My Drive Header (always visible, selectable) */}
 					<div className="mb-2 pb-2 border-b">
 						<div className="flex items-center gap-2 h-auto py-2 px-2 rounded-md hover:bg-accent cursor-pointer">
 							<Checkbox
@@ -341,19 +323,16 @@ export function GoogleDriveFolderTree({
 						</div>
 					</div>
 
-					{/* Loading indicator */}
 					{isLoadingRoot && (
 						<div className="flex items-center justify-center py-8">
 							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
 						</div>
 					)}
 
-					{/* Root items (folders and files) - same level as Google Drive shows */}
 					<div className="w-full overflow-x-hidden">
 						{!isLoadingRoot && rootItems.map((item) => renderItem(item, 0))}
 					</div>
 
-					{/* Empty state */}
 					{!isLoadingRoot && rootItems.length === 0 && (
 						<div className="text-center text-sm text-muted-foreground py-8">
 							No files or folders found in your Google Drive
