@@ -1548,35 +1548,55 @@ async def run_google_drive_indexing(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    folder_id: str,
-    folder_name: str,
+    folder_ids: str,  # Comma-separated folder IDs
+    folder_names: str,  # Comma-separated folder names
 ):
-    """Runs the Google Drive indexing task and updates the timestamp."""
+    """Runs the Google Drive indexing task for multiple folders and updates the timestamp."""
     try:
         from app.tasks.connector_indexers.google_drive_indexer import (
             index_google_drive_files,
         )
 
-        indexed_count, error_message = await index_google_drive_files(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            folder_id,
-            folder_name,
-            use_delta_sync=True,
-            update_last_indexed=False,
-        )
-        if error_message:
+        # Split comma-separated IDs and names into lists
+        folder_id_list = [fid.strip() for fid in folder_ids.split(",")]
+        folder_name_list = [fname.strip() for fname in folder_names.split(",")]
+
+        total_indexed = 0
+        errors = []
+
+        # Index each folder
+        for folder_id, folder_name in zip(folder_id_list, folder_name_list):
+            try:
+                indexed_count, error_message = await index_google_drive_files(
+                    session,
+                    connector_id,
+                    search_space_id,
+                    user_id,
+                    folder_id,
+                    folder_name,
+                    use_delta_sync=True,
+                    update_last_indexed=False,
+                )
+                if error_message:
+                    errors.append(f"{folder_name}: {error_message}")
+                else:
+                    total_indexed += indexed_count
+            except Exception as e:
+                errors.append(f"{folder_name}: {str(e)}")
+                logger.error(
+                    f"Error indexing folder {folder_name} ({folder_id}): {e}",
+                    exc_info=True,
+                )
+
+        if errors:
             logger.error(
-                f"Google Drive indexing failed for connector {connector_id}: {error_message}"
+                f"Google Drive indexing completed with errors for connector {connector_id}: {'; '.join(errors)}"
             )
-            # Optionally update status in DB to indicate failure
         else:
             logger.info(
-                f"Google Drive indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
+                f"Google Drive indexing successful for connector {connector_id}. Indexed {total_indexed} documents from {len(folder_id_list)} folder(s)."
             )
-            # Update the last indexed timestamp only on success
+            # Update the last indexed timestamp only on full success
             await update_connector_last_indexed(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
