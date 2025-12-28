@@ -590,58 +590,6 @@ async def stream_new_chat(
                     else {"input": tool_input},
                 )
 
-                # Send terminal info about the tool call
-                if tool_name == "search_knowledge_base":
-                    query = (
-                        tool_input.get("query", "")
-                        if isinstance(tool_input, dict)
-                        else str(tool_input)
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Searching knowledge base: {query[:100]}{'...' if len(query) > 100 else ''}",
-                        "info",
-                    )
-                elif tool_name == "link_preview":
-                    url = (
-                        tool_input.get("url", "")
-                        if isinstance(tool_input, dict)
-                        else str(tool_input)
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Fetching link preview: {url[:80]}{'...' if len(url) > 80 else ''}",
-                        "info",
-                    )
-                elif tool_name == "display_image":
-                    src = (
-                        tool_input.get("src", "")
-                        if isinstance(tool_input, dict)
-                        else str(tool_input)
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Analyzing image: {src[:60]}{'...' if len(src) > 60 else ''}",
-                        "info",
-                    )
-                elif tool_name == "scrape_webpage":
-                    url = (
-                        tool_input.get("url", "")
-                        if isinstance(tool_input, dict)
-                        else str(tool_input)
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Scraping webpage: {url[:70]}{'...' if len(url) > 70 else ''}",
-                        "info",
-                    )
-                elif tool_name == "generate_podcast":
-                    title = (
-                        tool_input.get("podcast_title", "SurfSense Podcast")
-                        if isinstance(tool_input, dict)
-                        else "SurfSense Podcast"
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Generating podcast: {title}",
-                        "info",
-                    )
-
             elif event_type == "on_tool_end":
                 run_id = event.get("run_id", "")
                 tool_name = event.get("name", "unknown_tool")

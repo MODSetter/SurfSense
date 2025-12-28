@@ -134,8 +134,11 @@ export default function DocumentsTable() {
 		toast.success(t("refresh_success") || "Documents refreshed");
 	}, [debouncedSearch, refetchSearch, refetchDocuments, t]);
 
-	// Set up polling for active tasks
-	const { summary } = useLogsSummary(searchSpaceId, 24, { refetchInterval: 5000 });
+	// Set up smart polling for active tasks - only polls when tasks are in progress
+	const { summary } = useLogsSummary(searchSpaceId, 24, {
+		enablePolling: true,
+		refetchInterval: 5000, // Poll every 5 seconds when tasks are active
+	});
 	const activeTasksCount = summary?.active_tasks.length || 0;
 	const prevActiveTasksCount = useRef(activeTasksCount);
 

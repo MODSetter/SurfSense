@@ -80,8 +80,10 @@ export function NavNotes({
 	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
 
 	// Poll for active reindexing tasks to show inline loading indicators
+	// Smart polling: only polls when there are active tasks, stops when idle
 	const { summary } = useLogsSummary(searchSpaceId ? Number(searchSpaceId) : 0, 24, {
-		refetchInterval: 2000,
+		enablePolling: true,
+		refetchInterval: 5000, // Poll every 5 seconds when tasks are active
 	});
 
 	// Create a Set of document IDs that are currently being reindexed
