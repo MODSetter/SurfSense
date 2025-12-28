@@ -18,7 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { useGoogleDriveFolders } from "@/hooks/use-google-drive-folders";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 
 interface DriveItem {
 	id: string;
@@ -70,10 +71,13 @@ export function GoogleDriveFolderTree({
 	selectedFolders,
 	onSelectFolders,
 }: GoogleDriveFolderTreeProps) {
-	const [rootItems, setRootItems] = useState<DriveItem[]>([]);
 	const [itemStates, setItemStates] = useState<Map<string, ItemTreeNode>>(new Map());
-	const [isLoadingRoot, setIsLoadingRoot] = useState(false);
-	const [isInitialized, setIsInitialized] = useState(false);
+
+	const { data: rootData, isLoading: isLoadingRoot } = useGoogleDriveFolders({
+		connectorId,
+	});
+
+	const rootItems = rootData?.items || [];
 
 	const isFolderSelected = (folderId: string): boolean => {
 		return selectedFolders.some((f) => f.id === folderId);
@@ -84,29 +88,6 @@ export function GoogleDriveFolderTree({
 			onSelectFolders(selectedFolders.filter((f) => f.id !== folderId));
 		} else {
 			onSelectFolders([...selectedFolders, { id: folderId, name: folderName }]);
-		}
-	};
-
-	/**
-	 * Load root-level folders and files from Google Drive.
-	 */
-	const loadRootItems = async () => {
-		if (isInitialized) return;
-
-		setIsLoadingRoot(true);
-		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/connectors/${connectorId}/google-drive/folders`
-			);
-			if (!response.ok) throw new Error("Failed to load items");
-
-			const data = await response.json();
-			setRootItems(data.items || []);
-			setIsInitialized(true);
-		} catch (error) {
-			console.error("Error loading root items:", error);
-		} finally {
-			setIsLoadingRoot(false);
 		}
 	};
 
@@ -154,12 +135,10 @@ export function GoogleDriveFolderTree({
 				return newMap;
 			});
 
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/connectors/${connectorId}/google-drive/folders?parent_id=${folderId}`
-			);
-			if (!response.ok) throw new Error("Failed to load folder contents");
-
-			const data = await response.json();
+			const data = await connectorsApiService.listGoogleDriveFolders({
+				connector_id: connectorId,
+				parent_id: folderId,
+			});
 			const items = data.items || [];
 
 			setItemStates((prev) => {
@@ -300,10 +279,6 @@ export function GoogleDriveFolderTree({
 			</div>
 		);
 	};
-
-	if (!isInitialized && !isLoadingRoot) {
-		loadRootItems();
-	}
 
 	return (
 		<div className="border rounded-md w-full overflow-hidden">

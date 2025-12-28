@@ -70,13 +70,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { cn } from "@/lib/utils";
-import { authenticatedFetch } from "@/lib/auth-utils";
 import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
-
-interface DriveFolder {
-	id: string;
-	name: string;
-}
 
 export default function ConnectorsPage() {
 	const t = useTranslations("connectors");
@@ -127,9 +121,7 @@ export default function ConnectorsPage() {
 
 	// Google Drive folder selection state
 	const [driveFolderDialogOpen, setDriveFolderDialogOpen] = useState(false);
-	const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
 	const [selectedFolders, setSelectedFolders] = useState<Array<{ id: string; name: string }>>([]);
-	const [isLoadingFolders, setIsLoadingFolders] = useState(false);
 
 	useEffect(() => {
 		if (error) {
@@ -165,31 +157,9 @@ export default function ConnectorsPage() {
 		}
 	};
 
-	// Handle opening Google Drive folder selection dialog
-	const handleOpenDriveFolderDialog = async (connectorId: number) => {
+	const handleOpenDriveFolderDialog = (connectorId: number) => {
 		setSelectedConnectorForIndexing(connectorId);
 		setDriveFolderDialogOpen(true);
-		setIsLoadingFolders(true);
-		
-		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/connectors/${connectorId}/google-drive/folders`,
-				{ method: "GET" }
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to load folders");
-			}
-
-			const data = await response.json();
-			setDriveFolders(data.folders || []);
-		} catch (error) {
-			console.error("Error loading folders:", error);
-			toast.error("Failed to load Google Drive folders");
-			setDriveFolderDialogOpen(false);
-		} finally {
-			setIsLoadingFolders(false);
-		}
 	};
 
 	// Handle Google Drive folder indexing
@@ -204,15 +174,17 @@ export default function ConnectorsPage() {
 		try {
 			setIndexingConnectorId(selectedConnectorForIndexing);
 
-			// Call indexConnector with folder_ids and folder_names as query params
-			await indexConnector(
-				selectedConnectorForIndexing,
-				searchSpaceId,
-				undefined,
-				undefined,
-				selectedFolders.map((f) => f.id).join(","),
-				selectedFolders.map((f) => f.name).join(", ")
-			);
+			const folderIds = selectedFolders.map((f) => f.id).join(",");
+			const folderNames = selectedFolders.map((f) => f.name).join(", ");
+
+			await indexConnector({
+				connector_id: selectedConnectorForIndexing,
+				queryParams: {
+					search_space_id: searchSpaceId,
+					folder_ids: folderIds,
+					folder_names: folderNames,
+				},
+			});
 			toast.success(t("indexing_started"));
 		} catch (error) {
 			console.error("Error indexing connector content:", error);
@@ -221,7 +193,6 @@ export default function ConnectorsPage() {
 		setIndexingConnectorId(null);
 		setSelectedConnectorForIndexing(null);
 		setSelectedFolders([]);
-		setDriveFolders([]);
 	}
 	};
 
@@ -747,14 +718,13 @@ export default function ConnectorsPage() {
 					<DialogFooter>
 						<Button
 							variant="outline"
-						onClick={() => {
-							setDriveFolderDialogOpen(false);
-							setSelectedConnectorForIndexing(null);
-							setSelectedFolders([]);
-							setDriveFolders([]);
-						}}
-					>
-						{tCommon("cancel")}
+							onClick={() => {
+								setDriveFolderDialogOpen(false);
+								setSelectedConnectorForIndexing(null);
+								setSelectedFolders([]);
+							}}
+						>
+							{tCommon("cancel")}
 					</Button>
 					<Button onClick={handleIndexDriveFolder} disabled={selectedFolders.length === 0}>
 						{t("start_indexing")}
