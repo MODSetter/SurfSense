@@ -69,7 +69,7 @@ export default function InferenceParamsEditor({ params, setParams }: InferencePa
 		<div className="space-y-6 p-2 sm:p-0">
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_auto] md:gap-3 items-end">
 				<div className="flex flex-col space-y-1">
-					<Label htmlFor="param-key" className="text-sm font-medium">
+					<Label htmlFor="param-key" className="text-xs sm:text-sm font-medium">
 						Parameter Key
 					</Label>
 					<Select value={selectedKey} onValueChange={setSelectedKey}>
@@ -87,7 +87,7 @@ export default function InferenceParamsEditor({ params, setParams }: InferencePa
 				</div>
 
 				<div className="flex flex-col space-y-1">
-					<Label htmlFor="param-value" className="text-sm font-medium">
+					<Label htmlFor="param-value" className="text-xs sm:text-sm font-medium">
 						Value
 					</Label>
 					<Input
@@ -100,11 +100,11 @@ export default function InferenceParamsEditor({ params, setParams }: InferencePa
 				</div>
 
 				<Button
-					className="w-full md:w-auto h-10 mt-0"
+					className="w-full md:w-auto h-9 sm:h-10 mt-0 text-xs sm:text-sm"
 					onClick={handleAdd}
 					disabled={!selectedKey || value === ""}
 				>
-					<Plus className="w-4 h-4 mr-2" /> Add Parameter
+					<Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" /> Add Parameter
 				</Button>
 			</div>
 

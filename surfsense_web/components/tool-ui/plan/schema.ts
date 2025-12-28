@@ -7,6 +7,88 @@ export const TodoStatusSchema = z.enum(["pending", "in_progress", "completed", "
 export type TodoStatus = z.infer<typeof TodoStatusSchema>;
 
 /**
+ * Normalize various status string formats to the canonical TodoStatus
+ * Handles common variations from different sources:
+ * - Linear: Done, In Progress, Todo, Backlog, Cancelled
+ * - Jira: To Do, In Progress, Done, In Review, Reopened, Testing + statusCategory
+ * - ClickUp: Open, In Progress, Complete, Closed, Review
+ * - GitHub: open, closed
+ * - Airtable: Any custom field values
+ */
+export function normalizeStatus(status: unknown): TodoStatus {
+	if (typeof status !== "string") return "pending";
+
+	const normalized = status
+		.toLowerCase()
+		.trim()
+		.replace(/[\s_-]+/g, "_");
+
+	// Completed variations
+	// Sources: Linear (Done), Jira (Done), ClickUp (Complete, Closed), GitHub (closed)
+	if (
+		normalized === "completed" ||
+		normalized === "complete" ||
+		normalized === "done" ||
+		normalized === "finished" ||
+		normalized === "closed" ||
+		normalized === "resolved" ||
+		normalized === "fixed" ||
+		normalized === "shipped" ||
+		normalized === "released" ||
+		normalized === "merged"
+	) {
+		return "completed";
+	}
+
+	// In progress variations
+	// Sources: Linear (In Progress), Jira (In Progress, In Review, Testing), ClickUp (In Progress, Review)
+	if (
+		normalized === "in_progress" ||
+		normalized === "inprogress" ||
+		normalized === "started" ||
+		normalized === "active" ||
+		normalized === "working" ||
+		normalized === "in_review" ||
+		normalized === "inreview" ||
+		normalized === "review" ||
+		normalized === "reviewing" ||
+		normalized === "testing" ||
+		normalized === "in_testing" ||
+		normalized === "qa" ||
+		normalized === "in_qa" ||
+		normalized === "doing" ||
+		normalized === "wip" ||
+		normalized === "work_in_progress"
+	) {
+		return "in_progress";
+	}
+
+	// Cancelled variations
+	// Sources: Linear (Cancelled), Jira (Won't Fix, Duplicate)
+	if (
+		normalized === "cancelled" ||
+		normalized === "canceled" ||
+		normalized === "dropped" ||
+		normalized === "won't_fix" ||
+		normalized === "wontfix" ||
+		normalized === "wont_fix" ||
+		normalized === "duplicate" ||
+		normalized === "invalid" ||
+		normalized === "rejected" ||
+		normalized === "archived" ||
+		normalized === "removed" ||
+		normalized === "obsolete"
+	) {
+		return "cancelled";
+	}
+
+	// Pending variations (default)
+	// Sources: Linear (Todo, Backlog), Jira (To Do, Reopened), ClickUp (Open), GitHub (open)
+	// Includes: "pending", "todo", "to_do", "backlog", "open", "new", "triage", "reopened", etc.
+	return "pending";
+}
+
+/**
  * Single todo item in a plan
  * Matches deepagents TodoListMiddleware output: { content, status }
  * id is auto-generated if not provided
@@ -67,9 +149,7 @@ export function parseSerializablePlan(data: unknown): NormalizedPlan {
 						return {
 							id: typeof todo?.id === "string" ? todo.id : `todo-${i}`,
 							content: typeof todo?.content === "string" ? todo.content : "Task",
-							status: TodoStatusSchema.safeParse(todo?.status).success
-								? (todo.status as TodoStatus)
-								: ("pending" as const),
+							status: normalizeStatus(todo?.status),
 						};
 					})
 				: [{ id: "1", content: "No tasks", status: "pending" as const }],

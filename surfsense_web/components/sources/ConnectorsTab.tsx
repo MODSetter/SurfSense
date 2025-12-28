@@ -81,7 +81,7 @@ export function ConnectorsTab({ searchSpaceId }: ConnectorsTabProps) {
 						className="w-full"
 					>
 						<div className="flex items-center justify-between space-x-4 p-4">
-							<h3 className="text-xl font-semibold">{t(category.title)}</h3>
+							<h3 className="text-lg sm:text-xl font-semibold">{t(category.title)}</h3>
 							<CollapsibleTrigger asChild>
 								<Button variant="ghost" size="sm" className="w-9 p-0 hover:bg-muted">
 									<motion.div

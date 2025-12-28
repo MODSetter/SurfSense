@@ -27,6 +27,7 @@ interface AllNotesSidebarProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onAddNote?: () => void;
+	onCloseMobileSidebar?: () => void;
 }
 
 export function AllNotesSidebar({
@@ -34,6 +35,7 @@ export function AllNotesSidebar({
 	onOpenChange,
 	searchSpaceId,
 	onAddNote,
+	onCloseMobileSidebar,
 }: AllNotesSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
@@ -45,6 +47,7 @@ export function AllNotesSidebar({
 	const [deletingNoteId, setDeletingNoteId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [mounted, setMounted] = useState(false);
+	const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
 	// Handle mounting for portal
@@ -114,8 +117,10 @@ export function AllNotesSidebar({
 		(noteId: number, noteSearchSpaceId: number) => {
 			router.push(`/dashboard/${noteSearchSpaceId}/editor/${noteId}`);
 			onOpenChange(false);
+			// Also close the main sidebar on mobile
+			onCloseMobileSidebar?.();
 		},
-		[router, onOpenChange]
+		[router, onOpenChange, onCloseMobileSidebar]
 	);
 
 	// Handle note deletion
@@ -195,7 +200,7 @@ export function AllNotesSidebar({
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-50 bg-black/50"
+						className="fixed inset-0 z-[70] bg-black/50"
 						onClick={() => onOpenChange(false)}
 						aria-hidden="true"
 					/>
@@ -206,7 +211,7 @@ export function AllNotesSidebar({
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
 						transition={{ type: "spring", damping: 25, stiffness: 300 }}
-						className="fixed inset-y-0 left-0 z-50 w-80 bg-background shadow-xl flex flex-col"
+						className="fixed inset-y-0 left-0 z-[70] w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"
 						aria-label={t("all_notes") || "All Notes"}
@@ -307,14 +312,17 @@ export function AllNotesSidebar({
 												</Tooltip>
 
 												{/* Actions dropdown - separate from main click area */}
-												<DropdownMenu>
+												<DropdownMenu
+													open={openDropdownId === note.id}
+													onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? note.id : null)}
+												>
 													<DropdownMenuTrigger asChild>
 														<Button
 															variant="ghost"
 															size="icon"
 															className={cn(
 																"h-6 w-6 shrink-0",
-																"opacity-0 group-hover:opacity-100 focus:opacity-100",
+																"md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
 																"transition-opacity"
 															)}
 															disabled={isDeleting}
@@ -327,7 +335,7 @@ export function AllNotesSidebar({
 															<span className="sr-only">{t("more_options") || "More options"}</span>
 														</Button>
 													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end" className="w-40">
+													<DropdownMenuContent align="end" className="w-40 z-[80]">
 														<DropdownMenuItem
 															onClick={() => handleDeleteNote(note.id, note.search_space_id)}
 															className="text-destructive focus:text-destructive"
