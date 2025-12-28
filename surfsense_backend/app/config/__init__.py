@@ -82,6 +82,9 @@ class Config:
     # Google Gmail redirect URI
     GOOGLE_GMAIL_REDIRECT_URI = os.getenv("GOOGLE_GMAIL_REDIRECT_URI")
 
+    # Google Drive redirect URI
+    GOOGLE_DRIVE_REDIRECT_URI = os.getenv("GOOGLE_DRIVE_REDIRECT_URI")
+
     # Airtable OAuth
     AIRTABLE_CLIENT_ID = os.getenv("AIRTABLE_CLIENT_ID")
     AIRTABLE_CLIENT_SECRET = os.getenv("AIRTABLE_CLIENT_SECRET")
