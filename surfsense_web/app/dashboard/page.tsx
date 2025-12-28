@@ -7,7 +7,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -38,7 +37,6 @@ import {
 } from "@/components/ui/card";
 import { Spotlight } from "@/components/ui/spotlight";
 import { Tilt } from "@/components/ui/tilt";
-import { authenticatedFetch } from "@/lib/auth-utils";
 
 /**
  * Formats a date string into a readable format
@@ -65,7 +63,7 @@ const LoadingScreen = () => {
 				animate={{ opacity: 1, scale: 1 }}
 				transition={{ duration: 0.5 }}
 			>
-				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
+				<Card className="w-full max-w-[350px] bg-background/60 backdrop-blur-sm">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-xl font-medium">{t("loading")}</CardTitle>
 						<CardDescription>{t("fetching_spaces")}</CardDescription>
@@ -101,7 +99,7 @@ const ErrorScreen = ({ message }: { message: string }) => {
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.5 }}
 			>
-				<Card className="w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">
+				<Card className="w-full max-w-[400px] bg-background/60 backdrop-blur-sm border-destructive/20">
 					<CardHeader className="pb-2">
 						<div className="flex items-center gap-2">
 							<AlertCircle className="h-5 w-5 text-destructive" />
@@ -185,21 +183,21 @@ const DashboardPage = () => {
 
 	return (
 		<motion.div
-			className="container mx-auto py-10"
+			className="container mx-auto py-6 md:py-10 px-4"
 			initial="hidden"
 			animate="visible"
 			variants={containerVariants}
 		>
-			<motion.div className="flex flex-col space-y-6" variants={itemVariants}>
-				<div className="flex flex-row space-x-4 justify-between">
-					<div className="flex flex-row space-x-4">
-						<Logo className="w-10 h-10 rounded-md" />
-						<div className="flex flex-col space-y-2">
-							<h1 className="text-4xl font-bold">{t("surfsense_dashboard")}</h1>
-							<p className="text-muted-foreground">{t("welcome_message")}</p>
+			<motion.div className="flex flex-col space-y-4 md:space-y-6" variants={itemVariants}>
+				<div className="flex flex-row items-center justify-between gap-2">
+					<div className="flex flex-row items-center md:space-x-4">
+						<Logo className="w-8 h-8 md:w-10 md:h-10 rounded-md shrink-0 hidden md:block" />
+						<div className="flex flex-col space-y-0.5 md:space-y-2">
+							<h1 className="text-xl md:text-4xl font-bold">{t("surfsense_dashboard")}</h1>
+							<p className="text-sm md:text-base text-muted-foreground">{t("welcome_message")}</p>
 						</div>
 					</div>
-					<div className="flex items-center space-x-3">
+					<div className="flex items-center space-x-2 md:space-x-3 shrink-0">
 						<UserDropdown user={customUser} />
 						<ThemeTogglerComponent />
 					</div>
@@ -207,18 +205,18 @@ const DashboardPage = () => {
 
 				<div className="flex flex-col space-y-6 mt-6">
 					<div className="flex justify-between items-center">
-						<h2 className="text-2xl font-semibold">{t("your_search_spaces")}</h2>
+						<h2 className="text-lg md:text-2xl font-semibold">{t("your_search_spaces")}</h2>
 						<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
 							<Link href="/dashboard/searchspaces">
-								<Button className="h-10">
-									<Plus className="mr-2 h-4 w-4" />
+								<Button className="h-8 md:h-10 text-[11px] md:text-sm px-3 md:px-4">
+									<Plus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
 									{t("create_search_space")}
 								</Button>
 							</Link>
 						</motion.div>
 					</div>
 
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
 						{searchSpaces &&
 							searchSpaces.length > 0 &&
 							searchSpaces.map((space) => (
@@ -295,14 +293,14 @@ const DashboardPage = () => {
 												<div className="flex flex-1 flex-col justify-between p-1">
 													<div>
 														<div className="flex items-center gap-2">
-															<h3 className="font-medium text-lg">{space.name}</h3>
+															<h3 className="font-medium text-base md:text-lg">{space.name}</h3>
 															{!space.is_owner && (
-																<Badge variant="secondary" className="text-xs font-normal">
+																<Badge variant="secondary" className="text-[10px] md:text-xs font-normal">
 																	{t("shared")}
 																</Badge>
 															)}
 														</div>
-														<p className="mt-1 text-sm text-muted-foreground">
+														<p className="mt-1 text-xs md:text-sm text-muted-foreground">
 															{space.description}
 														</p>
 													</div>
@@ -334,8 +332,8 @@ const DashboardPage = () => {
 								<div className="rounded-full bg-muted/50 p-4 mb-4">
 									<Search className="h-8 w-8 text-muted-foreground" />
 								</div>
-								<h3 className="text-lg font-medium mb-2">{t("no_spaces_found")}</h3>
-								<p className="text-muted-foreground mb-6">{t("create_first_space")}</p>
+								<h3 className="text-base md:text-lg font-medium mb-2">{t("no_spaces_found")}</h3>
+								<p className="text-xs md:text-sm text-muted-foreground mb-6">{t("create_first_space")}</p>
 								<Link href="/dashboard/searchspaces">
 									<Button>
 										<Plus className="mr-2 h-4 w-4" />
@@ -359,8 +357,8 @@ const DashboardPage = () => {
 								>
 									<Link href="/dashboard/searchspaces" className="flex h-full">
 										<div className="flex flex-col items-center justify-center h-full w-full rounded-xl border border-dashed bg-muted/10 hover:border-primary/50 transition-colors">
-											<Plus className="h-10 w-10 mb-3 text-muted-foreground" />
-											<span className="text-sm font-medium">{t("add_new_search_space")}</span>
+											<Plus className="h-8 w-8 md:h-10 md:w-10 mb-2 md:mb-3 text-muted-foreground" />
+											<span className="text-xs md:text-sm font-medium">{t("add_new_search_space")}</span>
 										</div>
 									</Link>
 								</Tilt>
