@@ -94,7 +94,7 @@ async def download_and_process_file(
         )
 
         logger.info(f"Processing {file_name} with Surfsense's file processor")
-        result = await process_file_in_background(
+        document = await process_file_in_background(
             file_path=temp_file_path,
             filename=file_name,
             search_space_id=search_space_id,
@@ -104,8 +104,38 @@ async def download_and_process_file(
             log_entry=log_entry,
         )
 
+        # Step 3: Update document type to GOOGLE_DRIVE_CONNECTOR and add metadata
+        if document:
+            from app.db import DocumentType
+
+            # Store original file type in metadata before changing document_type
+            original_type = document.document_type
+            
+            # Update document type to mark it as from Google Drive
+            document.document_type = DocumentType.GOOGLE_DRIVE_CONNECTOR
+            
+            # Add Google Drive specific metadata
+            if not document.metadata:
+                document.metadata = {}
+            
+            document.metadata.update({
+                "google_drive_file_id": file_id,
+                "google_drive_file_name": file_name,
+                "google_drive_mime_type": mime_type,
+                "original_document_type": original_type,
+                "source_connector": "google_drive",
+            })
+            
+            # If it was a Google Workspace file, note the export format
+            if is_google_workspace_file(mime_type):
+                document.metadata["exported_as"] = "pdf"
+                document.metadata["original_workspace_type"] = mime_type.split(".")[-1]  # e.g., "document", "spreadsheet"
+            
+            await session.flush()  # Persist the changes
+            logger.info(f"Updated document type to GOOGLE_DRIVE_CONNECTOR for {file_name}")
+
         # process_file_in_background returns None on duplicate/error, Document on success
-        return result, None
+        return document, None
 
     except Exception as e:
         logger.warning(f"Failed to process {file_name}: {e!s}")
