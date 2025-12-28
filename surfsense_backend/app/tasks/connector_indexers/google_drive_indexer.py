@@ -112,8 +112,9 @@ async def index_google_drive_files(
 
         logger.info(f"Indexing Google Drive folder: {target_folder_name} ({target_folder_id})")
 
-        # Decide sync strategy
-        start_page_token = connector.config.get("start_page_token")
+        # Decide sync strategy - track tokens per folder
+        folder_tokens = connector.config.get("folder_tokens", {})
+        start_page_token = folder_tokens.get(target_folder_id)
         can_use_delta_sync = use_delta_sync and start_page_token and connector.last_indexed_at
 
         if can_use_delta_sync:
@@ -156,7 +157,10 @@ async def index_google_drive_files(
             if new_token and not token_error:
                 from sqlalchemy.orm.attributes import flag_modified
 
-                connector.config["start_page_token"] = new_token
+                # Store token per folder
+                if "folder_tokens" not in connector.config:
+                    connector.config["folder_tokens"] = {}
+                connector.config["folder_tokens"][target_folder_id] = new_token
                 flag_modified(connector, "config")
 
             await update_connector_last_indexed(session, connector, update_last_indexed)
