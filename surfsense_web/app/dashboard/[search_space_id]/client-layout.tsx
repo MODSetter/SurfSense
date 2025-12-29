@@ -240,11 +240,7 @@ export function DashboardClientLayout({
 	}
 
 	return (
-		<SidebarProvider
-			className="h-full overflow-hidden"
-			open={open}
-			onOpenChange={setOpen}
-		>
+		<SidebarProvider className="h-full overflow-hidden" open={open} onOpenChange={setOpen}>
 			{/* Use AppSidebarProvider which fetches user, search space, and recent chats */}
 			<AppSidebarProvider
 				searchSpaceId={searchSpaceId}

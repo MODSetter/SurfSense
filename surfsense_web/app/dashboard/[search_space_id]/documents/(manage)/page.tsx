@@ -146,7 +146,6 @@ export default function DocumentsTable() {
 		summary?.active_tasks.filter((task) => task.source === "document_processor") || [];
 	const documentProcessorTasksCount = documentProcessorTasks.length;
 
-
 	const activeTasksCount = summary?.active_tasks.length || 0;
 	const prevActiveTasksCount = useRef(activeTasksCount);
 
