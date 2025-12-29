@@ -84,7 +84,7 @@ async def download_and_process_file(
         from app.db import DocumentType
 
         connector_info = {
-            "type": DocumentType.GOOGLE_DRIVE_CONNECTOR,
+            "type": DocumentType.GOOGLE_DRIVE_FILE,
             "metadata": {
                 "google_drive_file_id": file_id,
                 "google_drive_file_name": file_name,

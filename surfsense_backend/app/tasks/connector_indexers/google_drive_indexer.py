@@ -396,7 +396,7 @@ async def _remove_document(
 ):
     """Remove a document that was deleted in Drive."""
     unique_identifier_hash = generate_unique_identifier_hash(
-        DocumentType.GOOGLE_DRIVE_CONNECTOR, file_id, search_space_id
+        DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
     )
 
     existing_document = await check_document_by_unique_identifier(

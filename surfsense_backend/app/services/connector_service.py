@@ -1834,7 +1834,7 @@ class ConnectorService:
         drive_docs = await self._combined_rrf_search(
             query_text=user_query,
             search_space_id=search_space_id,
-            document_type="GOOGLE_DRIVE_CONNECTOR",
+            document_type="GOOGLE_DRIVE_FILE",
             top_k=top_k,
             start_date=start_date,
             end_date=end_date,
@@ -1845,7 +1845,7 @@ class ConnectorService:
             return {
                 "id": 33,
                 "name": "Google Drive Files",
-                "type": "GOOGLE_DRIVE_CONNECTOR",
+                "type": "GOOGLE_DRIVE_FILE",
                 "sources": [],
             }, []
 
@@ -1902,7 +1902,7 @@ class ConnectorService:
         result_object = {
             "id": 33,  # Assign a unique ID for the Google Drive connector
             "name": "Google Drive Files",
-            "type": "GOOGLE_DRIVE_CONNECTOR",
+            "type": "GOOGLE_DRIVE_FILE",
             "sources": sources_list,
         }
 

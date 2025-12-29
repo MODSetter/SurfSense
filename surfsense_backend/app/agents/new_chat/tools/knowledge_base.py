@@ -36,7 +36,7 @@ _ALL_CONNECTORS: list[str] = [
     "CLICKUP_CONNECTOR",
     "GOOGLE_CALENDAR_CONNECTOR",
     "GOOGLE_GMAIL_CONNECTOR",
-    "GOOGLE_DRIVE_CONNECTOR",
+    "GOOGLE_DRIVE_FILE",
     "DISCORD_CONNECTOR",
     "AIRTABLE_CONNECTOR",
     "TAVILY_API",
@@ -426,7 +426,7 @@ async def search_knowledge_base_async(
                 )
                 all_documents.extend(chunks)
 
-            elif connector == "GOOGLE_DRIVE_CONNECTOR":
+            elif connector == "GOOGLE_DRIVE_FILE":
                 _, chunks = await connector_service.search_google_drive(
                     user_query=query,
                     search_space_id=search_space_id,
@@ -572,7 +572,7 @@ def create_search_knowledge_base_tool(
         - CLICKUP_CONNECTOR: "ClickUp tasks and project data" (personal task management)
         - GOOGLE_CALENDAR_CONNECTOR: "Google Calendar events, meetings, and schedules" (personal calendar and time management)
         - GOOGLE_GMAIL_CONNECTOR: "Google Gmail emails and conversations" (personal emails and communications)
-        - GOOGLE_DRIVE_CONNECTOR: "Google Drive files and documents" (personal cloud storage and file management)
+        - GOOGLE_DRIVE_FILE: "Google Drive files and documents" (personal cloud storage and file management)
         - DISCORD_CONNECTOR: "Discord server conversations and shared content" (personal community communications)
         - AIRTABLE_CONNECTOR: "Airtable records, tables, and database content" (personal data management and organization)
         - TAVILY_API: "Tavily search API results" (personalized search results)
