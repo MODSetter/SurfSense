@@ -93,6 +93,16 @@ async def download_and_process_file(
             },
         }
         
+        # Add additional Drive metadata if available
+        if "modifiedTime" in file:
+            connector_info["metadata"]["modified_time"] = file["modifiedTime"]
+        if "createdTime" in file:
+            connector_info["metadata"]["created_time"] = file["createdTime"]
+        if "size" in file:
+            connector_info["metadata"]["file_size"] = file["size"]
+        if "webViewLink" in file:
+            connector_info["metadata"]["web_view_link"] = file["webViewLink"]
+        
         if is_google_workspace_file(mime_type):
             connector_info["metadata"]["exported_as"] = "pdf"
             connector_info["metadata"]["original_workspace_type"] = mime_type.split(".")[-1]
