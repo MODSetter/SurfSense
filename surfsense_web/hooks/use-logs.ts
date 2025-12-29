@@ -141,6 +141,8 @@ export function useLogsSummary(
 			}),
 		enabled: !!searchSpaceId,
 		staleTime: 3 * 60 * 1000,
+		// Always refetch on mount to show fresh processing tasks when navigating to the page
+		refetchOnMount: "always",
 		// Smart polling: only poll when there are active tasks and polling is enabled
 		// This prevents unnecessary API calls when nothing is being processed
 		refetchInterval: enablePolling
