@@ -118,12 +118,15 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 	};
 }
 
-// Separate hook for log summary with optional polling support for document processing indicator UI
+// Separate hook for log summary with smart polling support for document processing indicator UI
+// Polling only happens when there are active tasks, otherwise it stops to save resources
 export function useLogsSummary(
 	searchSpaceId: number,
 	hours: number = 24,
-	options: { refetchInterval?: number } = {}
+	options: { refetchInterval?: number; enablePolling?: boolean } = {}
 ) {
+	const { enablePolling = false, refetchInterval = 10000 } = options;
+
 	const {
 		data: summary,
 		isLoading: loading,
@@ -138,9 +141,22 @@ export function useLogsSummary(
 			}),
 		enabled: !!searchSpaceId,
 		staleTime: 3 * 60 * 1000,
-		// Enable refetch interval for document processing indicator polling
-		refetchInterval:
-			options.refetchInterval && options.refetchInterval > 0 ? options.refetchInterval : undefined,
+		// Always refetch on mount to show fresh processing tasks when navigating to the page
+		refetchOnMount: "always",
+		// Smart polling: only poll when there are active tasks and polling is enabled
+		// This prevents unnecessary API calls when nothing is being processed
+		refetchInterval: enablePolling
+			? (query) => {
+					const data = query.state.data;
+					// Only continue polling if there are active tasks
+					if (data?.active_tasks && data.active_tasks.length > 0) {
+						return refetchInterval;
+					}
+					// No active tasks - stop polling but check again after a longer interval
+					// to catch any newly started tasks
+					return 30000; // Check every 30 seconds when idle
+				}
+			: undefined,
 	});
 
 	return { summary, loading, error, refreshSummary: refetch };

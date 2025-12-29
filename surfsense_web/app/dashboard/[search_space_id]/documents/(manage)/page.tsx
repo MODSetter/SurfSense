@@ -134,8 +134,19 @@ export default function DocumentsTable() {
 		toast.success(t("refresh_success") || "Documents refreshed");
 	}, [debouncedSearch, refetchSearch, refetchDocuments, t]);
 
-	// Set up polling for active tasks
-	const { summary } = useLogsSummary(searchSpaceId, 24, { refetchInterval: 5000 });
+	// Set up smart polling for active tasks - only polls when tasks are in progress
+	const { summary } = useLogsSummary(searchSpaceId, 24, {
+		enablePolling: true,
+		refetchInterval: 5000, // Poll every 5 seconds when tasks are active
+	});
+
+	// Filter active tasks to only include document_processor tasks (uploads via "add sources")
+	// Exclude connector_indexing_task tasks (periodic reindexing)
+	const documentProcessorTasks =
+		summary?.active_tasks.filter((task) => task.source === "document_processor") || [];
+	const documentProcessorTasksCount = documentProcessorTasks.length;
+
+
 	const activeTasksCount = summary?.active_tasks.length || 0;
 	const prevActiveTasksCount = useRef(activeTasksCount);
 
@@ -217,8 +228,8 @@ export default function DocumentsTable() {
 				transition={{ delay: 0.1 }}
 			>
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
-					<p className="text-muted-foreground">{t("subtitle")}</p>
+					<h2 className="text-xl md:text-2xl font-bold tracking-tight">{t("title")}</h2>
+					<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
 				</div>
 				<Button onClick={refreshCurrentView} variant="outline" size="sm">
 					<RefreshCw className="w-4 h-4 mr-2" />
@@ -226,7 +237,7 @@ export default function DocumentsTable() {
 				</Button>
 			</motion.div>
 
-			<ProcessingIndicator activeTasksCount={activeTasksCount} />
+			<ProcessingIndicator documentProcessorTasksCount={documentProcessorTasksCount} />
 
 			<DocumentsFilters
 				typeCounts={typeCounts ?? {}}

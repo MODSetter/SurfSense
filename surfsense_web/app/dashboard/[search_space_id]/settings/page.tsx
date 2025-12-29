@@ -87,14 +87,14 @@ function SettingsSidebar({
 			<aside
 				className={cn(
 					"fixed md:relative left-0 top-0 z-50 md:z-auto",
-					"w-72 shrink-0 border-r border-border bg-background md:bg-muted/20 h-full flex flex-col",
+					"w-72 shrink-0 bg-background md:bg-muted/20 h-full flex flex-col",
 					"transition-transform duration-300 ease-out",
 					"md:translate-x-0",
 					isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
 				)}
 			>
 				{/* Header with back button */}
-				<div className="p-4 border-b border-border flex items-center justify-between">
+				<div className="p-4 flex items-center justify-between">
 					<Button
 						variant="ghost"
 						onClick={onBackToApp}
@@ -176,7 +176,7 @@ function SettingsSidebar({
 				</nav>
 
 				{/* Footer */}
-				<div className="p-4 border-t border-border">
+				<div className="p-4">
 					<p className="text-xs text-muted-foreground text-center">SurfSense Settings</p>
 				</div>
 			</aside>
@@ -229,12 +229,12 @@ function SettingsContent({
 									initial={{ scale: 0.8, opacity: 0 }}
 									animate={{ scale: 1, opacity: 1 }}
 									transition={{ delay: 0.1, duration: 0.3 }}
-									className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 shadow-sm shrink-0"
+									className="flex items-center justify-center w-10 h-10 md:w-14 md:h-14 rounded-lg md:rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 shadow-sm shrink-0"
 								>
-									<Icon className="h-6 w-6 md:h-7 md:w-7 text-primary" />
+									<Icon className="h-5 w-5 md:h-7 md:w-7 text-primary" />
 								</motion.div>
 								<div className="min-w-0">
-									<h1 className="text-xl md:text-2xl font-bold tracking-tight truncate">
+									<h1 className="text-lg md:text-2xl font-bold tracking-tight truncate">
 										{activeItem?.label}
 									</h1>
 								</div>

@@ -110,19 +110,46 @@ You have access to the following tools:
     * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
 
-6. write_todos: Create and update a planning/todo list to break down complex tasks.
-  - IMPORTANT: Use this tool when the user asks you to create a plan, break down a task, or explain something in structured steps.
-  - This tool creates a visual plan with progress tracking that the user can see in the UI.
-  - When to use:
-    * User asks to "create a plan" or "break down" a task
-    * User asks for "steps" to do something
-    * User asks you to "explain" something in sections
-    * Any multi-step task that would benefit from structured planning
+6. write_todos: Create and update a planning/todo list.
   - Args:
     - todos: List of todo items, each with:
       * content: Description of the task (required)
-      * status: "pending", "in_progress", or "completed" (required)
-  - The tool automatically adds IDs and formats the output for the UI.
+      * status: "pending", "in_progress", "completed", or "cancelled" (required)
+  
+  STRICT MODE SELECTION - CHOOSE ONE:
+  
+  [MODE A] AGENT PLAN (you will work through it)
+  Use when: User asks you to explain, teach, plan, or break down a concept.
+  Examples: "Explain how to set up Python", "Plan my trip", "Break down machine learning"
+  Rules:
+  - Create plan with first item "in_progress", rest "pending"
+  - After explaining each step, call write_todos again to update progress
+  - Only ONE item "in_progress" at a time
+  - Mark items "completed" as you finish explaining them
+  - Final call: all items "completed"
+  
+  [MODE B] EXTERNAL TASK DISPLAY (from connectors - you CANNOT complete these)
+  Use when: User asks to show/list/display tasks from Linear, Jira, ClickUp, GitHub, Airtable, Notion, or any connector.
+  Examples: "Show my Linear tasks", "List Jira tickets", "Create todos from ClickUp", "Show GitHub issues"
+  STRICT RULES:
+  1. You CANNOT complete these tasks - only the user can in the actual tool
+  2. PRESERVE original status from source - DO NOT use agent workflow
+  3. Call write_todos ONCE with all tasks and their REAL statuses
+  4. Provide insights/summary as TEXT after the todo list, NOT as todo items
+  5. NO INTERNAL REASONING - Never expose your process. Do NOT say "Let me map...", "Converting statuses...", "Here's how I'll organize...", or explain mapping logic. Just call write_todos silently and provide insights.
+  
+  STATUS MAPPING (apply strictly):
+  - "completed" ← Done, Completed, Complete, Closed, Resolved, Fixed, Merged, Shipped, Released
+  - "in_progress" ← In Progress, In Review, Testing, QA, Active, Doing, Started, Review, Working
+  - "pending" ← Todo, To Do, Backlog, Open, New, Pending, Triage, Reopened, Unstarted
+  - "cancelled" ← Cancelled, Canceled, Won't Fix, Duplicate, Invalid, Rejected, Archived, Obsolete
+  
+  CONNECTOR-SPECIFIC:
+  - Linear: state.name = "Done", "In Progress", "Todo", "Backlog", "Cancelled"
+  - Jira: statusCategory.name = "To Do", "In Progress", "Done"
+  - ClickUp: status = "complete", "in progress", "open", "closed"
+  - GitHub: state = "open", "closed"; PRs also "merged"
+  - Airtable/Notion: Check field values, apply mapping above
 </tools>
 <tool_call_examples>
 - User: "Fetch all my notes and what's in them?"
@@ -181,6 +208,8 @@ You have access to the following tools:
     - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
   - Then provide your explanation, referencing the displayed image
 
+[MODE A EXAMPLES] Agent Plan - you work through it:
+
 - User: "Create a plan for building a user authentication system"
   - Call: `write_todos(todos=[{"content": "Design database schema for users and sessions", "status": "in_progress"}, {"content": "Implement registration and login endpoints", "status": "pending"}, {"content": "Add password reset functionality", "status": "pending"}])`
   - Then explain each step in detail as you work through them
@@ -193,21 +222,55 @@ You have access to the following tools:
   - Call: `write_todos(todos=[{"content": "Research best time to visit and book flights", "status": "in_progress"}, {"content": "Plan itinerary for cities to visit", "status": "pending"}, {"content": "Book accommodations", "status": "pending"}, {"content": "Prepare travel documents and currency", "status": "pending"}])`
   - Then provide travel preparation guidance
 
-- User: "Break down how to learn guitar"
-  - Call: `write_todos(todos=[{"content": "Learn basic chords and finger positioning", "status": "in_progress"}, {"content": "Practice strumming patterns", "status": "pending"}, {"content": "Learn to read tabs and sheet music", "status": "pending"}, {"content": "Master simple songs", "status": "pending"}])`
-  - Then provide learning milestones and tips
+- COMPLETE WORKFLOW EXAMPLE - User: "Explain how to set up a Python project"
+  - STEP 1 (Create initial plan):
+    Call: `write_todos(todos=[{"content": "Set up virtual environment", "status": "in_progress"}, {"content": "Create project structure", "status": "pending"}, {"content": "Configure dependencies", "status": "pending"}])`
+    Then explain virtual environment setup in detail...
+  - STEP 2 (After explaining virtual environments, update progress):
+    Call: `write_todos(todos=[{"content": "Set up virtual environment", "status": "completed"}, {"content": "Create project structure", "status": "in_progress"}, {"content": "Configure dependencies", "status": "pending"}])`
+    Then explain project structure in detail...
+  - STEP 3 (After explaining project structure, update progress):
+    Call: `write_todos(todos=[{"content": "Set up virtual environment", "status": "completed"}, {"content": "Create project structure", "status": "completed"}, {"content": "Configure dependencies", "status": "in_progress"}])`
+    Then explain dependency configuration in detail...
+  - STEP 4 (After completing all explanations, mark all done):
+    Call: `write_todos(todos=[{"content": "Set up virtual environment", "status": "completed"}, {"content": "Create project structure", "status": "completed"}, {"content": "Configure dependencies", "status": "completed"}])`
+    Provide final summary
 
-- User: "Plan my workout routine for the week"
-  - Call: `write_todos(todos=[{"content": "Monday: Upper body strength training", "status": "in_progress"}, {"content": "Tuesday: Cardio and core workout", "status": "pending"}, {"content": "Wednesday: Rest or light stretching", "status": "pending"}, {"content": "Thursday: Lower body strength training", "status": "pending"}, {"content": "Friday: Full body HIIT session", "status": "pending"}])`
-  - Then provide exercise details and tips
+[MODE B EXAMPLES] External Tasks - preserve original status, you CANNOT complete:
 
-- User: "Help me organize my home renovation project"
-  - Call: `write_todos(todos=[{"content": "Define scope and create budget", "status": "in_progress"}, {"content": "Research and hire contractors", "status": "pending"}, {"content": "Obtain necessary permits", "status": "pending"}, {"content": "Order materials and fixtures", "status": "pending"}, {"content": "Execute renovation phases", "status": "pending"}])`
-  - Then provide detailed renovation guidance
+- User: "Show my Linear tasks" or "Create todos for Linear tasks"
+  - First search: `search_knowledge_base(query="Linear tasks issues", connectors_to_search=["LINEAR_CONNECTOR"])`
+  - Then call write_todos ONCE with ORIGINAL statuses preserved:
+    Call: `write_todos(todos=[
+      {"content": "SUR-21: Add refresh button in manage documents page", "status": "completed"},
+      {"content": "SUR-22: Logs page not accessible in docker", "status": "completed"},
+      {"content": "SUR-27: Add Google Drive connector", "status": "in_progress"},
+      {"content": "SUR-28: Logs page should show all logs", "status": "pending"}
+    ])`
+  - Then provide INSIGHTS as text (NOT as todos):
+    "You have 2 completed, 1 in progress, and 1 pending task. SUR-27 (Google Drive connector) is currently active. Consider prioritizing SUR-28 next."
 
-- User: "What steps should I take to start a podcast?"
-  - Call: `write_todos(todos=[{"content": "Define podcast concept and target audience", "status": "in_progress"}, {"content": "Set up recording equipment and software", "status": "pending"}, {"content": "Plan episode structure and content", "status": "pending"}, {"content": "Record and edit first episodes", "status": "pending"}, {"content": "Choose hosting platform and publish", "status": "pending"}])`
-  - Then provide podcast launch guidance
+- User: "List my Jira tickets"
+  - First search: `search_knowledge_base(query="Jira tickets issues", connectors_to_search=["JIRA_CONNECTOR"])`
+  - Map Jira statuses: "Done" → completed, "In Progress"/"In Review" → in_progress, "To Do" → pending
+  - Call write_todos ONCE with mapped statuses
+  - Provide summary as text after
+
+- User: "Show ClickUp tasks"
+  - First search: `search_knowledge_base(query="ClickUp tasks", connectors_to_search=["CLICKUP_CONNECTOR"])`
+  - Map: "complete"/"closed" → completed, "in progress" → in_progress, "open" → pending
+  - Call write_todos ONCE, then provide insights as text
+
+- User: "Show my GitHub issues"
+  - First search: `search_knowledge_base(query="GitHub issues", connectors_to_search=["GITHUB_CONNECTOR"])`
+  - Map: "closed"/"merged" → completed, "open" → pending
+  - Call write_todos ONCE, then summarize as text
+
+CRITICAL FOR MODE B:
+- NEVER use the "first item in_progress, rest pending" pattern for external tasks
+- NEVER pretend you will complete external tasks - be honest that only the user can
+- ALWAYS preserve the actual status from the source system
+- ALWAYS provide insights/summaries as regular text, not as todo items
 </tool_call_examples>
 """
 

@@ -6,13 +6,14 @@ import { useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ProcessingIndicatorProps {
-	activeTasksCount: number;
+	documentProcessorTasksCount: number;
 }
 
-export function ProcessingIndicator({ activeTasksCount }: ProcessingIndicatorProps) {
+export function ProcessingIndicator({ documentProcessorTasksCount }: ProcessingIndicatorProps) {
 	const t = useTranslations("documents");
 
-	if (activeTasksCount === 0) return null;
+	// Only show when there are document_processor tasks (uploads), not connector_indexing_task (periodic reindexing)
+	if (documentProcessorTasksCount === 0) return null;
 
 	return (
 		<AnimatePresence>
@@ -32,7 +33,7 @@ export function ProcessingIndicator({ activeTasksCount }: ProcessingIndicatorPro
 								{t("processing_documents")}
 							</AlertTitle>
 							<AlertDescription className="text-muted-foreground">
-								{t("active_tasks_count", { count: activeTasksCount })}
+								{t("active_tasks_count", { count: documentProcessorTasksCount })}
 							</AlertDescription>
 						</div>
 					</div>
