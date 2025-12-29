@@ -200,7 +200,10 @@ const AttachmentUI: FC = () => {
 				</AttachmentPreviewDialog>
 				{isComposer && !isProcessing && <AttachmentRemove />}
 			</AttachmentPrimitive.Root>
-			<TooltipContent side="top">
+			<TooltipContent
+				side="top"
+				className="bg-black text-white font-medium shadow-xl px-3 py-1.5 dark:bg-zinc-800 dark:text-zinc-50 border-none"
+			>
 				{isProcessing ? (
 					<span className="flex items-center gap-1.5">
 						<Loader2 className="size-3 animate-spin" />
