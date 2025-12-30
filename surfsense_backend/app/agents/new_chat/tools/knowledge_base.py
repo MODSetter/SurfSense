@@ -47,6 +47,7 @@ _ALL_CONNECTORS: list[str] = [
     "NOTE",
     "BOOKSTACK_CONNECTOR",
     "CRAWLED_URL",
+    "CIRCLEBACK",
 ]
 
 

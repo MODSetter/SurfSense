@@ -26,5 +26,3 @@ def should_skip_file(mime_type: str) -> bool:
 def get_export_mime_type(mime_type: str) -> str | None:
     """Get export MIME type for Google Workspace files."""
     return EXPORT_FORMATS.get(mime_type)
-
-

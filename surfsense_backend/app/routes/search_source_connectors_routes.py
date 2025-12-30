@@ -45,7 +45,6 @@ from app.tasks.connector_indexers import (
     index_github_repos,
     index_google_calendar_events,
     index_google_gmail_messages,
-    index_google_drive_files,
     index_jira_issues,
     index_linear_issues,
     index_luma_events,
@@ -1572,7 +1571,9 @@ async def run_google_drive_indexing(
         errors = []
 
         # Index each folder
-        for folder_id, folder_name in zip(folder_id_list, folder_name_list):
+        for folder_id, folder_name in zip(
+            folder_id_list, folder_name_list, strict=False
+        ):
             try:
                 indexed_count, error_message = await index_google_drive_files(
                     session,
@@ -1589,7 +1590,7 @@ async def run_google_drive_indexing(
                 else:
                     total_indexed += indexed_count
             except Exception as e:
-                errors.append(f"{folder_name}: {str(e)}")
+                errors.append(f"{folder_name}: {e!s}")
                 logger.error(
                     f"Error indexing folder {folder_name} ({folder_id}): {e}",
                     exc_info=True,

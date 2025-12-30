@@ -2,7 +2,6 @@
 
 from typing import Any
 
-from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -107,16 +106,18 @@ class GoogleDriveClient:
         """
         try:
             service = await self.get_service()
-            file = service.files().get(fileId=file_id, fields=fields, supportsAllDrives=True).execute()
+            file = (
+                service.files()
+                .get(fileId=file_id, fields=fields, supportsAllDrives=True)
+                .execute()
+            )
             return file, None
         except HttpError as e:
             return None, f"HTTP error getting file metadata: {e.resp.status}"
         except Exception as e:
             return None, f"Error getting file metadata: {e!s}"
 
-    async def download_file(
-        self, file_id: str
-    ) -> tuple[bytes | None, str | None]:
+    async def download_file(self, file_id: str) -> tuple[bytes | None, str | None]:
         """
         Download binary file content.
 
@@ -164,9 +165,7 @@ class GoogleDriveClient:
         try:
             service = await self.get_service()
             content = (
-                service.files()
-                .export(fileId=file_id, mimeType=mime_type)
-                .execute()
+                service.files().export(fileId=file_id, mimeType=mime_type).execute()
             )
 
             # Content is already bytes from the API
@@ -180,4 +179,3 @@ class GoogleDriveClient:
             return None, f"HTTP error exporting file: {e.resp.status}"
         except Exception as e:
             return None, f"Error exporting file: {e!s}"
-

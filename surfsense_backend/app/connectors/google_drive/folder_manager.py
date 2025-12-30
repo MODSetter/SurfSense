@@ -24,7 +24,10 @@ async def list_folders(
     """
     try:
         # Build query to get only folders
-        query_parts = ["mimeType = 'application/vnd.google-apps.folder'", "trashed = false"]
+        query_parts = [
+            "mimeType = 'application/vnd.google-apps.folder'",
+            "trashed = false",
+        ]
 
         if parent_id:
             query_parts.append(f"'{parent_id}' in parents")
@@ -68,8 +71,7 @@ async def get_folder_hierarchy(
         # Traverse up to root
         while current_id:
             file, error = await client.get_file_metadata(
-                current_id,
-                fields="id, name, parents, mimeType"
+                current_id, fields="id, name, parents, mimeType"
             )
 
             if error:
@@ -189,7 +191,7 @@ async def list_folder_contents(
         # Fetch all items with pagination (max 1000 per page)
         all_items = []
         page_token = None
-        
+
         while True:
             items, next_token, error = await client.list_files(
                 query=query,
@@ -202,10 +204,10 @@ async def list_folder_contents(
                 return [], error
 
             all_items.extend(items)
-            
+
             if not next_token:
                 break
-                
+
             page_token = next_token
 
         for item in all_items:
@@ -226,5 +228,3 @@ async def list_folder_contents(
     except Exception as e:
         logger.error(f"Error listing folder contents: {e!s}", exc_info=True)
         return [], f"Error listing folder contents: {e!s}"
-
-

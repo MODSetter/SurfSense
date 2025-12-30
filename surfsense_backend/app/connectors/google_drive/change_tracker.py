@@ -202,4 +202,3 @@ async def fetch_all_changes(
     except Exception as e:
         logger.error(f"Error fetching all changes: {e!s}", exc_info=True)
         return all_changes, current_token, f"Error fetching all changes: {e!s}"
-
