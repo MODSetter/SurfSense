@@ -131,8 +131,10 @@ async def calendar_callback(
             session.add(db_connector)
             await session.commit()
             await session.refresh(db_connector)
+            # Redirect to the frontend with success params for indexing config
+            # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/google-calendar-connector?success=true"
+                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-calendar-connector"
             )
         except ValidationError as e:
             await session.rollback()

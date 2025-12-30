@@ -1,17 +1,22 @@
 "use client";
 
+import { format, subDays, subYears } from "date-fns";
 import { useAtomValue } from "jotai";
 import {
+	ArrowLeft,
 	Cable,
+	Calendar as CalendarIcon,
+	Check,
 	ChevronRight,
 	Loader2,
 	Search,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { type FC, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { type FC, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import { indexConnectorMutationAtom, updateConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -23,13 +28,34 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { useLogsSummary } from "@/hooks/use-logs";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import { queryClient } from "@/lib/query-client/client";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
+
+// Type for the indexing configuration state
+interface IndexingConfigState {
+	connectorType: string;
+	connectorId: number;
+	connectorTitle: string;
+}
 
 // OAuth Connectors (Quick Connect)
 const OAUTH_CONNECTORS = [
@@ -165,44 +191,243 @@ import {
 
 export const ConnectorIndicator: FC = () => {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { connectors, isLoading: connectorsLoading } = useSearchSourceConnectors(
+	const { connectors, isLoading: connectorsLoading, refreshConnectors } = useSearchSourceConnectors(
 		false,
 		searchSpaceId ? Number(searchSpaceId) : undefined
 	);
 	const { data: documentTypeCounts, isLoading: documentTypesLoading } =
 		useAtomValue(documentTypeCountsAtom);
-	const { data: allConnectors } = useAtomValue(connectorsAtom);
-	const pathname = usePathname();
+	const { data: allConnectors, refetch: refetchAllConnectors } = useAtomValue(connectorsAtom);
+	const { mutateAsync: indexConnector } = useAtomValue(indexConnectorMutationAtom);
+	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 	const [isOpen, setIsOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState("all");
 	const [connectingId, setConnectingId] = useState<string | null>(null);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+	
+	// Indexing configuration state (shown after OAuth success)
+	const [indexingConfig, setIndexingConfig] = useState<IndexingConfigState | null>(null);
+	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+	const [isStartingIndexing, setIsStartingIndexing] = useState(false);
+	
+	// Periodic indexing state
+	const [periodicEnabled, setPeriodicEnabled] = useState(false);
+	const [frequencyMinutes, setFrequencyMinutes] = useState("1440"); // Default: daily
+
+	// Helper function to get frequency label
+	const getFrequencyLabel = useCallback((minutes: string): string => {
+		switch (minutes) {
+			case "15": return "15 minutes";
+			case "60": return "hour";
+			case "360": return "6 hours";
+			case "720": return "12 hours";
+			case "1440": return "day";
+			case "10080": return "week";
+			default: return `${minutes} minutes`;
+		}
+	}, []);
+
+	// Track active indexing tasks
+	const { summary: logsSummary } = useLogsSummary(
+		searchSpaceId ? Number(searchSpaceId) : 0,
+		24,
+		{
+			enablePolling: true,
+			refetchInterval: 5000,
+		}
+	);
+
+	// Get connector IDs that are currently being indexed
+	const indexingConnectorIds = useMemo(() => {
+		if (!logsSummary?.active_tasks) return new Set<number>();
+		return new Set(
+			logsSummary.active_tasks
+				.filter((task) => task.source?.includes("connector_indexing"))
+				.map((task) => {
+					// Extract connector ID from task metadata or source
+					const match = task.source?.match(/connector[_-]?(\d+)/i);
+					return match ? parseInt(match[1], 10) : null;
+				})
+				.filter((id): id is number => id !== null)
+		);
+	}, [logsSummary?.active_tasks]);
 
 	const isLoading = connectorsLoading || documentTypesLoading;
 
-	// Synchronize state with URL path
+	// Synchronize state with URL query params
 	useEffect(() => {
-		const pathParts = window.location.pathname.split("/");
-		const connectorsIdx = pathParts.indexOf("connectors");
+		const modalParam = searchParams.get("modal");
+		const tabParam = searchParams.get("tab");
+		const viewParam = searchParams.get("view");
+		const connectorParam = searchParams.get("connector");
 		
-		if (connectorsIdx !== -1) {
+		if (modalParam === "connectors") {
 			if (!isOpen) setIsOpen(true);
 			
-			// Detect tab from URL: .../connectors/active or .../connectors/all
-			const tabFromUrl = pathParts[connectorsIdx + 1];
-			if (tabFromUrl === "active" || tabFromUrl === "all") {
-				if (activeTab !== tabFromUrl) setActiveTab(tabFromUrl);
+			// Detect tab from URL query param
+			if (tabParam === "active" || tabParam === "all") {
+				if (activeTab !== tabParam) setActiveTab(tabParam);
+			}
+			
+			// Restore indexing config view from URL if present (e.g., on page refresh)
+			if (viewParam === "configure" && connectorParam && !indexingConfig) {
+				const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === connectorParam);
+				if (oauthConnector && allConnectors) {
+					const existingConnector = allConnectors.find(
+						(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+					);
+					if (existingConnector) {
+						setIndexingConfig({
+							connectorType: oauthConnector.connectorType,
+							connectorId: existingConnector.id,
+							connectorTitle: oauthConnector.title,
+						});
+					}
+				}
 			}
 		} else {
 			if (isOpen) setIsOpen(false);
 		}
-	}, [pathname, isOpen, activeTab]);
+	}, [searchParams, isOpen, activeTab, indexingConfig, allConnectors]);
+
+	// Detect OAuth success and transition to config view
+	useEffect(() => {
+		const success = searchParams.get("success");
+		const connectorParam = searchParams.get("connector");
+		const modalParam = searchParams.get("modal");
+		
+		if (success === "true" && connectorParam && searchSpaceId && modalParam === "connectors") {
+			// Find the OAuth connector info
+			const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === connectorParam);
+			if (oauthConnector) {
+				// Refetch connectors to get the newly created connector
+				refetchAllConnectors().then((result) => {
+					const newConnector = result.data?.find(
+						(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+					);
+					if (newConnector) {
+						setIndexingConfig({
+							connectorType: oauthConnector.connectorType,
+							connectorId: newConnector.id,
+							connectorTitle: oauthConnector.title,
+						});
+						setIsOpen(true);
+						// Update URL to reflect config view (replace success with view=configure)
+						const url = new URL(window.location.href);
+						url.searchParams.delete("success");
+						url.searchParams.set("view", "configure");
+						// Keep connector param for URL restoration
+						window.history.replaceState({}, "", url.toString());
+					}
+				});
+			}
+		}
+	}, [searchParams, searchSpaceId, refetchAllConnectors]);
+
+	// Handle starting indexing
+	const handleStartIndexing = useCallback(async () => {
+		if (!indexingConfig || !searchSpaceId) return;
+
+		setIsStartingIndexing(true);
+		try {
+			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
+			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
+
+			// Update periodic indexing settings if enabled
+			if (periodicEnabled) {
+				const frequency = parseInt(frequencyMinutes, 10);
+				await updateConnector({
+					id: indexingConfig.connectorId,
+					data: {
+						periodic_indexing_enabled: true,
+						indexing_frequency_minutes: frequency,
+					},
+				});
+			}
+
+			await indexConnector({
+				connector_id: indexingConfig.connectorId,
+				queryParams: {
+					search_space_id: searchSpaceId,
+					start_date: startDateStr,
+					end_date: endDateStr,
+				},
+			});
+
+			toast.success(`${indexingConfig.connectorTitle} indexing started`, {
+				description: periodicEnabled 
+					? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutes)}.`
+					: "You can continue working while we sync your data.",
+			});
+
+			// Close the config view and reset state
+			setIndexingConfig(null);
+			setStartDate(undefined);
+			setEndDate(undefined);
+			setPeriodicEnabled(false);
+			setFrequencyMinutes("1440");
+			
+			// Clear config-related URL params and switch to active tab
+			const url = new URL(window.location.href);
+			url.searchParams.delete("view");
+			url.searchParams.delete("connector");
+			url.searchParams.set("tab", "active");
+			window.history.replaceState({}, "", url.toString());
+			setActiveTab("active");
+			
+			// Refresh connectors list
+			refreshConnectors();
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+		} catch (error) {
+			console.error("Error starting indexing:", error);
+			toast.error("Failed to start indexing");
+		} finally {
+			setIsStartingIndexing(false);
+		}
+	}, [indexingConfig, searchSpaceId, startDate, endDate, indexConnector, updateConnector, periodicEnabled, frequencyMinutes, refreshConnectors, getFrequencyLabel]);
+
+	// Handle skipping indexing for now
+	const handleSkipIndexing = useCallback(() => {
+		setIndexingConfig(null);
+		setStartDate(undefined);
+		setEndDate(undefined);
+		setPeriodicEnabled(false);
+		setFrequencyMinutes("1440");
+		
+		// Clear config-related URL params
+		const url = new URL(window.location.href);
+		url.searchParams.delete("view");
+		url.searchParams.delete("connector");
+		window.history.replaceState({}, "", url.toString());
+	}, []);
+
+	// Quick date range handlers
+	const handleLast30Days = useCallback(() => {
+		const today = new Date();
+		setStartDate(subDays(today, 30));
+		setEndDate(today);
+	}, []);
+
+	const handleLastYear = useCallback(() => {
+		const today = new Date();
+		setStartDate(subYears(today, 1));
+		setEndDate(today);
+	}, []);
+
+	const handleClearDates = useCallback(() => {
+		setStartDate(undefined);
+		setEndDate(undefined);
+	}, []);
 
 	// Get document types that have documents in the search space
 	const activeDocumentTypes = documentTypeCounts
-		? Object.entries(documentTypeCounts).filter(([_, count]) => count > 0)
+		? Object.entries(documentTypeCounts).filter(([, count]) => count > 0)
 		: [];
 
 	const hasConnectors = connectors.length > 0;
@@ -257,32 +482,43 @@ export const ConnectorIndicator: FC = () => {
 		(open: boolean) => {
 			setIsOpen(open);
 
-			const currentPath = window.location.pathname;
-			const basePath = currentPath.split("/connectors")[0].replace(/\/$/, "");
-			
 			if (open) {
-				// Base state is /connectors/all
-				const newUrl = `${basePath}/connectors/${activeTab}`;
-				window.history.pushState({ modal: true }, "", newUrl);
+				// Add modal query params to current URL
+				const url = new URL(window.location.href);
+				url.searchParams.set("modal", "connectors");
+				url.searchParams.set("tab", activeTab);
+				window.history.pushState({ modal: true }, "", url.toString());
 			} else {
-				// Return to base chat path
-				window.history.pushState({ modal: false }, "", basePath || "/");
+				// Remove modal query params from URL
+				const url = new URL(window.location.href);
+				url.searchParams.delete("modal");
+				url.searchParams.delete("tab");
+				url.searchParams.delete("success");
+				url.searchParams.delete("connector");
+				url.searchParams.delete("view");
+				window.history.pushState({ modal: false }, "", url.toString());
 				setIsScrolled(false);
 				setSearchQuery("");
+				// Reset indexing config when closing
+				if (!isStartingIndexing) {
+					setIndexingConfig(null);
+					setStartDate(undefined);
+					setEndDate(undefined);
+					setPeriodicEnabled(false);
+					setFrequencyMinutes("1440");
+				}
 			}
 		},
-		[activeTab]
+		[activeTab, isStartingIndexing]
 	);
 
 	const handleTabChange = useCallback(
 		(value: string) => {
 			setActiveTab(value);
-			const currentPath = window.location.pathname;
-			const basePath = currentPath.split("/connectors")[0].replace(/\/$/, "");
-			
-			// Update URL to reflect the new tab state
-			const newUrl = `${basePath}/connectors/${value}`;
-			window.history.replaceState({ modal: true }, "", newUrl);
+			// Update tab query param
+			const url = new URL(window.location.href);
+			url.searchParams.set("tab", value);
+			window.history.replaceState({ modal: true }, "", url.toString());
 		},
 		[]
 	);
@@ -323,8 +559,215 @@ export const ConnectorIndicator: FC = () => {
 				)}
 			</TooltipIconButton>
 
-			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
-				<Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
+		<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
+			{/* Indexing Configuration View - shown after OAuth success */}
+			{indexingConfig ? (
+				<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+					{/* Fixed Header */}
+					<div className="flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10">
+						{/* Back button */}
+						<button
+							type="button"
+							onClick={handleSkipIndexing}
+							className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+						>
+							<ArrowLeft className="size-4" />
+							Back to connectors
+						</button>
+
+						{/* Success header */}
+						<div className="flex items-center gap-4 mb-6">
+							<div className="flex h-14 w-14 items-center justify-center rounded-xl bg-green-500/10 border border-green-500/20">
+								<Check className="size-7 text-green-500" />
+							</div>
+							<div>
+								<h2 className="text-2xl font-semibold tracking-tight">
+									{indexingConfig.connectorTitle} Connected!
+								</h2>
+								<p className="text-muted-foreground mt-1">
+									Configure when to start syncing your data
+								</p>
+							</div>
+						</div>
+					</div>
+
+					{/* Scrollable Content */}
+					<div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-12">
+						<div className="space-y-6 pb-6">
+						<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-6">
+							<h3 className="font-medium mb-4">Select Date Range</h3>
+							<p className="text-sm text-muted-foreground mb-6">
+								Choose how far back you want to sync your data. You can always re-index later with different dates.
+							</p>
+
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								{/* Start Date */}
+								<div className="space-y-2">
+									<Label htmlFor="start-date">Start Date</Label>
+									<Popover>
+										<PopoverTrigger asChild>
+											<Button
+												id="start-date"
+												variant="outline"
+												className={cn(
+													"w-full justify-start text-left font-normal bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20",
+													!startDate && "text-muted-foreground"
+												)}
+											>
+												<CalendarIcon className="mr-2 h-4 w-4" />
+												{startDate ? format(startDate, "PPP") : "Default (1 year ago)"}
+											</Button>
+										</PopoverTrigger>
+										<PopoverContent className="w-auto p-0 z-[100]" align="start">
+											<Calendar
+												mode="single"
+												selected={startDate}
+												onSelect={setStartDate}
+												disabled={(date) => date > new Date()}
+											/>
+										</PopoverContent>
+									</Popover>
+								</div>
+
+								{/* End Date */}
+								<div className="space-y-2">
+									<Label htmlFor="end-date">End Date</Label>
+									<Popover>
+										<PopoverTrigger asChild>
+											<Button
+												id="end-date"
+												variant="outline"
+												className={cn(
+													"w-full justify-start text-left font-normal bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20",
+													!endDate && "text-muted-foreground"
+												)}
+											>
+												<CalendarIcon className="mr-2 h-4 w-4" />
+												{endDate ? format(endDate, "PPP") : "Default (Today)"}
+											</Button>
+										</PopoverTrigger>
+										<PopoverContent className="w-auto p-0 z-[100]" align="start">
+											<Calendar
+												mode="single"
+												selected={endDate}
+												onSelect={setEndDate}
+												disabled={(date) => date > new Date() || (startDate ? date < startDate : false)}
+											/>
+										</PopoverContent>
+									</Popover>
+								</div>
+							</div>
+
+							{/* Quick date range buttons */}
+							<div className="flex flex-wrap gap-2 mt-4">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={handleClearDates}
+									className="text-xs bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+								>
+									Clear Dates
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={handleLast30Days}
+									className="text-xs bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+								>
+									Last 30 Days
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={handleLastYear}
+									className="text-xs bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+								>
+									Last Year
+								</Button>
+							</div>
+						</div>
+
+						{/* Periodic Indexing Configuration */}
+						<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-6">
+							<div className="flex items-center justify-between">
+								<div className="space-y-1">
+									<h3 className="font-medium">Enable Periodic Sync</h3>
+									<p className="text-sm text-muted-foreground">
+										Automatically re-index at regular intervals
+									</p>
+								</div>
+								<Switch
+									checked={periodicEnabled}
+									onCheckedChange={setPeriodicEnabled}
+								/>
+							</div>
+
+							{periodicEnabled && (
+								<div className="mt-4 pt-4 border-t border-border/100 space-y-3">
+									<div className="space-y-2">
+										<Label htmlFor="frequency">Sync Frequency</Label>
+										<Select value={frequencyMinutes} onValueChange={setFrequencyMinutes}>
+											<SelectTrigger id="frequency" className="w-full bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20">
+												<SelectValue placeholder="Select frequency" />
+											</SelectTrigger>
+											<SelectContent className="z-[100]">
+												<SelectItem value="15">Every 15 minutes</SelectItem>
+												<SelectItem value="60">Every hour</SelectItem>
+												<SelectItem value="360">Every 6 hours</SelectItem>
+												<SelectItem value="720">Every 12 hours</SelectItem>
+												<SelectItem value="1440">Daily</SelectItem>
+												<SelectItem value="10080">Weekly</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+								</div>
+							)}
+						</div>
+
+						{/* Info box */}
+						<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
+							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
+								{getConnectorIcon(indexingConfig.connectorType, "size-4")}
+							</div>
+							<div className="text-sm">
+								<p className="font-medium">Indexing runs in the background</p>
+								<p className="text-muted-foreground mt-1">
+									You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
+								</p>
+							</div>
+						</div>
+						</div>
+					</div>
+
+					{/* Fixed Footer - Action buttons */}
+					<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 border-t border-border bg-muted">
+						<Button
+							variant="ghost"
+							onClick={handleSkipIndexing}
+							disabled={isStartingIndexing}
+						>
+							Skip for now
+						</Button>
+						<Button
+							onClick={handleStartIndexing}
+							disabled={isStartingIndexing}
+						>
+							{isStartingIndexing ? (
+								<>
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									Starting...
+								</>
+							) : (
+								"Start Indexing"
+							)}
+						</Button>
+					</div>
+				</div>
+			) : (
+			<Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
 					{/* Header */}
 					<div
 						className={cn(
@@ -339,7 +782,7 @@ export const ConnectorIndicator: FC = () => {
 							</DialogDescription>
 						</DialogHeader>
 
-						<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-6 sm:gap-8 mt-6 sm:mt-8 border-b border-black/5 dark:border-white/5">
+						<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-6 sm:gap-8 mt-6 sm:mt-8 border-b border-slate-400/5 dark:border-white/5">
 							<TabsList className="bg-transparent p-0 gap-4 sm:gap-8 h-auto w-full sm:w-auto justify-center sm:justify-start">
 								<TabsTrigger 
 									value="all" 
@@ -369,7 +812,7 @@ export const ConnectorIndicator: FC = () => {
 									<input 
 										type="text"
 										placeholder="Search"
-										className="w-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 focus:bg-black/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 pr-4 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50"
+										className="w-full bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 pr-4 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50"
 										value={searchQuery}
 										onChange={(e) => setSearchQuery(e.target.value)}
 									/>
@@ -397,9 +840,9 @@ export const ConnectorIndicator: FC = () => {
 												return (
 													<div
 														key={connector.id}
-														className="group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border border-border bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
+														className="group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
 													>
-														<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors flex-shrink-0 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+														<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors flex-shrink-0 bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
 															{getConnectorIcon(connector.connectorType, "size-6")}
 														</div>
 														<div className="flex-1 min-w-0">
@@ -455,9 +898,9 @@ export const ConnectorIndicator: FC = () => {
 													<Link
 														key={connector.id}
 														href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}
-														className="group flex items-center gap-4 p-4 rounded-xl transition-all duration-150 border border-border bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
+														className="group flex items-center gap-4 p-4 rounded-xl transition-all duration-150 border border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
 													>
-														<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+														<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
 															{getConnectorIcon(connector.connectorType, "size-6")}
 														</div>
 														<div className="flex-1 min-w-0">
@@ -490,9 +933,9 @@ export const ConnectorIndicator: FC = () => {
 											{activeDocumentTypes.map(([docType, count]) => (
 												<div
 													key={docType}
-													className="flex items-center gap-4 p-4 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-border transition-all"
+													className="flex items-center gap-4 p-4 rounded-xl bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border transition-all"
 												>
-													<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+													<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
 														{getConnectorIcon(docType, "size-6")}
 													</div>
 													<div>
@@ -505,25 +948,64 @@ export const ConnectorIndicator: FC = () => {
 													</div>
 												</div>
 											))}
-											{connectors.map((connector) => (
-												<div
-													key={`connector-${connector.id}`}
-													className="flex items-center gap-4 p-4 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-border transition-all"
-												>
-													<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
-														{getConnectorIcon(connector.connector_type, "size-6")}
+											{connectors.map((connector) => {
+												const isIndexing = indexingConnectorIds.has(connector.id);
+												const activeTask = logsSummary?.active_tasks?.find(
+													(task) => task.source?.includes(`connector_${connector.id}`) || task.source?.includes(`connector-${connector.id}`)
+												);
+
+												return (
+													<div
+														key={`connector-${connector.id}`}
+														className={cn(
+															"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
+															isIndexing
+																? "bg-primary/5 border-primary/20"
+																: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+														)}
+													>
+														<div className={cn(
+															"flex h-12 w-12 items-center justify-center rounded-lg border",
+															isIndexing
+																? "bg-primary/10 border-primary/20"
+																: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+														)}>
+															{getConnectorIcon(connector.connector_type, "size-6")}
+														</div>
+														<div className="flex-1 min-w-0">
+															<p className="text-[14px] font-semibold leading-tight truncate">
+																{connector.name}
+															</p>
+															{isIndexing ? (
+																<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
+																	<Loader2 className="size-3 animate-spin" />
+																	Indexing...
+																	{activeTask?.message && (
+																		<span className="text-muted-foreground truncate max-w-[150px]">
+																			• {activeTask.message}
+																		</span>
+																	)}
+																</p>
+															) : (
+																<p className="text-[11px] text-muted-foreground mt-1">
+																	{connector.last_indexed_at
+																		? `Last indexed: ${format(new Date(connector.last_indexed_at), "MMM d, yyyy")}`
+																		: "Never indexed"}
+																</p>
+															)}
+														</div>
+														<Button 
+															variant="ghost" 
+															size="sm" 
+															className="h-8 text-[11px]" 
+															onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`)}
+															disabled={isIndexing}
+														>
+															{isIndexing ? "Syncing..." : "Manage"}
+														</Button>
 													</div>
-													<div className="flex-1 min-w-0">
-														<p className="text-[14px] font-semibold leading-tight truncate">
-															{connector.name}
-														</p>
-														<p className="text-[11px] text-muted-foreground mt-1">Status: Active</p>
-													</div>
-													<Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`)}>
-														Manage
-													</Button>
-												</div>
-											))}
+												);
+											})}
 										</div>
 									</div>
 								) : (
@@ -547,6 +1029,7 @@ export const ConnectorIndicator: FC = () => {
 						<div className="absolute bottom-0 left-0 right-0 h-7 bg-gradient-to-t from-muted via-muted/80 to-transparent pointer-events-none z-10" />
 					</div>
 				</Tabs>
+			)}
 			</DialogContent>
 		</Dialog>
 	);
