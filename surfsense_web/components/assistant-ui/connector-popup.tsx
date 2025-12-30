@@ -323,7 +323,7 @@ export const ConnectorIndicator: FC = () => {
 				)}
 			</TooltipIconButton>
 
-			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border-0 bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
+			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
 				<Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
 					{/* Header */}
 					<div
@@ -339,19 +339,22 @@ export const ConnectorIndicator: FC = () => {
 							</DialogDescription>
 						</DialogHeader>
 
-						<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-6 sm:gap-8 mt-6 sm:mt-8 border-b border-white/5">
+						<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-6 sm:gap-8 mt-6 sm:mt-8 border-b border-black/5 dark:border-white/5">
 							<TabsList className="bg-transparent p-0 gap-4 sm:gap-8 h-auto w-full sm:w-auto justify-center sm:justify-start">
 								<TabsTrigger 
 									value="all" 
-									className="px-0 pb-3 bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none rounded-none border-b-[1.5px] border-transparent data-[state=active]:border-white transition-all text-base font-medium text-muted-foreground data-[state=active]:text-foreground"
+									className="px-0 pb-3 bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none rounded-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white transition-all text-base font-medium text-muted-foreground data-[state=active]:text-foreground"
 								>
 									All Connectors
 								</TabsTrigger>
 								<TabsTrigger 
 									value="active" 
-									className="px-0 pb-3 bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none rounded-none border-b-[1.5px] border-transparent data-[state=active]:border-white transition-all text-base font-medium flex items-center gap-2 text-muted-foreground data-[state=active]:text-foreground"
+									className="group px-0 pb-3 bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none rounded-none border-b-[1.5px] border-transparent transition-all text-base font-medium flex items-center gap-2 text-muted-foreground data-[state=active]:text-foreground relative"
 								>
-									Active
+									<span className="relative">
+										Active
+										<span className="absolute bottom-[-13.5px] left-1/2 -translate-x-1/2 w-12 h-[1.5px] bg-foreground dark:bg-white opacity-0 group-data-[state=active]:opacity-100 transition-all duration-200" />
+									</span>
 									{totalSourceCount > 0 && (
 										<span className="px-1.5 py-0.5 rounded-full bg-muted-foreground/15 text-[10px] font-bold">
 											{totalSourceCount}
@@ -360,13 +363,13 @@ export const ConnectorIndicator: FC = () => {
 								</TabsTrigger>
 							</TabsList>
 
-							<div className="w-full sm:w-72 sm:pb-3">
+							<div className="w-full sm:w-72 sm:pb-1">
 								<div className="relative">
 									<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
 									<input 
 										type="text"
-										placeholder="Search connectors..."
-										className="w-full bg-white/5 hover:bg-white/10 focus:bg-white/10 border border-transparent focus:border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50"
+										placeholder="Search"
+										className="w-full bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 focus:bg-black/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 pr-4 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50"
 										value={searchQuery}
 										onChange={(e) => setSearchQuery(e.target.value)}
 									/>
@@ -394,9 +397,9 @@ export const ConnectorIndicator: FC = () => {
 												return (
 													<div
 														key={connector.id}
-														className="group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border border-transparent bg-white/5 hover:bg-white/10"
+														className="group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border border-border bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
 													>
-														<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors flex-shrink-0 bg-white/5 border border-white/5">
+														<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors flex-shrink-0 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
 															{getConnectorIcon(connector.connectorType, "size-6")}
 														</div>
 														<div className="flex-1 min-w-0">
@@ -452,9 +455,9 @@ export const ConnectorIndicator: FC = () => {
 													<Link
 														key={connector.id}
 														href={`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`}
-														className="group flex items-center gap-4 p-4 rounded-xl transition-all duration-150 border border-transparent bg-white/5 hover:bg-white/10"
+														className="group flex items-center gap-4 p-4 rounded-xl transition-all duration-150 border border-border bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
 													>
-														<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors bg-white/5 border border-white/5">
+														<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
 															{getConnectorIcon(connector.connectorType, "size-6")}
 														</div>
 														<div className="flex-1 min-w-0">
@@ -487,9 +490,9 @@ export const ConnectorIndicator: FC = () => {
 											{activeDocumentTypes.map(([docType, count]) => (
 												<div
 													key={docType}
-													className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-transparent transition-all"
+													className="flex items-center gap-4 p-4 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-border transition-all"
 												>
-													<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/5 border border-white/5">
+													<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
 														{getConnectorIcon(docType, "size-6")}
 													</div>
 													<div>
@@ -505,9 +508,9 @@ export const ConnectorIndicator: FC = () => {
 											{connectors.map((connector) => (
 												<div
 													key={`connector-${connector.id}`}
-													className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-transparent transition-all"
+													className="flex items-center gap-4 p-4 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-border transition-all"
 												>
-													<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/5 border border-white/5">
+													<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
 														{getConnectorIcon(connector.connector_type, "size-6")}
 													</div>
 													<div className="flex-1 min-w-0">
