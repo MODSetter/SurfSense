@@ -85,7 +85,7 @@ function LoginContent() {
 		// Get the auth type from environment variables
 		setAuthType(process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE");
 		setIsLoading(false);
-	}, [searchParams]);
+	}, [searchParams, t, tCommon]);
 
 	// Show loading state while determining auth type
 	if (isLoading) {
@@ -111,8 +111,8 @@ function LoginContent() {
 		<div className="relative w-full overflow-hidden">
 			<AmbientBackground />
 			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-				<Logo className="rounded-md" />
-				<h1 className="my-8 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:text-4xl">
+				<Logo className="h-16 w-16 md:h-32 md:w-32 rounded-md transition-all" />
+				<h1 className="mt-4 mb-6 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:mt-8 md:mb-8 md:text-3xl lg:text-4xl transition-all">
 					{t("sign_in")}
 				</h1>
 

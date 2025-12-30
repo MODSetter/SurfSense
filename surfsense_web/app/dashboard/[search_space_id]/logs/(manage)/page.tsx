@@ -15,6 +15,7 @@ import {
 	useReactTable,
 	type VisibilityState,
 } from "@tanstack/react-table";
+import { useAtomValue } from "jotai";
 import {
 	Activity,
 	AlertCircle,
@@ -44,8 +45,13 @@ import {
 import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import React, { useContext, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+	createLogMutationAtom,
+	deleteLogMutationAtom,
+	updateLogMutationAtom,
+} from "@/atoms/logs/log-mutation.atoms";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import {
 	AlertDialog,
@@ -89,7 +95,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { type Log, type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
+import type { CreateLogRequest, Log, UpdateLogRequest } from "@/contracts/types/log.types";
+import { type LogLevel, type LogStatus, useLogs, useLogsSummary } from "@/hooks/use-logs";
 import { cn } from "@/lib/utils";
 
 // Define animation variants for reuse
@@ -334,13 +341,50 @@ export default function LogsManagePage() {
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 
-	const {
-		logs,
-		loading: logsLoading,
-		error: logsError,
-		refreshLogs,
-		deleteLog,
-	} = useLogs(searchSpaceId);
+	const { mutateAsync: deleteLogMutation } = useAtomValue(deleteLogMutationAtom);
+	const { mutateAsync: updateLogMutation } = useAtomValue(updateLogMutationAtom);
+	const { mutateAsync: createLogMutation } = useAtomValue(createLogMutationAtom);
+
+	const createLog = useCallback(
+		async (data: CreateLogRequest) => {
+			try {
+				await createLogMutation(data);
+				return true;
+			} catch (error) {
+				console.error("Failed to create log:", error);
+				return false;
+			}
+		},
+		[createLogMutation]
+	);
+
+	const updateLog = useCallback(
+		async (logId: number, data: UpdateLogRequest) => {
+			try {
+				await updateLogMutation({ logId, data });
+				return true;
+			} catch (error) {
+				console.error("Failed to update log:", error);
+				return false;
+			}
+		},
+		[updateLogMutation]
+	);
+
+	const deleteLog = useCallback(
+		async (id: number) => {
+			try {
+				await deleteLogMutation({ id });
+				return true;
+			} catch (error) {
+				console.error("Failed to delete log:", error);
+				return false;
+			}
+		},
+		[deleteLogMutation]
+	);
+
+	const { logs, loading: logsLoading, error: logsError, refreshLogs } = useLogs(searchSpaceId);
 	const {
 		summary,
 		loading: summaryLoading,
@@ -408,7 +452,7 @@ export default function LogsManagePage() {
 			return;
 		}
 
-		const deletePromises = selectedRows.map((row) => deleteLog(row.original.id));
+		const deletePromises = selectedRows.map((row) => deleteLog(row.original.id)); // Already passes { id } via wrapper
 
 		try {
 			const results = await Promise.all(deletePromises);
@@ -437,7 +481,7 @@ export default function LogsManagePage() {
 		<LogsContext.Provider
 			value={{
 				deleteLog: deleteLog || (() => Promise.resolve(false)),
-				refreshLogs: refreshLogs || (() => Promise.resolve()),
+				refreshLogs: () => refreshLogs().then(() => void 0),
 			}}
 		>
 			<motion.div
@@ -462,8 +506,8 @@ export default function LogsManagePage() {
 					transition={{ delay: 0.1 }}
 				>
 					<div>
-						<h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
-						<p className="text-muted-foreground">{t("subtitle")}</p>
+						<h2 className="text-xl md:text-2xl font-bold tracking-tight">{t("title")}</h2>
+						<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
 					</div>
 					<Button onClick={handleRefresh} variant="outline" size="sm">
 						<RefreshCw className="w-4 h-4 mr-2" />
@@ -477,54 +521,16 @@ export default function LogsManagePage() {
 					uniqueLevels={uniqueLevels}
 					uniqueStatuses={uniqueStatuses}
 					inputRef={inputRef}
+					onBulkDelete={handleDeleteRows}
 					id={id}
 				/>
-
-				{/* Delete Button */}
-				{table.getSelectedRowModel().rows.length > 0 && (
-					<motion.div
-						initial={{ opacity: 0, y: -10 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -10 }}
-						className="flex justify-end"
-					>
-						<AlertDialog>
-							<AlertDialogTrigger asChild>
-								<Button variant="outline">
-									<Trash className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} />
-									{t("delete_selected")}
-									<span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
-										{table.getSelectedRowModel().rows.length}
-									</span>
-								</Button>
-							</AlertDialogTrigger>
-							<AlertDialogContent>
-								<div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
-									<div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border">
-										<CircleAlert className="opacity-80" size={16} strokeWidth={2} />
-									</div>
-									<AlertDialogHeader>
-										<AlertDialogTitle>{t("confirm_title")}</AlertDialogTitle>
-										<AlertDialogDescription>
-											{t("confirm_delete_desc", { count: table.getSelectedRowModel().rows.length })}
-										</AlertDialogDescription>
-									</AlertDialogHeader>
-								</div>
-								<AlertDialogFooter>
-									<AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-									<AlertDialogAction onClick={handleDeleteRows}>{t("delete")}</AlertDialogAction>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
-					</motion.div>
-				)}
 
 				{/* Logs Table */}
 				<LogsTable
 					table={table}
 					logs={logs}
 					loading={logsLoading}
-					error={logsError}
+					error={logsError?.message ?? null}
 					onRefresh={refreshLogs}
 					id={id}
 					t={t}
@@ -669,29 +675,31 @@ function LogsFilters({
 	uniqueLevels,
 	uniqueStatuses,
 	inputRef,
+	onBulkDelete,
 	id,
 }: {
 	table: any;
 	uniqueLevels: string[];
 	uniqueStatuses: string[];
 	inputRef: React.RefObject<HTMLInputElement | null>;
+	onBulkDelete: () => Promise<void>;
 	id: string;
 }) {
 	const t = useTranslations("logs");
 	return (
 		<motion.div
-			className="flex flex-wrap items-center justify-between gap-3"
+			className="flex flex-wrap items-center justify-start gap-3 w-full"
 			initial={{ opacity: 0, y: 10 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ delay: 0.2 }}
 		>
-			<div className="flex items-center gap-3">
+			<div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
 				{/* Search Input */}
-				<motion.div className="relative" variants={fadeInScale}>
+				<motion.div className="relative w-full sm:w-auto" variants={fadeInScale}>
 					<Input
 						ref={inputRef}
 						className={cn(
-							"peer min-w-60 ps-9",
+							"peer w-full sm:min-w-60 ps-9",
 							Boolean(table.getColumn("message")?.getFilterValue()) && "pe-9"
 						)}
 						value={(table.getColumn("message")?.getFilterValue() ?? "") as string}
@@ -761,6 +769,39 @@ function LogsFilters({
 							))}
 					</DropdownMenuContent>
 				</DropdownMenu>
+			</div>
+
+			<div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto">
+				{table.getSelectedRowModel().rows.length > 0 && (
+					<AlertDialog>
+						<AlertDialogTrigger asChild>
+							<Button className="w-full sm:w-auto" variant="outline">
+								<Trash className="-ms-1 me-2 opacity-60" size={16} strokeWidth={2} />
+								{t("delete_selected")}
+								<span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 font-[inherit] text-[0.625rem] font-medium text-muted-foreground/70">
+									{table.getSelectedRowModel().rows.length}
+								</span>
+							</Button>
+						</AlertDialogTrigger>
+						<AlertDialogContent>
+							<div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
+								<div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border">
+									<CircleAlert className="opacity-80" size={16} strokeWidth={2} />
+								</div>
+								<AlertDialogHeader>
+									<AlertDialogTitle>{t("confirm_title")}</AlertDialogTitle>
+									<AlertDialogDescription>
+										{t("confirm_delete_desc", { count: table.getSelectedRowModel().rows.length })}
+									</AlertDialogDescription>
+								</AlertDialogHeader>
+							</div>
+							<AlertDialogFooter>
+								<AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+								<AlertDialogAction onClick={onBulkDelete}>{t("delete")}</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				)}
 			</div>
 		</motion.div>
 	);
@@ -929,6 +970,7 @@ function LogsTable({
 										style={{ width: `${header.getSize()}px` }}
 										className={cn(
 											"h-12 px-4 py-3",
+											header.column.id === "select" ? "ps-4 pe-0" : "",
 											// keep Created At header from wrapping and align it
 											header.column.id === "created_at" ? "whitespace-nowrap text-right" : ""
 										)}
@@ -986,7 +1028,8 @@ function LogsTable({
 												<TableCell
 													key={cell.id}
 													className={cn(
-														"px-4 py-3 align-middle overflow-hidden",
+														"px-4 py-3 align-middle",
+														cell.column.id === "select" ? "ps-4 pe-0" : "overflow-hidden",
 														isCreatedAt
 															? "whitespace-nowrap text-xs text-muted-foreground text-right"
 															: "",

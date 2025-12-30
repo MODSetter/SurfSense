@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, ExternalLink, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { createConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,7 +24,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 // Define the form schema with Zod
 const clickupConnectorFormSchema = z.object({
@@ -41,7 +42,7 @@ export default function ClickUpConnectorPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
-	const { createConnector } = useSearchSourceConnectors();
+	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 	const [isLoading, setIsLoading] = useState(false);
 	const [showApiToken, setShowApiToken] = useState(false);
 
@@ -59,20 +60,23 @@ export default function ClickUpConnectorPage() {
 		setIsLoading(true);
 
 		try {
-			const connectorData = {
-				name: values.name,
-				connector_type: EnumConnectorName.CLICKUP_CONNECTOR,
-				is_indexable: true,
-				config: {
-					CLICKUP_API_TOKEN: values.api_token,
+			await createConnector({
+				data: {
+					name: values.name,
+					connector_type: EnumConnectorName.CLICKUP_CONNECTOR,
+					is_indexable: true,
+					config: {
+						CLICKUP_API_TOKEN: values.api_token,
+					},
+					last_indexed_at: null,
+					periodic_indexing_enabled: false,
+					indexing_frequency_minutes: null,
+					next_scheduled_at: null,
 				},
-				last_indexed_at: null,
-				periodic_indexing_enabled: false,
-				indexing_frequency_minutes: null,
-				next_scheduled_at: null,
-			};
-
-			await createConnector(connectorData, parseInt(searchSpaceId));
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 
 			toast.success("ClickUp connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);

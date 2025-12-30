@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { createConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +33,6 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
 const searxngFormSchema = z.object({
 	name: z.string().min(3, {
@@ -67,7 +68,7 @@ export default function SearxngConnectorPage() {
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const { createConnector } = useSearchSourceConnectors();
+	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	const form = useForm<SearxngFormValues>({
 		resolver: zodResolver(searxngFormSchema),
@@ -115,8 +116,8 @@ export default function SearxngConnectorPage() {
 				config.SEARXNG_VERIFY_SSL = false;
 			}
 
-			await createConnector(
-				{
+			await createConnector({
+				data: {
 					name: values.name,
 					connector_type: EnumConnectorName.SEARXNG_API,
 					config,
@@ -126,8 +127,10 @@ export default function SearxngConnectorPage() {
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
 				},
-				parseInt(searchSpaceId)
-			);
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 
 			toast.success("SearxNG connector created successfully!");
 			router.push(`/dashboard/${searchSpaceId}/connectors`);

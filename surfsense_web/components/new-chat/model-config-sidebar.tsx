@@ -184,7 +184,7 @@ export function ModelConfigSidebar({
 									<Bot className="size-5 text-primary" />
 								</div>
 								<div>
-									<h2 className="text-lg font-semibold">{getTitle()}</h2>
+									<h2 className="text-base sm:text-lg font-semibold">{getTitle()}</h2>
 									<div className="flex items-center gap-2 mt-0.5">
 										{isGlobal ? (
 											<Badge variant="secondary" className="gap-1 text-xs">
@@ -207,9 +207,10 @@ export function ModelConfigSidebar({
 								variant="ghost"
 								size="icon"
 								onClick={() => onOpenChange(false)}
-								className="rounded-xl hover:bg-destructive/10 hover:text-destructive"
+								className="h-8 w-8 rounded-full"
 							>
-								<X className="size-5" />
+								<X className="h-4 w-4" />
+								<span className="sr-only">Close</span>
 							</Button>
 						</div>
 

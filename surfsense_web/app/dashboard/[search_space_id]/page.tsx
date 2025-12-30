@@ -8,8 +8,8 @@ export default function SearchSpaceDashboardPage() {
 	const { search_space_id } = useParams();
 
 	useEffect(() => {
-		router.push(`/dashboard/${search_space_id}/chats`);
-	}, []);
+		router.push(`/dashboard/${search_space_id}/new-chat`);
+	}, [router, search_space_id]);
 
 	return <></>;
 }

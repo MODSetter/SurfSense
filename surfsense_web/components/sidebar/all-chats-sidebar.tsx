@@ -13,7 +13,7 @@ import {
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -42,17 +42,32 @@ interface AllChatsSidebarProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
+	onCloseMobileSidebar?: () => void;
 }
 
-export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsSidebarProps) {
+export function AllChatsSidebar({
+	open,
+	onOpenChange,
+	searchSpaceId,
+	onCloseMobileSidebar,
+}: AllChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const params = useParams();
 	const queryClient = useQueryClient();
+
+	// Get the current chat ID from URL to check if user is deleting the currently open chat
+	const currentChatId = Array.isArray(params.chat_id)
+		? Number(params.chat_id[0])
+		: params.chat_id
+			? Number(params.chat_id)
+			: null;
 	const [deletingThreadId, setDeletingThreadId] = useState<number | null>(null);
 	const [archivingThreadId, setArchivingThreadId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [showArchived, setShowArchived] = useState(false);
 	const [mounted, setMounted] = useState(false);
+	const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
@@ -112,8 +127,10 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 		(threadId: number) => {
 			router.push(`/dashboard/${searchSpaceId}/new-chat/${threadId}`);
 			onOpenChange(false);
+			// Also close the main sidebar on mobile
+			onCloseMobileSidebar?.();
 		},
-		[router, onOpenChange, searchSpaceId]
+		[router, onOpenChange, searchSpaceId, onCloseMobileSidebar]
 	);
 
 	// Handle thread deletion
@@ -126,6 +143,15 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
+
+				// If the deleted chat is currently open, close sidebar first then redirect
+				if (currentChatId === threadId) {
+					onOpenChange(false);
+					// Wait for sidebar close animation to complete before navigating
+					setTimeout(() => {
+						router.push(`/dashboard/${searchSpaceId}/new-chat`);
+					}, 250);
+				}
 			} catch (error) {
 				console.error("Error deleting thread:", error);
 				toast.error(t("error_deleting_chat") || "Failed to delete chat");
@@ -133,7 +159,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 				setDeletingThreadId(null);
 			}
 		},
-		[queryClient, searchSpaceId, t]
+		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange]
 	);
 
 	// Handle thread archive/unarchive
@@ -192,7 +218,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-50 bg-black/50"
+						className="fixed inset-0 z-[70] bg-black/50"
 						onClick={() => onOpenChange(false)}
 						aria-hidden="true"
 					/>
@@ -203,7 +229,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
 						transition={{ type: "spring", damping: 25, stiffness: 300 }}
-						className="fixed inset-y-0 left-0 z-50 w-80 bg-background shadow-xl flex flex-col"
+						className="fixed inset-y-0 left-0 z-[70] w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"
 						aria-label={t("all_chats") || "All Chats"}
@@ -293,6 +319,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 										const isDeleting = deletingThreadId === thread.id;
 										const isArchiving = archivingThreadId === thread.id;
 										const isBusy = isDeleting || isArchiving;
+										const isActive = currentChatId === thread.id;
 
 										return (
 											<div
@@ -301,6 +328,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 													"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 													"hover:bg-accent hover:text-accent-foreground",
 													"transition-colors cursor-pointer",
+													isActive && "bg-accent text-accent-foreground",
 													isBusy && "opacity-50 pointer-events-none"
 												)}
 											>
@@ -326,14 +354,17 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 												</Tooltip>
 
 												{/* Actions dropdown */}
-												<DropdownMenu>
+												<DropdownMenu
+													open={openDropdownId === thread.id}
+													onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
+												>
 													<DropdownMenuTrigger asChild>
 														<Button
 															variant="ghost"
 															size="icon"
 															className={cn(
 																"h-6 w-6 shrink-0",
-																"opacity-0 group-hover:opacity-100 focus:opacity-100",
+																"md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
 																"transition-opacity"
 															)}
 															disabled={isBusy}
@@ -346,7 +377,7 @@ export function AllChatsSidebar({ open, onOpenChange, searchSpaceId }: AllChatsS
 															<span className="sr-only">{t("more_options") || "More options"}</span>
 														</Button>
 													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end" className="w-40">
+													<DropdownMenuContent align="end" className="w-40 z-[80]">
 														<DropdownMenuItem
 															onClick={() => handleToggleArchive(thread.id, thread.archived)}
 															disabled={isArchiving}

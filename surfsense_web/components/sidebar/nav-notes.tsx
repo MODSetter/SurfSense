@@ -10,9 +10,9 @@ import {
 	Plus,
 	Trash2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -28,7 +28,9 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	useSidebar,
 } from "@/components/ui/sidebar";
+import { useLogsSummary } from "@/hooks/use-logs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { AllNotesSidebar } from "./all-notes-sidebar";
@@ -72,10 +74,29 @@ export function NavNotes({
 }: NavNotesProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const pathname = usePathname();
 	const isMobile = useIsMobile();
+	const { setOpenMobile } = useSidebar();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
+
+	// Poll for active reindexing tasks to show inline loading indicators
+	// Smart polling: only polls when there are active tasks, stops when idle
+	const { summary } = useLogsSummary(searchSpaceId ? Number(searchSpaceId) : 0, 24, {
+		enablePolling: true,
+		refetchInterval: 5000, // Poll every 5 seconds when tasks are active
+	});
+
+	// Create a Set of document IDs that are currently being reindexed
+	const reindexingDocumentIds = useMemo(() => {
+		if (!summary?.active_tasks) return new Set<number>();
+		return new Set(
+			summary.active_tasks
+				.filter((task) => task.document_id != null)
+				.map((task) => task.document_id as number)
+		);
+	}, [summary?.active_tasks]);
 
 	// Auto-collapse on smaller screens when Sources is expanded
 	useEffect(() => {
@@ -119,7 +140,7 @@ export function NavNotes({
 					</CollapsibleTrigger>
 
 					{/* Action buttons - always visible on hover */}
-					<div className="flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity pr-1">
+					<div className="flex items-center gap-0.5 md:opacity-0 md:group-hover/header:opacity-100 transition-opacity pr-1">
 						{searchSpaceId && notes.length > 0 && (
 							<Button
 								variant="ghost"
@@ -157,6 +178,8 @@ export function NavNotes({
 							{notes.length > 0 ? (
 								notes.map((note) => {
 									const isDeletingNote = isDeleting === note.id;
+									const isActive = pathname === note.url;
+									const isReindexing = note.id ? reindexingDocumentIds.has(note.id) : false;
 
 									return (
 										<SidebarMenuItem key={note.id || note.name} className="group/note">
@@ -166,10 +189,15 @@ export function NavNotes({
 												disabled={isDeletingNote}
 												className={cn(
 													"pr-8", // Make room for the action button
+													isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
 													isDeletingNote && "opacity-50"
 												)}
 											>
-												<note.icon className="h-4 w-4 shrink-0" />
+												{isReindexing ? (
+													<Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+												) : (
+													<note.icon className="h-4 w-4 shrink-0" />
+												)}
 												<span className="truncate">{note.name}</span>
 											</SidebarMenuButton>
 
@@ -183,7 +211,7 @@ export function NavNotes({
 																size="icon"
 																className={cn(
 																	"h-6 w-6",
-																	"opacity-0 group-hover/note:opacity-100 focus:opacity-100",
+																	"md:opacity-0 md:group-hover/note:opacity-100 md:focus:opacity-100",
 																	"data-[state=open]:opacity-100",
 																	"transition-opacity"
 																)}
@@ -267,6 +295,7 @@ export function NavNotes({
 					onOpenChange={setIsAllNotesSidebarOpen}
 					searchSpaceId={searchSpaceId}
 					onAddNote={onAddNote}
+					onCloseMobileSidebar={() => setOpenMobile(false)}
 				/>
 			)}
 		</SidebarGroup>

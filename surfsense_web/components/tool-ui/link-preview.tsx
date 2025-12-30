@@ -2,6 +2,7 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, ExternalLinkIcon, LinkIcon } from "lucide-react";
+import { z } from "zod";
 import {
 	MediaCard,
 	MediaCardErrorBoundary,
@@ -10,25 +11,39 @@ import {
 	type SerializableMediaCard,
 } from "@/components/tool-ui/media-card";
 
-/**
- * Type definitions for the link_preview tool
- */
-interface LinkPreviewArgs {
-	url: string;
-	title?: string;
-}
+// ============================================================================
+// Zod Schemas
+// ============================================================================
 
-interface LinkPreviewResult {
-	id: string;
-	assetId: string;
-	kind: "link";
-	href: string;
-	title: string;
-	description?: string;
-	thumb?: string;
-	domain?: string;
-	error?: string;
-}
+/**
+ * Schema for link_preview tool arguments
+ */
+const LinkPreviewArgsSchema = z.object({
+	url: z.string(),
+	title: z.string().nullish(),
+});
+
+/**
+ * Schema for link_preview tool result
+ */
+const LinkPreviewResultSchema = z.object({
+	id: z.string(),
+	assetId: z.string(),
+	kind: z.literal("link"),
+	href: z.string(),
+	title: z.string(),
+	description: z.string().nullish(),
+	thumb: z.string().nullish(),
+	domain: z.string().nullish(),
+	error: z.string().nullish(),
+});
+
+// ============================================================================
+// Types
+// ============================================================================
+
+type LinkPreviewArgs = z.infer<typeof LinkPreviewArgsSchema>;
+type LinkPreviewResult = z.infer<typeof LinkPreviewResultSchema>;
 
 /**
  * Error state component shown when link preview fails
@@ -150,20 +165,35 @@ export const LinkPreviewToolUI = makeAssistantToolUI<LinkPreviewArgs, LinkPrevie
 	},
 });
 
-/**
- * Multiple Link Previews Tool UI Component
- *
- * This component handles cases where multiple links need to be previewed.
- * It renders a grid of link preview cards.
- */
-interface MultiLinkPreviewArgs {
-	urls: string[];
-}
+// ============================================================================
+// Multi Link Preview Schemas
+// ============================================================================
 
-interface MultiLinkPreviewResult {
-	previews: LinkPreviewResult[];
-	errors?: { url: string; error: string }[];
-}
+/**
+ * Schema for multi_link_preview tool arguments
+ */
+const MultiLinkPreviewArgsSchema = z.object({
+	urls: z.array(z.string()),
+});
+
+/**
+ * Schema for error items in multi_link_preview result
+ */
+const MultiLinkPreviewErrorSchema = z.object({
+	url: z.string(),
+	error: z.string(),
+});
+
+/**
+ * Schema for multi_link_preview tool result
+ */
+const MultiLinkPreviewResultSchema = z.object({
+	previews: z.array(LinkPreviewResultSchema),
+	errors: z.array(MultiLinkPreviewErrorSchema).nullish(),
+});
+
+type MultiLinkPreviewArgs = z.infer<typeof MultiLinkPreviewArgsSchema>;
+type MultiLinkPreviewResult = z.infer<typeof MultiLinkPreviewResultSchema>;
 
 export const MultiLinkPreviewToolUI = makeAssistantToolUI<
 	MultiLinkPreviewArgs,
@@ -217,4 +247,13 @@ export const MultiLinkPreviewToolUI = makeAssistantToolUI<
 	},
 });
 
-export type { LinkPreviewArgs, LinkPreviewResult, MultiLinkPreviewArgs, MultiLinkPreviewResult };
+export {
+	LinkPreviewArgsSchema,
+	LinkPreviewResultSchema,
+	MultiLinkPreviewArgsSchema,
+	MultiLinkPreviewResultSchema,
+	type LinkPreviewArgs,
+	type LinkPreviewResult,
+	type MultiLinkPreviewArgs,
+	type MultiLinkPreviewResult,
+};

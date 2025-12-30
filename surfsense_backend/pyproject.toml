@@ -7,6 +7,8 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13.0",
     "asyncpg>=0.30.0",
+    "datasets>=2.21.0",
+    "pyarrow>=15.0.0,<19.0.0",
     "discord-py>=2.5.2",
     "docling>=2.15.0",
     "fastapi>=0.115.8",

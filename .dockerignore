@@ -75,7 +75,6 @@ surfsense_backend/lib64/
 
 # Logs
 **/*.log
-**/logs/
 
 # Temporary files
 **/tmp/

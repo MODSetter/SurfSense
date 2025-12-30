@@ -49,6 +49,10 @@ export const uploadDocumentMutationAtom = atomWithMutation((get) => {
 
 		onSuccess: () => {
 			toast.success("Files uploaded for processing");
+			// Invalidate logs summary to show new processing tasks immediately on documents page
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(searchSpaceId ?? undefined),
+			});
 		},
 	};
 });

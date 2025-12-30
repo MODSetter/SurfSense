@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Check, ExternalLink, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -20,10 +22,7 @@ import {
 } from "@/components/ui/card";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import {
-	type SearchSourceConnector,
-	useSearchSourceConnectors,
-} from "@/hooks/use-search-source-connectors";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 export default function GoogleGmailConnectorPage() {
@@ -33,11 +32,12 @@ export default function GoogleGmailConnectorPage() {
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [doesConnectorExist, setDoesConnectorExist] = useState(false);
 
-	const { fetchConnectors } = useSearchSourceConnectors(true, parseInt(searchSpaceId));
+	const { refetch: fetchConnectors } = useAtomValue(connectorsAtom);
 
 	useEffect(() => {
-		fetchConnectors(parseInt(searchSpaceId)).then((data) => {
-			const connector = data.find(
+		fetchConnectors().then((data) => {
+			const connectors = data.data || [];
+			const connector = connectors.find(
 				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.GOOGLE_GMAIL_CONNECTOR
 			);
 			if (connector) {

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { FileText, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -27,6 +27,7 @@ interface AllNotesSidebarProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onAddNote?: () => void;
+	onCloseMobileSidebar?: () => void;
 }
 
 export function AllNotesSidebar({
@@ -34,13 +35,19 @@ export function AllNotesSidebar({
 	onOpenChange,
 	searchSpaceId,
 	onAddNote,
+	onCloseMobileSidebar,
 }: AllNotesSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const params = useParams();
 	const queryClient = useQueryClient();
+
+	// Get the current note ID from URL to highlight the open note
+	const currentNoteId = params.note_id ? Number(params.note_id) : null;
 	const [deletingNoteId, setDeletingNoteId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [mounted, setMounted] = useState(false);
+	const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
 	// Handle mounting for portal
@@ -110,8 +117,10 @@ export function AllNotesSidebar({
 		(noteId: number, noteSearchSpaceId: number) => {
 			router.push(`/dashboard/${noteSearchSpaceId}/editor/${noteId}`);
 			onOpenChange(false);
+			// Also close the main sidebar on mobile
+			onCloseMobileSidebar?.();
 		},
-		[router, onOpenChange]
+		[router, onOpenChange, onCloseMobileSidebar]
 	);
 
 	// Handle note deletion
@@ -191,7 +200,7 @@ export function AllNotesSidebar({
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-50 bg-black/50"
+						className="fixed inset-0 z-[70] bg-black/50"
 						onClick={() => onOpenChange(false)}
 						aria-hidden="true"
 					/>
@@ -202,13 +211,13 @@ export function AllNotesSidebar({
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
 						transition={{ type: "spring", damping: 25, stiffness: 300 }}
-						className="fixed inset-y-0 left-0 z-50 w-80 bg-background shadow-xl flex flex-col"
+						className="fixed inset-y-0 left-0 z-[70] w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"
 						aria-label={t("all_notes") || "All Notes"}
 					>
 						{/* Header */}
-						<div className="flex-shrink-0 p-4 pb-3 space-y-3 border-b">
+						<div className="flex-shrink-0 p-4 pb-3 space-y-3">
 							<div className="flex items-center justify-between">
 								<h2 className="text-lg font-semibold">{t("all_notes") || "All Notes"}</h2>
 								<Button
@@ -260,6 +269,7 @@ export function AllNotesSidebar({
 								<div className="space-y-1">
 									{notes.map((note) => {
 										const isDeleting = deletingNoteId === note.id;
+										const isActive = currentNoteId === note.id;
 
 										return (
 											<div
@@ -268,6 +278,7 @@ export function AllNotesSidebar({
 													"group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
 													"hover:bg-accent hover:text-accent-foreground",
 													"transition-colors cursor-pointer",
+													isActive && "bg-accent text-accent-foreground",
 													isDeleting && "opacity-50 pointer-events-none"
 												)}
 											>
@@ -301,14 +312,17 @@ export function AllNotesSidebar({
 												</Tooltip>
 
 												{/* Actions dropdown - separate from main click area */}
-												<DropdownMenu>
+												<DropdownMenu
+													open={openDropdownId === note.id}
+													onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? note.id : null)}
+												>
 													<DropdownMenuTrigger asChild>
 														<Button
 															variant="ghost"
 															size="icon"
 															className={cn(
 																"h-6 w-6 shrink-0",
-																"opacity-0 group-hover:opacity-100 focus:opacity-100",
+																"md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
 																"transition-opacity"
 															)}
 															disabled={isDeleting}
@@ -321,7 +335,7 @@ export function AllNotesSidebar({
 															<span className="sr-only">{t("more_options") || "More options"}</span>
 														</Button>
 													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end" className="w-40">
+													<DropdownMenuContent align="end" className="w-40 z-[80]">
 														<DropdownMenuItem
 															onClick={() => handleDeleteNote(note.id, note.search_space_id)}
 															className="text-destructive focus:text-destructive"
@@ -370,7 +384,7 @@ export function AllNotesSidebar({
 
 						{/* Footer with Add Note button */}
 						{onAddNote && notes.length > 0 && (
-							<div className="flex-shrink-0 p-3 border-t">
+							<div className="flex-shrink-0 p-3">
 								<Button
 									onClick={() => {
 										onAddNote();
