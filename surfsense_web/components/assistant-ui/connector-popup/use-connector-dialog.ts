@@ -10,8 +10,16 @@ import { queryClient } from "@/lib/query-client/client";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { format } from "date-fns";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { searchSourceConnector } from "@/contracts/types/connector.types";
 import { OAUTH_CONNECTORS } from "./connector-constants";
 import type { IndexingConfigState } from "./connector-constants";
+import {
+	parseConnectorPopupQueryParams,
+	parseOAuthAuthResponse,
+	validateIndexingConfigState,
+	frequencyMinutesSchema,
+	dateRangeSchema,
+} from "./connector-popup.schemas";
 
 export const useConnectorDialog = () => {
 	const router = useRouter();
@@ -48,65 +56,101 @@ export const useConnectorDialog = () => {
 
 	// Synchronize state with URL query params
 	useEffect(() => {
-		const modalParam = searchParams.get("modal");
-		const tabParam = searchParams.get("tab");
-		const viewParam = searchParams.get("view");
-		const connectorParam = searchParams.get("connector");
-		
-		if (modalParam === "connectors") {
-			if (!isOpen) setIsOpen(true);
+		try {
+			const params = parseConnectorPopupQueryParams(searchParams);
 			
-			if (tabParam === "active" || tabParam === "all") {
-				if (activeTab !== tabParam) setActiveTab(tabParam);
-			}
-			
-			if (viewParam === "configure" && connectorParam && !indexingConfig) {
-				const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === connectorParam);
-				if (oauthConnector && allConnectors) {
-					const existingConnector = allConnectors.find(
-						(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
-					);
-					if (existingConnector) {
-						setIndexingConfig({
-							connectorType: oauthConnector.connectorType,
-							connectorId: existingConnector.id,
-							connectorTitle: oauthConnector.title,
-						});
+			if (params.modal === "connectors") {
+				setIsOpen(true);
+				
+				if (params.tab === "active" || params.tab === "all") {
+					setActiveTab(params.tab);
+				}
+				
+				// Clear indexing config if view is not "configure" anymore
+				if (params.view !== "configure" && indexingConfig) {
+					setIndexingConfig(null);
+				}
+				
+				if (params.view === "configure" && params.connector && !indexingConfig) {
+					const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === params.connector);
+					if (oauthConnector && allConnectors) {
+						const existingConnector = allConnectors.find(
+							(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+						);
+						if (existingConnector) {
+							// Validate connector data before setting state
+							const connectorValidation = searchSourceConnector.safeParse(existingConnector);
+							if (connectorValidation.success) {
+								const config = validateIndexingConfigState({
+									connectorType: oauthConnector.connectorType,
+									connectorId: existingConnector.id,
+									connectorTitle: oauthConnector.title,
+								});
+								setIndexingConfig(config);
+							}
+						}
 					}
 				}
+			} else {
+				setIsOpen(false);
+				// Clear indexing config when modal is closed
+				if (indexingConfig) {
+					setIndexingConfig(null);
+					setStartDate(undefined);
+					setEndDate(undefined);
+					setPeriodicEnabled(false);
+					setFrequencyMinutes("1440");
+					setIsScrolled(false);
+					setSearchQuery("");
+				}
 			}
-		} else {
-			if (isOpen) setIsOpen(false);
+		} catch (error) {
+			// Invalid query params - log but don't crash
+			console.warn("Invalid connector popup query params:", error);
 		}
-	}, [searchParams, isOpen, activeTab, indexingConfig, allConnectors]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [searchParams, allConnectors]);
 
 	// Detect OAuth success and transition to config view
 	useEffect(() => {
-		const success = searchParams.get("success");
-		const connectorParam = searchParams.get("connector");
-		const modalParam = searchParams.get("modal");
-		
-		if (success === "true" && connectorParam && searchSpaceId && modalParam === "connectors") {
-			const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === connectorParam);
-			if (oauthConnector) {
-				refetchAllConnectors().then((result) => {
-					const newConnector = result.data?.find(
-						(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
-					);
-					if (newConnector) {
-						setIndexingConfig({
-							connectorType: oauthConnector.connectorType,
-							connectorId: newConnector.id,
-							connectorTitle: oauthConnector.title,
-						});
-						setIsOpen(true);
-						const url = new URL(window.location.href);
-						url.searchParams.delete("success");
-						url.searchParams.set("view", "configure");
-						window.history.replaceState({}, "", url.toString());
-					}
-				});
+		try {
+			const params = parseConnectorPopupQueryParams(searchParams);
+			
+			if (params.success === "true" && params.connector && searchSpaceId && params.modal === "connectors") {
+				const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === params.connector);
+				if (oauthConnector) {
+					refetchAllConnectors().then((result) => {
+						if (!result.data) return;
+						
+						const newConnector = result.data.find(
+							(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+						);
+						if (newConnector) {
+							// Validate connector data before setting state
+							const connectorValidation = searchSourceConnector.safeParse(newConnector);
+							if (connectorValidation.success) {
+								const config = validateIndexingConfigState({
+									connectorType: oauthConnector.connectorType,
+									connectorId: newConnector.id,
+									connectorTitle: oauthConnector.title,
+								});
+								setIndexingConfig(config);
+								setIsOpen(true);
+								const url = new URL(window.location.href);
+								url.searchParams.delete("success");
+								url.searchParams.set("view", "configure");
+								window.history.replaceState({}, "", url.toString());
+							} else {
+								console.warn("Invalid connector data after OAuth:", connectorValidation.error);
+								toast.error("Failed to validate connector data");
+							}
+						}
+					});
+				}
 			}
+		} catch (error) {
+			// Invalid query params - log but don't crash
+			console.warn("Invalid connector popup query params in OAuth success handler:", error);
 		}
 	}, [searchParams, searchSpaceId, refetchAllConnectors]);
 
@@ -115,8 +159,10 @@ export const useConnectorDialog = () => {
 		async (connector: (typeof OAUTH_CONNECTORS)[0]) => {
 			if (!searchSpaceId || !connector.authEndpoint) return;
 
+			// Set connecting state immediately to disable button and show spinner
+			setConnectingId(connector.id);
+
 			try {
-				setConnectingId(connector.id);
 				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}?space_id=${searchSpaceId}`,
 					{ method: "GET" }
@@ -127,11 +173,21 @@ export const useConnectorDialog = () => {
 				}
 
 				const data = await response.json();
-				window.location.href = data.auth_url;
+				
+				// Validate OAuth response with Zod
+				const validatedData = parseOAuthAuthResponse(data);
+				
+				// Don't clear connectingId here - let the redirect happen with button still disabled
+				// The component will unmount on redirect anyway
+				window.location.href = validatedData.auth_url;
 			} catch (error) {
 				console.error(`Error connecting to ${connector.title}:`, error);
-				toast.error(`Failed to connect to ${connector.title}`);
-			} finally {
+				if (error instanceof Error && error.message.includes("Invalid auth URL")) {
+					toast.error(`Invalid response from ${connector.title} OAuth endpoint`);
+				} else {
+					toast.error(`Failed to connect to ${connector.title}`);
+				}
+				// Only clear connectingId on error so user can retry
 				setConnectingId(null);
 			}
 		},
@@ -141,6 +197,22 @@ export const useConnectorDialog = () => {
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(async (refreshConnectors: () => void) => {
 		if (!indexingConfig || !searchSpaceId) return;
+
+		// Validate date range
+		const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
+		if (!dateRangeValidation.success) {
+			toast.error(dateRangeValidation.error.errors[0]?.message || "Invalid date range");
+			return;
+		}
+
+		// Validate frequency minutes if periodic is enabled
+		if (periodicEnabled) {
+			const frequencyValidation = frequencyMinutesSchema.safeParse(frequencyMinutes);
+			if (!frequencyValidation.success) {
+				toast.error("Invalid frequency value");
+				return;
+			}
+		}
 
 		setIsStartingIndexing(true);
 		try {
@@ -173,18 +245,14 @@ export const useConnectorDialog = () => {
 					: "You can continue working while we sync your data.",
 			});
 
-			setIndexingConfig(null);
-			setStartDate(undefined);
-			setEndDate(undefined);
-			setPeriodicEnabled(false);
-			setFrequencyMinutes("1440");
-			
+			// Update URL - the effect will handle closing the modal and clearing state
 			const url = new URL(window.location.href);
-			url.searchParams.delete("view");
+			url.searchParams.delete("modal");
+			url.searchParams.delete("tab");
+			url.searchParams.delete("success");
 			url.searchParams.delete("connector");
-			url.searchParams.set("tab", "active");
-			window.history.replaceState({}, "", url.toString());
-			setActiveTab("active");
+			url.searchParams.delete("view");
+			router.replace(url.pathname + url.search, { scroll: false });
 			
 			refreshConnectors();
 			queryClient.invalidateQueries({
@@ -196,21 +264,19 @@ export const useConnectorDialog = () => {
 		} finally {
 			setIsStartingIndexing(false);
 		}
-	}, [indexingConfig, searchSpaceId, startDate, endDate, indexConnector, updateConnector, periodicEnabled, frequencyMinutes, getFrequencyLabel]);
+	}, [indexingConfig, searchSpaceId, startDate, endDate, indexConnector, updateConnector, periodicEnabled, frequencyMinutes, getFrequencyLabel, router]);
 
 	// Handle skipping indexing
 	const handleSkipIndexing = useCallback(() => {
-		setIndexingConfig(null);
-		setStartDate(undefined);
-		setEndDate(undefined);
-		setPeriodicEnabled(false);
-		setFrequencyMinutes("1440");
-		
+		// Update URL - the effect will handle closing the modal and clearing state
 		const url = new URL(window.location.href);
-		url.searchParams.delete("view");
+		url.searchParams.delete("modal");
+		url.searchParams.delete("tab");
+		url.searchParams.delete("success");
 		url.searchParams.delete("connector");
-		window.history.replaceState({}, "", url.toString());
-	}, []);
+		url.searchParams.delete("view");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
 
 	// Handle dialog open/close
 	const handleOpenChange = useCallback(

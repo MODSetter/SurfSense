@@ -3,6 +3,13 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 // OAuth Connectors (Quick Connect)
 export const OAUTH_CONNECTORS = [
 	{
+		id: "google-drive-connector",
+		title: "Google Drive",
+		description: "Search your Drive files",
+		connectorType: EnumConnectorName.GOOGLE_DRIVE_CONNECTOR,
+		authEndpoint: "/api/v1/auth/google/drive/connector/add/",
+	},
+	{
 		id: "google-gmail-connector",
 		title: "Gmail",
 		description: "Search through your emails",
@@ -125,10 +132,6 @@ export const OTHER_CONNECTORS = [
 	},
 ] as const;
 
-// Type for the indexing configuration state
-export interface IndexingConfigState {
-	connectorType: string;
-	connectorId: number;
-	connectorTitle: string;
-}
+// Re-export IndexingConfigState from schemas for backward compatibility
+export type { IndexingConfigState } from "./connector-popup.schemas";
 

@@ -34,12 +34,6 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-2">
 					<span className="text-[14px] font-semibold leading-tight">{title}</span>
-					{isConnected && (
-						<span
-							className="size-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
-							title="Connected"
-						/>
-					)}
 				</div>
 				<p className="text-[11px] text-muted-foreground truncate mt-1">
 					{isConnected ? "Connected" : description}

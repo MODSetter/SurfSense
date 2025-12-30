@@ -14,6 +14,24 @@ export { ActiveConnectorsTab } from "./active-connectors-tab";
 export { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "./connector-constants";
 export type { IndexingConfigState } from "./connector-constants";
 
+// Schemas and validation
+export {
+	connectorPopupQueryParamsSchema,
+	oauthAuthResponseSchema,
+	indexingConfigStateSchema,
+	frequencyMinutesSchema,
+	dateRangeSchema,
+	parseConnectorPopupQueryParams,
+	parseOAuthAuthResponse,
+	validateIndexingConfigState,
+} from "./connector-popup.schemas";
+export type {
+	ConnectorPopupQueryParams,
+	OAuthAuthResponse,
+	FrequencyMinutes,
+	DateRange,
+} from "./connector-popup.schemas";
+
 // Hooks
 export { useConnectorDialog } from "./use-connector-dialog";
 

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import type { LogSummary, LogActiveTask } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import {
 	TabsContent,
@@ -20,7 +21,7 @@ interface ActiveConnectorsTabProps {
 	activeDocumentTypes: Array<[string, number]>;
 	connectors: SearchSourceConnector[];
 	indexingConnectorIds: Set<number>;
-	logsSummary: any;
+	logsSummary: LogSummary | undefined;
 	searchSpaceId: string;
 	onTabChange: (value: string) => void;
 }
@@ -67,7 +68,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 						{connectors.map((connector) => {
 							const isIndexing = indexingConnectorIds.has(connector.id);
 							const activeTask = logsSummary?.active_tasks?.find(
-								(task: any) =>
+								(task: LogActiveTask) =>
 									task.source?.includes(`connector_${connector.id}`) ||
 									task.source?.includes(`connector-${connector.id}`)
 							);

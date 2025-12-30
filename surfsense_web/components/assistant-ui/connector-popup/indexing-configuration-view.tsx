@@ -1,9 +1,10 @@
 "use client";
 
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
-import { type FC } from "react";
+import { type FC, useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { cn } from "@/lib/utils";
 import type { IndexingConfigState } from "./connector-constants";
 import { DateRangeSelector } from "./date-range-selector";
 import { PeriodicSyncConfig } from "./periodic-sync-config";
@@ -37,10 +38,49 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	onStartIndexing,
 	onSkip,
 }) => {
+	const [isScrolled, setIsScrolled] = useState(false);
+	const [hasMoreContent, setHasMoreContent] = useState(false);
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+	const checkScrollState = useCallback(() => {
+		if (!scrollContainerRef.current) return;
+		
+		const target = scrollContainerRef.current;
+		const scrolled = target.scrollTop > 0;
+		const hasMore = target.scrollHeight > target.clientHeight && 
+			target.scrollTop + target.clientHeight < target.scrollHeight - 10;
+		
+		setIsScrolled(scrolled);
+		setHasMoreContent(hasMore);
+	}, []);
+
+	const handleScroll = useCallback(() => {
+		checkScrollState();
+	}, [checkScrollState]);
+
+	// Check initial scroll state and on resize
+	useEffect(() => {
+		checkScrollState();
+		const resizeObserver = new ResizeObserver(() => {
+			checkScrollState();
+		});
+		
+		if (scrollContainerRef.current) {
+			resizeObserver.observe(scrollContainerRef.current);
+		}
+		
+		return () => {
+			resizeObserver.disconnect();
+		};
+	}, [checkScrollState]);
+
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Fixed Header */}
-			<div className="flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10">
+			<div className={cn(
+				"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
+				isScrolled && "shadow-sm"
+			)}>
 				{/* Back button */}
 				<button
 					type="button"
@@ -68,39 +108,53 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 			</div>
 
 			{/* Scrollable Content */}
-			<div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-12">
-				<div className="space-y-6 pb-6">
-					<DateRangeSelector
-						startDate={startDate}
-						endDate={endDate}
-						onStartDateChange={onStartDateChange}
-						onEndDateChange={onEndDateChange}
-					/>
+			<div className="flex-1 min-h-0 relative overflow-hidden">
+				<div 
+					ref={scrollContainerRef}
+					className="h-full overflow-y-auto px-6 sm:px-12" 
+					onScroll={handleScroll}
+				>
+					<div className="space-y-6 pb-6 pt-2">
+						<DateRangeSelector
+							startDate={startDate}
+							endDate={endDate}
+							onStartDateChange={onStartDateChange}
+							onEndDateChange={onEndDateChange}
+						/>
 
-					<PeriodicSyncConfig
-						enabled={periodicEnabled}
-						frequencyMinutes={frequencyMinutes}
-						onEnabledChange={onPeriodicEnabledChange}
-						onFrequencyChange={onFrequencyChange}
-					/>
+						<PeriodicSyncConfig
+							enabled={periodicEnabled}
+							frequencyMinutes={frequencyMinutes}
+							onEnabledChange={onPeriodicEnabledChange}
+							onFrequencyChange={onFrequencyChange}
+						/>
 
-					{/* Info box */}
-					<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
-						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-							{getConnectorIcon(config.connectorType, "size-4")}
-						</div>
-						<div className="text-sm">
-							<p className="font-medium">Indexing runs in the background</p>
-							<p className="text-muted-foreground mt-1">
-								You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
-							</p>
+						{/* Info box */}
+						<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
+							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
+								{getConnectorIcon(config.connectorType, "size-4")}
+							</div>
+							<div className="text-sm">
+								<p className="font-medium">Indexing runs in the background</p>
+								<p className="text-muted-foreground mt-1">
+									You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
+								</p>
+							</div>
 						</div>
 					</div>
 				</div>
+				{/* Top fade shadow - appears when scrolled */}
+				{isScrolled && (
+					<div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-muted/50 to-transparent pointer-events-none z-10" />
+				)}
+				{/* Bottom fade shadow - appears when there's more content */}
+				{hasMoreContent && (
+					<div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-muted/50 to-transparent pointer-events-none z-10" />
+				)}
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 border-t border-border bg-muted">
+			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted">
 				<Button variant="ghost" onClick={onSkip} disabled={isStartingIndexing}>
 					Skip for now
 				</Button>
