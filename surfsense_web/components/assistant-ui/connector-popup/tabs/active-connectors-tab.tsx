@@ -24,6 +24,7 @@ interface ActiveConnectorsTabProps {
 	logsSummary: LogSummary | undefined;
 	searchSpaceId: string;
 	onTabChange: (value: string) => void;
+	onManage?: (connector: SearchSourceConnector) => void;
 }
 
 export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
@@ -34,6 +35,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	logsSummary,
 	searchSpaceId,
 	onTabChange,
+	onManage,
 }) => {
 	const router = useRouter();
 
@@ -119,11 +121,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										variant="outline"
 										size="sm"
 										className="h-8 text-[11px] px-3 rounded-lg font-medium"
-										onClick={() =>
-											router.push(
-												`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`
-											)
-										}
+										onClick={onManage ? () => onManage(connector) : undefined}
 										disabled={isIndexing}
 									>
 										{isIndexing ? "Syncing..." : "Manage"}

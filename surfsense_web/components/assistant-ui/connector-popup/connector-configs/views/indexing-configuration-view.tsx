@@ -1,16 +1,19 @@
 "use client";
 
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
-import { type FC, useState, useCallback, useRef, useEffect } from "react";
+import { type FC, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
-import type { IndexingConfigState } from "./connector-constants";
-import { DateRangeSelector } from "./date-range-selector";
-import { PeriodicSyncConfig } from "./periodic-sync-config";
+import type { IndexingConfigState } from "../../constants/connector-constants";
+import { DateRangeSelector } from "../../components/date-range-selector";
+import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
+import { getConnectorConfigComponent } from "../index";
 
 interface IndexingConfigurationViewProps {
 	config: IndexingConfigState;
+	connector?: SearchSourceConnector;
 	startDate: Date | undefined;
 	endDate: Date | undefined;
 	periodicEnabled: boolean;
@@ -20,12 +23,14 @@ interface IndexingConfigurationViewProps {
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
 	onFrequencyChange: (frequency: string) => void;
+	onConfigChange?: (config: Record<string, unknown>) => void;
 	onStartIndexing: () => void;
 	onSkip: () => void;
 }
 
 export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	config,
+	connector,
 	startDate,
 	endDate,
 	periodicEnabled,
@@ -35,9 +40,15 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	onEndDateChange,
 	onPeriodicEnabledChange,
 	onFrequencyChange,
+	onConfigChange,
 	onStartIndexing,
 	onSkip,
 }) => {
+	// Get connector-specific config component
+	const ConnectorConfigComponent = useMemo(
+		() => connector ? getConnectorConfigComponent(connector.connector_type) : null,
+		[connector]
+	);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [hasMoreContent, setHasMoreContent] = useState(false);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -115,12 +126,23 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 					onScroll={handleScroll}
 				>
 					<div className="space-y-6 pb-6 pt-2">
-						<DateRangeSelector
-							startDate={startDate}
-							endDate={endDate}
-							onStartDateChange={onStartDateChange}
-							onEndDateChange={onEndDateChange}
-						/>
+						{/* Connector-specific configuration */}
+						{ConnectorConfigComponent && connector && (
+							<ConnectorConfigComponent
+								connector={connector}
+								onConfigChange={onConfigChange}
+							/>
+						)}
+
+						{/* Date range selector - not shown for Google Drive (uses folder selection instead) */}
+						{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && (
+							<DateRangeSelector
+								startDate={startDate}
+								endDate={endDate}
+								onStartDateChange={onStartDateChange}
+								onEndDateChange={onEndDateChange}
+							/>
+						)}
 
 						<PeriodicSyncConfig
 							enabled={periodicEnabled}

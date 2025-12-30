@@ -208,9 +208,8 @@ async def drive_callback(
             f"Successfully created Google Drive connector {db_connector.id} for user {user_id}"
         )
 
-        # Redirect to connectors management page (not to folder selection)
         return RedirectResponse(
-            url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors?success=google-drive-connected"
+            url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-drive-connector"
         )
 
     except HTTPException:

@@ -2,15 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { type FC } from "react";
-import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "./connector-constants";
-import { ConnectorCard } from "./connector-card";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
+import { ConnectorCard } from "../components/connector-card";
 
 interface AllConnectorsTabProps {
 	searchQuery: string;
 	searchSpaceId: string;
 	connectedTypes: Set<string>;
 	connectingId: string | null;
+	allConnectors: SearchSourceConnector[] | undefined;
 	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[0]) => void;
+	onManage?: (connector: SearchSourceConnector) => void;
 }
 
 export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
@@ -18,7 +21,9 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	searchSpaceId,
 	connectedTypes,
 	connectingId,
+	allConnectors,
 	onConnectOAuth,
+	onManage,
 }) => {
 	const router = useRouter();
 
@@ -49,6 +54,10 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 						{filteredOAuth.map((connector) => {
 							const isConnected = connectedTypes.has(connector.connectorType);
 							const isConnecting = connectingId === connector.id;
+							// Find the actual connector object if connected
+							const actualConnector = isConnected && allConnectors
+								? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
+								: undefined;
 
 							return (
 								<ConnectorCard
@@ -60,11 +69,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnected={isConnected}
 									isConnecting={isConnecting}
 									onConnect={() => onConnectOAuth(connector)}
-									onManage={() =>
-										router.push(
-											`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`
-										)
-									}
+									onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
 								/>
 							);
 						})}
@@ -83,6 +88,10 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{filteredOther.map((connector) => {
 							const isConnected = connectedTypes.has(connector.connectorType);
+							// Find the actual connector object if connected
+							const actualConnector = isConnected && allConnectors
+								? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
+								: undefined;
 
 							return (
 								<ConnectorCard
@@ -97,11 +106,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 											`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`
 										)
 									}
-									onManage={() =>
-										router.push(
-											`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`
-										)
-									}
+									onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
 								/>
 							);
 						})}

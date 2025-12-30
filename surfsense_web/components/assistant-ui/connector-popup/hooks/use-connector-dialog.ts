@@ -1,0 +1,637 @@
+import { useAtomValue } from "jotai";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { deleteConnectorMutationAtom, indexConnectorMutationAtom, updateConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { authenticatedFetch } from "@/lib/auth-utils";
+import { queryClient } from "@/lib/query-client/client";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { format } from "date-fns";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { searchSourceConnector } from "@/contracts/types/connector.types";
+import { OAUTH_CONNECTORS } from "../constants/connector-constants";
+import type { IndexingConfigState } from "../constants/connector-constants";
+import {
+	parseConnectorPopupQueryParams,
+	parseOAuthAuthResponse,
+	validateIndexingConfigState,
+	frequencyMinutesSchema,
+	dateRangeSchema,
+} from "../constants/connector-popup.schemas";
+
+export const useConnectorDialog = () => {
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const { data: allConnectors, refetch: refetchAllConnectors } = useAtomValue(connectorsAtom);
+	const { mutateAsync: indexConnector } = useAtomValue(indexConnectorMutationAtom);
+	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
+	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
+
+	const [isOpen, setIsOpen] = useState(false);
+	const [activeTab, setActiveTab] = useState("all");
+	const [connectingId, setConnectingId] = useState<string | null>(null);
+	const [isScrolled, setIsScrolled] = useState(false);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [indexingConfig, setIndexingConfig] = useState<IndexingConfigState | null>(null);
+	const [indexingConnector, setIndexingConnector] = useState<SearchSourceConnector | null>(null);
+	const [indexingConnectorConfig, setIndexingConnectorConfig] = useState<Record<string, unknown> | null>(null);
+	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+	const [isStartingIndexing, setIsStartingIndexing] = useState(false);
+	const [periodicEnabled, setPeriodicEnabled] = useState(false);
+	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
+	
+	// Edit mode state
+	const [editingConnector, setEditingConnector] = useState<SearchSourceConnector | null>(null);
+	const [isSaving, setIsSaving] = useState(false);
+	const [isDisconnecting, setIsDisconnecting] = useState(false);
+	const [connectorConfig, setConnectorConfig] = useState<Record<string, unknown> | null>(null);
+
+	// Helper function to get frequency label
+	const getFrequencyLabel = useCallback((minutes: string): string => {
+		switch (minutes) {
+			case "15": return "15 minutes";
+			case "60": return "hour";
+			case "360": return "6 hours";
+			case "720": return "12 hours";
+			case "1440": return "day";
+			case "10080": return "week";
+			default: return `${minutes} minutes`;
+		}
+	}, []);
+
+	// Synchronize state with URL query params
+	useEffect(() => {
+		try {
+			const params = parseConnectorPopupQueryParams(searchParams);
+			
+			if (params.modal === "connectors") {
+				setIsOpen(true);
+				
+				if (params.tab === "active" || params.tab === "all") {
+					setActiveTab(params.tab);
+				}
+				
+				// Clear indexing config if view is not "configure" anymore
+				if (params.view !== "configure" && indexingConfig) {
+					setIndexingConfig(null);
+				}
+				
+				// Clear editing connector if view is not "edit" anymore
+				if (params.view !== "edit" && editingConnector) {
+					setEditingConnector(null);
+				}
+				
+				if (params.view === "configure" && params.connector && !indexingConfig) {
+					const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === params.connector);
+					if (oauthConnector && allConnectors) {
+						const existingConnector = allConnectors.find(
+							(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+						);
+						if (existingConnector) {
+							// Validate connector data before setting state
+							const connectorValidation = searchSourceConnector.safeParse(existingConnector);
+							if (connectorValidation.success) {
+								const config = validateIndexingConfigState({
+									connectorType: oauthConnector.connectorType,
+									connectorId: existingConnector.id,
+									connectorTitle: oauthConnector.title,
+								});
+								setIndexingConfig(config);
+								setIndexingConnector(existingConnector);
+								setIndexingConnectorConfig(existingConnector.config);
+							}
+						}
+					}
+				}
+				
+				// Handle edit view
+				if (params.view === "edit" && params.connectorId && allConnectors && !editingConnector) {
+					const connectorId = parseInt(params.connectorId, 10);
+					const connector = allConnectors.find((c: SearchSourceConnector) => c.id === connectorId);
+					if (connector) {
+						const connectorValidation = searchSourceConnector.safeParse(connector);
+						if (connectorValidation.success) {
+							setEditingConnector(connector);
+							setConnectorConfig(connector.config);
+							// Load existing periodic sync settings
+							setPeriodicEnabled(connector.periodic_indexing_enabled);
+							setFrequencyMinutes(
+								connector.indexing_frequency_minutes?.toString() || "1440"
+							);
+							// Reset dates - user can set new ones for re-indexing
+							setStartDate(undefined);
+							setEndDate(undefined);
+						}
+					}
+				}
+			} else {
+				setIsOpen(false);
+				// Clear indexing config when modal is closed
+				if (indexingConfig) {
+					setIndexingConfig(null);
+					setIndexingConnector(null);
+					setIndexingConnectorConfig(null);
+					setStartDate(undefined);
+					setEndDate(undefined);
+					setPeriodicEnabled(false);
+					setFrequencyMinutes("1440");
+					setIsScrolled(false);
+					setSearchQuery("");
+				}
+				// Clear editing connector when modal is closed
+				if (editingConnector) {
+					setEditingConnector(null);
+					setConnectorConfig(null);
+					setStartDate(undefined);
+					setEndDate(undefined);
+					setPeriodicEnabled(false);
+					setFrequencyMinutes("1440");
+					setIsScrolled(false);
+					setSearchQuery("");
+				}
+			}
+		} catch (error) {
+			// Invalid query params - log but don't crash
+			console.warn("Invalid connector popup query params:", error);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [searchParams, allConnectors, editingConnector, indexingConfig]);
+
+	// Detect OAuth success and transition to config view
+	useEffect(() => {
+		try {
+			const params = parseConnectorPopupQueryParams(searchParams);
+			
+			if (params.success === "true" && params.connector && searchSpaceId && params.modal === "connectors") {
+				const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === params.connector);
+				if (oauthConnector) {
+					refetchAllConnectors().then((result) => {
+						if (!result.data) return;
+						
+						const newConnector = result.data.find(
+							(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+						);
+						if (newConnector) {
+							// Validate connector data before setting state
+							const connectorValidation = searchSourceConnector.safeParse(newConnector);
+							if (connectorValidation.success) {
+								const config = validateIndexingConfigState({
+									connectorType: oauthConnector.connectorType,
+									connectorId: newConnector.id,
+									connectorTitle: oauthConnector.title,
+								});
+								setIndexingConfig(config);
+								setIndexingConnector(newConnector);
+								setIndexingConnectorConfig(newConnector.config);
+								setIsOpen(true);
+								const url = new URL(window.location.href);
+								url.searchParams.delete("success");
+								url.searchParams.set("view", "configure");
+								window.history.replaceState({}, "", url.toString());
+							} else {
+								console.warn("Invalid connector data after OAuth:", connectorValidation.error);
+								toast.error("Failed to validate connector data");
+							}
+						}
+					});
+				}
+			}
+		} catch (error) {
+			// Invalid query params - log but don't crash
+			console.warn("Invalid connector popup query params in OAuth success handler:", error);
+		}
+	}, [searchParams, searchSpaceId, refetchAllConnectors]);
+
+	// Handle OAuth connection
+	const handleConnectOAuth = useCallback(
+		async (connector: (typeof OAUTH_CONNECTORS)[0]) => {
+			if (!searchSpaceId || !connector.authEndpoint) return;
+
+			// Set connecting state immediately to disable button and show spinner
+			setConnectingId(connector.id);
+
+			try {
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}?space_id=${searchSpaceId}`,
+					{ method: "GET" }
+				);
+
+				if (!response.ok) {
+					throw new Error(`Failed to initiate ${connector.title} OAuth`);
+				}
+
+				const data = await response.json();
+				
+				// Validate OAuth response with Zod
+				const validatedData = parseOAuthAuthResponse(data);
+				
+				// Don't clear connectingId here - let the redirect happen with button still disabled
+				// The component will unmount on redirect anyway
+				window.location.href = validatedData.auth_url;
+			} catch (error) {
+				console.error(`Error connecting to ${connector.title}:`, error);
+				if (error instanceof Error && error.message.includes("Invalid auth URL")) {
+					toast.error(`Invalid response from ${connector.title} OAuth endpoint`);
+				} else {
+					toast.error(`Failed to connect to ${connector.title}`);
+				}
+				// Only clear connectingId on error so user can retry
+				setConnectingId(null);
+			}
+		},
+		[searchSpaceId]
+	);
+
+	// Handle starting indexing
+	const handleStartIndexing = useCallback(async (refreshConnectors: () => void) => {
+		if (!indexingConfig || !searchSpaceId) return;
+
+		// Validate date range
+		const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
+		if (!dateRangeValidation.success) {
+			const firstIssueMsg =
+				dateRangeValidation.error.issues && dateRangeValidation.error.issues.length > 0
+					? dateRangeValidation.error.issues[0].message
+					: "Invalid date range";
+			toast.error(firstIssueMsg);
+			return;
+		}
+
+		// Validate frequency minutes if periodic is enabled
+		if (periodicEnabled) {
+			const frequencyValidation = frequencyMinutesSchema.safeParse(frequencyMinutes);
+			if (!frequencyValidation.success) {
+				toast.error("Invalid frequency value");
+				return;
+			}
+		}
+
+		setIsStartingIndexing(true);
+		try {
+			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
+			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
+
+			// Update connector with periodic sync settings and config changes
+			if (periodicEnabled || indexingConnectorConfig) {
+				const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
+				await updateConnector({
+					id: indexingConfig.connectorId,
+					data: {
+						...(periodicEnabled && {
+							periodic_indexing_enabled: true,
+							indexing_frequency_minutes: frequency,
+						}),
+						...(indexingConnectorConfig && {
+							config: indexingConnectorConfig,
+						}),
+					},
+				});
+			}
+
+			// Handle Google Drive folder selection
+			if (indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" && indexingConnectorConfig) {
+				const selectedFolders = indexingConnectorConfig.selected_folders as Array<{ id: string; name: string }> | undefined;
+				if (selectedFolders && selectedFolders.length > 0) {
+					// Index with folder selection
+					const folderIds = selectedFolders.map((f) => f.id).join(",");
+					const folderNames = selectedFolders.map((f) => f.name).join(", ");
+					await indexConnector({
+						connector_id: indexingConfig.connectorId,
+						queryParams: {
+							search_space_id: searchSpaceId,
+							folder_ids: folderIds,
+							folder_names: folderNames,
+						},
+					});
+				} else {
+					// Google Drive requires folder selection - show error if none selected
+					toast.error("Please select at least one folder to index");
+					setIsStartingIndexing(false);
+					return;
+				}
+			} else {
+				await indexConnector({
+					connector_id: indexingConfig.connectorId,
+					queryParams: {
+						search_space_id: searchSpaceId,
+						start_date: startDateStr,
+						end_date: endDateStr,
+					},
+				});
+			}
+
+			toast.success(`${indexingConfig.connectorTitle} indexing started`, {
+				description: periodicEnabled 
+					? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutes)}.`
+					: "You can continue working while we sync your data.",
+			});
+
+			// Update URL - the effect will handle closing the modal and clearing state
+			const url = new URL(window.location.href);
+			url.searchParams.delete("modal");
+			url.searchParams.delete("tab");
+			url.searchParams.delete("success");
+			url.searchParams.delete("connector");
+			url.searchParams.delete("view");
+			router.replace(url.pathname + url.search, { scroll: false });
+			
+			refreshConnectors();
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+		} catch (error) {
+			console.error("Error starting indexing:", error);
+			toast.error("Failed to start indexing");
+		} finally {
+			setIsStartingIndexing(false);
+		}
+	}, [indexingConfig, searchSpaceId, startDate, endDate, indexConnector, updateConnector, periodicEnabled, frequencyMinutes, getFrequencyLabel, router, indexingConnectorConfig]);
+
+	// Handle skipping indexing
+	const handleSkipIndexing = useCallback(() => {
+		// Update URL - the effect will handle closing the modal and clearing state
+		const url = new URL(window.location.href);
+		url.searchParams.delete("modal");
+		url.searchParams.delete("tab");
+		url.searchParams.delete("success");
+		url.searchParams.delete("connector");
+		url.searchParams.delete("view");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
+	// Handle starting edit mode
+	const handleStartEdit = useCallback((connector: SearchSourceConnector) => {
+		if (!searchSpaceId) return;
+		
+		// Check if this is an OAuth connector
+		const isOAuthConnector = OAUTH_CONNECTORS.some(
+			(oauthConnector) => oauthConnector.connectorType === connector.connector_type
+		);
+		
+		// If not OAuth, redirect to old connector edit page
+		if (!isOAuthConnector) {
+			router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`);
+			return;
+		}
+		
+		// Validate connector data
+		const connectorValidation = searchSourceConnector.safeParse(connector);
+		if (!connectorValidation.success) {
+			toast.error("Invalid connector data");
+			return;
+		}
+		
+		setEditingConnector(connector);
+		// Load existing periodic sync settings
+		setPeriodicEnabled(connector.periodic_indexing_enabled);
+		setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
+		// Reset dates - user can set new ones for re-indexing
+		setStartDate(undefined);
+		setEndDate(undefined);
+		
+		// Update URL
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("view", "edit");
+		url.searchParams.set("connectorId", connector.id.toString());
+		window.history.pushState({ modal: true }, "", url.toString());
+	}, [searchSpaceId, router]);
+
+	// Handle saving connector changes
+	const handleSaveConnector = useCallback(async (refreshConnectors: () => void) => {
+		if (!editingConnector || !searchSpaceId) return;
+
+		// Validate date range (skip for Google Drive which uses folder selection)
+		if (editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR") {
+			const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
+			if (!dateRangeValidation.success) {
+				toast.error(dateRangeValidation.error.issues[0]?.message || "Invalid date range");
+				return;
+			}
+		}
+
+		// Validate frequency minutes if periodic is enabled
+		if (periodicEnabled) {
+			const frequencyValidation = frequencyMinutesSchema.safeParse(frequencyMinutes);
+			if (!frequencyValidation.success) {
+				toast.error("Invalid frequency value");
+				return;
+			}
+		}
+
+		setIsSaving(true);
+		try {
+			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
+			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
+
+			// Update connector with periodic sync settings and config changes
+			const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : null;
+			await updateConnector({
+				id: editingConnector.id,
+				data: {
+					periodic_indexing_enabled: periodicEnabled,
+					indexing_frequency_minutes: frequency,
+					config: connectorConfig || editingConnector.config,
+				},
+			});
+
+			// Re-index based on connector type
+			let indexingDescription = "Settings saved.";
+			if (editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
+				// Google Drive uses folder selection from config, not date ranges
+				const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as Array<{ id: string; name: string }> | undefined;
+				if (selectedFolders && selectedFolders.length > 0) {
+					const folderIds = selectedFolders.map((f) => f.id).join(",");
+					const folderNames = selectedFolders.map((f) => f.name).join(", ");
+					await indexConnector({
+						connector_id: editingConnector.id,
+						queryParams: {
+							search_space_id: searchSpaceId,
+							folder_ids: folderIds,
+							folder_names: folderNames,
+						},
+					});
+					indexingDescription = `Re-indexing started for ${selectedFolders.length} folder(s).`;
+				}
+			} else if (startDateStr || endDateStr) {
+				// Other connectors use date ranges
+				await indexConnector({
+					connector_id: editingConnector.id,
+					queryParams: {
+						search_space_id: searchSpaceId,
+						start_date: startDateStr,
+						end_date: endDateStr,
+					},
+				});
+				indexingDescription = "Re-indexing started with new date range.";
+			}
+
+			toast.success(`${editingConnector.name} updated successfully`, {
+				description: periodicEnabled 
+					? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
+					: indexingDescription,
+			});
+
+			// Update URL - the effect will handle closing the modal and clearing state
+			const url = new URL(window.location.href);
+			url.searchParams.delete("modal");
+			url.searchParams.delete("tab");
+			url.searchParams.delete("view");
+			url.searchParams.delete("connectorId");
+			router.replace(url.pathname + url.search, { scroll: false });
+			
+			refreshConnectors();
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+		} catch (error) {
+			console.error("Error saving connector:", error);
+			toast.error("Failed to save connector changes");
+		} finally {
+			setIsSaving(false);
+		}
+	}, [editingConnector, searchSpaceId, startDate, endDate, indexConnector, updateConnector, periodicEnabled, frequencyMinutes, getFrequencyLabel, router, connectorConfig]);
+
+	// Handle disconnecting connector
+	const handleDisconnectConnector = useCallback(async (refreshConnectors: () => void) => {
+		if (!editingConnector || !searchSpaceId) return;
+
+		setIsDisconnecting(true);
+		try {
+			await deleteConnector({
+				id: editingConnector.id,
+			});
+
+			toast.success(`${editingConnector.name} disconnected successfully`);
+
+			// Update URL - the effect will handle closing the modal and clearing state
+			const url = new URL(window.location.href);
+			url.searchParams.delete("modal");
+			url.searchParams.delete("tab");
+			url.searchParams.delete("view");
+			url.searchParams.delete("connectorId");
+			router.replace(url.pathname + url.search, { scroll: false });
+			
+			refreshConnectors();
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+		} catch (error) {
+			console.error("Error disconnecting connector:", error);
+			toast.error("Failed to disconnect connector");
+		} finally {
+			setIsDisconnecting(false);
+		}
+	}, [editingConnector, searchSpaceId, deleteConnector, router]);
+
+	// Handle going back from edit view
+	const handleBackFromEdit = useCallback(() => {
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("tab", "all");
+		url.searchParams.delete("view");
+		url.searchParams.delete("connectorId");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
+	// Handle dialog open/close
+	const handleOpenChange = useCallback(
+		(open: boolean) => {
+			setIsOpen(open);
+
+			if (open) {
+				const url = new URL(window.location.href);
+				url.searchParams.set("modal", "connectors");
+				url.searchParams.set("tab", activeTab);
+				window.history.pushState({ modal: true }, "", url.toString());
+			} else {
+				const url = new URL(window.location.href);
+				url.searchParams.delete("modal");
+				url.searchParams.delete("tab");
+				url.searchParams.delete("success");
+				url.searchParams.delete("connector");
+				url.searchParams.delete("view");
+				window.history.pushState({ modal: false }, "", url.toString());
+				setIsScrolled(false);
+				setSearchQuery("");
+				if (!isStartingIndexing && !isSaving && !isDisconnecting) {
+					setIndexingConfig(null);
+					setIndexingConnector(null);
+					setIndexingConnectorConfig(null);
+					setEditingConnector(null);
+					setConnectorConfig(null);
+					setStartDate(undefined);
+					setEndDate(undefined);
+					setPeriodicEnabled(false);
+					setFrequencyMinutes("1440");
+				}
+			}
+		},
+		[activeTab, isStartingIndexing, isDisconnecting, isSaving]
+	);
+
+	// Handle tab change
+	const handleTabChange = useCallback(
+		(value: string) => {
+			setActiveTab(value);
+			const url = new URL(window.location.href);
+			url.searchParams.set("tab", value);
+			window.history.replaceState({ modal: true }, "", url.toString());
+		},
+		[]
+	);
+
+	// Handle scroll
+	const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		setIsScrolled(e.currentTarget.scrollTop > 0);
+	}, []);
+
+		return {
+		// State
+		isOpen,
+		activeTab,
+		connectingId,
+		isScrolled,
+		searchQuery,
+		indexingConfig,
+		indexingConnector,
+		indexingConnectorConfig,
+		editingConnector,
+		startDate,
+		endDate,
+		isStartingIndexing,
+		isSaving,
+		isDisconnecting,
+		periodicEnabled,
+		frequencyMinutes,
+		searchSpaceId,
+		allConnectors,
+		
+		// Setters
+		setSearchQuery,
+		setStartDate,
+		setEndDate,
+		setPeriodicEnabled,
+		setFrequencyMinutes,
+		
+		// Handlers
+		handleOpenChange,
+		handleTabChange,
+		handleScroll,
+		handleConnectOAuth,
+		handleStartIndexing,
+		handleSkipIndexing,
+		handleStartEdit,
+		handleSaveConnector,
+		handleDisconnectConnector,
+		handleBackFromEdit,
+		connectorConfig,
+		setConnectorConfig,
+		setIndexingConnectorConfig,
+	};
+};
+

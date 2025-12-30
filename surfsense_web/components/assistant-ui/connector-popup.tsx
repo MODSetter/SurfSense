@@ -17,11 +17,12 @@ import {
 } from "@/components/ui/tabs";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
-import { AllConnectorsTab } from "./connector-popup/all-connectors-tab";
-import { ActiveConnectorsTab } from "./connector-popup/active-connectors-tab";
-import { ConnectorDialogHeader } from "./connector-popup/connector-dialog-header";
-import { IndexingConfigurationView } from "./connector-popup/indexing-configuration-view";
-import { useConnectorDialog } from "./connector-popup/use-connector-dialog";
+import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
+import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
+import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
+import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
+import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
+import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 export const ConnectorIndicator: FC = () => {
@@ -67,9 +68,14 @@ export const ConnectorIndicator: FC = () => {
 		isScrolled,
 		searchQuery,
 		indexingConfig,
+		indexingConnector,
+		indexingConnectorConfig,
+		editingConnector,
 		startDate,
 		endDate,
 		isStartingIndexing,
+		isSaving,
+		isDisconnecting,
 		periodicEnabled,
 		frequencyMinutes,
 		allConnectors,
@@ -84,6 +90,13 @@ export const ConnectorIndicator: FC = () => {
 		handleConnectOAuth,
 		handleStartIndexing,
 		handleSkipIndexing,
+		handleStartEdit,
+		handleSaveConnector,
+		handleDisconnectConnector,
+		handleBackFromEdit,
+		connectorConfig,
+		setConnectorConfig,
+		setIndexingConnectorConfig,
 	} = useConnectorDialog();
 
 	// Get document types that have documents in the search space
@@ -133,10 +146,35 @@ export const ConnectorIndicator: FC = () => {
 			</TooltipIconButton>
 
 			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
-				{/* Indexing Configuration View - shown after OAuth success */}
-				{indexingConfig ? (
+				{/* Connector Edit View - shown when editing existing connector */}
+				{editingConnector ? (
+					<ConnectorEditView
+						connector={{
+							...editingConnector,
+							config: connectorConfig || editingConnector.config,
+						}}
+						startDate={startDate}
+						endDate={endDate}
+						periodicEnabled={periodicEnabled}
+						frequencyMinutes={frequencyMinutes}
+						isSaving={isSaving}
+						isDisconnecting={isDisconnecting}
+						onStartDateChange={setStartDate}
+						onEndDateChange={setEndDate}
+						onPeriodicEnabledChange={setPeriodicEnabled}
+						onFrequencyChange={setFrequencyMinutes}
+						onSave={() => handleSaveConnector(refreshConnectors)}
+						onDisconnect={() => handleDisconnectConnector(refreshConnectors)}
+						onBack={handleBackFromEdit}
+						onConfigChange={setConnectorConfig}
+					/>
+				) : indexingConfig ? (
 					<IndexingConfigurationView
 						config={indexingConfig}
+						connector={indexingConnector ? {
+							...indexingConnector,
+							config: indexingConnectorConfig || indexingConnector.config,
+						} : undefined}
 						startDate={startDate}
 						endDate={endDate}
 						periodicEnabled={periodicEnabled}
@@ -146,6 +184,7 @@ export const ConnectorIndicator: FC = () => {
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
 						onFrequencyChange={setFrequencyMinutes}
+						onConfigChange={setIndexingConnectorConfig}
 						onStartIndexing={() => handleStartIndexing(refreshConnectors)}
 						onSkip={handleSkipIndexing}
 					/>
@@ -171,7 +210,9 @@ export const ConnectorIndicator: FC = () => {
 											searchSpaceId={searchSpaceId}
 											connectedTypes={connectedTypes}
 											connectingId={connectingId}
+											allConnectors={allConnectors}
 											onConnectOAuth={handleConnectOAuth}
+											onManage={handleStartEdit}
 										/>
 									</TabsContent>
 
@@ -184,6 +225,7 @@ export const ConnectorIndicator: FC = () => {
 										logsSummary={logsSummary}
 										searchSpaceId={searchSpaceId}
 										onTabChange={handleTabChange}
+										onManage={handleStartEdit}
 									/>
 								</div>
 							</div>

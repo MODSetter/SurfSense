@@ -32,7 +32,7 @@ export const OAUTH_CONNECTORS = [
 	},
 ] as const;
 
-// Non-OAuth Connectors
+// Non-OAuth Connectors (redirect to old connector config pages)
 export const OTHER_CONNECTORS = [
 	{
 		id: "slack-connector",
