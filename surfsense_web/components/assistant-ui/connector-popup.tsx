@@ -2,9 +2,9 @@
 
 import { useAtomValue } from "jotai";
 import {
+	Cable,
 	ChevronRight,
 	Loader2,
-	Plug2,
 	Search,
 } from "lucide-react";
 import Link from "next/link";
@@ -313,7 +313,7 @@ export const ConnectorIndicator: FC = () => {
 					<Loader2 className="size-4 animate-spin" />
 				) : (
 					<>
-						<Plug2 className="size-4 stroke-[1.5px]" />
+						<Cable className="size-4 stroke-[1.5px]" />
 						{totalSourceCount > 0 && (
 							<span className="absolute -top-0.5 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm">
 								{totalSourceCount > 99 ? "99+" : totalSourceCount}
@@ -323,24 +323,24 @@ export const ConnectorIndicator: FC = () => {
 				)}
 			</TooltipIconButton>
 
-			<DialogContent className="max-w-3xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border-0 bg-muted text-foreground [&>button]:right-12 [&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
+			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border-0 bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
 				<Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
 					{/* Header */}
 					<div
 						className={cn(
-							"flex-shrink-0 px-12 pt-10 transition-shadow duration-200 relative z-10",
+							"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
 							isScrolled && "shadow-xl bg-muted/50 backdrop-blur-md"
 						)}
 					>
 						<DialogHeader>
-							<DialogTitle className="text-3xl font-semibold tracking-tight">Connectors</DialogTitle>
-							<DialogDescription className="text-base text-muted-foreground/80 mt-1.5">
+							<DialogTitle className="text-2xl sm:text-3xl font-semibold tracking-tight">Connectors</DialogTitle>
+							<DialogDescription className="text-sm sm:text-base text-muted-foreground/80 mt-1 sm:mt-1.5">
 								Search across all your apps and data in one place.
 							</DialogDescription>
 						</DialogHeader>
 
-						<div className="flex items-center gap-4 mt-8 border-b border-white/5">
-							<TabsList className="bg-transparent p-0 gap-8 h-auto">
+						<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-6 sm:gap-8 mt-6 sm:mt-8 border-b border-white/5">
+							<TabsList className="bg-transparent p-0 gap-4 sm:gap-8 h-auto w-full sm:w-auto justify-center sm:justify-start">
 								<TabsTrigger 
 									value="all" 
 									className="px-0 pb-3 bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none rounded-none border-b-[1.5px] border-transparent data-[state=active]:border-white transition-all text-base font-medium text-muted-foreground data-[state=active]:text-foreground"
@@ -359,22 +359,26 @@ export const ConnectorIndicator: FC = () => {
 									)}
 								</TabsTrigger>
 							</TabsList>
-							<div className="ml-auto w-64 relative">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
-								<input 
-									type="text"
-									placeholder="Search connectors..."
-									className="w-full bg-white/5 hover:bg-white/10 focus:bg-white/10 border border-transparent focus:border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-sm transition-all outline-none placeholder:text-muted-foreground/50"
-									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
-								/>
+
+							<div className="w-full sm:w-72 sm:pb-3">
+								<div className="relative">
+									<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
+									<input 
+										type="text"
+										placeholder="Search connectors..."
+										className="w-full bg-white/5 hover:bg-white/10 focus:bg-white/10 border border-transparent focus:border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50"
+										value={searchQuery}
+										onChange={(e) => setSearchQuery(e.target.value)}
+									/>
+								</div>
 							</div>
 						</div>
 					</div>
 
 					{/* Content */}
-					<div className="flex-1 min-h-0 overflow-y-auto" onScroll={handleScroll}>
-						<div className="px-12 py-8">
+					<div className="flex-1 min-h-0 relative overflow-hidden">
+						<div className="h-full overflow-y-auto" onScroll={handleScroll}>
+							<div className="px-6 sm:px-12 py-6 sm:py-8 pb-16 sm:pb-16">
 							<TabsContent value="all" className="m-0 space-y-8">
 								{/* Quick Connect */}
 								{filteredOAuth.length > 0 && (
@@ -382,7 +386,7 @@ export const ConnectorIndicator: FC = () => {
 										<div className="flex items-center gap-2 mb-4">
 											<h3 className="text-sm font-semibold text-muted-foreground">Quick Connect</h3>
 										</div>
-										<div className="grid grid-cols-2 gap-3">
+										<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 											{filteredOAuth.map((connector) => {
 												const isConnected = connectedTypes.has(connector.connectorType);
 												const isConnecting = connectingId === connector.id;
@@ -440,7 +444,7 @@ export const ConnectorIndicator: FC = () => {
 										<div className="flex items-center gap-2 mb-4">
 											<h3 className="text-sm font-semibold text-muted-foreground">More Integrations</h3>
 										</div>
-										<div className="grid grid-cols-2 gap-3">
+										<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 											{filteredOther.map((connector) => {
 												const isConnected = connectedTypes.has(connector.connectorType);
 
@@ -479,7 +483,7 @@ export const ConnectorIndicator: FC = () => {
 										<div className="flex items-center gap-2 mb-4">
 											<h3 className="text-sm font-semibold text-muted-foreground">Currently Active</h3>
 										</div>
-										<div className="grid grid-cols-2 gap-3">
+										<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 											{activeDocumentTypes.map(([docType, count]) => (
 												<div
 													key={docType}
@@ -522,7 +526,7 @@ export const ConnectorIndicator: FC = () => {
 								) : (
 									<div className="flex flex-col items-center justify-center py-20 text-center">
 										<div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-											<Plug2 className="size-8 text-muted-foreground/50" />
+											<Cable className="size-8 text-muted-foreground/50" />
 										</div>
 										<h4 className="text-lg font-semibold">No active sources</h4>
 										<p className="text-sm text-muted-foreground mt-1 max-w-[280px]">
@@ -533,8 +537,11 @@ export const ConnectorIndicator: FC = () => {
 										</TabsTrigger>
 									</div>
 								)}
-							</TabsContent>
+								</TabsContent>
+							</div>
 						</div>
+						{/* Bottom fade shadow */}
+						<div className="absolute bottom-0 left-0 right-0 h-7 bg-gradient-to-t from-muted via-muted/80 to-transparent pointer-events-none z-10" />
 					</div>
 				</Tabs>
 			</DialogContent>
