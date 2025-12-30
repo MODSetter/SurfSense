@@ -184,6 +184,13 @@ export const connectorCategories: ConnectorCategory[] = [
 				status: "available",
 			},
 			{
+				id: "google-drive-connector",
+				title: "Google Drive",
+				description: "google_drive_desc",
+				icon: getConnectorIcon(EnumConnectorName.GOOGLE_DRIVE_CONNECTOR, "h-6 w-6"),
+				status: "available",
+			},
+			{
 				id: "luma-connector",
 				title: "Luma",
 				description: "luma_desc",

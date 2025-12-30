@@ -67,5 +67,9 @@ export const cacheKeys = {
 			["connectors", ...(queries ? Object.values(queries) : [])] as const,
 		byId: (connectorId: string) => ["connector", connectorId] as const,
 		index: () => ["connector", "index"] as const,
+		googleDrive: {
+			folders: (connectorId: number, parentId?: string) =>
+				["connectors", "google-drive", connectorId, "folders", parentId] as const,
+		},
 	},
 };

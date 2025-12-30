@@ -45,6 +45,7 @@ from app.tasks.connector_indexers import (
     index_github_repos,
     index_google_calendar_events,
     index_google_gmail_messages,
+    index_google_drive_files,
     index_jira_issues,
     index_linear_issues,
     index_luma_events,
@@ -542,6 +543,14 @@ async def index_connector_content(
         None,
         description="End date for indexing (YYYY-MM-DD format). If not provided, uses today's date",
     ),
+    folder_ids: str = Query(
+        None,
+        description="[Google Drive only] Comma-separated folder IDs to index",
+    ),
+    folder_names: str = Query(
+        None,
+        description="[Google Drive only] Comma-separated folder names for display purposes",
+    ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -746,6 +755,32 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Google Gmail indexing started in the background."
+
+        elif (
+            connector.connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
+        ):
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_google_drive_files_task,
+            )
+
+            if not folder_ids or not folder_names:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Google Drive indexing requires folder_ids and folder_names parameters",
+                )
+
+            logger.info(
+                f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, folders: {folder_names}"
+            )
+            # Pass comma-separated strings directly to Celery task
+            index_google_drive_files_task.delay(
+                connector_id,
+                search_space_id,
+                str(user.id),
+                folder_ids,  # Pass as comma-separated string
+                folder_names,  # Pass as comma-separated string
+            )
+            response_message = "Google Drive indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import (
@@ -1510,6 +1545,70 @@ async def run_google_gmail_indexing(
     except Exception as e:
         logger.error(
             f"Critical error in run_google_gmail_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
+        # Optionally update status in DB to indicate failure
+
+
+async def run_google_drive_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    folder_ids: str,  # Comma-separated folder IDs
+    folder_names: str,  # Comma-separated folder names
+):
+    """Runs the Google Drive indexing task for multiple folders and updates the timestamp."""
+    try:
+        from app.tasks.connector_indexers.google_drive_indexer import (
+            index_google_drive_files,
+        )
+
+        # Split comma-separated IDs and names into lists
+        folder_id_list = [fid.strip() for fid in folder_ids.split(",")]
+        folder_name_list = [fname.strip() for fname in folder_names.split(",")]
+
+        total_indexed = 0
+        errors = []
+
+        # Index each folder
+        for folder_id, folder_name in zip(folder_id_list, folder_name_list):
+            try:
+                indexed_count, error_message = await index_google_drive_files(
+                    session,
+                    connector_id,
+                    search_space_id,
+                    user_id,
+                    folder_id,
+                    folder_name,
+                    use_delta_sync=True,
+                    update_last_indexed=False,
+                )
+                if error_message:
+                    errors.append(f"{folder_name}: {error_message}")
+                else:
+                    total_indexed += indexed_count
+            except Exception as e:
+                errors.append(f"{folder_name}: {str(e)}")
+                logger.error(
+                    f"Error indexing folder {folder_name} ({folder_id}): {e}",
+                    exc_info=True,
+                )
+
+        if errors:
+            logger.error(
+                f"Google Drive indexing completed with errors for connector {connector_id}: {'; '.join(errors)}"
+            )
+        else:
+            logger.info(
+                f"Google Drive indexing successful for connector {connector_id}. Indexed {total_indexed} documents from {len(folder_id_list)} folder(s)."
+            )
+            # Update the last indexed timestamp only on full success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()  # Commit timestamp update
+    except Exception as e:
+        logger.error(
+            f"Critical error in run_google_drive_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
         # Optionally update status in DB to indicate failure

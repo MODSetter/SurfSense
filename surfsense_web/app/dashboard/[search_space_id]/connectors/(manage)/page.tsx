@@ -6,6 +6,9 @@ import {
 	Calendar as CalendarIcon,
 	Clock,
 	Edit,
+	Folder,
+	HardDrive,
+	Info,
 	Loader2,
 	Plus,
 	RefreshCw,
@@ -67,6 +70,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { cn } from "@/lib/utils";
+import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
 
 export default function ConnectorsPage() {
 	const t = useTranslations("connectors");
@@ -115,6 +119,10 @@ export default function ConnectorsPage() {
 	const [customFrequency, setCustomFrequency] = useState<string>("");
 	const [isSavingPeriodic, setIsSavingPeriodic] = useState(false);
 
+	// Google Drive folder selection state
+	const [driveFolderDialogOpen, setDriveFolderDialogOpen] = useState(false);
+	const [selectedFolders, setSelectedFolders] = useState<Array<{ id: string; name: string }>>([]);
+
 	useEffect(() => {
 		if (error) {
 			toast.error(t("failed_load"));
@@ -137,8 +145,55 @@ export default function ConnectorsPage() {
 
 	// Handle opening date picker for indexing
 	const handleOpenDatePicker = (connectorId: number) => {
+		// Check if this is a Google Drive connector
+		const connector = connectors.find((c) => c.id === connectorId);
+		if (connector?.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR) {
+			// Open folder selection dialog for Google Drive
+			handleOpenDriveFolderDialog(connectorId);
+		} else {
+			// Open date picker for other connectors
+			setSelectedConnectorForIndexing(connectorId);
+			setDatePickerOpen(true);
+		}
+	};
+
+	const handleOpenDriveFolderDialog = (connectorId: number) => {
 		setSelectedConnectorForIndexing(connectorId);
-		setDatePickerOpen(true);
+		setDriveFolderDialogOpen(true);
+	};
+
+	// Handle Google Drive folder indexing
+	const handleIndexDriveFolder = async () => {
+		if (selectedConnectorForIndexing === null || selectedFolders.length === 0) {
+			toast.error("Please select at least one folder");
+			return;
+		}
+
+		setDriveFolderDialogOpen(false);
+
+		try {
+			setIndexingConnectorId(selectedConnectorForIndexing);
+
+			const folderIds = selectedFolders.map((f) => f.id).join(",");
+			const folderNames = selectedFolders.map((f) => f.name).join(", ");
+
+			await indexConnector({
+				connector_id: selectedConnectorForIndexing,
+				queryParams: {
+					search_space_id: searchSpaceId,
+					folder_ids: folderIds,
+					folder_names: folderNames,
+				},
+			});
+			toast.success(t("indexing_started"));
+		} catch (error) {
+			console.error("Error indexing connector content:", error);
+			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
+		} finally {
+		setIndexingConnectorId(null);
+		setSelectedConnectorForIndexing(null);
+		setSelectedFolders([]);
+	}
 	};
 
 	// Handle connector indexing with dates
@@ -387,39 +442,52 @@ export default function ConnectorsPage() {
 																		>
 																			{indexingConnectorId === connector.id ? (
 																				<RefreshCw className="h-4 w-4 animate-spin" />
+																			) : connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR ? (
+																				<Folder className="h-4 w-4" />
 																			) : (
 																				<CalendarIcon className="h-4 w-4" />
 																			)}
-																			<span className="sr-only">{t("index_date_range")}</span>
+																			<span className="sr-only">
+																				{connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR 
+																					? "Select folder to index" 
+																					: t("index_date_range")}
+																			</span>
 																		</Button>
 																	</TooltipTrigger>
 																	<TooltipContent>
-																		<p>{t("index_date_range")}</p>
+																		<p>
+																			{connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR 
+																				? "Select folder to index" 
+																				: t("index_date_range")}
+																		</p>
 																	</TooltipContent>
 																</Tooltip>
 															</TooltipProvider>
-															<TooltipProvider>
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<Button
-																			variant="outline"
-																			size="sm"
-																			onClick={() => handleQuickIndexConnector(connector.id)}
-																			disabled={indexingConnectorId === connector.id}
-																		>
-																			{indexingConnectorId === connector.id ? (
-																				<RefreshCw className="h-4 w-4 animate-spin" />
-																			) : (
-																				<RefreshCw className="h-4 w-4" />
-																			)}
-																			<span className="sr-only">{t("quick_index")}</span>
-																		</Button>
-																	</TooltipTrigger>
-																	<TooltipContent>
-																		<p>{t("quick_index_auto")}</p>
-																	</TooltipContent>
-																</Tooltip>
-															</TooltipProvider>
+															{/* Hide quick index button for Google Drive (requires folder selection) */}
+															{connector.connector_type !== EnumConnectorName.GOOGLE_DRIVE_CONNECTOR && (
+																<TooltipProvider>
+																	<Tooltip>
+																		<TooltipTrigger asChild>
+																			<Button
+																				variant="outline"
+																				size="sm"
+																				onClick={() => handleQuickIndexConnector(connector.id)}
+																				disabled={indexingConnectorId === connector.id}
+																			>
+																				{indexingConnectorId === connector.id ? (
+																					<RefreshCw className="h-4 w-4 animate-spin" />
+																				) : (
+																					<RefreshCw className="h-4 w-4" />
+																				)}
+																				<span className="sr-only">{t("quick_index")}</span>
+																			</Button>
+																		</TooltipTrigger>
+																		<TooltipContent>
+																			<p>{t("quick_index_auto")}</p>
+																		</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															)}
 														</div>
 													)}
 													{connector.is_indexable && (
@@ -604,6 +672,67 @@ export default function ConnectorsPage() {
 						</Button>
 						<Button onClick={handleIndexConnector}>{t("start_indexing")}</Button>
 					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Google Drive Folder Selection Dialog */}
+			<Dialog open={driveFolderDialogOpen} onOpenChange={setDriveFolderDialogOpen}>
+				<DialogContent className="w-auto max-w-full">
+				<DialogHeader>
+					<DialogTitle>Select Google Drive Folders</DialogTitle>
+					<DialogDescription className="flex items-start gap-2 text-sm p-2 border mt-1 rounded ">
+						<Info className="h-4 w-4 shrink-0 text-blue-500" />
+						<span>
+							Select folders to index. Only files <strong>directly in each folder</strong> will be
+							processed—subfolders must be selected separately.
+						</span>
+					</DialogDescription>
+				</DialogHeader>
+					<div className="grid gap-4 overflow-hidden w-full">
+						<div className="space-y-3 w-full overflow-hidden">
+							<Label>Browse Folders</Label>
+						{selectedConnectorForIndexing && (
+							<GoogleDriveFolderTree
+								connectorId={selectedConnectorForIndexing}
+								selectedFolders={selectedFolders}
+								onSelectFolders={(folders) => {
+									setSelectedFolders(folders);
+								}}
+							/>
+						)}
+					</div>
+					{selectedFolders.length > 0 && (
+						<div className="p-3 bg-muted rounded-lg text-sm space-y-2">
+							<div>
+								<p className="font-medium mb-1">
+									Selected {selectedFolders.length} folder{selectedFolders.length > 1 ? "s" : ""}:
+								</p>
+								<div className="max-h-24 overflow-y-auto">
+									{selectedFolders.map((folder) => (
+										<p key={folder.id} className="text-sm text-muted-foreground truncate" title={folder.name}>
+											• {folder.name}
+										</p>
+									))}
+								</div>
+							</div>
+						</div>
+					)}
+				</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setDriveFolderDialogOpen(false);
+								setSelectedConnectorForIndexing(null);
+								setSelectedFolders([]);
+							}}
+						>
+							{tCommon("cancel")}
+					</Button>
+					<Button onClick={handleIndexDriveFolder} disabled={selectedFolders.length === 0}>
+						{t("start_indexing")}
+					</Button>
+				</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
