@@ -23,6 +23,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"ELASTICSEARCH_CONNECTOR",
 	"WEBCRAWLER_CONNECTOR",
 	"BOOKSTACK_CONNECTOR",
+	"CIRCLEBACK_CONNECTOR",
 ]);
 
 export const searchSourceConnector = z.object({

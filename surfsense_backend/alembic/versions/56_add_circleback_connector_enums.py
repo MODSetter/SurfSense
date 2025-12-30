@@ -19,40 +19,17 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Safely add 'CIRCLEBACK' to documenttype and 'CIRCLEBACK_CONNECTOR' to searchsourceconnectortype enums if missing."""
+    from sqlalchemy import text
 
-    # Add to documenttype enum
-    op.execute(
-        """
-    DO $$
-    BEGIN
-        IF NOT EXISTS (
-            SELECT 1 FROM pg_type t
-            JOIN pg_enum e ON t.oid = e.enumtypid
-            WHERE t.typname = 'documenttype' AND e.enumlabel = 'CIRCLEBACK'
-        ) THEN
-            ALTER TYPE documenttype ADD VALUE 'CIRCLEBACK';
-        END IF;
-    END
-    $$;
-    """
-    )
+    # Get connection and commit current transaction to allow ALTER TYPE
+    connection = op.get_bind()
+    connection.execute(text("COMMIT"))
+
+    # Add to documenttype enum (must be outside transaction)
+    connection.execute(text("ALTER TYPE documenttype ADD VALUE IF NOT EXISTS 'CIRCLEBACK'"))
 
     # Add to searchsourceconnectortype enum
-    op.execute(
-        """
-    DO $$
-    BEGIN
-        IF NOT EXISTS (
-            SELECT 1 FROM pg_type t
-            JOIN pg_enum e ON t.oid = e.enumtypid
-            WHERE t.typname = 'searchsourceconnectortype' AND e.enumlabel = 'CIRCLEBACK_CONNECTOR'
-        ) THEN
-            ALTER TYPE searchsourceconnectortype ADD VALUE 'CIRCLEBACK_CONNECTOR';
-        END IF;
-    END
-    $$;
-    """
-    )
+    connection.execute(text("ALTER TYPE searchsourceconnectortype ADD VALUE IF NOT EXISTS 'CIRCLEBACK_CONNECTOR'"))
 
 
 def downgrade() -> None:
