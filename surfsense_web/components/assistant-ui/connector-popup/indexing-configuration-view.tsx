@@ -1,0 +1,121 @@
+"use client";
+
+import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { type FC } from "react";
+import { Button } from "@/components/ui/button";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { IndexingConfigState } from "./connector-constants";
+import { DateRangeSelector } from "./date-range-selector";
+import { PeriodicSyncConfig } from "./periodic-sync-config";
+
+interface IndexingConfigurationViewProps {
+	config: IndexingConfigState;
+	startDate: Date | undefined;
+	endDate: Date | undefined;
+	periodicEnabled: boolean;
+	frequencyMinutes: string;
+	isStartingIndexing: boolean;
+	onStartDateChange: (date: Date | undefined) => void;
+	onEndDateChange: (date: Date | undefined) => void;
+	onPeriodicEnabledChange: (enabled: boolean) => void;
+	onFrequencyChange: (frequency: string) => void;
+	onStartIndexing: () => void;
+	onSkip: () => void;
+}
+
+export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
+	config,
+	startDate,
+	endDate,
+	periodicEnabled,
+	frequencyMinutes,
+	isStartingIndexing,
+	onStartDateChange,
+	onEndDateChange,
+	onPeriodicEnabledChange,
+	onFrequencyChange,
+	onStartIndexing,
+	onSkip,
+}) => {
+	return (
+		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+			{/* Fixed Header */}
+			<div className="flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10">
+				{/* Back button */}
+				<button
+					type="button"
+					onClick={onSkip}
+					className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+				>
+					<ArrowLeft className="size-4" />
+					Back to connectors
+				</button>
+
+				{/* Success header */}
+				<div className="flex items-center gap-4 mb-6">
+					<div className="flex h-14 w-14 items-center justify-center rounded-xl bg-green-500/10 border border-green-500/20">
+						<Check className="size-7 text-green-500" />
+					</div>
+					<div>
+						<h2 className="text-2xl font-semibold tracking-tight">
+							{config.connectorTitle} Connected!
+						</h2>
+						<p className="text-muted-foreground mt-1">
+							Configure when to start syncing your data
+						</p>
+					</div>
+				</div>
+			</div>
+
+			{/* Scrollable Content */}
+			<div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-12">
+				<div className="space-y-6 pb-6">
+					<DateRangeSelector
+						startDate={startDate}
+						endDate={endDate}
+						onStartDateChange={onStartDateChange}
+						onEndDateChange={onEndDateChange}
+					/>
+
+					<PeriodicSyncConfig
+						enabled={periodicEnabled}
+						frequencyMinutes={frequencyMinutes}
+						onEnabledChange={onPeriodicEnabledChange}
+						onFrequencyChange={onFrequencyChange}
+					/>
+
+					{/* Info box */}
+					<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
+						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
+							{getConnectorIcon(config.connectorType, "size-4")}
+						</div>
+						<div className="text-sm">
+							<p className="font-medium">Indexing runs in the background</p>
+							<p className="text-muted-foreground mt-1">
+								You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{/* Fixed Footer - Action buttons */}
+			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 border-t border-border bg-muted">
+				<Button variant="ghost" onClick={onSkip} disabled={isStartingIndexing}>
+					Skip for now
+				</Button>
+				<Button onClick={onStartIndexing} disabled={isStartingIndexing}>
+					{isStartingIndexing ? (
+						<>
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							Starting...
+						</>
+					) : (
+						"Start Indexing"
+					)}
+				</Button>
+			</div>
+		</div>
+	);
+};
+

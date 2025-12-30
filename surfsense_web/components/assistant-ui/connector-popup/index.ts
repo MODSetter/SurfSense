@@ -1,0 +1,19 @@
+// Main component export
+export { ConnectorIndicator } from "../connector-popup";
+
+// Sub-components (if needed for external use)
+export { ConnectorCard } from "./connector-card";
+export { DateRangeSelector } from "./date-range-selector";
+export { PeriodicSyncConfig } from "./periodic-sync-config";
+export { IndexingConfigurationView } from "./indexing-configuration-view";
+export { ConnectorDialogHeader } from "./connector-dialog-header";
+export { AllConnectorsTab } from "./all-connectors-tab";
+export { ActiveConnectorsTab } from "./active-connectors-tab";
+
+// Constants and types
+export { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "./connector-constants";
+export type { IndexingConfigState } from "./connector-constants";
+
+// Hooks
+export { useConnectorDialog } from "./use-connector-dialog";
+
