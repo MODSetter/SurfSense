@@ -494,7 +494,7 @@ export default function LogsManagePage() {
 				<LogsSummaryDashboard
 					summary={summary}
 					loading={summaryLoading}
-					error={summaryError}
+					error={summaryError?.message ?? null}
 					onRefresh={refreshSummary}
 				/>
 
