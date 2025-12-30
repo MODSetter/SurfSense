@@ -37,6 +37,8 @@ Example of adding a new tool:
     ),
 """
 
+from app.agents.services.mcp_service import MCPService
+
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -166,6 +168,7 @@ def build_tools(
     enabled_tools: list[str] | None = None,
     disabled_tools: list[str] | None = None,
     additional_tools: list[BaseTool] | None = None,
+    mcp_service: MCPService | None = None,
 ) -> list[BaseTool]:
     """
     Build the list of tools for the agent.
@@ -218,11 +221,13 @@ def build_tools(
             raise ValueError(
                 f"Tool '{tool_def.name}' requires dependencies: {missing_deps}"
             )
-
         # Create the tool
         tool = tool_def.factory(dependencies)
         tools.append(tool)
 
+    if mcp_service:
+        mcp_tools = await mcp_service.get_tools()
+        tools.extend(mcp_tools)
     # Add any additional custom tools
     if additional_tools:
         tools.extend(additional_tools)
