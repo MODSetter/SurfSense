@@ -34,14 +34,15 @@ const ConnectorIndicator: FC = () => {
 
 	const isLoading = connectorsLoading || documentTypesLoading;
 
-	// Get document types that have documents in the search space
 	const activeDocumentTypes = documentTypeCounts
 		? Object.entries(documentTypeCounts).filter(([_, count]) => count > 0)
 		: [];
 
-	const hasConnectors = connectors.length > 0;
+	const nonIndexableConnectors = connectors.filter((connector) => !connector.is_indexable);
+
+	const hasConnectors = nonIndexableConnectors.length > 0;
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
-	const totalSourceCount = connectors.length + activeDocumentTypes.length;
+	const totalSourceCount = nonIndexableConnectors.length + activeDocumentTypes.length;
 
 	const handleMouseEnter = useCallback(() => {
 		// Clear any pending close timeout
@@ -110,18 +111,19 @@ const ConnectorIndicator: FC = () => {
 							</span>
 						</div>
 						<div className="flex flex-wrap gap-2">
-							{/* Document types from the search space */}
-							{activeDocumentTypes.map(([docType]) => (
+							{activeDocumentTypes.map(([docType, count]) => (
 								<div
 									key={docType}
 									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
 								>
 									{getConnectorIcon(docType, "size-3.5")}
 									<span className="truncate max-w-[100px]">{getDocumentTypeLabel(docType)}</span>
+									<span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-medium rounded-full bg-primary/10 text-primary">
+										{count > 999 ? "999+" : count}
+									</span>
 								</div>
 							))}
-							{/* Search source connectors */}
-							{connectors.map((connector) => (
+							{nonIndexableConnectors.map((connector) => (
 								<div
 									key={`connector-${connector.id}`}
 									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
