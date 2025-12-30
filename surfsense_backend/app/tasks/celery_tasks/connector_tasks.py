@@ -473,6 +473,58 @@ async def _index_google_gmail_messages(
         )
 
 
+@celery_app.task(name="index_google_drive_files", bind=True)
+def index_google_drive_files_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    folder_ids: str,  # Comma-separated folder IDs
+    folder_names: str,  # Comma-separated folder names
+):
+    """Celery task to index Google Drive files from multiple folders."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_google_drive_files(
+                connector_id,
+                search_space_id,
+                user_id,
+                folder_ids,
+                folder_names,
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_google_drive_files(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    folder_ids: str,  # Comma-separated folder IDs
+    folder_names: str,  # Comma-separated folder names
+):
+    """Index Google Drive files from multiple folders with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_google_drive_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_google_drive_indexing(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            folder_ids,
+            folder_names,
+        )
+
+
 @celery_app.task(name="index_discord_messages", bind=True)
 def index_discord_messages_task(
     self,

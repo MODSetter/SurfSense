@@ -35,6 +35,7 @@ from .elasticsearch_indexer import index_elasticsearch_documents
 from .github_indexer import index_github_repos
 from .google_calendar_indexer import index_google_calendar_events
 from .google_gmail_indexer import index_google_gmail_messages
+from .google_drive_indexer import index_google_drive_files
 from .jira_indexer import index_jira_issues
 
 # Issue tracking and project management
@@ -57,6 +58,7 @@ __all__ = [  # noqa: RUF022
     "index_github_repos",
     # Calendar and scheduling
     "index_google_calendar_events",
+    "index_google_drive_files",
     "index_luma_events",
     "index_jira_issues",
     # Issue tracking and project management

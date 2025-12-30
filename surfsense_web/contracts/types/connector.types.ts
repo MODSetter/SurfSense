@@ -17,6 +17,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"CLICKUP_CONNECTOR",
 	"GOOGLE_CALENDAR_CONNECTOR",
 	"GOOGLE_GMAIL_CONNECTOR",
+	"GOOGLE_DRIVE_CONNECTOR",
 	"AIRTABLE_CONNECTOR",
 	"LUMA_CONNECTOR",
 	"ELASTICSEARCH_CONNECTOR",
@@ -37,6 +38,19 @@ export const searchSourceConnector = z.object({
 	search_space_id: z.number(),
 	user_id: z.string(),
 	created_at: z.string(),
+});
+
+export const googleDriveItem = z.object({
+	id: z.string(),
+	name: z.string(),
+	mimeType: z.string(),
+	isFolder: z.boolean(),
+	parents: z.array(z.string()).optional(),
+	size: z.number().optional(),
+	iconLink: z.string().optional(),
+	webViewLink: z.string().optional(),
+	createdTime: z.string().optional(),
+	modifiedTime: z.string().optional(),
 });
 
 /**
@@ -120,6 +134,9 @@ export const indexConnectorRequest = z.object({
 		search_space_id: z.number().or(z.string()),
 		start_date: z.string().optional(),
 		end_date: z.string().optional(),
+		// Google Drive only
+		folder_ids: z.string().optional(),
+		folder_names: z.string().optional(),
 	}),
 });
 
@@ -140,6 +157,18 @@ export const listGitHubRepositoriesRequest = z.object({
 
 export const listGitHubRepositoriesResponse = z.array(z.record(z.string(), z.any()));
 
+/**
+ * List Google Drive folders
+ */
+export const listGoogleDriveFoldersRequest = z.object({
+	connector_id: z.number(),
+	parent_id: z.string().optional(),
+});
+
+export const listGoogleDriveFoldersResponse = z.object({
+	items: z.array(googleDriveItem),
+});
+
 // Inferred types
 export type SearchSourceConnectorType = z.infer<typeof searchSourceConnectorTypeEnum>;
 export type SearchSourceConnector = z.infer<typeof searchSourceConnector>;
@@ -157,3 +186,6 @@ export type IndexConnectorRequest = z.infer<typeof indexConnectorRequest>;
 export type IndexConnectorResponse = z.infer<typeof indexConnectorResponse>;
 export type ListGitHubRepositoriesRequest = z.infer<typeof listGitHubRepositoriesRequest>;
 export type ListGitHubRepositoriesResponse = z.infer<typeof listGitHubRepositoriesResponse>;
+export type ListGoogleDriveFoldersRequest = z.infer<typeof listGoogleDriveFoldersRequest>;
+export type ListGoogleDriveFoldersResponse = z.infer<typeof listGoogleDriveFoldersResponse>;
+export type GoogleDriveItem = z.infer<typeof googleDriveItem>;

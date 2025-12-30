@@ -17,6 +17,9 @@ import {
 	type ListGitHubRepositoriesRequest,
 	listGitHubRepositoriesRequest,
 	listGitHubRepositoriesResponse,
+	type ListGoogleDriveFoldersRequest,
+	listGoogleDriveFoldersRequest,
+	listGoogleDriveFoldersResponse,
 	type UpdateConnectorRequest,
 	updateConnectorRequest,
 	updateConnectorResponse,
@@ -194,6 +197,29 @@ class ConnectorsApiService {
 		return baseApiService.post(`/api/v1/github/repositories`, listGitHubRepositoriesResponse, {
 			body: parsedRequest.data,
 		});
+	};
+
+	/**
+	 * List Google Drive folders and files
+	 */
+	listGoogleDriveFolders = async (request: ListGoogleDriveFoldersRequest) => {
+		const parsedRequest = listGoogleDriveFoldersRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		const { connector_id, parent_id } = parsedRequest.data;
+
+		const queryParams = parent_id ? `?parent_id=${encodeURIComponent(parent_id)}` : "";
+
+		return baseApiService.get(
+			`/api/v1/connectors/${connector_id}/google-drive/folders${queryParams}`,
+			listGoogleDriveFoldersResponse
+		);
 	};
 }
 
