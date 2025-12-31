@@ -10,6 +10,7 @@ from app.connectors.google_drive import (
     categorize_change,
     download_and_process_file,
     fetch_all_changes,
+    get_file_by_id,
     get_files_in_folder,
     get_start_page_token,
 )
@@ -192,6 +193,131 @@ async def index_google_drive_files(
         )
         logger.error(f"Failed to index Google Drive files: {e!s}", exc_info=True)
         return 0, f"Failed to index Google Drive files: {e!s}"
+
+
+async def index_google_drive_single_file(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    file_id: str,
+    file_name: str | None = None,
+) -> tuple[int, str | None]:
+    """
+    Index a single Google Drive file by its ID.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Drive connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        file_id: Specific file ID to index
+        file_name: File name for display (optional)
+
+    Returns:
+        Tuple of (number_of_indexed_files, error_message)
+    """
+    task_logger = TaskLoggingService(session, search_space_id)
+
+    log_entry = await task_logger.log_task_start(
+        task_name="google_drive_single_file_indexing",
+        source="connector_indexing_task",
+        message=f"Starting Google Drive single file indexing for file {file_id}",
+        metadata={
+            "connector_id": connector_id,
+            "user_id": str(user_id),
+            "file_id": file_id,
+            "file_name": file_name,
+        },
+    )
+
+    try:
+        connector = await get_connector_by_id(
+            session, connector_id, SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
+        )
+
+        if not connector:
+            error_msg = f"Google Drive connector with ID {connector_id} not found"
+            await task_logger.log_task_failure(
+                log_entry, error_msg, {"error_type": "ConnectorNotFound"}
+            )
+            return 0, error_msg
+
+        await task_logger.log_task_progress(
+            log_entry,
+            f"Initializing Google Drive client for connector {connector_id}",
+            {"stage": "client_initialization"},
+        )
+
+        drive_client = GoogleDriveClient(session, connector_id)
+
+        # Fetch the file metadata
+        file, error = await get_file_by_id(drive_client, file_id)
+
+        if error or not file:
+            error_msg = f"Failed to fetch file {file_id}: {error or 'File not found'}"
+            await task_logger.log_task_failure(
+                log_entry, error_msg, {"error_type": "FileNotFound"}
+            )
+            return 0, error_msg
+
+        display_name = file_name or file.get("name", "Unknown")
+        logger.info(f"Indexing Google Drive file: {display_name} ({file_id})")
+
+        # Process the file
+        indexed, skipped = await _process_single_file(
+            drive_client=drive_client,
+            session=session,
+            file=file,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            task_logger=task_logger,
+            log_entry=log_entry,
+        )
+
+        await session.commit()
+        logger.info("Successfully committed Google Drive file indexing changes to database")
+
+        if indexed > 0:
+            await task_logger.log_task_success(
+                log_entry,
+                f"Successfully indexed file {display_name}",
+                {
+                    "file_name": display_name,
+                    "file_id": file_id,
+                },
+            )
+            logger.info(f"Google Drive file indexing completed: {display_name}")
+            return 1, None
+        else:
+            await task_logger.log_task_progress(
+                log_entry,
+                f"File {display_name} was skipped",
+                {"status": "skipped"},
+            )
+            return 0, None
+
+    except SQLAlchemyError as db_error:
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Database error during file indexing",
+            str(db_error),
+            {"error_type": "SQLAlchemyError"},
+        )
+        logger.error(f"Database error: {db_error!s}", exc_info=True)
+        return 0, f"Database error: {db_error!s}"
+    except Exception as e:
+        await session.rollback()
+        await task_logger.log_task_failure(
+            log_entry,
+            f"Failed to index Google Drive file",
+            str(e),
+            {"error_type": type(e).__name__},
+        )
+        logger.error(f"Failed to index Google Drive file: {e!s}", exc_info=True)
+        return 0, f"Failed to index Google Drive file: {e!s}"
 
 
 async def _index_full_scan(

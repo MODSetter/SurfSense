@@ -127,6 +127,24 @@ export const deleteConnectorResponse = z.object({
 });
 
 /**
+ * Google Drive index request body
+ */
+export const googleDriveIndexBody = z.object({
+	folders: z.array(
+		z.object({
+			id: z.string(),
+			name: z.string(),
+		})
+	),
+	files: z.array(
+		z.object({
+			id: z.string(),
+			name: z.string(),
+		})
+	),
+});
+
+/**
  * Index connector
  */
 export const indexConnectorRequest = z.object({
@@ -135,10 +153,8 @@ export const indexConnectorRequest = z.object({
 		search_space_id: z.number().or(z.string()),
 		start_date: z.string().optional(),
 		end_date: z.string().optional(),
-		// Google Drive only
-		folder_ids: z.string().optional(),
-		folder_names: z.string().optional(),
 	}),
+	body: googleDriveIndexBody.optional(),
 });
 
 export const indexConnectorResponse = z.object({

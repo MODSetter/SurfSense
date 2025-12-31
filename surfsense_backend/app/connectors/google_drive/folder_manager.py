@@ -140,6 +140,39 @@ async def get_files_in_folder(
         return [], None, f"Error getting files in folder: {e!s}"
 
 
+async def get_file_by_id(
+    client: GoogleDriveClient,
+    file_id: str,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """
+    Get file metadata by ID.
+
+    Args:
+        client: GoogleDriveClient instance
+        file_id: File ID to fetch
+
+    Returns:
+        Tuple of (file metadata dict, error message)
+    """
+    try:
+        file, error = await client.get_file_metadata(
+            file_id,
+            fields="id, name, mimeType, parents, createdTime, modifiedTime, size, webViewLink, iconLink",
+        )
+
+        if error:
+            return None, error
+
+        if not file:
+            return None, f"File not found: {file_id}"
+
+        return file, None
+
+    except Exception as e:
+        logger.error(f"Error getting file by ID: {e!s}", exc_info=True)
+        return None, f"Error getting file by ID: {e!s}"
+
+
 def format_folder_path(hierarchy: list[dict[str, str]]) -> str:
     """
     Format folder hierarchy as a path string.

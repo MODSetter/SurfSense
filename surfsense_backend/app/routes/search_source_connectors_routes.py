@@ -14,7 +14,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas import (
+    GoogleDriveIndexRequest,
     SearchSourceConnectorBase,
     SearchSourceConnectorCreate,
     SearchSourceConnectorRead,
@@ -542,13 +543,9 @@ async def index_connector_content(
         None,
         description="End date for indexing (YYYY-MM-DD format). If not provided, uses today's date",
     ),
-    folder_ids: str = Query(
+    drive_items: GoogleDriveIndexRequest | None = Body(
         None,
-        description="[Google Drive only] Comma-separated folder IDs to index",
-    ),
-    folder_names: str = Query(
-        None,
-        description="[Google Drive only] Comma-separated folder names for display purposes",
+        description="[Google Drive only] Structured request with folders and files to index",
     ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
@@ -762,22 +759,23 @@ async def index_connector_content(
                 index_google_drive_files_task,
             )
 
-            if not folder_ids or not folder_names:
+            if not drive_items or not drive_items.has_items():
                 raise HTTPException(
                     status_code=400,
-                    detail="Google Drive indexing requires folder_ids and folder_names parameters",
+                    detail="Google Drive indexing requires drive_items body parameter with folders or files",
                 )
 
             logger.info(
-                f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, folders: {folder_names}"
+                f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
+                f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
             )
-            # Pass comma-separated strings directly to Celery task
+
+            # Pass structured data to Celery task
             index_google_drive_files_task.delay(
                 connector_id,
                 search_space_id,
                 str(user.id),
-                folder_ids,  # Pass as comma-separated string
-                folder_names,  # Pass as comma-separated string
+                drive_items.model_dump(),  # Convert to dict for JSON serialization
             )
             response_message = "Google Drive indexing started in the background."
 
@@ -1554,45 +1552,63 @@ async def run_google_drive_indexing(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    folder_ids: str,  # Comma-separated folder IDs
-    folder_names: str,  # Comma-separated folder names
+    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
 ):
-    """Runs the Google Drive indexing task for multiple folders and updates the timestamp."""
+    """Runs the Google Drive indexing task for folders and files and updates the timestamp."""
     try:
         from app.tasks.connector_indexers.google_drive_indexer import (
             index_google_drive_files,
+            index_google_drive_single_file,
         )
 
-        # Split comma-separated IDs and names into lists
-        folder_id_list = [fid.strip() for fid in folder_ids.split(",")]
-        folder_name_list = [fname.strip() for fname in folder_names.split(",")]
-
+        # Parse the structured data
+        items = GoogleDriveIndexRequest(**items_dict)
         total_indexed = 0
         errors = []
 
         # Index each folder
-        for folder_id, folder_name in zip(
-            folder_id_list, folder_name_list, strict=False
-        ):
+        for folder in items.folders:
             try:
                 indexed_count, error_message = await index_google_drive_files(
                     session,
                     connector_id,
                     search_space_id,
                     user_id,
-                    folder_id,
-                    folder_name,
+                    folder_id=folder.id,
+                    folder_name=folder.name,
                     use_delta_sync=True,
                     update_last_indexed=False,
                 )
                 if error_message:
-                    errors.append(f"{folder_name}: {error_message}")
+                    errors.append(f"Folder '{folder.name}': {error_message}")
                 else:
                     total_indexed += indexed_count
             except Exception as e:
-                errors.append(f"{folder_name}: {e!s}")
+                errors.append(f"Folder '{folder.name}': {e!s}")
                 logger.error(
-                    f"Error indexing folder {folder_name} ({folder_id}): {e}",
+                    f"Error indexing folder {folder.name} ({folder.id}): {e}",
+                    exc_info=True,
+                )
+
+        # Index each individual file
+        for file in items.files:
+            try:
+                indexed_count, error_message = await index_google_drive_single_file(
+                    session,
+                    connector_id,
+                    search_space_id,
+                    user_id,
+                    file_id=file.id,
+                    file_name=file.name,
+                )
+                if error_message:
+                    errors.append(f"File '{file.name}': {error_message}")
+                else:
+                    total_indexed += indexed_count
+            except Exception as e:
+                errors.append(f"File '{file.name}': {e!s}")
+                logger.error(
+                    f"Error indexing file {file.name} ({file.id}): {e}",
                     exc_info=True,
                 )
 
@@ -1602,7 +1618,7 @@ async def run_google_drive_indexing(
             )
         else:
             logger.info(
-                f"Google Drive indexing successful for connector {connector_id}. Indexed {total_indexed} documents from {len(folder_id_list)} folder(s)."
+                f"Google Drive indexing successful for connector {connector_id}. Indexed {total_indexed} documents from {len(items.folders)} folder(s) and {len(items.files)} file(s)."
             )
             # Update the last indexed timestamp only on full success
             await update_connector_last_indexed(session, connector_id)
