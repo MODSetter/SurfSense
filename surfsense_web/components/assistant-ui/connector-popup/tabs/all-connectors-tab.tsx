@@ -13,6 +13,8 @@ interface AllConnectorsTabProps {
 	connectingId: string | null;
 	allConnectors: SearchSourceConnector[] | undefined;
 	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[0]) => void;
+	onCreateWebcrawler?: () => void;
+	onCreateYouTube?: () => void;
 	onManage?: (connector: SearchSourceConnector) => void;
 }
 
@@ -23,6 +25,8 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	connectingId,
 	allConnectors,
 	onConnectOAuth,
+	onCreateWebcrawler,
+	onCreateYouTube,
 	onManage,
 }) => {
 	const router = useRouter();
@@ -88,10 +92,20 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{filteredOther.map((connector) => {
 							const isConnected = connectedTypes.has(connector.connectorType);
+							const isConnecting = connectingId === connector.id;
 							// Find the actual connector object if connected
 							const actualConnector = isConnected && allConnectors
 								? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
 								: undefined;
+
+							// Special handling for webcrawler and YouTube - create in popup
+							const isWebcrawler = connector.id === "webcrawler-connector";
+							const isYouTube = connector.id === "youtube-connector";
+							const handleConnect = isWebcrawler && onCreateWebcrawler
+								? onCreateWebcrawler
+								: isYouTube && onCreateYouTube
+								? onCreateYouTube
+								: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
 
 							return (
 								<ConnectorCard
@@ -101,11 +115,8 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									description={connector.description}
 									connectorType={connector.connectorType}
 									isConnected={isConnected}
-									onConnect={() =>
-										router.push(
-											`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`
-										)
-									}
+									isConnecting={isConnecting}
+									onConnect={handleConnect}
 									onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
 								/>
 							);

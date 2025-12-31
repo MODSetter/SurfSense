@@ -3,6 +3,8 @@
 import type { FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { GoogleDriveConfig } from "./components/google-drive-config";
+import { WebcrawlerConfig } from "./components/webcrawler-config";
+import { YouTubeConfig } from "./components/youtube-config";
 
 export interface ConnectorConfigProps {
 	connector: SearchSourceConnector;
@@ -20,6 +22,10 @@ export function getConnectorConfigComponent(
 	switch (connectorType) {
 		case "GOOGLE_DRIVE_CONNECTOR":
 			return GoogleDriveConfig;
+		case "WEBCRAWLER_CONNECTOR":
+			return WebcrawlerConfig;
+		case "YOUTUBE_CONNECTOR":
+			return YouTubeConfig;
 		// OAuth connectors (Gmail, Calendar, Airtable) and others don't need special config UI
 		default:
 			return null;

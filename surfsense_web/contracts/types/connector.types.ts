@@ -22,6 +22,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"LUMA_CONNECTOR",
 	"ELASTICSEARCH_CONNECTOR",
 	"WEBCRAWLER_CONNECTOR",
+	"YOUTUBE_CONNECTOR",
 	"BOOKSTACK_CONNECTOR",
 ]);
 

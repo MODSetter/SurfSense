@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Info, Loader2, Trash2 } from "lucide-react";
 import { type FC, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -111,7 +111,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				<button
 					type="button"
 					onClick={onBack}
-					className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
 				>
 					<ArrowLeft className="size-4" />
 					Back to connectors
@@ -123,10 +123,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{getConnectorIcon(connector.connector_type, "size-7")}
 					</div>
 					<div className="flex-1">
-						<h2 className="text-2xl font-semibold tracking-tight">
+						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
 							{connector.name}
 						</h2>
-						<p className="text-muted-foreground mt-1">
+						<p className="text-xs sm:text-base text-muted-foreground mt-1">
 							Manage your connector settings and sync configuration
 						</p>
 					</div>
@@ -149,8 +149,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							/>
 						)}
 
-						{/* Date range selector - not shown for Google Drive (uses folder selection instead) */}
-						{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
+						{/* Date range selector - not shown for Google Drive (uses folder selection), Webcrawler (uses config), or YouTube (uses URL selection) */}
+						{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && connector.connector_type !== "WEBCRAWLER_CONNECTOR" && connector.connector_type !== "YOUTUBE_CONNECTOR" && (
 							<DateRangeSelector
 								startDate={startDate}
 								endDate={endDate}
@@ -169,11 +169,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{/* Info box */}
 						<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
 							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-								{getConnectorIcon(connector.connector_type, "size-4")}
+								<Info className="size-4" />
 							</div>
-							<div className="text-sm">
-								<p className="font-medium">Re-indexing runs in the background</p>
-								<p className="text-muted-foreground mt-1">
+							<div className="text-xs sm:text-sm">
+								<p className="font-medium text-xs sm:text-sm">Re-indexing runs in the background</p>
+								<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
 									You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
 								</p>
 							</div>
@@ -194,12 +194,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted border-t border-border">
 				{showDisconnectConfirm ? (
 					<div className="flex items-center gap-3">
-						<span className="text-sm text-muted-foreground">Are you sure?</span>
+						<span className="text-xs sm:text-sm text-muted-foreground">Are you sure?</span>
 						<Button
 							variant="destructive"
 							size="sm"
 							onClick={handleDisconnectConfirm}
 							disabled={isDisconnecting}
+							className="text-xs sm:text-sm"
 						>
 							{isDisconnecting ? (
 								<>
@@ -215,6 +216,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							size="sm"
 							onClick={handleDisconnectCancel}
 							disabled={isDisconnecting}
+							className="text-xs sm:text-sm"
 						>
 							Cancel
 						</Button>
@@ -225,12 +227,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						size="sm"
 						onClick={handleDisconnectClick}
 						disabled={isSaving || isDisconnecting}
+						className="text-xs sm:text-sm"
 					>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Disconnect
 					</Button>
 				)}
-				<Button onClick={onSave} disabled={isSaving || isDisconnecting}>
+				<Button onClick={onSave} disabled={isSaving || isDisconnecting} className="text-xs sm:text-sm">
 					{isSaving ? (
 						<>
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />

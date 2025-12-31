@@ -40,23 +40,23 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 	};
 
 	return (
-		<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-6">
-			<h3 className="font-medium mb-4">Select Date Range</h3>
-			<p className="text-sm text-muted-foreground mb-6">
+		<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
+			<h3 className="font-medium text-xs sm:text-base mb-4">Select Date Range</h3>
+			<p className="text-xs sm:text-sm text-muted-foreground mb-6">
 				Choose how far back you want to sync your data. You can always re-index later with different dates.
 			</p>
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				{/* Start Date */}
 				<div className="space-y-2">
-					<Label htmlFor="start-date">Start Date</Label>
+					<Label htmlFor="start-date" className="text-xs sm:text-sm">Start Date</Label>
 					<Popover>
 						<PopoverTrigger asChild>
 							<Button
 								id="start-date"
 								variant="outline"
 								className={cn(
-									"w-full justify-start text-left font-normal bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20",
+									"w-full justify-start text-left font-normal bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 text-xs sm:text-sm",
 									!startDate && "text-muted-foreground"
 								)}
 							>
@@ -77,14 +77,14 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 
 				{/* End Date */}
 				<div className="space-y-2">
-					<Label htmlFor="end-date">End Date</Label>
+					<Label htmlFor="end-date" className="text-xs sm:text-sm">End Date</Label>
 					<Popover>
 						<PopoverTrigger asChild>
 							<Button
 								id="end-date"
 								variant="outline"
 								className={cn(
-									"w-full justify-start text-left font-normal bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20",
+									"w-full justify-start text-left font-normal bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 text-xs sm:text-sm",
 									!endDate && "text-muted-foreground"
 								)}
 							>
@@ -111,7 +111,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 					variant="outline"
 					size="sm"
 					onClick={handleClearDates}
-					className="text-xs bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
 				>
 					Clear Dates
 				</Button>
@@ -120,7 +120,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 					variant="outline"
 					size="sm"
 					onClick={handleLast30Days}
-					className="text-xs bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
 				>
 					Last 30 Days
 				</Button>
@@ -129,7 +129,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 					variant="outline"
 					size="sm"
 					onClick={handleLastYear}
-					className="text-xs bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+					className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
 				>
 					Last Year
 				</Button>

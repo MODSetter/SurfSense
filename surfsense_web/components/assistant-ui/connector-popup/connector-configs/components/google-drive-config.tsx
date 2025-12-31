@@ -91,9 +91,9 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({
 				</Button>
 			)}
 
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center gap-2 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
 				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-				<AlertDescription className="text-[10px] sm:text-xs">
+				<AlertDescription className="text-[10px] sm:text-xs !pl-0">
 					Folder selection is used when indexing. You can change this selection when you start indexing.
 				</AlertDescription>
 			</Alert>

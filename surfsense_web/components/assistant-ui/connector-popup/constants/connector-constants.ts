@@ -107,6 +107,12 @@ export const OTHER_CONNECTORS = [
 		connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 	},
 	{
+		id: "youtube-connector",
+		title: "YouTube",
+		description: "Index YouTube videos",
+		connectorType: EnumConnectorName.YOUTUBE_CONNECTOR,
+	},
+	{
 		id: "tavily-api",
 		title: "Tavily AI",
 		description: "Search with Tavily",

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { type FC, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -96,7 +96,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 				<button
 					type="button"
 					onClick={onSkip}
-					className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
 				>
 					<ArrowLeft className="size-4" />
 					Back to connectors
@@ -108,10 +108,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 						<Check className="size-7 text-green-500" />
 					</div>
 					<div>
-						<h2 className="text-2xl font-semibold tracking-tight">
+						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
 							{config.connectorTitle} Connected!
 						</h2>
-						<p className="text-muted-foreground mt-1">
+						<p className="text-xs sm:text-base text-muted-foreground mt-1">
 							Configure when to start syncing your data
 						</p>
 					</div>
@@ -134,8 +134,8 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							/>
 						)}
 
-						{/* Date range selector - not shown for Google Drive (uses folder selection instead) */}
-						{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && (
+						{/* Date range selector - not shown for Google Drive (uses folder selection), Webcrawler (uses config), or YouTube (uses URL selection) */}
+						{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && config.connectorType !== "WEBCRAWLER_CONNECTOR" && config.connectorType !== "YOUTUBE_CONNECTOR" && (
 							<DateRangeSelector
 								startDate={startDate}
 								endDate={endDate}
@@ -154,11 +154,11 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 						{/* Info box */}
 						<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
 							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-								{getConnectorIcon(config.connectorType, "size-4")}
+								<Info className="size-4" />
 							</div>
-							<div className="text-sm">
-								<p className="font-medium">Indexing runs in the background</p>
-								<p className="text-muted-foreground mt-1">
+							<div className="text-xs sm:text-sm">
+								<p className="font-medium text-xs sm:text-sm">Indexing runs in the background</p>
+								<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
 									You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
 								</p>
 							</div>
@@ -177,10 +177,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 
 			{/* Fixed Footer - Action buttons */}
 			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted">
-				<Button variant="ghost" onClick={onSkip} disabled={isStartingIndexing}>
+				<Button variant="ghost" onClick={onSkip} disabled={isStartingIndexing} className="text-xs sm:text-sm">
 					Skip for now
 				</Button>
-				<Button onClick={onStartIndexing} disabled={isStartingIndexing}>
+				<Button onClick={onStartIndexing} disabled={isStartingIndexing} className="text-xs sm:text-sm">
 					{isStartingIndexing ? (
 						<>
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />

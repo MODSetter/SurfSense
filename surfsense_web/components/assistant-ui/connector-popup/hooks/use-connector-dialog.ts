@@ -2,16 +2,17 @@ import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { deleteConnectorMutationAtom, indexConnectorMutationAtom, updateConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
+import { createConnectorMutationAtom, deleteConnectorMutationAtom, indexConnectorMutationAtom, updateConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { queryClient } from "@/lib/query-client/client";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { format } from "date-fns";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
-import { OAUTH_CONNECTORS } from "../constants/connector-constants";
+import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import type { IndexingConfigState } from "../constants/connector-constants";
 import {
 	parseConnectorPopupQueryParams,
@@ -29,6 +30,7 @@ export const useConnectorDialog = () => {
 	const { mutateAsync: indexConnector } = useAtomValue(indexConnectorMutationAtom);
 	const { mutateAsync: updateConnector } = useAtomValue(updateConnectorMutationAtom);
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
+	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
 	const [isOpen, setIsOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState("all");
@@ -246,19 +248,131 @@ export const useConnectorDialog = () => {
 		[searchSpaceId]
 	);
 
+	// Handle creating webcrawler connector
+	const handleCreateWebcrawler = useCallback(async () => {
+		if (!searchSpaceId) return;
+
+		setConnectingId("webcrawler-connector");
+		try {
+			const newConnector = await createConnector({
+				data: {
+					name: "Web Pages",
+					connector_type: EnumConnectorName.WEBCRAWLER_CONNECTOR,
+					config: {},
+					is_indexable: true,
+					last_indexed_at: null,
+					periodic_indexing_enabled: false,
+					indexing_frequency_minutes: null,
+					next_scheduled_at: null,
+				},
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
+
+			// Refetch connectors to get the new one
+			const result = await refetchAllConnectors();
+			if (result.data) {
+				const connector = result.data.find(
+					(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR
+				);
+				if (connector) {
+					const connectorValidation = searchSourceConnector.safeParse(connector);
+					if (connectorValidation.success) {
+						const config = validateIndexingConfigState({
+							connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
+							connectorId: connector.id,
+							connectorTitle: "Web Pages",
+						});
+						setIndexingConfig(config);
+						setIndexingConnector(connector);
+						setIndexingConnectorConfig(connector.config || {});
+						setIsOpen(true);
+						const url = new URL(window.location.href);
+						url.searchParams.set("modal", "connectors");
+						url.searchParams.set("view", "configure");
+						window.history.pushState({ modal: true }, "", url.toString());
+					}
+				}
+			}
+		} catch (error) {
+			console.error("Error creating webcrawler connector:", error);
+			toast.error("Failed to create web crawler connector");
+		} finally {
+			setConnectingId(null);
+		}
+	}, [searchSpaceId, createConnector, refetchAllConnectors]);
+
+	// Handle creating YouTube connector
+	const handleCreateYouTube = useCallback(async () => {
+		if (!searchSpaceId) return;
+
+		setConnectingId("youtube-connector");
+		try {
+			const newConnector = await createConnector({
+				data: {
+					name: "YouTube",
+					connector_type: EnumConnectorName.YOUTUBE_CONNECTOR,
+					config: { youtube_urls: [] },
+					is_indexable: true,
+					last_indexed_at: null,
+					periodic_indexing_enabled: false,
+					indexing_frequency_minutes: null,
+					next_scheduled_at: null,
+				},
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
+
+			// Refetch connectors to get the new one
+			const result = await refetchAllConnectors();
+			if (result.data) {
+				const connector = result.data.find(
+					(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.YOUTUBE_CONNECTOR
+				);
+				if (connector) {
+					const connectorValidation = searchSourceConnector.safeParse(connector);
+					if (connectorValidation.success) {
+						const config = validateIndexingConfigState({
+							connectorType: EnumConnectorName.YOUTUBE_CONNECTOR,
+							connectorId: connector.id,
+							connectorTitle: "YouTube",
+						});
+						setIndexingConfig(config);
+						setIndexingConnector(connector);
+						setIndexingConnectorConfig(connector.config || { youtube_urls: [] });
+						setIsOpen(true);
+						const url = new URL(window.location.href);
+						url.searchParams.set("modal", "connectors");
+						url.searchParams.set("view", "configure");
+						window.history.pushState({ modal: true }, "", url.toString());
+					}
+				}
+			}
+		} catch (error) {
+			console.error("Error creating YouTube connector:", error);
+			toast.error("Failed to create YouTube connector");
+		} finally {
+			setConnectingId(null);
+		}
+	}, [searchSpaceId, createConnector, refetchAllConnectors]);
+
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(async (refreshConnectors: () => void) => {
 		if (!indexingConfig || !searchSpaceId) return;
 
-		// Validate date range
-		const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
-		if (!dateRangeValidation.success) {
-			const firstIssueMsg =
-				dateRangeValidation.error.issues && dateRangeValidation.error.issues.length > 0
-					? dateRangeValidation.error.issues[0].message
-					: "Invalid date range";
-			toast.error(firstIssueMsg);
-			return;
+		// Validate date range (skip for Google Drive and Webcrawler)
+		if (indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && indexingConfig.connectorType !== "WEBCRAWLER_CONNECTOR") {
+			const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
+			if (!dateRangeValidation.success) {
+				const firstIssueMsg =
+					dateRangeValidation.error.issues && dateRangeValidation.error.issues.length > 0
+						? dateRangeValidation.error.issues[0].message
+						: "Invalid date range";
+				toast.error(firstIssueMsg);
+				return;
+			}
 		}
 
 		// Validate frequency minutes if periodic is enabled
@@ -313,6 +427,14 @@ export const useConnectorDialog = () => {
 					setIsStartingIndexing(false);
 					return;
 				}
+			} else if (indexingConfig.connectorType === "WEBCRAWLER_CONNECTOR") {
+				// Webcrawler doesn't use date ranges, just uses config (API key and URLs)
+				await indexConnector({
+					connector_id: indexingConfig.connectorId,
+					queryParams: {
+						search_space_id: searchSpaceId,
+					},
+				});
 			} else {
 				await indexConnector({
 					connector_id: indexingConfig.connectorId,
@@ -372,8 +494,11 @@ export const useConnectorDialog = () => {
 			(oauthConnector) => oauthConnector.connectorType === connector.connector_type
 		);
 		
-		// If not OAuth, redirect to old connector edit page
-		if (!isOAuthConnector) {
+		// Check if this is webcrawler (can be managed in popup)
+		const isWebcrawler = connector.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR;
+		
+		// If not OAuth and not webcrawler, redirect to old connector edit page
+		if (!isOAuthConnector && !isWebcrawler) {
 			router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`);
 			return;
 		}
@@ -405,8 +530,8 @@ export const useConnectorDialog = () => {
 	const handleSaveConnector = useCallback(async (refreshConnectors: () => void) => {
 		if (!editingConnector || !searchSpaceId) return;
 
-		// Validate date range (skip for Google Drive which uses folder selection)
-		if (editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR") {
+		// Validate date range (skip for Google Drive which uses folder selection, and Webcrawler which uses config)
+		if (editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && editingConnector.connector_type !== "WEBCRAWLER_CONNECTOR") {
 			const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
 			if (!dateRangeValidation.success) {
 				toast.error(dateRangeValidation.error.issues[0]?.message || "Invalid date range");
@@ -457,6 +582,15 @@ export const useConnectorDialog = () => {
 					});
 					indexingDescription = `Re-indexing started for ${selectedFolders.length} folder(s).`;
 				}
+			} else if (editingConnector.connector_type === "WEBCRAWLER_CONNECTOR") {
+				// Webcrawler uses config (API key and URLs), not date ranges
+				await indexConnector({
+					connector_id: editingConnector.id,
+					queryParams: {
+						search_space_id: searchSpaceId,
+					},
+				});
+				indexingDescription = "Re-indexing started with updated configuration.";
 			} else if (startDateStr || endDateStr) {
 				// Other connectors use date ranges
 				await indexConnector({
@@ -623,6 +757,8 @@ export const useConnectorDialog = () => {
 		handleTabChange,
 		handleScroll,
 		handleConnectOAuth,
+		handleCreateWebcrawler,
+		handleCreateYouTube,
 		handleStartIndexing,
 		handleSkipIndexing,
 		handleStartEdit,
