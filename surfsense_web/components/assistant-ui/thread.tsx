@@ -1,5 +1,3 @@
-import { AssistantIf, ThreadPrimitive } from "@assistant-ui/react";
-import type { FC } from "react";
 import {
 	ActionBarPrimitive,
 	AssistantIf,
@@ -10,7 +8,6 @@ import {
 	ThreadPrimitive,
 	useAssistantState,
 	useComposerRuntime,
-	useThreadViewport,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -28,10 +25,8 @@ import {
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-	createContext,
 	type FC,
 	useCallback,
 	useContext,
@@ -69,16 +64,11 @@ import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
-import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
-import { ThinkingStepsContext } from "@/components/assistant-ui/thinking-steps";
-import { ThreadWelcome } from "@/components/assistant-ui/thread-welcome";
-import { Composer } from "@/components/assistant-ui/composer";
-import { ThreadScrollToBottom } from "@/components/assistant-ui/thread-scroll-to-bottom";
-import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
-import { UserMessage } from "@/components/assistant-ui/user-message";
-import { EditComposer } from "@/components/assistant-ui/edit-composer";
+import {
+	ThinkingStepsContext,
+	ThinkingStepsDisplay,
+} from "@/components/assistant-ui/thinking-steps";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";

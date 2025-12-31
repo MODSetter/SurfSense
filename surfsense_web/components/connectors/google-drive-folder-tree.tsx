@@ -228,12 +228,10 @@ export function GoogleDriveFolderTree({
 			<div key={item.id} className="w-full sm:ml-[calc(var(--level)*1.25rem)]" style={{ marginLeft: `${level * indentSize}rem`, '--level': level } as React.CSSProperties & { '--level'?: number }}>
 				<div
 					className={cn(
-						"flex items-center group gap-2 h-auto py-2 px-2 rounded-md hover:bg-accent cursor-pointer",
-						isSelected && "bg-accent/50"
-						"flex items-center gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md",
+						"flex items-center group gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md",
 						isFolder && "hover:bg-accent cursor-pointer",
 						!isFolder && "cursor-default opacity-60",
-						isSelected && isFolder && "bg-accent/50"
+						isSelected && "bg-accent/50"
 					)}
 				>
 					{isFolder ? (
