@@ -3,7 +3,6 @@
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
 import { type FC, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
 import type { IndexingConfigState } from "../../constants/connector-constants";
@@ -134,22 +133,27 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							/>
 						)}
 
-						{/* Date range selector - not shown for Google Drive (uses folder selection), Webcrawler (uses config), or YouTube (uses URL selection) */}
-						{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && config.connectorType !== "WEBCRAWLER_CONNECTOR" && config.connectorType !== "YOUTUBE_CONNECTOR" && (
-							<DateRangeSelector
-								startDate={startDate}
-								endDate={endDate}
-								onStartDateChange={onStartDateChange}
-								onEndDateChange={onEndDateChange}
-							/>
-						)}
+						{/* Date range selector and periodic sync - only shown for indexable connectors */}
+						{connector?.is_indexable && (
+							<>
+								{/* Date range selector - not shown for Google Drive (uses folder selection), Webcrawler (uses config), or YouTube (uses URL selection) */}
+								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && config.connectorType !== "WEBCRAWLER_CONNECTOR" && config.connectorType !== "YOUTUBE_CONNECTOR" && (
+									<DateRangeSelector
+										startDate={startDate}
+										endDate={endDate}
+										onStartDateChange={onStartDateChange}
+										onEndDateChange={onEndDateChange}
+									/>
+								)}
 
-						<PeriodicSyncConfig
-							enabled={periodicEnabled}
-							frequencyMinutes={frequencyMinutes}
-							onEnabledChange={onPeriodicEnabledChange}
-							onFrequencyChange={onFrequencyChange}
-						/>
+								<PeriodicSyncConfig
+									enabled={periodicEnabled}
+									frequencyMinutes={frequencyMinutes}
+									onEnabledChange={onPeriodicEnabledChange}
+									onFrequencyChange={onFrequencyChange}
+								/>
+							</>
+						)}
 
 						{/* Info box */}
 						<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">

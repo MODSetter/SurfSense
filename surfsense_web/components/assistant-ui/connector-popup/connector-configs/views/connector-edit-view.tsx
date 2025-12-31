@@ -26,6 +26,7 @@ interface ConnectorEditViewProps {
 	onDisconnect: () => void;
 	onBack: () => void;
 	onConfigChange?: (config: Record<string, any>) => void;
+	onNameChange?: (name: string) => void;
 }
 
 export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
@@ -44,6 +45,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onDisconnect,
 	onBack,
 	onConfigChange,
+	onNameChange,
 }) => {
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
@@ -146,25 +148,31 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							<ConnectorConfigComponent
 								connector={connector}
 								onConfigChange={onConfigChange}
+								onNameChange={onNameChange}
 							/>
 						)}
 
-						{/* Date range selector - not shown for Google Drive (uses folder selection), Webcrawler (uses config), or YouTube (uses URL selection) */}
-						{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && connector.connector_type !== "WEBCRAWLER_CONNECTOR" && connector.connector_type !== "YOUTUBE_CONNECTOR" && (
-							<DateRangeSelector
-								startDate={startDate}
-								endDate={endDate}
-								onStartDateChange={onStartDateChange}
-								onEndDateChange={onEndDateChange}
-							/>
-						)}
+						{/* Date range selector and periodic sync - only shown for indexable connectors */}
+						{connector.is_indexable && (
+							<>
+								{/* Date range selector - not shown for Google Drive (uses folder selection), Webcrawler (uses config), or YouTube (uses URL selection) */}
+								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && connector.connector_type !== "WEBCRAWLER_CONNECTOR" && connector.connector_type !== "YOUTUBE_CONNECTOR" && (
+									<DateRangeSelector
+										startDate={startDate}
+										endDate={endDate}
+										onStartDateChange={onStartDateChange}
+										onEndDateChange={onEndDateChange}
+									/>
+								)}
 
-						<PeriodicSyncConfig
-							enabled={periodicEnabled}
-							frequencyMinutes={frequencyMinutes}
-							onEnabledChange={onPeriodicEnabledChange}
-							onFrequencyChange={onFrequencyChange}
-						/>
+								<PeriodicSyncConfig
+									enabled={periodicEnabled}
+									frequencyMinutes={frequencyMinutes}
+									onEnabledChange={onPeriodicEnabledChange}
+									onFrequencyChange={onFrequencyChange}
+								/>
+							</>
+						)}
 
 						{/* Info box */}
 						<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">

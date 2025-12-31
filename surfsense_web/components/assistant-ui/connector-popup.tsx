@@ -2,11 +2,13 @@
 
 import { useAtomValue } from "jotai";
 import { Cable, Loader2 } from "lucide-react";
-import { type FC, useMemo } from "react";
+import { type FC, useMemo, useEffect } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { useLogsSummary } from "@/hooks/use-logs";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import {
 	Dialog,
 	DialogContent,
@@ -21,16 +23,13 @@ import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
+import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
 import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
 import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { connectors, isLoading: connectorsLoading, refreshConnectors } = useSearchSourceConnectors(
-		false,
-		searchSpaceId ? Number(searchSpaceId) : undefined
-	);
 	const { data: documentTypeCounts, isLoading: documentTypesLoading } =
 		useAtomValue(documentTypeCountsAtom);
 
@@ -44,22 +43,6 @@ export const ConnectorIndicator: FC = () => {
 		}
 	);
 
-	// Get connector IDs that are currently being indexed
-	const indexingConnectorIds = useMemo(() => {
-		if (!logsSummary?.active_tasks) return new Set<number>();
-		return new Set(
-			logsSummary.active_tasks
-				.filter((task) => task.source?.includes("connector_indexing"))
-				.map((task) => {
-					const match = task.source?.match(/connector[_-]?(\d+)/i);
-					return match ? parseInt(match[1], 10) : null;
-				})
-				.filter((id): id is number => id !== null)
-		);
-	}, [logsSummary?.active_tasks]);
-
-	const isLoading = connectorsLoading || documentTypesLoading;
-
 	// Use the custom hook for dialog state management
 	const {
 		isOpen,
@@ -71,6 +54,8 @@ export const ConnectorIndicator: FC = () => {
 		indexingConnector,
 		indexingConnectorConfig,
 		editingConnector,
+		connectingConnectorType,
+		isCreatingConnector,
 		startDate,
 		endDate,
 		isStartingIndexing,
@@ -88,18 +73,80 @@ export const ConnectorIndicator: FC = () => {
 		handleTabChange,
 		handleScroll,
 		handleConnectOAuth,
+		handleConnectNonOAuth,
 		handleCreateWebcrawler,
 		handleCreateYouTube,
+		handleSubmitConnectForm,
 		handleStartIndexing,
 		handleSkipIndexing,
 		handleStartEdit,
 		handleSaveConnector,
 		handleDisconnectConnector,
 		handleBackFromEdit,
+		handleBackFromConnect,
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,
+		setConnectorName,
 	} = useConnectorDialog();
+
+	// Fetch connectors using React Query with conditional refetchInterval
+	// This automatically refetches when mutations invalidate the cache (event-driven)
+	// and also polls when dialog is open to catch external changes
+	const {
+		data: connectors = [],
+		isLoading: connectorsLoading,
+		refetch: refreshConnectors,
+	} = useQuery({
+		queryKey: cacheKeys.connectors.all(searchSpaceId || ""),
+		queryFn: () =>
+			connectorsApiService.getConnectors({
+				queryParams: {
+					search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
+				},
+			}),
+		enabled: !!searchSpaceId,
+		staleTime: 5 * 60 * 1000, // 5 minutes (same as connectorsAtom)
+		// Poll when dialog is open to catch external changes
+		refetchInterval: isOpen ? 5000 : false, // 5 seconds when open, no polling when closed
+	});
+
+	const queryClient = useQueryClient();
+
+	// Also refresh document type counts when dialog is open
+	useEffect(() => {
+		if (!isOpen || !searchSpaceId) return;
+
+		const POLL_INTERVAL = 5000; // 5 seconds, same as connectors
+
+		const intervalId = setInterval(() => {
+			// Invalidate document type counts to refresh active document types
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.documents.typeCounts(searchSpaceId),
+			});
+		}, POLL_INTERVAL);
+
+		// Cleanup interval on unmount or when dialog closes
+		return () => {
+			clearInterval(intervalId);
+		};
+	}, [isOpen, searchSpaceId, queryClient]);
+
+	// Get connector IDs that are currently being indexed
+	const indexingConnectorIds = useMemo(() => {
+		if (!logsSummary?.active_tasks) return new Set<number>();
+		return new Set(
+			logsSummary.active_tasks
+				.filter((task) => task.source?.includes("connector_indexing"))
+				.map((task) => {
+					const match = task.source?.match(/connector[_-]?(\d+)/i);
+					return match ? parseInt(match[1], 10) : null;
+				})
+				.filter((id): id is number => id !== null)
+		);
+	}, [logsSummary?.active_tasks]);
+
+	const isLoading = connectorsLoading || documentTypesLoading;
 
 	// Get document types that have documents in the search space
 	const activeDocumentTypes = documentTypeCounts
@@ -148,12 +195,20 @@ export const ConnectorIndicator: FC = () => {
 			</TooltipIconButton>
 
 			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
-				{/* Connector Edit View - shown when editing existing connector */}
-				{editingConnector ? (
+				{/* Connector Connect View - shown when connecting non-OAuth connectors */}
+				{connectingConnectorType ? (
+					<ConnectorConnectView
+						connectorType={connectingConnectorType}
+						onSubmit={handleSubmitConnectForm}
+						onBack={handleBackFromConnect}
+						isSubmitting={isCreatingConnector}
+					/>
+				) : editingConnector ? (
 					<ConnectorEditView
 						connector={{
 							...editingConnector,
 							config: connectorConfig || editingConnector.config,
+							name: editingConnector.name,
 						}}
 						startDate={startDate}
 						endDate={endDate}
@@ -165,10 +220,11 @@ export const ConnectorIndicator: FC = () => {
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
 						onFrequencyChange={setFrequencyMinutes}
-						onSave={() => handleSaveConnector(refreshConnectors)}
-						onDisconnect={() => handleDisconnectConnector(refreshConnectors)}
+						onSave={() => handleSaveConnector(() => refreshConnectors())}
+						onDisconnect={() => handleDisconnectConnector(() => refreshConnectors())}
 						onBack={handleBackFromEdit}
 						onConfigChange={setConnectorConfig}
+						onNameChange={setConnectorName}
 					/>
 				) : indexingConfig ? (
 					<IndexingConfigurationView
@@ -187,7 +243,7 @@ export const ConnectorIndicator: FC = () => {
 						onPeriodicEnabledChange={setPeriodicEnabled}
 						onFrequencyChange={setFrequencyMinutes}
 						onConfigChange={setIndexingConnectorConfig}
-						onStartIndexing={() => handleStartIndexing(refreshConnectors)}
+						onStartIndexing={() => handleStartIndexing(() => refreshConnectors())}
 						onSkip={handleSkipIndexing}
 					/>
 				) : (
@@ -207,17 +263,18 @@ export const ConnectorIndicator: FC = () => {
 							<div className="h-full overflow-y-auto" onScroll={handleScroll}>
 								<div className="px-6 sm:px-12 py-6 sm:py-8 pb-16 sm:pb-16">
 									<TabsContent value="all" className="m-0">
-										<AllConnectorsTab
-											searchQuery={searchQuery}
-											searchSpaceId={searchSpaceId}
-											connectedTypes={connectedTypes}
-											connectingId={connectingId}
-											allConnectors={allConnectors}
-											onConnectOAuth={handleConnectOAuth}
-											onCreateWebcrawler={handleCreateWebcrawler}
-											onCreateYouTube={handleCreateYouTube}
-											onManage={handleStartEdit}
-										/>
+									<AllConnectorsTab
+										searchQuery={searchQuery}
+										searchSpaceId={searchSpaceId}
+										connectedTypes={connectedTypes}
+										connectingId={connectingId}
+										allConnectors={allConnectors}
+										onConnectOAuth={handleConnectOAuth}
+										onConnectNonOAuth={handleConnectNonOAuth}
+										onCreateWebcrawler={handleCreateWebcrawler}
+										onCreateYouTube={handleCreateYouTube}
+										onManage={handleStartEdit}
+									/>
 									</TabsContent>
 
 									<ActiveConnectorsTab

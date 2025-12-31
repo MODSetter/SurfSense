@@ -13,6 +13,7 @@ interface AllConnectorsTabProps {
 	connectingId: string | null;
 	allConnectors: SearchSourceConnector[] | undefined;
 	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[0]) => void;
+	onConnectNonOAuth?: (connectorType: string) => void;
 	onCreateWebcrawler?: () => void;
 	onCreateYouTube?: () => void;
 	onManage?: (connector: SearchSourceConnector) => void;
@@ -25,6 +26,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	connectingId,
 	allConnectors,
 	onConnectOAuth,
+	onConnectNonOAuth,
 	onCreateWebcrawler,
 	onCreateYouTube,
 	onManage,
@@ -98,13 +100,16 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 								? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
 								: undefined;
 
-							// Special handling for webcrawler and YouTube - create in popup
+							// Special handling for connectors that can be created in popup
 							const isWebcrawler = connector.id === "webcrawler-connector";
 							const isYouTube = connector.id === "youtube-connector";
+							const isTavily = connector.id === "tavily-api";
 							const handleConnect = isWebcrawler && onCreateWebcrawler
 								? onCreateWebcrawler
 								: isYouTube && onCreateYouTube
 								? onCreateYouTube
+								: isTavily && onConnectNonOAuth
+								? () => onConnectNonOAuth(connector.connectorType)
 								: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
 
 							return (

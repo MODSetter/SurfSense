@@ -1,6 +1,6 @@
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createConnectorMutationAtom, deleteConnectorMutationAtom, indexConnectorMutationAtom, updateConnectorMutationAtom } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
@@ -51,6 +51,12 @@ export const useConnectorDialog = () => {
 	const [isSaving, setIsSaving] = useState(false);
 	const [isDisconnecting, setIsDisconnecting] = useState(false);
 	const [connectorConfig, setConnectorConfig] = useState<Record<string, unknown> | null>(null);
+	const [connectorName, setConnectorName] = useState<string | null>(null);
+	
+	// Connect mode state (for non-OAuth connectors)
+	const [connectingConnectorType, setConnectingConnectorType] = useState<string | null>(null);
+	const [isCreatingConnector, setIsCreatingConnector] = useState(false);
+	const isCreatingConnectorRef = useRef(false);
 
 	// Helper function to get frequency label
 	const getFrequencyLabel = useCallback((minutes: string): string => {
@@ -85,6 +91,17 @@ export const useConnectorDialog = () => {
 				// Clear editing connector if view is not "edit" anymore
 				if (params.view !== "edit" && editingConnector) {
 					setEditingConnector(null);
+					setConnectorName(null);
+				}
+				
+				// Clear connecting connector type if view is not "connect" anymore
+				if (params.view !== "connect" && connectingConnectorType) {
+					setConnectingConnectorType(null);
+				}
+				
+				// Handle connect view
+				if (params.view === "connect" && params.connectorType && !connectingConnectorType) {
+					setConnectingConnectorType(params.connectorType);
 				}
 				
 				if (params.view === "configure" && params.connector && !indexingConfig) {
@@ -147,6 +164,7 @@ export const useConnectorDialog = () => {
 				// Clear editing connector when modal is closed
 				if (editingConnector) {
 					setEditingConnector(null);
+					setConnectorName(null);
 					setConnectorConfig(null);
 					setStartDate(undefined);
 					setEndDate(undefined);
@@ -155,13 +173,17 @@ export const useConnectorDialog = () => {
 					setIsScrolled(false);
 					setSearchQuery("");
 				}
+				// Clear connecting connector type when modal is closed
+				if (connectingConnectorType) {
+					setConnectingConnectorType(null);
+				}
 			}
 		} catch (error) {
 			// Invalid query params - log but don't crash
 			console.warn("Invalid connector popup query params:", error);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [searchParams, allConnectors, editingConnector, indexingConfig]);
+	}, [searchParams, allConnectors, editingConnector, indexingConfig, connectingConnectorType]);
 
 	// Detect OAuth success and transition to config view
 	useEffect(() => {
@@ -358,6 +380,106 @@ export const useConnectorDialog = () => {
 		}
 	}, [searchSpaceId, createConnector, refetchAllConnectors]);
 
+	// Handle connecting non-OAuth connectors (like Tavily API)
+	const handleConnectNonOAuth = useCallback((connectorType: string) => {
+		if (!searchSpaceId) return;
+		
+		// Set connecting state
+		setConnectingConnectorType(connectorType);
+		
+		// Update URL to show connect view
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("view", "connect");
+		url.searchParams.set("connectorType", connectorType);
+		window.history.pushState({ modal: true }, "", url.toString());
+	}, [searchSpaceId]);
+
+	// Handle submitting connect form
+	const handleSubmitConnectForm = useCallback(async (
+		formData: {
+			name: string;
+			connector_type: string;
+			config: Record<string, unknown>;
+			is_indexable: boolean;
+			last_indexed_at: null;
+			periodic_indexing_enabled: boolean;
+			indexing_frequency_minutes: null;
+			next_scheduled_at: null;
+		}
+	) => {
+		if (!searchSpaceId || !connectingConnectorType) return;
+		
+		// Prevent multiple submissions using ref for immediate check
+		if (isCreatingConnectorRef.current) return;
+		isCreatingConnectorRef.current = true;
+
+		setIsCreatingConnector(true);
+		try {
+			// Create connector
+			const newConnector = await createConnector({
+				data: formData,
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
+
+			// Refetch connectors to get the new one
+			const result = await refetchAllConnectors();
+			if (result.data) {
+				const connector = result.data.find(
+					(c: SearchSourceConnector) => c.id === newConnector.id
+				);
+				if (connector) {
+					// Validate connector data
+					const connectorValidation = searchSourceConnector.safeParse(connector);
+					if (connectorValidation.success) {
+						// Find connector title from constants
+						const connectorInfo = OTHER_CONNECTORS.find(
+							c => c.connectorType === connectingConnectorType
+						);
+						const connectorTitle = connectorInfo?.title || connector.name;
+						
+						// Set up indexing config
+						const config = validateIndexingConfigState({
+							connectorType: connectingConnectorType as EnumConnectorName,
+							connectorId: connector.id,
+							connectorTitle,
+						});
+						setIndexingConfig(config);
+						setIndexingConnector(connector);
+						setIndexingConnectorConfig(connector.config || {});
+						
+						// Transition to configure view
+						const url = new URL(window.location.href);
+						url.searchParams.set("view", "configure");
+						url.searchParams.delete("connectorType");
+						window.history.replaceState({}, "", url.toString());
+						
+						toast.success(`${connectorTitle} connected successfully!`);
+					}
+				}
+			}
+		} catch (error) {
+			console.error("Error creating connector:", error);
+			toast.error(error instanceof Error ? error.message : "Failed to create connector");
+		} finally {
+			isCreatingConnectorRef.current = false;
+			setIsCreatingConnector(false);
+			setConnectingConnectorType(null);
+		}
+	}, [connectingConnectorType, searchSpaceId, createConnector, refetchAllConnectors]);
+
+	// Handle going back from connect view
+	const handleBackFromConnect = useCallback(() => {
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("tab", "all");
+		url.searchParams.delete("view");
+		url.searchParams.delete("connectorType");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(async (refreshConnectors: () => void) => {
 		if (!indexingConfig || !searchSpaceId) return;
@@ -494,11 +616,12 @@ export const useConnectorDialog = () => {
 			(oauthConnector) => oauthConnector.connectorType === connector.connector_type
 		);
 		
-		// Check if this is webcrawler (can be managed in popup)
+		// Check if this is webcrawler or Tavily API (can be managed in popup)
 		const isWebcrawler = connector.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR;
+		const isTavilyApi = connector.connector_type === EnumConnectorName.TAVILY_API;
 		
-		// If not OAuth and not webcrawler, redirect to old connector edit page
-		if (!isOAuthConnector && !isWebcrawler) {
+		// If not OAuth, not webcrawler, and not Tavily API, redirect to old connector edit page
+		if (!isOAuthConnector && !isWebcrawler && !isTavilyApi) {
 			router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`);
 			return;
 		}
@@ -511,6 +634,7 @@ export const useConnectorDialog = () => {
 		}
 		
 		setEditingConnector(connector);
+		setConnectorName(connector.name);
 		// Load existing periodic sync settings
 		setPeriodicEnabled(connector.periodic_indexing_enabled);
 		setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
@@ -530,8 +654,8 @@ export const useConnectorDialog = () => {
 	const handleSaveConnector = useCallback(async (refreshConnectors: () => void) => {
 		if (!editingConnector || !searchSpaceId) return;
 
-		// Validate date range (skip for Google Drive which uses folder selection, and Webcrawler which uses config)
-		if (editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && editingConnector.connector_type !== "WEBCRAWLER_CONNECTOR") {
+		// Validate date range (skip for Google Drive which uses folder selection, Webcrawler which uses config, and non-indexable connectors)
+		if (editingConnector.is_indexable && editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && editingConnector.connector_type !== "WEBCRAWLER_CONNECTOR") {
 			const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
 			if (!dateRangeValidation.success) {
 				toast.error(dateRangeValidation.error.issues[0]?.message || "Invalid date range");
@@ -539,8 +663,14 @@ export const useConnectorDialog = () => {
 			}
 		}
 
-		// Validate frequency minutes if periodic is enabled
-		if (periodicEnabled) {
+		// Prevent periodic indexing for non-indexable connectors
+		if (periodicEnabled && !editingConnector.is_indexable) {
+			toast.error("Periodic indexing is not available for this connector type");
+			return;
+		}
+
+		// Validate frequency minutes if periodic is enabled (only for indexable connectors)
+		if (periodicEnabled && editingConnector.is_indexable) {
 			const frequencyValidation = frequencyMinutesSchema.safeParse(frequencyMinutes);
 			if (!frequencyValidation.success) {
 				toast.error("Invalid frequency value");
@@ -553,20 +683,24 @@ export const useConnectorDialog = () => {
 			const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
-			// Update connector with periodic sync settings and config changes
+			// Update connector with periodic sync settings, config changes, and name
 			const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : null;
 			await updateConnector({
 				id: editingConnector.id,
 				data: {
+					name: connectorName || editingConnector.name,
 					periodic_indexing_enabled: periodicEnabled,
 					indexing_frequency_minutes: frequency,
 					config: connectorConfig || editingConnector.config,
 				},
 			});
 
-			// Re-index based on connector type
+			// Re-index based on connector type (only for indexable connectors)
 			let indexingDescription = "Settings saved.";
-			if (editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
+			if (!editingConnector.is_indexable) {
+				// Non-indexable connectors (like Tavily API) don't need re-indexing
+				indexingDescription = "Settings saved.";
+			} else if (editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
 				// Google Drive uses folder selection from config, not date ranges
 				const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as Array<{ id: string; name: string }> | undefined;
 				if (selectedFolders && selectedFolders.length > 0) {
@@ -628,7 +762,7 @@ export const useConnectorDialog = () => {
 		} finally {
 			setIsSaving(false);
 		}
-	}, [editingConnector, searchSpaceId, startDate, endDate, indexConnector, updateConnector, periodicEnabled, frequencyMinutes, getFrequencyLabel, router, connectorConfig]);
+	}, [editingConnector, searchSpaceId, startDate, endDate, indexConnector, updateConnector, periodicEnabled, frequencyMinutes, getFrequencyLabel, router, connectorConfig, connectorName]);
 
 	// Handle disconnecting connector
 	const handleDisconnectConnector = useCallback(async (refreshConnectors: () => void) => {
@@ -692,12 +826,14 @@ export const useConnectorDialog = () => {
 				window.history.pushState({ modal: false }, "", url.toString());
 				setIsScrolled(false);
 				setSearchQuery("");
-				if (!isStartingIndexing && !isSaving && !isDisconnecting) {
+				if (!isStartingIndexing && !isSaving && !isDisconnecting && !isCreatingConnector) {
 					setIndexingConfig(null);
 					setIndexingConnector(null);
 					setIndexingConnectorConfig(null);
 					setEditingConnector(null);
+					setConnectorName(null);
 					setConnectorConfig(null);
+					setConnectingConnectorType(null);
 					setStartDate(undefined);
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
@@ -705,7 +841,7 @@ export const useConnectorDialog = () => {
 				}
 			}
 		},
-		[activeTab, isStartingIndexing, isDisconnecting, isSaving]
+		[activeTab, isStartingIndexing, isDisconnecting, isSaving, isCreatingConnector]
 	);
 
 	// Handle tab change
@@ -735,6 +871,8 @@ export const useConnectorDialog = () => {
 		indexingConnector,
 		indexingConnectorConfig,
 		editingConnector,
+		connectingConnectorType,
+		isCreatingConnector,
 		startDate,
 		endDate,
 		isStartingIndexing,
@@ -751,20 +889,24 @@ export const useConnectorDialog = () => {
 		setEndDate,
 		setPeriodicEnabled,
 		setFrequencyMinutes,
+		setConnectorName,
 		
 		// Handlers
 		handleOpenChange,
 		handleTabChange,
 		handleScroll,
 		handleConnectOAuth,
+		handleConnectNonOAuth,
 		handleCreateWebcrawler,
 		handleCreateYouTube,
+		handleSubmitConnectForm,
 		handleStartIndexing,
 		handleSkipIndexing,
 		handleStartEdit,
 		handleSaveConnector,
 		handleDisconnectConnector,
 		handleBackFromEdit,
+		handleBackFromConnect,
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,
