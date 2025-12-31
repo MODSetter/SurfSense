@@ -94,6 +94,9 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 							// Special handling for connectors that can be created in popup
 							const isWebcrawler = connector.id === "webcrawler-connector";
 							const isTavily = connector.id === "tavily-api";
+							const isSearxng = connector.id === "searxng";
+							const isLinkup = connector.id === "linkup-api";
+							const isBaidu = connector.id === "baidu-search-api";
 							const isLinear = connector.id === "linear-connector";
 							const isElasticsearch = connector.id === "elasticsearch-connector";
 							
@@ -107,7 +110,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 							const handleConnect = isWebcrawler && onCreateWebcrawler
 								? onCreateWebcrawler
-								: (isTavily || isLinear || isElasticsearch) && onConnectNonOAuth
+								: (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch) && onConnectNonOAuth
 								? () => onConnectNonOAuth(connector.connectorType)
 								: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
 

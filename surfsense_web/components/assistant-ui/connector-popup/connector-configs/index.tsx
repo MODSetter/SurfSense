@@ -2,9 +2,12 @@
 
 import type { FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { BaiduSearchApiConfig } from "./components/baidu-search-api-config";
 import { ElasticsearchConfig } from "./components/elasticsearch-config";
 import { GoogleDriveConfig } from "./components/google-drive-config";
 import { LinearConfig } from "./components/linear-config";
+import { LinkupApiConfig } from "./components/linkup-api-config";
+import { SearxngConfig } from "./components/searxng-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
 import { WebcrawlerConfig } from "./components/webcrawler-config";
 
@@ -27,6 +30,12 @@ export function getConnectorConfigComponent(
 			return GoogleDriveConfig;
 		case "TAVILY_API":
 			return TavilyApiConfig;
+		case "SEARXNG_API":
+			return SearxngConfig;
+		case "LINKUP_API":
+			return LinkupApiConfig;
+		case "BAIDU_SEARCH_API":
+			return BaiduSearchApiConfig;
 		case "LINEAR_CONNECTOR":
 			return LinearConfig;
 		case "WEBCRAWLER_CONNECTOR":

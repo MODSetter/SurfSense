@@ -657,14 +657,17 @@ export const useConnectorDialog = () => {
 			(oauthConnector) => oauthConnector.connectorType === connector.connector_type
 		);
 		
-		// Check if this is webcrawler, Tavily API, Linear, or Elasticsearch (can be managed in popup)
+		// Check if this is webcrawler, Tavily API, SearxNG, Linkup, Baidu, Linear, or Elasticsearch (can be managed in popup)
 		const isWebcrawler = connector.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR;
 		const isTavilyApi = connector.connector_type === EnumConnectorName.TAVILY_API;
+		const isSearxng = connector.connector_type === EnumConnectorName.SEARXNG_API;
+		const isLinkup = connector.connector_type === EnumConnectorName.LINKUP_API;
+		const isBaidu = connector.connector_type === EnumConnectorName.BAIDU_SEARCH_API;
 		const isLinear = connector.connector_type === EnumConnectorName.LINEAR_CONNECTOR;
 		const isElasticsearch = connector.connector_type === EnumConnectorName.ELASTICSEARCH_CONNECTOR;
 		
-		// If not OAuth, not webcrawler, not Tavily API, not Linear, and not Elasticsearch, redirect to old connector edit page
-		if (!isOAuthConnector && !isWebcrawler && !isTavilyApi && !isLinear && !isElasticsearch) {
+		// If not OAuth, not webcrawler, not Tavily API, not SearxNG, not Linkup, not Baidu, not Linear, and not Elasticsearch, redirect to old connector edit page
+		if (!isOAuthConnector && !isWebcrawler && !isTavilyApi && !isSearxng && !isLinkup && !isBaidu && !isLinear && !isElasticsearch) {
 			router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`);
 			return;
 		}

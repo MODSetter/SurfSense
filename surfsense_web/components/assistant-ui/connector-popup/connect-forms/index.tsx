@@ -1,6 +1,9 @@
 import type { FC } from "react";
+import { BaiduSearchApiConnectForm } from "./components/baidu-search-api-connect-form";
 import { ElasticsearchConnectForm } from "./components/elasticsearch-connect-form";
 import { LinearConnectForm } from "./components/linear-connect-form";
+import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
+import { SearxngConnectForm } from "./components/searxng-connect-form";
 import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
 
 export interface ConnectFormProps {
@@ -34,6 +37,12 @@ export function getConnectFormComponent(
 	switch (connectorType) {
 		case "TAVILY_API":
 			return TavilyApiConnectForm;
+		case "SEARXNG_API":
+			return SearxngConnectForm;
+		case "LINKUP_API":
+			return LinkupApiConnectForm;
+		case "BAIDU_SEARCH_API":
+			return BaiduSearchApiConnectForm;
 		case "LINEAR_CONNECTOR":
 			return LinearConnectForm;
 		case "ELASTICSEARCH_CONNECTOR":

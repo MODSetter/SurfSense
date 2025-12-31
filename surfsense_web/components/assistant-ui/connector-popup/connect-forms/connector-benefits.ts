@@ -23,6 +23,21 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"Real-time information from the web",
 			"Enhanced search capabilities for your projects",
 		],
+		SEARXNG_API: [
+			"Privacy-focused meta-search across multiple engines",
+			"Self-hosted search instance for full control",
+			"Real-time web search results from multiple sources",
+		],
+		LINKUP_API: [
+			"AI-powered search results tailored to your queries",
+			"Real-time information from the web",
+			"Enhanced search capabilities for your projects",
+		],
+		BAIDU_SEARCH_API: [
+			"Intelligent search tailored for Chinese web content",
+			"Real-time information from Baidu's search index",
+			"AI-powered summarization with source references",
+		],
 		// Add other connectors as needed
 		// GITHUB_CONNECTOR: [...],
 	};

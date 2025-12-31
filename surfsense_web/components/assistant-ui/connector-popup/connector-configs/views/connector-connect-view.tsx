@@ -44,6 +44,9 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 		// Map connector types to their form IDs
 		const formIdMap: Record<string, string> = {
 			TAVILY_API: "tavily-connect-form",
+			SEARXNG_API: "searxng-connect-form",
+			LINKUP_API: "linkup-api-connect-form",
+			BAIDU_SEARCH_API: "baidu-search-api-connect-form",
 			LINEAR_CONNECTOR: "linear-connect-form",
 			ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
 		};
