@@ -164,7 +164,7 @@ class ConnectorsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const { connector_id, queryParams } = parsedRequest.data;
+		const { connector_id, queryParams, body } = parsedRequest.data;
 
 		// Transform query params to be string values
 		const transformedQueryParams = Object.fromEntries(
@@ -177,7 +177,10 @@ class ConnectorsApiService {
 
 		return baseApiService.post(
 			`/api/v1/search-source-connectors/${connector_id}/index?${queryString}`,
-			indexConnectorResponse
+			indexConnectorResponse,
+			{
+				body: body || {},
+			}
 		);
 	};
 

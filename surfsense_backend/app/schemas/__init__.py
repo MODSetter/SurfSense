@@ -10,6 +10,7 @@ from .documents import (
     ExtensionDocumentMetadata,
     PaginatedResponse,
 )
+from .google_drive import DriveItem, GoogleDriveIndexRequest
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
 from .new_chat import (
     ChatMessage,
@@ -79,6 +80,8 @@ __all__ = [
     "DefaultSystemInstructionsResponse",
     # Document schemas
     "DocumentBase",
+    # Google Drive schemas
+    "DriveItem",
     "DocumentRead",
     "DocumentUpdate",
     "DocumentWithChunksRead",
@@ -86,6 +89,7 @@ __all__ = [
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
     "GlobalNewLLMConfigRead",
+    "GoogleDriveIndexRequest",
     # Base schemas
     "IDModel",
     # RBAC schemas
