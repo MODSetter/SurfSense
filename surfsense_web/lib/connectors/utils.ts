@@ -19,6 +19,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		LUMA_CONNECTOR: "Luma",
 		ELASTICSEARCH_CONNECTOR: "Elasticsearch",
 		WEBCRAWLER_CONNECTOR: "Web Pages",
+		CIRCLEBACK_CONNECTOR: "Circleback",
 	};
 	return typeMap[type] || type;
 };

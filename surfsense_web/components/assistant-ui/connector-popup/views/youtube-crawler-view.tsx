@@ -1,6 +1,5 @@
 "use client";
 
-import { IconBrandYoutube } from "@tabler/icons-react";
 import { ArrowLeft } from "lucide-react";
 import { TagInput, type Tag as TagType } from "emblor";
 import { useAtom } from "jotai";
@@ -12,6 +11,8 @@ import { toast } from "sonner";
 import { createDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { EnumConnectorName } from "@/contracts/enums/connector";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 
 const youtubeRegex =
 	/^(https:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
@@ -129,7 +130,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({
 
 				<div className="flex items-center gap-4 mb-6">
 					<div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-400/30">
-						<IconBrandYoutube className="h-7 w-7" />
+						{getConnectorIcon(EnumConnectorName.YOUTUBE_CONNECTOR, "h-7 w-7")}
 					</div>
 					<div>
 						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
@@ -236,10 +237,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({
 							{t("processing")}
 						</>
 					) : (
-						<>
-							<IconBrandYoutube className="mr-2 h-4 w-4" />
-							{t("submit")}
-						</>
+						t("submit")
 					)}
 				</Button>
 			</div>

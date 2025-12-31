@@ -101,6 +101,13 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"Keep your search results up-to-date with latest Luma content",
 			"Index your Luma events for enhanced search capabilities",
 		],
+		CIRCLEBACK_CONNECTOR: [
+			"Automatically receive meeting notes, transcripts, and action items",
+			"Access meeting details, attendees, and insights",
+			"Search through all your Circleback meeting records",
+			"Real-time updates via webhook integration",
+			"No manual indexing required - meetings are added automatically",
+		],
 	};
 
 	return benefits[connectorType] || null;

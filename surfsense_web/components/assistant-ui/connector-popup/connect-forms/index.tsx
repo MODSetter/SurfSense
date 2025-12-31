@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import { BaiduSearchApiConnectForm } from "./components/baidu-search-api-connect-form";
 import { BookStackConnectForm } from "./components/bookstack-connect-form";
+import { CirclebackConnectForm } from "./components/circleback-connect-form";
 import { ClickUpConnectForm } from "./components/clickup-connect-form";
 import { ConfluenceConnectForm } from "./components/confluence-connect-form";
 import { DiscordConnectForm } from "./components/discord-connect-form";
@@ -74,6 +75,8 @@ export function getConnectFormComponent(
 			return ClickUpConnectForm;
 		case "LUMA_CONNECTOR":
 			return LumaConnectForm;
+		case "CIRCLEBACK_CONNECTOR":
+			return CirclebackConnectForm;
 		// Add other connector types here as needed
 		default:
 			return null;

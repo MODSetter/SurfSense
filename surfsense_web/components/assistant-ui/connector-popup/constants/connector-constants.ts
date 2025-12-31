@@ -38,7 +38,7 @@ export const CRAWLERS = [
 		id: "youtube-crawler",
 		title: "YouTube",
 		description: "Crawl YouTube channels and playlists",
-		connectorType: null, // Not a connector, handled separately
+		connectorType: EnumConnectorName.YOUTUBE_CONNECTOR,
 	},
 	{
 		id: "webcrawler-connector",
@@ -139,6 +139,12 @@ export const OTHER_CONNECTORS = [
 		title: "Baidu Search",
 		description: "Search with Baidu",
 		connectorType: EnumConnectorName.BAIDU_SEARCH_API,
+	},
+	{
+		id: "circleback-connector",
+		title: "Circleback",
+		description: "Receive meeting notes via webhook",
+		connectorType: EnumConnectorName.CIRCLEBACK_CONNECTOR,
 	},
 ] as const;
 

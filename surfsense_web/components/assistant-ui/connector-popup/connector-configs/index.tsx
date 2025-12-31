@@ -4,6 +4,7 @@ import type { FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { BaiduSearchApiConfig } from "./components/baidu-search-api-config";
 import { BookStackConfig } from "./components/bookstack-config";
+import { CirclebackConfig } from "./components/circleback-config";
 import { ClickUpConfig } from "./components/clickup-config";
 import { ConfluenceConfig } from "./components/confluence-config";
 import { DiscordConfig } from "./components/discord-config";
@@ -69,6 +70,8 @@ export function getConnectorConfigComponent(
 			return ClickUpConfig;
 		case "LUMA_CONNECTOR":
 			return LumaConfig;
+		case "CIRCLEBACK_CONNECTOR":
+			return CirclebackConfig;
 		// OAuth connectors (Gmail, Calendar, Airtable) and others don't need special config UI
 		default:
 			return null;

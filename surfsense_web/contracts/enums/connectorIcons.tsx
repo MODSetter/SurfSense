@@ -2,7 +2,6 @@ import {
 	IconLinkPlus,
 	IconSparkles,
 	IconUsersGroup,
-	IconWorldWww,
 } from "@tabler/icons-react";
 import {
 	File,
@@ -20,16 +19,30 @@ import { EnumConnectorName } from "./connector";
 export const getConnectorIcon = (connectorType: EnumConnectorName | string, className?: string) => {
 	const iconProps = { className: className || "h-4 w-4" };
 	const imgProps = { className: className || "h-5 w-5", width: 20, height: 20 };
+	// Larger props for specific services (Google services, GitHub, Linear) - scale up from size-6 to size-8
+	const getLargeClassName = () => {
+		if (!className) return "h-8 w-8";
+		// Replace size-6 with size-8, or h-6/w-6 with h-8/w-8
+		return className
+			.replace(/size-6/g, "size-8")
+			.replace(/\bh-6\b/g, "h-8")
+			.replace(/\bw-6\b/g, "w-8");
+	};
+	const largeImgProps = { 
+		className: getLargeClassName(), 
+		width: 32, 
+		height: 32 
+	};
 
 	switch (connectorType) {
 		case EnumConnectorName.LINKUP_API:
 			return <IconLinkPlus {...iconProps} />;
 		case EnumConnectorName.LINEAR_CONNECTOR:
-			return <Image src="/connectors/linear.svg" alt="Linear" {...imgProps} />;
+			return <Image src="/connectors/linear.svg" alt="Linear" {...largeImgProps} />;
 		case EnumConnectorName.GITHUB_CONNECTOR:
-			return <Image src="/connectors/github.svg" alt="GitHub" {...imgProps} />;
+			return <Image src="/connectors/github.svg" alt="GitHub" {...largeImgProps} />;
 		case EnumConnectorName.TAVILY_API:
-			return <IconWorldWww {...iconProps} />;
+			return <Image src="/connectors/tavily.svg" alt="Tavily" {...imgProps} />;
 		case EnumConnectorName.SEARXNG_API:
 			return <Globe {...iconProps} />;
 		case EnumConnectorName.BAIDU_SEARCH_API:
@@ -43,11 +56,11 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 		case EnumConnectorName.JIRA_CONNECTOR:
 			return <Image src="/connectors/jira.svg" alt="Jira" {...imgProps} />;
 		case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
-			return <Image src="/connectors/google-calendar.svg" alt="Google Calendar" {...imgProps} />;
+			return <Image src="/connectors/google-calendar.svg" alt="Google Calendar" {...largeImgProps} />;
 		case EnumConnectorName.GOOGLE_GMAIL_CONNECTOR:
-			return <Image src="/connectors/google-gmail.svg" alt="Gmail" {...imgProps} />;
+			return <Image src="/connectors/google-gmail.svg" alt="Gmail" {...largeImgProps} />;
 		case EnumConnectorName.GOOGLE_DRIVE_CONNECTOR:
-			return <Image src="/connectors/google-drive.svg" alt="Google Drive" {...imgProps} />;
+			return <Image src="/connectors/google-drive.svg" alt="Google Drive" {...largeImgProps} />;
 		case EnumConnectorName.AIRTABLE_CONNECTOR:
 			return <Image src="/connectors/airtable.svg" alt="Airtable" {...imgProps} />;
 		case EnumConnectorName.CONFLUENCE_CONNECTOR:
@@ -62,9 +75,13 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Image src="/connectors/elasticsearch.svg" alt="Elasticsearch" {...imgProps} />;
 		case EnumConnectorName.WEBCRAWLER_CONNECTOR:
 			return <Globe {...iconProps} />;
+		case EnumConnectorName.YOUTUBE_CONNECTOR:
+			return <Image src="/connectors/youtube.svg" alt="YouTube" {...imgProps} />;
 		case EnumConnectorName.CIRCLEBACK_CONNECTOR:
 			return <IconUsersGroup {...iconProps} />;
 		// Additional cases for non-enum connector types
+		case "YOUTUBE_CONNECTOR":
+			return <Image src="/connectors/youtube.svg" alt="YouTube" {...imgProps} />;
 		case "CIRCLEBACK":
 			return <IconUsersGroup {...iconProps} />;
 		case "CRAWLED_URL":

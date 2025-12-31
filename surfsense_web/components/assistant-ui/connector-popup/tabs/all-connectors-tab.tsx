@@ -183,23 +183,24 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{filteredOther.map((connector) => {
-							// Special handling for connectors that can be created in popup
-							const isWebcrawler = connector.id === "webcrawler-connector";
-							const isTavily = connector.id === "tavily-api";
-							const isSearxng = connector.id === "searxng";
-							const isLinkup = connector.id === "linkup-api";
-							const isBaidu = connector.id === "baidu-search-api";
-							const isLinear = connector.id === "linear-connector";
-							const isElasticsearch = connector.id === "elasticsearch-connector";
-							const isSlack = connector.id === "slack-connector";
-							const isDiscord = connector.id === "discord-connector";
-							const isNotion = connector.id === "notion-connector";
-							const isConfluence = connector.id === "confluence-connector";
-							const isBookStack = connector.id === "bookstack-connector";
-							const isGithub = connector.id === "github-connector";
-							const isJira = connector.id === "jira-connector";
-							const isClickUp = connector.id === "clickup-connector";
-							const isLuma = connector.id === "luma-connector";
+						// Special handling for connectors that can be created in popup
+						const isWebcrawler = connector.id === "webcrawler-connector";
+						const isTavily = connector.id === "tavily-api";
+						const isSearxng = connector.id === "searxng";
+						const isLinkup = connector.id === "linkup-api";
+						const isBaidu = connector.id === "baidu-search-api";
+						const isLinear = connector.id === "linear-connector";
+						const isElasticsearch = connector.id === "elasticsearch-connector";
+						const isSlack = connector.id === "slack-connector";
+						const isDiscord = connector.id === "discord-connector";
+						const isNotion = connector.id === "notion-connector";
+						const isConfluence = connector.id === "confluence-connector";
+						const isBookStack = connector.id === "bookstack-connector";
+						const isGithub = connector.id === "github-connector";
+						const isJira = connector.id === "jira-connector";
+						const isClickUp = connector.id === "clickup-connector";
+						const isLuma = connector.id === "luma-connector";
+						const isCircleback = connector.id === "circleback-connector";
 							
 						const isConnected = connectedTypes.has(connector.connectorType);
 						const isConnecting = connectingId === connector.id;
@@ -215,7 +216,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 						const handleConnect = isWebcrawler && onCreateWebcrawler
 							? onCreateWebcrawler
-							: (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch || isSlack || isDiscord || isNotion || isConfluence || isBookStack || isGithub || isJira || isClickUp || isLuma) && onConnectNonOAuth
+							: (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch || isSlack || isDiscord || isNotion || isConfluence || isBookStack || isGithub || isJira || isClickUp || isLuma || isCircleback) && onConnectNonOAuth
 							? () => onConnectNonOAuth(connector.connectorType)
 							: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
 
