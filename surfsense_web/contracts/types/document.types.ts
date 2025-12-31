@@ -21,6 +21,7 @@ export const documentTypeEnum = z.enum([
 	"ELASTICSEARCH_CONNECTOR",
 	"LINEAR_CONNECTOR",
 	"NOTE",
+	"CIRCLEBACK",
 ]);
 
 export const document = z.object({

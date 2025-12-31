@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.db import SearchSourceConnector, SearchSourceConnectorType
+from app.db import SearchSourceConnector
 
 
 async def get_valid_credentials(
@@ -31,9 +31,7 @@ async def get_valid_credentials(
         Exception: If token refresh fails
     """
     result = await session.execute(
-        select(SearchSourceConnector).filter(
-            SearchSourceConnector.id == connector_id
-        )
+        select(SearchSourceConnector).filter(SearchSourceConnector.id == connector_id)
     )
     connector = result.scalars().first()
 
@@ -95,4 +93,3 @@ def validate_credentials(credentials: Credentials) -> bool:
             credentials.refresh_token,
         ]
     )
-

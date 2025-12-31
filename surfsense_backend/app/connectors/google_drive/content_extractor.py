@@ -78,10 +78,10 @@ async def download_and_process_file(
             tmp_file.write(content_bytes)
             temp_file_path = tmp_file.name
 
+        from app.db import DocumentType
         from app.tasks.document_processors.file_processors import (
             process_file_in_background,
         )
-        from app.db import DocumentType
 
         connector_info = {
             "type": DocumentType.GOOGLE_DRIVE_FILE,
@@ -92,7 +92,7 @@ async def download_and_process_file(
                 "source_connector": "google_drive",
             },
         }
-        
+
         # Add additional Drive metadata if available
         if "modifiedTime" in file:
             connector_info["metadata"]["modified_time"] = file["modifiedTime"]
@@ -102,10 +102,12 @@ async def download_and_process_file(
             connector_info["metadata"]["file_size"] = file["size"]
         if "webViewLink" in file:
             connector_info["metadata"]["web_view_link"] = file["webViewLink"]
-        
+
         if is_google_workspace_file(mime_type):
             connector_info["metadata"]["exported_as"] = "pdf"
-            connector_info["metadata"]["original_workspace_type"] = mime_type.split(".")[-1]
+            connector_info["metadata"]["original_workspace_type"] = mime_type.split(
+                "."
+            )[-1]
 
         logger.info(f"Processing {file_name} with Surfsense's file processor")
         await process_file_in_background(
@@ -132,5 +134,3 @@ async def download_and_process_file(
                 os.unlink(temp_file_path)
             except Exception as e:
                 logger.debug(f"Could not delete temp file {temp_file_path}: {e}")
-
-

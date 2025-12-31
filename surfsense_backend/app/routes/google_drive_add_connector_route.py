@@ -28,10 +28,8 @@ from app.config import config
 from app.connectors.google_drive import (
     GoogleDriveClient,
     get_start_page_token,
-    get_valid_credentials,
     list_folder_contents,
 )
-from app.connectors.google_drive.folder_manager import list_folders
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -111,7 +109,9 @@ async def connect_drive(space_id: int, user: User = Depends(current_active_user)
             state=state_encoded,
         )
 
-        logger.info(f"Initiating Google Drive OAuth for user {user.id}, space {space_id}")
+        logger.info(
+            f"Initiating Google Drive OAuth for user {user.id}, space {space_id}"
+        )
         return {"auth_url": auth_url}
 
     except Exception as e:
@@ -146,7 +146,9 @@ async def drive_callback(
         user_id = UUID(data["user_id"])
         space_id = data["space_id"]
 
-        logger.info(f"Processing Google Drive callback for user {user_id}, space {space_id}")
+        logger.info(
+            f"Processing Google Drive callback for user {user_id}, space {space_id}"
+        )
 
         # Exchange authorization code for tokens
         flow = get_google_flow()
@@ -200,7 +202,9 @@ async def drive_callback(
 
                 flag_modified(db_connector, "config")
                 await session.commit()
-                logger.info(f"Set initial start page token for connector {db_connector.id}")
+                logger.info(
+                    f"Set initial start page token for connector {db_connector.id}"
+                )
         except Exception as e:
             logger.warning(f"Failed to get initial start page token: {e!s}")
 
@@ -245,7 +249,7 @@ async def list_google_drive_folders(
 ):
     """
     List folders AND files in user's Google Drive with hierarchical support.
-    
+
     This is called at index time from the manage connector page to display
     the complete file system (folders and files). Only folders are selectable.
 
@@ -298,7 +302,7 @@ async def list_google_drive_folders(
             f"✅ Listed {len(items)} total items ({folder_count} folders, {file_count} files) for connector {connector_id}"
             + (f" in folder {parent_id}" if parent_id else " in ROOT")
         )
-        
+
         # Log first few items for debugging
         if items:
             logger.info(f"First 3 items: {[item.get('name') for item in items[:3]]}")

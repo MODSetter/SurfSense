@@ -473,7 +473,8 @@ async def process_file_in_background(
     session: AsyncSession,
     task_logger: TaskLoggingService,
     log_entry: Log,
-    connector: dict | None = None,  # Optional: {"type": "GOOGLE_DRIVE_FILE", "metadata": {...}}
+    connector: dict
+    | None = None,  # Optional: {"type": "GOOGLE_DRIVE_FILE", "metadata": {...}}
 ):
     try:
         # Check if the file is a markdown or text file
@@ -926,7 +927,9 @@ async def process_file_in_background(
                     )
 
                     if connector:
-                        await _update_document_from_connector(last_created_doc, connector, session)
+                        await _update_document_from_connector(
+                            last_created_doc, connector, session
+                        )
 
                     await task_logger.log_task_success(
                         log_entry,
@@ -1053,7 +1056,9 @@ async def process_file_in_background(
                     )
 
                     if connector:
-                        await _update_document_from_connector(doc_result, connector, session)
+                        await _update_document_from_connector(
+                            doc_result, connector, session
+                        )
 
                     await task_logger.log_task_success(
                         log_entry,

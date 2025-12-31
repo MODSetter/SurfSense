@@ -1,7 +1,6 @@
 """Google Drive indexer using Surfsense file processors."""
 
 import logging
-from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -99,11 +98,15 @@ async def index_google_drive_files(
         target_folder_id = folder_id
         target_folder_name = folder_name or "Selected Folder"
 
-        logger.info(f"Indexing Google Drive folder: {target_folder_name} ({target_folder_id})")
+        logger.info(
+            f"Indexing Google Drive folder: {target_folder_name} ({target_folder_id})"
+        )
 
         folder_tokens = connector.config.get("folder_tokens", {})
         start_page_token = folder_tokens.get(target_folder_id)
-        can_use_delta_sync = use_delta_sync and start_page_token and connector.last_indexed_at
+        can_use_delta_sync = (
+            use_delta_sync and start_page_token and connector.last_indexed_at
+        )
 
         if can_use_delta_sync:
             logger.info(f"Using delta sync for connector {connector_id}")
@@ -151,9 +154,7 @@ async def index_google_drive_files(
             await update_connector_last_indexed(session, connector, update_last_indexed)
 
         await session.commit()
-        logger.info(
-            f"Successfully committed Google Drive indexing changes to database"
-        )
+        logger.info("Successfully committed Google Drive indexing changes to database")
 
         await task_logger.log_task_success(
             log_entry,
@@ -252,7 +253,9 @@ async def _index_full_scan(
 
             if documents_indexed % 10 == 0 and documents_indexed > 0:
                 await session.commit()
-                logger.info(f"Committed batch: {documents_indexed} files indexed so far")
+                logger.info(
+                    f"Committed batch: {documents_indexed} files indexed so far"
+                )
 
         page_token = next_token
         if not page_token:
@@ -391,9 +394,7 @@ async def _process_single_file(
         return 0, 1
 
 
-async def _remove_document(
-    session: AsyncSession, file_id: str, search_space_id: int
-):
+async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
     """Remove a document that was deleted in Drive."""
     unique_identifier_hash = generate_unique_identifier_hash(
         DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
@@ -406,5 +407,3 @@ async def _remove_document(
     if existing_document:
         await session.delete(existing_document)
         logger.info(f"Removed deleted file document: {file_id}")
-
-

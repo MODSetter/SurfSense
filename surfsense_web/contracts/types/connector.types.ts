@@ -24,6 +24,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"WEBCRAWLER_CONNECTOR",
 	"YOUTUBE_CONNECTOR",
 	"BOOKSTACK_CONNECTOR",
+	"CIRCLEBACK_CONNECTOR",
 ]);
 
 export const searchSourceConnector = z.object({

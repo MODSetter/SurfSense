@@ -3,16 +3,17 @@ from fastapi import APIRouter
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .circleback_webhook_route import router as circleback_webhook_router
 from .documents_routes import router as documents_router
 from .editor_routes import router as editor_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
 )
-from .google_gmail_add_connector_route import (
-    router as google_gmail_add_connector_router,
-)
 from .google_drive_add_connector_route import (
     router as google_drive_add_connector_router,
+)
+from .google_gmail_add_connector_route import (
+    router as google_gmail_add_connector_router,
 )
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
@@ -41,3 +42,4 @@ router.include_router(airtable_add_connector_router)
 router.include_router(luma_add_connector_router)
 router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
 router.include_router(logs_router)
+router.include_router(circleback_webhook_router)  # Circleback meeting webhooks

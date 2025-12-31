@@ -19,9 +19,9 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     from sqlalchemy import text
-    
+
     connection = op.get_bind()
-    
+
     connection.execute(
         text(
             """
@@ -39,9 +39,9 @@ def upgrade() -> None:
             """
         )
     )
-    
+
     connection.commit()
-    
+
     connection.execute(
         text(
             """
@@ -51,15 +51,15 @@ def upgrade() -> None:
             """
         )
     )
-    
+
     connection.commit()
 
 
 def downgrade() -> None:
     from sqlalchemy import text
-    
+
     connection = op.get_bind()
-    
+
     connection.execute(
         text(
             """
@@ -69,6 +69,5 @@ def downgrade() -> None:
             """
         )
     )
-    
-    connection.commit()
 
+    connection.commit()

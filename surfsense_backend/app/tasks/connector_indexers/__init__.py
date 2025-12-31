@@ -34,8 +34,8 @@ from .discord_indexer import index_discord_messages
 from .elasticsearch_indexer import index_elasticsearch_documents
 from .github_indexer import index_github_repos
 from .google_calendar_indexer import index_google_calendar_events
-from .google_gmail_indexer import index_google_gmail_messages
 from .google_drive_indexer import index_google_drive_files
+from .google_gmail_indexer import index_google_gmail_messages
 from .jira_indexer import index_jira_issues
 
 # Issue tracking and project management

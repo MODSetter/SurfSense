@@ -57,18 +57,17 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove 'GOOGLE_DRIVE_CONNECTOR' from enum types.
-    
+
     Note: PostgreSQL doesn't support removing enum values directly.
     This would require recreating the enum type, which is complex and risky.
     For now, we'll leave the enum values in place.
-    
+
     In a production environment with strict downgrade requirements, you would need to:
     1. Create new enum types without the value
     2. Convert all columns to use the new type
     3. Drop the old enum type
     4. Rename the new type to the old name
-    
+
     This is left as pass to avoid accidental data loss.
     """
     pass
-

@@ -8,13 +8,12 @@ from .folder_manager import get_files_in_folder, list_folder_contents
 
 __all__ = [
     "GoogleDriveClient",
-    "get_valid_credentials",
-    "validate_credentials",
-    "download_and_process_file",
-    "get_files_in_folder",
-    "list_folder_contents",
-    "get_start_page_token",
-    "fetch_all_changes",
     "categorize_change",
+    "download_and_process_file",
+    "fetch_all_changes",
+    "get_files_in_folder",
+    "get_start_page_token",
+    "get_valid_credentials",
+    "list_folder_contents",
+    "validate_credentials",
 ]
-
