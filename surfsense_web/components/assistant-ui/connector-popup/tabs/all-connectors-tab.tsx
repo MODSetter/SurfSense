@@ -99,6 +99,9 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 							const isBaidu = connector.id === "baidu-search-api";
 							const isLinear = connector.id === "linear-connector";
 							const isElasticsearch = connector.id === "elasticsearch-connector";
+							const isSlack = connector.id === "slack-connector";
+							const isDiscord = connector.id === "discord-connector";
+							const isNotion = connector.id === "notion-connector";
 							
 							const isConnected = connectedTypes.has(connector.connectorType);
 							const isConnecting = connectingId === connector.id;
@@ -110,7 +113,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 							const handleConnect = isWebcrawler && onCreateWebcrawler
 								? onCreateWebcrawler
-								: (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch) && onConnectNonOAuth
+								: (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch || isSlack || isDiscord || isNotion) && onConnectNonOAuth
 								? () => onConnectNonOAuth(connector.connectorType)
 								: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
 

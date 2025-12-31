@@ -3,11 +3,14 @@
 import type { FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { BaiduSearchApiConfig } from "./components/baidu-search-api-config";
+import { DiscordConfig } from "./components/discord-config";
 import { ElasticsearchConfig } from "./components/elasticsearch-config";
 import { GoogleDriveConfig } from "./components/google-drive-config";
 import { LinearConfig } from "./components/linear-config";
 import { LinkupApiConfig } from "./components/linkup-api-config";
+import { NotionConfig } from "./components/notion-config";
 import { SearxngConfig } from "./components/searxng-config";
+import { SlackConfig } from "./components/slack-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
 import { WebcrawlerConfig } from "./components/webcrawler-config";
 
@@ -42,6 +45,12 @@ export function getConnectorConfigComponent(
 			return WebcrawlerConfig;
 		case "ELASTICSEARCH_CONNECTOR":
 			return ElasticsearchConfig;
+		case "SLACK_CONNECTOR":
+			return SlackConfig;
+		case "DISCORD_CONNECTOR":
+			return DiscordConfig;
+		case "NOTION_CONNECTOR":
+			return NotionConfig;
 		// OAuth connectors (Gmail, Calendar, Airtable) and others don't need special config UI
 		default:
 			return null;

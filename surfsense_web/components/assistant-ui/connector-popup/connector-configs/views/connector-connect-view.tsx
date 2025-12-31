@@ -49,6 +49,9 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			BAIDU_SEARCH_API: "baidu-search-api-connect-form",
 			LINEAR_CONNECTOR: "linear-connect-form",
 			ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
+			SLACK_CONNECTOR: "slack-connect-form",
+			DISCORD_CONNECTOR: "discord-connect-form",
+			NOTION_CONNECTOR: "notion-connect-form",
 		};
 		const formId = formIdMap[connectorType];
 		if (formId) {

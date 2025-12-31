@@ -1,9 +1,12 @@
 import type { FC } from "react";
 import { BaiduSearchApiConnectForm } from "./components/baidu-search-api-connect-form";
+import { DiscordConnectForm } from "./components/discord-connect-form";
 import { ElasticsearchConnectForm } from "./components/elasticsearch-connect-form";
 import { LinearConnectForm } from "./components/linear-connect-form";
 import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
+import { NotionConnectForm } from "./components/notion-connect-form";
 import { SearxngConnectForm } from "./components/searxng-connect-form";
+import { SlackConnectForm } from "./components/slack-connect-form";
 import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
 
 export interface ConnectFormProps {
@@ -47,6 +50,12 @@ export function getConnectFormComponent(
 			return LinearConnectForm;
 		case "ELASTICSEARCH_CONNECTOR":
 			return ElasticsearchConnectForm;
+		case "SLACK_CONNECTOR":
+			return SlackConnectForm;
+		case "DISCORD_CONNECTOR":
+			return DiscordConnectForm;
+		case "NOTION_CONNECTOR":
+			return NotionConnectForm;
 		// Add other connector types here as needed
 		default:
 			return null;

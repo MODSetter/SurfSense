@@ -38,6 +38,27 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"Real-time information from Baidu's search index",
 			"AI-powered summarization with source references",
 		],
+		SLACK_CONNECTOR: [
+			"Search through all your Slack messages and conversations",
+			"Access messages from public and private channels",
+			"Connect your team's communications directly to your search space",
+			"Keep your search results up-to-date with latest Slack content",
+			"Index your Slack conversations for enhanced search capabilities",
+		],
+		DISCORD_CONNECTOR: [
+			"Search through all your Discord messages and conversations",
+			"Access messages from all accessible channels",
+			"Connect your community's communications directly to your search space",
+			"Keep your search results up-to-date with latest Discord content",
+			"Index your Discord conversations for enhanced search capabilities",
+		],
+		NOTION_CONNECTOR: [
+			"Search through all your Notion pages and databases",
+			"Access page content, properties, and metadata",
+			"Connect your knowledge base directly to your search space",
+			"Keep your search results up-to-date with latest Notion content",
+			"Index your Notion workspace for enhanced search capabilities",
+		],
 		// Add other connectors as needed
 		// GITHUB_CONNECTOR: [...],
 	};
