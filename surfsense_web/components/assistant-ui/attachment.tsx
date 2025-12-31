@@ -325,7 +325,7 @@ export const ComposerAddAttachment: FC = () => {
 	const chatAttachmentInputRef = useRef<HTMLInputElement>(null);
 
 	const handleFileUpload = () => {
-		router.push(`/dashboard/${searchSpaceId}/sources/add?tab=documents`);
+		router.push(`/dashboard/${searchSpaceId}/documents/upload`);
 	};
 
 	const handleChatAttachment = () => {

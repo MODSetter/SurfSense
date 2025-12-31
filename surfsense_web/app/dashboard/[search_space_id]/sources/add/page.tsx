@@ -1,12 +1,11 @@
 "use client";
 
 import { IconBrandYoutube } from "@tabler/icons-react";
-import { Cable, Database, Globe, Upload } from "lucide-react";
+import { Cable, Database, Globe } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ConnectorsTab } from "@/components/sources/ConnectorsTab";
-import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
 import { YouTubeTab } from "@/components/sources/YouTubeTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trackSourcesTabViewed } from "@/lib/posthog/events";
@@ -16,12 +15,12 @@ export default function AddSourcesPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const search_space_id = params.search_space_id as string;
-	const [activeTab, setActiveTab] = useState("documents");
+	const [activeTab, setActiveTab] = useState("youtube");
 
 	// Handle tab from query parameter
 	useEffect(() => {
 		const tabParam = searchParams.get("tab");
-		if (tabParam && ["documents", "youtube", "connectors"].includes(tabParam)) {
+		if (tabParam && ["youtube", "connectors"].includes(tabParam)) {
 			setActiveTab(tabParam);
 		}
 	}, [searchParams]);
@@ -62,12 +61,7 @@ export default function AddSourcesPage() {
 
 				{/* Tabs */}
 				<Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-					<TabsList className="grid w-full max-w-3xl mx-auto grid-cols-4 h-12">
-						<TabsTrigger value="documents" className="flex items-center gap-2">
-							<Upload className="h-4 w-4" />
-							<span className="hidden sm:inline">Documents</span>
-							<span className="sm:hidden">Docs</span>
-						</TabsTrigger>
+					<TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 h-12">
 						<TabsTrigger value="youtube" className="flex items-center gap-2">
 							<IconBrandYoutube className="h-4 w-4" />
 							YouTube
@@ -85,10 +79,6 @@ export default function AddSourcesPage() {
 					</TabsList>
 
 					<div className="mt-8">
-						<TabsContent value="documents" className="space-y-6">
-							<DocumentUploadTab searchSpaceId={search_space_id} />
-						</TabsContent>
-
 						<TabsContent value="youtube" className="space-y-6">
 							<YouTubeTab searchSpaceId={search_space_id} />
 						</TabsContent>

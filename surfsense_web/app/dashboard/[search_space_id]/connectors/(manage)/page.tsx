@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -348,221 +347,213 @@ export default function ConnectorsPage() {
 				</Button>
 			</motion.div>
 
-			<Card>
-				<CardHeader className="pb-3">
-					<CardTitle>{t("your_connectors")}</CardTitle>
-					<CardDescription>{t("view_manage")}</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{isLoading ? (
-						<div className="flex justify-center py-8">
-							<div className="animate-pulse text-center">
-								<div className="h-6 w-32 bg-muted rounded mx-auto mb-2"></div>
-								<div className="h-4 w-48 bg-muted rounded mx-auto"></div>
-							</div>
-						</div>
-					) : connectors.length === 0 ? (
-						<div className="text-center py-12">
-							<h3 className="text-lg font-medium mb-2">{t("no_connectors")}</h3>
-							<p className="text-muted-foreground mb-6">{t("no_connectors_desc")}</p>
-							<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}>
-								<Plus className="mr-2 h-4 w-4" />
-								{t("add_first")}
-							</Button>
-						</div>
-					) : (
-						<div className="rounded-md border">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>{t("name")}</TableHead>
-										<TableHead>{t("type")}</TableHead>
-										<TableHead>{t("last_indexed")}</TableHead>
-										<TableHead>{t("periodic")}</TableHead>
-										<TableHead className="text-right">{t("actions")}</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{connectors.map((connector) => (
-										<TableRow key={connector.id}>
-											<TableCell className="font-medium">{connector.name}</TableCell>
-											<TableCell>{getConnectorIcon(connector.connector_type)}</TableCell>
-											<TableCell>
-												{connector.is_indexable
-													? formatDateTime(connector.last_indexed_at)
-													: t("not_indexable")}
-											</TableCell>
-											<TableCell>
-												{connector.is_indexable ? (
-													connector.periodic_indexing_enabled ? (
-														<TooltipProvider>
-															<Tooltip>
-																<TooltipTrigger asChild>
-																	<div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-																		<Clock className="h-4 w-4" />
-																		<span className="text-sm font-medium">
-																			{connector.indexing_frequency_minutes
-																				? formatFrequency(connector.indexing_frequency_minutes)
-																				: "Enabled"}
-																		</span>
-																	</div>
-																</TooltipTrigger>
-																<TooltipContent>
-																	<p>
-																		Runs every {connector.indexing_frequency_minutes} minutes
-																		{connector.next_scheduled_at && (
-																			<>
-																				<br />
-																				Next: {formatDateTime(connector.next_scheduled_at)}
-																			</>
-																		)}
-																	</p>
-																</TooltipContent>
-															</Tooltip>
-														</TooltipProvider>
-													) : (
-														<span className="text-sm text-muted-foreground">Disabled</span>
-													)
-												) : (
-													<span className="text-sm text-muted-foreground">-</span>
-												)}
-											</TableCell>
-											<TableCell className="text-right">
-												<div className="flex justify-end gap-2">
-													{connector.is_indexable && (
-														<div className="flex gap-1">
-															<TooltipProvider>
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<Button
-																			variant="outline"
-																			size="sm"
-																			onClick={() => handleOpenDatePicker(connector.id)}
-																			disabled={indexingConnectorId === connector.id}
-																		>
-																			{indexingConnectorId === connector.id ? (
-																				<RefreshCw className="h-4 w-4 animate-spin" />
-																			) : connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR ? (
-																				<Folder className="h-4 w-4" />
-																			) : (
-																				<CalendarIcon className="h-4 w-4" />
-																			)}
-																			<span className="sr-only">
-																				{connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR 
-																					? "Select folder to index" 
-																					: t("index_date_range")}
-																			</span>
-																		</Button>
-																	</TooltipTrigger>
-																	<TooltipContent>
-																		<p>
-																			{connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR 
-																				? "Select folder to index" 
-																				: t("index_date_range")}
-																		</p>
-																	</TooltipContent>
-																</Tooltip>
-															</TooltipProvider>
-															{/* Hide quick index button for Google Drive (requires folder selection) */}
-															{connector.connector_type !== EnumConnectorName.GOOGLE_DRIVE_CONNECTOR && (
-																<TooltipProvider>
-																	<Tooltip>
-																		<TooltipTrigger asChild>
-																			<Button
-																				variant="outline"
-																				size="sm"
-																				onClick={() => handleQuickIndexConnector(connector.id)}
-																				disabled={indexingConnectorId === connector.id}
-																			>
-																				{indexingConnectorId === connector.id ? (
-																					<RefreshCw className="h-4 w-4 animate-spin" />
-																				) : (
-																					<RefreshCw className="h-4 w-4" />
-																				)}
-																				<span className="sr-only">{t("quick_index")}</span>
-																			</Button>
-																		</TooltipTrigger>
-																		<TooltipContent>
-																			<p>{t("quick_index_auto")}</p>
-																		</TooltipContent>
-																	</Tooltip>
-																</TooltipProvider>
-															)}
-														</div>
-													)}
-													{connector.is_indexable && (
+			{isLoading ? (
+				<div className="flex justify-center py-8">
+					<div className="animate-pulse text-center">
+						<div className="h-6 w-32 bg-muted rounded mx-auto mb-2"></div>
+						<div className="h-4 w-48 bg-muted rounded mx-auto"></div>
+					</div>
+				</div>
+			) : connectors.length === 0 ? (
+				<div className="text-center py-12">
+					<h3 className="text-lg font-medium mb-2">{t("no_connectors")}</h3>
+					<p className="text-muted-foreground mb-6">{t("no_connectors_desc")}</p>
+					<Button onClick={() => router.push(`/dashboard/${searchSpaceId}/connectors/add`)}>
+						<Plus className="mr-2 h-4 w-4" />
+						{t("add_first")}
+					</Button>
+				</div>
+			) : (
+				<div className="rounded-md border">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>{t("name")}</TableHead>
+								<TableHead>{t("type")}</TableHead>
+								<TableHead>{t("last_indexed")}</TableHead>
+								<TableHead>{t("periodic")}</TableHead>
+								<TableHead className="text-right">{t("actions")}</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{connectors.map((connector) => (
+								<TableRow key={connector.id}>
+									<TableCell className="font-medium">{connector.name}</TableCell>
+									<TableCell>{getConnectorIcon(connector.connector_type)}</TableCell>
+									<TableCell>
+										{connector.is_indexable
+											? formatDateTime(connector.last_indexed_at)
+											: t("not_indexable")}
+									</TableCell>
+									<TableCell>
+										{connector.is_indexable ? (
+											connector.periodic_indexing_enabled ? (
+												<TooltipProvider>
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+																<Clock className="h-4 w-4" />
+																<span className="text-sm font-medium">
+																	{connector.indexing_frequency_minutes
+																		? formatFrequency(connector.indexing_frequency_minutes)
+																		: "Enabled"}
+																</span>
+															</div>
+														</TooltipTrigger>
+														<TooltipContent>
+															<p>
+																Runs every {connector.indexing_frequency_minutes} minutes
+																{connector.next_scheduled_at && (
+																	<>
+																		<br />
+																		Next: {formatDateTime(connector.next_scheduled_at)}
+																	</>
+																)}
+															</p>
+														</TooltipContent>
+													</Tooltip>
+												</TooltipProvider>
+											) : (
+												<span className="text-sm text-muted-foreground">Disabled</span>
+											)
+										) : (
+											<span className="text-sm text-muted-foreground">-</span>
+										)}
+									</TableCell>
+									<TableCell className="text-right">
+										<div className="flex justify-end gap-2">
+											{connector.is_indexable && (
+												<div className="flex gap-1">
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() => handleOpenDatePicker(connector.id)}
+																	disabled={indexingConnectorId === connector.id}
+																>
+																	{indexingConnectorId === connector.id ? (
+																		<RefreshCw className="h-4 w-4 animate-spin" />
+																	) : connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR ? (
+																		<Folder className="h-4 w-4" />
+																	) : (
+																		<CalendarIcon className="h-4 w-4" />
+																	)}
+																	<span className="sr-only">
+																		{connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR 
+																			? "Select folder to index" 
+																			: t("index_date_range")}
+																	</span>
+																</Button>
+															</TooltipTrigger>
+															<TooltipContent>
+																<p>
+																	{connector.connector_type === EnumConnectorName.GOOGLE_DRIVE_CONNECTOR 
+																		? "Select folder to index" 
+																		: t("index_date_range")}
+																</p>
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
+													{/* Hide quick index button for Google Drive (requires folder selection) */}
+													{connector.connector_type !== EnumConnectorName.GOOGLE_DRIVE_CONNECTOR && (
 														<TooltipProvider>
 															<Tooltip>
 																<TooltipTrigger asChild>
 																	<Button
 																		variant="outline"
 																		size="sm"
-																		onClick={() => handleOpenPeriodicDialog(connector.id)}
+																		onClick={() => handleQuickIndexConnector(connector.id)}
+																		disabled={indexingConnectorId === connector.id}
 																	>
-																		<Clock className="h-4 w-4" />
-																		<span className="sr-only">Configure Periodic Indexing</span>
+																		{indexingConnectorId === connector.id ? (
+																			<RefreshCw className="h-4 w-4 animate-spin" />
+																		) : (
+																			<RefreshCw className="h-4 w-4" />
+																		)}
+																		<span className="sr-only">{t("quick_index")}</span>
 																	</Button>
 																</TooltipTrigger>
 																<TooltipContent>
-																	<p>Configure Periodic Indexing</p>
+																	<p>{t("quick_index_auto")}</p>
 																</TooltipContent>
 															</Tooltip>
 														</TooltipProvider>
 													)}
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={() =>
-															router.push(
-																`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`
-															)
-														}
-													>
-														<Edit className="h-4 w-4" />
-														<span className="sr-only">{tCommon("edit")}</span>
-													</Button>
-													<AlertDialog>
-														<AlertDialogTrigger asChild>
+												</div>
+											)}
+											{connector.is_indexable && (
+												<TooltipProvider>
+													<Tooltip>
+														<TooltipTrigger asChild>
 															<Button
 																variant="outline"
 																size="sm"
-																className="text-destructive-foreground hover:bg-destructive/10"
-																onClick={() => setConnectorToDelete(connector.id)}
+																onClick={() => handleOpenPeriodicDialog(connector.id)}
 															>
-																<Trash2 className="h-4 w-4" />
-																<span className="sr-only">{tCommon("delete")}</span>
+																<Clock className="h-4 w-4" />
+																<span className="sr-only">Configure Periodic Indexing</span>
 															</Button>
-														</AlertDialogTrigger>
-														<AlertDialogContent>
-															<AlertDialogHeader>
-																<AlertDialogTitle>{t("delete_connector")}</AlertDialogTitle>
-																<AlertDialogDescription>
-																	{t("delete_confirm")}
-																</AlertDialogDescription>
-															</AlertDialogHeader>
-															<AlertDialogFooter>
-																<AlertDialogCancel onClick={() => setConnectorToDelete(null)}>
-																	{tCommon("cancel")}
-																</AlertDialogCancel>
-																<AlertDialogAction
-																	className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																	onClick={handleDeleteConnector}
-																>
-																	{tCommon("delete")}
-																</AlertDialogAction>
-															</AlertDialogFooter>
-														</AlertDialogContent>
-													</AlertDialog>
-												</div>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-					)}
-				</CardContent>
-			</Card>
+														</TooltipTrigger>
+														<TooltipContent>
+															<p>Configure Periodic Indexing</p>
+														</TooltipContent>
+													</Tooltip>
+												</TooltipProvider>
+											)}
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() =>
+													router.push(
+														`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`
+													)
+												}
+											>
+												<Edit className="h-4 w-4" />
+												<span className="sr-only">{tCommon("edit")}</span>
+											</Button>
+											<AlertDialog>
+												<AlertDialogTrigger asChild>
+													<Button
+														variant="outline"
+														size="sm"
+														className="text-destructive-foreground hover:bg-destructive/10"
+														onClick={() => setConnectorToDelete(connector.id)}
+													>
+														<Trash2 className="h-4 w-4" />
+														<span className="sr-only">{tCommon("delete")}</span>
+													</Button>
+												</AlertDialogTrigger>
+												<AlertDialogContent>
+													<AlertDialogHeader>
+														<AlertDialogTitle>{t("delete_connector")}</AlertDialogTitle>
+														<AlertDialogDescription>
+															{t("delete_confirm")}
+														</AlertDialogDescription>
+													</AlertDialogHeader>
+													<AlertDialogFooter>
+														<AlertDialogCancel onClick={() => setConnectorToDelete(null)}>
+															{tCommon("cancel")}
+														</AlertDialogCancel>
+														<AlertDialogAction
+															className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+															onClick={handleDeleteConnector}
+														>
+															{tCommon("delete")}
+														</AlertDialogAction>
+													</AlertDialogFooter>
+												</AlertDialogContent>
+											</AlertDialog>
+										</div>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
+			)}
 
 			{/* Date Picker Dialog */}
 			<Dialog open={datePickerOpen} onOpenChange={setDatePickerOpen}>
