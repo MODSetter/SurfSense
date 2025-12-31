@@ -39,10 +39,6 @@ export default function DashboardLayout({
 			icon: "Database",
 			items: [
 				{
-					title: "Add Sources",
-					url: `/dashboard/${search_space_id}/sources/add`,
-				},
-				{
 					title: "Manage Documents",
 					url: `/dashboard/${search_space_id}/documents`,
 				},

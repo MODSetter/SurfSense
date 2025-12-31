@@ -98,7 +98,6 @@ export function DashboardBreadcrumb() {
 					"new-chat": t("chat") || "Chat",
 					documents: t("documents"),
 					connectors: t("connectors"),
-					sources: "Sources",
 					logs: t("logs"),
 					settings: t("settings"),
 					editor: t("editor"),
@@ -129,21 +128,6 @@ export function DashboardBreadcrumb() {
 							href: `/dashboard/${segments[1]}/documents`,
 						});
 						breadcrumbs.push({ label: documentLabel });
-						return breadcrumbs;
-					}
-
-					// Handle sources sub-sections
-					if (section === "sources") {
-						const sourceLabels: Record<string, string> = {
-							add: "Add Sources",
-						};
-
-						const sourceLabel = sourceLabels[subSection] || subSection;
-						breadcrumbs.push({
-							label: "Sources",
-							href: `/dashboard/${segments[1]}/sources`,
-						});
-						breadcrumbs.push({ label: sourceLabel });
 						return breadcrumbs;
 					}
 
@@ -257,7 +241,7 @@ export function DashboardBreadcrumb() {
 		<Breadcrumb>
 			<BreadcrumbList>
 				{breadcrumbs.map((item, index) => (
-					<React.Fragment key={index}>
+					<React.Fragment key={item.href || item.label}>
 						<BreadcrumbItem>
 							{index === breadcrumbs.length - 1 ? (
 								<BreadcrumbPage>{item.label}</BreadcrumbPage>

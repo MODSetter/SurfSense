@@ -44,7 +44,6 @@ export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 			Researcher: "researcher",
 			"Manage LLMs": "manage_llms",
 			Sources: "sources",
-			"Add Sources": "add_sources",
 			"Manage Documents": "manage_documents",
 			"Manage Connectors": "manage_connectors",
 			Podcasts: "podcasts",

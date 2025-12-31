@@ -170,10 +170,6 @@ const defaultData = {
 			icon: "Database",
 			items: [
 				{
-					title: "Add Sources",
-					url: "#",
-				},
-				{
 					title: "Manage Documents",
 					url: "#",
 				},
