@@ -5,19 +5,6 @@ import type { ConnectorCategory } from "./types";
 
 export const connectorCategories: ConnectorCategory[] = [
 	{
-		id: "web-crawling",
-		title: "web_crawling",
-		connectors: [
-			{
-				id: "webcrawler-connector",
-				title: "Web Pages",
-				description: "webcrawler_desc",
-				icon: getConnectorIcon(EnumConnectorName.WEBCRAWLER_CONNECTOR, "h-6 w-6"),
-				status: "available",
-			},
-		],
-	},
-	{
 		id: "web-search",
 		title: "web_search",
 		connectors: [

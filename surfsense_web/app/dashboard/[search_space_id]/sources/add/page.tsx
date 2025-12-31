@@ -1,7 +1,7 @@
 "use client";
 
 import { IconBrandYoutube } from "@tabler/icons-react";
-import { Cable, Database, Globe } from "lucide-react";
+import { Cable, Database } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,13 +26,9 @@ export default function AddSourcesPage() {
 	}, [searchParams]);
 
 	const handleTabChange = (value: string) => {
-		if (value === "webpages") {
-			router.push(`/dashboard/${search_space_id}/connectors/add/webcrawler-connector`);
-		} else {
-			setActiveTab(value);
-			// Track tab view
-			trackSourcesTabViewed(Number(search_space_id), value);
-		}
+		setActiveTab(value);
+		// Track tab view
+		trackSourcesTabViewed(Number(search_space_id), value);
 	};
 
 	// Track initial tab view
@@ -61,15 +57,10 @@ export default function AddSourcesPage() {
 
 				{/* Tabs */}
 				<Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-					<TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 h-12">
+					<TabsList className="grid w-full max-w-2xl mx-auto grid-cols-2 h-12">
 						<TabsTrigger value="youtube" className="flex items-center gap-2">
 							<IconBrandYoutube className="h-4 w-4" />
 							YouTube
-						</TabsTrigger>
-						<TabsTrigger value="webpages" className="flex items-center gap-2">
-							<Globe className="h-4 w-4" />
-							<span className="hidden sm:inline">Web Pages</span>
-							<span className="sm:hidden">Web</span>
 						</TabsTrigger>
 						<TabsTrigger value="connectors" className="flex items-center gap-2">
 							<Cable className="h-4 w-4" />

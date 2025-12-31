@@ -192,7 +192,6 @@ export function DashboardBreadcrumb() {
 								"linkup-api": "LinkUp API",
 								"luma-connector": "Luma",
 								"elasticsearch-connector": "Elasticsearch",
-								"webcrawler-connector": "Web Pages",
 							};
 
 							const connectorLabel = connectorLabels[connectorType] || connectorType;
