@@ -17,8 +17,12 @@ interface ConnectorConnectViewProps {
 		is_indexable: boolean;
 		last_indexed_at: null;
 		periodic_indexing_enabled: boolean;
-		indexing_frequency_minutes: null;
+		indexing_frequency_minutes: number | null;
 		next_scheduled_at: null;
+		startDate?: Date;
+		endDate?: Date;
+		periodicEnabled?: boolean;
+		frequencyMinutes?: string;
 	}) => Promise<void>;
 	onBack: () => void;
 	isSubmitting: boolean;

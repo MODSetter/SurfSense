@@ -12,7 +12,7 @@ interface AllConnectorsTabProps {
 	connectedTypes: Set<string>;
 	connectingId: string | null;
 	allConnectors: SearchSourceConnector[] | undefined;
-	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[0]) => void;
+	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[number]) => void;
 	onConnectNonOAuth?: (connectorType: string) => void;
 	onCreateWebcrawler?: () => void;
 	onManage?: (connector: SearchSourceConnector) => void;

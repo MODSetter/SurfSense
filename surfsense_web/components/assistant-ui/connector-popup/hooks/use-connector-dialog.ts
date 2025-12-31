@@ -232,7 +232,7 @@ export const useConnectorDialog = () => {
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(
-		async (connector: (typeof OAUTH_CONNECTORS)[0]) => {
+		async (connector: (typeof OAUTH_CONNECTORS)[number]) => {
 			if (!searchSpaceId || !connector.authEndpoint) return;
 
 			// Set connecting state immediately to disable button and show spinner
@@ -368,9 +368,13 @@ export const useConnectorDialog = () => {
 			// Extract UI-only fields before sending to backend
 			const { startDate, endDate, periodicEnabled, frequencyMinutes, ...connectorData } = formData;
 			
-			// Create connector
+			// Create connector - ensure types match the schema
 			const newConnector = await createConnector({
-				data: connectorData,
+				data: {
+					...connectorData,
+					connector_type: connectorData.connector_type as EnumConnectorName,
+					next_scheduled_at: connectorData.next_scheduled_at as string | null,
+				},
 				queryParams: {
 					search_space_id: searchSpaceId,
 				},

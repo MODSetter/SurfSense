@@ -27,7 +27,8 @@ const searxngFormSchema = z.object({
 		message: "Connector name must be at least 3 characters.",
 	}),
 	host: z
-		.string({ required_error: "Host is required." })
+		.string()
+		.min(1, { message: "Host is required." })
 		.url({ message: "Enter a valid SearxNG host URL (e.g. https://searxng.example.org)." }),
 	api_key: z.string().optional(),
 	engines: z.string().optional(),
@@ -37,7 +38,7 @@ const searxngFormSchema = z.object({
 		.string()
 		.regex(/^[0-2]?$/, { message: "SafeSearch must be 0, 1, or 2." })
 		.optional(),
-	verify_ssl: z.boolean().default(true),
+	verify_ssl: z.boolean(),
 });
 
 type SearxngFormValues = z.infer<typeof searxngFormSchema>;
