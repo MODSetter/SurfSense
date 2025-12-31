@@ -479,10 +479,9 @@ def index_google_drive_files_task(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    folder_ids: str,  # Comma-separated folder IDs
-    folder_names: str,  # Comma-separated folder names
+    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
 ):
-    """Celery task to index Google Drive files from multiple folders."""
+    """Celery task to index Google Drive folders and files."""
     import asyncio
 
     loop = asyncio.new_event_loop()
@@ -494,8 +493,7 @@ def index_google_drive_files_task(
                 connector_id,
                 search_space_id,
                 user_id,
-                folder_ids,
-                folder_names,
+                items_dict,
             )
         )
     finally:
@@ -506,10 +504,9 @@ async def _index_google_drive_files(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    folder_ids: str,  # Comma-separated folder IDs
-    folder_names: str,  # Comma-separated folder names
+    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
 ):
-    """Index Google Drive files from multiple folders with new session."""
+    """Index Google Drive folders and files with new session."""
     from app.routes.search_source_connectors_routes import (
         run_google_drive_indexing,
     )
@@ -520,8 +517,7 @@ async def _index_google_drive_files(
             connector_id,
             search_space_id,
             user_id,
-            folder_ids,
-            folder_names,
+            items_dict,
         )
 
 

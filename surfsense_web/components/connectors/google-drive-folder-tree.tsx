@@ -46,6 +46,8 @@ interface GoogleDriveFolderTreeProps {
 	connectorId: number;
 	selectedFolders: SelectedFolder[];
 	onSelectFolders: (folders: SelectedFolder[]) => void;
+	selectedFiles?: SelectedFolder[];
+	onSelectFiles?: (files: SelectedFolder[]) => void;
 }
 
 // Helper to get appropriate icon for file type
@@ -69,6 +71,8 @@ export function GoogleDriveFolderTree({
 	connectorId,
 	selectedFolders,
 	onSelectFolders,
+	selectedFiles = [],
+	onSelectFiles = () => {},
 }: GoogleDriveFolderTreeProps) {
 	const [itemStates, setItemStates] = useState<Map<string, ItemTreeNode>>(new Map());
 
@@ -82,11 +86,23 @@ export function GoogleDriveFolderTree({
 		return selectedFolders.some((f) => f.id === folderId);
 	};
 
+	const isFileSelected = (fileId: string): boolean => {
+		return selectedFiles.some((f) => f.id === fileId);
+	};
+
 	const toggleFolderSelection = (folderId: string, folderName: string) => {
 		if (isFolderSelected(folderId)) {
 			onSelectFolders(selectedFolders.filter((f) => f.id !== folderId));
 		} else {
 			onSelectFolders([...selectedFolders, { id: folderId, name: folderName }]);
+		}
+	};
+
+	const toggleFileSelection = (fileId: string, fileName: string) => {
+		if (isFileSelected(fileId)) {
+			onSelectFiles(selectedFiles.filter((f) => f.id !== fileId));
+		} else {
+			onSelectFiles([...selectedFiles, { id: fileId, name: fileName }]);
 		}
 	};
 
@@ -200,8 +216,8 @@ export function GoogleDriveFolderTree({
 		const isExpanded = state?.isExpanded || false;
 		const isLoading = state?.isLoading || false;
 		const children = state?.children;
-		const isSelected = isFolderSelected(item.id);
 		const isFolder = item.isFolder;
+		const isSelected = isFolder ? isFolderSelected(item.id) : isFileSelected(item.id);
 
 		const childFolders = children?.filter((c) => c.isFolder) || [];
 		const childFiles = children?.filter((c) => !c.isFolder) || [];
@@ -212,6 +228,8 @@ export function GoogleDriveFolderTree({
 			<div key={item.id} className="w-full sm:ml-[calc(var(--level)*1.25rem)]" style={{ marginLeft: `${level * indentSize}rem`, '--level': level } as React.CSSProperties & { '--level'?: number }}>
 				<div
 					className={cn(
+						"flex items-center group gap-2 h-auto py-2 px-2 rounded-md hover:bg-accent cursor-pointer",
+						isSelected && "bg-accent/50"
 						"flex items-center gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md",
 						isFolder && "hover:bg-accent cursor-pointer",
 						!isFolder && "cursor-default opacity-60",
@@ -240,6 +258,18 @@ export function GoogleDriveFolderTree({
 						<span className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
 					)}
 
+					<Checkbox
+						checked={isSelected}
+						onCheckedChange={() => {
+							if (isFolder) {
+								toggleFolderSelection(item.id, item.name);
+							} else {
+								toggleFileSelection(item.id, item.name);
+							}
+						}}
+						className="shrink-0 z-20 group-hover:border-white group-hover:border"
+						onClick={(e) => e.stopPropagation()}
+					/>
 					{isFolder && (
 						<Checkbox
 							checked={isSelected}
@@ -249,7 +279,7 @@ export function GoogleDriveFolderTree({
 						/>
 					)}
 
-					<div className={cn("shrink-0", !isFolder && "ml-3 sm:ml-5")}>
+					<div className="shrink-0">
 						{isFolder ? (
 							isExpanded ? (
 								<FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />

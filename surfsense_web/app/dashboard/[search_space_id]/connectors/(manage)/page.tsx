@@ -118,9 +118,10 @@ export default function ConnectorsPage() {
 	const [customFrequency, setCustomFrequency] = useState<string>("");
 	const [isSavingPeriodic, setIsSavingPeriodic] = useState(false);
 
-	// Google Drive folder selection state
+	// Google Drive folder and file selection state
 	const [driveFolderDialogOpen, setDriveFolderDialogOpen] = useState(false);
 	const [selectedFolders, setSelectedFolders] = useState<Array<{ id: string; name: string }>>([]);
+	const [selectedFiles, setSelectedFiles] = useState<Array<{ id: string; name: string }>>([]);
 
 	useEffect(() => {
 		if (error) {
@@ -161,10 +162,10 @@ export default function ConnectorsPage() {
 		setDriveFolderDialogOpen(true);
 	};
 
-	// Handle Google Drive folder indexing
-	const handleIndexDriveFolder = async () => {
-		if (selectedConnectorForIndexing === null || selectedFolders.length === 0) {
-			toast.error("Please select at least one folder");
+	// Handle Google Drive folder and file indexing
+	const handleIndexGoogleDrive = async () => {
+		if (selectedConnectorForIndexing === null || (selectedFolders.length === 0 && selectedFiles.length === 0)) {
+			toast.error("Please select at least one folder or file");
 			return;
 		}
 
@@ -173,15 +174,14 @@ export default function ConnectorsPage() {
 		try {
 			setIndexingConnectorId(selectedConnectorForIndexing);
 
-			const folderIds = selectedFolders.map((f) => f.id).join(",");
-			const folderNames = selectedFolders.map((f) => f.name).join(", ");
-
 			await indexConnector({
 				connector_id: selectedConnectorForIndexing,
+				body: {
+					folders: selectedFolders,
+					files: selectedFiles,
+				},
 				queryParams: {
 					search_space_id: searchSpaceId,
-					folder_ids: folderIds,
-					folder_names: folderNames,
 				},
 			});
 			toast.success(t("indexing_started"));
@@ -189,10 +189,11 @@ export default function ConnectorsPage() {
 			console.error("Error indexing connector content:", error);
 			toast.error(error instanceof Error ? error.message : t("indexing_failed"));
 		} finally {
-		setIndexingConnectorId(null);
-		setSelectedConnectorForIndexing(null);
-		setSelectedFolders([]);
-	}
+			setIndexingConnectorId(null);
+			setSelectedConnectorForIndexing(null);
+			setSelectedFolders([]);
+			setSelectedFiles([]);
+		}
 	};
 
 	// Handle connector indexing with dates
@@ -670,11 +671,11 @@ export default function ConnectorsPage() {
 			<Dialog open={driveFolderDialogOpen} onOpenChange={setDriveFolderDialogOpen}>
 				<DialogContent className="w-auto max-w-full">
 				<DialogHeader>
-					<DialogTitle>Select Google Drive Folders</DialogTitle>
+					<DialogTitle>Select Google Drive Folders & Files</DialogTitle>
 					<DialogDescription className="flex items-start gap-2 text-sm p-2 border mt-1 rounded ">
 						<Info className="h-4 w-4 shrink-0 text-blue-500" />
 						<span>
-							Select folders to index. Only files <strong>directly in each folder</strong> will be
+							Select folders and/or individual files to index. For folders, only files <strong>directly in each folder</strong> will be
 							processed—subfolders must be selected separately.
 						</span>
 					</DialogDescription>
@@ -689,23 +690,43 @@ export default function ConnectorsPage() {
 								onSelectFolders={(folders) => {
 									setSelectedFolders(folders);
 								}}
+								selectedFiles={selectedFiles}
+								onSelectFiles={(files) => {
+									setSelectedFiles(files);
+								}}
 							/>
 						)}
 					</div>
-					{selectedFolders.length > 0 && (
+					{(selectedFolders.length > 0 || selectedFiles.length > 0) && (
 						<div className="p-3 bg-muted rounded-lg text-sm space-y-2">
-							<div>
-								<p className="font-medium mb-1">
-									Selected {selectedFolders.length} folder{selectedFolders.length > 1 ? "s" : ""}:
-								</p>
-								<div className="max-h-24 overflow-y-auto">
-									{selectedFolders.map((folder) => (
-										<p key={folder.id} className="text-sm text-muted-foreground truncate" title={folder.name}>
-											• {folder.name}
-										</p>
-									))}
+							{selectedFolders.length > 0 && (
+								<div>
+									<p className="font-medium mb-1">
+										Selected {selectedFolders.length} folder{selectedFolders.length > 1 ? "s" : ""}:
+									</p>
+									<div className="max-h-24 overflow-y-auto">
+										{selectedFolders.map((folder) => (
+											<p key={folder.id} className="text-sm text-muted-foreground truncate" title={folder.name}>
+												📁 {folder.name}
+											</p>
+										))}
+									</div>
 								</div>
-							</div>
+							)}
+							{selectedFiles.length > 0 && (
+								<div>
+									<p className="font-medium mb-1">
+										Selected {selectedFiles.length} file{selectedFiles.length > 1 ? "s" : ""}:
+									</p>
+									<div className="max-h-24 overflow-y-auto">
+										{selectedFiles.map((file) => (
+											<p key={file.id} className="text-sm text-muted-foreground truncate" title={file.name}>
+												📄 {file.name}
+											</p>
+										))}
+									</div>
+								</div>
+							)}
 						</div>
 					)}
 				</div>
@@ -716,11 +737,12 @@ export default function ConnectorsPage() {
 								setDriveFolderDialogOpen(false);
 								setSelectedConnectorForIndexing(null);
 								setSelectedFolders([]);
+								setSelectedFiles([]);
 							}}
 						>
 							{tCommon("cancel")}
 					</Button>
-					<Button onClick={handleIndexDriveFolder} disabled={selectedFolders.length === 0}>
+					<Button onClick={handleIndexGoogleDrive} disabled={selectedFolders.length === 0 && selectedFiles.length === 0}>
 						{t("start_indexing")}
 					</Button>
 				</DialogFooter>
