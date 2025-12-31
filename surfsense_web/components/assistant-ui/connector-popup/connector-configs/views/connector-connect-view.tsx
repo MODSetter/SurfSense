@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
-import { getConnectFormComponent } from "../connect-forms";
+import { getConnectFormComponent } from "../../connect-forms";
 
 interface ConnectorConnectViewProps {
 	connectorType: string;
@@ -41,9 +41,17 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 		if (isSubmitting) {
 			return;
 		}
-		const form = document.getElementById("tavily-connect-form") as HTMLFormElement;
-		if (form) {
-			form.requestSubmit();
+		// Map connector types to their form IDs
+		const formIdMap: Record<string, string> = {
+			TAVILY_API: "tavily-connect-form",
+			LINEAR_CONNECTOR: "linear-connect-form",
+		};
+		const formId = formIdMap[connectorType];
+		if (formId) {
+			const form = document.getElementById(formId) as HTMLFormElement;
+			if (form) {
+				form.requestSubmit();
+			}
 		}
 	};
 
@@ -79,7 +87,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 					</div>
 					<div>
 						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-							Connect {connectorType === "TAVILY_API" ? "Tavily API" : connectorType}
+							Connect {getConnectorTypeDisplay(connectorType)}
 						</h2>
 						<p className="text-xs sm:text-base text-muted-foreground mt-1">
 							Enter your connection details

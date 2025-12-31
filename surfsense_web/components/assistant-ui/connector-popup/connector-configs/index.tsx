@@ -3,6 +3,7 @@
 import type { FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { GoogleDriveConfig } from "./components/google-drive-config";
+import { LinearConfig } from "./components/linear-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
 import { WebcrawlerConfig } from "./components/webcrawler-config";
 import { YouTubeConfig } from "./components/youtube-config";
@@ -26,6 +27,8 @@ export function getConnectorConfigComponent(
 			return GoogleDriveConfig;
 		case "TAVILY_API":
 			return TavilyApiConfig;
+		case "LINEAR_CONNECTOR":
+			return LinearConfig;
 		case "WEBCRAWLER_CONNECTOR":
 			return WebcrawlerConfig;
 		case "YOUTUBE_CONNECTOR":

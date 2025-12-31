@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { ConnectFormProps } from "./index";
+import type { ConnectFormProps } from "../index";
 
 const tavilyApiFormSchema = z.object({
 	name: z.string().min(3, {

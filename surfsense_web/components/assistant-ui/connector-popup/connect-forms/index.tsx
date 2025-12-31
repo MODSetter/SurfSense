@@ -1,5 +1,6 @@
 import type { FC } from "react";
-import { TavilyApiConnectForm } from "./tavily-api-connect-form";
+import { LinearConnectForm } from "./components/linear-connect-form";
+import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
 
 export interface ConnectFormProps {
 	onSubmit: (data: {
@@ -28,6 +29,8 @@ export function getConnectFormComponent(
 	switch (connectorType) {
 		case "TAVILY_API":
 			return TavilyApiConnectForm;
+		case "LINEAR_CONNECTOR":
+			return LinearConnectForm;
 		// Add other connector types here as needed
 		default:
 			return null;

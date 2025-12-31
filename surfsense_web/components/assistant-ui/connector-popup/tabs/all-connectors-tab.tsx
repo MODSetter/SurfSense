@@ -104,11 +104,12 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 							const isWebcrawler = connector.id === "webcrawler-connector";
 							const isYouTube = connector.id === "youtube-connector";
 							const isTavily = connector.id === "tavily-api";
+							const isLinear = connector.id === "linear-connector";
 							const handleConnect = isWebcrawler && onCreateWebcrawler
 								? onCreateWebcrawler
 								: isYouTube && onCreateYouTube
 								? onCreateYouTube
-								: isTavily && onConnectNonOAuth
+								: (isTavily || isLinear) && onConnectNonOAuth
 								? () => onConnectNonOAuth(connector.connectorType)
 								: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
 
