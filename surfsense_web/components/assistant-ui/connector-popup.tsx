@@ -75,7 +75,6 @@ export const ConnectorIndicator: FC = () => {
 		handleConnectOAuth,
 		handleConnectNonOAuth,
 		handleCreateWebcrawler,
-		handleCreateYouTube,
 		handleSubmitConnectForm,
 		handleStartIndexing,
 		handleSkipIndexing,
@@ -272,7 +271,6 @@ export const ConnectorIndicator: FC = () => {
 										onConnectOAuth={handleConnectOAuth}
 										onConnectNonOAuth={handleConnectNonOAuth}
 										onCreateWebcrawler={handleCreateWebcrawler}
-										onCreateYouTube={handleCreateYouTube}
 										onManage={handleStartEdit}
 									/>
 									</TabsContent>

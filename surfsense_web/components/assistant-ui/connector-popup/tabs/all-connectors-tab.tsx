@@ -15,7 +15,6 @@ interface AllConnectorsTabProps {
 	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[0]) => void;
 	onConnectNonOAuth?: (connectorType: string) => void;
 	onCreateWebcrawler?: () => void;
-	onCreateYouTube?: () => void;
 	onManage?: (connector: SearchSourceConnector) => void;
 }
 
@@ -28,7 +27,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onConnectOAuth,
 	onConnectNonOAuth,
 	onCreateWebcrawler,
-	onCreateYouTube,
 	onManage,
 }) => {
 	const router = useRouter();
@@ -93,22 +91,21 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{filteredOther.map((connector) => {
+							// Special handling for connectors that can be created in popup
+							const isWebcrawler = connector.id === "webcrawler-connector";
+							const isTavily = connector.id === "tavily-api";
+							const isLinear = connector.id === "linear-connector";
+							
 							const isConnected = connectedTypes.has(connector.connectorType);
 							const isConnecting = connectingId === connector.id;
+							
 							// Find the actual connector object if connected
 							const actualConnector = isConnected && allConnectors
 								? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
 								: undefined;
 
-							// Special handling for connectors that can be created in popup
-							const isWebcrawler = connector.id === "webcrawler-connector";
-							const isYouTube = connector.id === "youtube-connector";
-							const isTavily = connector.id === "tavily-api";
-							const isLinear = connector.id === "linear-connector";
 							const handleConnect = isWebcrawler && onCreateWebcrawler
 								? onCreateWebcrawler
-								: isYouTube && onCreateYouTube
-								? onCreateYouTube
 								: (isTavily || isLinear) && onConnectNonOAuth
 								? () => onConnectNonOAuth(connector.connectorType)
 								: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);

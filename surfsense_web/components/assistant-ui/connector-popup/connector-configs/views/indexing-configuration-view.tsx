@@ -136,8 +136,8 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 						{/* Date range selector and periodic sync - only shown for indexable connectors */}
 						{connector?.is_indexable && (
 							<>
-								{/* Date range selector - not shown for Google Drive (uses folder selection), Webcrawler (uses config), or YouTube (uses URL selection) */}
-								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && config.connectorType !== "WEBCRAWLER_CONNECTOR" && config.connectorType !== "YOUTUBE_CONNECTOR" && (
+								{/* Date range selector - not shown for Google Drive (uses folder selection) or Webcrawler (uses config) */}
+								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && config.connectorType !== "WEBCRAWLER_CONNECTOR" && (
 									<DateRangeSelector
 										startDate={startDate}
 										endDate={endDate}
@@ -155,18 +155,20 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							</>
 						)}
 
-						{/* Info box */}
-						<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
-							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
-								<Info className="size-4" />
+						{/* Info box - only shown for indexable connectors */}
+						{connector?.is_indexable && (
+							<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
+								<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
+									<Info className="size-4" />
+								</div>
+								<div className="text-xs sm:text-sm">
+									<p className="font-medium text-xs sm:text-sm">Indexing runs in the background</p>
+									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+										You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
+									</p>
+								</div>
 							</div>
-							<div className="text-xs sm:text-sm">
-								<p className="font-medium text-xs sm:text-sm">Indexing runs in the background</p>
-								<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-									You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
-								</p>
-							</div>
-						</div>
+						)}
 					</div>
 				</div>
 				{/* Top fade shadow - appears when scrolled */}

@@ -325,61 +325,6 @@ export const useConnectorDialog = () => {
 		}
 	}, [searchSpaceId, createConnector, refetchAllConnectors]);
 
-	// Handle creating YouTube connector
-	const handleCreateYouTube = useCallback(async () => {
-		if (!searchSpaceId) return;
-
-		setConnectingId("youtube-connector");
-		try {
-			const newConnector = await createConnector({
-				data: {
-					name: "YouTube",
-					connector_type: EnumConnectorName.YOUTUBE_CONNECTOR,
-					config: { youtube_urls: [] },
-					is_indexable: true,
-					last_indexed_at: null,
-					periodic_indexing_enabled: false,
-					indexing_frequency_minutes: null,
-					next_scheduled_at: null,
-				},
-				queryParams: {
-					search_space_id: searchSpaceId,
-				},
-			});
-
-			// Refetch connectors to get the new one
-			const result = await refetchAllConnectors();
-			if (result.data) {
-				const connector = result.data.find(
-					(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.YOUTUBE_CONNECTOR
-				);
-				if (connector) {
-					const connectorValidation = searchSourceConnector.safeParse(connector);
-					if (connectorValidation.success) {
-						const config = validateIndexingConfigState({
-							connectorType: EnumConnectorName.YOUTUBE_CONNECTOR,
-							connectorId: connector.id,
-							connectorTitle: "YouTube",
-						});
-						setIndexingConfig(config);
-						setIndexingConnector(connector);
-						setIndexingConnectorConfig(connector.config || { youtube_urls: [] });
-						setIsOpen(true);
-						const url = new URL(window.location.href);
-						url.searchParams.set("modal", "connectors");
-						url.searchParams.set("view", "configure");
-						window.history.pushState({ modal: true }, "", url.toString());
-					}
-				}
-			}
-		} catch (error) {
-			console.error("Error creating YouTube connector:", error);
-			toast.error("Failed to create YouTube connector");
-		} finally {
-			setConnectingId(null);
-		}
-	}, [searchSpaceId, createConnector, refetchAllConnectors]);
-
 	// Handle connecting non-OAuth connectors (like Tavily API)
 	const handleConnectNonOAuth = useCallback((connectorType: string) => {
 		if (!searchSpaceId) return;
@@ -616,12 +561,13 @@ export const useConnectorDialog = () => {
 			(oauthConnector) => oauthConnector.connectorType === connector.connector_type
 		);
 		
-		// Check if this is webcrawler or Tavily API (can be managed in popup)
+		// Check if this is webcrawler, Tavily API, or Linear (can be managed in popup)
 		const isWebcrawler = connector.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR;
 		const isTavilyApi = connector.connector_type === EnumConnectorName.TAVILY_API;
+		const isLinear = connector.connector_type === EnumConnectorName.LINEAR_CONNECTOR;
 		
-		// If not OAuth, not webcrawler, and not Tavily API, redirect to old connector edit page
-		if (!isOAuthConnector && !isWebcrawler && !isTavilyApi) {
+		// If not OAuth, not webcrawler, not Tavily API, and not Linear, redirect to old connector edit page
+		if (!isOAuthConnector && !isWebcrawler && !isTavilyApi && !isLinear) {
 			router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`);
 			return;
 		}
@@ -898,7 +844,6 @@ export const useConnectorDialog = () => {
 		handleConnectOAuth,
 		handleConnectNonOAuth,
 		handleCreateWebcrawler,
-		handleCreateYouTube,
 		handleSubmitConnectForm,
 		handleStartIndexing,
 		handleSkipIndexing,
