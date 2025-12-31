@@ -1,4 +1,3 @@
-import { IconBrandWindows, IconBrandZoom } from "@tabler/icons-react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { ConnectorCategory } from "./types";
@@ -73,7 +72,7 @@ export const connectorCategories: ConnectorCategory[] = [
 				id: "ms-teams",
 				title: "Microsoft Teams",
 				description: "teams_desc",
-				icon: <IconBrandWindows className="h-6 w-6" />,
+				icon: getConnectorIcon("ms-teams", "h-6 w-6"),
 				status: "coming-soon",
 			},
 		],
@@ -208,7 +207,7 @@ export const connectorCategories: ConnectorCategory[] = [
 			id: "zoom",
 			title: "Zoom",
 			description: "zoom_desc",
-			icon: <IconBrandZoom className="h-6 w-6" />,
+			icon: getConnectorIcon("zoom", "h-6 w-6"),
 			status: "coming-soon",
 		},
 	],
