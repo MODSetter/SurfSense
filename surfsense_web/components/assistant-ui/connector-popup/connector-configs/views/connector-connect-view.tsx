@@ -45,6 +45,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 		const formIdMap: Record<string, string> = {
 			TAVILY_API: "tavily-connect-form",
 			LINEAR_CONNECTOR: "linear-connect-form",
+			ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
 		};
 		const formId = formIdMap[connectorType];
 		if (formId) {

@@ -12,7 +12,6 @@ import type { LogSummary, LogActiveTask } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import {
 	TabsContent,
-	TabsTrigger,
 } from "@/components/ui/tabs";
 
 interface ActiveConnectorsTabProps {
@@ -140,9 +139,13 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 					<p className="text-sm text-muted-foreground mt-1 max-w-[280px]">
 						Connect your first service to start searching across all your data.
 					</p>
-					<TabsTrigger value="all" className="mt-6 text-primary hover:underline" onClick={() => onTabChange("all")}>
+					<Button
+						variant="link"
+						className="mt-6 text-primary hover:underline"
+						onClick={() => onTabChange("all")}
+					>
 						Browse available connectors
-					</TabsTrigger>
+					</Button>
 				</div>
 			)}
 		</TabsContent>

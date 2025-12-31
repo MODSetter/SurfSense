@@ -11,8 +11,19 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 			"Keep your search results up-to-date with latest Linear content",
 			"Index your Linear issues for enhanced search capabilities",
 		],
+		ELASTICSEARCH_CONNECTOR: [
+			"Search across your indexed documents and logs",
+			"Access structured and unstructured data from your cluster",
+			"Leverage existing Elasticsearch indices for enhanced search",
+			"Real-time search capabilities with powerful query features",
+			"Integration with your existing Elasticsearch infrastructure",
+		],
+		TAVILY_API: [
+			"AI-powered search results tailored to your queries",
+			"Real-time information from the web",
+			"Enhanced search capabilities for your projects",
+		],
 		// Add other connectors as needed
-		// TAVILY_API: [...],
 		// GITHUB_CONNECTOR: [...],
 	};
 

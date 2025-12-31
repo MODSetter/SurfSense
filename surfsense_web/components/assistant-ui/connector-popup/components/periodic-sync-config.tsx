@@ -25,10 +25,10 @@ export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
 	onFrequencyChange,
 }) => {
 	return (
-		<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
+		<div className="rounded-xl bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
 			<div className="flex items-center justify-between">
 				<div className="space-y-1">
-					<h3 className="font-medium text-xs sm:text-base">Enable Periodic Sync</h3>
+					<h3 className="font-medium text-sm sm:text-base">Enable Periodic Sync</h3>
 					<p className="text-xs sm:text-sm text-muted-foreground">
 						Automatically re-index at regular intervals
 					</p>

@@ -40,8 +40,8 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 	};
 
 	return (
-		<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
-			<h3 className="font-medium text-xs sm:text-base mb-4">Select Date Range</h3>
+		<div className="rounded-xl bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
+			<h3 className="font-medium text-sm sm:text-base mb-4">Select Date Range</h3>
 			<p className="text-xs sm:text-sm text-muted-foreground mb-6">
 				Choose how far back you want to sync your data. You can always re-index later with different dates.
 			</p>

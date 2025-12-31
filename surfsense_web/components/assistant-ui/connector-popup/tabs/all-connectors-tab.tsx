@@ -95,6 +95,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 							const isWebcrawler = connector.id === "webcrawler-connector";
 							const isTavily = connector.id === "tavily-api";
 							const isLinear = connector.id === "linear-connector";
+							const isElasticsearch = connector.id === "elasticsearch-connector";
 							
 							const isConnected = connectedTypes.has(connector.connectorType);
 							const isConnecting = connectingId === connector.id;
@@ -106,7 +107,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 							const handleConnect = isWebcrawler && onCreateWebcrawler
 								? onCreateWebcrawler
-								: (isTavily || isLinear) && onConnectNonOAuth
+								: (isTavily || isLinear || isElasticsearch) && onConnectNonOAuth
 								? () => onConnectNonOAuth(connector.connectorType)
 								: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
 

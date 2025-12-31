@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { ConnectFormProps } from "../index";
+import { getConnectorBenefits } from "../connector-benefits";
 
 const tavilyApiFormSchema = z.object({
 	name: z.string().min(3, {
@@ -139,6 +140,18 @@ export const TavilyApiConnectForm: FC<ConnectFormProps> = ({
 					</form>
 				</Form>
 			</div>
+
+			{/* What you get section */}
+			{getConnectorBenefits(EnumConnectorName.TAVILY_API) && (
+				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 px-3 sm:px-6 py-4 space-y-2">
+					<h4 className="text-xs sm:text-sm font-medium">What you get with Tavily API:</h4>
+					<ul className="list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
+						{getConnectorBenefits(EnumConnectorName.TAVILY_API)?.map((benefit) => (
+							<li key={benefit}>{benefit}</li>
+						))}
+					</ul>
+				</div>
+			)}
 		</div>
 	);
 };

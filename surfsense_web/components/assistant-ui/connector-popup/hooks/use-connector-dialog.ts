@@ -349,8 +349,12 @@ export const useConnectorDialog = () => {
 			is_indexable: boolean;
 			last_indexed_at: null;
 			periodic_indexing_enabled: boolean;
-			indexing_frequency_minutes: null;
+			indexing_frequency_minutes: number | null;
 			next_scheduled_at: null;
+			startDate?: Date;
+			endDate?: Date;
+			periodicEnabled?: boolean;
+			frequencyMinutes?: string;
 		}
 	) => {
 		if (!searchSpaceId || !connectingConnectorType) return;
@@ -361,9 +365,12 @@ export const useConnectorDialog = () => {
 
 		setIsCreatingConnector(true);
 		try {
+			// Extract UI-only fields before sending to backend
+			const { startDate, endDate, periodicEnabled, frequencyMinutes, ...connectorData } = formData;
+			
 			// Create connector
 			const newConnector = await createConnector({
-				data: formData,
+				data: connectorData,
 				queryParams: {
 					search_space_id: searchSpaceId,
 				},
@@ -379,29 +386,118 @@ export const useConnectorDialog = () => {
 					// Validate connector data
 					const connectorValidation = searchSourceConnector.safeParse(connector);
 					if (connectorValidation.success) {
+						// Store connectingConnectorType before clearing it
+						const currentConnectorType = connectingConnectorType;
+						
 						// Find connector title from constants
 						const connectorInfo = OTHER_CONNECTORS.find(
-							c => c.connectorType === connectingConnectorType
+							c => c.connectorType === currentConnectorType
 						);
 						const connectorTitle = connectorInfo?.title || connector.name;
 						
 						// Set up indexing config
 						const config = validateIndexingConfigState({
-							connectorType: connectingConnectorType as EnumConnectorName,
+							connectorType: currentConnectorType as EnumConnectorName,
 							connectorId: connector.id,
 							connectorTitle,
 						});
+						
+						// Clear connecting state to allow view transition
+						setConnectingConnectorType(null);
+						
+						// Set indexing config state
 						setIndexingConfig(config);
 						setIndexingConnector(connector);
 						setIndexingConnectorConfig(connector.config || {});
 						
-						// Transition to configure view
-						const url = new URL(window.location.href);
-						url.searchParams.set("view", "configure");
-						url.searchParams.delete("connectorType");
-						window.history.replaceState({}, "", url.toString());
+						// Pre-populate indexing configuration with values from form if provided
+						if (formData.startDate !== undefined) {
+							setStartDate(formData.startDate);
+						}
+						if (formData.endDate !== undefined) {
+							setEndDate(formData.endDate);
+						}
+						if (formData.periodicEnabled !== undefined) {
+							setPeriodicEnabled(formData.periodicEnabled);
+						}
+						if (formData.frequencyMinutes !== undefined) {
+							setFrequencyMinutes(formData.frequencyMinutes);
+						}
 						
-						toast.success(`${connectorTitle} connected successfully!`);
+						// Auto-start indexing for non-OAuth reindexable connectors
+						// This only applies to non-OAuth reindexable connectors (e.g., Elasticsearch, Linear)
+						// Non-reindexable connectors (e.g., Tavily) have is_indexable: false, so they won't trigger this
+						// Backend will use default date ranges (365 days ago to today) if dates are not provided
+						if (connector.is_indexable) {
+							// Get indexing configuration from form (or use defaults)
+							const startDateForIndexing = formData.startDate;
+							const endDateForIndexing = formData.endDate;
+							const periodicEnabledForIndexing = formData.periodicEnabled || false;
+							const frequencyMinutesForIndexing = formData.frequencyMinutes || "1440";
+							
+							// Update connector with periodic sync settings if enabled
+							if (periodicEnabledForIndexing) {
+								const frequency = parseInt(frequencyMinutesForIndexing, 10);
+								await updateConnector({
+									id: connector.id,
+									data: {
+										periodic_indexing_enabled: true,
+										indexing_frequency_minutes: frequency,
+									},
+								});
+							}
+							
+							// Start indexing (backend will use defaults if dates are undefined)
+							const startDateStr = startDateForIndexing ? format(startDateForIndexing, "yyyy-MM-dd") : undefined;
+							const endDateStr = endDateForIndexing ? format(endDateForIndexing, "yyyy-MM-dd") : undefined;
+							
+							await indexConnector({
+								connector_id: connector.id,
+								queryParams: {
+									search_space_id: searchSpaceId,
+									start_date: startDateStr,
+									end_date: endDateStr,
+								},
+							});
+							
+							toast.success(`${connectorTitle} connected and indexing started!`, {
+								description: periodicEnabledForIndexing 
+									? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutesForIndexing)}.`
+									: "You can continue working while we sync your data.",
+							});
+							
+							// Close modal and return to main view
+							const url = new URL(window.location.href);
+							url.searchParams.delete("modal");
+							url.searchParams.delete("tab");
+							url.searchParams.delete("view");
+							url.searchParams.delete("connectorType");
+							router.replace(url.pathname + url.search, { scroll: false });
+							
+							// Clear indexing config state since we're not showing the view
+							setIndexingConfig(null);
+							setIndexingConnector(null);
+							setIndexingConnectorConfig(null);
+							
+							// Invalidate queries to refresh data
+							queryClient.invalidateQueries({
+								queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+							});
+							
+							// Refresh connectors list
+							await refetchAllConnectors();
+						} else {
+							// Non-indexable connector - just show success message
+							toast.success(`${connectorTitle} connected successfully!`);
+							
+							// Close modal and return to main view
+							const url = new URL(window.location.href);
+							url.searchParams.delete("modal");
+							url.searchParams.delete("tab");
+							url.searchParams.delete("view");
+							url.searchParams.delete("connectorType");
+							router.replace(url.pathname + url.search, { scroll: false });
+						}
 					}
 				}
 			}
@@ -411,9 +507,9 @@ export const useConnectorDialog = () => {
 		} finally {
 			isCreatingConnectorRef.current = false;
 			setIsCreatingConnector(false);
-			setConnectingConnectorType(null);
+			// Don't clear connectingConnectorType here - it's cleared above when transitioning to config view
 		}
-	}, [connectingConnectorType, searchSpaceId, createConnector, refetchAllConnectors]);
+	}, [connectingConnectorType, searchSpaceId, createConnector, refetchAllConnectors, updateConnector, indexConnector, router, getFrequencyLabel, queryClient]);
 
 	// Handle going back from connect view
 	const handleBackFromConnect = useCallback(() => {
@@ -561,13 +657,14 @@ export const useConnectorDialog = () => {
 			(oauthConnector) => oauthConnector.connectorType === connector.connector_type
 		);
 		
-		// Check if this is webcrawler, Tavily API, or Linear (can be managed in popup)
+		// Check if this is webcrawler, Tavily API, Linear, or Elasticsearch (can be managed in popup)
 		const isWebcrawler = connector.connector_type === EnumConnectorName.WEBCRAWLER_CONNECTOR;
 		const isTavilyApi = connector.connector_type === EnumConnectorName.TAVILY_API;
 		const isLinear = connector.connector_type === EnumConnectorName.LINEAR_CONNECTOR;
+		const isElasticsearch = connector.connector_type === EnumConnectorName.ELASTICSEARCH_CONNECTOR;
 		
-		// If not OAuth, not webcrawler, not Tavily API, and not Linear, redirect to old connector edit page
-		if (!isOAuthConnector && !isWebcrawler && !isTavilyApi && !isLinear) {
+		// If not OAuth, not webcrawler, not Tavily API, not Linear, and not Elasticsearch, redirect to old connector edit page
+		if (!isOAuthConnector && !isWebcrawler && !isTavilyApi && !isLinear && !isElasticsearch) {
 			router.push(`/dashboard/${searchSpaceId}/connectors/${connector.id}/edit`);
 			return;
 		}

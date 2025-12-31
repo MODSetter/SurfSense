@@ -2,6 +2,7 @@
 
 import type { FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { ElasticsearchConfig } from "./components/elasticsearch-config";
 import { GoogleDriveConfig } from "./components/google-drive-config";
 import { LinearConfig } from "./components/linear-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
@@ -30,6 +31,8 @@ export function getConnectorConfigComponent(
 			return LinearConfig;
 		case "WEBCRAWLER_CONNECTOR":
 			return WebcrawlerConfig;
+		case "ELASTICSEARCH_CONNECTOR":
+			return ElasticsearchConfig;
 		// OAuth connectors (Gmail, Calendar, Airtable) and others don't need special config UI
 		default:
 			return null;
