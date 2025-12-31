@@ -7,7 +7,7 @@ import { searchSourceConnectorTypeEnum } from "@/contracts/types/connector.types
 export const connectorPopupQueryParamsSchema = z.object({
 	modal: z.enum(["connectors"]).optional(),
 	tab: z.enum(["all", "active"]).optional(),
-	view: z.enum(["configure", "edit", "connect"]).optional(),
+	view: z.enum(["configure", "edit", "connect", "youtube"]).optional(),
 	connector: z.string().optional(),
 	connectorId: z.string().optional(),
 	connectorType: z.string().optional(),

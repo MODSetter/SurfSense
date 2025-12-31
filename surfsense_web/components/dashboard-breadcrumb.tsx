@@ -151,7 +151,6 @@ export function DashboardBreadcrumb() {
 					if (section === "documents") {
 						const documentLabels: Record<string, string> = {
 							upload: t("upload_documents"),
-							youtube: t("add_youtube"),
 							webpage: t("add_webpages"),
 						};
 

@@ -1,16 +1,18 @@
 "use client";
 
+import { IconBrandYoutube } from "@tabler/icons-react";
 import { FileText, Loader2 } from "lucide-react";
 import { type FC } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { LogActiveTask } from "@/contracts/types/log.types";
+import { cn } from "@/lib/utils";
 
 interface ConnectorCardProps {
 	id: string;
 	title: string;
 	description: string;
-	connectorType: string;
+	connectorType?: string;
 	isConnected?: boolean;
 	isConnecting?: boolean;
 	documentCount?: number;
@@ -88,7 +90,13 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	return (
 		<div className="group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10">
 			<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors flex-shrink-0 bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
-				{getConnectorIcon(connectorType, "size-6")}
+				{connectorType ? (
+					getConnectorIcon(connectorType, "size-6")
+				) : id === "youtube-crawler" ? (
+					<IconBrandYoutube className="size-6" />
+				) : (
+					<FileText className="size-6" />
+				)}
 			</div>
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-2">
@@ -101,7 +109,10 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			<Button
 				size="sm"
 				variant={isConnected ? "outline" : "default"}
-				className="h-8 text-[11px] px-3 rounded-lg flex-shrink-0 font-medium"
+				className={cn(
+					"h-8 text-[11px] px-3 rounded-lg flex-shrink-0 font-medium",
+					isConnected && "border-0"
+				)}
 				onClick={isConnected ? onManage : onConnect}
 				disabled={isConnecting || isIndexing}
 			>
@@ -111,8 +122,10 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 					"Syncing..."
 				) : isConnected ? (
 					"Manage"
-				) : (
+				) : connectorType ? (
 					"Connect"
+				) : (
+					"Add"
 				)}
 			</Button>
 		</div>

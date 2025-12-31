@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
-import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
+import { OAUTH_CONNECTORS, CRAWLERS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import { ConnectorCard } from "../components/connector-card";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
@@ -20,6 +20,7 @@ interface AllConnectorsTabProps {
 	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[number]) => void;
 	onConnectNonOAuth?: (connectorType: string) => void;
 	onCreateWebcrawler?: () => void;
+	onCreateYouTubeCrawler?: () => void;
 	onManage?: (connector: SearchSourceConnector) => void;
 }
 
@@ -35,6 +36,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onConnectOAuth,
 	onConnectNonOAuth,
 	onCreateWebcrawler,
+	onCreateYouTubeCrawler,
 	onManage,
 }) => {
 	const router = useRouter();
@@ -49,6 +51,12 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 	// Filter connectors based on search
 	const filteredOAuth = OAUTH_CONNECTORS.filter(
+		(c) =>
+			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			c.description.toLowerCase().includes(searchQuery.toLowerCase())
+	);
+
+	const filteredCrawlers = CRAWLERS.filter(
 		(c) =>
 			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			c.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -100,6 +108,67 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 							/>
 						);
 					})}
+					</div>
+				</section>
+			)}
+
+			{/* Content Sources */}
+			{filteredCrawlers.length > 0 && (
+				<section>
+					<div className="flex items-center gap-2 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground">
+							Content Sources
+						</h3>
+					</div>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						{filteredCrawlers.map((crawler) => {
+							const isYouTube = crawler.id === "youtube-crawler";
+							const isWebcrawler = crawler.id === "webcrawler-connector";
+							
+							// For crawlers that are actual connectors, check connection status
+							const isConnected = crawler.connectorType 
+								? connectedTypes.has(crawler.connectorType)
+								: false;
+							const isConnecting = connectingId === crawler.id;
+							
+							// Find the actual connector object if connected
+							const actualConnector = isConnected && crawler.connectorType && allConnectors
+								? allConnectors.find((c: SearchSourceConnector) => c.connector_type === crawler.connectorType)
+								: undefined;
+
+							const documentCount = crawler.connectorType 
+								? getDocumentCountForConnector(crawler.connectorType, documentTypeCounts)
+								: undefined;
+							const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
+							const activeTask = actualConnector ? getActiveTaskForConnector(actualConnector.id) : undefined;
+
+							const handleConnect = isYouTube && onCreateYouTubeCrawler
+								? onCreateYouTubeCrawler
+								: isWebcrawler && onCreateWebcrawler
+								? onCreateWebcrawler
+								: crawler.connectorType && onConnectNonOAuth
+								? () => onConnectNonOAuth(crawler.connectorType!)
+								: crawler.connectorType
+								? () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${crawler.id}`)
+								: () => {}; // Fallback for non-connector crawlers
+
+							return (
+								<ConnectorCard
+									key={crawler.id}
+									id={crawler.id}
+									title={crawler.title}
+									description={crawler.description}
+									connectorType={crawler.connectorType || undefined}
+									isConnected={isConnected}
+									isConnecting={isConnecting}
+									documentCount={documentCount}
+									isIndexing={isIndexing}
+									activeTask={activeTask}
+									onConnect={handleConnect}
+									onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
+								/>
+							);
+						})}
 					</div>
 				</section>
 			)}

@@ -12,7 +12,7 @@ export { AllConnectorsTab } from "./tabs/all-connectors-tab";
 export { ActiveConnectorsTab } from "./tabs/active-connectors-tab";
 
 // Constants and types
-export { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "./constants/connector-constants";
+export { OAUTH_CONNECTORS, CRAWLERS, OTHER_CONNECTORS } from "./constants/connector-constants";
 export type { IndexingConfigState } from "./constants/connector-constants";
 
 // Schemas and validation

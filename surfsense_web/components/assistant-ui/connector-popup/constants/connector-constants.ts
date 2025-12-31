@@ -32,6 +32,22 @@ export const OAUTH_CONNECTORS = [
 	},
 ] as const;
 
+// Content Sources (tools that extract and import content from external sources)
+export const CRAWLERS = [
+	{
+		id: "youtube-crawler",
+		title: "YouTube",
+		description: "Crawl YouTube channels and playlists",
+		connectorType: null, // Not a connector, handled separately
+	},
+	{
+		id: "webcrawler-connector",
+		title: "Web Pages",
+		description: "Crawl web content",
+		connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
+	},
+] as const;
+
 // Non-OAuth Connectors (redirect to old connector config pages)
 export const OTHER_CONNECTORS = [
 	{
@@ -99,12 +115,6 @@ export const OTHER_CONNECTORS = [
 		title: "Elasticsearch",
 		description: "Search ES indexes",
 		connectorType: EnumConnectorName.ELASTICSEARCH_CONNECTOR,
-	},
-	{
-		id: "webcrawler-connector",
-		title: "Web Pages",
-		description: "Crawl web content",
-		connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 	},
 	{
 		id: "tavily-api",

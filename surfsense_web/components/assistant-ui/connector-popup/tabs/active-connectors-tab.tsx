@@ -117,7 +117,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 									<Button
 										variant="outline"
 										size="sm"
-										className="h-8 text-[11px] px-3 rounded-lg font-medium"
+										className="h-8 text-[11px] px-3 rounded-lg font-medium border-0"
 										onClick={onManage ? () => onManage(connector) : undefined}
 										disabled={isIndexing}
 									>

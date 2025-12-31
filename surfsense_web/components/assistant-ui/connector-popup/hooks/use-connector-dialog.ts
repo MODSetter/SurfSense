@@ -104,6 +104,11 @@ export const useConnectorDialog = () => {
 					setConnectingConnectorType(params.connectorType);
 				}
 				
+				// Handle YouTube view
+				if (params.view === "youtube") {
+					// YouTube view is active - no additional state needed
+				}
+				
 				if (params.view === "configure" && params.connector && !indexingConfig) {
 					const oauthConnector = OAUTH_CONNECTORS.find(c => c.id === params.connector);
 					if (oauthConnector && allConnectors) {
@@ -177,6 +182,7 @@ export const useConnectorDialog = () => {
 				if (connectingConnectorType) {
 					setConnectingConnectorType(null);
 				}
+				// Clear YouTube view when modal is closed (handled by view param check)
 			}
 		} catch (error) {
 			// Invalid query params - log but don't crash
@@ -269,6 +275,17 @@ export const useConnectorDialog = () => {
 		},
 		[searchSpaceId]
 	);
+
+	// Handle creating YouTube crawler (not a connector, shows view in popup)
+	const handleCreateYouTubeCrawler = useCallback(() => {
+		if (!searchSpaceId) return;
+		
+		// Update URL to show YouTube view
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("view", "youtube");
+		window.history.pushState({ modal: true }, "", url.toString());
+	}, [searchSpaceId]);
 
 	// Handle creating webcrawler connector
 	const handleCreateWebcrawler = useCallback(async () => {
@@ -522,6 +539,15 @@ export const useConnectorDialog = () => {
 		url.searchParams.set("tab", "all");
 		url.searchParams.delete("view");
 		url.searchParams.delete("connectorType");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
+	// Handle going back from YouTube view
+	const handleBackFromYouTube = useCallback(() => {
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("tab", "all");
+		url.searchParams.delete("view");
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
 
@@ -951,6 +977,7 @@ export const useConnectorDialog = () => {
 		handleConnectOAuth,
 		handleConnectNonOAuth,
 		handleCreateWebcrawler,
+		handleCreateYouTubeCrawler,
 		handleSubmitConnectForm,
 		handleStartIndexing,
 		handleSkipIndexing,
@@ -959,6 +986,7 @@ export const useConnectorDialog = () => {
 		handleDisconnectConnector,
 		handleBackFromEdit,
 		handleBackFromConnect,
+		handleBackFromYouTube,
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,

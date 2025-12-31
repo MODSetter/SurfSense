@@ -3,6 +3,7 @@
 import { useAtomValue } from "jotai";
 import { Cable, Loader2 } from "lucide-react";
 import { type FC, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { useLogsSummary } from "@/hooks/use-logs";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -25,13 +26,18 @@ import { ConnectorDialogHeader } from "./connector-popup/components/connector-di
 import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
 import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
+import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const searchParams = useSearchParams();
 	const { data: documentTypeCounts, isLoading: documentTypesLoading } =
 		useAtomValue(documentTypeCountsAtom);
+	
+	// Check if YouTube view is active
+	const isYouTubeView = searchParams.get("view") === "youtube";
 
 	// Track active indexing tasks
 	const { summary: logsSummary } = useLogsSummary(
@@ -75,6 +81,7 @@ export const ConnectorIndicator: FC = () => {
 		handleConnectOAuth,
 		handleConnectNonOAuth,
 		handleCreateWebcrawler,
+		handleCreateYouTubeCrawler,
 		handleSubmitConnectForm,
 		handleStartIndexing,
 		handleSkipIndexing,
@@ -83,6 +90,7 @@ export const ConnectorIndicator: FC = () => {
 		handleDisconnectConnector,
 		handleBackFromEdit,
 		handleBackFromConnect,
+		handleBackFromYouTube,
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,
@@ -190,8 +198,13 @@ export const ConnectorIndicator: FC = () => {
 			</TooltipIconButton>
 
 			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
-				{/* Connector Connect View - shown when connecting non-OAuth connectors */}
-				{connectingConnectorType ? (
+				{/* YouTube Crawler View - shown when adding YouTube videos */}
+				{isYouTubeView && searchSpaceId ? (
+					<YouTubeCrawlerView
+						searchSpaceId={searchSpaceId}
+						onBack={handleBackFromYouTube}
+					/>
+				) : connectingConnectorType ? (
 					<ConnectorConnectView
 						connectorType={connectingConnectorType}
 						onSubmit={handleSubmitConnectForm}
@@ -270,6 +283,7 @@ export const ConnectorIndicator: FC = () => {
 									onConnectOAuth={handleConnectOAuth}
 									onConnectNonOAuth={handleConnectNonOAuth}
 									onCreateWebcrawler={handleCreateWebcrawler}
+									onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
 									onManage={handleStartEdit}
 								/>
 								</TabsContent>
