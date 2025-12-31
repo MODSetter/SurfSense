@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { type FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import { ConnectorCard } from "../components/connector-card";
+import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 interface AllConnectorsTabProps {
 	searchQuery: string;
@@ -12,6 +14,9 @@ interface AllConnectorsTabProps {
 	connectedTypes: Set<string>;
 	connectingId: string | null;
 	allConnectors: SearchSourceConnector[] | undefined;
+	documentTypeCounts?: Record<string, number>;
+	indexingConnectorIds?: Set<number>;
+	logsSummary?: LogSummary;
 	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[number]) => void;
 	onConnectNonOAuth?: (connectorType: string) => void;
 	onCreateWebcrawler?: () => void;
@@ -24,12 +29,23 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	connectedTypes,
 	connectingId,
 	allConnectors,
+	documentTypeCounts,
+	indexingConnectorIds,
+	logsSummary,
 	onConnectOAuth,
 	onConnectNonOAuth,
 	onCreateWebcrawler,
 	onManage,
 }) => {
 	const router = useRouter();
+
+	// Helper to find active task for a connector
+	const getActiveTaskForConnector = (connectorId: number): LogActiveTask | undefined => {
+		if (!logsSummary?.active_tasks) return undefined;
+		return logsSummary.active_tasks.find(
+			(task: LogActiveTask) => task.connector_id === connectorId
+		);
+	};
 
 	// Filter connectors based on search
 	const filteredOAuth = OAUTH_CONNECTORS.filter(
@@ -55,28 +71,35 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 						</h3>
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{filteredOAuth.map((connector) => {
-							const isConnected = connectedTypes.has(connector.connectorType);
-							const isConnecting = connectingId === connector.id;
-							// Find the actual connector object if connected
-							const actualConnector = isConnected && allConnectors
-								? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
-								: undefined;
+					{filteredOAuth.map((connector) => {
+						const isConnected = connectedTypes.has(connector.connectorType);
+						const isConnecting = connectingId === connector.id;
+						// Find the actual connector object if connected
+						const actualConnector = isConnected && allConnectors
+							? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
+							: undefined;
+						
+						const documentCount = getDocumentCountForConnector(connector.connectorType, documentTypeCounts);
+						const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
+						const activeTask = actualConnector ? getActiveTaskForConnector(actualConnector.id) : undefined;
 
-							return (
-								<ConnectorCard
-									key={connector.id}
-									id={connector.id}
-									title={connector.title}
-									description={connector.description}
-									connectorType={connector.connectorType}
-									isConnected={isConnected}
-									isConnecting={isConnecting}
-									onConnect={() => onConnectOAuth(connector)}
-									onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
-								/>
-							);
-						})}
+						return (
+							<ConnectorCard
+								key={connector.id}
+								id={connector.id}
+								title={connector.title}
+								description={connector.description}
+								connectorType={connector.connectorType}
+								isConnected={isConnected}
+								isConnecting={isConnecting}
+								documentCount={documentCount}
+								isIndexing={isIndexing}
+								activeTask={activeTask}
+								onConnect={() => onConnectOAuth(connector)}
+								onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
+							/>
+						);
+					})}
 					</div>
 				</section>
 			)}
@@ -109,34 +132,41 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 							const isClickUp = connector.id === "clickup-connector";
 							const isLuma = connector.id === "luma-connector";
 							
-							const isConnected = connectedTypes.has(connector.connectorType);
-							const isConnecting = connectingId === connector.id;
-							
-							// Find the actual connector object if connected
-							const actualConnector = isConnected && allConnectors
-								? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
-								: undefined;
+						const isConnected = connectedTypes.has(connector.connectorType);
+						const isConnecting = connectingId === connector.id;
+						
+						// Find the actual connector object if connected
+						const actualConnector = isConnected && allConnectors
+							? allConnectors.find((c: SearchSourceConnector) => c.connector_type === connector.connectorType)
+							: undefined;
 
-							const handleConnect = isWebcrawler && onCreateWebcrawler
-								? onCreateWebcrawler
-								: (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch || isSlack || isDiscord || isNotion || isConfluence || isBookStack || isGithub || isJira || isClickUp || isLuma) && onConnectNonOAuth
-								? () => onConnectNonOAuth(connector.connectorType)
-								: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
+						const documentCount = getDocumentCountForConnector(connector.connectorType, documentTypeCounts);
+						const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
+						const activeTask = actualConnector ? getActiveTaskForConnector(actualConnector.id) : undefined;
 
-							return (
-								<ConnectorCard
-									key={connector.id}
-									id={connector.id}
-									title={connector.title}
-									description={connector.description}
-									connectorType={connector.connectorType}
-									isConnected={isConnected}
-									isConnecting={isConnecting}
-									onConnect={handleConnect}
-									onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
-								/>
-							);
-						})}
+						const handleConnect = isWebcrawler && onCreateWebcrawler
+							? onCreateWebcrawler
+							: (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch || isSlack || isDiscord || isNotion || isConfluence || isBookStack || isGithub || isJira || isClickUp || isLuma) && onConnectNonOAuth
+							? () => onConnectNonOAuth(connector.connectorType)
+							: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
+
+						return (
+							<ConnectorCard
+								key={connector.id}
+								id={connector.id}
+								title={connector.title}
+								description={connector.description}
+								connectorType={connector.connectorType}
+								isConnected={isConnected}
+								isConnecting={isConnecting}
+								documentCount={documentCount}
+								isIndexing={isIndexing}
+								activeTask={activeTask}
+								onConnect={handleConnect}
+								onManage={actualConnector && onManage ? () => onManage(actualConnector) : undefined}
+							/>
+						);
+					})}
 					</div>
 				</section>
 			)}

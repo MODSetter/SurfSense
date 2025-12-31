@@ -136,12 +136,8 @@ export const ConnectorIndicator: FC = () => {
 		if (!logsSummary?.active_tasks) return new Set<number>();
 		return new Set(
 			logsSummary.active_tasks
-				.filter((task) => task.source?.includes("connector_indexing"))
-				.map((task) => {
-					const match = task.source?.match(/connector[_-]?(\d+)/i);
-					return match ? parseInt(match[1], 10) : null;
-				})
-				.filter((id): id is number => id !== null)
+				.filter((task) => task.source?.includes("connector_indexing") && task.connector_id != null)
+				.map((task) => task.connector_id as number)
 		);
 	}, [logsSummary?.active_tasks]);
 
@@ -261,19 +257,22 @@ export const ConnectorIndicator: FC = () => {
 						<div className="flex-1 min-h-0 relative overflow-hidden">
 							<div className="h-full overflow-y-auto" onScroll={handleScroll}>
 								<div className="px-6 sm:px-12 py-6 sm:py-8 pb-16 sm:pb-16">
-									<TabsContent value="all" className="m-0">
-									<AllConnectorsTab
-										searchQuery={searchQuery}
-										searchSpaceId={searchSpaceId}
-										connectedTypes={connectedTypes}
-										connectingId={connectingId}
-										allConnectors={allConnectors}
-										onConnectOAuth={handleConnectOAuth}
-										onConnectNonOAuth={handleConnectNonOAuth}
-										onCreateWebcrawler={handleCreateWebcrawler}
-										onManage={handleStartEdit}
-									/>
-									</TabsContent>
+								<TabsContent value="all" className="m-0">
+								<AllConnectorsTab
+									searchQuery={searchQuery}
+									searchSpaceId={searchSpaceId}
+									connectedTypes={connectedTypes}
+									connectingId={connectingId}
+									allConnectors={allConnectors}
+									documentTypeCounts={documentTypeCounts}
+									indexingConnectorIds={indexingConnectorIds}
+									logsSummary={logsSummary}
+									onConnectOAuth={handleConnectOAuth}
+									onConnectNonOAuth={handleConnectNonOAuth}
+									onCreateWebcrawler={handleCreateWebcrawler}
+									onManage={handleStartEdit}
+								/>
+								</TabsContent>
 
 									<ActiveConnectorsTab
 										hasSources={hasSources}

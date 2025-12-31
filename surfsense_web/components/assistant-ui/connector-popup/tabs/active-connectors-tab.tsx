@@ -1,8 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Cable, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Cable, FileText, Loader2 } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
@@ -32,11 +31,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	connectors,
 	indexingConnectorIds,
 	logsSummary,
-	searchSpaceId,
 	onTabChange,
 	onManage,
 }) => {
-	const router = useRouter();
 
 	return (
 		<TabsContent value="active" className="m-0">
@@ -60,8 +57,11 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 									<p className="text-[14px] font-semibold leading-tight">
 										{getDocumentTypeLabel(docType)}
 									</p>
-									<p className="text-[11px] text-muted-foreground mt-1">
-										{count as number} documents indexed
+									<p className="text-[11px] text-muted-foreground mt-1 inline-flex items-center gap-1.5">
+										<FileText className="size-3 flex-shrink-0" />
+										<span className="whitespace-nowrap">
+											{(count as number).toLocaleString()} document{count !== 1 ? "s" : ""}
+										</span>
 									</p>
 								</div>
 							</div>
@@ -69,9 +69,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 						{connectors.map((connector) => {
 							const isIndexing = indexingConnectorIds.has(connector.id);
 							const activeTask = logsSummary?.active_tasks?.find(
-								(task: LogActiveTask) =>
-									task.source?.includes(`connector_${connector.id}`) ||
-									task.source?.includes(`connector-${connector.id}`)
+								(task: LogActiveTask) => task.connector_id === connector.id
 							);
 
 							return (
