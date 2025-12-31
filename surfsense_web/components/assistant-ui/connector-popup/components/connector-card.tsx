@@ -108,10 +108,11 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			</div>
 			<Button
 				size="sm"
-				variant={isConnected ? "outline" : "default"}
+				variant={isConnected ? "secondary" : "default"}
 				className={cn(
 					"h-8 text-[11px] px-3 rounded-lg flex-shrink-0 font-medium",
-					isConnected && "border-0"
+					isConnected && "bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80",
+					!isConnected && "shadow-xs"
 				)}
 				onClick={isConnected ? onManage : onConnect}
 				disabled={isConnecting || isIndexing}

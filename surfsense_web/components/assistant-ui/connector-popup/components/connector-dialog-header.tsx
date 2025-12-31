@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { type FC } from "react";
+import type { FC } from "react";
 import {
 	DialogDescription,
 	DialogHeader,
@@ -23,10 +23,8 @@ interface ConnectorDialogHeaderProps {
 }
 
 export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
-	activeTab,
 	totalSourceCount,
 	searchQuery,
-	onTabChange,
 	onSearchChange,
 	isScrolled,
 }) => {
@@ -46,7 +44,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 				</DialogDescription>
 			</DialogHeader>
 
-			<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-6 sm:gap-8 mt-6 sm:mt-8 border-b border-slate-400/5 dark:border-white/5">
+			<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-6 sm:gap-8 mt-6 sm:mt-8 border-b border-border/80 dark:border-white/5">
 				<TabsList className="bg-transparent p-0 gap-4 sm:gap-8 h-auto w-full sm:w-auto justify-center sm:justify-start">
 					<TabsTrigger
 						value="all"
