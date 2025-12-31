@@ -38,23 +38,22 @@ import { getConnectorBenefits } from "../connector-benefits";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { useState } from "react";
 
-const linearConnectorFormSchema = z.object({
+const bookstackConnectorFormSchema = z.object({
 	name: z.string().min(3, {
 		message: "Connector name must be at least 3 characters.",
 	}),
-	api_key: z
-		.string()
-		.min(10, {
-			message: "Linear API Key is required and must be valid.",
-		})
-		.regex(/^lin_api_/, {
-			message: "Linear API Key should start with 'lin_api_'",
-		}),
+	base_url: z.string().url({ message: "Please enter a valid BookStack base URL." }),
+	token_id: z.string().min(1, {
+		message: "BookStack Token ID is required.",
+	}),
+	token_secret: z.string().min(1, {
+		message: "BookStack Token Secret is required.",
+	}),
 });
 
-type LinearConnectorFormValues = z.infer<typeof linearConnectorFormSchema>;
+type BookStackConnectorFormValues = z.infer<typeof bookstackConnectorFormSchema>;
 
-export const LinearConnectForm: FC<ConnectFormProps> = ({
+export const BookStackConnectForm: FC<ConnectFormProps> = ({
 	onSubmit,
 	isSubmitting,
 }) => {
@@ -63,15 +62,17 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
-	const form = useForm<LinearConnectorFormValues>({
-		resolver: zodResolver(linearConnectorFormSchema),
+	const form = useForm<BookStackConnectorFormValues>({
+		resolver: zodResolver(bookstackConnectorFormSchema),
 		defaultValues: {
-			name: "Linear Connector",
-			api_key: "",
+			name: "BookStack Connector",
+			base_url: "",
+			token_id: "",
+			token_secret: "",
 		},
 	});
 
-	const handleSubmit = async (values: LinearConnectorFormValues) => {
+	const handleSubmit = async (values: BookStackConnectorFormValues) => {
 		// Prevent multiple submissions
 		if (isSubmittingRef.current || isSubmitting) {
 			return;
@@ -81,9 +82,11 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 		try {
 			await onSubmit({
 				name: values.name,
-				connector_type: EnumConnectorName.LINEAR_CONNECTOR,
+				connector_type: EnumConnectorName.BOOKSTACK_CONNECTOR,
 				config: {
-					LINEAR_API_KEY: values.api_key,
+					BOOKSTACK_BASE_URL: values.base_url,
+					BOOKSTACK_TOKEN_ID: values.token_id,
+					BOOKSTACK_TOKEN_SECRET: values.token_secret,
 				},
 				is_indexable: true,
 				last_indexed_at: null,
@@ -105,24 +108,16 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
 				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
 				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
+					<AlertTitle className="text-xs sm:text-sm">API Token Required</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a Linear API Key to use this connector. You can create one from{" "}
-						<a
-							href="https://linear.app/settings/api"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="font-medium underline underline-offset-4"
-						>
-							Linear API Settings
-						</a>
+						You'll need a BookStack API Token to use this connector. You can create one from your BookStack instance settings.
 					</AlertDescription>
 				</div>
 			</Alert>
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="linear-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form id="bookstack-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
 						<FormField
 							control={form.control}
 							name="name"
@@ -131,7 +126,7 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
 										<Input 
-											placeholder="My Linear Connector" 
+											placeholder="My BookStack Connector" 
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
 											disabled={isSubmitting}
 											{...field} 
@@ -147,21 +142,66 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 
 						<FormField
 							control={form.control}
-							name="api_key"
+							name="base_url"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="text-xs sm:text-sm">Linear API Key</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">BookStack Base URL</FormLabel>
+									<FormControl>
+										<Input 
+											type="url"
+											placeholder="https://your-bookstack-instance.com" 
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+											disabled={isSubmitting}
+											{...field} 
+										/>
+									</FormControl>
+									<FormDescription className="text-[10px] sm:text-xs">
+										The base URL of your BookStack instance (e.g., https://your-bookstack-instance.com).
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name="token_id"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel className="text-xs sm:text-sm">Token ID</FormLabel>
+									<FormControl>
+										<Input 
+											placeholder="Your Token ID" 
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+											disabled={isSubmitting}
+											{...field} 
+										/>
+									</FormControl>
+									<FormDescription className="text-[10px] sm:text-xs">
+										Your BookStack API Token ID.
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
+							name="token_secret"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel className="text-xs sm:text-sm">Token Secret</FormLabel>
 									<FormControl>
 										<Input 
 											type="password" 
-											placeholder="lin_api_..." 
+											placeholder="Your Token Secret" 
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
 											{...field} 
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Your Linear API Key will be encrypted and stored securely. It typically starts with "lin_api_".
+										Your BookStack API Token Secret will be encrypted and stored securely.
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -222,11 +262,11 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 			</div>
 
 			{/* What you get section */}
-			{getConnectorBenefits(EnumConnectorName.LINEAR_CONNECTOR) && (
+			{getConnectorBenefits(EnumConnectorName.BOOKSTACK_CONNECTOR) && (
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 px-3 sm:px-6 py-4 space-y-2">
-					<h4 className="text-xs sm:text-sm font-medium">What you get with Linear integration:</h4>
+					<h4 className="text-xs sm:text-sm font-medium">What you get with BookStack integration:</h4>
 					<ul className="list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
-						{getConnectorBenefits(EnumConnectorName.LINEAR_CONNECTOR)?.map((benefit) => (
+						{getConnectorBenefits(EnumConnectorName.BOOKSTACK_CONNECTOR)?.map((benefit) => (
 							<li key={benefit}>{benefit}</li>
 						))}
 					</ul>
@@ -243,17 +283,14 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 						<div>
 							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The Linear connector uses the Linear GraphQL API to fetch all issues and
-								comments that the API key has access to within a workspace.
+								The BookStack connector uses the BookStack REST API to fetch all pages from your BookStack instance that your account has access to.
 							</p>
 							<ul className="mt-2 list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 								<li>
-									For follow up indexing runs, the connector retrieves issues and comments that
-									have been updated since the last indexing attempt.
+									For follow up indexing runs, the connector retrieves pages that have been updated since the last indexing attempt.
 								</li>
 								<li>
-									Indexing is configured to run periodically, so updates should appear in your
-									search results within minutes.
+									Indexing is configured to run periodically, so updates should appear in your search results within minutes.
 								</li>
 							</ul>
 						</div>
@@ -263,59 +300,35 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Authorization</h3>
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 mb-4">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-									<AlertTitle className="text-[10px] sm:text-xs">Read-Only Access is Sufficient</AlertTitle>
+									<AlertTitle className="text-[10px] sm:text-xs">API Token Required</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										You only need a read-only API key for this connector to work. This limits
-										the permissions to just reading your Linear data.
+										You need to create an API token from your BookStack instance. The token requires "Access System API" permission.
 									</AlertDescription>
 								</Alert>
 
 								<div className="space-y-4 sm:space-y-6">
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Create an API key</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Create an API Token</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Log in to your Linear account</li>
-											<li>
-												Navigate to{" "}
-												<a
-													href="https://linear.app/settings/api"
-													target="_blank"
-													rel="noopener noreferrer"
-													className="font-medium underline underline-offset-4"
-												>
-													https://linear.app/settings/api
-												</a>{" "}
-												in your browser.
-											</li>
-											<li>Alternatively, click on your profile picture → Settings → API</li>
-											<li>
-												Click the <strong>+ New API key</strong> button.
-											</li>
-											<li>Enter a description for your key (like "Search Connector").</li>
-											<li>Select "Read-only" as the permission.</li>
-											<li>
-												Click <strong>Create</strong> to generate the API key.
-											</li>
-											<li>
-												Copy the generated API key that starts with 'lin_api_' as it will only
-												be shown once.
-											</li>
+											<li>Log in to your BookStack instance</li>
+											<li>Click on your profile icon → Edit Profile</li>
+											<li>Navigate to the "API Tokens" tab</li>
+											<li>Click "Create Token" and give it a name</li>
+											<li>Copy both the Token ID and Token Secret</li>
+											<li>Paste them in the form above</li>
 										</ol>
 									</div>
 
 									<div>
 										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Grant necessary access</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											The API key will have access to all issues and comments that your user
-											account can see. If you're creating the key as an admin, it will have
-											access to all issues in the workspace.
+											Your user account must have "Access System API" permission. The connector will only index content your account can view.
 										</p>
 										<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 											<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-											<AlertTitle className="text-[10px] sm:text-xs">Data Privacy</AlertTitle>
+											<AlertTitle className="text-[10px] sm:text-xs">Rate Limiting</AlertTitle>
 											<AlertDescription className="text-[9px] sm:text-[10px]">
-												Only issues and comments will be indexed. Linear attachments and
-												linked files are not indexed by this connector.
+												BookStack API has a rate limit of 180 requests per minute. The connector automatically handles rate limiting to ensure reliable indexing.
 											</AlertDescription>
 										</Alert>
 									</div>
@@ -328,28 +341,30 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Indexing</h3>
 								<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
 									<li>
-										Navigate to the Connector Dashboard and select the <strong>Linear</strong>{" "}
-										Connector.
+										Navigate to the Connector Dashboard and select the <strong>BookStack</strong> Connector.
 									</li>
 									<li>
-										Place the <strong>API Key</strong> in the form field.
+										Enter your <strong>BookStack Instance URL</strong> (e.g., https://docs.example.com)
+									</li>
+									<li>
+										Enter your <strong>Token ID</strong> and <strong>Token Secret</strong> from your BookStack API token.
 									</li>
 									<li>
 										Click <strong>Connect</strong> to establish the connection.
 									</li>
-									<li>Once connected, your Linear issues will be indexed automatically.</li>
+									<li>Once connected, your BookStack pages will be indexed automatically.</li>
 								</ol>
 
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 									<AlertTitle className="text-[10px] sm:text-xs">What Gets Indexed</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										<p className="mb-2">The Linear connector indexes the following data:</p>
+										<p className="mb-2">The BookStack connector indexes the following data:</p>
 										<ul className="list-disc pl-5 space-y-1">
-											<li>Issue titles and identifiers (e.g., PROJ-123)</li>
-											<li>Issue descriptions</li>
-											<li>Issue comments</li>
-											<li>Issue status and metadata</li>
+											<li>All pages from your BookStack instance</li>
+											<li>Page content in Markdown format</li>
+											<li>Page titles and metadata</li>
+											<li>Book and chapter hierarchy information</li>
 										</ul>
 									</AlertDescription>
 								</Alert>

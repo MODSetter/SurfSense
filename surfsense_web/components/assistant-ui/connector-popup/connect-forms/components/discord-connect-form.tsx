@@ -223,8 +223,8 @@ export const DiscordConnectForm: FC<ConnectFormProps> = ({
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 px-3 sm:px-6 py-4 space-y-2">
 					<h4 className="text-xs sm:text-sm font-medium">What you get with Discord integration:</h4>
 					<ul className="list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
-						{getConnectorBenefits(EnumConnectorName.DISCORD_CONNECTOR)?.map((benefit, i) => (
-							<li key={i}>{benefit}</li>
+						{getConnectorBenefits(EnumConnectorName.DISCORD_CONNECTOR)?.map((benefit) => (
+							<li key={benefit}>{benefit}</li>
 						))}
 					</ul>
 				</div>

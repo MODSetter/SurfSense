@@ -38,23 +38,18 @@ import { getConnectorBenefits } from "../connector-benefits";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { useState } from "react";
 
-const linearConnectorFormSchema = z.object({
+const clickupConnectorFormSchema = z.object({
 	name: z.string().min(3, {
 		message: "Connector name must be at least 3 characters.",
 	}),
-	api_key: z
-		.string()
-		.min(10, {
-			message: "Linear API Key is required and must be valid.",
-		})
-		.regex(/^lin_api_/, {
-			message: "Linear API Key should start with 'lin_api_'",
-		}),
+	api_token: z.string().min(10, {
+		message: "ClickUp API Token is required and must be valid.",
+	}),
 });
 
-type LinearConnectorFormValues = z.infer<typeof linearConnectorFormSchema>;
+type ClickUpConnectorFormValues = z.infer<typeof clickupConnectorFormSchema>;
 
-export const LinearConnectForm: FC<ConnectFormProps> = ({
+export const ClickUpConnectForm: FC<ConnectFormProps> = ({
 	onSubmit,
 	isSubmitting,
 }) => {
@@ -63,15 +58,15 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
-	const form = useForm<LinearConnectorFormValues>({
-		resolver: zodResolver(linearConnectorFormSchema),
+	const form = useForm<ClickUpConnectorFormValues>({
+		resolver: zodResolver(clickupConnectorFormSchema),
 		defaultValues: {
-			name: "Linear Connector",
-			api_key: "",
+			name: "ClickUp Connector",
+			api_token: "",
 		},
 	});
 
-	const handleSubmit = async (values: LinearConnectorFormValues) => {
+	const handleSubmit = async (values: ClickUpConnectorFormValues) => {
 		// Prevent multiple submissions
 		if (isSubmittingRef.current || isSubmitting) {
 			return;
@@ -81,9 +76,9 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 		try {
 			await onSubmit({
 				name: values.name,
-				connector_type: EnumConnectorName.LINEAR_CONNECTOR,
+				connector_type: EnumConnectorName.CLICKUP_CONNECTOR,
 				config: {
-					LINEAR_API_KEY: values.api_key,
+					CLICKUP_API_TOKEN: values.api_token,
 				},
 				is_indexable: true,
 				last_indexed_at: null,
@@ -105,16 +100,16 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
 				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
 				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
+					<AlertTitle className="text-xs sm:text-sm">API Token Required</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a Linear API Key to use this connector. You can create one from{" "}
+						You'll need a ClickUp API Token to use this connector. You can create one from{" "}
 						<a
-							href="https://linear.app/settings/api"
+							href="https://app.clickup.com/settings/apps"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="font-medium underline underline-offset-4"
 						>
-							Linear API Settings
+							ClickUp Settings
 						</a>
 					</AlertDescription>
 				</div>
@@ -122,7 +117,7 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="linear-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form id="clickup-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
 						<FormField
 							control={form.control}
 							name="name"
@@ -131,7 +126,7 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
 										<Input 
-											placeholder="My Linear Connector" 
+											placeholder="My ClickUp Connector" 
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
 											disabled={isSubmitting}
 											{...field} 
@@ -147,21 +142,21 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 
 						<FormField
 							control={form.control}
-							name="api_key"
+							name="api_token"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="text-xs sm:text-sm">Linear API Key</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">ClickUp API Token</FormLabel>
 									<FormControl>
 										<Input 
 											type="password" 
-											placeholder="lin_api_..." 
+											placeholder="pk_..." 
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
 											{...field} 
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Your Linear API Key will be encrypted and stored securely. It typically starts with "lin_api_".
+										Your ClickUp API Token will be encrypted and stored securely.
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -222,11 +217,11 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 			</div>
 
 			{/* What you get section */}
-			{getConnectorBenefits(EnumConnectorName.LINEAR_CONNECTOR) && (
+			{getConnectorBenefits(EnumConnectorName.CLICKUP_CONNECTOR) && (
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 px-3 sm:px-6 py-4 space-y-2">
-					<h4 className="text-xs sm:text-sm font-medium">What you get with Linear integration:</h4>
+					<h4 className="text-xs sm:text-sm font-medium">What you get with ClickUp integration:</h4>
 					<ul className="list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
-						{getConnectorBenefits(EnumConnectorName.LINEAR_CONNECTOR)?.map((benefit) => (
+						{getConnectorBenefits(EnumConnectorName.CLICKUP_CONNECTOR)?.map((benefit) => (
 							<li key={benefit}>{benefit}</li>
 						))}
 					</ul>
@@ -243,17 +238,14 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 						<div>
 							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The Linear connector uses the Linear GraphQL API to fetch all issues and
-								comments that the API key has access to within a workspace.
+								The ClickUp connector uses the ClickUp API to fetch all tasks and projects that your API token has access to within your workspace.
 							</p>
 							<ul className="mt-2 list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 								<li>
-									For follow up indexing runs, the connector retrieves issues and comments that
-									have been updated since the last indexing attempt.
+									For follow up indexing runs, the connector retrieves tasks that have been updated since the last indexing attempt.
 								</li>
 								<li>
-									Indexing is configured to run periodically, so updates should appear in your
-									search results within minutes.
+									Indexing is configured to run periodically, so updates should appear in your search results within minutes.
 								</li>
 							</ul>
 						</div>
@@ -263,42 +255,34 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Authorization</h3>
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 mb-4">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-									<AlertTitle className="text-[10px] sm:text-xs">Read-Only Access is Sufficient</AlertTitle>
+									<AlertTitle className="text-[10px] sm:text-xs">API Token Required</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										You only need a read-only API key for this connector to work. This limits
-										the permissions to just reading your Linear data.
+										You need a ClickUp personal API token to use this connector. The token will be used to read your ClickUp data.
 									</AlertDescription>
 								</Alert>
 
 								<div className="space-y-4 sm:space-y-6">
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Create an API key</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Get Your API Token</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Log in to your Linear account</li>
+											<li>Log in to your ClickUp account</li>
+											<li>Click your avatar in the upper-right corner and select "Settings"</li>
+											<li>In the sidebar, click "Apps"</li>
 											<li>
-												Navigate to{" "}
+												Under "API Token", click <strong>Generate</strong> or <strong>Regenerate</strong>
+											</li>
+											<li>Copy the generated token (it typically starts with "pk_")</li>
+											<li>
+												Paste it in the form above. You can also visit{" "}
 												<a
-													href="https://linear.app/settings/api"
+													href="https://app.clickup.com/settings/apps"
 													target="_blank"
 													rel="noopener noreferrer"
 													className="font-medium underline underline-offset-4"
 												>
-													https://linear.app/settings/api
+													ClickUp API Settings
 												</a>{" "}
-												in your browser.
-											</li>
-											<li>Alternatively, click on your profile picture → Settings → API</li>
-											<li>
-												Click the <strong>+ New API key</strong> button.
-											</li>
-											<li>Enter a description for your key (like "Search Connector").</li>
-											<li>Select "Read-only" as the permission.</li>
-											<li>
-												Click <strong>Create</strong> to generate the API key.
-											</li>
-											<li>
-												Copy the generated API key that starts with 'lin_api_' as it will only
-												be shown once.
+												directly.
 											</li>
 										</ol>
 									</div>
@@ -306,16 +290,13 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 									<div>
 										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Grant necessary access</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											The API key will have access to all issues and comments that your user
-											account can see. If you're creating the key as an admin, it will have
-											access to all issues in the workspace.
+											The API Token will have access to all tasks and projects that your user account can see. Make sure your account has appropriate permissions for the workspaces you want to index.
 										</p>
 										<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 											<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 											<AlertTitle className="text-[10px] sm:text-xs">Data Privacy</AlertTitle>
 											<AlertDescription className="text-[9px] sm:text-[10px]">
-												Only issues and comments will be indexed. Linear attachments and
-												linked files are not indexed by this connector.
+												Only tasks, comments, and basic metadata will be indexed. ClickUp attachments and linked files are not indexed by this connector.
 											</AlertDescription>
 										</Alert>
 									</div>
@@ -328,28 +309,27 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Indexing</h3>
 								<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
 									<li>
-										Navigate to the Connector Dashboard and select the <strong>Linear</strong>{" "}
-										Connector.
+										Navigate to the Connector Dashboard and select the <strong>ClickUp</strong> Connector.
 									</li>
 									<li>
-										Place the <strong>API Key</strong> in the form field.
+										Place your <strong>API Token</strong> in the form field.
 									</li>
 									<li>
 										Click <strong>Connect</strong> to establish the connection.
 									</li>
-									<li>Once connected, your Linear issues will be indexed automatically.</li>
+									<li>Once connected, your ClickUp tasks will be indexed automatically.</li>
 								</ol>
 
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 									<AlertTitle className="text-[10px] sm:text-xs">What Gets Indexed</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										<p className="mb-2">The Linear connector indexes the following data:</p>
+										<p className="mb-2">The ClickUp connector indexes the following data:</p>
 										<ul className="list-disc pl-5 space-y-1">
-											<li>Issue titles and identifiers (e.g., PROJ-123)</li>
-											<li>Issue descriptions</li>
-											<li>Issue comments</li>
-											<li>Issue status and metadata</li>
+											<li>Task names and descriptions</li>
+											<li>Task comments and discussion threads</li>
+											<li>Task status, priority, and assignee information</li>
+											<li>Project and workspace information</li>
 										</ul>
 									</AlertDescription>
 								</Alert>

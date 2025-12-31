@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
 import type { FC } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import {
@@ -13,6 +13,7 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
 	Form,
 	FormControl,
@@ -36,25 +37,27 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { ConnectFormProps } from "../index";
 import { getConnectorBenefits } from "../connector-benefits";
 import { DateRangeSelector } from "../../components/date-range-selector";
-import { useState } from "react";
 
-const linearConnectorFormSchema = z.object({
+const githubConnectorFormSchema = z.object({
 	name: z.string().min(3, {
 		message: "Connector name must be at least 3 characters.",
 	}),
-	api_key: z
+	github_pat: z
 		.string()
-		.min(10, {
-			message: "Linear API Key is required and must be valid.",
+		.min(20, {
+			message: "GitHub Personal Access Token seems too short.",
 		})
-		.regex(/^lin_api_/, {
-			message: "Linear API Key should start with 'lin_api_'",
+		.refine((pat) => pat.startsWith("ghp_") || pat.startsWith("github_pat_"), {
+			message: "GitHub PAT should start with 'ghp_' or 'github_pat_'",
 		}),
+	repo_full_names: z.string().min(1, {
+		message: "At least one repository is required.",
+	}),
 });
 
-type LinearConnectorFormValues = z.infer<typeof linearConnectorFormSchema>;
+type GithubConnectorFormValues = z.infer<typeof githubConnectorFormSchema>;
 
-export const LinearConnectForm: FC<ConnectFormProps> = ({
+export const GithubConnectForm: FC<ConnectFormProps> = ({
 	onSubmit,
 	isSubmitting,
 }) => {
@@ -63,15 +66,24 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
-	const form = useForm<LinearConnectorFormValues>({
-		resolver: zodResolver(linearConnectorFormSchema),
+	const form = useForm<GithubConnectorFormValues>({
+		resolver: zodResolver(githubConnectorFormSchema),
 		defaultValues: {
-			name: "Linear Connector",
-			api_key: "",
+			name: "GitHub Connector",
+			github_pat: "",
+			repo_full_names: "",
 		},
 	});
 
-	const handleSubmit = async (values: LinearConnectorFormValues) => {
+	const stringToArray = (str: string): string[] => {
+		const items = str
+			.split(",")
+			.map((item) => item.trim())
+			.filter((item) => item.length > 0);
+		return Array.from(new Set(items));
+	};
+
+	const handleSubmit = async (values: GithubConnectorFormValues) => {
 		// Prevent multiple submissions
 		if (isSubmittingRef.current || isSubmitting) {
 			return;
@@ -79,11 +91,14 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 
 		isSubmittingRef.current = true;
 		try {
+			const repoList = stringToArray(values.repo_full_names);
+			
 			await onSubmit({
 				name: values.name,
-				connector_type: EnumConnectorName.LINEAR_CONNECTOR,
+				connector_type: EnumConnectorName.GITHUB_CONNECTOR,
 				config: {
-					LINEAR_API_KEY: values.api_key,
+					GITHUB_PAT: values.github_pat,
+					repo_full_names: repoList,
 				},
 				is_indexable: true,
 				last_indexed_at: null,
@@ -105,16 +120,16 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
 				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
 				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
+					<AlertTitle className="text-xs sm:text-sm">Personal Access Token Required</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a Linear API Key to use this connector. You can create one from{" "}
+						You'll need a GitHub Personal Access Token to use this connector. You can create one from{" "}
 						<a
-							href="https://linear.app/settings/api"
+							href="https://github.com/settings/tokens"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="font-medium underline underline-offset-4"
 						>
-							Linear API Settings
+							GitHub Settings
 						</a>
 					</AlertDescription>
 				</div>
@@ -122,7 +137,7 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="linear-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form id="github-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
 						<FormField
 							control={form.control}
 							name="name"
@@ -131,7 +146,7 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
 										<Input 
-											placeholder="My Linear Connector" 
+											placeholder="My GitHub Connector" 
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
 											disabled={isSubmitting}
 											{...field} 
@@ -147,26 +162,62 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 
 						<FormField
 							control={form.control}
-							name="api_key"
+							name="github_pat"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="text-xs sm:text-sm">Linear API Key</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">GitHub Personal Access Token</FormLabel>
 									<FormControl>
 										<Input 
 											type="password" 
-											placeholder="lin_api_..." 
+											placeholder="ghp_..." 
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
 											{...field} 
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Your Linear API Key will be encrypted and stored securely. It typically starts with "lin_api_".
+										Your GitHub PAT will be encrypted and stored securely. It typically starts with "ghp_" or "github_pat_".
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
 						/>
+
+						<FormField
+							control={form.control}
+							name="repo_full_names"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel className="text-xs sm:text-sm">Repository Names</FormLabel>
+									<FormControl>
+										<Input 
+											placeholder="owner/repo1, owner/repo2" 
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
+											disabled={isSubmitting}
+											{...field} 
+										/>
+									</FormControl>
+									<FormDescription className="text-[10px] sm:text-xs">
+										Comma-separated list of repository full names (e.g., "owner/repo1, owner/repo2").
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						{/* Show parsed repositories as badges */}
+						{form.watch("repo_full_names")?.trim() && (
+							<div className="rounded-lg border border-border bg-muted/50 p-3">
+								<h4 className="text-[10px] sm:text-xs font-medium mb-2">Selected Repositories:</h4>
+								<div className="flex flex-wrap gap-2">
+									{stringToArray(form.watch("repo_full_names") ?? "").map((repo) => (
+										<Badge key={repo} variant="secondary" className="text-[10px]">
+											{repo}
+										</Badge>
+									))}
+								</div>
+							</div>
+						)}
 
 						{/* Indexing Configuration */}
 						<div className="space-y-4 pt-4 border-t border-slate-400/20">
@@ -222,11 +273,11 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 			</div>
 
 			{/* What you get section */}
-			{getConnectorBenefits(EnumConnectorName.LINEAR_CONNECTOR) && (
+			{getConnectorBenefits(EnumConnectorName.GITHUB_CONNECTOR) && (
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 px-3 sm:px-6 py-4 space-y-2">
-					<h4 className="text-xs sm:text-sm font-medium">What you get with Linear integration:</h4>
+					<h4 className="text-xs sm:text-sm font-medium">What you get with GitHub integration:</h4>
 					<ul className="list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
-						{getConnectorBenefits(EnumConnectorName.LINEAR_CONNECTOR)?.map((benefit) => (
+						{getConnectorBenefits(EnumConnectorName.GITHUB_CONNECTOR)?.map((benefit) => (
 							<li key={benefit}>{benefit}</li>
 						))}
 					</ul>
@@ -243,17 +294,16 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 						<div>
 							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The Linear connector uses the Linear GraphQL API to fetch all issues and
-								comments that the API key has access to within a workspace.
+								The GitHub connector uses a Personal Access Token (PAT) to authenticate with the GitHub API. You provide a comma-separated list of repository full names (e.g., "owner/repo1, owner/repo2") that you want to index. The connector indexes relevant files (code, markdown, text) from the selected repositories.
 							</p>
 							<ul className="mt-2 list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 								<li>
-									For follow up indexing runs, the connector retrieves issues and comments that
-									have been updated since the last indexing attempt.
+									The connector indexes files based on common code and documentation extensions.
 								</li>
+								<li>Large files (over 1MB) are skipped during indexing.</li>
+								<li>Only specified repositories are indexed.</li>
 								<li>
-									Indexing is configured to run periodically, so updates should appear in your
-									search results within minutes.
+									Indexing runs periodically (check connector settings for frequency) to keep content up-to-date.
 								</li>
 							</ul>
 						</div>
@@ -263,59 +313,62 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Authorization</h3>
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 mb-4">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-									<AlertTitle className="text-[10px] sm:text-xs">Read-Only Access is Sufficient</AlertTitle>
+									<AlertTitle className="text-[10px] sm:text-xs">Personal Access Token Required</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										You only need a read-only API key for this connector to work. This limits
-										the permissions to just reading your Linear data.
+										You'll need a GitHub PAT with the appropriate scopes (e.g., 'repo') to fetch repositories. The PAT will be stored securely to enable indexing.
 									</AlertDescription>
 								</Alert>
 
 								<div className="space-y-4 sm:space-y-6">
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Create an API key</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Generate GitHub PAT</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Log in to your Linear account</li>
 											<li>
-												Navigate to{" "}
+												Go to your GitHub{" "}
 												<a
-													href="https://linear.app/settings/api"
+													href="https://github.com/settings/tokens"
 													target="_blank"
 													rel="noopener noreferrer"
 													className="font-medium underline underline-offset-4"
 												>
-													https://linear.app/settings/api
-												</a>{" "}
-												in your browser.
-											</li>
-											<li>Alternatively, click on your profile picture → Settings → API</li>
-											<li>
-												Click the <strong>+ New API key</strong> button.
-											</li>
-											<li>Enter a description for your key (like "Search Connector").</li>
-											<li>Select "Read-only" as the permission.</li>
-											<li>
-												Click <strong>Create</strong> to generate the API key.
+													Developer settings
+												</a>
 											</li>
 											<li>
-												Copy the generated API key that starts with 'lin_api_' as it will only
-												be shown once.
+												Click on <strong>Personal access tokens</strong>, then choose{" "}
+												<strong>Tokens (classic)</strong> or <strong>Fine-grained tokens</strong> (recommended if available).
+											</li>
+											<li>
+												Click <strong>Generate new token</strong> (and choose the appropriate type).
+											</li>
+											<li>
+												Give your token a descriptive name (e.g., "SurfSense Connector").
+											</li>
+											<li>
+												Set an expiration date for the token (recommended for security).
+											</li>
+											<li>
+												Under <strong>Select scopes</strong> (for classic tokens) or <strong>Repository access</strong> (for fine-grained), grant the necessary permissions. At minimum, the <strong>`repo`</strong> scope (or equivalent read access to repositories for fine-grained tokens) is required to read repository content.
+											</li>
+											<li>
+												Click <strong>Generate token</strong>.
+											</li>
+											<li>
+												<strong>Important:</strong> Copy your new PAT immediately. You won't be able to see it again after leaving the page.
 											</li>
 										</ol>
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Grant necessary access</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Specify repositories</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											The API key will have access to all issues and comments that your user
-											account can see. If you're creating the key as an admin, it will have
-											access to all issues in the workspace.
+											Enter a comma-separated list of repository full names in the format "owner/repo1, owner/repo2". The connector will index files from only the specified repositories.
 										</p>
 										<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 											<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-											<AlertTitle className="text-[10px] sm:text-xs">Data Privacy</AlertTitle>
+											<AlertTitle className="text-[10px] sm:text-xs">Repository Access</AlertTitle>
 											<AlertDescription className="text-[9px] sm:text-[10px]">
-												Only issues and comments will be indexed. Linear attachments and
-												linked files are not indexed by this connector.
+												Make sure your PAT has access to all repositories you want to index. Private repositories require appropriate permissions.
 											</AlertDescription>
 										</Alert>
 									</div>
@@ -328,28 +381,30 @@ export const LinearConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Indexing</h3>
 								<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
 									<li>
-										Navigate to the Connector Dashboard and select the <strong>Linear</strong>{" "}
-										Connector.
+										Navigate to the Connector Dashboard and select the <strong>GitHub</strong> Connector.
 									</li>
 									<li>
-										Place the <strong>API Key</strong> in the form field.
+										Enter your <strong>GitHub Personal Access Token</strong> in the form field.
+									</li>
+									<li>
+										Enter a comma-separated list of <strong>Repository Names</strong> (e.g., "owner/repo1, owner/repo2").
 									</li>
 									<li>
 										Click <strong>Connect</strong> to establish the connection.
 									</li>
-									<li>Once connected, your Linear issues will be indexed automatically.</li>
+									<li>Once connected, your GitHub repositories will be indexed automatically.</li>
 								</ol>
 
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 									<AlertTitle className="text-[10px] sm:text-xs">What Gets Indexed</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										<p className="mb-2">The Linear connector indexes the following data:</p>
+										<p className="mb-2">The GitHub connector indexes the following data:</p>
 										<ul className="list-disc pl-5 space-y-1">
-											<li>Issue titles and identifiers (e.g., PROJ-123)</li>
-											<li>Issue descriptions</li>
-											<li>Issue comments</li>
-											<li>Issue status and metadata</li>
+											<li>Code files from selected repositories</li>
+											<li>README files and Markdown documentation</li>
+											<li>Common text-based file formats</li>
+											<li>Repository metadata and structure</li>
 										</ul>
 									</AlertDescription>
 								</Alert>
