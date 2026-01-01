@@ -239,7 +239,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-4 sm:py-6 bg-muted border-t border-border">
+			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-6 sm:py-6 bg-muted border-t border-border">
 				{showDisconnectConfirm ? (
 					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
 						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">
@@ -251,7 +251,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								size="sm"
 								onClick={handleDisconnectConfirm}
 								disabled={isDisconnecting}
-								className="text-xs sm:text-sm flex-1 sm:flex-initial"
+								className="text-xs sm:text-sm flex-1 sm:flex-initial h-10 sm:h-auto py-2 sm:py-2"
 							>
 								{isDisconnecting ? (
 									<>
@@ -267,7 +267,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								size="sm"
 								onClick={handleDisconnectCancel}
 								disabled={isDisconnecting}
-								className="text-xs sm:text-sm flex-1 sm:flex-initial"
+								className="text-xs sm:text-sm flex-1 sm:flex-initial h-10 sm:h-auto py-2 sm:py-2"
 							>
 								Cancel
 							</Button>
@@ -276,10 +276,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				) : (
 					<Button
 						variant="destructive"
-						size="sm"
 						onClick={handleDisconnectClick}
 						disabled={isSaving || isDisconnecting}
-						className="text-xs sm:text-sm flex-1 sm:flex-initial"
+						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
 					>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Disconnect
@@ -288,7 +287,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				<Button
 					onClick={onSave}
 					disabled={isSaving || isDisconnecting}
-					className="text-xs sm:text-sm flex-1 sm:flex-initial"
+					className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
 				>
 					{isSaving ? (
 						<>
