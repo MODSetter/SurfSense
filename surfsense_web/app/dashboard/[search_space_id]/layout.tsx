@@ -30,24 +30,19 @@ export default function DashboardLayout({
 			{
 				title: "Chat",
 				url: `/dashboard/${search_space_id}/new-chat`,
-				icon: "SquareTerminal",
+				icon: "MessageCircle",
 				items: [],
 			},
-			{
-				title: "Sources",
-				url: "#",
-				icon: "Database",
-				items: [
-					{
-						title: "Manage Documents",
-						url: `/dashboard/${search_space_id}/documents`,
-					},
-				],
-			},
+		{
+			title: "Documents",
+			url: `/dashboard/${search_space_id}/documents`,
+			icon: "SquareLibrary",
+			items: [],
+		},
 		{
 			title: "Logs",
 			url: `/dashboard/${search_space_id}/logs`,
-			icon: "FileText",
+			icon: "Logs",
 			items: [],
 		},
 	];

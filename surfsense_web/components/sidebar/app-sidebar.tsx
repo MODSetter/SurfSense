@@ -12,7 +12,9 @@ import {
 	FileText,
 	Info,
 	LogOut,
+	Logs,
 	type LucideIcon,
+	MessageCircle,
 	MessageCircleMore,
 	MoonIcon,
 	Podcast,
@@ -148,6 +150,8 @@ export const iconMap: Record<string, LucideIcon> = {
 	Podcast,
 	Users,
 	RefreshCw,
+	MessageCircle,
+	Logs,
 };
 
 const defaultData = {

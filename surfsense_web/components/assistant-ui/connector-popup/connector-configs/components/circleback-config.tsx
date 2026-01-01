@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Webhook, Check } from "lucide-react";
+import { Copy, Webhook, Check, Info } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
 import { Input } from "@/components/ui/input";
@@ -107,11 +107,12 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({
 							<Input
 								value={webhookUrl}
 								readOnly
-								className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs"
+								disabled
+								className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs bg-muted/50 cursor-default select-all"
 							/>
 							<Button
 								type="button"
-								variant="outline"
+								variant="secondary"
 								size="sm"
 								onClick={handleCopyWebhookUrl}
 								className="shrink-0"
@@ -141,7 +142,7 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({
 
 				{webhookInfo && (
 					<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
-						<Webhook className="h-3 w-3 sm:h-4 sm:w-4" />
+						<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 						<AlertTitle className="text-xs sm:text-sm">Configuration Instructions</AlertTitle>
 						<AlertDescription className="text-[10px] sm:text-xs !pl-0 mt-1">
 							Configure this URL in Circleback Settings → Automations → Create automation → Send webhook request.

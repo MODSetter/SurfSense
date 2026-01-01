@@ -141,8 +141,9 @@ export const useConnectorDialog = () => {
 						if (connectorValidation.success) {
 							setEditingConnector(connector);
 							setConnectorConfig(connector.config);
-							// Load existing periodic sync settings (disabled for Google Drive)
-							setPeriodicEnabled(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ? false : connector.periodic_indexing_enabled);
+							setConnectorName(connector.name);
+							// Load existing periodic sync settings (disabled for Google Drive and non-indexable connectors)
+							setPeriodicEnabled(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" || !connector.is_indexable ? false : connector.periodic_indexing_enabled);
 							setFrequencyMinutes(
 								connector.indexing_frequency_minutes?.toString() || "1440"
 							);
@@ -508,16 +509,56 @@ export const useConnectorDialog = () => {
 							// Refresh connectors list
 							await refetchAllConnectors();
 						} else {
-							// Non-indexable connector - just show success message
-							toast.success(`${connectorTitle} connected successfully!`);
-							
-							// Close modal and return to main view
-							const url = new URL(window.location.href);
-							url.searchParams.delete("modal");
-							url.searchParams.delete("tab");
-							url.searchParams.delete("view");
-							url.searchParams.delete("connectorType");
-							router.replace(url.pathname + url.search, { scroll: false });
+							// Non-indexable connector
+							// For Circleback, transition to edit view to show webhook URL
+							// For other non-indexable connectors, just close the modal
+							if (currentConnectorType === "CIRCLEBACK_CONNECTOR") {
+								// Clear connecting state and indexing config state
+								setConnectingConnectorType(null);
+								setIndexingConfig(null);
+								setIndexingConnector(null);
+								setIndexingConnectorConfig(null);
+								
+								// Set up edit view state
+								setEditingConnector(connector);
+								setConnectorName(connector.name);
+								setConnectorConfig(connector.config || {});
+								setPeriodicEnabled(false);
+								setFrequencyMinutes("1440");
+								setStartDate(undefined);
+								setEndDate(undefined);
+								
+								toast.success(`${connectorTitle} connected successfully!`, {
+									description: "Configure the webhook URL in your Circleback settings.",
+								});
+								
+								// Transition to edit view
+								const url = new URL(window.location.href);
+								url.searchParams.set("modal", "connectors");
+								url.searchParams.set("view", "edit");
+								url.searchParams.set("connectorId", connector.id.toString());
+								url.searchParams.delete("connectorType");
+								router.replace(url.pathname + url.search, { scroll: false });
+								
+								// Refresh connectors list
+								await refetchAllConnectors();
+							} else {
+								// Other non-indexable connectors - just show success message and close
+								toast.success(`${connectorTitle} connected successfully!`);
+								
+								// Close modal and return to main view
+								const url = new URL(window.location.href);
+								url.searchParams.delete("modal");
+								url.searchParams.delete("tab");
+								url.searchParams.delete("view");
+								url.searchParams.delete("connectorType");
+								router.replace(url.pathname + url.search, { scroll: false });
+								
+								// Clear indexing config state
+								setIndexingConfig(null);
+								setIndexingConnector(null);
+								setIndexingConnectorConfig(null);
+							}
 						}
 					}
 				}
@@ -698,8 +739,8 @@ export const useConnectorDialog = () => {
 		
 		setEditingConnector(connector);
 		setConnectorName(connector.name);
-		// Load existing periodic sync settings (disabled for Google Drive)
-		setPeriodicEnabled(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ? false : connector.periodic_indexing_enabled);
+		// Load existing periodic sync settings (disabled for Google Drive and non-indexable connectors)
+		setPeriodicEnabled(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" || !connector.is_indexable ? false : connector.periodic_indexing_enabled);
 		setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
 		// Reset dates - user can set new ones for re-indexing
 		setStartDate(undefined);
@@ -747,14 +788,14 @@ export const useConnectorDialog = () => {
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 			// Update connector with periodic sync settings, config changes, and name
-			// Note: Periodic sync is disabled for Google Drive connectors
-			const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : null;
+			// Note: Periodic sync is disabled for Google Drive connectors and non-indexable connectors
+			const frequency = periodicEnabled && editingConnector.is_indexable ? parseInt(frequencyMinutes, 10) : null;
 			await updateConnector({
 				id: editingConnector.id,
 				data: {
 					name: connectorName || editingConnector.name,
-					periodic_indexing_enabled: editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ? false : periodicEnabled,
-					indexing_frequency_minutes: editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ? null : frequency,
+					periodic_indexing_enabled: editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" || !editingConnector.is_indexable ? false : periodicEnabled,
+					indexing_frequency_minutes: editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" || !editingConnector.is_indexable ? null : frequency,
 					config: connectorConfig || editingConnector.config,
 				},
 			});
