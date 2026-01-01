@@ -144,10 +144,7 @@ export function DocumentsTableShell({
 								Get started by uploading your first document.
 							</p>
 						</div>
-						<Button
-							onClick={openDialog}
-							className="mt-2"
-						>
+						<Button onClick={openDialog} className="mt-2">
 							<Plus className="mr-2 h-4 w-4" />
 							Upload Documents
 						</Button>

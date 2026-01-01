@@ -9,7 +9,12 @@ import { useCallback, useMemo, useState, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -201,8 +206,8 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess }: DocumentUploadTa
 						{...getRootProps()}
 						className="flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed border-border rounded-lg hover:border-primary/50 transition-colors cursor-pointer"
 					>
-						<input 
-							{...getInputProps()} 
+						<input
+							{...getInputProps()}
 							ref={fileInputRef}
 							className="hidden"
 							onClick={handleFileInputClick}
@@ -226,10 +231,10 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess }: DocumentUploadTa
 							</div>
 						)}
 						<div className="mt-2 sm:mt-4">
-							<Button 
-								variant="outline" 
-								size="sm" 
-								className="text-xs sm:text-sm" 
+							<Button
+								variant="outline"
+								size="sm"
+								className="text-xs sm:text-sm"
 								onClick={(e) => {
 									e.stopPropagation();
 									e.preventDefault();
@@ -262,7 +267,13 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess }: DocumentUploadTa
 											{t("total_size")}: {formatFileSize(totalFileSize)}
 										</CardDescription>
 									</div>
-									<Button variant="outline" size="sm" className="text-xs sm:text-sm shrink-0" onClick={() => setFiles([])} disabled={isUploading}>
+									<Button
+										variant="outline"
+										size="sm"
+										className="text-xs sm:text-sm shrink-0"
+										onClick={() => setFiles([])}
+										disabled={isUploading}
+									>
 										{t("clear_all")}
 									</Button>
 								</div>
@@ -352,14 +363,22 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess }: DocumentUploadTa
 				)}
 			</AnimatePresence>
 
-			<Accordion type="single" collapsible className={`w-full ${cardClass} border border-border rounded-lg`}>
+			<Accordion
+				type="single"
+				collapsible
+				className={`w-full ${cardClass} border border-border rounded-lg`}
+			>
 				<AccordionItem value="supported-file-types" className="border-0">
 					<AccordionTrigger className="px-3 sm:px-6 py-3 sm:py-4 hover:no-underline">
 						<div className="flex items-center gap-2">
 							<Tag className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
 							<div className="text-left min-w-0">
-								<div className="font-semibold text-sm sm:text-base">{t("supported_file_types")}</div>
-								<div className="text-xs sm:text-sm text-muted-foreground font-normal">{t("file_types_desc")}</div>
+								<div className="font-semibold text-sm sm:text-base">
+									{t("supported_file_types")}
+								</div>
+								<div className="text-xs sm:text-sm text-muted-foreground font-normal">
+									{t("file_types_desc")}
+								</div>
 							</div>
 						</div>
 					</AccordionTrigger>

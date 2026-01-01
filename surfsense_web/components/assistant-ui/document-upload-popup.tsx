@@ -1,7 +1,15 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { type FC, createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
+import {
+	type FC,
+	createContext,
+	useContext,
+	useState,
+	useCallback,
+	useRef,
+	type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -45,19 +53,22 @@ export const DocumentUploadDialogProvider: FC<{ children: ReactNode }> = ({ chil
 		}, 300);
 	}, []);
 
-	const handleOpenChange = useCallback((open: boolean) => {
-		if (!open) {
-			// Only close if not already in closing state
-			if (!isClosingRef.current) {
-				closeDialog();
+	const handleOpenChange = useCallback(
+		(open: boolean) => {
+			if (!open) {
+				// Only close if not already in closing state
+				if (!isClosingRef.current) {
+					closeDialog();
+				}
+			} else {
+				// Only open if not in the middle of closing
+				if (!isClosingRef.current) {
+					setIsOpen(true);
+				}
 			}
-		} else {
-			// Only open if not in the middle of closing
-			if (!isClosingRef.current) {
-				setIsOpen(true);
-			}
-		}
-	}, [closeDialog]);
+		},
+		[closeDialog]
+	);
 
 	return (
 		<DocumentUploadDialogContext.Provider value={{ openDialog, closeDialog }}>
@@ -98,4 +109,3 @@ const DocumentUploadPopupContent: FC<{
 		</Dialog>
 	);
 };
-
