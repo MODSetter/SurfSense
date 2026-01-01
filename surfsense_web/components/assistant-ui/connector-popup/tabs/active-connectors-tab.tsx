@@ -14,6 +14,7 @@ import { getDocumentCountForConnector } from "../utils/connector-document-mappin
 import { TabsContent } from "@/components/ui/tabs";
 
 interface ActiveConnectorsTabProps {
+	searchQuery: string;
 	hasSources: boolean;
 	totalSourceCount: number;
 	activeDocumentTypes: Array<[string, number]>;
@@ -26,6 +27,7 @@ interface ActiveConnectorsTabProps {
 }
 
 export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
+	searchQuery,
 	hasSources,
 	activeDocumentTypes,
 	connectors,
@@ -74,20 +76,34 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 			type: docType,
 			count,
 			label: getDocumentTypeLabel(docType),
-		}));
+		}))
+		.filter((doc) => {
+			if (!searchQuery) return true;
+			return doc.label.toLowerCase().includes(searchQuery.toLowerCase());
+		});
+
+	// Filter connectors based on search query
+	const filteredConnectors = connectors.filter((connector) => {
+		if (!searchQuery) return true;
+		const searchLower = searchQuery.toLowerCase();
+		return (
+			connector.name.toLowerCase().includes(searchLower) ||
+			connector.connector_type.toLowerCase().includes(searchLower)
+		);
+	});
 
 	return (
 		<TabsContent value="active" className="m-0">
 			{hasSources ? (
 				<div className="space-y-6">
 					{/* Active Connectors Section */}
-					{connectors.length > 0 && (
+					{filteredConnectors.length > 0 && (
 						<div className="space-y-4">
 							<div className="flex items-center gap-2">
 								<h3 className="text-sm font-semibold text-muted-foreground">Active Connectors</h3>
 							</div>
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-								{connectors.map((connector) => {
+								{filteredConnectors.map((connector) => {
 									const isIndexing = indexingConnectorIds.has(connector.id);
 									const activeTask = logsSummary?.active_tasks?.find(
 										(task: LogActiveTask) => task.connector_id === connector.id

@@ -292,6 +292,7 @@ export const ConnectorIndicator: FC = () => {
 									</TabsContent>
 
 									<ActiveConnectorsTab
+										searchQuery={searchQuery}
 										hasSources={hasSources}
 										totalSourceCount={totalSourceCount}
 										activeDocumentTypes={activeDocumentTypes}
