@@ -16,6 +16,7 @@ import {
 } from "@/components/editConnector/types";
 import type { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/hooks/use-search-source-connectors";
+import type { UpdateConnectorResponse } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 const normalizeListInput = (value: unknown): string[] => {
@@ -57,7 +58,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 
 	// State managed by the hook
 	const [connector, setConnector] = useState<SearchSourceConnector | null>(null);
-	const [originalConfig, setOriginalConfig] = useState<Record<string, any> | null>(null);
+	const [originalConfig, setOriginalConfig] = useState<Record<string, unknown> | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [currentSelectedRepos, setCurrentSelectedRepos] = useState<string[]>([]);
 	const [originalPat, setOriginalPat] = useState<string>("");
@@ -161,18 +162,18 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 				}
 			} else {
 				toast.error("Connector not found.");
-				router.push(`/dashboard/${searchSpaceId}/connectors`);
+				router.push(`/dashboard/${searchSpaceId}`);
 			}
 		}
 	}, [
-		connectorId,
-		connectors,
-		connectorsLoading,
-		router,
-		searchSpaceId,
-		connector,
-		editForm,
-		patForm,
+		connectorId, 
+		connectors, 
+		connectorsLoading, 
+		router, 
+		searchSpaceId, 
+		connector, editForm.reset, patForm.reset
+		// Note: editForm and patForm are intentionally excluded from dependencies
+		// to prevent infinite loops. They are stable form objects from react-hook-form.
 	]);
 
 	// Handlers managed by the hook
@@ -219,7 +220,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			setIsSaving(true);
 			const updatePayload: Partial<SearchSourceConnector> = {};
 			let configChanged = false;
-			let newConfig: Record<string, any> | null = null;
+			let newConfig: Record<string, unknown> | null = null;
 
 			if (formData.name !== connector.name) {
 				updatePayload.name = formData.name;
@@ -296,12 +297,14 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						return;
 					}
 
-					const candidateConfig: Record<string, any> = { SEARXNG_HOST: host };
-					let hasChanges = host !== (originalConfig.SEARXNG_HOST || "").trim();
+					const candidateConfig: Record<string, unknown> = { SEARXNG_HOST: host };
+					const originalHost = typeof originalConfig.SEARXNG_HOST === "string" ? originalConfig.SEARXNG_HOST : "";
+					let hasChanges = host !== originalHost.trim();
 
 					const apiKey = (formData.SEARXNG_API_KEY || "").trim();
-					const originalApiKey = (originalConfig.SEARXNG_API_KEY || "").trim();
-					if (apiKey !== originalApiKey) {
+					const originalApiKey = typeof originalConfig.SEARXNG_API_KEY === "string" ? originalConfig.SEARXNG_API_KEY : "";
+					const originalApiKeyTrimmed = originalApiKey.trim();
+					if (apiKey !== originalApiKeyTrimmed) {
 						candidateConfig.SEARXNG_API_KEY = apiKey || null;
 						hasChanges = true;
 					}
@@ -321,8 +324,9 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					}
 
 					const language = (formData.SEARXNG_LANGUAGE || "").trim();
-					const originalLanguage = (originalConfig.SEARXNG_LANGUAGE || "").trim();
-					if (language !== originalLanguage) {
+					const originalLanguage = typeof originalConfig.SEARXNG_LANGUAGE === "string" ? originalConfig.SEARXNG_LANGUAGE : "";
+					const originalLanguageTrimmed = originalLanguage.trim();
+					if (language !== originalLanguageTrimmed) {
 						candidateConfig.SEARXNG_LANGUAGE = language || null;
 						hasChanges = true;
 					}
@@ -490,7 +494,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					) {
 						newConfig = {};
 
-						if (formData.FIRECRAWL_API_KEY && formData.FIRECRAWL_API_KEY.trim()) {
+						if (formData.FIRECRAWL_API_KEY?.trim()) {
 							if (!formData.FIRECRAWL_API_KEY.startsWith("fc-")) {
 								toast.warning(
 									"Firecrawl API keys typically start with 'fc-'. Please verify your key."
@@ -504,7 +508,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						}
 
 						if (formData.INITIAL_URLS !== undefined) {
-							if (formData.INITIAL_URLS && formData.INITIAL_URLS.trim()) {
+							if (formData.INITIAL_URLS?.trim()) {
 								newConfig.INITIAL_URLS = formData.INITIAL_URLS.trim();
 							} else if (originalConfig.INITIAL_URLS) {
 								toast.info("URLs removed from crawler configuration.");
@@ -530,21 +534,19 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			}
 
 			try {
-				await updateConnector({
+				const updatedConnector = await updateConnector({
 					id: connectorId,
 					data: {
 						...updatePayload,
 						connector_type: connector.connector_type as EnumConnectorName,
 					},
-				});
+				}) as UpdateConnectorResponse;
 				toast.success("Connector updated!");
-				const newlySavedConfig = updatePayload.config || originalConfig;
+				// Use the response from the API which has the full merged config
+				const newlySavedConfig = updatedConnector.config || originalConfig;
 				setOriginalConfig(newlySavedConfig);
-				if (updatePayload.name) {
-					setConnector((prev) =>
-						prev ? { ...prev, name: updatePayload.name!, config: newlySavedConfig } : null
-					);
-				}
+				// Update connector state with the full updated connector from the API
+				setConnector(updatedConnector);
 				if (configChanged) {
 					if (connector.connector_type === "GITHUB_CONNECTOR") {
 						const savedGitHubConfig = newlySavedConfig as {

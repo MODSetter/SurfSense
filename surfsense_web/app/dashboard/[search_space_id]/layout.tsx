@@ -26,28 +26,24 @@ export default function DashboardLayout({
 		},
 	];
 
-	const customNavMain = [
-		{
-			title: "Chat",
-			url: `/dashboard/${search_space_id}/new-chat`,
-			icon: "SquareTerminal",
-			items: [],
-		},
-		{
-			title: "Sources",
-			url: "#",
-			icon: "Database",
-			items: [
-				{
-					title: "Manage Documents",
-					url: `/dashboard/${search_space_id}/documents`,
-				},
-				{
-					title: "Manage Connectors",
-					url: `/dashboard/${search_space_id}/connectors`,
-				},
-			],
-		},
+		const customNavMain = [
+			{
+				title: "Chat",
+				url: `/dashboard/${search_space_id}/new-chat`,
+				icon: "SquareTerminal",
+				items: [],
+			},
+			{
+				title: "Sources",
+				url: "#",
+				icon: "Database",
+				items: [
+					{
+						title: "Manage Documents",
+						url: `/dashboard/${search_space_id}/documents`,
+					},
+				],
+			},
 		{
 			title: "Logs",
 			url: `/dashboard/${search_space_id}/logs`,

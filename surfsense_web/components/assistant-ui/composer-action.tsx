@@ -1,7 +1,6 @@
 import { AssistantIf, ComposerPrimitive, useAssistantState } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import { AlertCircle, ArrowUpIcon, Loader2, Plus, Plug2, SquareIcon } from "lucide-react";
-import Link from "next/link";
 import type { FC } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
@@ -148,14 +147,15 @@ const ConnectorIndicator: FC = () => {
 							</>
 						)}
 						<div className="pt-1 border-t border-border/50">
-							<Link
-								href={`/dashboard/${searchSpaceId}/connectors/add`}
+							<button
+								type="button"
 								className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+								onClick={() => {/* Connector popup should be opened via the connector indicator button */}}
 							>
 								<Plus className="size-3" />
 								Add more sources
 								<ChevronRightIcon className="size-3" />
-							</Link>
+							</button>
 						</div>
 					</div>
 				) : (
@@ -164,13 +164,14 @@ const ConnectorIndicator: FC = () => {
 						<p className="text-xs text-muted-foreground">
 							Add documents or connect data sources to enhance search results.
 						</p>
-						<Link
-							href={`/dashboard/${searchSpaceId}/connectors/add`}
+						<button
+							type="button"
 							className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors mt-1"
+							onClick={() => {/* Connector popup should be opened via the connector indicator button */}}
 						>
 							<Plus className="size-3" />
 							Add Connector
-						</Link>
+						</button>
 					</div>
 				)}
 			</PopoverContent>

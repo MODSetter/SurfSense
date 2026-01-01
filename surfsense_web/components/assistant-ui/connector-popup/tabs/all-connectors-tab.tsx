@@ -1,7 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { type FC } from "react";
+import type { FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { OAUTH_CONNECTORS, CRAWLERS, OTHER_CONNECTORS } from "../constants/connector-constants";
@@ -39,8 +38,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onCreateYouTubeCrawler,
 	onManage,
 }) => {
-	const router = useRouter();
-
 	// Helper to find active task for a connector
 	const getActiveTaskForConnector = (connectorId: number): LogActiveTask | undefined => {
 		if (!logsSummary?.active_tasks) return undefined;
@@ -148,9 +145,11 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 								: isWebcrawler && onCreateWebcrawler
 								? onCreateWebcrawler
 								: crawler.connectorType && onConnectNonOAuth
-								? () => onConnectNonOAuth(crawler.connectorType!)
-								: crawler.connectorType
-								? () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${crawler.id}`)
+								? () => {
+									if (crawler.connectorType) {
+										onConnectNonOAuth(crawler.connectorType);
+									}
+								}
 								: () => {}; // Fallback for non-connector crawlers
 
 							return (
@@ -186,7 +185,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{filteredOther.map((connector) => {
 						// Special handling for connectors that can be created in popup
-						const isWebcrawler = connector.id === "webcrawler-connector";
 						const isTavily = connector.id === "tavily-api";
 						const isSearxng = connector.id === "searxng";
 						const isLinkup = connector.id === "linkup-api";
@@ -216,11 +214,9 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 						const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
 						const activeTask = actualConnector ? getActiveTaskForConnector(actualConnector.id) : undefined;
 
-						const handleConnect = isWebcrawler && onCreateWebcrawler
-							? onCreateWebcrawler
-							: (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch || isSlack || isDiscord || isNotion || isConfluence || isBookStack || isGithub || isJira || isClickUp || isLuma || isCircleback) && onConnectNonOAuth
+						const handleConnect = (isTavily || isSearxng || isLinkup || isBaidu || isLinear || isElasticsearch || isSlack || isDiscord || isNotion || isConfluence || isBookStack || isGithub || isJira || isClickUp || isLuma || isCircleback) && onConnectNonOAuth
 							? () => onConnectNonOAuth(connector.connectorType)
-							: () => router.push(`/dashboard/${searchSpaceId}/connectors/add/${connector.id}`);
+							: () => {}; // Fallback - connector popup should handle all connector types
 
 						return (
 							<ConnectorCard
