@@ -3,6 +3,7 @@
 import { Copy, Webhook, Check, Info } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
+import { z } from "zod";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -14,13 +15,25 @@ export interface CirclebackConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
+// Type-safe schema for webhook info response
+const circlebackWebhookInfoSchema = z.object({
+	webhook_url: z.string(),
+	search_space_id: z.number(),
+	method: z.string(),
+	content_type: z.string(),
+	description: z.string(),
+	note: z.string(),
+});
+
+export type CirclebackWebhookInfo = z.infer<typeof circlebackWebhookInfoSchema>;
+
 export const CirclebackConfig: FC<CirclebackConfigProps> = ({
 	connector,
 	onNameChange,
 }) => {
 	const [name, setName] = useState<string>(connector.name || "");
 	const [webhookUrl, setWebhookUrl] = useState<string>("");
-	const [webhookInfo, setWebhookInfo] = useState<{ webhook_url: string; search_space_id: number; method: string; content_type: string; description: string; note: string } | null>(null);
+	const [webhookInfo, setWebhookInfo] = useState<CirclebackWebhookInfo | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [copied, setCopied] = useState(false);
 
@@ -34,18 +47,30 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({
 		const fetchWebhookInfo = async () => {
 			if (!connector.search_space_id) return;
 			
+			const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
+			if (!baseUrl) {
+				console.error("NEXT_PUBLIC_FASTAPI_BACKEND_URL is not configured");
+				setIsLoading(false);
+				return;
+			}
+			
 			setIsLoading(true);
 			try {
 				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/webhooks/circleback/${connector.search_space_id}/info`
+					`${baseUrl}/api/v1/webhooks/circleback/${connector.search_space_id}/info`
 				);
 				if (response.ok) {
-					const data = await response.json();
-					setWebhookInfo(data);
-					setWebhookUrl(data.webhook_url || "");
+					const data: unknown = await response.json();
+					// Runtime validation with zod schema
+					const validatedData = circlebackWebhookInfoSchema.parse(data);
+					setWebhookInfo(validatedData);
+					setWebhookUrl(validatedData.webhook_url);
 				}
 			} catch (error) {
 				console.error("Failed to fetch webhook info:", error);
+				// Reset state on error
+				setWebhookInfo(null);
+				setWebhookUrl("");
 			} finally {
 				setIsLoading(false);
 			}

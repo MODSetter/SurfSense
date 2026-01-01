@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -30,7 +30,6 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { AllChatsSidebar } from "./all-chats-sidebar";
 
@@ -53,7 +52,6 @@ interface NavChatsProps {
 	chats: ChatItem[];
 	defaultOpen?: boolean;
 	searchSpaceId?: string;
-	isSourcesExpanded?: boolean;
 }
 
 // Map of icon names to their components
@@ -68,23 +66,14 @@ export function NavChats({
 	chats,
 	defaultOpen = true,
 	searchSpaceId,
-	isSourcesExpanded = false,
 }: NavChatsProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const pathname = usePathname();
-	const isMobile = useIsMobile();
 	const { setOpenMobile } = useSidebar();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 	const [isAllChatsSidebarOpen, setIsAllChatsSidebarOpen] = useState(false);
-
-	// Auto-collapse on smaller screens when Sources is expanded
-	useEffect(() => {
-		if (isSourcesExpanded && isMobile) {
-			setIsOpen(false);
-		}
-	}, [isSourcesExpanded, isMobile]);
 
 	// Handle chat deletion with loading state
 	const handleDeleteChat = useCallback(async (chatId: number, deleteAction: () => void) => {

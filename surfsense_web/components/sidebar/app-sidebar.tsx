@@ -295,7 +295,6 @@ export const AppSidebar = memo(function AppSidebar({
 	const { theme, setTheme } = useTheme();
 	const { data: user, isPending: isLoadingUser } = useAtomValue(currentUserAtom);
 	const [isClient, setIsClient] = useState(false);
-	const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
 
 	useEffect(() => {
 		setIsClient(true);
@@ -447,19 +446,17 @@ export const AppSidebar = memo(function AppSidebar({
 			</SidebarHeader>
 
 			<SidebarContent className="gap-1">
-				<NavMain items={processedNavMain} onSourcesExpandedChange={setIsSourcesExpanded} />
+				<NavMain items={processedNavMain} />
 
 				<NavChats
 					chats={processedRecentChats}
 					searchSpaceId={searchSpaceId}
-					isSourcesExpanded={isSourcesExpanded}
 				/>
 
 				<NavNotes
 					notes={processedRecentNotes}
 					onAddNote={onAddNote}
 					searchSpaceId={searchSpaceId}
-					isSourcesExpanded={isSourcesExpanded}
 				/>
 			</SidebarContent>
 			<SidebarFooter>

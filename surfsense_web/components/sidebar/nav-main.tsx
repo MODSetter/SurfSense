@@ -31,10 +31,9 @@ interface NavItem {
 
 interface NavMainProps {
 	items: NavItem[];
-	onSourcesExpandedChange?: (expanded: boolean) => void;
 }
 
-export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
+export function NavMain({ items }: NavMainProps) {
 	const t = useTranslations("nav_menu");
 	const pathname = usePathname();
 
@@ -100,16 +99,9 @@ export function NavMain({ items, onSourcesExpandedChange }: NavMainProps) {
 	});
 
 	// Handle collapsible state change
-	const handleOpenChange = useCallback(
-		(title: string, isOpen: boolean) => {
-			setExpandedItems((prev) => ({ ...prev, [title]: isOpen }));
-			// Notify parent when Sources is expanded/collapsed
-			if (title === "Sources" && onSourcesExpandedChange) {
-				onSourcesExpandedChange(isOpen);
-			}
-		},
-		[onSourcesExpandedChange]
-	);
+	const handleOpenChange = useCallback((title: string, isOpen: boolean) => {
+		setExpandedItems((prev) => ({ ...prev, [title]: isOpen }));
+	}, []);
 
 	return (
 		<SidebarGroup>
