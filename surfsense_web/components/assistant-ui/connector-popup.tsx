@@ -91,6 +91,7 @@ export const ConnectorIndicator: FC = () => {
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,
+		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,
@@ -225,6 +226,7 @@ export const ConnectorIndicator: FC = () => {
 						frequencyMinutes={frequencyMinutes}
 						isSaving={isSaving}
 						isDisconnecting={isDisconnecting}
+						isIndexing={indexingConnectorIds.has(editingConnector.id)}
 						onStartDateChange={setStartDate}
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
@@ -232,6 +234,7 @@ export const ConnectorIndicator: FC = () => {
 						onSave={() => handleSaveConnector(() => refreshConnectors())}
 						onDisconnect={() => handleDisconnectConnector(() => refreshConnectors())}
 						onBack={handleBackFromEdit}
+						onQuickIndex={editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" ? () => handleQuickIndexConnector(editingConnector.id) : undefined}
 						onConfigChange={setConnectorConfig}
 						onNameChange={setConnectorName}
 					/>

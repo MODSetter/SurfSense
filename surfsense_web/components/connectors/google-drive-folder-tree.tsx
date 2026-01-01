@@ -265,17 +265,9 @@ export function GoogleDriveFolderTree({
 								toggleFileSelection(item.id, item.name);
 							}
 						}}
-						className="shrink-0 z-20 group-hover:border-white group-hover:border"
+						className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4 border-slate-400/20 dark:border-white/20"
 						onClick={(e) => e.stopPropagation()}
 					/>
-					{isFolder && (
-						<Checkbox
-							checked={isSelected}
-							onCheckedChange={() => toggleFolderSelection(item.id, item.name)}
-							className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4"
-							onClick={(e) => e.stopPropagation()}
-						/>
-					)}
 
 					<div className="shrink-0">
 						{isFolder ? (
@@ -319,15 +311,15 @@ export function GoogleDriveFolderTree({
 	};
 
 	return (
-		<div className="border rounded-md w-full overflow-hidden">
+		<div className="border border-slate-400/20 dark:border-white/20 rounded-md w-full overflow-hidden">
 			<ScrollArea className="h-[300px] sm:h-[450px] w-full">
 				<div className="p-1 sm:p-2 pr-2 sm:pr-4 w-full overflow-x-hidden">
-					<div className="mb-1 sm:mb-2 pb-1 sm:pb-2 border-b">
+					<div className="mb-1 sm:mb-2 pb-1 sm:pb-2 border-b border-slate-400/20 dark:border-white/20">
 						<div className="flex items-center gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md hover:bg-accent cursor-pointer">
 							<Checkbox
 								checked={isFolderSelected("root")}
 								onCheckedChange={() => toggleFolderSelection("root", "My Drive")}
-								className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4"
+								className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4 border-slate-400/20 dark:border-white/20"
 							/>
 							<HardDrive className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" />
 							<button

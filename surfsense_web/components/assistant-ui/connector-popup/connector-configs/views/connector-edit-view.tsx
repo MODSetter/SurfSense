@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Info, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Info, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { type FC, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -18,6 +18,7 @@ interface ConnectorEditViewProps {
 	frequencyMinutes: string;
 	isSaving: boolean;
 	isDisconnecting: boolean;
+	isIndexing?: boolean;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
@@ -25,6 +26,7 @@ interface ConnectorEditViewProps {
 	onSave: () => void;
 	onDisconnect: () => void;
 	onBack: () => void;
+	onQuickIndex?: () => void;
 	onConfigChange?: (config: Record<string, unknown>) => void;
 	onNameChange?: (name: string) => void;
 }
@@ -37,6 +39,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	frequencyMinutes,
 	isSaving,
 	isDisconnecting,
+	isIndexing = false,
 	onStartDateChange,
 	onEndDateChange,
 	onPeriodicEnabledChange,
@@ -44,6 +47,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onSave,
 	onDisconnect,
 	onBack,
+	onQuickIndex,
 	onConfigChange,
 	onNameChange,
 }) => {
@@ -120,18 +124,42 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				</button>
 
 				{/* Connector header */}
-				<div className="flex items-center gap-4 mb-6">
-					<div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
-						{getConnectorIcon(connector.connector_type, "size-7")}
+				<div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+					<div className="flex items-center gap-4 flex-1 w-full sm:w-auto">
+						<div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 flex-shrink-0">
+							{getConnectorIcon(connector.connector_type, "size-7")}
+						</div>
+						<div className="flex-1 min-w-0">
+							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
+								{connector.name}
+							</h2>
+							<p className="text-xs sm:text-base text-muted-foreground mt-1">
+								Manage your connector settings and sync configuration
+							</p>
+						</div>
 					</div>
-					<div className="flex-1">
-						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-							{connector.name}
-						</h2>
-						<p className="text-xs sm:text-base text-muted-foreground mt-1">
-							Manage your connector settings and sync configuration
-						</p>
-					</div>
+					{/* Quick Index Button - only show for indexable connectors, but not for Google Drive (requires folder selection) */}
+					{connector.is_indexable && onQuickIndex && connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
+						<Button
+							variant="secondary"
+							size="sm"
+							onClick={onQuickIndex}
+							disabled={isIndexing || isSaving || isDisconnecting}
+							className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
+						>
+							{isIndexing ? (
+								<>
+									<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+									Indexing...
+								</>
+							) : (
+								<>
+									<RefreshCw className="mr-2 h-4 w-4" />
+									Quick Index
+								</>
+							)}
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -165,12 +193,15 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 									/>
 								)}
 
-								<PeriodicSyncConfig
-									enabled={periodicEnabled}
-									frequencyMinutes={frequencyMinutes}
-									onEnabledChange={onPeriodicEnabledChange}
-									onFrequencyChange={onFrequencyChange}
-								/>
+								{/* Periodic sync - not shown for Google Drive */}
+								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
+									<PeriodicSyncConfig
+										enabled={periodicEnabled}
+										frequencyMinutes={frequencyMinutes}
+										onEnabledChange={onPeriodicEnabledChange}
+										onFrequencyChange={onFrequencyChange}
+									/>
+								)}
 							</>
 						)}
 

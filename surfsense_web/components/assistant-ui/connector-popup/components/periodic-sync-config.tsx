@@ -37,7 +37,7 @@ export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
 			</div>
 
 			{enabled && (
-				<div className="mt-4 pt-4 border-t border-border/100 space-y-3">
+				<div className="mt-4 pt-4 border-t border-slate-400/20 space-y-3">
 					<div className="space-y-2">
 						<Label htmlFor="frequency" className="text-xs sm:text-sm">Sync Frequency</Label>
 						<Select value={frequencyMinutes} onValueChange={onFrequencyChange}>

@@ -141,8 +141,8 @@ export const useConnectorDialog = () => {
 						if (connectorValidation.success) {
 							setEditingConnector(connector);
 							setConnectorConfig(connector.config);
-							// Load existing periodic sync settings
-							setPeriodicEnabled(connector.periodic_indexing_enabled);
+							// Load existing periodic sync settings (disabled for Google Drive)
+							setPeriodicEnabled(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ? false : connector.periodic_indexing_enabled);
 							setFrequencyMinutes(
 								connector.indexing_frequency_minutes?.toString() || "1440"
 							);
@@ -293,7 +293,7 @@ export const useConnectorDialog = () => {
 
 		setConnectingId("webcrawler-connector");
 		try {
-			const newConnector = await createConnector({
+			await createConnector({
 				data: {
 					name: "Web Pages",
 					connector_type: EnumConnectorName.WEBCRAWLER_CONNECTOR,
@@ -530,7 +530,7 @@ export const useConnectorDialog = () => {
 			setIsCreatingConnector(false);
 			// Don't clear connectingConnectorType here - it's cleared above when transitioning to config view
 		}
-	}, [connectingConnectorType, searchSpaceId, createConnector, refetchAllConnectors, updateConnector, indexConnector, router, getFrequencyLabel, queryClient]);
+		}, [connectingConnectorType, searchSpaceId, createConnector, refetchAllConnectors, updateConnector, indexConnector, router, getFrequencyLabel]);
 
 	// Handle going back from connect view
 	const handleBackFromConnect = useCallback(() => {
@@ -583,14 +583,19 @@ export const useConnectorDialog = () => {
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 			// Update connector with periodic sync settings and config changes
+			// Note: Periodic sync is disabled for Google Drive connectors
 			if (periodicEnabled || indexingConnectorConfig) {
 				const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
 				await updateConnector({
 					id: indexingConfig.connectorId,
 					data: {
-						...(periodicEnabled && {
+						...(periodicEnabled && indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && {
 							periodic_indexing_enabled: true,
 							indexing_frequency_minutes: frequency,
+						}),
+						...(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" && {
+							periodic_indexing_enabled: false,
+							indexing_frequency_minutes: null,
 						}),
 						...(indexingConnectorConfig && {
 							config: indexingConnectorConfig,
@@ -602,16 +607,17 @@ export const useConnectorDialog = () => {
 			// Handle Google Drive folder selection
 			if (indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" && indexingConnectorConfig) {
 				const selectedFolders = indexingConnectorConfig.selected_folders as Array<{ id: string; name: string }> | undefined;
-				if (selectedFolders && selectedFolders.length > 0) {
-					// Index with folder selection
-					const folderIds = selectedFolders.map((f) => f.id).join(",");
-					const folderNames = selectedFolders.map((f) => f.name).join(", ");
+				const selectedFiles = indexingConnectorConfig.selected_files as Array<{ id: string; name: string }> | undefined;
+				if ((selectedFolders && selectedFolders.length > 0) || (selectedFiles && selectedFiles.length > 0)) {
+					// Index with folder/file selection
 					await indexConnector({
 						connector_id: indexingConfig.connectorId,
 						queryParams: {
 							search_space_id: searchSpaceId,
-							folder_ids: folderIds,
-							folder_names: folderNames,
+						},
+						body: {
+							folders: selectedFolders || [],
+							files: selectedFiles || [],
 						},
 					});
 				} else {
@@ -714,8 +720,8 @@ export const useConnectorDialog = () => {
 		
 		setEditingConnector(connector);
 		setConnectorName(connector.name);
-		// Load existing periodic sync settings
-		setPeriodicEnabled(connector.periodic_indexing_enabled);
+		// Load existing periodic sync settings (disabled for Google Drive)
+		setPeriodicEnabled(connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ? false : connector.periodic_indexing_enabled);
 		setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
 		// Reset dates - user can set new ones for re-indexing
 		setStartDate(undefined);
@@ -763,13 +769,14 @@ export const useConnectorDialog = () => {
 			const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 			// Update connector with periodic sync settings, config changes, and name
+			// Note: Periodic sync is disabled for Google Drive connectors
 			const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : null;
 			await updateConnector({
 				id: editingConnector.id,
 				data: {
 					name: connectorName || editingConnector.name,
-					periodic_indexing_enabled: periodicEnabled,
-					indexing_frequency_minutes: frequency,
+					periodic_indexing_enabled: editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ? false : periodicEnabled,
+					indexing_frequency_minutes: editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ? null : frequency,
 					config: connectorConfig || editingConnector.config,
 				},
 			});
@@ -782,18 +789,20 @@ export const useConnectorDialog = () => {
 			} else if (editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
 				// Google Drive uses folder selection from config, not date ranges
 				const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as Array<{ id: string; name: string }> | undefined;
-				if (selectedFolders && selectedFolders.length > 0) {
-					const folderIds = selectedFolders.map((f) => f.id).join(",");
-					const folderNames = selectedFolders.map((f) => f.name).join(", ");
+				const selectedFiles = (connectorConfig || editingConnector.config)?.selected_files as Array<{ id: string; name: string }> | undefined;
+				if ((selectedFolders && selectedFolders.length > 0) || (selectedFiles && selectedFiles.length > 0)) {
 					await indexConnector({
 						connector_id: editingConnector.id,
 						queryParams: {
 							search_space_id: searchSpaceId,
-							folder_ids: folderIds,
-							folder_names: folderNames,
+						},
+						body: {
+							folders: selectedFolders || [],
+							files: selectedFiles || [],
 						},
 					});
-					indexingDescription = `Re-indexing started for ${selectedFolders.length} folder(s).`;
+					const totalItems = (selectedFolders?.length || 0) + (selectedFiles?.length || 0);
+					indexingDescription = `Re-indexing started for ${totalItems} item(s).`;
 				}
 			} else if (editingConnector.connector_type === "WEBCRAWLER_CONNECTOR") {
 				// Webcrawler uses config (API key and URLs), not date ranges
@@ -874,6 +883,31 @@ export const useConnectorDialog = () => {
 			setIsDisconnecting(false);
 		}
 	}, [editingConnector, searchSpaceId, deleteConnector, router]);
+
+	// Handle quick index (index without date picker, uses backend defaults)
+	const handleQuickIndexConnector = useCallback(async (connectorId: number) => {
+		if (!searchSpaceId) return;
+		
+		try {
+			await indexConnector({
+				connector_id: connectorId,
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
+			toast.success("Indexing started", {
+				description: "You can continue working while we sync your data.",
+			});
+			
+			// Invalidate queries to refresh data
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+		} catch (error) {
+			console.error("Error indexing connector content:", error);
+			toast.error(error instanceof Error ? error.message : "Failed to start indexing");
+		}
+	}, [searchSpaceId, indexConnector]);
 
 	// Handle going back from edit view
 	const handleBackFromEdit = useCallback(() => {
@@ -987,6 +1021,7 @@ export const useConnectorDialog = () => {
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,
+		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,
