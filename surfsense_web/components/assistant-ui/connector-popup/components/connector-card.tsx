@@ -3,6 +3,7 @@
 import { IconBrandYoutube } from "@tabler/icons-react";
 import { FileText, Loader2 } from "lucide-react";
 import { type FC } from "react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { LogActiveTask } from "@/contracts/types/log.types";
@@ -16,6 +17,7 @@ interface ConnectorCardProps {
 	isConnected?: boolean;
 	isConnecting?: boolean;
 	documentCount?: number;
+	lastIndexedAt?: string | null;
 	isIndexing?: boolean;
 	activeTask?: LogActiveTask;
 	onConnect?: () => void;
@@ -33,6 +35,20 @@ function extractIndexedCount(message: string | undefined): number | null {
 	return match ? parseInt(match[1], 10) : null;
 }
 
+/**
+ * Format document count (e.g., "1.2k docs", "500 docs", "1.5M docs")
+ */
+function formatDocumentCount(count: number | undefined): string {
+	if (count === undefined || count === 0) return "0 docs";
+	if (count < 1000) return `${count} docs`;
+	if (count < 1000000) {
+		const k = (count / 1000).toFixed(1);
+		return `${k.replace(/\.0$/, "")}k docs`;
+	}
+	const m = (count / 1000000).toFixed(1);
+	return `${m.replace(/\.0$/, "")}M docs`;
+}
+
 export const ConnectorCard: FC<ConnectorCardProps> = ({
 	id,
 	title,
@@ -41,6 +57,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	isConnected = false,
 	isConnecting = false,
 	documentCount,
+	lastIndexedAt,
 	isIndexing = false,
 	activeTask,
 	onConnect,
@@ -70,18 +87,16 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		}
 
 		if (isConnected) {
-			if (documentCount !== undefined && documentCount > 0) {
+			// Show last indexed date for connected connectors
+			if (lastIndexedAt) {
 				return (
-					<span className="inline-flex items-center gap-1.5">
-						<FileText className="size-3 flex-shrink-0" />
-						<span className="whitespace-nowrap">
-							{documentCount.toLocaleString()} document{documentCount !== 1 ? "s" : ""}
-						</span>
+					<span className="whitespace-nowrap">
+						Last indexed: {format(new Date(lastIndexedAt), "MMM d, yyyy")}
 					</span>
 				);
 			}
-			// Fallback for connected but no documents yet
-			return <span className="whitespace-nowrap">No documents indexed</span>;
+			// Fallback for connected but never indexed
+			return <span className="whitespace-nowrap">Never indexed</span>;
 		}
 
 		return description;
@@ -105,6 +120,11 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				<div className="text-[11px] text-muted-foreground mt-1">
 					{getStatusContent()}
 				</div>
+				{isConnected && documentCount !== undefined && (
+					<p className="text-[11px] text-muted-foreground mt-0.5">
+						{formatDocumentCount(documentCount)}
+					</p>
+				)}
 			</div>
 			<Button
 				size="sm"
@@ -123,6 +143,8 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 					"Syncing..."
 				) : isConnected ? (
 					"Manage"
+				) : id === "youtube-crawler" ? (
+					"Add"
 				) : connectorType ? (
 					"Connect"
 				) : (

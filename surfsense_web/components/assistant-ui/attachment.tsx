@@ -337,12 +337,12 @@ export const ComposerAddAttachment: FC = () => {
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<TooltipIconButton
-						tooltip="Upload documents or add attachment"
+						tooltip="Upload"
 						side="bottom"
 						variant="ghost"
 						size="icon"
 						className="aui-composer-add-attachment size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-						aria-label="Upload documents or add attachment"
+						aria-label="Upload"
 					>
 						<PlusIcon className="aui-attachment-add-icon size-5 stroke-[1.5px]" />
 					</TooltipIconButton>
@@ -350,7 +350,7 @@ export const ComposerAddAttachment: FC = () => {
 				<DropdownMenuContent align="start" className="w-48 bg-background border-border">
 					<DropdownMenuItem onSelect={handleChatAttachment} className="cursor-pointer">
 						<Paperclip className="size-4" />
-						<span>Add attachment(s)</span>
+						<span>Add attachment</span>
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={handleFileUpload} className="cursor-pointer">
 						<Upload className="size-4" />

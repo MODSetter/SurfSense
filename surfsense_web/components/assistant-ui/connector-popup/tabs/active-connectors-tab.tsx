@@ -1,14 +1,16 @@
 "use client";
 
 import { format } from "date-fns";
-import { Cable, FileText, Loader2 } from "lucide-react";
+import { ArrowRight, Cable, Loader2 } from "lucide-react";
 import type { FC } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogSummary, LogActiveTask } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
+import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 import {
 	TabsContent,
 } from "@/components/ui/tabs";
@@ -31,45 +33,74 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	connectors,
 	indexingConnectorIds,
 	logsSummary,
+	searchSpaceId,
 	onTabChange,
 	onManage,
 }) => {
+	const router = useRouter();
+
+	const handleViewAllDocuments = () => {
+		router.push(`/dashboard/${searchSpaceId}/documents`);
+	};
+
+	// Convert activeDocumentTypes array to Record for utility function
+	const documentTypeCounts = activeDocumentTypes.reduce(
+		(acc, [docType, count]) => {
+			acc[docType] = count;
+			return acc;
+		},
+		{} as Record<string, number>
+	);
+
+	// Format document count (e.g., "1.2k docs", "500 docs", "1.5M docs")
+	const formatDocumentCount = (count: number | undefined): string => {
+		if (count === undefined || count === 0) return "0 docs";
+		if (count < 1000) return `${count} docs`;
+		if (count < 1000000) {
+			const k = (count / 1000).toFixed(1);
+			return `${k.replace(/\.0$/, "")}k docs`;
+		}
+		const m = (count / 1000000).toFixed(1);
+		return `${m.replace(/\.0$/, "")}M docs`;
+	};
+
+	// Document types that should be shown as cards (not from connectors)
+	// These are: EXTENSION (browser extension), FILE (uploaded files), NOTE (editor notes),
+	// YOUTUBE_VIDEO (YouTube videos), and CRAWLED_URL (web pages - shown separately even though it can come from WEBCRAWLER_CONNECTOR)
+	const standaloneDocumentTypes = ["EXTENSION", "FILE", "NOTE", "YOUTUBE_VIDEO", "CRAWLED_URL"];
+	
+	// Filter to only show standalone document types that have documents (count > 0)
+	const standaloneDocuments = activeDocumentTypes
+		.filter(([docType, count]) => 
+			standaloneDocumentTypes.includes(docType) && count > 0
+		)
+		.map(([docType, count]) => ({
+			type: docType,
+			count,
+			label: getDocumentTypeLabel(docType),
+		}));
 
 	return (
 		<TabsContent value="active" className="m-0">
 			{hasSources ? (
 				<div className="space-y-6">
-					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">
-							Currently Active
-						</h3>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{activeDocumentTypes.map(([docType, count]) => (
-							<div
-								key={docType}
-								className="flex items-center gap-4 p-4 rounded-xl bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border transition-all"
-							>
-								<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
-									{getConnectorIcon(docType, "size-6")}
-								</div>
-								<div>
-									<p className="text-[14px] font-semibold leading-tight">
-										{getDocumentTypeLabel(docType)}
-									</p>
-									<p className="text-[11px] text-muted-foreground mt-1 inline-flex items-center gap-1.5">
-										<FileText className="size-3 flex-shrink-0" />
-										<span className="whitespace-nowrap">
-											{(count as number).toLocaleString()} document{count !== 1 ? "s" : ""}
-										</span>
-									</p>
-								</div>
+					{/* Active Connectors Section */}
+					{connectors.length > 0 && (
+						<div className="space-y-4">
+							<div className="flex items-center gap-2">
+								<h3 className="text-sm font-semibold text-muted-foreground">
+									Active Connectors
+								</h3>
 							</div>
-						))}
-						{connectors.map((connector) => {
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								{connectors.map((connector) => {
 							const isIndexing = indexingConnectorIds.has(connector.id);
 							const activeTask = logsSummary?.active_tasks?.find(
 								(task: LogActiveTask) => task.connector_id === connector.id
+							);
+							const documentCount = getDocumentCountForConnector(
+								connector.connector_type,
+								documentTypeCounts
 							);
 
 							return (
@@ -113,6 +144,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 													: "Never indexed"}
 											</p>
 										)}
+										<p className="text-[11px] text-muted-foreground mt-0.5">
+											{formatDocumentCount(documentCount)}
+										</p>
 									</div>
 									<Button
 										variant="secondary"
@@ -126,7 +160,47 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 								</div>
 							);
 						})}
-					</div>
+							</div>
+						</div>
+					)}
+
+					{/* Standalone Documents Section */}
+					{standaloneDocuments.length > 0 && (
+						<div className="space-y-4">
+							<div className="flex items-center justify-between">
+								<h3 className="text-sm font-semibold text-muted-foreground">
+									Documents
+								</h3>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={handleViewAllDocuments}
+									className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+								>
+									View all documents
+									<ArrowRight className="size-3" />
+								</Button>
+							</div>
+							<div className="flex flex-wrap items-center gap-2">
+								{standaloneDocuments.map((doc) => (
+									<div
+										key={doc.type}
+										className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 transition-all"
+									>
+										<div className="flex items-center justify-center">
+											{getConnectorIcon(doc.type, "size-3.5")}
+										</div>
+										<span className="text-[12px] font-medium">
+											{doc.label}
+										</span>
+										<span className="text-[11px] text-muted-foreground">
+											{formatDocumentCount(doc.count)}
+										</span>
+									</div>
+								))}
+							</div>
+						</div>
+					)}
 				</div>
 			) : (
 				<div className="flex flex-col items-center justify-center py-20 text-center">

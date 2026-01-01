@@ -25,7 +25,7 @@ interface ConnectorEditViewProps {
 	onSave: () => void;
 	onDisconnect: () => void;
 	onBack: () => void;
-	onConfigChange?: (config: Record<string, any>) => void;
+	onConfigChange?: (config: Record<string, unknown>) => void;
 	onNameChange?: (name: string) => void;
 }
 
@@ -201,35 +201,37 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted border-t border-border">
+			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-4 sm:py-6 bg-muted border-t border-border">
 				{showDisconnectConfirm ? (
-					<div className="flex items-center gap-3">
-						<span className="text-xs sm:text-sm text-muted-foreground">Are you sure?</span>
-						<Button
-							variant="destructive"
-							size="sm"
-							onClick={handleDisconnectConfirm}
-							disabled={isDisconnecting}
-							className="text-xs sm:text-sm"
-						>
-							{isDisconnecting ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Disconnecting...
-								</>
-							) : (
-								"Confirm Disconnect"
-							)}
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleDisconnectCancel}
-							disabled={isDisconnecting}
-							className="text-xs sm:text-sm"
-						>
-							Cancel
-						</Button>
+					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
+						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">Are you sure?</span>
+						<div className="flex items-center gap-2 sm:gap-3">
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={handleDisconnectConfirm}
+								disabled={isDisconnecting}
+								className="text-xs sm:text-sm flex-1 sm:flex-initial"
+							>
+								{isDisconnecting ? (
+									<>
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										Disconnecting...
+									</>
+								) : (
+									"Confirm Disconnect"
+								)}
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={handleDisconnectCancel}
+								disabled={isDisconnecting}
+								className="text-xs sm:text-sm flex-1 sm:flex-initial"
+							>
+								Cancel
+							</Button>
+						</div>
 					</div>
 				) : (
 					<Button
@@ -237,13 +239,17 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						size="sm"
 						onClick={handleDisconnectClick}
 						disabled={isSaving || isDisconnecting}
-						className="text-xs sm:text-sm"
+						className="text-xs sm:text-sm flex-1 sm:flex-initial"
 					>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Disconnect
 					</Button>
 				)}
-				<Button onClick={onSave} disabled={isSaving || isDisconnecting} className="text-xs sm:text-sm">
+				<Button 
+					onClick={onSave} 
+					disabled={isSaving || isDisconnecting} 
+					className="text-xs sm:text-sm flex-1 sm:flex-initial"
+				>
 					{isSaving ? (
 						<>
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />

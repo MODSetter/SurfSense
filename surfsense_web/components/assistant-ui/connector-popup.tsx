@@ -159,6 +159,7 @@ export const ConnectorIndicator: FC = () => {
 	const hasConnectors = connectors.length > 0;
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
 	const totalSourceCount = connectors.length + activeDocumentTypes.length;
+	const activeConnectorsCount = connectors.length; // Only actual connectors, not document types
 
 	// Check which connectors are already connected
 	const connectedTypes = new Set(
@@ -170,7 +171,7 @@ export const ConnectorIndicator: FC = () => {
 	return (
 		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 			<TooltipIconButton
-				tooltip={hasSources ? `Manage ${totalSourceCount} sources` : "Connect your data"}
+				tooltip={hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"}
 				side="bottom"
 				className={cn(
 					"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors relative",
@@ -179,7 +180,7 @@ export const ConnectorIndicator: FC = () => {
 					"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none"
 				)}
 				aria-label={
-					hasSources ? `View ${totalSourceCount} connected sources` : "Add your first connector"
+					hasConnectors ? `View ${activeConnectorsCount} connectors` : "Add your first connector"
 				}
 				onClick={() => handleOpenChange(true)}
 			>
@@ -188,9 +189,9 @@ export const ConnectorIndicator: FC = () => {
 				) : (
 					<>
 						<Cable className="size-4 stroke-[1.5px]" />
-						{totalSourceCount > 0 && (
+						{activeConnectorsCount > 0 && (
 							<span className="absolute -top-0.5 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm">
-								{totalSourceCount > 99 ? "99+" : totalSourceCount}
+								{activeConnectorsCount > 99 ? "99+" : activeConnectorsCount}
 							</span>
 						)}
 					</>
@@ -259,7 +260,7 @@ export const ConnectorIndicator: FC = () => {
 						{/* Header */}
 						<ConnectorDialogHeader
 							activeTab={activeTab}
-							totalSourceCount={totalSourceCount}
+							totalSourceCount={activeConnectorsCount}
 							searchQuery={searchQuery}
 							onTabChange={handleTabChange}
 							onSearchChange={setSearchQuery}

@@ -43,9 +43,11 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({
 	const handleUrlsChange = (value: string) => {
 		setInitialUrls(value);
 		if (onConfigChange) {
+			// Preserve newlines for multi-line URL input
+			// Backend will handle trimming individual URLs when splitting by newline
 			onConfigChange({
 				...connector.config,
-				INITIAL_URLS: value.trim() || undefined,
+				INITIAL_URLS: value || undefined,
 			});
 		}
 	};

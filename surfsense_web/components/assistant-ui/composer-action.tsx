@@ -38,11 +38,10 @@ const ConnectorIndicator: FC = () => {
 		? Object.entries(documentTypeCounts).filter(([_, count]) => count > 0)
 		: [];
 
-	const nonIndexableConnectors = connectors.filter((connector) => !connector.is_indexable);
-
-	const hasConnectors = nonIndexableConnectors.length > 0;
+	// Count only active connectors (matching what's shown in the Active tab)
+	const activeConnectorsCount = connectors.length;
+	const hasConnectors = activeConnectorsCount > 0;
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
-	const totalSourceCount = nonIndexableConnectors.length + activeDocumentTypes.length;
 
 	const handleMouseEnter = useCallback(() => {
 		// Clear any pending close timeout
@@ -76,7 +75,7 @@ const ConnectorIndicator: FC = () => {
 						"text-muted-foreground"
 					)}
 					aria-label={
-						hasSources ? `View ${totalSourceCount} connected sources` : "Add your first connector"
+						hasConnectors ? `View ${activeConnectorsCount} active connectors` : "Add your first connector"
 					}
 					onMouseEnter={handleMouseEnter}
 					onMouseLeave={handleMouseLeave}
@@ -86,9 +85,9 @@ const ConnectorIndicator: FC = () => {
 					) : (
 						<>
 							<Plug2 className="size-4" />
-							{totalSourceCount > 0 && (
+							{activeConnectorsCount > 0 && (
 								<span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm">
-									{totalSourceCount > 99 ? "99+" : totalSourceCount}
+									{activeConnectorsCount > 99 ? "99+" : activeConnectorsCount}
 								</span>
 							)}
 						</>
@@ -104,35 +103,50 @@ const ConnectorIndicator: FC = () => {
 			>
 				{hasSources ? (
 					<div className="space-y-3">
-						<div className="flex items-center justify-between">
-							<p className="text-xs font-medium text-muted-foreground">Connected Sources</p>
-							<span className="text-xs font-medium bg-muted px-1.5 py-0.5 rounded">
-								{totalSourceCount}
-							</span>
-						</div>
-						<div className="flex flex-wrap gap-2">
-							{activeDocumentTypes.map(([docType, count]) => (
-								<div
-									key={docType}
-									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
-								>
-									{getConnectorIcon(docType, "size-3.5")}
-									<span className="truncate max-w-[100px]">{getDocumentTypeLabel(docType)}</span>
-									<span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-medium rounded-full bg-primary/10 text-primary">
-										{count > 999 ? "999+" : count}
-									</span>
+						{activeConnectorsCount > 0 && (
+							<div className="flex items-center justify-between">
+								<p className="text-xs font-medium text-muted-foreground">Active Connectors</p>
+								<span className="text-xs font-medium bg-muted px-1.5 py-0.5 rounded">
+									{activeConnectorsCount}
+								</span>
+							</div>
+						)}
+						{activeConnectorsCount > 0 && (
+							<div className="flex flex-wrap gap-2">
+								{connectors.map((connector) => (
+									<div
+										key={`connector-${connector.id}`}
+										className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
+									>
+										{getConnectorIcon(connector.connector_type, "size-3.5")}
+										<span className="truncate max-w-[100px]">{connector.name}</span>
+									</div>
+								))}
+							</div>
+						)}
+						{activeDocumentTypes.length > 0 && (
+							<>
+								{activeConnectorsCount > 0 && (
+									<div className="pt-2 border-t border-border/50">
+										<p className="text-xs font-medium text-muted-foreground mb-2">Documents</p>
+									</div>
+								)}
+								<div className="flex flex-wrap gap-2">
+									{activeDocumentTypes.map(([docType, count]) => (
+										<div
+											key={docType}
+											className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
+										>
+											{getConnectorIcon(docType, "size-3.5")}
+											<span className="truncate max-w-[100px]">{getDocumentTypeLabel(docType)}</span>
+											<span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-medium rounded-full bg-primary/10 text-primary">
+												{count > 999 ? "999+" : count}
+											</span>
+										</div>
+									))}
 								</div>
-							))}
-							{nonIndexableConnectors.map((connector) => (
-								<div
-									key={`connector-${connector.id}`}
-									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
-								>
-									{getConnectorIcon(connector.connector_type, "size-3.5")}
-									<span className="truncate max-w-[100px]">{connector.name}</span>
-								</div>
-							))}
-						</div>
+							</>
+						)}
 						<div className="pt-1 border-t border-border/50">
 							<Link
 								href={`/dashboard/${searchSpaceId}/connectors/add`}

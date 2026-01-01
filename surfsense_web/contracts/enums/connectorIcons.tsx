@@ -29,7 +29,7 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 		case EnumConnectorName.TAVILY_API:
 			return <Image src="/connectors/tavily.svg" alt="Tavily" {...imgProps} />;
 		case EnumConnectorName.SEARXNG_API:
-			return <Globe {...iconProps} />;
+			return <Image src="/connectors/searxng.svg" alt="SearXNG" {...imgProps} />;
 		case EnumConnectorName.BAIDU_SEARCH_API:
 			return <Image src="/connectors/baidu-search.svg" alt="Baidu" {...imgProps} />;
 		case EnumConnectorName.SLACK_CONNECTOR:
@@ -80,6 +80,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 		case "zoom":
 			return <Image src="/connectors/zoom.svg" alt="Zoom" {...imgProps} />;
 		case "FILE":
+			return <File {...iconProps} />;
+		case "GOOGLE_DRIVE_FILE":
 			return <File {...iconProps} />;
 		case "NOTE":
 			return <FileText {...iconProps} />;
