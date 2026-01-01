@@ -3,6 +3,7 @@
 import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
+	ArrowLeftRight,
 	BookOpen,
 	Cable,
 	ChevronsUpDown,
@@ -417,7 +418,7 @@ export const AppSidebar = memo(function AppSidebar({
 										</>
 									)}
 									<DropdownMenuItem onClick={() => router.push("/dashboard")}>
-										<SquareLibrary className="mr-2 h-4 w-4" />
+										<ArrowLeftRight className="mr-2 h-4 w-4" />
 										Switch workspace
 									</DropdownMenuItem>
 								</DropdownMenuGroup>

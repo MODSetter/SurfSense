@@ -3,8 +3,8 @@
 import type { FC } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
-import { OAUTH_CONNECTORS, CRAWLERS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import { ConnectorCard } from "../components/connector-card";
+import { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 interface AllConnectorsTabProps {
@@ -118,6 +118,62 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				</section>
 			)}
 
+			{/* More Integrations */}
+			{filteredOther.length > 0 && (
+				<section>
+					<div className="flex items-center gap-2 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground">More Integrations</h3>
+					</div>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						{filteredOther.map((connector) => {
+							const isConnected = connectedTypes.has(connector.connectorType);
+							const isConnecting = connectingId === connector.id;
+
+							// Find the actual connector object if connected
+							const actualConnector =
+								isConnected && allConnectors
+									? allConnectors.find(
+											(c: SearchSourceConnector) => c.connector_type === connector.connectorType
+										)
+									: undefined;
+
+							const documentCount = getDocumentCountForConnector(
+								connector.connectorType,
+								documentTypeCounts
+							);
+							const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
+							const activeTask = actualConnector
+								? getActiveTaskForConnector(actualConnector.id)
+								: undefined;
+
+							const handleConnect = onConnectNonOAuth
+								? () => onConnectNonOAuth(connector.connectorType)
+								: () => {}; // Fallback - connector popup should handle all connector types
+
+							return (
+								<ConnectorCard
+									key={connector.id}
+									id={connector.id}
+									title={connector.title}
+									description={connector.description}
+									connectorType={connector.connectorType}
+									isConnected={isConnected}
+									isConnecting={isConnecting}
+									documentCount={documentCount}
+									lastIndexedAt={actualConnector?.last_indexed_at}
+									isIndexing={isIndexing}
+									activeTask={activeTask}
+									onConnect={handleConnect}
+									onManage={
+										actualConnector && onManage ? () => onManage(actualConnector) : undefined
+									}
+								/>
+							);
+						})}
+					</div>
+				</section>
+			)}
+
 			{/* Content Sources */}
 			{filteredCrawlers.length > 0 && (
 				<section>
@@ -171,97 +227,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									title={crawler.title}
 									description={crawler.description}
 									connectorType={crawler.connectorType || undefined}
-									isConnected={isConnected}
-									isConnecting={isConnecting}
-									documentCount={documentCount}
-									lastIndexedAt={actualConnector?.last_indexed_at}
-									isIndexing={isIndexing}
-									activeTask={activeTask}
-									onConnect={handleConnect}
-									onManage={
-										actualConnector && onManage ? () => onManage(actualConnector) : undefined
-									}
-								/>
-							);
-						})}
-					</div>
-				</section>
-			)}
-
-			{/* More Integrations */}
-			{filteredOther.length > 0 && (
-				<section>
-					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">More Integrations</h3>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{filteredOther.map((connector) => {
-							// Special handling for connectors that can be created in popup
-							const isTavily = connector.id === "tavily-api";
-							const isSearxng = connector.id === "searxng";
-							const isLinkup = connector.id === "linkup-api";
-							const isBaidu = connector.id === "baidu-search-api";
-							const isLinear = connector.id === "linear-connector";
-							const isElasticsearch = connector.id === "elasticsearch-connector";
-							const isSlack = connector.id === "slack-connector";
-							const isDiscord = connector.id === "discord-connector";
-							const isNotion = connector.id === "notion-connector";
-							const isConfluence = connector.id === "confluence-connector";
-							const isBookStack = connector.id === "bookstack-connector";
-							const isGithub = connector.id === "github-connector";
-							const isJira = connector.id === "jira-connector";
-							const isClickUp = connector.id === "clickup-connector";
-							const isLuma = connector.id === "luma-connector";
-							const isCircleback = connector.id === "circleback-connector";
-
-							const isConnected = connectedTypes.has(connector.connectorType);
-							const isConnecting = connectingId === connector.id;
-
-							// Find the actual connector object if connected
-							const actualConnector =
-								isConnected && allConnectors
-									? allConnectors.find(
-											(c: SearchSourceConnector) => c.connector_type === connector.connectorType
-										)
-									: undefined;
-
-							const documentCount = getDocumentCountForConnector(
-								connector.connectorType,
-								documentTypeCounts
-							);
-							const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
-							const activeTask = actualConnector
-								? getActiveTaskForConnector(actualConnector.id)
-								: undefined;
-
-							const handleConnect =
-								(isTavily ||
-									isSearxng ||
-									isLinkup ||
-									isBaidu ||
-									isLinear ||
-									isElasticsearch ||
-									isSlack ||
-									isDiscord ||
-									isNotion ||
-									isConfluence ||
-									isBookStack ||
-									isGithub ||
-									isJira ||
-									isClickUp ||
-									isLuma ||
-									isCircleback) &&
-								onConnectNonOAuth
-									? () => onConnectNonOAuth(connector.connectorType)
-									: () => {}; // Fallback - connector popup should handle all connector types
-
-							return (
-								<ConnectorCard
-									key={connector.id}
-									id={connector.id}
-									title={connector.title}
-									description={connector.description}
-									connectorType={connector.connectorType}
 									isConnected={isConnected}
 									isConnecting={isConnecting}
 									documentCount={documentCount}

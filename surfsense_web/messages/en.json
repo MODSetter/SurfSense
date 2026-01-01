@@ -374,7 +374,7 @@
 		"tip_4": "Processing may take some time depending on video length",
 		"preview": "Preview",
 		"cancel": "Cancel",
-		"submit": "Submit YouTube Videos",
+		"submit": "Add",
 		"processing": "Processing...",
 		"error_no_video": "Please add at least one YouTube video URL",
 		"error_invalid_urls": "Invalid YouTube URLs detected: {urls}",
