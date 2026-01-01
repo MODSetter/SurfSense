@@ -9,8 +9,8 @@ import {
 } from "@assistant-ui/react";
 import { FileText, Loader2, Paperclip, PlusIcon, Upload, XIcon } from "lucide-react";
 import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
 import { type FC, type PropsWithChildren, useRef, useEffect, useState } from "react";
+import { useDocumentUploadDialog } from "./document-upload-popup";
 import { useShallow } from "zustand/shallow";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -319,17 +319,20 @@ export const ComposerAttachments: FC = () => {
 };
 
 export const ComposerAddAttachment: FC = () => {
-	const router = useRouter();
-	const params = useParams();
-	const searchSpaceId = params.search_space_id as string;
 	const chatAttachmentInputRef = useRef<HTMLInputElement>(null);
+	const { openDialog } = useDocumentUploadDialog();
 
 	const handleFileUpload = () => {
-		router.push(`/dashboard/${searchSpaceId}/documents/upload`);
+		openDialog();
 	};
 
 	const handleChatAttachment = () => {
 		chatAttachmentInputRef.current?.click();
+	};
+
+	// Prevent event bubbling when file input is clicked
+	const handleFileInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
+		e.stopPropagation();
 	};
 
 	return (
@@ -354,7 +357,7 @@ export const ComposerAddAttachment: FC = () => {
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={handleFileUpload} className="cursor-pointer">
 						<Upload className="size-4" />
-						<span>File upload</span>
+						<span>Upload Files</span>
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
@@ -365,6 +368,7 @@ export const ComposerAddAttachment: FC = () => {
 					multiple
 					className="hidden"
 					accept="image/*,application/pdf,.doc,.docx,.txt"
+					onClick={handleFileInputClick}
 				/>
 			</ComposerPrimitive.AddAttachment>
 		</>

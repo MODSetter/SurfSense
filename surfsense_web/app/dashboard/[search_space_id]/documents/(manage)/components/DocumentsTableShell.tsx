@@ -2,9 +2,10 @@
 
 import { ChevronDown, ChevronUp, FileX, Plus } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { DocumentViewer } from "@/components/document-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,9 +70,9 @@ export function DocumentsTableShell({
 	onSortChange: (key: SortKey) => void;
 }) {
 	const t = useTranslations("documents");
-	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id;
+	const { openDialog } = useDocumentUploadDialog();
 
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
@@ -144,7 +145,7 @@ export function DocumentsTableShell({
 							</p>
 						</div>
 						<Button
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/documents/upload`)}
+							onClick={openDialog}
 							className="mt-2"
 						>
 							<Plus className="mr-2 h-4 w-4" />
