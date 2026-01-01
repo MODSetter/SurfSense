@@ -79,12 +79,12 @@ export const LinkupApiConnectForm: FC<ConnectFormProps> = ({
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
 						You'll need a Linkup API key to use this connector. You can get one by signing up at{" "}
 						<a
-							href="https://linkup.ai"
+							href="https://linkup.so"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="font-medium underline underline-offset-4"
 						>
-							linkup.ai
+							linkup.so
 						</a>
 					</AlertDescription>
 				</div>
