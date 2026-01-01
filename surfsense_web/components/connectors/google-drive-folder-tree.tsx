@@ -14,7 +14,6 @@ import {
 	Presentation,
 } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -223,32 +222,38 @@ export function GoogleDriveFolderTree({
 		const childFolders = children?.filter((c) => c.isFolder) || [];
 		const childFiles = children?.filter((c) => !c.isFolder) || [];
 
+		const indentSize = 0.75; // Smaller indent for mobile
+		
 		return (
-			<div key={item.id} className="w-full" style={{ marginLeft: `${level * 1.25}rem` }}>
+			<div key={item.id} className="w-full sm:ml-[calc(var(--level)*1.25rem)]" style={{ marginLeft: `${level * indentSize}rem`, '--level': level } as React.CSSProperties & { '--level'?: number }}>
 				<div
 					className={cn(
-						"flex items-center group gap-2 h-auto py-2 px-2 rounded-md hover:bg-accent cursor-pointer",
+						"flex items-center group gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md",
+						isFolder && "hover:bg-accent cursor-pointer",
+						!isFolder && "cursor-default opacity-60",
 						isSelected && "bg-accent/50"
 					)}
 				>
 					{isFolder ? (
-						<span
-							className="flex items-center justify-center w-4 h-4 shrink-0"
+						<button
+							type="button"
+							className="flex items-center justify-center w-3 h-3 sm:w-4 sm:h-4 shrink-0 bg-transparent border-0 p-0 cursor-pointer"
 							onClick={(e) => {
 								e.stopPropagation();
 								toggleFolder(item);
 							}}
+							aria-label={isExpanded ? `Collapse ${item.name}` : `Expand ${item.name}`}
 						>
 							{isLoading ? (
-								<Loader2 className="h-3 w-3 animate-spin" />
+								<Loader2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 animate-spin" />
 							) : isExpanded ? (
-								<ChevronDown className="h-4 w-4" />
+								<ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
 							) : (
-								<ChevronRight className="h-4 w-4" />
+								<ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
 							)}
-						</span>
+						</button>
 					) : (
-						<span className="w-4 h-4 shrink-0" />
+						<span className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
 					)}
 
 					<Checkbox
@@ -263,25 +268,40 @@ export function GoogleDriveFolderTree({
 						className="shrink-0 z-20 group-hover:border-white group-hover:border"
 						onClick={(e) => e.stopPropagation()}
 					/>
+					{isFolder && (
+						<Checkbox
+							checked={isSelected}
+							onCheckedChange={() => toggleFolderSelection(item.id, item.name)}
+							className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4"
+							onClick={(e) => e.stopPropagation()}
+						/>
+					)}
 
 					<div className="shrink-0">
 						{isFolder ? (
 							isExpanded ? (
-								<FolderOpen className="h-4 w-4 text-blue-500" />
+								<FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
 							) : (
-								<Folder className="h-4 w-4 text-gray-500" />
+								<Folder className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
 							)
 						) : (
-							getFileIcon(item.mimeType, "h-4 w-4")
+							getFileIcon(item.mimeType, "h-3 w-3 sm:h-4 sm:w-4")
 						)}
 					</div>
 
-					<span
-						className="truncate flex-1 text-left text-sm min-w-0"
-						onClick={() => isFolder && toggleFolder(item)}
-					>
-						{item.name}
-					</span>
+					{isFolder ? (
+						<button
+							type="button"
+							className="truncate flex-1 text-left text-xs sm:text-sm min-w-0 bg-transparent border-0 p-0 cursor-pointer"
+							onClick={() => toggleFolder(item)}
+						>
+							{item.name}
+						</button>
+					) : (
+						<span className="truncate flex-1 text-left text-xs sm:text-sm min-w-0">
+							{item.name}
+						</span>
+					)}
 				</div>
 
 				{isExpanded && isFolder && children && (
@@ -290,7 +310,7 @@ export function GoogleDriveFolderTree({
 						{childFiles.map((child) => renderItem(child, level + 1))}
 
 						{children.length === 0 && (
-							<div className="text-xs text-muted-foreground py-2 pl-2">Empty folder</div>
+							<div className="text-[10px] sm:text-xs text-muted-foreground py-1 sm:py-2 pl-1 sm:pl-2">Empty folder</div>
 						)}
 					</div>
 				)}
@@ -300,25 +320,29 @@ export function GoogleDriveFolderTree({
 
 	return (
 		<div className="border rounded-md w-full overflow-hidden">
-			<ScrollArea className="h-[450px] w-full">
-				<div className="p-2 pr-4 w-full overflow-x-hidden">
-					<div className="mb-2 pb-2 border-b">
-						<div className="flex items-center gap-2 h-auto py-2 px-2 rounded-md hover:bg-accent cursor-pointer">
+			<ScrollArea className="h-[300px] sm:h-[450px] w-full">
+				<div className="p-1 sm:p-2 pr-2 sm:pr-4 w-full overflow-x-hidden">
+					<div className="mb-1 sm:mb-2 pb-1 sm:pb-2 border-b">
+						<div className="flex items-center gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md hover:bg-accent cursor-pointer">
 							<Checkbox
 								checked={isFolderSelected("root")}
 								onCheckedChange={() => toggleFolderSelection("root", "My Drive")}
-								className="shrink-0"
+								className="shrink-0 h-3.5 w-3.5 sm:h-4 sm:w-4"
 							/>
-							<HardDrive className="h-4 w-4 text-primary shrink-0" />
-							<span className="font-semibold truncate" onClick={() => toggleFolderSelection("root", "My Drive")}>
+							<HardDrive className="h-3 w-3 sm:h-4 sm:w-4 text-primary shrink-0" />
+							<button
+								type="button"
+								className="font-semibold truncate text-xs sm:text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+								onClick={() => toggleFolderSelection("root", "My Drive")}
+							>
 								My Drive
-							</span>
+							</button>
 						</div>
 					</div>
 
 					{isLoadingRoot && (
-						<div className="flex items-center justify-center py-8">
-							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+						<div className="flex items-center justify-center py-4 sm:py-8">
+							<Loader2 className="h-4 w-4 sm:h-6 sm:w-6 animate-spin text-muted-foreground" />
 						</div>
 					)}
 
@@ -327,7 +351,7 @@ export function GoogleDriveFolderTree({
 					</div>
 
 					{!isLoadingRoot && rootItems.length === 0 && (
-						<div className="text-center text-sm text-muted-foreground py-8">
+						<div className="text-center text-xs sm:text-sm text-muted-foreground py-4 sm:py-8">
 							No files or folders found in your Google Drive
 						</div>
 					)}

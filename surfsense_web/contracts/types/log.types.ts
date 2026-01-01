@@ -86,6 +86,7 @@ export const logActiveTask = z.object({
 	started_at: z.string(),
 	source: z.string().nullable().optional(),
 	document_id: z.number().nullable().optional(),
+	connector_id: z.number().nullable().optional(),
 });
 export const logFailure = z.object({
 	id: z.number(),

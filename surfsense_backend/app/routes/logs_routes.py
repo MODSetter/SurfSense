@@ -322,6 +322,9 @@ async def get_logs_summary(
                 document_id = (
                     log.log_metadata.get("document_id") if log.log_metadata else None
                 )
+                connector_id = (
+                    log.log_metadata.get("connector_id") if log.log_metadata else None
+                )
                 summary["active_tasks"].append(
                     {
                         "id": log.id,
@@ -330,6 +333,7 @@ async def get_logs_summary(
                         "started_at": log.created_at,
                         "source": log.source,
                         "document_id": document_id,
+                        "connector_id": connector_id,
                     }
                 )
 

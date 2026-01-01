@@ -1,13 +1,77 @@
-import { AssistantIf, ThreadPrimitive } from "@assistant-ui/react";
-import type { FC } from "react";
+import {
+	ActionBarPrimitive,
+	AssistantIf,
+	BranchPickerPrimitive,
+	ComposerPrimitive,
+	ErrorPrimitive,
+	MessagePrimitive,
+	ThreadPrimitive,
+	useAssistantState,
+	useComposerRuntime,
+} from "@assistant-ui/react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import {
+	AlertCircle,
+	ArrowDownIcon,
+	ArrowUpIcon,
+	CheckIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
+	CopyIcon,
+	DownloadIcon,
+	FileText,
+	Loader2,
+	PencilIcon,
+	RefreshCwIcon,
+	SquareIcon,
+} from "lucide-react";
+import { useParams } from "next/navigation";
+import {
+	type FC,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { createPortal } from "react-dom";
+import {
+	mentionedDocumentIdsAtom,
+	mentionedDocumentsAtom,
+	messageDocumentsMapAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
+import {
+	globalNewLLMConfigsAtom,
+	llmPreferencesAtom,
+	newLLMConfigsAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import {
+	ComposerAddAttachment,
+	ComposerAttachments,
+	UserMessageAttachments,
+} from "@/components/assistant-ui/attachment";
+import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
+import {
+	InlineMentionEditor,
+	type InlineMentionEditorRef,
+} from "@/components/assistant-ui/inline-mention-editor";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import {
+	DocumentMentionPicker,
+	type DocumentMentionPickerRef,
+} from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
-import { ThinkingStepsContext } from "@/components/assistant-ui/thinking-steps";
-import { ThreadWelcome } from "@/components/assistant-ui/thread-welcome";
-import { Composer } from "@/components/assistant-ui/composer";
-import { ThreadScrollToBottom } from "@/components/assistant-ui/thread-scroll-to-bottom";
-import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
-import { UserMessage } from "@/components/assistant-ui/user-message";
-import { EditComposer } from "@/components/assistant-ui/edit-composer";
+import {
+	ThinkingStepsContext,
+	ThinkingStepsDisplay,
+} from "@/components/assistant-ui/thinking-steps";
+import { Button } from "@/components/ui/button";
+import type { Document } from "@/contracts/types/document.types";
+import { cn } from "@/lib/utils";
 
 /**
  * Props for the Thread component
@@ -57,5 +121,621 @@ export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), head
 				</ThreadPrimitive.Viewport>
 			</ThreadPrimitive.Root>
 		</ThinkingStepsContext.Provider>
+	);
+};
+
+const ThreadScrollToBottom: FC = () => {
+	return (
+		<ThreadPrimitive.ScrollToBottom asChild>
+			<TooltipIconButton
+				tooltip="Scroll to bottom"
+				variant="outline"
+				className="aui-thread-scroll-to-bottom -top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent"
+			>
+				<ArrowDownIcon />
+			</TooltipIconButton>
+		</ThreadPrimitive.ScrollToBottom>
+	);
+};
+
+const getTimeBasedGreeting = (userEmail?: string): string => {
+	const hour = new Date().getHours();
+
+	// Extract first name from email if available
+	const firstName = userEmail
+		? userEmail.split("@")[0].split(".")[0].charAt(0).toUpperCase() +
+			userEmail.split("@")[0].split(".")[0].slice(1)
+		: null;
+
+	// Array of greeting variations for each time period
+	const morningGreetings = ["Good morning", "Fresh start today", "Morning", "Hey there"];
+
+	const afternoonGreetings = ["Good afternoon", "Afternoon", "Hey there", "Hi there"];
+
+	const eveningGreetings = ["Good evening", "Evening", "Hey there", "Hi there"];
+
+	const nightGreetings = ["Good night", "Evening", "Hey there", "Winding down"];
+
+	const lateNightGreetings = ["Still up", "Night owl mode", "Up past bedtime", "Hi there"];
+
+	// Select a random greeting based on time
+	let greeting: string;
+	if (hour < 5) {
+		// Late night: midnight to 5 AM
+		greeting = lateNightGreetings[Math.floor(Math.random() * lateNightGreetings.length)];
+	} else if (hour < 12) {
+		greeting = morningGreetings[Math.floor(Math.random() * morningGreetings.length)];
+	} else if (hour < 18) {
+		greeting = afternoonGreetings[Math.floor(Math.random() * afternoonGreetings.length)];
+	} else if (hour < 22) {
+		greeting = eveningGreetings[Math.floor(Math.random() * eveningGreetings.length)];
+	} else {
+		// Night: 10 PM to midnight
+		greeting = nightGreetings[Math.floor(Math.random() * nightGreetings.length)];
+	}
+
+	// Add personalization with first name if available
+	if (firstName) {
+		return `${greeting}, ${firstName}!`;
+	}
+
+	return `${greeting}!`;
+};
+
+const ThreadWelcome: FC = () => {
+	const { data: user } = useAtomValue(currentUserAtom);
+
+	// Memoize greeting so it doesn't change on re-renders (only on user change)
+	const greeting = useMemo(() => getTimeBasedGreeting(user?.email), [user?.email]);
+
+	return (
+		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
+			{/* Greeting positioned above the composer - fixed position */}
+			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
+				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-3xl md:text-5xl delay-100 duration-500 ease-out fill-mode-both">
+					{greeting}
+				</h1>
+			</div>
+			{/* Composer - top edge fixed, expands downward only */}
+			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
+				<Composer />
+			</div>
+		</div>
+	);
+};
+
+const Composer: FC = () => {
+	// ---- State for document mentions (using atoms to persist across remounts) ----
+	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
+	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
+	const [mentionQuery, setMentionQuery] = useState("");
+	const editorRef = useRef<InlineMentionEditorRef>(null);
+	const editorContainerRef = useRef<HTMLDivElement>(null);
+	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
+	const { search_space_id } = useParams();
+	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
+	const composerRuntime = useComposerRuntime();
+	const hasAutoFocusedRef = useRef(false);
+
+	// Check if thread is empty (new chat)
+	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
+
+	// Check if thread is currently running (streaming response)
+	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+
+	// Auto-focus editor when on new chat page
+	useEffect(() => {
+		if (isThreadEmpty && !hasAutoFocusedRef.current && editorRef.current) {
+			// Small delay to ensure the editor is fully mounted
+			const timeoutId = setTimeout(() => {
+				editorRef.current?.focus();
+				hasAutoFocusedRef.current = true;
+			}, 100);
+			return () => clearTimeout(timeoutId);
+		}
+	}, [isThreadEmpty]);
+
+	// Sync mentioned document IDs to atom for use in chat request
+	useEffect(() => {
+		setMentionedDocumentIds(mentionedDocuments.map((doc) => doc.id));
+	}, [mentionedDocuments, setMentionedDocumentIds]);
+
+	// Handle text change from inline editor - sync with assistant-ui composer
+	const handleEditorChange = useCallback(
+		(text: string) => {
+			composerRuntime.setText(text);
+		},
+		[composerRuntime]
+	);
+
+	// Handle @ mention trigger from inline editor
+	const handleMentionTrigger = useCallback((query: string) => {
+		setShowDocumentPopover(true);
+		setMentionQuery(query);
+	}, []);
+
+	// Handle mention close
+	const handleMentionClose = useCallback(() => {
+		if (showDocumentPopover) {
+			setShowDocumentPopover(false);
+			setMentionQuery("");
+		}
+	}, [showDocumentPopover]);
+
+	// Handle keyboard navigation when popover is open
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (showDocumentPopover) {
+				if (e.key === "ArrowDown") {
+					e.preventDefault();
+					documentPickerRef.current?.moveDown();
+					return;
+				}
+				if (e.key === "ArrowUp") {
+					e.preventDefault();
+					documentPickerRef.current?.moveUp();
+					return;
+				}
+				if (e.key === "Enter") {
+					e.preventDefault();
+					documentPickerRef.current?.selectHighlighted();
+					return;
+				}
+				if (e.key === "Escape") {
+					e.preventDefault();
+					setShowDocumentPopover(false);
+					setMentionQuery("");
+					return;
+				}
+			}
+		},
+		[showDocumentPopover]
+	);
+
+	// Handle submit from inline editor (Enter key)
+	const handleSubmit = useCallback(() => {
+		// Prevent sending while a response is still streaming
+		if (isThreadRunning) {
+			return;
+		}
+		if (!showDocumentPopover) {
+			composerRuntime.send();
+			// Clear the editor after sending
+			editorRef.current?.clear();
+			setMentionedDocuments([]);
+			setMentionedDocumentIds([]);
+		}
+	}, [
+		showDocumentPopover,
+		isThreadRunning,
+		composerRuntime,
+		setMentionedDocuments,
+		setMentionedDocumentIds,
+	]);
+
+	// Handle document removal from inline editor
+	const handleDocumentRemove = useCallback(
+		(docId: number) => {
+			setMentionedDocuments((prev) => {
+				const updated = prev.filter((doc) => doc.id !== docId);
+				// Immediately sync document IDs to avoid race conditions
+				setMentionedDocumentIds(updated.map((doc) => doc.id));
+				return updated;
+			});
+		},
+		[setMentionedDocuments, setMentionedDocumentIds]
+	);
+
+	// Handle document selection from picker
+	const handleDocumentsMention = useCallback(
+		(documents: Document[]) => {
+			// Insert chips into the inline editor for each new document
+			const existingIds = new Set(mentionedDocuments.map((d) => d.id));
+			const newDocs = documents.filter((doc) => !existingIds.has(doc.id));
+
+			for (const doc of newDocs) {
+				editorRef.current?.insertDocumentChip(doc);
+			}
+
+			// Update mentioned documents state
+			setMentionedDocuments((prev) => {
+				const existingIdSet = new Set(prev.map((d) => d.id));
+				const uniqueNewDocs = documents.filter((doc) => !existingIdSet.has(doc.id));
+				const updated = [...prev, ...uniqueNewDocs];
+				// Immediately sync document IDs to avoid race conditions
+				setMentionedDocumentIds(updated.map((doc) => doc.id));
+				return updated;
+			});
+
+			// Reset mention query but keep popover open for more selections
+			setMentionQuery("");
+		},
+		[mentionedDocuments, setMentionedDocuments, setMentionedDocumentIds]
+	);
+
+	return (
+		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
+				<ComposerAttachments />
+				{/* -------- Inline Mention Editor -------- */}
+				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
+					<InlineMentionEditor
+						ref={editorRef}
+						placeholder="Ask SurfSense or @mention docs"
+						onMentionTrigger={handleMentionTrigger}
+						onMentionClose={handleMentionClose}
+						onChange={handleEditorChange}
+						onDocumentRemove={handleDocumentRemove}
+						onSubmit={handleSubmit}
+						onKeyDown={handleKeyDown}
+						className="min-h-[24px]"
+					/>
+				</div>
+
+				{/* -------- Document mention popover (rendered via portal) -------- */}
+				{showDocumentPopover &&
+					typeof document !== "undefined" &&
+					createPortal(
+						<>
+							{/* Backdrop */}
+							<button
+								type="button"
+								className="fixed inset-0 cursor-default"
+								style={{ zIndex: 9998 }}
+								onClick={() => setShowDocumentPopover(false)}
+								aria-label="Close document picker"
+							/>
+							{/* Popover positioned above input */}
+							<div
+								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover"
+								style={{
+									zIndex: 9999,
+									bottom: editorContainerRef.current
+										? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+										: "200px",
+									left: editorContainerRef.current
+										? `${editorContainerRef.current.getBoundingClientRect().left}px`
+										: "50%",
+								}}
+							>
+								<DocumentMentionPicker
+									ref={documentPickerRef}
+									searchSpaceId={Number(search_space_id)}
+									onSelectionChange={handleDocumentsMention}
+									onDone={() => {
+										setShowDocumentPopover(false);
+										setMentionQuery("");
+									}}
+									initialSelectedDocuments={mentionedDocuments}
+									externalSearch={mentionQuery}
+								/>
+							</div>
+						</>,
+						document.body
+					)}
+				<ComposerAction />
+			</ComposerPrimitive.AttachmentDropzone>
+		</ComposerPrimitive.Root>
+	);
+};
+
+const ComposerAction: FC = () => {
+	// Check if any attachments are still being processed (running AND progress < 100)
+	// When progress is 100, processing is done but waiting for send()
+	const hasProcessingAttachments = useAssistantState(({ composer }) =>
+		composer.attachments?.some((att) => {
+			const status = att.status;
+			if (status?.type !== "running") return false;
+			const progress = (status as { type: "running"; progress?: number }).progress;
+			return progress === undefined || progress < 100;
+		})
+	);
+
+	// Check if composer text is empty
+	const isComposerEmpty = useAssistantState(({ composer }) => {
+		const text = composer.text?.trim() || "";
+		return text.length === 0;
+	});
+
+	// Check if a model is configured
+	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
+	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
+	const { data: preferences } = useAtomValue(llmPreferencesAtom);
+
+	const hasModelConfigured = useMemo(() => {
+		if (!preferences) return false;
+		const agentLlmId = preferences.agent_llm_id;
+		if (agentLlmId === null || agentLlmId === undefined) return false;
+
+		// Check if the configured model actually exists
+		if (agentLlmId < 0) {
+			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
+		}
+		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
+	}, [preferences, globalConfigs, userConfigs]);
+
+	const isSendDisabled = hasProcessingAttachments || isComposerEmpty || !hasModelConfigured;
+
+	return (
+		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
+			<div className="flex items-center gap-1">
+				<ComposerAddAttachment />
+				<ConnectorIndicator />
+			</div>
+
+			{/* Show processing indicator when attachments are being processed */}
+			{hasProcessingAttachments && (
+				<div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+					<Loader2 className="size-3 animate-spin" />
+					<span>Processing...</span>
+				</div>
+			)}
+
+			{/* Show warning when no model is configured */}
+			{!hasModelConfigured && !hasProcessingAttachments && (
+				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
+					<AlertCircle className="size-3" />
+					<span>Select a model</span>
+				</div>
+			)}
+
+			<AssistantIf condition={({ thread }) => !thread.isRunning}>
+				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
+					<TooltipIconButton
+						tooltip={
+							!hasModelConfigured
+								? "Please select a model from the header to start chatting"
+								: hasProcessingAttachments
+									? "Wait for attachments to process"
+									: isComposerEmpty
+										? "Enter a message to send"
+										: "Send message"
+						}
+						side="bottom"
+						type="submit"
+						variant="default"
+						size="icon"
+						className={cn(
+							"aui-composer-send size-8 rounded-full",
+							isSendDisabled && "cursor-not-allowed opacity-50"
+						)}
+						aria-label="Send message"
+						disabled={isSendDisabled}
+					>
+						<ArrowUpIcon className="aui-composer-send-icon size-4" />
+					</TooltipIconButton>
+				</ComposerPrimitive.Send>
+			</AssistantIf>
+
+			<AssistantIf condition={({ thread }) => thread.isRunning}>
+				<ComposerPrimitive.Cancel asChild>
+					<Button
+						type="button"
+						variant="default"
+						size="icon"
+						className="aui-composer-cancel size-8 rounded-full"
+						aria-label="Stop generating"
+					>
+						<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
+					</Button>
+				</ComposerPrimitive.Cancel>
+			</AssistantIf>
+		</div>
+	);
+};
+
+const MessageError: FC = () => {
+	return (
+		<MessagePrimitive.Error>
+			<ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
+				<ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+			</ErrorPrimitive.Root>
+		</MessagePrimitive.Error>
+	);
+};
+
+/**
+ * Custom component to render thinking steps from Context
+ */
+const ThinkingStepsPart: FC = () => {
+	const thinkingStepsMap = useContext(ThinkingStepsContext);
+
+	// Get the current message ID to look up thinking steps
+	const messageId = useAssistantState(({ message }) => message?.id);
+	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
+
+	// Check if this specific message is currently streaming
+	// A message is streaming if: thread is running AND this is the last assistant message
+	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
+	const isMessageStreaming = isThreadRunning && isLastMessage;
+
+	if (thinkingSteps.length === 0) return null;
+
+	return (
+		<div className="mb-3">
+			<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isMessageStreaming} />
+		</div>
+	);
+};
+
+const AssistantMessageInner: FC = () => {
+	return (
+		<>
+			{/* Render thinking steps from message content - this ensures proper scroll tracking */}
+			<ThinkingStepsPart />
+
+			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
+				<MessagePrimitive.Parts
+					components={{
+						Text: MarkdownText,
+						tools: { Fallback: ToolFallback },
+					}}
+				/>
+				<MessageError />
+			</div>
+
+			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
+				<BranchPicker />
+				<AssistantActionBar />
+			</div>
+		</>
+	);
+};
+
+const AssistantMessage: FC = () => {
+	return (
+		<MessagePrimitive.Root
+			className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
+			data-role="assistant"
+		>
+			<AssistantMessageInner />
+		</MessagePrimitive.Root>
+	);
+};
+
+const AssistantActionBar: FC = () => {
+	return (
+		<ActionBarPrimitive.Root
+			hideWhenRunning
+			autohide="not-last"
+			autohideFloat="single-branch"
+			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
+		>
+			<ActionBarPrimitive.Copy asChild>
+				<TooltipIconButton tooltip="Copy">
+					<AssistantIf condition={({ message }) => message.isCopied}>
+						<CheckIcon />
+					</AssistantIf>
+					<AssistantIf condition={({ message }) => !message.isCopied}>
+						<CopyIcon />
+					</AssistantIf>
+				</TooltipIconButton>
+			</ActionBarPrimitive.Copy>
+			<ActionBarPrimitive.ExportMarkdown asChild>
+				<TooltipIconButton tooltip="Export as Markdown">
+					<DownloadIcon />
+				</TooltipIconButton>
+			</ActionBarPrimitive.ExportMarkdown>
+			<ActionBarPrimitive.Reload asChild>
+				<TooltipIconButton tooltip="Refresh">
+					<RefreshCwIcon />
+				</TooltipIconButton>
+			</ActionBarPrimitive.Reload>
+		</ActionBarPrimitive.Root>
+	);
+};
+
+const UserMessage: FC = () => {
+	const messageId = useAssistantState(({ message }) => message?.id);
+	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
+	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
+	const hasAttachments = useAssistantState(
+		({ message }) => message?.attachments && message.attachments.length > 0
+	);
+
+	return (
+		<MessagePrimitive.Root
+			className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
+			data-role="user"
+		>
+			<div className="aui-user-message-content-wrapper col-start-2 min-w-0">
+				{/* Display attachments and mentioned documents */}
+				{(hasAttachments || (mentionedDocs && mentionedDocs.length > 0)) && (
+					<div className="flex flex-wrap items-end gap-2 mb-2 justify-end">
+						{/* Attachments (images show as thumbnails, documents as chips) */}
+						<UserMessageAttachments />
+						{/* Mentioned documents as chips */}
+						{mentionedDocs?.map((doc) => (
+							<span
+								key={doc.id}
+								className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
+								title={doc.title}
+							>
+								<FileText className="size-3" />
+								<span className="max-w-[150px] truncate">{doc.title}</span>
+							</span>
+						))}
+					</div>
+				)}
+				{/* Message bubble with action bar positioned relative to it */}
+				<div className="relative">
+					<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
+						<MessagePrimitive.Parts />
+					</div>
+					<div className="aui-user-action-bar-wrapper absolute top-1/2 right-full -translate-y-1/2 pr-1">
+						<UserActionBar />
+					</div>
+				</div>
+			</div>
+
+			<BranchPicker className="aui-user-branch-picker -mr-1 col-span-full col-start-1 row-start-3 justify-end" />
+		</MessagePrimitive.Root>
+	);
+};
+
+const UserActionBar: FC = () => {
+	return (
+		<ActionBarPrimitive.Root
+			hideWhenRunning
+			autohide="not-last"
+			className="aui-user-action-bar-root flex flex-col items-end"
+		>
+			<ActionBarPrimitive.Edit asChild>
+				<TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4">
+					<PencilIcon />
+				</TooltipIconButton>
+			</ActionBarPrimitive.Edit>
+		</ActionBarPrimitive.Root>
+	);
+};
+
+const EditComposer: FC = () => {
+	return (
+		<MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2 py-3">
+			<ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
+				<ComposerPrimitive.Input
+					className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
+					autoFocus
+				/>
+				<div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
+					<ComposerPrimitive.Cancel asChild>
+						<Button variant="ghost" size="sm">
+							Cancel
+						</Button>
+					</ComposerPrimitive.Cancel>
+					<ComposerPrimitive.Send asChild>
+						<Button size="sm">Update</Button>
+					</ComposerPrimitive.Send>
+				</div>
+			</ComposerPrimitive.Root>
+		</MessagePrimitive.Root>
+	);
+};
+
+const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => {
+	return (
+		<BranchPickerPrimitive.Root
+			hideWhenSingleBranch
+			className={cn(
+				"aui-branch-picker-root -ml-2 mr-2 inline-flex items-center text-muted-foreground text-xs",
+				className
+			)}
+			{...rest}
+		>
+			<BranchPickerPrimitive.Previous asChild>
+				<TooltipIconButton tooltip="Previous">
+					<ChevronLeftIcon />
+				</TooltipIconButton>
+			</BranchPickerPrimitive.Previous>
+			<span className="aui-branch-picker-state font-medium">
+				<BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+			</span>
+			<BranchPickerPrimitive.Next asChild>
+				<TooltipIconButton tooltip="Next">
+					<ChevronRightIcon />
+				</TooltipIconButton>
+			</BranchPickerPrimitive.Next>
+		</BranchPickerPrimitive.Root>
 	);
 };

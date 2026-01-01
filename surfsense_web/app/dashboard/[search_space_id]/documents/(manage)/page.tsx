@@ -125,14 +125,22 @@ export default function DocumentsTable() {
 		setColumnVisibility((prev) => ({ ...prev, [id]: checked }));
 	};
 
+	const [isRefreshing, setIsRefreshing] = useState(false);
+
 	const refreshCurrentView = useCallback(async () => {
-		if (debouncedSearch.trim()) {
-			await refetchSearch();
-		} else {
-			await refetchDocuments();
+		if (isRefreshing) return;
+		setIsRefreshing(true);
+		try {
+			if (debouncedSearch.trim()) {
+				await refetchSearch();
+			} else {
+				await refetchDocuments();
+			}
+			toast.success(t("refresh_success") || "Documents refreshed");
+		} finally {
+			setIsRefreshing(false);
 		}
-		toast.success(t("refresh_success") || "Documents refreshed");
-	}, [debouncedSearch, refetchSearch, refetchDocuments, t]);
+	}, [debouncedSearch, refetchSearch, refetchDocuments, t, isRefreshing]);
 
 	// Set up smart polling for active tasks - only polls when tasks are in progress
 	const { summary } = useLogsSummary(searchSpaceId, 24, {
@@ -230,8 +238,8 @@ export default function DocumentsTable() {
 					<h2 className="text-xl md:text-2xl font-bold tracking-tight">{t("title")}</h2>
 					<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
 				</div>
-				<Button onClick={refreshCurrentView} variant="outline" size="sm">
-					<RefreshCw className="w-4 h-4 mr-2" />
+				<Button onClick={refreshCurrentView} variant="outline" size="sm" disabled={isRefreshing}>
+					<RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
 					{t("refresh")}
 				</Button>
 			</motion.div>

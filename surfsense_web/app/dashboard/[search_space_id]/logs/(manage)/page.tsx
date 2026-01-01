@@ -472,9 +472,18 @@ export default function LogsManagePage() {
 		}
 	};
 
+	const [isRefreshing, setIsRefreshing] = useState(false);
+	const [isSummaryRefreshing, setIsSummaryRefreshing] = useState(false);
+
 	const handleRefresh = async () => {
-		await Promise.all([refreshLogs(), refreshSummary()]);
-		toast.success("Logs refreshed");
+		if (isRefreshing) return;
+		setIsRefreshing(true);
+		try {
+			await Promise.all([refreshLogs(), refreshSummary()]);
+			toast.success("Logs refreshed");
+		} finally {
+			setIsRefreshing(false);
+		}
 	};
 
 	return (
@@ -495,7 +504,16 @@ export default function LogsManagePage() {
 					summary={summary}
 					loading={summaryLoading}
 					error={summaryError?.message ?? null}
-					onRefresh={refreshSummary}
+					onRefresh={async () => {
+						if (isSummaryRefreshing) return;
+						setIsSummaryRefreshing(true);
+						try {
+							await refreshSummary();
+						} finally {
+							setIsSummaryRefreshing(false);
+						}
+					}}
+					isRefreshing={isSummaryRefreshing}
 				/>
 
 				{/* Logs Table Header */}
@@ -509,8 +527,8 @@ export default function LogsManagePage() {
 						<h2 className="text-xl md:text-2xl font-bold tracking-tight">{t("title")}</h2>
 						<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
 					</div>
-					<Button onClick={handleRefresh} variant="outline" size="sm">
-						<RefreshCw className="w-4 h-4 mr-2" />
+					<Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing}>
+						<RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
 						{t("refresh")}
 					</Button>
 				</motion.div>
@@ -546,11 +564,13 @@ function LogsSummaryDashboard({
 	loading,
 	error,
 	onRefresh,
+	isRefreshing = false,
 }: {
 	summary: any;
 	loading: boolean;
 	error: string | null;
-	onRefresh: () => void;
+	onRefresh: () => void | Promise<void>;
+	isRefreshing?: boolean;
 }) {
 	const t = useTranslations("logs");
 	if (loading) {
@@ -581,7 +601,8 @@ function LogsSummaryDashboard({
 					<div className="flex flex-col items-center gap-2">
 						<AlertCircle className="h-8 w-8 text-destructive" />
 						<p className="text-sm text-destructive">{t("failed_load_summary")}</p>
-						<Button variant="outline" size="sm" onClick={onRefresh}>
+						<Button variant="outline" size="sm" onClick={onRefresh} disabled={isRefreshing}>
+							<RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
 							{t("retry")}
 						</Button>
 					</div>
