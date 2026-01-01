@@ -241,7 +241,7 @@ export function DashboardBreadcrumb() {
 		<Breadcrumb>
 			<BreadcrumbList>
 				{breadcrumbs.map((item, index) => (
-					<React.Fragment key={item.href || item.label}>
+					<React.Fragment key={`${index}-${item.href || item.label}`}>
 						<BreadcrumbItem>
 							{index === breadcrumbs.length - 1 ? (
 								<BreadcrumbPage>{item.label}</BreadcrumbPage>

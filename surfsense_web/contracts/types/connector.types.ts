@@ -48,7 +48,7 @@ export const googleDriveItem = z.object({
 	mimeType: z.string(),
 	isFolder: z.boolean(),
 	parents: z.array(z.string()).optional(),
-	size: z.number().optional(),
+	size: z.coerce.number().optional(),
 	iconLink: z.string().optional(),
 	webViewLink: z.string().optional(),
 	createdTime: z.string().optional(),
