@@ -10,14 +10,8 @@ import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-quer
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
-import {
-	Dialog,
-	DialogContent,
-} from "@/components/ui/dialog";
-import {
-	Tabs,
-	TabsContent,
-} from "@/components/ui/tabs";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
@@ -35,19 +29,15 @@ export const ConnectorIndicator: FC = () => {
 	const searchParams = useSearchParams();
 	const { data: documentTypeCounts, isLoading: documentTypesLoading } =
 		useAtomValue(documentTypeCountsAtom);
-	
+
 	// Check if YouTube view is active
 	const isYouTubeView = searchParams.get("view") === "youtube";
 
 	// Track active indexing tasks
-	const { summary: logsSummary } = useLogsSummary(
-		searchSpaceId ? Number(searchSpaceId) : 0,
-		24,
-		{
-			enablePolling: true,
-			refetchInterval: 5000,
-		}
-	);
+	const { summary: logsSummary } = useLogsSummary(searchSpaceId ? Number(searchSpaceId) : 0, 24, {
+		enablePolling: true,
+		refetchInterval: 5000,
+	});
 
 	// Use the custom hook for dialog state management
 	const {
@@ -202,10 +192,7 @@ export const ConnectorIndicator: FC = () => {
 			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
-					<YouTubeCrawlerView
-						searchSpaceId={searchSpaceId}
-						onBack={handleBackFromYouTube}
-					/>
+					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
 				) : connectingConnectorType ? (
 					<ConnectorConnectView
 						connectorType={connectingConnectorType}
@@ -234,17 +221,25 @@ export const ConnectorIndicator: FC = () => {
 						onSave={() => handleSaveConnector(() => refreshConnectors())}
 						onDisconnect={() => handleDisconnectConnector(() => refreshConnectors())}
 						onBack={handleBackFromEdit}
-						onQuickIndex={editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" ? () => handleQuickIndexConnector(editingConnector.id) : undefined}
+						onQuickIndex={
+							editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
+								? () => handleQuickIndexConnector(editingConnector.id)
+								: undefined
+						}
 						onConfigChange={setConnectorConfig}
 						onNameChange={setConnectorName}
 					/>
 				) : indexingConfig ? (
 					<IndexingConfigurationView
 						config={indexingConfig}
-						connector={indexingConnector ? {
-							...indexingConnector,
-							config: indexingConnectorConfig || indexingConnector.config,
-						} : undefined}
+						connector={
+							indexingConnector
+								? {
+										...indexingConnector,
+										config: indexingConnectorConfig || indexingConnector.config,
+									}
+								: undefined
+						}
 						startDate={startDate}
 						endDate={endDate}
 						periodicEnabled={periodicEnabled}
@@ -259,7 +254,11 @@ export const ConnectorIndicator: FC = () => {
 						onSkip={handleSkipIndexing}
 					/>
 				) : (
-					<Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
+					<Tabs
+						value={activeTab}
+						onValueChange={handleTabChange}
+						className="flex-1 flex flex-col min-h-0"
+					>
 						{/* Header */}
 						<ConnectorDialogHeader
 							activeTab={activeTab}
@@ -274,23 +273,23 @@ export const ConnectorIndicator: FC = () => {
 						<div className="flex-1 min-h-0 relative overflow-hidden">
 							<div className="h-full overflow-y-auto" onScroll={handleScroll}>
 								<div className="px-6 sm:px-12 py-6 sm:py-8 pb-16 sm:pb-16">
-								<TabsContent value="all" className="m-0">
-								<AllConnectorsTab
-									searchQuery={searchQuery}
-									searchSpaceId={searchSpaceId}
-									connectedTypes={connectedTypes}
-									connectingId={connectingId}
-									allConnectors={allConnectors}
-									documentTypeCounts={documentTypeCounts}
-									indexingConnectorIds={indexingConnectorIds}
-									logsSummary={logsSummary}
-									onConnectOAuth={handleConnectOAuth}
-									onConnectNonOAuth={handleConnectNonOAuth}
-									onCreateWebcrawler={handleCreateWebcrawler}
-									onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
-									onManage={handleStartEdit}
-								/>
-								</TabsContent>
+									<TabsContent value="all" className="m-0">
+										<AllConnectorsTab
+											searchQuery={searchQuery}
+											searchSpaceId={searchSpaceId}
+											connectedTypes={connectedTypes}
+											connectingId={connectingId}
+											allConnectors={allConnectors}
+											documentTypeCounts={documentTypeCounts}
+											indexingConnectorIds={indexingConnectorIds}
+											logsSummary={logsSummary}
+											onConnectOAuth={handleConnectOAuth}
+											onConnectNonOAuth={handleConnectNonOAuth}
+											onCreateWebcrawler={handleCreateWebcrawler}
+											onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
+											onManage={handleStartEdit}
+										/>
+									</TabsContent>
 
 									<ActiveConnectorsTab
 										hasSources={hasSources}

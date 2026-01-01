@@ -53,10 +53,7 @@ const bookstackConnectorFormSchema = z.object({
 
 type BookStackConnectorFormValues = z.infer<typeof bookstackConnectorFormSchema>;
 
-export const BookStackConnectForm: FC<ConnectFormProps> = ({
-	onSubmit,
-	isSubmitting,
-}) => {
+export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -110,14 +107,19 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 				<div className="-ml-1">
 					<AlertTitle className="text-xs sm:text-sm">API Token Required</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a BookStack API Token to use this connector. You can create one from your BookStack instance settings.
+						You'll need a BookStack API Token to use this connector. You can create one from your
+						BookStack instance settings.
 					</AlertDescription>
 				</div>
 			</Alert>
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="bookstack-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form
+						id="bookstack-connect-form"
+						onSubmit={form.handleSubmit(handleSubmit)}
+						className="space-y-4 sm:space-y-6"
+					>
 						<FormField
 							control={form.control}
 							name="name"
@@ -125,11 +127,11 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="My BookStack Connector" 
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="My BookStack Connector"
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -147,16 +149,17 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">BookStack Base URL</FormLabel>
 									<FormControl>
-										<Input 
+										<Input
 											type="url"
-											placeholder="https://your-bookstack-instance.com" 
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+											placeholder="https://your-bookstack-instance.com"
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										The base URL of your BookStack instance (e.g., https://your-bookstack-instance.com).
+										The base URL of your BookStack instance (e.g.,
+										https://your-bookstack-instance.com).
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -170,11 +173,11 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Token ID</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="Your Token ID" 
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="Your Token ID"
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -192,12 +195,12 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Token Secret</FormLabel>
 									<FormControl>
-										<Input 
-											type="password" 
-											placeholder="Your Token Secret" 
+										<Input
+											type="password"
+											placeholder="Your Token Secret"
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -211,7 +214,7 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 						{/* Indexing Configuration */}
 						<div className="space-y-4 pt-4 border-t border-slate-400/20">
 							<h3 className="text-sm sm:text-base font-medium">Indexing Configuration</h3>
-							
+
 							{/* Date Range Selector */}
 							<DateRangeSelector
 								startDate={startDate}
@@ -229,14 +232,24 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 											Automatically re-index at regular intervals
 										</p>
 									</div>
-									<Switch checked={periodicEnabled} onCheckedChange={setPeriodicEnabled} disabled={isSubmitting} />
+									<Switch
+										checked={periodicEnabled}
+										onCheckedChange={setPeriodicEnabled}
+										disabled={isSubmitting}
+									/>
 								</div>
 
 								{periodicEnabled && (
 									<div className="mt-4 pt-4 border-t border-slate-400/20 space-y-3">
 										<div className="space-y-2">
-											<Label htmlFor="frequency" className="text-xs sm:text-sm">Sync Frequency</Label>
-											<Select value={frequencyMinutes} onValueChange={setFrequencyMinutes} disabled={isSubmitting}>
+											<Label htmlFor="frequency" className="text-xs sm:text-sm">
+												Sync Frequency
+											</Label>
+											<Select
+												value={frequencyMinutes}
+												onValueChange={setFrequencyMinutes}
+												disabled={isSubmitting}
+											>
 												<SelectTrigger
 													id="frequency"
 													className="w-full bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 text-xs sm:text-sm"
@@ -244,12 +257,24 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 													<SelectValue placeholder="Select frequency" />
 												</SelectTrigger>
 												<SelectContent className="z-[100]">
-													<SelectItem value="15" className="text-xs sm:text-sm">Every 15 minutes</SelectItem>
-													<SelectItem value="60" className="text-xs sm:text-sm">Every hour</SelectItem>
-													<SelectItem value="360" className="text-xs sm:text-sm">Every 6 hours</SelectItem>
-													<SelectItem value="720" className="text-xs sm:text-sm">Every 12 hours</SelectItem>
-													<SelectItem value="1440" className="text-xs sm:text-sm">Daily</SelectItem>
-													<SelectItem value="10080" className="text-xs sm:text-sm">Weekly</SelectItem>
+													<SelectItem value="15" className="text-xs sm:text-sm">
+														Every 15 minutes
+													</SelectItem>
+													<SelectItem value="60" className="text-xs sm:text-sm">
+														Every hour
+													</SelectItem>
+													<SelectItem value="360" className="text-xs sm:text-sm">
+														Every 6 hours
+													</SelectItem>
+													<SelectItem value="720" className="text-xs sm:text-sm">
+														Every 12 hours
+													</SelectItem>
+													<SelectItem value="1440" className="text-xs sm:text-sm">
+														Daily
+													</SelectItem>
+													<SelectItem value="10080" className="text-xs sm:text-sm">
+														Weekly
+													</SelectItem>
 												</SelectContent>
 											</Select>
 										</div>
@@ -264,7 +289,9 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 			{/* What you get section */}
 			{getConnectorBenefits(EnumConnectorName.BOOKSTACK_CONNECTOR) && (
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 px-3 sm:px-6 py-4 space-y-2">
-					<h4 className="text-xs sm:text-sm font-medium">What you get with BookStack integration:</h4>
+					<h4 className="text-xs sm:text-sm font-medium">
+						What you get with BookStack integration:
+					</h4>
 					<ul className="list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 						{getConnectorBenefits(EnumConnectorName.BOOKSTACK_CONNECTOR)?.map((benefit) => (
 							<li key={benefit}>{benefit}</li>
@@ -274,7 +301,11 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 			)}
 
 			{/* Documentation Section */}
-			<Accordion type="single" collapsible className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5">
+			<Accordion
+				type="single"
+				collapsible
+				className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5"
+			>
 				<AccordionItem value="documentation" className="border-0">
 					<AccordionTrigger className="text-sm sm:text-base font-medium px-3 sm:px-6 no-underline hover:no-underline">
 						Documentation
@@ -283,14 +314,17 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 						<div>
 							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The BookStack connector uses the BookStack REST API to fetch all pages from your BookStack instance that your account has access to.
+								The BookStack connector uses the BookStack REST API to fetch all pages from your
+								BookStack instance that your account has access to.
 							</p>
 							<ul className="mt-2 list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 								<li>
-									For follow up indexing runs, the connector retrieves pages that have been updated since the last indexing attempt.
+									For follow up indexing runs, the connector retrieves pages that have been updated
+									since the last indexing attempt.
 								</li>
 								<li>
-									Indexing is configured to run periodically, so updates should appear in your search results within minutes.
+									Indexing is configured to run periodically, so updates should appear in your
+									search results within minutes.
 								</li>
 							</ul>
 						</div>
@@ -302,13 +336,16 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 									<AlertTitle className="text-[10px] sm:text-xs">API Token Required</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										You need to create an API token from your BookStack instance. The token requires "Access System API" permission.
+										You need to create an API token from your BookStack instance. The token requires
+										"Access System API" permission.
 									</AlertDescription>
 								</Alert>
 
 								<div className="space-y-4 sm:space-y-6">
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Create an API Token</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 1: Create an API Token
+										</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
 											<li>Log in to your BookStack instance</li>
 											<li>Click on your profile icon → Edit Profile</li>
@@ -320,15 +357,19 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Grant necessary access</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 2: Grant necessary access
+										</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											Your user account must have "Access System API" permission. The connector will only index content your account can view.
+											Your user account must have "Access System API" permission. The connector will
+											only index content your account can view.
 										</p>
 										<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 											<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 											<AlertTitle className="text-[10px] sm:text-xs">Rate Limiting</AlertTitle>
 											<AlertDescription className="text-[9px] sm:text-[10px]">
-												BookStack API has a rate limit of 180 requests per minute. The connector automatically handles rate limiting to ensure reliable indexing.
+												BookStack API has a rate limit of 180 requests per minute. The connector
+												automatically handles rate limiting to ensure reliable indexing.
 											</AlertDescription>
 										</Alert>
 									</div>
@@ -341,13 +382,16 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Indexing</h3>
 								<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
 									<li>
-										Navigate to the Connector Dashboard and select the <strong>BookStack</strong> Connector.
+										Navigate to the Connector Dashboard and select the <strong>BookStack</strong>{" "}
+										Connector.
 									</li>
 									<li>
-										Enter your <strong>BookStack Instance URL</strong> (e.g., https://docs.example.com)
+										Enter your <strong>BookStack Instance URL</strong> (e.g.,
+										https://docs.example.com)
 									</li>
 									<li>
-										Enter your <strong>Token ID</strong> and <strong>Token Secret</strong> from your BookStack API token.
+										Enter your <strong>Token ID</strong> and <strong>Token Secret</strong> from your
+										BookStack API token.
 									</li>
 									<li>
 										Click <strong>Connect</strong> to establish the connection.
@@ -376,4 +420,3 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({
 		</div>
 	);
 };
-

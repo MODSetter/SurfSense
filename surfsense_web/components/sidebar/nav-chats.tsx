@@ -62,11 +62,7 @@ const actionIconMap: Record<string, LucideIcon> = {
 	RefreshCw,
 };
 
-export function NavChats({
-	chats,
-	defaultOpen = true,
-	searchSpaceId,
-}: NavChatsProps) {
+export function NavChats({ chats, defaultOpen = true, searchSpaceId }: NavChatsProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const pathname = usePathname();

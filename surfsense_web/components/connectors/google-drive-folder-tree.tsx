@@ -223,9 +223,17 @@ export function GoogleDriveFolderTree({
 		const childFiles = children?.filter((c) => !c.isFolder) || [];
 
 		const indentSize = 0.75; // Smaller indent for mobile
-		
+
 		return (
-			<div key={item.id} className="w-full sm:ml-[calc(var(--level)*1.25rem)]" style={{ marginLeft: `${level * indentSize}rem`, '--level': level } as React.CSSProperties & { '--level'?: number }}>
+			<div
+				key={item.id}
+				className="w-full sm:ml-[calc(var(--level)*1.25rem)]"
+				style={
+					{ marginLeft: `${level * indentSize}rem`, "--level": level } as React.CSSProperties & {
+						"--level"?: number;
+					}
+				}
+			>
 				<div
 					className={cn(
 						"flex items-center group gap-1 sm:gap-2 h-auto py-1 sm:py-2 px-1 sm:px-2 rounded-md",
@@ -302,7 +310,9 @@ export function GoogleDriveFolderTree({
 						{childFiles.map((child) => renderItem(child, level + 1))}
 
 						{children.length === 0 && (
-							<div className="text-[10px] sm:text-xs text-muted-foreground py-1 sm:py-2 pl-1 sm:pl-2">Empty folder</div>
+							<div className="text-[10px] sm:text-xs text-muted-foreground py-1 sm:py-2 pl-1 sm:pl-2">
+								Empty folder
+							</div>
 						)}
 					</div>
 				)}

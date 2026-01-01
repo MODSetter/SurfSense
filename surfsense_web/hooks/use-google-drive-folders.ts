@@ -26,4 +26,3 @@ export function useGoogleDriveFolders({
 		retry: 2,
 	});
 }
-

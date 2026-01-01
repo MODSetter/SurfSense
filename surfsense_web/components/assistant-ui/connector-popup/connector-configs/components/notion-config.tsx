@@ -89,4 +89,3 @@ export const NotionConfig: FC<NotionConfigProps> = ({
 		</div>
 	);
 };
-

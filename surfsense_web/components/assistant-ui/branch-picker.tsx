@@ -30,4 +30,3 @@ export const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, 
 		</BranchPickerPrimitive.Root>
 	);
 };
-

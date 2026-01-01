@@ -63,12 +63,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 	const checkScrollState = useCallback(() => {
 		if (!scrollContainerRef.current) return;
-		
+
 		const target = scrollContainerRef.current;
 		const scrolled = target.scrollTop > 0;
-		const hasMore = target.scrollHeight > target.clientHeight && 
+		const hasMore =
+			target.scrollHeight > target.clientHeight &&
 			target.scrollTop + target.clientHeight < target.scrollHeight - 10;
-		
+
 		setIsScrolled(scrolled);
 		setHasMoreContent(hasMore);
 	}, []);
@@ -83,11 +84,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		const resizeObserver = new ResizeObserver(() => {
 			checkScrollState();
 		});
-		
+
 		if (scrollContainerRef.current) {
 			resizeObserver.observe(scrollContainerRef.current);
 		}
-		
+
 		return () => {
 			resizeObserver.disconnect();
 		};
@@ -109,10 +110,12 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Fixed Header */}
-			<div className={cn(
-				"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
-				isScrolled && "shadow-sm"
-			)}>
+			<div
+				className={cn(
+					"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
+					isScrolled && "shadow-sm"
+				)}
+			>
 				{/* Back button */}
 				<button
 					type="button"
@@ -130,44 +133,44 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							{getConnectorIcon(connector.connector_type, "size-7")}
 						</div>
 						<div className="flex-1 min-w-0">
-							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-								{connector.name}
-							</h2>
+							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">{connector.name}</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
 								Manage your connector settings and sync configuration
 							</p>
 						</div>
 					</div>
 					{/* Quick Index Button - only show for indexable connectors, but not for Google Drive (requires folder selection) */}
-					{connector.is_indexable && onQuickIndex && connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
-						<Button
-							variant="secondary"
-							size="sm"
-							onClick={onQuickIndex}
-							disabled={isIndexing || isSaving || isDisconnecting}
-							className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
-						>
-							{isIndexing ? (
-								<>
-									<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-									Indexing...
-								</>
-							) : (
-								<>
-									<RefreshCw className="mr-2 h-4 w-4" />
-									Quick Index
-								</>
-							)}
-						</Button>
-					)}
+					{connector.is_indexable &&
+						onQuickIndex &&
+						connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={onQuickIndex}
+								disabled={isIndexing || isSaving || isDisconnecting}
+								className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
+							>
+								{isIndexing ? (
+									<>
+										<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+										Indexing...
+									</>
+								) : (
+									<>
+										<RefreshCw className="mr-2 h-4 w-4" />
+										Quick Index
+									</>
+								)}
+							</Button>
+						)}
 				</div>
 			</div>
 
 			{/* Scrollable Content */}
 			<div className="flex-1 min-h-0 relative overflow-hidden">
-				<div 
+				<div
 					ref={scrollContainerRef}
-					className="h-full overflow-y-auto px-6 sm:px-12" 
+					className="h-full overflow-y-auto px-6 sm:px-12"
 					onScroll={handleScroll}
 				>
 					<div className="space-y-6 pb-6 pt-2">
@@ -184,14 +187,15 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{connector.is_indexable && (
 							<>
 								{/* Date range selector - not shown for Google Drive (uses folder selection) or Webcrawler (uses config) */}
-								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && connector.connector_type !== "WEBCRAWLER_CONNECTOR" && (
-									<DateRangeSelector
-										startDate={startDate}
-										endDate={endDate}
-										onStartDateChange={onStartDateChange}
-										onEndDateChange={onEndDateChange}
-									/>
-								)}
+								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
+									connector.connector_type !== "WEBCRAWLER_CONNECTOR" && (
+										<DateRangeSelector
+											startDate={startDate}
+											endDate={endDate}
+											onStartDateChange={onStartDateChange}
+											onEndDateChange={onEndDateChange}
+										/>
+									)}
 
 								{/* Periodic sync - not shown for Google Drive */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
@@ -212,9 +216,12 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 									<Info className="size-4" />
 								</div>
 								<div className="text-xs sm:text-sm">
-									<p className="font-medium text-xs sm:text-sm">Re-indexing runs in the background</p>
+									<p className="font-medium text-xs sm:text-sm">
+										Re-indexing runs in the background
+									</p>
 									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-										You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
+										You can continue using SurfSense while we sync your data. Check the Active tab
+										to see progress.
 									</p>
 								</div>
 							</div>
@@ -235,7 +242,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 			<div className="flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 px-6 sm:px-12 py-4 sm:py-6 bg-muted border-t border-border">
 				{showDisconnectConfirm ? (
 					<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 sm:flex-initial">
-						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">Are you sure?</span>
+						<span className="text-xs sm:text-sm text-muted-foreground sm:whitespace-nowrap">
+							Are you sure?
+						</span>
 						<div className="flex items-center gap-2 sm:gap-3">
 							<Button
 								variant="destructive"
@@ -276,9 +285,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						Disconnect
 					</Button>
 				)}
-				<Button 
-					onClick={onSave} 
-					disabled={isSaving || isDisconnecting} 
+				<Button
+					onClick={onSave}
+					disabled={isSaving || isDisconnecting}
 					className="text-xs sm:text-sm flex-1 sm:flex-initial"
 				>
 					{isSaving ? (
@@ -294,4 +303,3 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		</div>
 	);
 };
-

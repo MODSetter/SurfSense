@@ -52,10 +52,7 @@ const parseCommaSeparated = (value?: string | null) => {
 	return items.length > 0 ? items : undefined;
 };
 
-export const SearxngConnectForm: FC<ConnectFormProps> = ({
-	onSubmit,
-	isSubmitting,
-}) => {
+export const SearxngConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const form = useForm<SearxngFormValues>({
 		resolver: zodResolver(searxngFormSchema),
@@ -146,7 +143,11 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="searxng-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form
+						id="searxng-connect-form"
+						onSubmit={form.handleSubmit(handleSubmit)}
+						className="space-y-4 sm:space-y-6"
+					>
 						<FormField
 							control={form.control}
 							name="name"
@@ -154,11 +155,11 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="My SearxNG Connector" 
-											className="border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="My SearxNG Connector"
+											className="border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -176,15 +177,16 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">SearxNG Host</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="https://searxng.example.org" 
+										<Input
+											placeholder="https://searxng.example.org"
 											className="border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Provide the full base URL to your SearxNG instance. Include the protocol (http/https).
+										Provide the full base URL to your SearxNG instance. Include the protocol
+										(http/https).
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -222,11 +224,11 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 									<FormItem>
 										<FormLabel className="text-xs sm:text-sm">Engines (optional)</FormLabel>
 										<FormControl>
-											<Input 
-												placeholder="google,bing,duckduckgo" 
+											<Input
+												placeholder="google,bing,duckduckgo"
 												className="border-slate-400/20 focus-visible:border-slate-400/40"
 												disabled={isSubmitting}
-												{...field} 
+												{...field}
 											/>
 										</FormControl>
 										<FormDescription className="text-[10px] sm:text-xs">
@@ -244,11 +246,11 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 									<FormItem>
 										<FormLabel className="text-xs sm:text-sm">Categories (optional)</FormLabel>
 										<FormControl>
-											<Input 
-												placeholder="general,it,science" 
+											<Input
+												placeholder="general,it,science"
 												className="border-slate-400/20 focus-visible:border-slate-400/40"
 												disabled={isSubmitting}
-												{...field} 
+												{...field}
 											/>
 										</FormControl>
 										<FormDescription className="text-[10px] sm:text-xs">
@@ -266,13 +268,15 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 								name="language"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel className="text-xs sm:text-sm">Preferred Language (optional)</FormLabel>
+										<FormLabel className="text-xs sm:text-sm">
+											Preferred Language (optional)
+										</FormLabel>
 										<FormControl>
-											<Input 
-												placeholder="en-US" 
+											<Input
+												placeholder="en-US"
 												className="border-slate-400/20 focus-visible:border-slate-400/40"
 												disabled={isSubmitting}
-												{...field} 
+												{...field}
 											/>
 										</FormControl>
 										<FormDescription className="text-[10px] sm:text-xs">
@@ -288,17 +292,20 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 								name="safesearch"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel className="text-xs sm:text-sm">SafeSearch Level (optional)</FormLabel>
+										<FormLabel className="text-xs sm:text-sm">
+											SafeSearch Level (optional)
+										</FormLabel>
 										<FormControl>
-											<Input 
-												placeholder="0 (off), 1 (moderate), 2 (strict)" 
+											<Input
+												placeholder="0 (off), 1 (moderate), 2 (strict)"
 												className="border-slate-400/20 focus-visible:border-slate-400/40"
 												disabled={isSubmitting}
-												{...field} 
+												{...field}
 											/>
 										</FormControl>
 										<FormDescription className="text-[10px] sm:text-xs">
-											Set 0, 1, or 2 to adjust SafeSearch filtering. Leave blank to use the instance default.
+											Set 0, 1, or 2 to adjust SafeSearch filtering. Leave blank to use the instance
+											default.
 										</FormDescription>
 										<FormMessage />
 									</FormItem>
@@ -318,7 +325,11 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 										</FormDescription>
 									</div>
 									<FormControl>
-										<Switch checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} />
+										<Switch
+											checked={field.value}
+											onCheckedChange={field.onChange}
+											disabled={isSubmitting}
+										/>
 									</FormControl>
 								</FormItem>
 							)}
@@ -341,4 +352,3 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({
 		</div>
 	);
 };
-

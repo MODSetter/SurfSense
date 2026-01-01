@@ -448,10 +448,7 @@ export const AppSidebar = memo(function AppSidebar({
 			<SidebarContent className="gap-1">
 				<NavMain items={processedNavMain} />
 
-				<NavChats
-					chats={processedRecentChats}
-					searchSpaceId={searchSpaceId}
-				/>
+				<NavChats chats={processedRecentChats} searchSpaceId={searchSpaceId} />
 
 				<NavNotes
 					notes={processedRecentNotes}

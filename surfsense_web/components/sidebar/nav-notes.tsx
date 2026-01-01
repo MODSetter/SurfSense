@@ -63,12 +63,7 @@ const actionIconMap: Record<string, LucideIcon> = {
 	MoreHorizontal,
 };
 
-export function NavNotes({
-	notes,
-	onAddNote,
-	defaultOpen = true,
-	searchSpaceId,
-}: NavNotesProps) {
+export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }: NavNotesProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const pathname = usePathname();

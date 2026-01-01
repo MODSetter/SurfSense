@@ -150,4 +150,3 @@ export const OTHER_CONNECTORS = [
 
 // Re-export IndexingConfigState from schemas for backward compatibility
 export type { IndexingConfigState } from "./connector-popup.schemas";
-

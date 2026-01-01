@@ -13,12 +13,10 @@ interface SelectedFolder {
 	name: string;
 }
 
-export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({
-	connector,
-	onConfigChange,
-}) => {
+export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
 	// Initialize with existing selected folders and files from connector config
-	const existingFolders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
+	const existingFolders =
+		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 	const existingFiles = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
 	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
@@ -63,7 +61,8 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({
 			<div className="space-y-1 sm:space-y-2">
 				<h3 className="font-medium text-sm sm:text-base">Folder & File Selection</h3>
 				<p className="text-xs sm:text-sm text-muted-foreground">
-					Select specific folders and/or individual files to index. Only files directly in each folder will be processed—subfolders must be selected separately.
+					Select specific folders and/or individual files to index. Only files directly in each
+					folder will be processed—subfolders must be selected separately.
 				</p>
 			</div>
 
@@ -71,17 +70,27 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({
 				<div className="p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm space-y-1 sm:space-y-2">
 					<p className="font-medium">
 						Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}:
-						{selectedFolders.length > 0 && ` ${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`}
-						{selectedFiles.length > 0 && ` ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`}
+						{selectedFolders.length > 0 &&
+							` ${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`}
+						{selectedFiles.length > 0 &&
+							` ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`}
 					</p>
 					<div className="max-h-20 sm:max-h-24 overflow-y-auto space-y-1">
 						{selectedFolders.map((folder) => (
-							<p key={folder.id} className="text-xs sm:text-sm text-muted-foreground truncate" title={folder.name}>
+							<p
+								key={folder.id}
+								className="text-xs sm:text-sm text-muted-foreground truncate"
+								title={folder.name}
+							>
 								📁 {folder.name}
 							</p>
 						))}
 						{selectedFiles.map((file) => (
-							<p key={file.id} className="text-xs sm:text-sm text-muted-foreground truncate" title={file.name}>
+							<p
+								key={file.id}
+								className="text-xs sm:text-sm text-muted-foreground truncate"
+								title={file.name}
+							>
 								📄 {file.name}
 							</p>
 						))}
@@ -122,10 +131,10 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({
 			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center gap-2 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
 				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
 				<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-					Folder and file selection is used when indexing. You can change this selection when you start indexing.
+					Folder and file selection is used when indexing. You can change this selection when you
+					start indexing.
 				</AlertDescription>
 			</Alert>
 		</div>
 	);
 };
-

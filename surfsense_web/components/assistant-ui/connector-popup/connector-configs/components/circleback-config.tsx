@@ -27,10 +27,7 @@ const circlebackWebhookInfoSchema = z.object({
 
 export type CirclebackWebhookInfo = z.infer<typeof circlebackWebhookInfoSchema>;
 
-export const CirclebackConfig: FC<CirclebackConfigProps> = ({
-	connector,
-	onNameChange,
-}) => {
+export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameChange }) => {
 	const [name, setName] = useState<string>(connector.name || "");
 	const [webhookUrl, setWebhookUrl] = useState<string>("");
 	const [webhookInfo, setWebhookInfo] = useState<CirclebackWebhookInfo | null>(null);
@@ -46,14 +43,14 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({
 	useEffect(() => {
 		const fetchWebhookInfo = async () => {
 			if (!connector.search_space_id) return;
-			
+
 			const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
 			if (!baseUrl) {
 				console.error("NEXT_PUBLIC_FASTAPI_BACKEND_URL is not configured");
 				setIsLoading(false);
 				return;
 			}
-			
+
 			setIsLoading(true);
 			try {
 				const response = await authenticatedFetch(
@@ -170,8 +167,9 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({
 						<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 						<AlertTitle className="text-xs sm:text-sm">Configuration Instructions</AlertTitle>
 						<AlertDescription className="text-[10px] sm:text-xs !pl-0 mt-1">
-							Configure this URL in Circleback Settings → Automations → Create automation → Send webhook request.
-							The webhook will automatically send meeting notes, transcripts, and action items to this search space.
+							Configure this URL in Circleback Settings → Automations → Create automation → Send
+							webhook request. The webhook will automatically send meeting notes, transcripts, and
+							action items to this search space.
 						</AlertDescription>
 					</Alert>
 				)}
@@ -179,4 +177,3 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({
 		</div>
 	);
 };
-

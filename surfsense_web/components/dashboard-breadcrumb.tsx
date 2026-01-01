@@ -155,7 +155,6 @@ export function DashboardBreadcrumb() {
 						return breadcrumbs;
 					}
 
-
 					// Handle other sub-sections
 					let subSectionLabel = subSection.charAt(0).toUpperCase() + subSection.slice(1);
 					const subSectionLabels: Record<string, string> = {

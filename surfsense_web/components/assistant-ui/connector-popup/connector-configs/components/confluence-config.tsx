@@ -19,9 +19,7 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 	const [baseUrl, setBaseUrl] = useState<string>(
 		(connector.config?.CONFLUENCE_BASE_URL as string) || ""
 	);
-	const [email, setEmail] = useState<string>(
-		(connector.config?.CONFLUENCE_EMAIL as string) || ""
-	);
+	const [email, setEmail] = useState<string>((connector.config?.CONFLUENCE_EMAIL as string) || "");
 	const [apiToken, setApiToken] = useState<string>(
 		(connector.config?.CONFLUENCE_API_TOKEN as string) || ""
 	);
@@ -149,4 +147,3 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 		</div>
 	);
 };
-

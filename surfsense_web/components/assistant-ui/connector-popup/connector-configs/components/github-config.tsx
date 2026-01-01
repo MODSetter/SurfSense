@@ -20,7 +20,10 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	const stringToArray = (arr: string[] | string | undefined): string[] => {
 		if (Array.isArray(arr)) return arr;
 		if (typeof arr === "string") {
-			return arr.split(",").map((item) => item.trim()).filter((item) => item.length > 0);
+			return arr
+				.split(",")
+				.map((item) => item.trim())
+				.filter((item) => item.length > 0);
 		}
 		return [];
 	};
@@ -147,4 +150,3 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 		</div>
 	);
 };
-

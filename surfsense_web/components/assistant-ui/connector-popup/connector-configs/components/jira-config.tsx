@@ -11,17 +11,9 @@ export interface JiraConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
-export const JiraConfig: FC<JiraConfigProps> = ({
-	connector,
-	onConfigChange,
-	onNameChange,
-}) => {
-	const [baseUrl, setBaseUrl] = useState<string>(
-		(connector.config?.JIRA_BASE_URL as string) || ""
-	);
-	const [email, setEmail] = useState<string>(
-		(connector.config?.JIRA_EMAIL as string) || ""
-	);
+export const JiraConfig: FC<JiraConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
+	const [baseUrl, setBaseUrl] = useState<string>((connector.config?.JIRA_BASE_URL as string) || "");
+	const [email, setEmail] = useState<string>((connector.config?.JIRA_EMAIL as string) || "");
 	const [apiToken, setApiToken] = useState<string>(
 		(connector.config?.JIRA_API_TOKEN as string) || ""
 	);
@@ -149,4 +141,3 @@ export const JiraConfig: FC<JiraConfigProps> = ({
 		</div>
 	);
 };
-

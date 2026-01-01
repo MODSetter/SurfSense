@@ -42,19 +42,14 @@ const slackConnectorFormSchema = z.object({
 	name: z.string().min(3, {
 		message: "Connector name must be at least 3 characters.",
 	}),
-	bot_token: z
-		.string()
-		.min(10, {
-			message: "Slack Bot Token is required and must be valid.",
-		}),
+	bot_token: z.string().min(10, {
+		message: "Slack Bot Token is required and must be valid.",
+	}),
 });
 
 type SlackConnectorFormValues = z.infer<typeof slackConnectorFormSchema>;
 
-export const SlackConnectForm: FC<ConnectFormProps> = ({
-	onSubmit,
-	isSubmitting,
-}) => {
+export const SlackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -104,7 +99,8 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 				<div className="-ml-1">
 					<AlertTitle className="text-xs sm:text-sm">Bot User OAuth Token Required</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a Slack Bot User OAuth Token to use this connector. You can create a Slack app and get the token from{" "}
+						You'll need a Slack Bot User OAuth Token to use this connector. You can create a Slack
+						app and get the token from{" "}
 						<a
 							href="https://api.slack.com/apps"
 							target="_blank"
@@ -119,7 +115,11 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="slack-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form
+						id="slack-connect-form"
+						onSubmit={form.handleSubmit(handleSubmit)}
+						className="space-y-4 sm:space-y-6"
+					>
 						<FormField
 							control={form.control}
 							name="name"
@@ -127,11 +127,11 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="My Slack Connector" 
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="My Slack Connector"
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -149,16 +149,17 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Slack Bot User OAuth Token</FormLabel>
 									<FormControl>
-										<Input 
-											type="password" 
-											placeholder="xoxb-..." 
+										<Input
+											type="password"
+											placeholder="xoxb-..."
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Your Bot User OAuth Token will be encrypted and stored securely. It typically starts with "xoxb-".
+										Your Bot User OAuth Token will be encrypted and stored securely. It typically
+										starts with "xoxb-".
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -168,7 +169,7 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 						{/* Indexing Configuration */}
 						<div className="space-y-4 pt-4 border-t border-slate-400/20">
 							<h3 className="text-sm sm:text-base font-medium">Indexing Configuration</h3>
-							
+
 							{/* Date Range Selector */}
 							<DateRangeSelector
 								startDate={startDate}
@@ -186,14 +187,24 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 											Automatically re-index at regular intervals
 										</p>
 									</div>
-									<Switch checked={periodicEnabled} onCheckedChange={setPeriodicEnabled} disabled={isSubmitting} />
+									<Switch
+										checked={periodicEnabled}
+										onCheckedChange={setPeriodicEnabled}
+										disabled={isSubmitting}
+									/>
 								</div>
 
 								{periodicEnabled && (
 									<div className="mt-4 pt-4 border-t border-slate-400/20 space-y-3">
 										<div className="space-y-2">
-											<Label htmlFor="frequency" className="text-xs sm:text-sm">Sync Frequency</Label>
-											<Select value={frequencyMinutes} onValueChange={setFrequencyMinutes} disabled={isSubmitting}>
+											<Label htmlFor="frequency" className="text-xs sm:text-sm">
+												Sync Frequency
+											</Label>
+											<Select
+												value={frequencyMinutes}
+												onValueChange={setFrequencyMinutes}
+												disabled={isSubmitting}
+											>
 												<SelectTrigger
 													id="frequency"
 													className="w-full bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 text-xs sm:text-sm"
@@ -201,12 +212,24 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 													<SelectValue placeholder="Select frequency" />
 												</SelectTrigger>
 												<SelectContent className="z-[100]">
-													<SelectItem value="15" className="text-xs sm:text-sm">Every 15 minutes</SelectItem>
-													<SelectItem value="60" className="text-xs sm:text-sm">Every hour</SelectItem>
-													<SelectItem value="360" className="text-xs sm:text-sm">Every 6 hours</SelectItem>
-													<SelectItem value="720" className="text-xs sm:text-sm">Every 12 hours</SelectItem>
-													<SelectItem value="1440" className="text-xs sm:text-sm">Daily</SelectItem>
-													<SelectItem value="10080" className="text-xs sm:text-sm">Weekly</SelectItem>
+													<SelectItem value="15" className="text-xs sm:text-sm">
+														Every 15 minutes
+													</SelectItem>
+													<SelectItem value="60" className="text-xs sm:text-sm">
+														Every hour
+													</SelectItem>
+													<SelectItem value="360" className="text-xs sm:text-sm">
+														Every 6 hours
+													</SelectItem>
+													<SelectItem value="720" className="text-xs sm:text-sm">
+														Every 12 hours
+													</SelectItem>
+													<SelectItem value="1440" className="text-xs sm:text-sm">
+														Daily
+													</SelectItem>
+													<SelectItem value="10080" className="text-xs sm:text-sm">
+														Weekly
+													</SelectItem>
 												</SelectContent>
 											</Select>
 										</div>
@@ -231,7 +254,11 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 			)}
 
 			{/* Documentation Section */}
-			<Accordion type="single" collapsible className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5">
+			<Accordion
+				type="single"
+				collapsible
+				className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5"
+			>
 				<AccordionItem value="documentation" className="border-0">
 					<AccordionTrigger className="text-sm sm:text-base font-medium px-3 sm:px-6 no-underline hover:no-underline">
 						Documentation
@@ -240,13 +267,13 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 						<div>
 							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The Slack connector uses the Slack Web API to fetch messages from all accessible channels
-								that the bot token has access to within a workspace.
+								The Slack connector uses the Slack Web API to fetch messages from all accessible
+								channels that the bot token has access to within a workspace.
 							</p>
 							<ul className="mt-2 list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 								<li>
-									For follow up indexing runs, the connector retrieves messages that
-									have been updated since the last indexing attempt.
+									For follow up indexing runs, the connector retrieves messages that have been
+									updated since the last indexing attempt.
 								</li>
 								<li>
 									Indexing is configured to run periodically, so updates should appear in your
@@ -260,18 +287,23 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Authorization</h3>
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 mb-4">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-									<AlertTitle className="text-[10px] sm:text-xs">Bot User OAuth Token Required</AlertTitle>
+									<AlertTitle className="text-[10px] sm:text-xs">
+										Bot User OAuth Token Required
+									</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										You need to create a Slack app and install it to your workspace to get a Bot User OAuth Token.
-										The bot needs read access to channels and messages.
+										You need to create a Slack app and install it to your workspace to get a Bot
+										User OAuth Token. The bot needs read access to channels and messages.
 									</AlertDescription>
 								</Alert>
 
 								<div className="space-y-4 sm:space-y-6">
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Create a Slack App</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 1: Create a Slack App
+										</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Go to{" "}
+											<li>
+												Go to{" "}
 												<a
 													href="https://api.slack.com/apps"
 													target="_blank"
@@ -281,36 +313,74 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 													https://api.slack.com/apps
 												</a>
 											</li>
-											<li>Click <strong>Create New App</strong> and choose "From scratch"</li>
+											<li>
+												Click <strong>Create New App</strong> and choose "From scratch"
+											</li>
 											<li>Enter an app name and select your workspace</li>
-											<li>Click <strong>Create App</strong></li>
+											<li>
+												Click <strong>Create App</strong>
+											</li>
 										</ol>
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Configure Bot Scopes</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 2: Configure Bot Scopes
+										</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Navigate to <strong>OAuth & Permissions</strong> in the sidebar</li>
-											<li>Under <strong>Bot Token Scopes</strong>, add the following scopes:
+											<li>
+												Navigate to <strong>OAuth & Permissions</strong> in the sidebar
+											</li>
+											<li>
+												Under <strong>Bot Token Scopes</strong>, add the following scopes:
 												<ul className="list-disc pl-5 mt-1 space-y-1">
-													<li><code className="bg-muted px-1 py-0.5 rounded">channels:read</code> - View basic information about public channels</li>
-													<li><code className="bg-muted px-1 py-0.5 rounded">channels:history</code> - View messages in public channels</li>
-													<li><code className="bg-muted px-1 py-0.5 rounded">groups:read</code> - View basic information about private channels</li>
-													<li><code className="bg-muted px-1 py-0.5 rounded">groups:history</code> - View messages in private channels</li>
-													<li><code className="bg-muted px-1 py-0.5 rounded">im:read</code> - View basic information about direct messages</li>
-													<li><code className="bg-muted px-1 py-0.5 rounded">im:history</code> - View messages in direct messages</li>
+													<li>
+														<code className="bg-muted px-1 py-0.5 rounded">channels:read</code> -
+														View basic information about public channels
+													</li>
+													<li>
+														<code className="bg-muted px-1 py-0.5 rounded">channels:history</code> -
+														View messages in public channels
+													</li>
+													<li>
+														<code className="bg-muted px-1 py-0.5 rounded">groups:read</code> - View
+														basic information about private channels
+													</li>
+													<li>
+														<code className="bg-muted px-1 py-0.5 rounded">groups:history</code> -
+														View messages in private channels
+													</li>
+													<li>
+														<code className="bg-muted px-1 py-0.5 rounded">im:read</code> - View
+														basic information about direct messages
+													</li>
+													<li>
+														<code className="bg-muted px-1 py-0.5 rounded">im:history</code> - View
+														messages in direct messages
+													</li>
 												</ul>
 											</li>
 										</ol>
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 3: Install App to Workspace</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 3: Install App to Workspace
+										</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Go to <strong>Install App</strong> in the sidebar</li>
-											<li>Click <strong>Install to Workspace</strong></li>
-											<li>Review the permissions and click <strong>Allow</strong></li>
-											<li>Copy the <strong>Bot User OAuth Token</strong> from the "OAuth & Permissions" page (starts with "xoxb-")</li>
+											<li>
+												Go to <strong>Install App</strong> in the sidebar
+											</li>
+											<li>
+												Click <strong>Install to Workspace</strong>
+											</li>
+											<li>
+												Review the permissions and click <strong>Allow</strong>
+											</li>
+											<li>
+												Copy the <strong>Bot User OAuth Token</strong> from the "OAuth &
+												Permissions" page (starts with "xoxb-")
+											</li>
 										</ol>
 									</div>
 								</div>
@@ -355,4 +425,3 @@ export const SlackConnectForm: FC<ConnectFormProps> = ({
 		</div>
 	);
 };
-

@@ -166,12 +166,14 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			}
 		}
 	}, [
-		connectorId, 
-		connectors, 
-		connectorsLoading, 
-		router, 
-		searchSpaceId, 
-		connector, editForm.reset, patForm.reset
+		connectorId,
+		connectors,
+		connectorsLoading,
+		router,
+		searchSpaceId,
+		connector,
+		editForm.reset,
+		patForm.reset,
 		// Note: editForm and patForm are intentionally excluded from dependencies
 		// to prevent infinite loops. They are stable form objects from react-hook-form.
 	]);
@@ -298,11 +300,15 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					}
 
 					const candidateConfig: Record<string, unknown> = { SEARXNG_HOST: host };
-					const originalHost = typeof originalConfig.SEARXNG_HOST === "string" ? originalConfig.SEARXNG_HOST : "";
+					const originalHost =
+						typeof originalConfig.SEARXNG_HOST === "string" ? originalConfig.SEARXNG_HOST : "";
 					let hasChanges = host !== originalHost.trim();
 
 					const apiKey = (formData.SEARXNG_API_KEY || "").trim();
-					const originalApiKey = typeof originalConfig.SEARXNG_API_KEY === "string" ? originalConfig.SEARXNG_API_KEY : "";
+					const originalApiKey =
+						typeof originalConfig.SEARXNG_API_KEY === "string"
+							? originalConfig.SEARXNG_API_KEY
+							: "";
 					const originalApiKeyTrimmed = originalApiKey.trim();
 					if (apiKey !== originalApiKeyTrimmed) {
 						candidateConfig.SEARXNG_API_KEY = apiKey || null;
@@ -324,7 +330,10 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					}
 
 					const language = (formData.SEARXNG_LANGUAGE || "").trim();
-					const originalLanguage = typeof originalConfig.SEARXNG_LANGUAGE === "string" ? originalConfig.SEARXNG_LANGUAGE : "";
+					const originalLanguage =
+						typeof originalConfig.SEARXNG_LANGUAGE === "string"
+							? originalConfig.SEARXNG_LANGUAGE
+							: "";
 					const originalLanguageTrimmed = originalLanguage.trim();
 					if (language !== originalLanguageTrimmed) {
 						candidateConfig.SEARXNG_LANGUAGE = language || null;
@@ -534,13 +543,13 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			}
 
 			try {
-				const updatedConnector = await updateConnector({
+				const updatedConnector = (await updateConnector({
 					id: connectorId,
 					data: {
 						...updatePayload,
 						connector_type: connector.connector_type as EnumConnectorName,
 					},
-				}) as UpdateConnectorResponse;
+				})) as UpdateConnectorResponse;
 				toast.success("Connector updated!");
 				// Use the response from the API which has the full merged config
 				const newlySavedConfig = updatedConnector.config || originalConfig;

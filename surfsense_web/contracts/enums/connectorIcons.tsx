@@ -1,7 +1,4 @@
-import {
-	IconLinkPlus,
-	IconUsersGroup,
-} from "@tabler/icons-react";
+import { IconLinkPlus, IconUsersGroup } from "@tabler/icons-react";
 import {
 	File,
 	FileText,

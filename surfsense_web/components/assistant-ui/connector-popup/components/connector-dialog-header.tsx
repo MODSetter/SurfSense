@@ -2,15 +2,8 @@
 
 import { Search } from "lucide-react";
 import type { FC } from "react";
-import {
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import {
-	TabsList,
-	TabsTrigger,
-} from "@/components/ui/tabs";
+import { DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 interface ConnectorDialogHeaderProps {
@@ -84,4 +77,3 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 		</div>
 	);
 };
-

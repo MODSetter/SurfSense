@@ -26,13 +26,13 @@ export default function DashboardLayout({
 		},
 	];
 
-		const customNavMain = [
-			{
-				title: "Chat",
-				url: `/dashboard/${search_space_id}/new-chat`,
-				icon: "MessageCircle",
-				items: [],
-			},
+	const customNavMain = [
+		{
+			title: "Chat",
+			url: `/dashboard/${search_space_id}/new-chat`,
+			icon: "MessageCircle",
+			items: [],
+		},
 		{
 			title: "Documents",
 			url: `/dashboard/${search_space_id}/documents`,

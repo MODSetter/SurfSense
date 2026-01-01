@@ -137,19 +137,19 @@ export function DocumentsTableShell({
 						<div className="rounded-full bg-muted p-4">
 							<FileX className="h-8 w-8 text-muted-foreground" />
 						</div>
-					<div className="space-y-2">
-						<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
-						<p className="text-sm text-muted-foreground">
-							Get started by uploading your first document.
-						</p>
-					</div>
-					<Button
-						onClick={() => router.push(`/dashboard/${searchSpaceId}/documents/upload`)}
-						className="mt-2"
-					>
-						<Plus className="mr-2 h-4 w-4" />
-						Upload Documents
-					</Button>
+						<div className="space-y-2">
+							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+							<p className="text-sm text-muted-foreground">
+								Get started by uploading your first document.
+							</p>
+						</div>
+						<Button
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/documents/upload`)}
+							className="mt-2"
+						>
+							<Plus className="mr-2 h-4 w-4" />
+							Upload Documents
+						</Button>
 					</motion.div>
 				</div>
 			) : (

@@ -72,11 +72,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			return (
 				<div className="flex items-center gap-2 w-full max-w-[200px]">
 					<span className="text-[11px] text-primary font-medium whitespace-nowrap">
-						{indexingCount !== null ? (
-							<>{indexingCount.toLocaleString()} indexed</>
-						) : (
-							"Syncing..."
-						)}
+						{indexingCount !== null ? <>{indexingCount.toLocaleString()} indexed</> : "Syncing..."}
 					</span>
 					{/* Indeterminate progress bar with animation */}
 					<div className="relative flex-1 h-1 overflow-hidden rounded-full bg-primary/20">
@@ -117,9 +113,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				<div className="flex items-center gap-2">
 					<span className="text-[14px] font-semibold leading-tight">{title}</span>
 				</div>
-				<div className="text-[11px] text-muted-foreground mt-1">
-					{getStatusContent()}
-				</div>
+				<div className="text-[11px] text-muted-foreground mt-1">{getStatusContent()}</div>
 				{isConnected && documentCount !== undefined && (
 					<p className="text-[11px] text-muted-foreground mt-0.5">
 						{formatDocumentCount(documentCount)}
@@ -131,7 +125,8 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				variant={isConnected ? "secondary" : "default"}
 				className={cn(
 					"h-8 text-[11px] px-3 rounded-lg flex-shrink-0 font-medium",
-					isConnected && "bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80",
+					isConnected &&
+						"bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80",
 					!isConnected && "shadow-xs"
 				)}
 				onClick={isConnected ? onManage : onConnect}
@@ -154,4 +149,3 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		</div>
 	);
 };
-

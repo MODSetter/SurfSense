@@ -22,10 +22,7 @@ interface YouTubeCrawlerViewProps {
 	onBack: () => void;
 }
 
-export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({
-	searchSpaceId,
-	onBack,
-}) => {
+export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId, onBack }) => {
 	const t = useTranslations("add_youtube");
 	const router = useRouter();
 	const [videoTags, setVideoTags] = useState<TagType[]>([]);
@@ -133,12 +130,8 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({
 						{getConnectorIcon(EnumConnectorName.YOUTUBE_CONNECTOR, "h-7 w-7")}
 					</div>
 					<div>
-						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-							{t("title")}
-						</h2>
-						<p className="text-xs sm:text-base text-muted-foreground mt-1">
-							{t("subtitle")}
-						</p>
+						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">{t("title")}</h2>
+						<p className="text-xs sm:text-base text-muted-foreground mt-1">{t("subtitle")}</p>
 					</div>
 				</div>
 			</div>
@@ -159,7 +152,8 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({
 							styleClasses={{
 								inlineTagsContainer:
 									"border border-slate-400/20 rounded-lg bg-muted/50 shadow-sm shadow-black/5 transition-shadow focus-within:border-slate-400/40 focus-within:outline-none focus-within:ring-[3px] focus-within:ring-ring/20 p-1 gap-1",
-								input: "w-full min-w-[80px] focus-visible:outline-none shadow-none px-2 h-7 text-foreground/90 placeholder:text-muted-foreground bg-transparent",
+								input:
+									"w-full min-w-[80px] focus-visible:outline-none shadow-none px-2 h-7 text-foreground/90 placeholder:text-muted-foreground bg-transparent",
 								tag: {
 									body: "h-7 relative bg-background border border-input hover:bg-background rounded-md font-medium text-xs ps-2 pe-7 flex",
 									closeButton:
@@ -172,11 +166,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({
 						<p className="text-xs text-muted-foreground mt-1">{t("hint")}</p>
 					</div>
 
-					{error && (
-						<div className="text-sm text-red-500 mt-2">
-							{error}
-						</div>
-					)}
+					{error && <div className="text-sm text-red-500 mt-2">{error}</div>}
 
 					<div className="bg-muted/50 rounded-lg p-4 text-sm">
 						<h4 className="font-medium mb-2">{t("tips_title")}</h4>
@@ -244,4 +234,3 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({
 		</div>
 	);
 };
-

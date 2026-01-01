@@ -89,4 +89,3 @@ export const ClickUpConfig: FC<ClickUpConfigProps> = ({
 		</div>
 	);
 };
-

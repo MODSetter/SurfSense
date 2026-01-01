@@ -41,9 +41,7 @@ export type ConnectFormComponent = FC<ConnectFormProps>;
 /**
  * Factory function to get the appropriate connect form component for a connector type
  */
-export function getConnectFormComponent(
-	connectorType: string
-): ConnectFormComponent | null {
+export function getConnectFormComponent(connectorType: string): ConnectFormComponent | null {
 	switch (connectorType) {
 		case "TAVILY_API":
 			return TavilyApiConnectForm;
@@ -82,4 +80,3 @@ export function getConnectFormComponent(
 			return null;
 	}
 }
-

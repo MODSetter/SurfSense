@@ -24,4 +24,3 @@ export const EditComposer: FC = () => {
 		</MessagePrimitive.Root>
 	);
 };
-

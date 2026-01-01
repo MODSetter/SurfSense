@@ -39,7 +39,9 @@ export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
 			{enabled && (
 				<div className="mt-4 pt-4 border-t border-slate-400/20 space-y-3">
 					<div className="space-y-2">
-						<Label htmlFor="frequency" className="text-xs sm:text-sm">Sync Frequency</Label>
+						<Label htmlFor="frequency" className="text-xs sm:text-sm">
+							Sync Frequency
+						</Label>
 						<Select value={frequencyMinutes} onValueChange={onFrequencyChange}>
 							<SelectTrigger
 								id="frequency"
@@ -48,12 +50,24 @@ export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
 								<SelectValue placeholder="Select frequency" />
 							</SelectTrigger>
 							<SelectContent className="z-[100]">
-								<SelectItem value="15" className="text-xs sm:text-sm">Every 15 minutes</SelectItem>
-								<SelectItem value="60" className="text-xs sm:text-sm">Every hour</SelectItem>
-								<SelectItem value="360" className="text-xs sm:text-sm">Every 6 hours</SelectItem>
-								<SelectItem value="720" className="text-xs sm:text-sm">Every 12 hours</SelectItem>
-								<SelectItem value="1440" className="text-xs sm:text-sm">Daily</SelectItem>
-								<SelectItem value="10080" className="text-xs sm:text-sm">Weekly</SelectItem>
+								<SelectItem value="15" className="text-xs sm:text-sm">
+									Every 15 minutes
+								</SelectItem>
+								<SelectItem value="60" className="text-xs sm:text-sm">
+									Every hour
+								</SelectItem>
+								<SelectItem value="360" className="text-xs sm:text-sm">
+									Every 6 hours
+								</SelectItem>
+								<SelectItem value="720" className="text-xs sm:text-sm">
+									Every 12 hours
+								</SelectItem>
+								<SelectItem value="1440" className="text-xs sm:text-sm">
+									Daily
+								</SelectItem>
+								<SelectItem value="10080" className="text-xs sm:text-sm">
+									Weekly
+								</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
@@ -62,4 +76,3 @@ export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
 		</div>
 	);
 };
-

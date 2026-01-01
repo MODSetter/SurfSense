@@ -74,7 +74,9 @@ const ConnectorIndicator: FC = () => {
 						"text-muted-foreground"
 					)}
 					aria-label={
-						hasConnectors ? `View ${activeConnectorsCount} active connectors` : "Add your first connector"
+						hasConnectors
+							? `View ${activeConnectorsCount} active connectors`
+							: "Add your first connector"
 					}
 					onMouseEnter={handleMouseEnter}
 					onMouseLeave={handleMouseLeave}
@@ -137,7 +139,9 @@ const ConnectorIndicator: FC = () => {
 											className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
 										>
 											{getConnectorIcon(docType, "size-3.5")}
-											<span className="truncate max-w-[100px]">{getDocumentTypeLabel(docType)}</span>
+											<span className="truncate max-w-[100px]">
+												{getDocumentTypeLabel(docType)}
+											</span>
 											<span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-medium rounded-full bg-primary/10 text-primary">
 												{count > 999 ? "999+" : count}
 											</span>
@@ -150,7 +154,9 @@ const ConnectorIndicator: FC = () => {
 							<button
 								type="button"
 								className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-								onClick={() => {/* Connector popup should be opened via the connector indicator button */}}
+								onClick={() => {
+									/* Connector popup should be opened via the connector indicator button */
+								}}
 							>
 								<Plus className="size-3" />
 								Add more sources
@@ -167,7 +173,9 @@ const ConnectorIndicator: FC = () => {
 						<button
 							type="button"
 							className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors mt-1"
-							onClick={() => {/* Connector popup should be opened via the connector indicator button */}}
+							onClick={() => {
+								/* Connector popup should be opened via the connector indicator button */
+							}}
 						>
 							<Plus className="size-3" />
 							Add Connector
@@ -283,4 +291,3 @@ export const ComposerAction: FC = () => {
 		</div>
 	);
 };
-

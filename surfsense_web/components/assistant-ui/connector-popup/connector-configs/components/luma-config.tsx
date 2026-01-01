@@ -11,14 +11,8 @@ export interface LumaConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
-export const LumaConfig: FC<LumaConfigProps> = ({
-	connector,
-	onConfigChange,
-	onNameChange,
-}) => {
-	const [apiKey, setApiKey] = useState<string>(
-		(connector.config?.LUMA_API_KEY as string) || ""
-	);
+export const LumaConfig: FC<LumaConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
+	const [apiKey, setApiKey] = useState<string>((connector.config?.LUMA_API_KEY as string) || "");
 	const [name, setName] = useState<string>(connector.name || "");
 
 	// Update API key and name when connector changes
@@ -89,4 +83,3 @@ export const LumaConfig: FC<LumaConfigProps> = ({
 		</div>
 	);
 };
-
