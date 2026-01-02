@@ -54,6 +54,11 @@ export function LocalLoginForm() {
 			// Track successful login
 			trackLoginSuccess("local");
 
+			// Set flag so TokenHandler knows local login was already tracked
+			if (typeof window !== "undefined") {
+				sessionStorage.setItem("login_success_tracked", "true");
+			}
+
 			// Success toast
 			toast.success(t("login_success"), {
 				id: loadingToast,
