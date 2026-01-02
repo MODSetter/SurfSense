@@ -94,8 +94,11 @@ async def index_notion_pages(
                 f"Connector with ID {connector_id} not found or is not a Notion connector",
             )
 
-        # Get the Notion access token from the connector config (OAuth-based)
-        notion_token = connector.config.get("access_token")
+        # Get the Notion access token from the connector config
+        # Support both new OAuth format (access_token) and old integration token format (NOTION_INTEGRATION_TOKEN)
+        notion_token = connector.config.get("access_token") or connector.config.get(
+            "NOTION_INTEGRATION_TOKEN"
+        )
         if not notion_token:
             await task_logger.log_task_failure(
                 log_entry,
@@ -105,12 +108,18 @@ async def index_notion_pages(
             )
             return 0, "Notion access token not found in connector config"
 
-        # Decrypt token if it's encrypted (for backward compatibility)
+        # Decrypt token if it's encrypted (only when explicitly marked)
         token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted or (
-            config.SECRET_KEY
-            and TokenEncryption(config.SECRET_KEY).is_encrypted(notion_token)
-        ):
+        if token_encrypted:
+            # Token is explicitly marked as encrypted, attempt decryption
+            if not config.SECRET_KEY:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"SECRET_KEY not configured but token is marked as encrypted for connector {connector_id}",
+                    "Missing SECRET_KEY for token decryption",
+                    {"error_type": "MissingSecretKey"},
+                )
+                return 0, "SECRET_KEY not configured but token is marked as encrypted"
             try:
                 token_encryption = TokenEncryption(config.SECRET_KEY)
                 notion_token = token_encryption.decrypt_token(notion_token)
@@ -125,6 +134,7 @@ async def index_notion_pages(
                     {"error_type": "TokenDecryptionError"},
                 )
                 return 0, f"Failed to decrypt Notion access token: {e!s}"
+        # If _token_encrypted is False or not set, treat token as plaintext
 
         # Initialize Notion client
         await task_logger.log_task_progress(
