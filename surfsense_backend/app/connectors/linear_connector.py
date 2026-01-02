@@ -19,17 +19,17 @@ class LinearConnector:
         Initialize the LinearConnector class.
 
         Args:
-            access_token: Linear OAuth access token (optional, can be set later with set_token)
+            access_token: Linear OAuth access token or API key (optional, can be set later with set_token)
         """
         self.access_token = access_token
         self.api_url = "https://api.linear.app/graphql"
 
     def set_token(self, access_token: str) -> None:
         """
-        Set the Linear OAuth access token.
+        Set the Linear OAuth access token or API key.
 
         Args:
-            access_token: Linear OAuth access token
+            access_token: Linear OAuth access token or API key
         """
         self.access_token = access_token
 

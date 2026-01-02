@@ -7,7 +7,7 @@ class NotionHistoryConnector:
         Initialize the NotionPageFetcher with a token.
 
         Args:
-            token (str): Notion OAuth access token
+            token (str): Notion OAuth access token or integration token
         """
         self.notion = AsyncClient(auth=token)
 
