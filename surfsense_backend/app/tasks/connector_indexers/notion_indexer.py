@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 from app.connectors.notion_history import NotionHistoryConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
@@ -17,6 +18,7 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+from app.utils.oauth_security import TokenEncryption
 
 from .base import (
     build_document_metadata_string,
@@ -102,6 +104,22 @@ async def index_notion_pages(
                 {"error_type": "MissingToken"},
             )
             return 0, "Notion access token not found in connector config"
+
+        # Decrypt token if it's encrypted (for backward compatibility)
+        token_encrypted = connector.config.get("_token_encrypted", False)
+        if token_encrypted or (config.SECRET_KEY and TokenEncryption(config.SECRET_KEY).is_encrypted(notion_token)):
+            try:
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+                notion_token = token_encryption.decrypt_token(notion_token)
+                logger.info(f"Decrypted Notion access token for connector {connector_id}")
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to decrypt Notion access token for connector {connector_id}: {e!s}",
+                    "Token decryption failed",
+                    {"error_type": "TokenDecryptionError"},
+                )
+                return 0, f"Failed to decrypt Notion access token: {e!s}"
 
         # Initialize Notion client
         await task_logger.log_task_progress(

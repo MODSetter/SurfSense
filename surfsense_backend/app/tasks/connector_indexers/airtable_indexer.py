@@ -12,6 +12,7 @@ from app.routes.airtable_add_connector_route import refresh_airtable_token
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
+from app.utils.oauth_security import TokenEncryption
 from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
@@ -85,7 +86,38 @@ async def index_airtable_records(
             return 0, f"Connector with ID {connector_id} not found"
 
         # Create credentials from connector config
-        config_data = connector.config
+        config_data = connector.config.copy()  # Work with a copy to avoid modifying original
+        
+        # Decrypt tokens if they are encrypted (for backward compatibility)
+        token_encrypted = config_data.get("_token_encrypted", False)
+        if token_encrypted and config.SECRET_KEY:
+            try:
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+                
+                # Decrypt access_token
+                if config_data.get("access_token"):
+                    if token_encryption.is_encrypted(config_data["access_token"]):
+                        config_data["access_token"] = token_encryption.decrypt_token(
+                            config_data["access_token"]
+                        )
+                        logger.info(f"Decrypted Airtable access token for connector {connector_id}")
+                
+                # Decrypt refresh_token if present
+                if config_data.get("refresh_token"):
+                    if token_encryption.is_encrypted(config_data["refresh_token"]):
+                        config_data["refresh_token"] = token_encryption.decrypt_token(
+                            config_data["refresh_token"]
+                        )
+                        logger.info(f"Decrypted Airtable refresh token for connector {connector_id}")
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to decrypt Airtable tokens for connector {connector_id}: {e!s}",
+                    "Token decryption failed",
+                    {"error_type": "TokenDecryptionError"},
+                )
+                return 0, f"Failed to decrypt Airtable tokens: {e!s}"
+        
         try:
             credentials = AirtableAuthCredentialsBase.from_dict(config_data)
         except Exception as e:

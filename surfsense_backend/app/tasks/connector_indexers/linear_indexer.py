@@ -103,6 +103,30 @@ async def index_linear_issues(
             )
             return 0, "Linear access token not found in connector config"
 
+        # Decrypt token if it's encrypted (for backward compatibility)
+        from app.config import config
+        from app.utils.oauth_security import TokenEncryption
+
+        token_encrypted = connector.config.get("_token_encrypted", False)
+        if token_encrypted or (
+            config.SECRET_KEY
+            and TokenEncryption(config.SECRET_KEY).is_encrypted(linear_access_token)
+        ):
+            try:
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+                linear_access_token = token_encryption.decrypt_token(linear_access_token)
+                logger.info(
+                    f"Decrypted Linear access token for connector {connector_id}"
+                )
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to decrypt Linear access token for connector {connector_id}: {e!s}",
+                    "Token decryption failed",
+                    {"error_type": "TokenDecryptionError"},
+                )
+                return 0, f"Failed to decrypt Linear access token: {e!s}"
+
         # Initialize Linear client
         await task_logger.log_task_progress(
             log_entry,
@@ -111,6 +135,12 @@ async def index_linear_issues(
         )
 
         linear_client = LinearConnector(access_token=linear_access_token)
+
+        # Handle 'undefined' string from frontend (treat as None)
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
 
         # Calculate date range
         start_date_str, end_date_str = calculate_date_range(

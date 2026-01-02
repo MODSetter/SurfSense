@@ -5,6 +5,7 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 from app.connectors.google_drive import (
     GoogleDriveClient,
     categorize_change,
@@ -22,6 +23,7 @@ from app.tasks.connector_indexers.base import (
     update_connector_last_indexed,
 )
 from app.utils.document_converters import generate_unique_identifier_hash
+from app.utils.oauth_security import TokenEncryption
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,28 @@ async def index_google_drive_files(
             f"Initializing Google Drive client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
+
+        # Check if credentials are encrypted and validate decryption capability
+        token_encrypted = connector.config.get("_token_encrypted", False)
+        if token_encrypted and config.SECRET_KEY:
+            try:
+                # Verify we can decrypt credentials before proceeding
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+                # Check if any sensitive fields exist and are encrypted
+                if connector.config.get("token") and token_encryption.is_encrypted(
+                    connector.config.get("token")
+                ):
+                    logger.info(
+                        f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
+                    )
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to initialize token decryption for Google Drive connector {connector_id}: {e!s}",
+                    "Token decryption initialization failed",
+                    {"error_type": "TokenDecryptionError"},
+                )
+                return 0, f"Failed to initialize token decryption: {e!s}"
 
         drive_client = GoogleDriveClient(session, connector_id)
 
@@ -248,6 +272,28 @@ async def index_google_drive_single_file(
             f"Initializing Google Drive client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
+
+        # Check if credentials are encrypted and validate decryption capability
+        token_encrypted = connector.config.get("_token_encrypted", False)
+        if token_encrypted and config.SECRET_KEY:
+            try:
+                # Verify we can decrypt credentials before proceeding
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+                # Check if any sensitive fields exist and are encrypted
+                if connector.config.get("token") and token_encryption.is_encrypted(
+                    connector.config.get("token")
+                ):
+                    logger.info(
+                        f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
+                    )
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to initialize token decryption for Google Drive connector {connector_id}: {e!s}",
+                    "Token decryption initialization failed",
+                    {"error_type": "TokenDecryptionError"},
+                )
+                return 0, f"Failed to initialize token decryption: {e!s}"
 
         drive_client = GoogleDriveClient(session, connector_id)
 

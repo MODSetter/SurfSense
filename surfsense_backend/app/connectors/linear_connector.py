@@ -172,6 +172,12 @@ class LinearConnector:
         Returns:
             Tuple containing (issues list, error message or None)
         """
+        # Validate date strings
+        if not start_date or start_date.lower() in ("undefined", "null", "none"):
+            return [], "Invalid start_date: must be a valid date string in YYYY-MM-DD format"
+        if not end_date or end_date.lower() in ("undefined", "null", "none"):
+            return [], "Invalid end_date: must be a valid date string in YYYY-MM-DD format"
+
         # Convert date strings to ISO format
         try:
             # For Linear API: we need to use a more specific format for the filter

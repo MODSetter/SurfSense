@@ -1,6 +1,5 @@
 import base64
 import hashlib
-import json
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -23,6 +22,7 @@ from app.db import (
 )
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.users import current_active_user
+from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,30 @@ SCOPES = [
     "schema.bases:read",
     "user.email:read",
 ]
+
+# Initialize security utilities
+_state_manager = None
+_token_encryption = None
+
+
+def get_state_manager() -> OAuthStateManager:
+    """Get or create OAuth state manager instance."""
+    global _state_manager
+    if _state_manager is None:
+        if not config.SECRET_KEY:
+            raise ValueError("SECRET_KEY must be set for OAuth security")
+        _state_manager = OAuthStateManager(config.SECRET_KEY)
+    return _state_manager
+
+
+def get_token_encryption() -> TokenEncryption:
+    """Get or create token encryption instance."""
+    global _token_encryption
+    if _token_encryption is None:
+        if not config.SECRET_KEY:
+            raise ValueError("SECRET_KEY must be set for token encryption")
+        _token_encryption = TokenEncryption(config.SECRET_KEY)
+    return _token_encryption
 
 
 def make_basic_auth_header(client_id: str, client_secret: str) -> str:
@@ -90,18 +114,19 @@ async def connect_airtable(space_id: int, user: User = Depends(current_active_us
                 status_code=500, detail="Airtable OAuth not configured."
             )
 
+        if not config.SECRET_KEY:
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
+
         # Generate PKCE parameters
         code_verifier, code_challenge = generate_pkce_pair()
 
-        # Generate state parameter
-        state_payload = json.dumps(
-            {
-                "space_id": space_id,
-                "user_id": str(user.id),
-                "code_verifier": code_verifier,
-            }
+        # Generate secure state parameter with HMAC signature (including code_verifier for PKCE)
+        state_manager = get_state_manager()
+        state_encoded = state_manager.generate_secure_state(
+            space_id, user.id, code_verifier=code_verifier
         )
-        state_encoded = base64.urlsafe_b64encode(state_payload.encode()).decode()
 
         # Build authorization URL
         auth_params = {
@@ -160,11 +185,12 @@ async def airtable_callback(
             space_id = None
             if state:
                 try:
-                    decoded_state = base64.urlsafe_b64decode(state.encode()).decode()
-                    data = json.loads(decoded_state)
+                    state_manager = get_state_manager()
+                    data = state_manager.validate_state(state)
                     space_id = data.get("space_id")
                 except Exception:
-                    pass  # If state is invalid, we'll redirect without space_id
+                    # If state is invalid, we'll redirect without space_id
+                    logger.warning("Failed to validate state in error handler")
             
             # Redirect to frontend with error parameter
             if space_id:
@@ -185,11 +211,13 @@ async def airtable_callback(
             raise HTTPException(
                 status_code=400, detail="Missing state parameter"
             )
-        
-        # Decode and parse the state
+
+        # Validate and decode state with signature verification
+        state_manager = get_state_manager()
         try:
-            decoded_state = base64.urlsafe_b64decode(state.encode()).decode()
-            data = json.loads(decoded_state)
+            data = state_manager.validate_state(state)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=400, detail=f"Invalid state parameter: {e!s}"
@@ -197,7 +225,12 @@ async def airtable_callback(
 
         user_id = UUID(data["user_id"])
         space_id = data["space_id"]
-        code_verifier = data["code_verifier"]
+        code_verifier = data.get("code_verifier")
+        
+        if not code_verifier:
+            raise HTTPException(
+                status_code=400, detail="Missing code_verifier in state parameter"
+            )
         auth_header = make_basic_auth_header(
             config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
         )
@@ -236,21 +269,37 @@ async def airtable_callback(
 
         token_json = token_response.json()
 
+        # Encrypt sensitive tokens before storing
+        token_encryption = get_token_encryption()
+        access_token = token_json.get("access_token")
+        refresh_token = token_json.get("refresh_token")
+        
+        if not access_token:
+            raise HTTPException(
+                status_code=400, detail="No access token received from Airtable"
+            )
+
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None
         if token_json.get("expires_in"):
             now_utc = datetime.now(UTC)
             expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
 
-        # Create credentials object
+        # Create credentials object with encrypted tokens
         credentials = AirtableAuthCredentialsBase(
-            access_token=token_json["access_token"],
-            refresh_token=token_json.get("refresh_token"),
+            access_token=token_encryption.encrypt_token(access_token),
+            refresh_token=token_encryption.encrypt_token(refresh_token)
+            if refresh_token
+            else None,
             token_type=token_json.get("token_type", "Bearer"),
             expires_in=token_json.get("expires_in"),
             expires_at=expires_at,
             scope=token_json.get("scope"),
         )
+        
+        # Mark that tokens are encrypted for backward compatibility
+        credentials_dict = credentials.to_dict()
+        credentials_dict["_token_encrypted"] = True
 
         # Check if connector already exists for this search space and user
         existing_connector_result = await session.execute(
@@ -265,7 +314,7 @@ async def airtable_callback(
 
         if existing_connector:
             # Update existing connector
-            existing_connector.config = credentials.to_dict()
+            existing_connector.config = credentials_dict
             existing_connector.name = "Airtable Connector"
             existing_connector.is_indexable = True
             logger.info(
@@ -277,7 +326,7 @@ async def airtable_callback(
                 name="Airtable Connector",
                 connector_type=SearchSourceConnectorType.AIRTABLE_CONNECTOR,
                 is_indexable=True,
-                config=credentials.to_dict(),
+                config=credentials_dict,
                 search_space_id=space_id,
                 user_id=user_id,
             )
@@ -341,6 +390,21 @@ async def refresh_airtable_token(
         logger.info(f"Refreshing Airtable token for connector {connector.id}")
 
         credentials = AirtableAuthCredentialsBase.from_dict(connector.config)
+        
+        # Decrypt tokens if they are encrypted
+        token_encryption = get_token_encryption()
+        is_encrypted = connector.config.get("_token_encrypted", False)
+        
+        refresh_token = credentials.refresh_token
+        if is_encrypted and refresh_token:
+            try:
+                refresh_token = token_encryption.decrypt_token(refresh_token)
+            except Exception as e:
+                logger.error(f"Failed to decrypt refresh token: {e!s}")
+                raise HTTPException(
+                    status_code=500, detail="Failed to decrypt stored refresh token"
+                ) from e
+        
         auth_header = make_basic_auth_header(
             config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
         )
@@ -348,7 +412,7 @@ async def refresh_airtable_token(
         # Prepare token refresh data
         refresh_data = {
             "grant_type": "refresh_token",
-            "refresh_token": credentials.refresh_token,
+            "refresh_token": refresh_token,
             "client_id": config.AIRTABLE_CLIENT_ID,
             "client_secret": config.AIRTABLE_CLIENT_SECRET,
         }
@@ -377,14 +441,27 @@ async def refresh_airtable_token(
             now_utc = datetime.now(UTC)
             expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
 
-        # Update credentials object
-        credentials.access_token = token_json["access_token"]
+        # Encrypt new tokens before storing
+        access_token = token_json.get("access_token")
+        new_refresh_token = token_json.get("refresh_token")
+        
+        if not access_token:
+            raise HTTPException(
+                status_code=400, detail="No access token received from Airtable refresh"
+            )
+
+        # Update credentials object with encrypted tokens
+        credentials.access_token = token_encryption.encrypt_token(access_token)
+        if new_refresh_token:
+            credentials.refresh_token = token_encryption.encrypt_token(new_refresh_token)
         credentials.expires_in = token_json.get("expires_in")
         credentials.expires_at = expires_at
         credentials.scope = token_json.get("scope")
 
-        # Update connector config
-        connector.config = credentials.to_dict()
+        # Update connector config with encrypted tokens
+        credentials_dict = credentials.to_dict()
+        credentials_dict["_token_encrypted"] = True
+        connector.config = credentials_dict
         await session.commit()
         await session.refresh(connector)
 

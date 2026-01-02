@@ -4,7 +4,6 @@ Linear Connector OAuth Routes.
 Handles OAuth 2.0 authentication flow for Linear connector.
 """
 
-import base64
 import json
 import logging
 from datetime import UTC, datetime, timedelta
@@ -26,6 +25,7 @@ from app.db import (
     get_async_session,
 )
 from app.users import current_active_user
+from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,35 @@ TOKEN_URL = "https://api.linear.app/oauth/token"
 # OAuth scopes for Linear
 SCOPES = ["read", "write"]
 
+# Initialize security utilities
+_state_manager = None
+_token_encryption = None
+
+
+def get_state_manager() -> OAuthStateManager:
+    """Get or create OAuth state manager instance."""
+    global _state_manager
+    if _state_manager is None:
+        if not config.SECRET_KEY:
+            raise ValueError("SECRET_KEY must be set for OAuth security")
+        _state_manager = OAuthStateManager(config.SECRET_KEY)
+    return _state_manager
+
+
+def get_token_encryption() -> TokenEncryption:
+    """Get or create token encryption instance."""
+    global _token_encryption
+    if _token_encryption is None:
+        if not config.SECRET_KEY:
+            raise ValueError("SECRET_KEY must be set for token encryption")
+        _token_encryption = TokenEncryption(config.SECRET_KEY)
+    return _token_encryption
+
 
 def make_basic_auth_header(client_id: str, client_secret: str) -> str:
     """Create Basic Auth header for Linear OAuth."""
+    import base64
+
     credentials = f"{client_id}:{client_secret}".encode()
     b64 = base64.b64encode(credentials).decode("ascii")
     return f"Basic {b64}"
@@ -67,14 +93,14 @@ async def connect_linear(space_id: int, user: User = Depends(current_active_user
                 status_code=500, detail="Linear OAuth not configured."
             )
 
-        # Generate state parameter
-        state_payload = json.dumps(
-            {
-                "space_id": space_id,
-                "user_id": str(user.id),
-            }
-        )
-        state_encoded = base64.urlsafe_b64encode(state_payload.encode()).decode()
+        if not config.SECRET_KEY:
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
+
+        # Generate secure state parameter with HMAC signature
+        state_manager = get_state_manager()
+        state_encoded = state_manager.generate_secure_state(space_id, user.id)
 
         # Build authorization URL
         from urllib.parse import urlencode
@@ -130,11 +156,12 @@ async def linear_callback(
             space_id = None
             if state:
                 try:
-                    decoded_state = base64.urlsafe_b64decode(state.encode()).decode()
-                    data = json.loads(decoded_state)
+                    state_manager = get_state_manager()
+                    data = state_manager.validate_state(state)
                     space_id = data.get("space_id")
                 except Exception:
-                    pass  # If state is invalid, we'll redirect without space_id
+                    # If state is invalid, we'll redirect without space_id
+                    logger.warning("Failed to validate state in error handler")
             
             # Redirect to frontend with error parameter
             if space_id:
@@ -155,11 +182,13 @@ async def linear_callback(
             raise HTTPException(
                 status_code=400, detail="Missing state parameter"
             )
-        
-        # Decode and parse the state
+
+        # Validate and decode state with signature verification
+        state_manager = get_state_manager()
         try:
-            decoded_state = base64.urlsafe_b64decode(state.encode()).decode()
-            data = json.loads(decoded_state)
+            data = state_manager.validate_state(state)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=400, detail=f"Invalid state parameter: {e!s}"
@@ -167,6 +196,12 @@ async def linear_callback(
 
         user_id = UUID(data["user_id"])
         space_id = data["space_id"]
+
+        # Validate redirect URI (security: ensure it matches configured value)
+        if not config.LINEAR_REDIRECT_URI:
+            raise HTTPException(
+                status_code=500, detail="LINEAR_REDIRECT_URI not configured"
+            )
 
         # Exchange authorization code for access token
         auth_header = make_basic_auth_header(
@@ -176,7 +211,7 @@ async def linear_callback(
         token_data = {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": config.LINEAR_REDIRECT_URI,
+            "redirect_uri": config.LINEAR_REDIRECT_URI,  # Use stored value, not from request
         }
 
         async with httpx.AsyncClient() as client:
@@ -203,20 +238,34 @@ async def linear_callback(
 
         token_json = token_response.json()
 
+        # Encrypt sensitive tokens before storing
+        token_encryption = get_token_encryption()
+        access_token = token_json.get("access_token")
+        refresh_token = token_json.get("refresh_token")
+        
+        if not access_token:
+            raise HTTPException(
+                status_code=400, detail="No access token received from Linear"
+            )
+
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None
         if token_json.get("expires_in"):
             now_utc = datetime.now(UTC)
             expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
 
-        # Store the access token and refresh token in connector config
+        # Store the encrypted access token and refresh token in connector config
         connector_config = {
-            "access_token": token_json["access_token"],
-            "refresh_token": token_json.get("refresh_token"),
+            "access_token": token_encryption.encrypt_token(access_token),
+            "refresh_token": token_encryption.encrypt_token(refresh_token)
+            if refresh_token
+            else None,
             "token_type": token_json.get("token_type", "Bearer"),
             "expires_in": token_json.get("expires_in"),
             "expires_at": expires_at.isoformat() if expires_at else None,
             "scope": token_json.get("scope"),
+            # Mark that tokens are encrypted for backward compatibility
+            "_token_encrypted": True,
         }
 
         # Check if connector already exists for this search space and user
