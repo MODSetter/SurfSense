@@ -175,12 +175,10 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 					!isConnected && "shadow-xs"
 				)}
 				onClick={isConnected ? onManage : onConnect}
-				disabled={isConnecting || isIndexing}
+				disabled={isConnecting}
 			>
 				{isConnecting ? (
 					<Loader2 className="size-3 animate-spin" />
-				) : isIndexing ? (
-					"Syncing..."
 				) : isConnected ? (
 					"Manage"
 				) : id === "youtube-crawler" ? (

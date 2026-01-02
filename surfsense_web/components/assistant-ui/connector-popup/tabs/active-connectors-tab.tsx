@@ -205,9 +205,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												size="sm"
 												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
 												onClick={onManage ? () => onManage(connector) : undefined}
-												disabled={isIndexing}
 											>
-												{isIndexing ? "Syncing..." : "Manage"}
+												Manage
 											</Button>
 										</div>
 									);
