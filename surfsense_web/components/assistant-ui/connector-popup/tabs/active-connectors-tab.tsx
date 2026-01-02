@@ -1,6 +1,12 @@
 "use client";
 
-import { format } from "date-fns";
+import {
+	differenceInDays,
+	differenceInMinutes,
+	format,
+	isToday,
+	isYesterday,
+} from "date-fns";
 import { ArrowRight, Cable, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FC } from "react";
@@ -62,6 +68,42 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		}
 		const m = (count / 1000000).toFixed(1);
 		return `${m.replace(/\.0$/, "")}M docs`;
+	};
+
+	// Format last indexed date with contextual messages
+	const formatLastIndexedDate = (dateString: string): string => {
+		const date = new Date(dateString);
+		const now = new Date();
+		const minutesAgo = differenceInMinutes(now, date);
+		const daysAgo = differenceInDays(now, date);
+
+		// Just now (within last minute)
+		if (minutesAgo < 1) {
+			return "Just now";
+		}
+
+		// X minutes ago (less than 1 hour)
+		if (minutesAgo < 60) {
+			return `${minutesAgo} ${minutesAgo === 1 ? "minute" : "minutes"} ago`;
+		}
+
+		// Today at [time]
+		if (isToday(date)) {
+			return `Today at ${format(date, "h:mm a")}`;
+		}
+
+		// Yesterday at [time]
+		if (isYesterday(date)) {
+			return `Yesterday at ${format(date, "h:mm a")}`;
+		}
+
+		// X days ago (less than 7 days)
+		if (daysAgo < 7) {
+			return `${daysAgo} ${daysAgo === 1 ? "day" : "days"} ago`;
+		}
+
+		// Full date for older entries
+		return format(date, "MMM d, yyyy");
 	};
 
 	// Document types that should be shown as cards (not from connectors)
@@ -148,13 +190,13 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 														)}
 													</p>
 												) : (
-													<p className="text-[11px] text-muted-foreground mt-1">
+													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
 														{connector.last_indexed_at
-															? `Last indexed: ${format(new Date(connector.last_indexed_at), "MMM d, yyyy")}`
+															? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
 															: "Never indexed"}
 													</p>
 												)}
-												<p className="text-[11px] text-muted-foreground mt-0.5">
+												<p className="text-[10px] text-muted-foreground mt-0.5">
 													{formatDocumentCount(documentCount)}
 												</p>
 											</div>

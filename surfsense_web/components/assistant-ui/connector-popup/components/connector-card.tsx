@@ -1,7 +1,13 @@
 "use client";
 
 import { IconBrandYoutube } from "@tabler/icons-react";
-import { format } from "date-fns";
+import {
+	differenceInDays,
+	differenceInMinutes,
+	format,
+	isToday,
+	isYesterday,
+} from "date-fns";
 import { FileText, Loader2 } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
@@ -49,6 +55,45 @@ function formatDocumentCount(count: number | undefined): string {
 	return `${m.replace(/\.0$/, "")}M docs`;
 }
 
+/**
+ * Format last indexed date with contextual messages
+ * Examples: "Just now", "10 minutes ago", "Today at 2:30 PM", "Yesterday at 3:45 PM", "3 days ago", "Jan 15, 2026"
+ */
+function formatLastIndexedDate(dateString: string): string {
+	const date = new Date(dateString);
+	const now = new Date();
+	const minutesAgo = differenceInMinutes(now, date);
+	const daysAgo = differenceInDays(now, date);
+
+	// Just now (within last minute)
+	if (minutesAgo < 1) {
+		return "Just now";
+	}
+
+	// X minutes ago (less than 1 hour)
+	if (minutesAgo < 60) {
+		return `${minutesAgo} ${minutesAgo === 1 ? "minute" : "minutes"} ago`;
+	}
+
+	// Today at [time]
+	if (isToday(date)) {
+		return `Today at ${format(date, "h:mm a")}`;
+	}
+
+	// Yesterday at [time]
+	if (isYesterday(date)) {
+		return `Yesterday at ${format(date, "h:mm a")}`;
+	}
+
+	// X days ago (less than 7 days)
+	if (daysAgo < 7) {
+		return `${daysAgo} ${daysAgo === 1 ? "day" : "days"} ago`;
+	}
+
+	// Full date for older entries
+	return format(date, "MMM d, yyyy");
+}
+
 export const ConnectorCard: FC<ConnectorCardProps> = ({
 	id,
 	title,
@@ -86,13 +131,13 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			// Show last indexed date for connected connectors
 			if (lastIndexedAt) {
 				return (
-					<span className="whitespace-nowrap">
-						Last indexed: {format(new Date(lastIndexedAt), "MMM d, yyyy")}
+					<span className="whitespace-nowrap text-[10px]">
+						Last indexed: {formatLastIndexedDate(lastIndexedAt)}
 					</span>
 				);
 			}
 			// Fallback for connected but never indexed
-			return <span className="whitespace-nowrap">Never indexed</span>;
+			return <span className="whitespace-nowrap text-[10px]">Never indexed</span>;
 		}
 
 		return description;
@@ -113,9 +158,9 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				<div className="flex items-center gap-2">
 					<span className="text-[14px] font-semibold leading-tight">{title}</span>
 				</div>
-				<div className="text-[11px] text-muted-foreground mt-1">{getStatusContent()}</div>
+				<div className="text-[10px] text-muted-foreground mt-1">{getStatusContent()}</div>
 				{isConnected && documentCount !== undefined && (
-					<p className="text-[11px] text-muted-foreground mt-0.5">
+					<p className="text-[10px] text-muted-foreground mt-0.5">
 						{formatDocumentCount(documentCount)}
 					</p>
 				)}

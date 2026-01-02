@@ -24,20 +24,20 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 	return (
 		<div
 			className={cn(
-				"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
+				"flex-shrink-0 px-4 sm:px-12 pt-5 sm:pt-10 transition-shadow duration-200 relative z-10",
 				isScrolled && "shadow-xl bg-muted/50 backdrop-blur-md"
 			)}
 		>
 			<DialogHeader>
-				<DialogTitle className="text-2xl sm:text-3xl font-semibold tracking-tight">
+				<DialogTitle className="text-xl sm:text-3xl font-semibold tracking-tight">
 					Connectors
 				</DialogTitle>
-				<DialogDescription className="text-sm sm:text-base text-muted-foreground/80 mt-1 sm:mt-1.5">
+				<DialogDescription className="text-xs sm:text-base text-muted-foreground/80 mt-1 sm:mt-1.5">
 					Search across all your apps and data in one place.
 				</DialogDescription>
 			</DialogHeader>
 
-			<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-6 sm:gap-8 mt-6 sm:mt-8 border-b border-border/80 dark:border-white/5">
+			<div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-4 sm:gap-8 mt-4 sm:mt-8 border-b border-border/80 dark:border-white/5">
 				<TabsList className="bg-transparent p-0 gap-4 sm:gap-8 h-auto w-full sm:w-auto justify-center sm:justify-start">
 					<TabsTrigger
 						value="all"
