@@ -95,7 +95,10 @@ export function FooterNew() {
 						<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 					</div>
 
-					<div className="mt-2 ml-2">&copy; SurfSense 2025. All rights reserved.</div>
+					<div className="mt-2 ml-2">
+  						&copy; SurfSense {new Date().getFullYear()}. All rights reserved.
+					</div>
+
 				</div>
 				<div className="grid grid-cols-2 lg:grid-cols-4 gap-10 items-start mt-10 sm:mt-0 md:mt-0">
 					<div className="flex justify-center space-y-4 flex-col w-full">
