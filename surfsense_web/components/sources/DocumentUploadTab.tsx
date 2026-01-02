@@ -31,6 +31,7 @@ import { GridPattern } from "./GridPattern";
 interface DocumentUploadTabProps {
 	searchSpaceId: string;
 	onSuccess?: () => void;
+	onAccordionStateChange?: (isExpanded: boolean) => void;
 }
 
 const audioFileTypes = {
@@ -109,11 +110,12 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 
 const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
 
-export function DocumentUploadTab({ searchSpaceId, onSuccess }: DocumentUploadTabProps) {
+export function DocumentUploadTab({ searchSpaceId, onSuccess, onAccordionStateChange }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
 	const router = useRouter();
 	const [files, setFiles] = useState<File[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
+	const [accordionValue, setAccordionValue] = useState<string>("");
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -154,6 +156,12 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess }: DocumentUploadTa
 
 	const totalFileSize = files.reduce((total, file) => total + file.size, 0);
 
+	// Track accordion state changes
+	const handleAccordionChange = useCallback((value: string) => {
+		setAccordionValue(value);
+		onAccordionStateChange?.(value === "supported-file-types");
+	}, [onAccordionStateChange]);
+
 	const handleUpload = async () => {
 		setUploadProgress(0);
 		trackDocumentUploadStarted(Number(searchSpaceId), files.length, totalFileSize);
@@ -190,11 +198,11 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess }: DocumentUploadTa
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.3 }}
-			className="space-y-3 sm:space-y-6 max-w-4xl mx-auto"
+			className="space-y-3 sm:space-y-6 max-w-4xl mx-auto pt-0"
 		>
-			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5">
-				<Info className="h-4 w-4" />
-				<AlertDescription className="text-xs sm:text-sm">{t("file_size_limit")}</AlertDescription>
+			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5 flex items-start gap-3 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg~*]:pl-0">
+				<Info className="h-4 w-4 shrink-0 mt-0.5" />
+				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">{t("file_size_limit")}</AlertDescription>
 			</Alert>
 
 			<Card className={`relative overflow-hidden ${cardClass}`}>
@@ -366,11 +374,13 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess }: DocumentUploadTa
 			<Accordion
 				type="single"
 				collapsible
-				className={`w-full ${cardClass} border border-border rounded-lg`}
+				value={accordionValue}
+				onValueChange={handleAccordionChange}
+				className={`w-full ${cardClass} border border-border rounded-lg mb-0`}
 			>
 				<AccordionItem value="supported-file-types" className="border-0">
-					<AccordionTrigger className="px-3 sm:px-6 py-3 sm:py-4 hover:no-underline">
-						<div className="flex items-center gap-2">
+					<AccordionTrigger className="px-3 sm:px-6 py-3 sm:py-4 hover:no-underline !items-center [&>svg]:!translate-y-0">
+						<div className="flex items-center gap-2 flex-1">
 							<Tag className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
 							<div className="text-left min-w-0">
 								<div className="font-semibold text-sm sm:text-base">
