@@ -134,8 +134,9 @@ async def connect_airtable(space_id: int, user: User = Depends(current_active_us
 @router.get("/auth/airtable/connector/callback")
 async def airtable_callback(
     request: Request,
-    code: str,
-    state: str,
+    code: str | None = None,
+    error: str | None = None,
+    state: str | None = None,
     session: AsyncSession = Depends(get_async_session),
 ):
     """
@@ -143,7 +144,8 @@ async def airtable_callback(
 
     Args:
         request: FastAPI request object
-        code: Authorization code from Airtable
+        code: Authorization code from Airtable (if user granted access)
+        error: Error code from Airtable (if user denied access or error occurred)
         state: State parameter containing user/space info
         session: Database session
 
@@ -151,6 +153,39 @@ async def airtable_callback(
         Redirect response to frontend
     """
     try:
+        # Handle OAuth errors (e.g., user denied access)
+        if error:
+            logger.warning(f"Airtable OAuth error: {error}")
+            # Try to decode state to get space_id for redirect, but don't fail if it's invalid
+            space_id = None
+            if state:
+                try:
+                    decoded_state = base64.urlsafe_b64decode(state.encode()).decode()
+                    data = json.loads(decoded_state)
+                    space_id = data.get("space_id")
+                except Exception:
+                    pass  # If state is invalid, we'll redirect without space_id
+            
+            # Redirect to frontend with error parameter
+            if space_id:
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=airtable_oauth_denied"
+                )
+            else:
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=airtable_oauth_denied"
+                )
+        
+        # Validate required parameters for successful flow
+        if not code:
+            raise HTTPException(
+                status_code=400, detail="Missing authorization code"
+            )
+        if not state:
+            raise HTTPException(
+                status_code=400, detail="Missing state parameter"
+            )
+        
         # Decode and parse the state
         try:
             decoded_state = base64.urlsafe_b64decode(state.encode()).decode()
