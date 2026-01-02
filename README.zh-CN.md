@@ -189,6 +189,33 @@ docker run -d -p 3000:3000 -p 8000:8000 \
   ghcr.io/modsetter/surfsense:latest
 ```
 
+**使用 OAuth 连接器（Google 日历、Gmail、云端硬盘、Airtable）：**
+
+要使用基于 OAuth 的连接器，您需要配置相应的客户端凭据：
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # Google 连接器（日历、Gmail、云端硬盘）
+  -e GOOGLE_OAUTH_CLIENT_ID=your_google_client_id \
+  -e GOOGLE_OAUTH_CLIENT_SECRET=your_google_client_secret \
+  -e GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/calendar/connector/callback \
+  -e GOOGLE_GMAIL_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/gmail/connector/callback \
+  -e GOOGLE_DRIVE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/drive/connector/callback \
+  # Airtable 连接器
+  -e AIRTABLE_CLIENT_ID=your_airtable_client_id \
+  -e AIRTABLE_CLIENT_SECRET=your_airtable_client_secret \
+  -e AIRTABLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/airtable/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+
+> [!NOTE]
+> - 对于 Google 连接器，请在 [Google Cloud Console](https://console.cloud.google.com/apis/credentials) 中创建 OAuth 2.0 凭据
+> - 对于 Airtable 连接器，请在 [Airtable 开发者中心](https://airtable.com/create/oauth) 中创建 OAuth 集成
+> - 如果部署在带有 HTTPS 的反向代理后面，请添加 `-e BACKEND_URL=https://api.yourdomain.com` 并相应地更新重定向 URI
+
 启动后，访问 SurfSense：
 - **前端**: [http://localhost:3000](http://localhost:3000)
 - **后端 API**: [http://localhost:8000](http://localhost:8000)
