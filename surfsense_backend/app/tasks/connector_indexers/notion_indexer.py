@@ -7,7 +7,6 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.notion_history import NotionHistoryConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
@@ -18,7 +17,6 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
-from app.utils.oauth_security import TokenEncryption
 
 from .base import (
     build_document_metadata_string,
@@ -94,12 +92,10 @@ async def index_notion_pages(
                 f"Connector with ID {connector_id} not found or is not a Notion connector",
             )
 
-        # Get the Notion access token from the connector config
-        # Support both new OAuth format (access_token) and old integration token format (NOTION_INTEGRATION_TOKEN)
-        notion_token = connector.config.get("access_token") or connector.config.get(
+        # Check if access_token exists (support both new OAuth format and old integration token format)
+        if not connector.config.get("access_token") and not connector.config.get(
             "NOTION_INTEGRATION_TOKEN"
-        )
-        if not notion_token:
+        ):
             await task_logger.log_task_failure(
                 log_entry,
                 f"Notion access token not found in connector config for connector {connector_id}",
@@ -108,35 +104,7 @@ async def index_notion_pages(
             )
             return 0, "Notion access token not found in connector config"
 
-        # Decrypt token if it's encrypted (only when explicitly marked)
-        token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted:
-            # Token is explicitly marked as encrypted, attempt decryption
-            if not config.SECRET_KEY:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"SECRET_KEY not configured but token is marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
-                    {"error_type": "MissingSecretKey"},
-                )
-                return 0, "SECRET_KEY not configured but token is marked as encrypted"
-            try:
-                token_encryption = TokenEncryption(config.SECRET_KEY)
-                notion_token = token_encryption.decrypt_token(notion_token)
-                logger.info(
-                    f"Decrypted Notion access token for connector {connector_id}"
-                )
-            except Exception as e:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Failed to decrypt Notion access token for connector {connector_id}: {e!s}",
-                    "Token decryption failed",
-                    {"error_type": "TokenDecryptionError"},
-                )
-                return 0, f"Failed to decrypt Notion access token: {e!s}"
-        # If _token_encrypted is False or not set, treat token as plaintext
-
-        # Initialize Notion client
+        # Initialize Notion client with internal refresh capability
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Notion client for connector {connector_id}",
@@ -164,7 +132,11 @@ async def index_notion_pages(
             "%Y-%m-%dT%H:%M:%SZ"
         )
 
-        notion_client = NotionHistoryConnector(token=notion_token)
+        # Create connector with session and connector_id for internal refresh
+        # Token refresh will happen automatically when needed
+        notion_client = NotionHistoryConnector(
+            session=session, connector_id=connector_id
+        )
 
         logger.info(f"Fetching Notion pages from {start_date_iso} to {end_date_iso}")
 

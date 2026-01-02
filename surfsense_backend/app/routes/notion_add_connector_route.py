@@ -5,6 +5,7 @@ Handles OAuth 2.0 authentication flow for Notion connector.
 """
 
 import logging
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import httpx
@@ -22,6 +23,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
@@ -230,15 +232,28 @@ async def notion_callback(
         # Encrypt sensitive tokens before storing
         token_encryption = get_token_encryption()
         access_token = token_json.get("access_token")
+        refresh_token = token_json.get("refresh_token")
         if not access_token:
             raise HTTPException(
                 status_code=400, detail="No access token received from Notion"
             )
 
-        # Notion returns access_token and workspace information
-        # Store the encrypted access token and workspace info in connector config
+        # Calculate expiration time (UTC, tz-aware)
+        expires_at = None
+        expires_in = token_json.get("expires_in")
+        if expires_in:
+            now_utc = datetime.now(UTC)
+            expires_at = now_utc + timedelta(seconds=int(expires_in))
+
+        # Notion returns access_token, refresh_token (if available), and workspace information
+        # Store the encrypted tokens and workspace info in connector config
         connector_config = {
             "access_token": token_encryption.encrypt_token(access_token),
+            "refresh_token": token_encryption.encrypt_token(refresh_token)
+            if refresh_token
+            else None,
+            "expires_in": expires_in,
+            "expires_at": expires_at.isoformat() if expires_at else None,
             "workspace_id": token_json.get("workspace_id"),
             "workspace_name": token_json.get("workspace_name"),
             "workspace_icon": token_json.get("workspace_icon"),
@@ -315,4 +330,130 @@ async def notion_callback(
         logger.error(f"Failed to complete Notion OAuth: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Notion OAuth: {e!s}"
+        ) from e
+
+
+async def refresh_notion_token(
+    session: AsyncSession, connector: SearchSourceConnector
+) -> SearchSourceConnector:
+    """
+    Refresh the Notion access token for a connector.
+
+    Args:
+        session: Database session
+        connector: Notion connector to refresh
+
+    Returns:
+        Updated connector object
+    """
+    try:
+        logger.info(f"Refreshing Notion token for connector {connector.id}")
+
+        credentials = NotionAuthCredentialsBase.from_dict(connector.config)
+
+        # Decrypt tokens if they are encrypted
+        token_encryption = get_token_encryption()
+        is_encrypted = connector.config.get("_token_encrypted", False)
+
+        refresh_token = credentials.refresh_token
+        if is_encrypted and refresh_token:
+            try:
+                refresh_token = token_encryption.decrypt_token(refresh_token)
+            except Exception as e:
+                logger.error(f"Failed to decrypt refresh token: {e!s}")
+                raise HTTPException(
+                    status_code=500, detail="Failed to decrypt stored refresh token"
+                ) from e
+
+        if not refresh_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No refresh token available. Please re-authenticate.",
+            )
+
+        auth_header = make_basic_auth_header(
+            config.NOTION_CLIENT_ID, config.NOTION_CLIENT_SECRET
+        )
+
+        # Prepare token refresh data
+        refresh_data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        }
+
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                TOKEN_URL,
+                json=refresh_data,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": auth_header,
+                },
+                timeout=30.0,
+            )
+
+        if token_response.status_code != 200:
+            error_detail = token_response.text
+            try:
+                error_json = token_response.json()
+                error_detail = error_json.get("error_description", error_detail)
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=400, detail=f"Token refresh failed: {error_detail}"
+            )
+
+        token_json = token_response.json()
+
+        # Calculate expiration time (UTC, tz-aware)
+        expires_at = None
+        expires_in = token_json.get("expires_in")
+        if expires_in:
+            now_utc = datetime.now(UTC)
+            expires_at = now_utc + timedelta(seconds=int(expires_in))
+
+        # Encrypt new tokens before storing
+        access_token = token_json.get("access_token")
+        new_refresh_token = token_json.get("refresh_token")
+
+        if not access_token:
+            raise HTTPException(
+                status_code=400, detail="No access token received from Notion refresh"
+            )
+
+        # Update credentials object with encrypted tokens
+        credentials.access_token = token_encryption.encrypt_token(access_token)
+        if new_refresh_token:
+            credentials.refresh_token = token_encryption.encrypt_token(
+                new_refresh_token
+            )
+        credentials.expires_in = expires_in
+        credentials.expires_at = expires_at
+
+        # Preserve workspace info
+        if not credentials.workspace_id:
+            credentials.workspace_id = connector.config.get("workspace_id")
+        if not credentials.workspace_name:
+            credentials.workspace_name = connector.config.get("workspace_name")
+        if not credentials.workspace_icon:
+            credentials.workspace_icon = connector.config.get("workspace_icon")
+        if not credentials.bot_id:
+            credentials.bot_id = connector.config.get("bot_id")
+
+        # Update connector config with encrypted tokens
+        credentials_dict = credentials.to_dict()
+        credentials_dict["_token_encrypted"] = True
+        connector.config = credentials_dict
+        await session.commit()
+        await session.refresh(connector)
+
+        logger.info(f"Successfully refreshed Notion token for connector {connector.id}")
+
+        return connector
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to refresh Notion token: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to refresh Notion token: {e!s}"
         ) from e

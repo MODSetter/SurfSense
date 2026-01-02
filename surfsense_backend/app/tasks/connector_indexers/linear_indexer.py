@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 from app.connectors.linear_connector import LinearConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
@@ -91,12 +92,10 @@ async def index_linear_issues(
                 f"Connector with ID {connector_id} not found or is not a Linear connector",
             )
 
-        # Get the Linear access token from the connector config
-        # Support both new OAuth format (access_token) and old API key format (LINEAR_API_KEY)
-        linear_access_token = connector.config.get(
-            "access_token"
-        ) or connector.config.get("LINEAR_API_KEY")
-        if not linear_access_token:
+        # Check if access_token exists (support both new OAuth format and old API key format)
+        if not connector.config.get("access_token") and not connector.config.get(
+            "LINEAR_API_KEY"
+        ):
             await task_logger.log_task_failure(
                 log_entry,
                 f"Linear access token not found in connector config for connector {connector_id}",
@@ -105,47 +104,16 @@ async def index_linear_issues(
             )
             return 0, "Linear access token not found in connector config"
 
-        # Decrypt token if it's encrypted (only when explicitly marked)
-        from app.config import config
-        from app.utils.oauth_security import TokenEncryption
-
-        token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted:
-            # Token is explicitly marked as encrypted, attempt decryption
-            if not config.SECRET_KEY:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"SECRET_KEY not configured but token is marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
-                    {"error_type": "MissingSecretKey"},
-                )
-                return 0, "SECRET_KEY not configured but token is marked as encrypted"
-            try:
-                token_encryption = TokenEncryption(config.SECRET_KEY)
-                linear_access_token = token_encryption.decrypt_token(
-                    linear_access_token
-                )
-                logger.info(
-                    f"Decrypted Linear access token for connector {connector_id}"
-                )
-            except Exception as e:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Failed to decrypt Linear access token for connector {connector_id}: {e!s}",
-                    "Token decryption failed",
-                    {"error_type": "TokenDecryptionError"},
-                )
-                return 0, f"Failed to decrypt Linear access token: {e!s}"
-        # If _token_encrypted is False or not set, treat token as plaintext
-
-        # Initialize Linear client
+        # Initialize Linear client with internal refresh capability
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Linear client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
 
-        linear_client = LinearConnector(access_token=linear_access_token)
+        # Create connector with session and connector_id for internal refresh
+        # Token refresh will happen automatically when needed
+        linear_client = LinearConnector(session=session, connector_id=connector_id)
 
         # Handle 'undefined' string from frontend (treat as None)
         if start_date == "undefined" or start_date == "":
@@ -172,7 +140,7 @@ async def index_linear_issues(
 
         # Get issues within date range
         try:
-            issues, error = linear_client.get_issues_by_date_range(
+            issues, error = await linear_client.get_issues_by_date_range(
                 start_date=start_date_str, end_date=end_date_str, include_comments=True
             )
 

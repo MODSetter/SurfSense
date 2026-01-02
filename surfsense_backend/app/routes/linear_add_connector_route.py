@@ -23,6 +23,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.schemas.linear_auth_credentials import LinearAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
@@ -327,4 +328,121 @@ async def linear_callback(
         logger.error(f"Failed to complete Linear OAuth: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Linear OAuth: {e!s}"
+        ) from e
+
+
+async def refresh_linear_token(
+    session: AsyncSession, connector: SearchSourceConnector
+) -> SearchSourceConnector:
+    """
+    Refresh the Linear access token for a connector.
+
+    Args:
+        session: Database session
+        connector: Linear connector to refresh
+
+    Returns:
+        Updated connector object
+    """
+    try:
+        logger.info(f"Refreshing Linear token for connector {connector.id}")
+
+        credentials = LinearAuthCredentialsBase.from_dict(connector.config)
+
+        # Decrypt tokens if they are encrypted
+        token_encryption = get_token_encryption()
+        is_encrypted = connector.config.get("_token_encrypted", False)
+
+        refresh_token = credentials.refresh_token
+        if is_encrypted and refresh_token:
+            try:
+                refresh_token = token_encryption.decrypt_token(refresh_token)
+            except Exception as e:
+                logger.error(f"Failed to decrypt refresh token: {e!s}")
+                raise HTTPException(
+                    status_code=500, detail="Failed to decrypt stored refresh token"
+                ) from e
+
+        if not refresh_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No refresh token available. Please re-authenticate.",
+            )
+
+        auth_header = make_basic_auth_header(
+            config.LINEAR_CLIENT_ID, config.LINEAR_CLIENT_SECRET
+        )
+
+        # Prepare token refresh data
+        refresh_data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        }
+
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                TOKEN_URL,
+                data=refresh_data,
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": auth_header,
+                },
+                timeout=30.0,
+            )
+
+        if token_response.status_code != 200:
+            error_detail = token_response.text
+            try:
+                error_json = token_response.json()
+                error_detail = error_json.get("error_description", error_detail)
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=400, detail=f"Token refresh failed: {error_detail}"
+            )
+
+        token_json = token_response.json()
+
+        # Calculate expiration time (UTC, tz-aware)
+        expires_at = None
+        expires_in = token_json.get("expires_in")
+        if expires_in:
+            now_utc = datetime.now(UTC)
+            expires_at = now_utc + timedelta(seconds=int(expires_in))
+
+        # Encrypt new tokens before storing
+        access_token = token_json.get("access_token")
+        new_refresh_token = token_json.get("refresh_token")
+
+        if not access_token:
+            raise HTTPException(
+                status_code=400, detail="No access token received from Linear refresh"
+            )
+
+        # Update credentials object with encrypted tokens
+        credentials.access_token = token_encryption.encrypt_token(access_token)
+        if new_refresh_token:
+            credentials.refresh_token = token_encryption.encrypt_token(
+                new_refresh_token
+            )
+        credentials.expires_in = expires_in
+        credentials.expires_at = expires_at
+        credentials.scope = token_json.get("scope")
+
+        # Update connector config with encrypted tokens
+        credentials_dict = credentials.to_dict()
+        credentials_dict["_token_encrypted"] = True
+        connector.config = credentials_dict
+        await session.commit()
+        await session.refresh(connector)
+
+        logger.info(f"Successfully refreshed Linear token for connector {connector.id}")
+
+        return connector
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to refresh Linear token: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to refresh Linear token: {e!s}"
         ) from e
