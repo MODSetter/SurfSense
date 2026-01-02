@@ -14,7 +14,7 @@ export function GoogleLoginButton() {
 		trackLoginAttempt("google");
 
 		// IMPORTANT: Use the redirect-based authorize endpoint for cross-origin OAuth
-		// This fixes CSRF cookie issues in Firefox/Safari where cookies set via 
+		// This fixes CSRF cookie issues in Firefox/Safari where cookies set via
 		// cross-origin fetch requests may not be sent on subsequent redirects.
 		// The authorize-redirect endpoint does a server-side redirect to Google
 		// and sets the CSRF cookie properly for same-site context.

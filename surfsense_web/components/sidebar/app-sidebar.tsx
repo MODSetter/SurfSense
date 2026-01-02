@@ -42,6 +42,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { resetUser, trackLogout } from "@/lib/posthog/events";
 
 /**
  * Generates a consistent color based on a string (email)
@@ -343,6 +344,10 @@ export const AppSidebar = memo(function AppSidebar({
 
 	const handleLogout = () => {
 		try {
+			// Track logout event and reset PostHog identity
+			trackLogout();
+			resetUser();
+
 			if (typeof window !== "undefined") {
 				localStorage.removeItem("surfsense_bearer_token");
 				router.push("/");
