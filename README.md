@@ -109,7 +109,6 @@ Contributors can easily add new tools via the registry pattern:
 - Google Calendar
 - Luma
 - Circleback
-- Circleback
 - Elasticsearch
 - and more to come.....
 

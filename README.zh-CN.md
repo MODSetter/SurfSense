@@ -116,6 +116,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Airtable
 - Google Calendar
 - Luma
+- Circleback
 - Elasticsearch
 - 更多即将推出......
 
