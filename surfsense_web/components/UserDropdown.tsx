@@ -13,6 +13,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { resetUser, trackLogout } from "@/lib/posthog/events";
 
 export function UserDropdown({
 	user,
@@ -27,6 +28,10 @@ export function UserDropdown({
 
 	const handleLogout = () => {
 		try {
+			// Track logout event and reset PostHog identity
+			trackLogout();
+			resetUser();
+
 			if (typeof window !== "undefined") {
 				localStorage.removeItem("surfsense_bearer_token");
 				router.push("/");
