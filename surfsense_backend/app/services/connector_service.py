@@ -2659,9 +2659,7 @@ class ConnectorService:
         def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             meeting_id = metadata.get("circleback_meeting_id", "")
             return (
-                f"https://app.circleback.ai/meetings/{meeting_id}"
-                if meeting_id
-                else ""
+                f"https://app.circleback.ai/meetings/{meeting_id}" if meeting_id else ""
             )
 
         def _description_fn(

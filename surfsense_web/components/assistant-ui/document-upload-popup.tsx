@@ -1,19 +1,19 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import {
-	type FC,
-	createContext,
-	useContext,
-	useState,
-	useCallback,
-	useRef,
-	type ReactNode,
-} from "react";
 import { useRouter } from "next/navigation";
+import {
+	createContext,
+	type FC,
+	type ReactNode,
+	useCallback,
+	useContext,
+	useRef,
+	useState,
+} from "react";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 // Context for opening the dialog from anywhere
 interface DocumentUploadDialogContextType {

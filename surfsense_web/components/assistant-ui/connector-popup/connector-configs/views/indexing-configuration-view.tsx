@@ -1,13 +1,13 @@
 "use client";
 
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
-import { type FC, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
-import type { IndexingConfigState } from "../../constants/connector-constants";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
+import type { IndexingConfigState } from "../../constants/connector-constants";
 import { getConnectorConfigComponent } from "../index";
 
 interface IndexingConfigurationViewProps {

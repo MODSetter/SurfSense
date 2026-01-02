@@ -3,8 +3,8 @@
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { type FC, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import type { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { getConnectFormComponent } from "../../connect-forms";
 

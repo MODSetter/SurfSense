@@ -1,10 +1,9 @@
 "use client";
 
-import { KeyRound, Server } from "lucide-react";
-import { useState, useEffect } from "react";
-import type { FC } from "react";
 import * as RadioGroup from "@radix-ui/react-radio-group";
-import { useId } from "react";
+import { KeyRound, Server } from "lucide-react";
+import type { FC } from "react";
+import { useEffect, useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

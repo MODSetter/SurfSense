@@ -15,8 +15,8 @@ import {
 	githubPatSchema,
 } from "@/components/editConnector/types";
 import type { EnumConnectorName } from "@/contracts/enums/connector";
-import type { SearchSourceConnector } from "@/hooks/use-search-source-connectors";
 import type { UpdateConnectorResponse } from "@/contracts/types/connector.types";
+import type { SearchSourceConnector } from "@/hooks/use-search-source-connectors";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 const normalizeListInput = (value: unknown): string[] => {

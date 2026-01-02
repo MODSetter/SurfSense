@@ -50,6 +50,10 @@ import {
 	type InlineMentionEditorRef,
 } from "@/components/assistant-ui/inline-mention-editor";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+	ThinkingStepsContext,
+	ThinkingStepsDisplay,
+} from "@/components/assistant-ui/thinking-steps";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
@@ -57,10 +61,6 @@ import {
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
-import {
-	ThinkingStepsContext,
-	ThinkingStepsDisplay,
-} from "@/components/assistant-ui/thinking-steps";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";

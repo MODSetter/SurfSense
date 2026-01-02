@@ -39,4 +39,3 @@ class GoogleDriveIndexRequest(BaseModel):
     def get_file_names(self) -> list[str]:
         """Get list of file names."""
         return [file.name for file in self.files]
-

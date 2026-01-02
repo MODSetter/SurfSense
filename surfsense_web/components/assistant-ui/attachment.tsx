@@ -9,20 +9,20 @@ import {
 } from "@assistant-ui/react";
 import { FileText, Loader2, Paperclip, PlusIcon, Upload, XIcon } from "lucide-react";
 import Image from "next/image";
-import { type FC, type PropsWithChildren, useRef, useEffect, useState } from "react";
-import { useDocumentUploadDialog } from "./document-upload-popup";
+import { type FC, type PropsWithChildren, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useDocumentUploadDialog } from "./document-upload-popup";
 
 const useFileSrc = (file: File | undefined) => {
 	const [src, setSrc] = useState<string | undefined>(undefined);

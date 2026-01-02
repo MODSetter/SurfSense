@@ -2,16 +2,16 @@
 
 import { format } from "date-fns";
 import { ArrowRight, Cable, Loader2 } from "lucide-react";
-import type { FC } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import type { FC } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
+import { Button } from "@/components/ui/button";
+import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import type { LogSummary, LogActiveTask } from "@/contracts/types/log.types";
+import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
-import { TabsContent } from "@/components/ui/tabs";
 
 interface ActiveConnectorsTabProps {
 	searchQuery: string;

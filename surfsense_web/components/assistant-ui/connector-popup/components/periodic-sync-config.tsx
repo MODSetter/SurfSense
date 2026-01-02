@@ -1,8 +1,7 @@
 "use client";
 
-import { type FC } from "react";
+import type { FC } from "react";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
 	Select,
 	SelectContent,
@@ -10,6 +9,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 interface PeriodicSyncConfigProps {
 	enabled: boolean;

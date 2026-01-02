@@ -8,6 +8,7 @@ import {
 import { CheckIcon, CopyIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
 import { useContext } from "react";
+import { BranchPicker } from "@/components/assistant-ui/branch-picker";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
 	ThinkingStepsContext,
@@ -15,7 +16,6 @@ import {
 } from "@/components/assistant-ui/thinking-steps";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { BranchPicker } from "@/components/assistant-ui/branch-picker";
 
 export const MessageError: FC = () => {
 	return (

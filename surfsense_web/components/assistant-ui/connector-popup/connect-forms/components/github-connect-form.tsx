@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
 	Select,
 	SelectContent,
@@ -33,10 +32,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { ConnectFormProps } from "../index";
-import { getConnectorBenefits } from "../connector-benefits";
 import { DateRangeSelector } from "../../components/date-range-selector";
+import { getConnectorBenefits } from "../connector-benefits";
+import type { ConnectFormProps } from "../index";
 
 const githubConnectorFormSchema = z.object({
 	name: z.string().min(3, {

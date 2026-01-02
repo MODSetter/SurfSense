@@ -80,12 +80,12 @@ __all__ = [
     "DefaultSystemInstructionsResponse",
     # Document schemas
     "DocumentBase",
-    # Google Drive schemas
-    "DriveItem",
     "DocumentRead",
     "DocumentUpdate",
     "DocumentWithChunksRead",
     "DocumentsCreate",
+    # Google Drive schemas
+    "DriveItem",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
     "GlobalNewLLMConfigRead",

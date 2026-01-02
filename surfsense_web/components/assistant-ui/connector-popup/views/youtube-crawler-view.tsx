@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
 import { TagInput, type Tag as TagType } from "emblor";
 import { useAtom } from "jotai";
-import { Loader2 } from "lucide-react";
-import { type FC, useState } from "react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { type FC, useState } from "react";
 import { toast } from "sonner";
 import { createDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";

@@ -1,11 +1,11 @@
 "use client";
 
 import { Info } from "lucide-react";
-import { useState, useEffect } from "react";
 import type { FC } from "react";
+import { useEffect, useState } from "react";
+import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
 import type { ConnectorConfigProps } from "../index";
 
 interface SelectedFolder {

@@ -1,15 +1,15 @@
 "use client";
 
-import { Copy, Webhook, Check, Info } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Check, Copy, Info, Webhook } from "lucide-react";
 import type { FC } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { ConnectorConfigProps } from "../index";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import type { ConnectorConfigProps } from "../index";
 
 export interface CirclebackConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;

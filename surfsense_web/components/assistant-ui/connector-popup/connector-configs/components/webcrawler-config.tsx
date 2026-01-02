@@ -1,8 +1,8 @@
 "use client";
 
 import { Info } from "lucide-react";
-import { useState, useEffect } from "react";
 import type { FC } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

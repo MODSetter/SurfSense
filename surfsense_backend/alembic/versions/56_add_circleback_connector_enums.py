@@ -26,10 +26,16 @@ def upgrade() -> None:
     connection.execute(text("COMMIT"))
 
     # Add to documenttype enum (must be outside transaction)
-    connection.execute(text("ALTER TYPE documenttype ADD VALUE IF NOT EXISTS 'CIRCLEBACK'"))
+    connection.execute(
+        text("ALTER TYPE documenttype ADD VALUE IF NOT EXISTS 'CIRCLEBACK'")
+    )
 
     # Add to searchsourceconnectortype enum
-    connection.execute(text("ALTER TYPE searchsourceconnectortype ADD VALUE IF NOT EXISTS 'CIRCLEBACK_CONNECTOR'"))
+    connection.execute(
+        text(
+            "ALTER TYPE searchsourceconnectortype ADD VALUE IF NOT EXISTS 'CIRCLEBACK_CONNECTOR'"
+        )
+    )
 
 
 def downgrade() -> None:

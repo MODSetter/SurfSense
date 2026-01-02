@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
 import type { FC } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import {
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
 	Select,
 	SelectContent,
@@ -32,11 +31,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { ConnectFormProps } from "../index";
-import { getConnectorBenefits } from "../connector-benefits";
 import { DateRangeSelector } from "../../components/date-range-selector";
-import { useState } from "react";
+import { getConnectorBenefits } from "../connector-benefits";
+import type { ConnectFormProps } from "../index";
 
 const clickupConnectorFormSchema = z.object({
 	name: z.string().min(3, {

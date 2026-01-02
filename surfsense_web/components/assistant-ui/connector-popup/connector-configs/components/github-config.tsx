@@ -1,8 +1,8 @@
 "use client";
 
 import { KeyRound } from "lucide-react";
-import { useState, useEffect } from "react";
 import type { FC } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

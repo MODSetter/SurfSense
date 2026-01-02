@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -10,21 +11,20 @@ import {
 } from "@/atoms/connectors/connector-mutation.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { authenticatedFetch } from "@/lib/auth-utils";
-import { queryClient } from "@/lib/query-client/client";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { format } from "date-fns";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
-import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
+import { authenticatedFetch } from "@/lib/auth-utils";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
+import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import {
+	dateRangeSchema,
+	frequencyMinutesSchema,
 	parseConnectorPopupQueryParams,
 	parseOAuthAuthResponse,
 	validateIndexingConfigState,
-	frequencyMinutesSchema,
-	dateRangeSchema,
 } from "../constants/connector-popup.schemas";
 
 export const useConnectorDialog = () => {

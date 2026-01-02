@@ -1,28 +1,28 @@
 "use client";
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { Cable, Loader2 } from "lucide-react";
-import { type FC, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { type FC, useEffect, useMemo } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
-import { useLogsSummary } from "@/hooks/use-logs";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { connectorsApiService } from "@/lib/apis/connectors-api.service";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { cn } from "@/lib/utils";
-import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
-import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
-import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
-import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
-import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
-import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
-import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
-import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { useLogsSummary } from "@/hooks/use-logs";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { cn } from "@/lib/utils";
+import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
+import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
+import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
+import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
+import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
+import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
+import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
+import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
 export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);

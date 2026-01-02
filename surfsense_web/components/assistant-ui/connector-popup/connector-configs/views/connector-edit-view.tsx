@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, Info, Loader2, RefreshCw, Trash2 } from "lucide-react";
-import { type FC, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";

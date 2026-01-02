@@ -19,8 +19,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { ConnectFormProps } from "../index";
 import { getConnectorBenefits } from "../connector-benefits";
+import type { ConnectFormProps } from "../index";
 
 const searxngFormSchema = z.object({
 	name: z.string().min(3, {

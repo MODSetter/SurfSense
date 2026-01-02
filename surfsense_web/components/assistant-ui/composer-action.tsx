@@ -1,6 +1,14 @@
 import { AssistantIf, ComposerPrimitive, useAssistantState } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { AlertCircle, ArrowUpIcon, Loader2, Plus, Plug2, SquareIcon } from "lucide-react";
+import {
+	AlertCircle,
+	ArrowUpIcon,
+	ChevronRightIcon,
+	Loader2,
+	Plug2,
+	Plus,
+	SquareIcon,
+} from "lucide-react";
 import type { FC } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
@@ -18,7 +26,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
-import { ChevronRightIcon } from "lucide-react";
 
 const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);

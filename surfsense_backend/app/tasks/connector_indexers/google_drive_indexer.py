@@ -277,7 +277,9 @@ async def index_google_drive_single_file(
         )
 
         await session.commit()
-        logger.info("Successfully committed Google Drive file indexing changes to database")
+        logger.info(
+            "Successfully committed Google Drive file indexing changes to database"
+        )
 
         if indexed > 0:
             await task_logger.log_task_success(
@@ -302,7 +304,7 @@ async def index_google_drive_single_file(
         await session.rollback()
         await task_logger.log_task_failure(
             log_entry,
-            f"Database error during file indexing",
+            "Database error during file indexing",
             str(db_error),
             {"error_type": "SQLAlchemyError"},
         )
@@ -312,7 +314,7 @@ async def index_google_drive_single_file(
         await session.rollback()
         await task_logger.log_task_failure(
             log_entry,
-            f"Failed to index Google Drive file",
+            "Failed to index Google Drive file",
             str(e),
             {"error_type": type(e).__name__},
         )

@@ -1,7 +1,7 @@
 import { useAssistantState, useThreadViewport } from "@assistant-ui/react";
+import { ChevronRightIcon } from "lucide-react";
 import type { FC } from "react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { ChevronRightIcon } from "lucide-react";
 import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";

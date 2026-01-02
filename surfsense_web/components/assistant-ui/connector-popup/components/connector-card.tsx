@@ -1,9 +1,9 @@
 "use client";
 
 import { IconBrandYoutube } from "@tabler/icons-react";
-import { FileText, Loader2 } from "lucide-react";
-import { type FC } from "react";
 import { format } from "date-fns";
+import { FileText, Loader2 } from "lucide-react";
+import type { FC } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { LogActiveTask } from "@/contracts/types/log.types";
