@@ -16,7 +16,7 @@
 
 # SurfSense
 
-虽然像 NotebookLM 和 Perplexity 这样的工具在对任何主题/查询进行研究时令人印象深刻且非常有效，但 SurfSense 通过与您的个人知识库集成，将这一能力提升到了新的高度。它是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Slack、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Elasticsearch 等，未来还会支持更多。
+虽然像 NotebookLM 和 Perplexity 这样的工具在对任何主题/查询进行研究时令人印象深刻且非常有效，但 SurfSense 通过与您的个人知识库集成，将这一能力提升到了新的高度。它是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp、Google Drive、Slack、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch 等，未来还会支持更多。
 
 <div align="center">
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -101,6 +101,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 ### ℹ️ **外部数据源**
 - 搜索引擎（Tavily、LinkUp）
 - SearxNG（自托管实例）
+- Google Drive
 - Slack
 - Linear
 - Jira
@@ -115,6 +116,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Airtable
 - Google Calendar
 - Luma
+- Circleback
 - Elasticsearch
 - 更多即将推出......
 
@@ -302,8 +304,6 @@ Docker 和手动安装指南都包含适用于 Windows、macOS 和 Linux 的详�
 -  **Flower**：Celery 任务队列的实时监控和管理工具
 
 -  **Chonkie**：先进的文档分块和嵌入库
- - 使用 `AutoEmbeddings` 灵活选择嵌入模型
- -  `LateChunker` 基于嵌入模型的最大序列长度优化文档分块
 
   
 ---
