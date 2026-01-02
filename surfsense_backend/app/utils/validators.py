@@ -515,7 +515,13 @@ def validate_connector_config(
         },
         "SLACK_CONNECTOR": {"required": ["SLACK_BOT_TOKEN"], "validators": {}},
         "NOTION_CONNECTOR": {
-            "required": ["NOTION_INTEGRATION_TOKEN"],
+            "required": ["access_token"],  # OAuth-based only
+            "optional": [
+                "workspace_id",  # OAuth fields
+                "workspace_name",
+                "workspace_icon",
+                "bot_id",
+            ],
             "validators": {},
         },
         "GITHUB_CONNECTOR": {

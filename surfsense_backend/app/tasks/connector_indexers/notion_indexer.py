@@ -2,7 +2,7 @@
 Notion connector indexer.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,7 @@ from app.utils.document_converters import (
 
 from .base import (
     build_document_metadata_string,
+    calculate_date_range,
     check_document_by_unique_identifier,
     get_connector_by_id,
     get_current_timestamp,
@@ -91,16 +92,16 @@ async def index_notion_pages(
                 f"Connector with ID {connector_id} not found or is not a Notion connector",
             )
 
-        # Get the Notion token from the connector config
-        notion_token = connector.config.get("NOTION_INTEGRATION_TOKEN")
+        # Get the Notion access token from the connector config (OAuth-based)
+        notion_token = connector.config.get("access_token")
         if not notion_token:
             await task_logger.log_task_failure(
                 log_entry,
-                f"Notion integration token not found in connector config for connector {connector_id}",
-                "Missing Notion token",
+                f"Notion access token not found in connector config for connector {connector_id}",
+                "Missing Notion access token",
                 {"error_type": "MissingToken"},
             )
-            return 0, "Notion integration token not found in connector config"
+            return 0, "Notion access token not found in connector config"
 
         # Initialize Notion client
         await task_logger.log_task_progress(
@@ -111,38 +112,24 @@ async def index_notion_pages(
 
         logger.info(f"Initializing Notion client for connector {connector_id}")
 
-        # Calculate date range
-        if start_date is None or end_date is None:
-            # Fall back to calculating dates
-            calculated_end_date = datetime.now()
-            calculated_start_date = calculated_end_date - timedelta(
-                days=365
-            )  # Check for last 1 year of pages
+        # Handle 'undefined' string from frontend (treat as None)
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
 
-            # Use calculated dates if not provided
-            if start_date is None:
-                start_date_iso = calculated_start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            else:
-                # Convert YYYY-MM-DD to ISO format
-                start_date_iso = datetime.strptime(start_date, "%Y-%m-%d").strftime(
-                    "%Y-%m-%dT%H:%M:%SZ"
-                )
+        # Calculate date range using the shared utility function
+        start_date_str, end_date_str = calculate_date_range(
+            connector, start_date, end_date, default_days_back=365
+        )
 
-            if end_date is None:
-                end_date_iso = calculated_end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            else:
-                # Convert YYYY-MM-DD to ISO format
-                end_date_iso = datetime.strptime(end_date, "%Y-%m-%d").strftime(
-                    "%Y-%m-%dT%H:%M:%SZ"
-                )
-        else:
-            # Convert provided dates to ISO format for Notion API
-            start_date_iso = datetime.strptime(start_date, "%Y-%m-%d").strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
-            end_date_iso = datetime.strptime(end_date, "%Y-%m-%d").strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
+        # Convert YYYY-MM-DD to ISO format for Notion API
+        start_date_iso = datetime.strptime(start_date_str, "%Y-%m-%d").strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        end_date_iso = datetime.strptime(end_date_str, "%Y-%m-%d").strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
 
         notion_client = NotionHistoryConnector(token=notion_token)
 

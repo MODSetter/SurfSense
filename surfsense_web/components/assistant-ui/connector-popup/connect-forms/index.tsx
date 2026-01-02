@@ -11,7 +11,6 @@ import { JiraConnectForm } from "./components/jira-connect-form";
 import { LinearConnectForm } from "./components/linear-connect-form";
 import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
 import { LumaConnectForm } from "./components/luma-connect-form";
-import { NotionConnectForm } from "./components/notion-connect-form";
 import { SearxngConnectForm } from "./components/searxng-connect-form";
 import { SlackConnectForm } from "./components/slack-connect-form";
 import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
@@ -59,8 +58,6 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 			return SlackConnectForm;
 		case "DISCORD_CONNECTOR":
 			return DiscordConnectForm;
-		case "NOTION_CONNECTOR":
-			return NotionConnectForm;
 		case "CONFLUENCE_CONNECTOR":
 			return ConfluenceConnectForm;
 		case "BOOKSTACK_CONNECTOR":

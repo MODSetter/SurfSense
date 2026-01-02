@@ -30,6 +30,13 @@ export const OAUTH_CONNECTORS = [
 		connectorType: EnumConnectorName.AIRTABLE_CONNECTOR,
 		authEndpoint: "/api/v1/auth/airtable/connector/add/",
 	},
+	{
+		id: "notion-connector",
+		title: "Notion",
+		description: "Search your Notion pages",
+		connectorType: EnumConnectorName.NOTION_CONNECTOR,
+		authEndpoint: "/api/v1/auth/notion/connector/add/",
+	},
 ] as const;
 
 // Content Sources (tools that extract and import content from external sources)
@@ -61,12 +68,6 @@ export const OTHER_CONNECTORS = [
 		title: "Discord",
 		description: "Search Discord messages",
 		connectorType: EnumConnectorName.DISCORD_CONNECTOR,
-	},
-	{
-		id: "notion-connector",
-		title: "Notion",
-		description: "Search Notion pages",
-		connectorType: EnumConnectorName.NOTION_CONNECTOR,
 	},
 	{
 		id: "confluence-connector",
@@ -143,7 +144,7 @@ export const OTHER_CONNECTORS = [
 	{
 		id: "circleback-connector",
 		title: "Circleback",
-		description: "Receive meeting notes via webhook",
+		description: "Receive meeting notes, transcripts",
 		connectorType: EnumConnectorName.CIRCLEBACK_CONNECTOR,
 	},
 ] as const;

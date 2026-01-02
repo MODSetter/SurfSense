@@ -55,7 +55,6 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
 			SLACK_CONNECTOR: "slack-connect-form",
 			DISCORD_CONNECTOR: "discord-connect-form",
-			NOTION_CONNECTOR: "notion-connect-form",
 			CONFLUENCE_CONNECTOR: "confluence-connect-form",
 			BOOKSTACK_CONNECTOR: "bookstack-connect-form",
 			GITHUB_CONNECTOR: "github-connect-form",
