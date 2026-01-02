@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
 
 // Context for opening the dialog from anywhere
@@ -96,6 +96,7 @@ const DocumentUploadPopupContent: FC<{
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-4xl w-[95vw] sm:w-full h-[calc(100vh-2rem)] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-12 [&>button]:top-4 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button]:z-[100] [&>button_svg]:size-4 sm:[&>button_svg]:size-5">
+				<DialogTitle className="sr-only">Upload Document</DialogTitle>
 				<div className="flex-1 min-h-0 relative overflow-hidden">
 					<div className="h-full overflow-y-auto">
 						<div className="px-3 sm:px-12 pt-12 sm:pt-24 pb-6 sm:pb-16">
