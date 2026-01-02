@@ -51,10 +51,7 @@ const confluenceConnectorFormSchema = z.object({
 
 type ConfluenceConnectorFormValues = z.infer<typeof confluenceConnectorFormSchema>;
 
-export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
-	onSubmit,
-	isSubmitting,
-}) => {
+export const ConfluenceConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -123,7 +120,11 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="confluence-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form
+						id="confluence-connect-form"
+						onSubmit={form.handleSubmit(handleSubmit)}
+						className="space-y-4 sm:space-y-6"
+					>
 						<FormField
 							control={form.control}
 							name="name"
@@ -131,11 +132,11 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="My Confluence Connector" 
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="My Confluence Connector"
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -153,16 +154,17 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Confluence Base URL</FormLabel>
 									<FormControl>
-										<Input 
+										<Input
 											type="url"
-											placeholder="https://your-domain.atlassian.net" 
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+											placeholder="https://your-domain.atlassian.net"
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										The base URL of your Confluence instance (e.g., https://your-domain.atlassian.net).
+										The base URL of your Confluence instance (e.g.,
+										https://your-domain.atlassian.net).
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -176,13 +178,13 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Email Address</FormLabel>
 									<FormControl>
-										<Input 
+										<Input
 											type="email"
-											placeholder="your-email@example.com" 
+											placeholder="your-email@example.com"
 											autoComplete="email"
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -200,12 +202,12 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">API Token</FormLabel>
 									<FormControl>
-										<Input 
-											type="password" 
-											placeholder="Your API Token" 
+										<Input
+											type="password"
+											placeholder="Your API Token"
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -219,7 +221,7 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 						{/* Indexing Configuration */}
 						<div className="space-y-4 pt-4 border-t border-slate-400/20">
 							<h3 className="text-sm sm:text-base font-medium">Indexing Configuration</h3>
-							
+
 							{/* Date Range Selector */}
 							<DateRangeSelector
 								startDate={startDate}
@@ -237,14 +239,24 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 											Automatically re-index at regular intervals
 										</p>
 									</div>
-									<Switch checked={periodicEnabled} onCheckedChange={setPeriodicEnabled} disabled={isSubmitting} />
+									<Switch
+										checked={periodicEnabled}
+										onCheckedChange={setPeriodicEnabled}
+										disabled={isSubmitting}
+									/>
 								</div>
 
 								{periodicEnabled && (
 									<div className="mt-4 pt-4 border-t border-slate-400/20 space-y-3">
 										<div className="space-y-2">
-											<Label htmlFor="frequency" className="text-xs sm:text-sm">Sync Frequency</Label>
-											<Select value={frequencyMinutes} onValueChange={setFrequencyMinutes} disabled={isSubmitting}>
+											<Label htmlFor="frequency" className="text-xs sm:text-sm">
+												Sync Frequency
+											</Label>
+											<Select
+												value={frequencyMinutes}
+												onValueChange={setFrequencyMinutes}
+												disabled={isSubmitting}
+											>
 												<SelectTrigger
 													id="frequency"
 													className="w-full bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 text-xs sm:text-sm"
@@ -252,12 +264,24 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 													<SelectValue placeholder="Select frequency" />
 												</SelectTrigger>
 												<SelectContent className="z-[100]">
-													<SelectItem value="15" className="text-xs sm:text-sm">Every 15 minutes</SelectItem>
-													<SelectItem value="60" className="text-xs sm:text-sm">Every hour</SelectItem>
-													<SelectItem value="360" className="text-xs sm:text-sm">Every 6 hours</SelectItem>
-													<SelectItem value="720" className="text-xs sm:text-sm">Every 12 hours</SelectItem>
-													<SelectItem value="1440" className="text-xs sm:text-sm">Daily</SelectItem>
-													<SelectItem value="10080" className="text-xs sm:text-sm">Weekly</SelectItem>
+													<SelectItem value="15" className="text-xs sm:text-sm">
+														Every 15 minutes
+													</SelectItem>
+													<SelectItem value="60" className="text-xs sm:text-sm">
+														Every hour
+													</SelectItem>
+													<SelectItem value="360" className="text-xs sm:text-sm">
+														Every 6 hours
+													</SelectItem>
+													<SelectItem value="720" className="text-xs sm:text-sm">
+														Every 12 hours
+													</SelectItem>
+													<SelectItem value="1440" className="text-xs sm:text-sm">
+														Daily
+													</SelectItem>
+													<SelectItem value="10080" className="text-xs sm:text-sm">
+														Weekly
+													</SelectItem>
 												</SelectContent>
 											</Select>
 										</div>
@@ -272,7 +296,9 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 			{/* What you get section */}
 			{getConnectorBenefits(EnumConnectorName.CONFLUENCE_CONNECTOR) && (
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 px-3 sm:px-6 py-4 space-y-2">
-					<h4 className="text-xs sm:text-sm font-medium">What you get with Confluence integration:</h4>
+					<h4 className="text-xs sm:text-sm font-medium">
+						What you get with Confluence integration:
+					</h4>
 					<ul className="list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 						{getConnectorBenefits(EnumConnectorName.CONFLUENCE_CONNECTOR)?.map((benefit) => (
 							<li key={benefit}>{benefit}</li>
@@ -282,7 +308,11 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 			)}
 
 			{/* Documentation Section */}
-			<Accordion type="single" collapsible className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5">
+			<Accordion
+				type="single"
+				collapsible
+				className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5"
+			>
 				<AccordionItem value="documentation" className="border-0">
 					<AccordionTrigger className="text-sm sm:text-base font-medium px-3 sm:px-6 no-underline hover:no-underline">
 						Documentation
@@ -291,14 +321,17 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 						<div>
 							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The Confluence connector uses the Confluence REST API to fetch all pages and comments that your account has access to within your Confluence instance.
+								The Confluence connector uses the Confluence REST API to fetch all pages and
+								comments that your account has access to within your Confluence instance.
 							</p>
 							<ul className="mt-2 list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 								<li>
-									For follow up indexing runs, the connector retrieves pages and comments that have been updated since the last indexing attempt.
+									For follow up indexing runs, the connector retrieves pages and comments that have
+									been updated since the last indexing attempt.
 								</li>
 								<li>
-									Indexing is configured to run periodically, so updates should appear in your search results within minutes.
+									Indexing is configured to run periodically, so updates should appear in your
+									search results within minutes.
 								</li>
 							</ul>
 						</div>
@@ -308,15 +341,20 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Authorization</h3>
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 mb-4">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-									<AlertTitle className="text-[10px] sm:text-xs">Read-Only Access is Sufficient</AlertTitle>
+									<AlertTitle className="text-[10px] sm:text-xs">
+										Read-Only Access is Sufficient
+									</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										You only need read access for this connector to work. The API Token will only be used to read your Confluence data.
+										You only need read access for this connector to work. The API Token will only be
+										used to read your Confluence data.
 									</AlertDescription>
 								</Alert>
 
 								<div className="space-y-4 sm:space-y-6">
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Create an API Token</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 1: Create an API Token
+										</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
 											<li>Log in to your Atlassian account</li>
 											<li>
@@ -343,15 +381,20 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Grant necessary access</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 2: Grant necessary access
+										</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											The API Token will have access to all spaces and pages that your user account can see. Make sure your account has appropriate permissions for the spaces you want to index.
+											The API Token will have access to all spaces and pages that your user account
+											can see. Make sure your account has appropriate permissions for the spaces you
+											want to index.
 										</p>
 										<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 											<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 											<AlertTitle className="text-[10px] sm:text-xs">Data Privacy</AlertTitle>
 											<AlertDescription className="text-[9px] sm:text-[10px]">
-												Only pages, comments, and basic metadata will be indexed. Confluence attachments and linked files are not indexed by this connector.
+												Only pages, comments, and basic metadata will be indexed. Confluence
+												attachments and linked files are not indexed by this connector.
 											</AlertDescription>
 										</Alert>
 									</div>
@@ -364,10 +407,12 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Indexing</h3>
 								<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
 									<li>
-										Navigate to the Connector Dashboard and select the <strong>Confluence</strong> Connector.
+										Navigate to the Connector Dashboard and select the <strong>Confluence</strong>{" "}
+										Connector.
 									</li>
 									<li>
-										Enter your <strong>Confluence Instance URL</strong> (e.g., https://yourcompany.atlassian.net)
+										Enter your <strong>Confluence Instance URL</strong> (e.g.,
+										https://yourcompany.atlassian.net)
 									</li>
 									<li>
 										Enter your <strong>Email Address</strong> associated with your Atlassian account
@@ -402,4 +447,3 @@ export const ConfluenceConnectForm: FC<ConnectFormProps> = ({
 		</div>
 	);
 };
-

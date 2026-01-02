@@ -204,4 +204,3 @@ export const ThinkingStepsScrollHandler: FC = () => {
 
 	return null; // This component doesn't render anything
 };
-

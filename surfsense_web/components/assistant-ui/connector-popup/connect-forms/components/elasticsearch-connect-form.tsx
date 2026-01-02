@@ -73,10 +73,7 @@ const elasticsearchConnectorFormSchema = z
 
 type ElasticsearchConnectorFormValues = z.infer<typeof elasticsearchConnectorFormSchema>;
 
-export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
-	onSubmit,
-	isSubmitting,
-}) => {
+export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const authBasicId = useId();
 	const authApiKeyId = useId();
@@ -187,7 +184,11 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="elasticsearch-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form
+						id="elasticsearch-connect-form"
+						onSubmit={form.handleSubmit(handleSubmit)}
+						className="space-y-4 sm:space-y-6"
+					>
 						<FormField
 							control={form.control}
 							name="name"
@@ -195,11 +196,11 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="My Elasticsearch Connector" 
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="My Elasticsearch Connector"
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -231,7 +232,8 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 											/>
 										</FormControl>
 										<FormDescription className="text-[10px] sm:text-xs">
-											Enter the complete Elasticsearch endpoint URL. We'll automatically extract the hostname, port, and SSL settings.
+											Enter the complete Elasticsearch endpoint URL. We'll automatically extract the
+											hostname, port, and SSL settings.
 										</FormDescription>
 										<FormMessage />
 									</FormItem>
@@ -241,7 +243,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 							{/* Show parsed URL details */}
 							{form.watch("endpoint_url") && (
 								<div className="rounded-lg border border-border bg-muted/50 p-3">
-									<h4 className="text-[10px] sm:text-xs font-medium mb-2">Parsed Connection Details:</h4>
+									<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+										Parsed Connection Details:
+									</h4>
 									<div className="text-[10px] sm:text-xs text-muted-foreground space-y-1">
 										{(() => {
 											try {
@@ -305,7 +309,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 															<div className="h-2.5 w-2.5 rounded-full bg-current" />
 														</RadioGroup.Indicator>
 													</RadioGroup.Item>
-													<Label htmlFor={authApiKeyId} className="text-xs sm:text-sm">API Key</Label>
+													<Label htmlFor={authApiKeyId} className="text-xs sm:text-sm">
+														API Key
+													</Label>
 												</div>
 
 												<div className="flex items-center space-x-2">
@@ -318,7 +324,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 															<div className="h-2.5 w-2.5 rounded-full bg-current" />
 														</RadioGroup.Indicator>
 													</RadioGroup.Item>
-													<Label htmlFor={authBasicId} className="text-xs sm:text-sm">Username & Password</Label>
+													<Label htmlFor={authBasicId} className="text-xs sm:text-sm">
+														Username & Password
+													</Label>
 												</div>
 											</RadioGroup.Root>
 										</FormControl>
@@ -337,12 +345,12 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 											<FormItem>
 												<FormLabel className="text-xs sm:text-sm">Username</FormLabel>
 												<FormControl>
-													<Input 
-														placeholder="elastic" 
-														autoComplete="username" 
+													<Input
+														placeholder="elastic"
+														autoComplete="username"
 														className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 														disabled={isSubmitting}
-														{...field} 
+														{...field}
 													/>
 												</FormControl>
 												<FormMessage />
@@ -392,7 +400,8 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 												/>
 											</FormControl>
 											<FormDescription className="text-[10px] sm:text-xs">
-												Enter your Elasticsearch API key (base64 encoded). This will be stored securely.
+												Enter your Elasticsearch API key (base64 encoded). This will be stored
+												securely.
 											</FormDescription>
 											<FormMessage />
 										</FormItem>
@@ -409,11 +418,11 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Index Selection</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="logs-*, documents-*, app-logs" 
+										<Input
+											placeholder="logs-*, documents-*, app-logs"
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -454,7 +463,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 						{/* Advanced Configuration */}
 						<Accordion type="single" collapsible className="w-full">
 							<AccordionItem value="advanced">
-								<AccordionTrigger className="text-xs sm:text-sm">Advanced Configuration</AccordionTrigger>
+								<AccordionTrigger className="text-xs sm:text-sm">
+									Advanced Configuration
+								</AccordionTrigger>
 								<AccordionContent className="space-y-4">
 									{/* Default Search Query */}
 									<FormField
@@ -467,15 +478,16 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 													<span className="text-muted-foreground">(Optional)</span>
 												</FormLabel>
 												<FormControl>
-													<Input 
-														placeholder="*" 
+													<Input
+														placeholder="*"
 														className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 														disabled={isSubmitting}
-														{...field} 
+														{...field}
 													/>
 												</FormControl>
 												<FormDescription className="text-[10px] sm:text-xs">
-													Default Elasticsearch query to use for searches. Use "*" to match all documents.
+													Default Elasticsearch query to use for searches. Use "*" to match all
+													documents.
 												</FormDescription>
 												<FormMessage />
 											</FormItem>
@@ -489,19 +501,19 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 										render={({ field }) => (
 											<FormItem>
 												<FormLabel className="text-xs sm:text-sm">
-													Search Fields{" "}
-													<span className="text-muted-foreground">(Optional)</span>
+													Search Fields <span className="text-muted-foreground">(Optional)</span>
 												</FormLabel>
 												<FormControl>
-													<Input 
-														placeholder="title, content, description" 
+													<Input
+														placeholder="title, content, description"
 														className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 														disabled={isSubmitting}
-														{...field} 
+														{...field}
 													/>
 												</FormControl>
 												<FormDescription className="text-[10px] sm:text-xs">
-													Comma-separated list of specific fields to search in (e.g., "title, content, description"). Leave empty to search all fields.
+													Comma-separated list of specific fields to search in (e.g., "title,
+													content, description"). Leave empty to search all fields.
 												</FormDescription>
 												<FormMessage />
 											</FormItem>
@@ -542,15 +554,14 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 														{...field}
 														onChange={(e) =>
 															field.onChange(
-																e.target.value === ""
-																	? undefined
-																	: parseInt(e.target.value, 10)
+																e.target.value === "" ? undefined : parseInt(e.target.value, 10)
 															)
 														}
 													/>
 												</FormControl>
 												<FormDescription className="text-[10px] sm:text-xs">
-													Maximum number of documents to retrieve per search (1-10,000). Leave empty to use Elasticsearch's default limit.
+													Maximum number of documents to retrieve per search (1-10,000). Leave empty
+													to use Elasticsearch's default limit.
 												</FormDescription>
 												<FormMessage />
 											</FormItem>
@@ -563,7 +574,7 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 						{/* Indexing Configuration */}
 						<div className="space-y-4 pt-4 border-t border-slate-400/20">
 							<h3 className="text-sm sm:text-base font-medium">Indexing Configuration</h3>
-							
+
 							{/* Date Range Selector */}
 							<DateRangeSelector
 								startDate={startDate}
@@ -581,14 +592,24 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 											Automatically re-index at regular intervals
 										</p>
 									</div>
-									<Switch checked={periodicEnabled} onCheckedChange={setPeriodicEnabled} disabled={isSubmitting} />
+									<Switch
+										checked={periodicEnabled}
+										onCheckedChange={setPeriodicEnabled}
+										disabled={isSubmitting}
+									/>
 								</div>
 
 								{periodicEnabled && (
 									<div className="mt-4 pt-4 border-t border-slate-400/20 space-y-3">
 										<div className="space-y-2">
-											<Label htmlFor="frequency" className="text-xs sm:text-sm">Sync Frequency</Label>
-											<Select value={frequencyMinutes} onValueChange={setFrequencyMinutes} disabled={isSubmitting}>
+											<Label htmlFor="frequency" className="text-xs sm:text-sm">
+												Sync Frequency
+											</Label>
+											<Select
+												value={frequencyMinutes}
+												onValueChange={setFrequencyMinutes}
+												disabled={isSubmitting}
+											>
 												<SelectTrigger
 													id="frequency"
 													className="w-full bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 text-xs sm:text-sm"
@@ -596,12 +617,24 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 													<SelectValue placeholder="Select frequency" />
 												</SelectTrigger>
 												<SelectContent className="z-[100]">
-													<SelectItem value="15" className="text-xs sm:text-sm">Every 15 minutes</SelectItem>
-													<SelectItem value="60" className="text-xs sm:text-sm">Every hour</SelectItem>
-													<SelectItem value="360" className="text-xs sm:text-sm">Every 6 hours</SelectItem>
-													<SelectItem value="720" className="text-xs sm:text-sm">Every 12 hours</SelectItem>
-													<SelectItem value="1440" className="text-xs sm:text-sm">Daily</SelectItem>
-													<SelectItem value="10080" className="text-xs sm:text-sm">Weekly</SelectItem>
+													<SelectItem value="15" className="text-xs sm:text-sm">
+														Every 15 minutes
+													</SelectItem>
+													<SelectItem value="60" className="text-xs sm:text-sm">
+														Every hour
+													</SelectItem>
+													<SelectItem value="360" className="text-xs sm:text-sm">
+														Every 6 hours
+													</SelectItem>
+													<SelectItem value="720" className="text-xs sm:text-sm">
+														Every 12 hours
+													</SelectItem>
+													<SelectItem value="1440" className="text-xs sm:text-sm">
+														Daily
+													</SelectItem>
+													<SelectItem value="10080" className="text-xs sm:text-sm">
+														Weekly
+													</SelectItem>
 												</SelectContent>
 											</Select>
 										</div>
@@ -616,7 +649,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 			{/* What you get section */}
 			{getConnectorBenefits(EnumConnectorName.ELASTICSEARCH_CONNECTOR) && (
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 px-3 sm:px-6 py-4 space-y-2">
-					<h4 className="text-xs sm:text-sm font-medium">What you get with Elasticsearch integration:</h4>
+					<h4 className="text-xs sm:text-sm font-medium">
+						What you get with Elasticsearch integration:
+					</h4>
 					<ul className="list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 						{getConnectorBenefits(EnumConnectorName.ELASTICSEARCH_CONNECTOR)?.map((benefit) => (
 							<li key={benefit}>{benefit}</li>
@@ -626,7 +661,11 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 			)}
 
 			{/* Documentation Section */}
-			<Accordion type="single" collapsible className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5">
+			<Accordion
+				type="single"
+				collapsible
+				className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5"
+			>
 				<AccordionItem value="documentation" className="border-0">
 					<AccordionTrigger className="text-sm sm:text-base font-medium px-3 sm:px-6 no-underline hover:no-underline">
 						Documentation
@@ -635,7 +674,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 						<div>
 							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The Elasticsearch connector allows you to search and retrieve documents from your Elasticsearch cluster. Configure connection details, select specific indices, and set search parameters to make your existing data searchable within SurfSense.
+								The Elasticsearch connector allows you to search and retrieve documents from your
+								Elasticsearch cluster. Configure connection details, select specific indices, and
+								set search parameters to make your existing data searchable within SurfSense.
 							</p>
 						</div>
 
@@ -644,43 +685,73 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Connection Setup</h3>
 								<div className="space-y-4 sm:space-y-6">
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Get your Elasticsearch endpoint</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 1: Get your Elasticsearch endpoint
+										</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											You'll need the endpoint URL for your Elasticsearch cluster. This typically looks like:
+											You'll need the endpoint URL for your Elasticsearch cluster. This typically
+											looks like:
 										</p>
 										<ul className="list-disc pl-5 space-y-1 text-[10px] sm:text-xs text-muted-foreground mb-4">
-											<li>Cloud: <code className="bg-muted px-1 py-0.5 rounded">https://your-cluster.es.region.aws.com:443</code></li>
-											<li>Self-hosted: <code className="bg-muted px-1 py-0.5 rounded">https://elasticsearch.example.com:9200</code></li>
+											<li>
+												Cloud:{" "}
+												<code className="bg-muted px-1 py-0.5 rounded">
+													https://your-cluster.es.region.aws.com:443
+												</code>
+											</li>
+											<li>
+												Self-hosted:{" "}
+												<code className="bg-muted px-1 py-0.5 rounded">
+													https://elasticsearch.example.com:9200
+												</code>
+											</li>
 										</ul>
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Configure authentication</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 2: Configure authentication
+										</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
 											Elasticsearch requires authentication. You can use either:
 										</p>
 										<ul className="list-disc pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
 											<li>
-												<strong>API Key:</strong> A base64-encoded API key. You can create one in Elasticsearch by running:
+												<strong>API Key:</strong> A base64-encoded API key. You can create one in
+												Elasticsearch by running:
 												<pre className="bg-muted p-2 rounded mt-1 text-[9px] overflow-x-auto">
 													<code>POST /_security/api_key</code>
 												</pre>
 											</li>
 											<li>
-												<strong>Username & Password:</strong> Basic authentication using your Elasticsearch username and password.
+												<strong>Username & Password:</strong> Basic authentication using your
+												Elasticsearch username and password.
 											</li>
 										</ul>
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 3: Select indices</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 3: Select indices
+										</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
 											Specify which indices to search. You can:
 										</p>
 										<ul className="list-disc pl-5 space-y-1 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Use wildcards: <code className="bg-muted px-1 py-0.5 rounded">logs-*</code> to match multiple indices</li>
-											<li>List specific indices: <code className="bg-muted px-1 py-0.5 rounded">logs-2024, documents-2024</code></li>
-											<li>Leave empty to search all accessible indices (not recommended for performance)</li>
+											<li>
+												Use wildcards: <code className="bg-muted px-1 py-0.5 rounded">logs-*</code>{" "}
+												to match multiple indices
+											</li>
+											<li>
+												List specific indices:{" "}
+												<code className="bg-muted px-1 py-0.5 rounded">
+													logs-2024, documents-2024
+												</code>
+											</li>
+											<li>
+												Leave empty to search all accessible indices (not recommended for
+												performance)
+											</li>
 										</ul>
 									</div>
 								</div>
@@ -694,19 +765,30 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 									<div>
 										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Search Query</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-2">
-											The default query used for searches. Use <code className="bg-muted px-1 py-0.5 rounded">*</code> to match all documents, or specify a more complex Elasticsearch query.
+											The default query used for searches. Use{" "}
+											<code className="bg-muted px-1 py-0.5 rounded">*</code> to match all
+											documents, or specify a more complex Elasticsearch query.
 										</p>
 									</div>
 
 									<div>
 										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Search Fields</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-2">
-											Limit searches to specific fields for better performance. Common fields include:
+											Limit searches to specific fields for better performance. Common fields
+											include:
 										</p>
 										<ul className="list-disc pl-5 space-y-1 text-[10px] sm:text-xs text-muted-foreground">
-											<li><code className="bg-muted px-1 py-0.5 rounded">title</code> - Document titles</li>
-											<li><code className="bg-muted px-1 py-0.5 rounded">content</code> - Main content</li>
-											<li><code className="bg-muted px-1 py-0.5 rounded">description</code> - Descriptions</li>
+											<li>
+												<code className="bg-muted px-1 py-0.5 rounded">title</code> - Document
+												titles
+											</li>
+											<li>
+												<code className="bg-muted px-1 py-0.5 rounded">content</code> - Main content
+											</li>
+											<li>
+												<code className="bg-muted px-1 py-0.5 rounded">description</code> -
+												Descriptions
+											</li>
 										</ul>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
 											Leave empty to search all fields in your documents.
@@ -716,7 +798,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 									<div>
 										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Maximum Documents</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground">
-											Set a limit on the number of documents retrieved per search (1-10,000). This helps control response times and resource usage. Leave empty to use Elasticsearch's default limit.
+											Set a limit on the number of documents retrieved per search (1-10,000). This
+											helps control response times and resource usage. Leave empty to use
+											Elasticsearch's default limit.
 										</p>
 									</div>
 								</div>
@@ -731,28 +815,38 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Connection Issues</h4>
 										<ul className="list-disc pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
 											<li>
-												<strong>Invalid URL:</strong> Ensure your endpoint URL includes the protocol (https://) and port number if required.
+												<strong>Invalid URL:</strong> Ensure your endpoint URL includes the protocol
+												(https://) and port number if required.
 											</li>
 											<li>
-												<strong>SSL/TLS Errors:</strong> Verify that your cluster uses HTTPS and the certificate is valid. Self-signed certificates may require additional configuration.
+												<strong>SSL/TLS Errors:</strong> Verify that your cluster uses HTTPS and the
+												certificate is valid. Self-signed certificates may require additional
+												configuration.
 											</li>
 											<li>
-												<strong>Connection Timeout:</strong> Check your network connectivity and firewall settings. Ensure the Elasticsearch cluster is accessible from SurfSense servers.
+												<strong>Connection Timeout:</strong> Check your network connectivity and
+												firewall settings. Ensure the Elasticsearch cluster is accessible from
+												SurfSense servers.
 											</li>
 										</ul>
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Authentication Issues</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Authentication Issues
+										</h4>
 										<ul className="list-disc pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
 											<li>
-												<strong>Invalid Credentials:</strong> Double-check your username/password or API key. API keys must be base64-encoded.
+												<strong>Invalid Credentials:</strong> Double-check your username/password or
+												API key. API keys must be base64-encoded.
 											</li>
 											<li>
-												<strong>Permission Denied:</strong> Ensure your API key or user account has read permissions for the indices you want to search.
+												<strong>Permission Denied:</strong> Ensure your API key or user account has
+												read permissions for the indices you want to search.
 											</li>
 											<li>
-												<strong>API Key Format:</strong> Elasticsearch API keys are typically base64-encoded strings. Make sure you're using the full key value.
+												<strong>API Key Format:</strong> Elasticsearch API keys are typically
+												base64-encoded strings. Make sure you're using the full key value.
 											</li>
 										</ul>
 									</div>
@@ -761,13 +855,16 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Search Issues</h4>
 										<ul className="list-disc pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
 											<li>
-												<strong>No Results:</strong> Verify that your index selection matches existing indices. Use wildcards carefully.
+												<strong>No Results:</strong> Verify that your index selection matches
+												existing indices. Use wildcards carefully.
 											</li>
 											<li>
-												<strong>Slow Searches:</strong> Limit the number of indices or use specific index names instead of wildcards. Reduce the maximum documents limit.
+												<strong>Slow Searches:</strong> Limit the number of indices or use specific
+												index names instead of wildcards. Reduce the maximum documents limit.
 											</li>
 											<li>
-												<strong>Field Not Found:</strong> Ensure the search fields you specify actually exist in your Elasticsearch documents.
+												<strong>Field Not Found:</strong> Ensure the search fields you specify
+												actually exist in your Elasticsearch documents.
 											</li>
 										</ul>
 									</div>
@@ -776,7 +873,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 										<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 										<AlertTitle className="text-[10px] sm:text-xs">Need More Help?</AlertTitle>
 										<AlertDescription className="text-[9px] sm:text-[10px]">
-											If you continue to experience issues, check your Elasticsearch cluster logs and ensure your cluster version is compatible. For Elasticsearch Cloud deployments, verify your access policies and IP allowlists.
+											If you continue to experience issues, check your Elasticsearch cluster logs
+											and ensure your cluster version is compatible. For Elasticsearch Cloud
+											deployments, verify your access policies and IP allowlists.
 										</AlertDescription>
 									</Alert>
 								</div>
@@ -788,4 +887,3 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({
 		</div>
 	);
 };
-

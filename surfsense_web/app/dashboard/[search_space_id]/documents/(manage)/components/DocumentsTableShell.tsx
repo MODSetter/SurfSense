@@ -2,9 +2,10 @@
 
 import { ChevronDown, ChevronUp, FileX, Plus } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { DocumentViewer } from "@/components/document-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,9 +70,9 @@ export function DocumentsTableShell({
 	onSortChange: (key: SortKey) => void;
 }) {
 	const t = useTranslations("documents");
-	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id;
+	const { openDialog } = useDocumentUploadDialog();
 
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
@@ -137,19 +138,16 @@ export function DocumentsTableShell({
 						<div className="rounded-full bg-muted p-4">
 							<FileX className="h-8 w-8 text-muted-foreground" />
 						</div>
-					<div className="space-y-2">
-						<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
-						<p className="text-sm text-muted-foreground">
-							Get started by uploading your first document.
-						</p>
-					</div>
-					<Button
-						onClick={() => router.push(`/dashboard/${searchSpaceId}/documents/upload`)}
-						className="mt-2"
-					>
-						<Plus className="mr-2 h-4 w-4" />
-						Upload Documents
-					</Button>
+						<div className="space-y-2">
+							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+							<p className="text-sm text-muted-foreground">
+								Get started by uploading your first document.
+							</p>
+						</div>
+						<Button onClick={openDialog} className="mt-2">
+							<Plus className="mr-2 h-4 w-4" />
+							Upload Documents
+						</Button>
 					</motion.div>
 				</div>
 			) : (

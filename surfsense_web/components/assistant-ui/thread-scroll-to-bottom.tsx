@@ -16,4 +16,3 @@ export const ThreadScrollToBottom: FC = () => {
 		</ThreadPrimitive.ScrollToBottom>
 	);
 };
-

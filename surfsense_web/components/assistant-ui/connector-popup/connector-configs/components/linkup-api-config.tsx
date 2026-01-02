@@ -16,9 +16,7 @@ export const LinkupApiConfig: FC<LinkupApiConfigProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
-	const [apiKey, setApiKey] = useState<string>(
-		(connector.config?.LINKUP_API_KEY as string) || ""
-	);
+	const [apiKey, setApiKey] = useState<string>((connector.config?.LINKUP_API_KEY as string) || "");
 	const [name, setName] = useState<string>(connector.name || "");
 
 	// Update API key and name when connector changes
@@ -89,4 +87,3 @@ export const LinkupApiConfig: FC<LinkupApiConfigProps> = ({
 		</div>
 	);
 };
-

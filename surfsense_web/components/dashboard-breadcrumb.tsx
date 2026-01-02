@@ -97,7 +97,6 @@ export function DashboardBreadcrumb() {
 				const sectionLabels: Record<string, string> = {
 					"new-chat": t("chat") || "Chat",
 					documents: t("documents"),
-					connectors: t("connectors"),
 					logs: t("logs"),
 					settings: t("settings"),
 					editor: t("editor"),
@@ -156,62 +155,12 @@ export function DashboardBreadcrumb() {
 						return breadcrumbs;
 					}
 
-					// Handle connector sub-sections
-					if (section === "connectors") {
-						// Handle specific connector types
-						if (subSection === "add" && segments[4]) {
-							const connectorType = segments[4];
-							const connectorLabels: Record<string, string> = {
-								"github-connector": "GitHub",
-								"jira-connector": "Jira",
-								"confluence-connector": "Confluence",
-								"bookstack-connector": "BookStack",
-								"discord-connector": "Discord",
-								"linear-connector": "Linear",
-								"clickup-connector": "ClickUp",
-								"slack-connector": "Slack",
-								"notion-connector": "Notion",
-								"tavily-api": "Tavily API",
-								"linkup-api": "LinkUp API",
-								"luma-connector": "Luma",
-								"elasticsearch-connector": "Elasticsearch",
-							};
-
-							const connectorLabel = connectorLabels[connectorType] || connectorType;
-							breadcrumbs.push({
-								label: "Connectors",
-								href: `/dashboard/${segments[1]}/connectors`,
-							});
-							breadcrumbs.push({
-								label: "Add Connector",
-								href: `/dashboard/${segments[1]}/connectors/add`,
-							});
-							breadcrumbs.push({ label: connectorLabel });
-							return breadcrumbs;
-						}
-
-						const connectorLabels: Record<string, string> = {
-							add: t("add_connector"),
-							manage: t("manage_connectors"),
-						};
-
-						const connectorLabel = connectorLabels[subSection] || subSection;
-						breadcrumbs.push({
-							label: t("connectors"),
-							href: `/dashboard/${segments[1]}/connectors`,
-						});
-						breadcrumbs.push({ label: connectorLabel });
-						return breadcrumbs;
-					}
-
 					// Handle other sub-sections
 					let subSectionLabel = subSection.charAt(0).toUpperCase() + subSection.slice(1);
 					const subSectionLabels: Record<string, string> = {
 						upload: t("upload_documents"),
 						youtube: t("add_youtube"),
 						webpage: t("add_webpages"),
-						add: t("add_connector"),
-						edit: t("edit_connector"),
 						manage: t("manage"),
 					};
 

@@ -32,10 +32,7 @@ const tavilyApiFormSchema = z.object({
 
 type TavilyApiFormValues = z.infer<typeof tavilyApiFormSchema>;
 
-export const TavilyApiConnectForm: FC<ConnectFormProps> = ({
-	onSubmit,
-	isSubmitting,
-}) => {
+export const TavilyApiConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const form = useForm<TavilyApiFormValues>({
 		resolver: zodResolver(tavilyApiFormSchema),
@@ -92,7 +89,11 @@ export const TavilyApiConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="tavily-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form
+						id="tavily-connect-form"
+						onSubmit={form.handleSubmit(handleSubmit)}
+						className="space-y-4 sm:space-y-6"
+					>
 						<FormField
 							control={form.control}
 							name="name"
@@ -100,11 +101,11 @@ export const TavilyApiConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="My Tavily API Connector" 
-											className="border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="My Tavily API Connector"
+											className="border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -122,12 +123,12 @@ export const TavilyApiConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Tavily API Key</FormLabel>
 									<FormControl>
-										<Input 
-											type="password" 
-											placeholder="Enter your Tavily API key" 
+										<Input
+											type="password"
+											placeholder="Enter your Tavily API key"
 											className="border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -155,4 +156,3 @@ export const TavilyApiConnectForm: FC<ConnectFormProps> = ({
 		</div>
 	);
 };
-

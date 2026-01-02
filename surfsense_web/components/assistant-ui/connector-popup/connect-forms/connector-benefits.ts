@@ -112,4 +112,3 @@ export function getConnectorBenefits(connectorType: string): string[] | null {
 
 	return benefits[connectorType] || null;
 }
-

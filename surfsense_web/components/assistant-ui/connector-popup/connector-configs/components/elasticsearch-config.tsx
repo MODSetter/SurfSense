@@ -271,7 +271,9 @@ export const ElasticsearchConfig: FC<ElasticsearchConfigProps> = ({
 									<div className="h-2.5 w-2.5 rounded-full bg-current" />
 								</RadioGroup.Indicator>
 							</RadioGroup.Item>
-							<Label htmlFor={authApiKeyId} className="text-xs sm:text-sm">API Key</Label>
+							<Label htmlFor={authApiKeyId} className="text-xs sm:text-sm">
+								API Key
+							</Label>
 						</div>
 
 						<div className="flex items-center space-x-2">
@@ -284,7 +286,9 @@ export const ElasticsearchConfig: FC<ElasticsearchConfigProps> = ({
 									<div className="h-2.5 w-2.5 rounded-full bg-current" />
 								</RadioGroup.Indicator>
 							</RadioGroup.Item>
-							<Label htmlFor={authBasicId} className="text-xs sm:text-sm">Username & Password</Label>
+							<Label htmlFor={authBasicId} className="text-xs sm:text-sm">
+								Username & Password
+							</Label>
 						</div>
 					</RadioGroup.Root>
 
@@ -435,4 +439,3 @@ export const ElasticsearchConfig: FC<ElasticsearchConfigProps> = ({
 		</div>
 	);
 };
-

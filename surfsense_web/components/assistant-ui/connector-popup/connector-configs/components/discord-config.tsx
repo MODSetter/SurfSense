@@ -89,4 +89,3 @@ export const DiscordConfig: FC<DiscordConfigProps> = ({
 		</div>
 	);
 };
-

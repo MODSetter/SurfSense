@@ -1,16 +1,9 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import type { FC } from "react";
-import {
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import {
-	TabsList,
-	TabsTrigger,
-} from "@/components/ui/tabs";
+import { DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 interface ConnectorDialogHeaderProps {
@@ -74,14 +67,26 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 						<input
 							type="text"
 							placeholder="Search"
-							className="w-full bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 pr-4 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50"
+							className={cn(
+								"w-full bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 focus:bg-slate-400/10 dark:focus:bg-white/10 border border-border rounded-xl pl-9 py-2 text-sm transition-all outline-none placeholder:text-muted-foreground/50",
+								searchQuery ? "pr-9" : "pr-4"
+							)}
 							value={searchQuery}
 							onChange={(e) => onSearchChange(e.target.value)}
 						/>
+						{searchQuery && (
+							<button
+								type="button"
+								onClick={() => onSearchChange("")}
+								className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+								aria-label="Clear search"
+							>
+								<X className="size-4" />
+							</button>
+						)}
 					</div>
 				</div>
 			</div>
 		</div>
 	);
 };
-

@@ -43,13 +43,16 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 		<div className="rounded-xl bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
 			<h3 className="font-medium text-sm sm:text-base mb-4">Select Date Range</h3>
 			<p className="text-xs sm:text-sm text-muted-foreground mb-6">
-				Choose how far back you want to sync your data. You can always re-index later with different dates.
+				Choose how far back you want to sync your data. You can always re-index later with different
+				dates.
 			</p>
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				{/* Start Date */}
 				<div className="space-y-2">
-					<Label htmlFor="start-date" className="text-xs sm:text-sm">Start Date</Label>
+					<Label htmlFor="start-date" className="text-xs sm:text-sm">
+						Start Date
+					</Label>
 					<Popover>
 						<PopoverTrigger asChild>
 							<Button
@@ -77,7 +80,9 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 
 				{/* End Date */}
 				<div className="space-y-2">
-					<Label htmlFor="end-date" className="text-xs sm:text-sm">End Date</Label>
+					<Label htmlFor="end-date" className="text-xs sm:text-sm">
+						End Date
+					</Label>
 					<Popover>
 						<PopoverTrigger asChild>
 							<Button
@@ -137,4 +142,3 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 		</div>
 	);
 };
-

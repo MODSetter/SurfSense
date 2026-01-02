@@ -8,10 +8,7 @@ import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
-import {
-	ComposerAddAttachment,
-	ComposerAttachments,
-} from "@/components/assistant-ui/attachment";
+import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
 import { ComposerAction } from "@/components/assistant-ui/composer-action";
 import {
 	InlineMentionEditor,
@@ -237,4 +234,3 @@ export const Composer: FC = () => {
 		</ComposerPrimitive.Root>
 	);
 };
-

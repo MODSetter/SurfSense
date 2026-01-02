@@ -26,15 +26,7 @@ import {
 	SquareIcon,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import {
-	type FC,
-	useCallback,
-	useContext,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
 	mentionedDocumentIdsAtom,

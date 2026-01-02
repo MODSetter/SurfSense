@@ -126,17 +126,17 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 
 			{/* Fixed Footer - Action buttons */}
 			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted border-t border-border">
-				<Button 
-					variant="ghost" 
-					onClick={onBack} 
-					disabled={isSubmitting} 
+				<Button
+					variant="ghost"
+					onClick={onBack}
+					disabled={isSubmitting}
 					className="text-xs sm:text-sm"
 				>
 					Cancel
 				</Button>
-				<Button 
-					onClick={handleFormSubmit} 
-					disabled={isSubmitting} 
+				<Button
+					onClick={handleFormSubmit}
+					disabled={isSubmitting}
 					className="text-xs sm:text-sm min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
 				>
 					{isSubmitting ? (
@@ -145,13 +145,10 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 							Connecting...
 						</>
 					) : (
-						<>
-							Connect {getConnectorTypeDisplay(connectorType)}
-						</>
+						<>Connect {getConnectorTypeDisplay(connectorType)}</>
 					)}
 				</Button>
 			</div>
 		</div>
 	);
 };
-

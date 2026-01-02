@@ -69,4 +69,3 @@ export const ThreadWelcome: FC = () => {
 		</div>
 	);
 };
-

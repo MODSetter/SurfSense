@@ -3,8 +3,6 @@
 import type React from "react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 
-type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
-
 export function getDocumentTypeIcon(type: string): React.ReactNode {
 	return getConnectorIcon(type);
 }

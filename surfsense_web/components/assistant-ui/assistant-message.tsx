@@ -9,7 +9,10 @@ import { CheckIcon, CopyIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
 import { useContext } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ThinkingStepsContext, ThinkingStepsDisplay } from "@/components/assistant-ui/thinking-steps";
+import {
+	ThinkingStepsContext,
+	ThinkingStepsDisplay,
+} from "@/components/assistant-ui/thinking-steps";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { BranchPicker } from "@/components/assistant-ui/branch-picker";
@@ -115,4 +118,3 @@ const AssistantActionBar: FC = () => {
 		</ActionBarPrimitive.Root>
 	);
 };
-

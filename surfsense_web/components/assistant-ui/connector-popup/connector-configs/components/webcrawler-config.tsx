@@ -10,14 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ConnectorConfigProps } from "../index";
 
-export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({
-	connector,
-	onConfigChange,
-}) => {
+export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
 	// Initialize with existing config values
 	const existingApiKey = (connector.config?.FIRECRAWL_API_KEY as string | undefined) || "";
 	const existingUrls = (connector.config?.INITIAL_URLS as string | undefined) || "";
-	
+
 	const [apiKey, setApiKey] = useState(existingApiKey);
 	const [initialUrls, setInitialUrls] = useState(existingUrls);
 	const [showApiKey, setShowApiKey] = useState(false);
@@ -43,9 +40,11 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({
 	const handleUrlsChange = (value: string) => {
 		setInitialUrls(value);
 		if (onConfigChange) {
+			// Preserve newlines for multi-line URL input
+			// Backend will handle trimming individual URLs when splitting by newline
 			onConfigChange({
 				...connector.config,
-				INITIAL_URLS: value.trim() || undefined,
+				INITIAL_URLS: value || undefined,
 			});
 		}
 	};
@@ -55,7 +54,8 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({
 			<div className="space-y-1 sm:space-y-2">
 				<h3 className="font-medium text-sm sm:text-base">Web Crawler Configuration</h3>
 				<p className="text-xs sm:text-sm text-muted-foreground">
-					Configure your web crawler settings. You can add a Firecrawl API key for enhanced crawling or use the free fallback option.
+					Configure your web crawler settings. You can add a Firecrawl API key for enhanced crawling
+					or use the free fallback option.
 				</p>
 			</div>
 
@@ -118,10 +118,10 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({
 			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center gap-2 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
 				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
 				<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-					Configuration is saved when you start indexing. You can update these settings anytime from the connector management page.
+					Configuration is saved when you start indexing. You can update these settings anytime from
+					the connector management page.
 				</AlertDescription>
 			</Alert>
 		</div>
 	);
 };
-

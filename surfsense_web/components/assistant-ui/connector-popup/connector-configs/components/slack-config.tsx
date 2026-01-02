@@ -11,11 +11,7 @@ export interface SlackConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
-export const SlackConfig: FC<SlackConfigProps> = ({
-	connector,
-	onConfigChange,
-	onNameChange,
-}) => {
+export const SlackConfig: FC<SlackConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
 	const [botToken, setBotToken] = useState<string>(
 		(connector.config?.SLACK_BOT_TOKEN as string) || ""
 	);
@@ -89,4 +85,3 @@ export const SlackConfig: FC<SlackConfigProps> = ({
 		</div>
 	);
 };
-

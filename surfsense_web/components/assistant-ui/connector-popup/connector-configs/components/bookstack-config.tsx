@@ -148,4 +148,3 @@ export const BookStackConfig: FC<BookStackConfigProps> = ({
 		</div>
 	);
 };
-

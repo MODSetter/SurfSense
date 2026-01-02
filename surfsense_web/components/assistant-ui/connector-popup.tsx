@@ -10,14 +10,8 @@ import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-quer
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
-import {
-	Dialog,
-	DialogContent,
-} from "@/components/ui/dialog";
-import {
-	Tabs,
-	TabsContent,
-} from "@/components/ui/tabs";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
@@ -35,19 +29,15 @@ export const ConnectorIndicator: FC = () => {
 	const searchParams = useSearchParams();
 	const { data: documentTypeCounts, isLoading: documentTypesLoading } =
 		useAtomValue(documentTypeCountsAtom);
-	
+
 	// Check if YouTube view is active
 	const isYouTubeView = searchParams.get("view") === "youtube";
 
 	// Track active indexing tasks
-	const { summary: logsSummary } = useLogsSummary(
-		searchSpaceId ? Number(searchSpaceId) : 0,
-		24,
-		{
-			enablePolling: true,
-			refetchInterval: 5000,
-		}
-	);
+	const { summary: logsSummary } = useLogsSummary(searchSpaceId ? Number(searchSpaceId) : 0, 24, {
+		enablePolling: true,
+		refetchInterval: 5000,
+	});
 
 	// Use the custom hook for dialog state management
 	const {
@@ -91,6 +81,7 @@ export const ConnectorIndicator: FC = () => {
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,
+		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,
@@ -159,6 +150,7 @@ export const ConnectorIndicator: FC = () => {
 	const hasConnectors = connectors.length > 0;
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
 	const totalSourceCount = connectors.length + activeDocumentTypes.length;
+	const activeConnectorsCount = connectors.length; // Only actual connectors, not document types
 
 	// Check which connectors are already connected
 	const connectedTypes = new Set(
@@ -170,7 +162,7 @@ export const ConnectorIndicator: FC = () => {
 	return (
 		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 			<TooltipIconButton
-				tooltip={hasSources ? `Manage ${totalSourceCount} sources` : "Connect your data"}
+				tooltip={hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"}
 				side="bottom"
 				className={cn(
 					"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors relative",
@@ -179,7 +171,7 @@ export const ConnectorIndicator: FC = () => {
 					"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none"
 				)}
 				aria-label={
-					hasSources ? `View ${totalSourceCount} connected sources` : "Add your first connector"
+					hasConnectors ? `View ${activeConnectorsCount} connectors` : "Add your first connector"
 				}
 				onClick={() => handleOpenChange(true)}
 			>
@@ -188,9 +180,9 @@ export const ConnectorIndicator: FC = () => {
 				) : (
 					<>
 						<Cable className="size-4 stroke-[1.5px]" />
-						{totalSourceCount > 0 && (
+						{activeConnectorsCount > 0 && (
 							<span className="absolute -top-0.5 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm">
-								{totalSourceCount > 99 ? "99+" : totalSourceCount}
+								{activeConnectorsCount > 99 ? "99+" : activeConnectorsCount}
 							</span>
 						)}
 					</>
@@ -200,10 +192,7 @@ export const ConnectorIndicator: FC = () => {
 			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
-					<YouTubeCrawlerView
-						searchSpaceId={searchSpaceId}
-						onBack={handleBackFromYouTube}
-					/>
+					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
 				) : connectingConnectorType ? (
 					<ConnectorConnectView
 						connectorType={connectingConnectorType}
@@ -224,6 +213,7 @@ export const ConnectorIndicator: FC = () => {
 						frequencyMinutes={frequencyMinutes}
 						isSaving={isSaving}
 						isDisconnecting={isDisconnecting}
+						isIndexing={indexingConnectorIds.has(editingConnector.id)}
 						onStartDateChange={setStartDate}
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
@@ -231,16 +221,25 @@ export const ConnectorIndicator: FC = () => {
 						onSave={() => handleSaveConnector(() => refreshConnectors())}
 						onDisconnect={() => handleDisconnectConnector(() => refreshConnectors())}
 						onBack={handleBackFromEdit}
+						onQuickIndex={
+							editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
+								? () => handleQuickIndexConnector(editingConnector.id)
+								: undefined
+						}
 						onConfigChange={setConnectorConfig}
 						onNameChange={setConnectorName}
 					/>
 				) : indexingConfig ? (
 					<IndexingConfigurationView
 						config={indexingConfig}
-						connector={indexingConnector ? {
-							...indexingConnector,
-							config: indexingConnectorConfig || indexingConnector.config,
-						} : undefined}
+						connector={
+							indexingConnector
+								? {
+										...indexingConnector,
+										config: indexingConnectorConfig || indexingConnector.config,
+									}
+								: undefined
+						}
 						startDate={startDate}
 						endDate={endDate}
 						periodicEnabled={periodicEnabled}
@@ -255,11 +254,15 @@ export const ConnectorIndicator: FC = () => {
 						onSkip={handleSkipIndexing}
 					/>
 				) : (
-					<Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
+					<Tabs
+						value={activeTab}
+						onValueChange={handleTabChange}
+						className="flex-1 flex flex-col min-h-0"
+					>
 						{/* Header */}
 						<ConnectorDialogHeader
 							activeTab={activeTab}
-							totalSourceCount={totalSourceCount}
+							totalSourceCount={activeConnectorsCount}
 							searchQuery={searchQuery}
 							onTabChange={handleTabChange}
 							onSearchChange={setSearchQuery}
@@ -270,25 +273,26 @@ export const ConnectorIndicator: FC = () => {
 						<div className="flex-1 min-h-0 relative overflow-hidden">
 							<div className="h-full overflow-y-auto" onScroll={handleScroll}>
 								<div className="px-6 sm:px-12 py-6 sm:py-8 pb-16 sm:pb-16">
-								<TabsContent value="all" className="m-0">
-								<AllConnectorsTab
-									searchQuery={searchQuery}
-									searchSpaceId={searchSpaceId}
-									connectedTypes={connectedTypes}
-									connectingId={connectingId}
-									allConnectors={allConnectors}
-									documentTypeCounts={documentTypeCounts}
-									indexingConnectorIds={indexingConnectorIds}
-									logsSummary={logsSummary}
-									onConnectOAuth={handleConnectOAuth}
-									onConnectNonOAuth={handleConnectNonOAuth}
-									onCreateWebcrawler={handleCreateWebcrawler}
-									onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
-									onManage={handleStartEdit}
-								/>
-								</TabsContent>
+									<TabsContent value="all" className="m-0">
+										<AllConnectorsTab
+											searchQuery={searchQuery}
+											searchSpaceId={searchSpaceId}
+											connectedTypes={connectedTypes}
+											connectingId={connectingId}
+											allConnectors={allConnectors}
+											documentTypeCounts={documentTypeCounts}
+											indexingConnectorIds={indexingConnectorIds}
+											logsSummary={logsSummary}
+											onConnectOAuth={handleConnectOAuth}
+											onConnectNonOAuth={handleConnectNonOAuth}
+											onCreateWebcrawler={handleCreateWebcrawler}
+											onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
+											onManage={handleStartEdit}
+										/>
+									</TabsContent>
 
 									<ActiveConnectorsTab
+										searchQuery={searchQuery}
 										hasSources={hasSources}
 										totalSourceCount={totalSourceCount}
 										activeDocumentTypes={activeDocumentTypes}

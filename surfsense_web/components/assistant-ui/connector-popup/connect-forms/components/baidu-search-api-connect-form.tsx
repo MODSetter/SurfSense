@@ -32,10 +32,7 @@ const baiduSearchApiFormSchema = z.object({
 
 type BaiduSearchApiFormValues = z.infer<typeof baiduSearchApiFormSchema>;
 
-export const BaiduSearchApiConnectForm: FC<ConnectFormProps> = ({
-	onSubmit,
-	isSubmitting,
-}) => {
+export const BaiduSearchApiConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const form = useForm<BaiduSearchApiFormValues>({
 		resolver: zodResolver(baiduSearchApiFormSchema),
@@ -77,7 +74,8 @@ export const BaiduSearchApiConnectForm: FC<ConnectFormProps> = ({
 				<div className="-ml-1">
 					<AlertTitle className="text-xs sm:text-sm">API Key Required</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a Baidu AppBuilder API key to use this connector. You can get one by signing up at{" "}
+						You'll need a Baidu AppBuilder API key to use this connector. You can get one by signing
+						up at{" "}
 						<a
 							href="https://qianfan.cloud.baidu.com/"
 							target="_blank"
@@ -92,7 +90,11 @@ export const BaiduSearchApiConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="baidu-search-api-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form
+						id="baidu-search-api-connect-form"
+						onSubmit={form.handleSubmit(handleSubmit)}
+						className="space-y-4 sm:space-y-6"
+					>
 						<FormField
 							control={form.control}
 							name="name"
@@ -100,11 +102,11 @@ export const BaiduSearchApiConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="My Baidu Search Connector" 
-											className="border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="My Baidu Search Connector"
+											className="border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -122,12 +124,12 @@ export const BaiduSearchApiConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Baidu AppBuilder API Key</FormLabel>
 									<FormControl>
-										<Input 
-											type="password" 
-											placeholder="Enter your Baidu API key" 
+										<Input
+											type="password"
+											placeholder="Enter your Baidu API key"
 											className="border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -155,4 +157,3 @@ export const BaiduSearchApiConnectForm: FC<ConnectFormProps> = ({
 		</div>
 	);
 };
-

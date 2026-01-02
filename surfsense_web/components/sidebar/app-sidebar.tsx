@@ -3,6 +3,7 @@
 import { useAtomValue } from "jotai";
 import {
 	AlertCircle,
+	ArrowLeftRight,
 	BookOpen,
 	Cable,
 	ChevronsUpDown,
@@ -12,7 +13,9 @@ import {
 	FileText,
 	Info,
 	LogOut,
+	Logs,
 	type LucideIcon,
+	MessageCircle,
 	MessageCircleMore,
 	MoonIcon,
 	Podcast,
@@ -148,6 +151,8 @@ export const iconMap: Record<string, LucideIcon> = {
 	Podcast,
 	Users,
 	RefreshCw,
+	MessageCircle,
+	Logs,
 };
 
 const defaultData = {
@@ -291,7 +296,6 @@ export const AppSidebar = memo(function AppSidebar({
 	const { theme, setTheme } = useTheme();
 	const { data: user, isPending: isLoadingUser } = useAtomValue(currentUserAtom);
 	const [isClient, setIsClient] = useState(false);
-	const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
 
 	useEffect(() => {
 		setIsClient(true);
@@ -414,7 +418,7 @@ export const AppSidebar = memo(function AppSidebar({
 										</>
 									)}
 									<DropdownMenuItem onClick={() => router.push("/dashboard")}>
-										<SquareLibrary className="mr-2 h-4 w-4" />
+										<ArrowLeftRight className="mr-2 h-4 w-4" />
 										Switch workspace
 									</DropdownMenuItem>
 								</DropdownMenuGroup>
@@ -443,19 +447,14 @@ export const AppSidebar = memo(function AppSidebar({
 			</SidebarHeader>
 
 			<SidebarContent className="gap-1">
-				<NavMain items={processedNavMain} onSourcesExpandedChange={setIsSourcesExpanded} />
+				<NavMain items={processedNavMain} />
 
-				<NavChats
-					chats={processedRecentChats}
-					searchSpaceId={searchSpaceId}
-					isSourcesExpanded={isSourcesExpanded}
-				/>
+				<NavChats chats={processedRecentChats} searchSpaceId={searchSpaceId} />
 
 				<NavNotes
 					notes={processedRecentNotes}
 					onAddNote={onAddNote}
 					searchSpaceId={searchSpaceId}
-					isSourcesExpanded={isSourcesExpanded}
 				/>
 			</SidebarContent>
 			<SidebarFooter>

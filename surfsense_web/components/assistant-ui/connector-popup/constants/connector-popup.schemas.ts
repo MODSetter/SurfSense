@@ -80,7 +80,7 @@ export function parseConnectorPopupQueryParams(
 	params: URLSearchParams | Record<string, string | null>
 ): ConnectorPopupQueryParams {
 	const obj: Record<string, string | undefined> = {};
-	
+
 	if (params instanceof URLSearchParams) {
 		params.forEach((value, key) => {
 			obj[key] = value || undefined;
@@ -90,7 +90,7 @@ export function parseConnectorPopupQueryParams(
 			obj[key] = value || undefined;
 		});
 	}
-	
+
 	return connectorPopupQueryParamsSchema.parse(obj);
 }
 
@@ -107,4 +107,3 @@ export function parseOAuthAuthResponse(data: unknown): OAuthAuthResponse {
 export function validateIndexingConfigState(data: unknown): IndexingConfigState {
 	return indexingConfigStateSchema.parse(data);
 }
-

@@ -45,7 +45,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 }) => {
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
-		() => connector ? getConnectorConfigComponent(connector.connector_type) : null,
+		() => (connector ? getConnectorConfigComponent(connector.connector_type) : null),
 		[connector]
 	);
 	const [isScrolled, setIsScrolled] = useState(false);
@@ -54,12 +54,13 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 
 	const checkScrollState = useCallback(() => {
 		if (!scrollContainerRef.current) return;
-		
+
 		const target = scrollContainerRef.current;
 		const scrolled = target.scrollTop > 0;
-		const hasMore = target.scrollHeight > target.clientHeight && 
+		const hasMore =
+			target.scrollHeight > target.clientHeight &&
 			target.scrollTop + target.clientHeight < target.scrollHeight - 10;
-		
+
 		setIsScrolled(scrolled);
 		setHasMoreContent(hasMore);
 	}, []);
@@ -74,11 +75,11 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 		const resizeObserver = new ResizeObserver(() => {
 			checkScrollState();
 		});
-		
+
 		if (scrollContainerRef.current) {
 			resizeObserver.observe(scrollContainerRef.current);
 		}
-		
+
 		return () => {
 			resizeObserver.disconnect();
 		};
@@ -87,10 +88,12 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Fixed Header */}
-			<div className={cn(
-				"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
-				isScrolled && "shadow-sm"
-			)}>
+			<div
+				className={cn(
+					"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
+					isScrolled && "shadow-sm"
+				)}
+			>
 				{/* Back button */}
 				<button
 					type="button"
@@ -119,39 +122,40 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 
 			{/* Scrollable Content */}
 			<div className="flex-1 min-h-0 relative overflow-hidden">
-				<div 
+				<div
 					ref={scrollContainerRef}
-					className="h-full overflow-y-auto px-6 sm:px-12" 
+					className="h-full overflow-y-auto px-6 sm:px-12"
 					onScroll={handleScroll}
 				>
 					<div className="space-y-6 pb-6 pt-2">
 						{/* Connector-specific configuration */}
 						{ConnectorConfigComponent && connector && (
-							<ConnectorConfigComponent
-								connector={connector}
-								onConfigChange={onConfigChange}
-							/>
+							<ConnectorConfigComponent connector={connector} onConfigChange={onConfigChange} />
 						)}
 
 						{/* Date range selector and periodic sync - only shown for indexable connectors */}
 						{connector?.is_indexable && (
 							<>
 								{/* Date range selector - not shown for Google Drive (uses folder selection) or Webcrawler (uses config) */}
-								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && config.connectorType !== "WEBCRAWLER_CONNECTOR" && (
-									<DateRangeSelector
-										startDate={startDate}
-										endDate={endDate}
-										onStartDateChange={onStartDateChange}
-										onEndDateChange={onEndDateChange}
+								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "WEBCRAWLER_CONNECTOR" && (
+										<DateRangeSelector
+											startDate={startDate}
+											endDate={endDate}
+											onStartDateChange={onStartDateChange}
+											onEndDateChange={onEndDateChange}
+										/>
+									)}
+
+								{/* Periodic sync - not shown for Google Drive */}
+								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && (
+									<PeriodicSyncConfig
+										enabled={periodicEnabled}
+										frequencyMinutes={frequencyMinutes}
+										onEnabledChange={onPeriodicEnabledChange}
+										onFrequencyChange={onFrequencyChange}
 									/>
 								)}
-
-								<PeriodicSyncConfig
-									enabled={periodicEnabled}
-									frequencyMinutes={frequencyMinutes}
-									onEnabledChange={onPeriodicEnabledChange}
-									onFrequencyChange={onFrequencyChange}
-								/>
 							</>
 						)}
 
@@ -164,7 +168,8 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 								<div className="text-xs sm:text-sm">
 									<p className="font-medium text-xs sm:text-sm">Indexing runs in the background</p>
 									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-										You can continue using SurfSense while we sync your data. Check the Active tab to see progress.
+										You can continue using SurfSense while we sync your data. Check the Active tab
+										to see progress.
 									</p>
 								</div>
 							</div>
@@ -183,10 +188,19 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 
 			{/* Fixed Footer - Action buttons */}
 			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted">
-				<Button variant="ghost" onClick={onSkip} disabled={isStartingIndexing} className="text-xs sm:text-sm">
+				<Button
+					variant="ghost"
+					onClick={onSkip}
+					disabled={isStartingIndexing}
+					className="text-xs sm:text-sm"
+				>
 					Skip for now
 				</Button>
-				<Button onClick={onStartIndexing} disabled={isStartingIndexing} className="text-xs sm:text-sm">
+				<Button
+					onClick={onStartIndexing}
+					disabled={isStartingIndexing}
+					className="text-xs sm:text-sm"
+				>
 					{isStartingIndexing ? (
 						<>
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -200,4 +214,3 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 		</div>
 	);
 };
-

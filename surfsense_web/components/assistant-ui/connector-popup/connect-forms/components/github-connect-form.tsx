@@ -57,10 +57,7 @@ const githubConnectorFormSchema = z.object({
 
 type GithubConnectorFormValues = z.infer<typeof githubConnectorFormSchema>;
 
-export const GithubConnectForm: FC<ConnectFormProps> = ({
-	onSubmit,
-	isSubmitting,
-}) => {
+export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
 	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -92,7 +89,7 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 		isSubmittingRef.current = true;
 		try {
 			const repoList = stringToArray(values.repo_full_names);
-			
+
 			await onSubmit({
 				name: values.name,
 				connector_type: EnumConnectorName.GITHUB_CONNECTOR,
@@ -122,7 +119,8 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 				<div className="-ml-1">
 					<AlertTitle className="text-xs sm:text-sm">Personal Access Token Required</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a GitHub Personal Access Token to use this connector. You can create one from{" "}
+						You'll need a GitHub Personal Access Token to use this connector. You can create one
+						from{" "}
 						<a
 							href="https://github.com/settings/tokens"
 							target="_blank"
@@ -137,7 +135,11 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<Form {...form}>
-					<form id="github-connect-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-6">
+					<form
+						id="github-connect-form"
+						onSubmit={form.handleSubmit(handleSubmit)}
+						className="space-y-4 sm:space-y-6"
+					>
 						<FormField
 							control={form.control}
 							name="name"
@@ -145,11 +147,11 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Connector Name</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="My GitHub Connector" 
-											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40" 
+										<Input
+											placeholder="My GitHub Connector"
+											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
@@ -167,16 +169,17 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">GitHub Personal Access Token</FormLabel>
 									<FormControl>
-										<Input 
-											type="password" 
-											placeholder="ghp_..." 
+										<Input
+											type="password"
+											placeholder="ghp_..."
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Your GitHub PAT will be encrypted and stored securely. It typically starts with "ghp_" or "github_pat_".
+										Your GitHub PAT will be encrypted and stored securely. It typically starts with
+										"ghp_" or "github_pat_".
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -190,15 +193,16 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 								<FormItem>
 									<FormLabel className="text-xs sm:text-sm">Repository Names</FormLabel>
 									<FormControl>
-										<Input 
-											placeholder="owner/repo1, owner/repo2" 
+										<Input
+											placeholder="owner/repo1, owner/repo2"
 											className="h-8 sm:h-10 px-2 sm:px-3 text-xs sm:text-sm border-slate-400/20 focus-visible:border-slate-400/40"
 											disabled={isSubmitting}
-											{...field} 
+											{...field}
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Comma-separated list of repository full names (e.g., "owner/repo1, owner/repo2").
+										Comma-separated list of repository full names (e.g., "owner/repo1,
+										owner/repo2").
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -222,7 +226,7 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 						{/* Indexing Configuration */}
 						<div className="space-y-4 pt-4 border-t border-slate-400/20">
 							<h3 className="text-sm sm:text-base font-medium">Indexing Configuration</h3>
-							
+
 							{/* Date Range Selector */}
 							<DateRangeSelector
 								startDate={startDate}
@@ -240,14 +244,24 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 											Automatically re-index at regular intervals
 										</p>
 									</div>
-									<Switch checked={periodicEnabled} onCheckedChange={setPeriodicEnabled} disabled={isSubmitting} />
+									<Switch
+										checked={periodicEnabled}
+										onCheckedChange={setPeriodicEnabled}
+										disabled={isSubmitting}
+									/>
 								</div>
 
 								{periodicEnabled && (
 									<div className="mt-4 pt-4 border-t border-slate-400/20 space-y-3">
 										<div className="space-y-2">
-											<Label htmlFor="frequency" className="text-xs sm:text-sm">Sync Frequency</Label>
-											<Select value={frequencyMinutes} onValueChange={setFrequencyMinutes} disabled={isSubmitting}>
+											<Label htmlFor="frequency" className="text-xs sm:text-sm">
+												Sync Frequency
+											</Label>
+											<Select
+												value={frequencyMinutes}
+												onValueChange={setFrequencyMinutes}
+												disabled={isSubmitting}
+											>
 												<SelectTrigger
 													id="frequency"
 													className="w-full bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 text-xs sm:text-sm"
@@ -255,12 +269,24 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 													<SelectValue placeholder="Select frequency" />
 												</SelectTrigger>
 												<SelectContent className="z-[100]">
-													<SelectItem value="15" className="text-xs sm:text-sm">Every 15 minutes</SelectItem>
-													<SelectItem value="60" className="text-xs sm:text-sm">Every hour</SelectItem>
-													<SelectItem value="360" className="text-xs sm:text-sm">Every 6 hours</SelectItem>
-													<SelectItem value="720" className="text-xs sm:text-sm">Every 12 hours</SelectItem>
-													<SelectItem value="1440" className="text-xs sm:text-sm">Daily</SelectItem>
-													<SelectItem value="10080" className="text-xs sm:text-sm">Weekly</SelectItem>
+													<SelectItem value="15" className="text-xs sm:text-sm">
+														Every 15 minutes
+													</SelectItem>
+													<SelectItem value="60" className="text-xs sm:text-sm">
+														Every hour
+													</SelectItem>
+													<SelectItem value="360" className="text-xs sm:text-sm">
+														Every 6 hours
+													</SelectItem>
+													<SelectItem value="720" className="text-xs sm:text-sm">
+														Every 12 hours
+													</SelectItem>
+													<SelectItem value="1440" className="text-xs sm:text-sm">
+														Daily
+													</SelectItem>
+													<SelectItem value="10080" className="text-xs sm:text-sm">
+														Weekly
+													</SelectItem>
 												</SelectContent>
 											</Select>
 										</div>
@@ -285,7 +311,11 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 			)}
 
 			{/* Documentation Section */}
-			<Accordion type="single" collapsible className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5">
+			<Accordion
+				type="single"
+				collapsible
+				className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5"
+			>
 				<AccordionItem value="documentation" className="border-0">
 					<AccordionTrigger className="text-sm sm:text-base font-medium px-3 sm:px-6 no-underline hover:no-underline">
 						Documentation
@@ -294,7 +324,10 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 						<div>
 							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The GitHub connector uses a Personal Access Token (PAT) to authenticate with the GitHub API. You provide a comma-separated list of repository full names (e.g., "owner/repo1, owner/repo2") that you want to index. The connector indexes relevant files (code, markdown, text) from the selected repositories.
+								The GitHub connector uses a Personal Access Token (PAT) to authenticate with the
+								GitHub API. You provide a comma-separated list of repository full names (e.g.,
+								"owner/repo1, owner/repo2") that you want to index. The connector indexes relevant
+								files (code, markdown, text) from the selected repositories.
 							</p>
 							<ul className="mt-2 list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
 								<li>
@@ -303,7 +336,8 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 								<li>Large files (over 1MB) are skipped during indexing.</li>
 								<li>Only specified repositories are indexed.</li>
 								<li>
-									Indexing runs periodically (check connector settings for frequency) to keep content up-to-date.
+									Indexing runs periodically (check connector settings for frequency) to keep
+									content up-to-date.
 								</li>
 							</ul>
 						</div>
@@ -313,15 +347,20 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Authorization</h3>
 								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 mb-4">
 									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-									<AlertTitle className="text-[10px] sm:text-xs">Personal Access Token Required</AlertTitle>
+									<AlertTitle className="text-[10px] sm:text-xs">
+										Personal Access Token Required
+									</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										You'll need a GitHub PAT with the appropriate scopes (e.g., 'repo') to fetch repositories. The PAT will be stored securely to enable indexing.
+										You'll need a GitHub PAT with the appropriate scopes (e.g., 'repo') to fetch
+										repositories. The PAT will be stored securely to enable indexing.
 									</AlertDescription>
 								</Alert>
 
 								<div className="space-y-4 sm:space-y-6">
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 1: Generate GitHub PAT</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 1: Generate GitHub PAT
+										</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
 											<li>
 												Go to your GitHub{" "}
@@ -336,39 +375,46 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 											</li>
 											<li>
 												Click on <strong>Personal access tokens</strong>, then choose{" "}
-												<strong>Tokens (classic)</strong> or <strong>Fine-grained tokens</strong> (recommended if available).
+												<strong>Tokens (classic)</strong> or <strong>Fine-grained tokens</strong>{" "}
+												(recommended if available).
 											</li>
 											<li>
 												Click <strong>Generate new token</strong> (and choose the appropriate type).
 											</li>
+											<li>Give your token a descriptive name (e.g., "SurfSense Connector").</li>
+											<li>Set an expiration date for the token (recommended for security).</li>
 											<li>
-												Give your token a descriptive name (e.g., "SurfSense Connector").
-											</li>
-											<li>
-												Set an expiration date for the token (recommended for security).
-											</li>
-											<li>
-												Under <strong>Select scopes</strong> (for classic tokens) or <strong>Repository access</strong> (for fine-grained), grant the necessary permissions. At minimum, the <strong>`repo`</strong> scope (or equivalent read access to repositories for fine-grained tokens) is required to read repository content.
+												Under <strong>Select scopes</strong> (for classic tokens) or{" "}
+												<strong>Repository access</strong> (for fine-grained), grant the necessary
+												permissions. At minimum, the <strong>`repo`</strong> scope (or equivalent
+												read access to repositories for fine-grained tokens) is required to read
+												repository content.
 											</li>
 											<li>
 												Click <strong>Generate token</strong>.
 											</li>
 											<li>
-												<strong>Important:</strong> Copy your new PAT immediately. You won't be able to see it again after leaving the page.
+												<strong>Important:</strong> Copy your new PAT immediately. You won't be able
+												to see it again after leaving the page.
 											</li>
 										</ol>
 									</div>
 
 									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">Step 2: Specify repositories</h4>
+										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
+											Step 2: Specify repositories
+										</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											Enter a comma-separated list of repository full names in the format "owner/repo1, owner/repo2". The connector will index files from only the specified repositories.
+											Enter a comma-separated list of repository full names in the format
+											"owner/repo1, owner/repo2". The connector will index files from only the
+											specified repositories.
 										</p>
 										<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 											<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 											<AlertTitle className="text-[10px] sm:text-xs">Repository Access</AlertTitle>
 											<AlertDescription className="text-[9px] sm:text-[10px]">
-												Make sure your PAT has access to all repositories you want to index. Private repositories require appropriate permissions.
+												Make sure your PAT has access to all repositories you want to index. Private
+												repositories require appropriate permissions.
 											</AlertDescription>
 										</Alert>
 									</div>
@@ -381,13 +427,15 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 								<h3 className="text-sm sm:text-base font-semibold mb-2">Indexing</h3>
 								<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
 									<li>
-										Navigate to the Connector Dashboard and select the <strong>GitHub</strong> Connector.
+										Navigate to the Connector Dashboard and select the <strong>GitHub</strong>{" "}
+										Connector.
 									</li>
 									<li>
 										Enter your <strong>GitHub Personal Access Token</strong> in the form field.
 									</li>
 									<li>
-										Enter a comma-separated list of <strong>Repository Names</strong> (e.g., "owner/repo1, owner/repo2").
+										Enter a comma-separated list of <strong>Repository Names</strong> (e.g.,
+										"owner/repo1, owner/repo2").
 									</li>
 									<li>
 										Click <strong>Connect</strong> to establish the connection.
@@ -416,4 +464,3 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({
 		</div>
 	);
 };
-

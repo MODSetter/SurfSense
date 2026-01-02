@@ -34,15 +34,9 @@ export const SearxngConfig: FC<SearxngConfigProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
-	const [host, setHost] = useState<string>(
-		(connector.config?.SEARXNG_HOST as string) || ""
-	);
-	const [apiKey, setApiKey] = useState<string>(
-		(connector.config?.SEARXNG_API_KEY as string) || ""
-	);
-	const [engines, setEngines] = useState<string>(
-		arrayToString(connector.config?.SEARXNG_ENGINES)
-	);
+	const [host, setHost] = useState<string>((connector.config?.SEARXNG_HOST as string) || "");
+	const [apiKey, setApiKey] = useState<string>((connector.config?.SEARXNG_API_KEY as string) || "");
+	const [engines, setEngines] = useState<string>(arrayToString(connector.config?.SEARXNG_ENGINES));
 	const [categories, setCategories] = useState<string>(
 		arrayToString(connector.config?.SEARXNG_CATEGORIES)
 	);
@@ -300,7 +294,8 @@ export const SearxngConfig: FC<SearxngConfigProps> = ({
 								className="border-slate-400/20 focus-visible:border-slate-400/40"
 							/>
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								Set 0, 1, or 2 to adjust SafeSearch filtering. Leave blank to use the instance default.
+								Set 0, 1, or 2 to adjust SafeSearch filtering. Leave blank to use the instance
+								default.
 							</p>
 						</div>
 					</div>
@@ -319,4 +314,3 @@ export const SearxngConfig: FC<SearxngConfigProps> = ({
 		</div>
 	);
 };
-
