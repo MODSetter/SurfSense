@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -31,7 +31,6 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { useLogsSummary } from "@/hooks/use-logs";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { AllNotesSidebar } from "./all-notes-sidebar";
 
@@ -55,7 +54,6 @@ interface NavNotesProps {
 	onAddNote?: () => void;
 	defaultOpen?: boolean;
 	searchSpaceId?: string;
-	isSourcesExpanded?: boolean;
 }
 
 // Map of icon names to their components
@@ -65,17 +63,10 @@ const actionIconMap: Record<string, LucideIcon> = {
 	MoreHorizontal,
 };
 
-export function NavNotes({
-	notes,
-	onAddNote,
-	defaultOpen = true,
-	searchSpaceId,
-	isSourcesExpanded = false,
-}: NavNotesProps) {
+export function NavNotes({ notes, onAddNote, defaultOpen = true, searchSpaceId }: NavNotesProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const pathname = usePathname();
-	const isMobile = useIsMobile();
 	const { setOpenMobile } = useSidebar();
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 	const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -97,13 +88,6 @@ export function NavNotes({
 				.map((task) => task.document_id as number)
 		);
 	}, [summary?.active_tasks]);
-
-	// Auto-collapse on smaller screens when Sources is expanded
-	useEffect(() => {
-		if (isSourcesExpanded && isMobile) {
-			setIsOpen(false);
-		}
-	}, [isSourcesExpanded, isMobile]);
 
 	// Handle note deletion with loading state
 	const handleDeleteNote = useCallback(async (noteId: number, deleteAction: () => void) => {

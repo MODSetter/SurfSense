@@ -14,7 +14,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas import (
+    GoogleDriveIndexRequest,
     SearchSourceConnectorBase,
     SearchSourceConnectorCreate,
     SearchSourceConnectorRead,
@@ -542,6 +543,10 @@ async def index_connector_content(
         None,
         description="End date for indexing (YYYY-MM-DD format). If not provided, uses today's date",
     ),
+    drive_items: GoogleDriveIndexRequest | None = Body(
+        None,
+        description="[Google Drive only] Structured request with folders and files to index",
+    ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -746,6 +751,33 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Google Gmail indexing started in the background."
+
+        elif (
+            connector.connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
+        ):
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_google_drive_files_task,
+            )
+
+            if not drive_items or not drive_items.has_items():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Google Drive indexing requires drive_items body parameter with folders or files",
+                )
+
+            logger.info(
+                f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
+                f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
+            )
+
+            # Pass structured data to Celery task
+            index_google_drive_files_task.delay(
+                connector_id,
+                search_space_id,
+                str(user.id),
+                drive_items.model_dump(),  # Convert to dict for JSON serialization
+            )
+            response_message = "Google Drive indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import (
@@ -1510,6 +1542,90 @@ async def run_google_gmail_indexing(
     except Exception as e:
         logger.error(
             f"Critical error in run_google_gmail_indexing for connector {connector_id}: {e}",
+            exc_info=True,
+        )
+        # Optionally update status in DB to indicate failure
+
+
+async def run_google_drive_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
+):
+    """Runs the Google Drive indexing task for folders and files and updates the timestamp."""
+    try:
+        from app.tasks.connector_indexers.google_drive_indexer import (
+            index_google_drive_files,
+            index_google_drive_single_file,
+        )
+
+        # Parse the structured data
+        items = GoogleDriveIndexRequest(**items_dict)
+        total_indexed = 0
+        errors = []
+
+        # Index each folder
+        for folder in items.folders:
+            try:
+                indexed_count, error_message = await index_google_drive_files(
+                    session,
+                    connector_id,
+                    search_space_id,
+                    user_id,
+                    folder_id=folder.id,
+                    folder_name=folder.name,
+                    use_delta_sync=True,
+                    update_last_indexed=False,
+                )
+                if error_message:
+                    errors.append(f"Folder '{folder.name}': {error_message}")
+                else:
+                    total_indexed += indexed_count
+            except Exception as e:
+                errors.append(f"Folder '{folder.name}': {e!s}")
+                logger.error(
+                    f"Error indexing folder {folder.name} ({folder.id}): {e}",
+                    exc_info=True,
+                )
+
+        # Index each individual file
+        for file in items.files:
+            try:
+                indexed_count, error_message = await index_google_drive_single_file(
+                    session,
+                    connector_id,
+                    search_space_id,
+                    user_id,
+                    file_id=file.id,
+                    file_name=file.name,
+                )
+                if error_message:
+                    errors.append(f"File '{file.name}': {error_message}")
+                else:
+                    total_indexed += indexed_count
+            except Exception as e:
+                errors.append(f"File '{file.name}': {e!s}")
+                logger.error(
+                    f"Error indexing file {file.name} ({file.id}): {e}",
+                    exc_info=True,
+                )
+
+        if errors:
+            logger.error(
+                f"Google Drive indexing completed with errors for connector {connector_id}: {'; '.join(errors)}"
+            )
+        else:
+            logger.info(
+                f"Google Drive indexing successful for connector {connector_id}. Indexed {total_indexed} documents from {len(items.folders)} folder(s) and {len(items.files)} file(s)."
+            )
+            # Update the last indexed timestamp only on full success
+            await update_connector_last_indexed(session, connector_id)
+            await session.commit()  # Commit timestamp update
+    except Exception as e:
+        logger.error(
+            f"Critical error in run_google_drive_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
         # Optionally update status in DB to indicate failure

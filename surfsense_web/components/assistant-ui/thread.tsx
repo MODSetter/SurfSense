@@ -8,7 +8,6 @@ import {
 	ThreadPrimitive,
 	useAssistantState,
 	useComposerRuntime,
-	useThreadViewport,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -23,62 +22,47 @@ import {
 	FileText,
 	Loader2,
 	PencilIcon,
-	Plug2,
-	Plus,
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-	createContext,
-	type FC,
-	useCallback,
-	useContext,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
 	llmPreferencesAtom,
 	newLLMConfigsAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
 	UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
+import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
 } from "@/components/assistant-ui/inline-mention-editor";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+	ThinkingStepsContext,
+	ThinkingStepsDisplay,
+} from "@/components/assistant-ui/thinking-steps";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
-import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
-import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 import { cn } from "@/lib/utils";
 
 /**
@@ -89,204 +73,6 @@ interface ThreadProps {
 	/** Optional header component to render at the top of the viewport (sticky) */
 	header?: React.ReactNode;
 }
-
-// Context to pass thinking steps to AssistantMessage
-const ThinkingStepsContext = createContext<Map<string, ThinkingStep[]>>(new Map());
-
-/**
- * Chain of thought display component - single collapsible dropdown design
- */
-const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?: boolean }> = ({
-	steps,
-	isThreadRunning = true,
-}) => {
-	const [isOpen, setIsOpen] = useState(true);
-
-	// Derive effective status for each step
-	const getEffectiveStatus = useCallback(
-		(step: ThinkingStep): "pending" | "in_progress" | "completed" => {
-			if (step.status === "in_progress" && !isThreadRunning) {
-				return "completed";
-			}
-			return step.status;
-		},
-		[isThreadRunning]
-	);
-
-	// Calculate summary info
-	const completedSteps = steps.filter((s) => getEffectiveStatus(s) === "completed").length;
-	const inProgressStep = steps.find((s) => getEffectiveStatus(s) === "in_progress");
-	const allCompleted = completedSteps === steps.length && steps.length > 0 && !isThreadRunning;
-	const isProcessing = isThreadRunning && !allCompleted;
-
-	// Auto-collapse when all tasks are completed
-	useEffect(() => {
-		if (allCompleted) {
-			setIsOpen(false);
-		}
-	}, [allCompleted]);
-
-	if (steps.length === 0) return null;
-
-	// Generate header text
-	const getHeaderText = () => {
-		if (allCompleted) {
-			return `Reviewed ${completedSteps} ${completedSteps === 1 ? "step" : "steps"}`;
-		}
-		if (inProgressStep) {
-			return inProgressStep.title;
-		}
-		if (isProcessing) {
-			return `Processing ${completedSteps}/${steps.length} steps`;
-		}
-		return `Reviewed ${completedSteps} ${completedSteps === 1 ? "step" : "steps"}`;
-	};
-
-	return (
-		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
-			<div className="rounded-lg">
-				{/* Main collapsible header */}
-				<button
-					type="button"
-					onClick={() => setIsOpen(!isOpen)}
-					className={cn(
-						"flex w-full items-center gap-1.5 text-left text-sm transition-colors",
-						"text-muted-foreground hover:text-foreground"
-					)}
-				>
-					{/* Header text with shimmer if processing (streaming) */}
-					{isProcessing ? (
-						<TextShimmerLoader text={getHeaderText()} size="sm" />
-					) : (
-						<span>{getHeaderText()}</span>
-					)}
-
-					{/* Chevron */}
-					<ChevronRightIcon
-						className={cn("size-4 transition-transform duration-200", isOpen && "rotate-90")}
-					/>
-				</button>
-
-				{/* Collapsible content with CSS grid animation */}
-				<div
-					className={cn(
-						"grid transition-[grid-template-rows] duration-300 ease-out",
-						isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-					)}
-				>
-					<div className="overflow-hidden">
-						<div className="mt-3 pl-1">
-							{steps.map((step, index) => {
-								const effectiveStatus = getEffectiveStatus(step);
-								const isLast = index === steps.length - 1;
-
-								return (
-									<div key={step.id} className="relative flex gap-3">
-										{/* Dot and line column */}
-										<div className="relative flex flex-col items-center w-2">
-											{/* Vertical connection line - extends to next dot */}
-											{!isLast && (
-												<div className="absolute left-1/2 top-[15px] -bottom-[7px] w-px -translate-x-1/2 bg-muted-foreground/30" />
-											)}
-											{/* Step dot - on top of line */}
-											<div className="relative z-10 mt-[7px] flex shrink-0 items-center justify-center">
-												{effectiveStatus === "in_progress" ? (
-													<span className="size-2 rounded-full bg-muted-foreground/30" />
-												) : (
-													<span className="size-2 rounded-full bg-muted-foreground/30" />
-												)}
-											</div>
-										</div>
-
-										{/* Step content */}
-										<div className="flex-1 min-w-0 pb-4">
-											{/* Step title */}
-											<div
-												className={cn(
-													"text-sm leading-5",
-													effectiveStatus === "in_progress" && "text-foreground font-medium",
-													effectiveStatus === "completed" && "text-muted-foreground",
-													effectiveStatus === "pending" && "text-muted-foreground/60"
-												)}
-											>
-												{effectiveStatus === "in_progress" ? (
-													<TextShimmerLoader text={step.title} size="sm" />
-												) : (
-													step.title
-												)}
-											</div>
-
-											{/* Step items (sub-content) */}
-											{step.items && step.items.length > 0 && (
-												<div className="mt-1 space-y-0.5">
-													{step.items.map((item, idx) => (
-														<ChainOfThoughtItem key={`${step.id}-item-${idx}`} className="text-xs">
-															{item}
-														</ChainOfThoughtItem>
-													))}
-												</div>
-											)}
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	);
-};
-
-/**
- * Component that handles auto-scroll when thinking steps update.
- * Uses useThreadViewport to scroll to bottom when thinking steps change,
- * ensuring the user always sees the latest content during streaming.
- */
-const _ThinkingStepsScrollHandler: FC = () => {
-	const thinkingStepsMap = useContext(ThinkingStepsContext);
-	const viewport = useThreadViewport();
-	const isRunning = useAssistantState(({ thread }) => thread.isRunning);
-	// Track the serialized state to detect any changes
-	const prevStateRef = useRef<string>("");
-
-	useEffect(() => {
-		// Only act during streaming
-		if (!isRunning) {
-			prevStateRef.current = "";
-			return;
-		}
-
-		// Serialize the thinking steps state to detect any changes
-		// This catches new steps, status changes, and item additions
-		let stateString = "";
-		thinkingStepsMap.forEach((steps, msgId) => {
-			steps.forEach((step) => {
-				stateString += `${msgId}:${step.id}:${step.status}:${step.items?.length || 0};`;
-			});
-		});
-
-		// If state changed at all during streaming, scroll
-		if (stateString !== prevStateRef.current && stateString !== "") {
-			prevStateRef.current = stateString;
-
-			// Multiple attempts to ensure scroll happens after DOM updates
-			const scrollAttempt = () => {
-				try {
-					viewport.scrollToBottom();
-				} catch {
-					// Ignore errors - viewport might not be ready
-				}
-			};
-
-			// Delayed attempts to handle async DOM updates
-			requestAnimationFrame(scrollAttempt);
-			setTimeout(scrollAttempt, 100);
-		}
-	}, [thinkingStepsMap, viewport, isRunning]);
-
-	return null; // This component doesn't render anything
-};
 
 export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), header }) => {
 	return (
@@ -622,147 +408,6 @@ const Composer: FC = () => {
 				<ComposerAction />
 			</ComposerPrimitive.AttachmentDropzone>
 		</ComposerPrimitive.Root>
-	);
-};
-
-const ConnectorIndicator: FC = () => {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const { connectors, isLoading: connectorsLoading } = useSearchSourceConnectors(
-		false,
-		searchSpaceId ? Number(searchSpaceId) : undefined
-	);
-	const { data: documentTypeCounts, isLoading: documentTypesLoading } =
-		useAtomValue(documentTypeCountsAtom);
-	const [isOpen, setIsOpen] = useState(false);
-	const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-	const isLoading = connectorsLoading || documentTypesLoading;
-
-	// Get document types that have documents in the search space
-	const activeDocumentTypes = documentTypeCounts
-		? Object.entries(documentTypeCounts).filter(([_, count]) => count > 0)
-		: [];
-
-	const hasConnectors = connectors.length > 0;
-	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
-	const totalSourceCount = connectors.length + activeDocumentTypes.length;
-
-	const handleMouseEnter = useCallback(() => {
-		// Clear any pending close timeout
-		if (closeTimeoutRef.current) {
-			clearTimeout(closeTimeoutRef.current);
-			closeTimeoutRef.current = null;
-		}
-		setIsOpen(true);
-	}, []);
-
-	const handleMouseLeave = useCallback(() => {
-		// Delay closing by 150ms for better UX
-		closeTimeoutRef.current = setTimeout(() => {
-			setIsOpen(false);
-		}, 150);
-	}, []);
-
-	if (!searchSpaceId) return null;
-
-	return (
-		<Popover open={isOpen} onOpenChange={setIsOpen}>
-			<PopoverTrigger asChild>
-				<button
-					type="button"
-					className={cn(
-						"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors relative",
-						"hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30",
-						"outline-none focus:outline-none focus-visible:outline-none",
-						"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none",
-						"data-[state=open]:bg-transparent data-[state=open]:shadow-none data-[state=open]:ring-0",
-						"text-muted-foreground"
-					)}
-					aria-label={
-						hasSources ? `View ${totalSourceCount} connected sources` : "Add your first connector"
-					}
-					onMouseEnter={handleMouseEnter}
-					onMouseLeave={handleMouseLeave}
-				>
-					{isLoading ? (
-						<Loader2 className="size-4 animate-spin" />
-					) : (
-						<>
-							<Plug2 className="size-4" />
-							{totalSourceCount > 0 && (
-								<span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm">
-									{totalSourceCount > 99 ? "99+" : totalSourceCount}
-								</span>
-							)}
-						</>
-					)}
-				</button>
-			</PopoverTrigger>
-			<PopoverContent
-				side="bottom"
-				align="start"
-				className="w-64 p-3"
-				onMouseEnter={handleMouseEnter}
-				onMouseLeave={handleMouseLeave}
-			>
-				{hasSources ? (
-					<div className="space-y-3">
-						<div className="flex items-center justify-between">
-							<p className="text-xs font-medium text-muted-foreground">Connected Sources</p>
-							<span className="text-xs font-medium bg-muted px-1.5 py-0.5 rounded">
-								{totalSourceCount}
-							</span>
-						</div>
-						<div className="flex flex-wrap gap-2">
-							{/* Document types from the search space */}
-							{activeDocumentTypes.map(([docType]) => (
-								<div
-									key={docType}
-									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
-								>
-									{getConnectorIcon(docType, "size-3.5")}
-									<span className="truncate max-w-[100px]">{getDocumentTypeLabel(docType)}</span>
-								</div>
-							))}
-							{/* Search source connectors */}
-							{connectors.map((connector) => (
-								<div
-									key={`connector-${connector.id}`}
-									className="flex items-center gap-1.5 rounded-md bg-muted/80 px-2.5 py-1.5 text-xs border border-border/50"
-								>
-									{getConnectorIcon(connector.connector_type, "size-3.5")}
-									<span className="truncate max-w-[100px]">{connector.name}</span>
-								</div>
-							))}
-						</div>
-						<div className="pt-1 border-t border-border/50">
-							<Link
-								href={`/dashboard/${searchSpaceId}/connectors/add`}
-								className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-							>
-								<Plus className="size-3" />
-								Add more sources
-								<ChevronRightIcon className="size-3" />
-							</Link>
-						</div>
-					</div>
-				) : (
-					<div className="space-y-2">
-						<p className="text-sm font-medium">No sources yet</p>
-						<p className="text-xs text-muted-foreground">
-							Add documents or connect data sources to enhance search results.
-						</p>
-						<Link
-							href={`/dashboard/${searchSpaceId}/connectors/add`}
-							className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors mt-1"
-						>
-							<Plus className="size-3" />
-							Add Connector
-						</Link>
-					</div>
-				)}
-			</PopoverContent>
-		</Popover>
 	);
 };
 

@@ -305,8 +305,10 @@
 		"bookstack_desc": "连接到 BookStack 以搜索 Wiki 页面和文档。",
 		"airtable_desc": "连接到 Airtable 以搜索记录、表格和数据库内容。",
 		"luma_desc": "连接到 Luma 以搜索活动、聚会和集会。",
+		"circleback_desc": "通过 Webhook 从 Circleback 接收会议记录、转录和行动项目。",
 		"calendar_desc": "连接到 Google 日历以搜索活动、会议和日程。",
 		"gmail_desc": "连接到您的 Gmail 账户以搜索您的电子邮件。",
+		"google_drive_desc": "连接到 Google 云端硬盘以搜索和索引您的文件和文档。",
 		"zoom_desc": "连接到 Zoom 以访问会议录制和转录。",
 		"webcrawler_desc": "爬取和索引任何公开网页的内容。"
 	},

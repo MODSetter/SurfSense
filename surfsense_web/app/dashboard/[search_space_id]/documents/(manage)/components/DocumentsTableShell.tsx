@@ -2,9 +2,10 @@
 
 import { ChevronDown, ChevronUp, FileX, Plus } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { DocumentViewer } from "@/components/document-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,9 +70,9 @@ export function DocumentsTableShell({
 	onSortChange: (key: SortKey) => void;
 }) {
 	const t = useTranslations("documents");
-	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id;
+	const { openDialog } = useDocumentUploadDialog();
 
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
@@ -140,15 +141,12 @@ export function DocumentsTableShell({
 						<div className="space-y-2">
 							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
 							<p className="text-sm text-muted-foreground">
-								Get started by adding your first data source.
+								Get started by uploading your first document.
 							</p>
 						</div>
-						<Button
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/sources/add`)}
-							className="mt-2"
-						>
+						<Button onClick={openDialog} className="mt-2">
 							<Plus className="mr-2 h-4 w-4" />
-							Add Sources
+							Upload Documents
 						</Button>
 					</motion.div>
 				</div>

@@ -212,7 +212,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 			</PopoverTrigger>
 
 			<PopoverContent
-				className="w-[280px] md:w-[360px] p-0 rounded-lg md:rounded-xl shadow-lg border-border/30"
+				className="w-[280px] md:w-[360px] p-0 rounded-lg md:rounded-xl shadow-lg border-border/60"
 				align="start"
 				sideOffset={8}
 			>
@@ -252,7 +252,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						{/* Global Configs Section */}
 						{filteredGlobalConfigs.length > 0 && (
 							<CommandGroup>
-								<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+								<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
 									<Globe className="size-3.5" />
 									Global Models
 								</div>
@@ -314,7 +314,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						{/* User Configs Section */}
 						{filteredUserConfigs.length > 0 && (
 							<CommandGroup>
-								<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+								<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
 									<User className="size-3.5" />
 									Your Configurations
 								</div>

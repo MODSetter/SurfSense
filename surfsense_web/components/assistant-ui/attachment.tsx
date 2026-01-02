@@ -7,15 +7,22 @@ import {
 	useAssistantApi,
 	useAssistantState,
 } from "@assistant-ui/react";
-import { FileText, Loader2, PlusIcon, XIcon } from "lucide-react";
+import { FileText, Loader2, Paperclip, PlusIcon, Upload, XIcon } from "lucide-react";
 import Image from "next/image";
-import { type FC, type PropsWithChildren, useEffect, useState } from "react";
+import { type FC, type PropsWithChildren, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useDocumentUploadDialog } from "./document-upload-popup";
 
 const useFileSrc = (file: File | undefined) => {
 	const [src, setSrc] = useState<string | undefined>(undefined);
@@ -184,23 +191,26 @@ const AttachmentUI: FC = () => {
 			>
 				<AttachmentPreviewDialog>
 					<TooltipTrigger asChild>
-						<div
+						<button
+							type="button"
 							className={cn(
 								"aui-attachment-tile size-14 cursor-pointer overflow-hidden rounded-[14px] border bg-muted transition-opacity hover:opacity-75",
 								isComposer && "aui-attachment-tile-composer border-foreground/20",
 								isProcessing && "animate-pulse"
 							)}
-							role="button"
 							id="attachment-tile"
 							aria-label={isProcessing ? "Processing attachment..." : `${typeLabel} attachment`}
 						>
 							<AttachmentThumb />
-						</div>
+						</button>
 					</TooltipTrigger>
 				</AttachmentPreviewDialog>
 				{isComposer && !isProcessing && <AttachmentRemove />}
 			</AttachmentPrimitive.Root>
-			<TooltipContent side="top">
+			<TooltipContent
+				side="top"
+				className="bg-black text-white font-medium shadow-xl px-3 py-1.5 dark:bg-zinc-800 dark:text-zinc-50 border-none"
+			>
 				{isProcessing ? (
 					<span className="flex items-center gap-1.5">
 						<Loader2 className="size-3 animate-spin" />
@@ -309,18 +319,58 @@ export const ComposerAttachments: FC = () => {
 };
 
 export const ComposerAddAttachment: FC = () => {
+	const chatAttachmentInputRef = useRef<HTMLInputElement>(null);
+	const { openDialog } = useDocumentUploadDialog();
+
+	const handleFileUpload = () => {
+		openDialog();
+	};
+
+	const handleChatAttachment = () => {
+		chatAttachmentInputRef.current?.click();
+	};
+
+	// Prevent event bubbling when file input is clicked
+	const handleFileInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
+		e.stopPropagation();
+	};
+
 	return (
-		<ComposerPrimitive.AddAttachment asChild>
-			<TooltipIconButton
-				tooltip="Add Attachment"
-				side="bottom"
-				variant="ghost"
-				size="icon"
-				className="aui-composer-add-attachment size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-				aria-label="Add Attachment"
-			>
-				<PlusIcon className="aui-attachment-add-icon size-5 stroke-[1.5px]" />
-			</TooltipIconButton>
-		</ComposerPrimitive.AddAttachment>
+		<>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<TooltipIconButton
+						tooltip="Upload"
+						side="bottom"
+						variant="ghost"
+						size="icon"
+						className="aui-composer-add-attachment size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+						aria-label="Upload"
+					>
+						<PlusIcon className="aui-attachment-add-icon size-5 stroke-[1.5px]" />
+					</TooltipIconButton>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="start" className="w-48 bg-background border-border">
+					<DropdownMenuItem onSelect={handleChatAttachment} className="cursor-pointer">
+						<Paperclip className="size-4" />
+						<span>Add attachment</span>
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={handleFileUpload} className="cursor-pointer">
+						<Upload className="size-4" />
+						<span>Upload Files</span>
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+			<ComposerPrimitive.AddAttachment asChild>
+				<input
+					ref={chatAttachmentInputRef}
+					type="file"
+					multiple
+					className="hidden"
+					accept="image/*,application/pdf,.doc,.docx,.txt"
+					onClick={handleFileInputClick}
+				/>
+			</ComposerPrimitive.AddAttachment>
+		</>
 	);
 };

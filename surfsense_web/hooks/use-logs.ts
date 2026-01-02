@@ -93,16 +93,12 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 	} = useQuery({
 		queryKey: cacheKeys.logs.withQueryParams({
 			search_space_id: searchSpaceId,
-			skip: 0,
-			limit: 5,
 			...buildQueryParams(filters ?? {}),
 		}),
 		queryFn: () =>
 			logsApiService.getLogs({
 				queryParams: {
 					search_space_id: searchSpaceId,
-					skip: 0,
-					limit: 5,
 					...buildQueryParams(filters ?? {}),
 				},
 			}),

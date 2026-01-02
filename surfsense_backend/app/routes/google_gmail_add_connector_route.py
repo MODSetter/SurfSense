@@ -135,9 +135,10 @@ async def gmail_callback(
                 f"Successfully created Gmail connector for user {user_id} with ID {db_connector.id}"
             )
 
-            # Redirect to the frontend success page
+            # Redirect to the frontend with success params for indexing config
+            # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/google-gmail-connector?success=true"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-gmail-connector"
             )
 
         except IntegrityError as e:

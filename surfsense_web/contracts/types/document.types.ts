@@ -15,11 +15,13 @@ export const documentTypeEnum = z.enum([
 	"CLICKUP_CONNECTOR",
 	"GOOGLE_CALENDAR_CONNECTOR",
 	"GOOGLE_GMAIL_CONNECTOR",
+	"GOOGLE_DRIVE_FILE",
 	"AIRTABLE_CONNECTOR",
 	"LUMA_CONNECTOR",
 	"ELASTICSEARCH_CONNECTOR",
 	"LINEAR_CONNECTOR",
 	"NOTE",
+	"CIRCLEBACK",
 ]);
 
 export const document = z.object({

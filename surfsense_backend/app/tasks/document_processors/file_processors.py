@@ -447,6 +447,24 @@ async def add_received_file_document_using_docling(
         ) from e
 
 
+async def _update_document_from_connector(
+    document: Document | None, connector: dict | None, session: AsyncSession
+) -> None:
+    """Helper to update document type and metadata from connector info."""
+    if document and connector:
+        if "type" in connector:
+            document.document_type = connector["type"]
+        if "metadata" in connector:
+            # Merge with existing document_metadata (the actual column name)
+            if not document.document_metadata:
+                document.document_metadata = connector["metadata"]
+            else:
+                # Expand existing metadata with connector metadata
+                merged = {**document.document_metadata, **connector["metadata"]}
+                document.document_metadata = merged
+        await session.commit()
+
+
 async def process_file_in_background(
     file_path: str,
     filename: str,
@@ -455,6 +473,8 @@ async def process_file_in_background(
     session: AsyncSession,
     task_logger: TaskLoggingService,
     log_entry: Log,
+    connector: dict
+    | None = None,  # Optional: {"type": "GOOGLE_DRIVE_FILE", "metadata": {...}}
 ):
     try:
         # Check if the file is a markdown or text file
@@ -491,6 +511,9 @@ async def process_file_in_background(
             result = await add_received_markdown_file_document(
                 session, filename, markdown_content, search_space_id, user_id
             )
+
+            if connector:
+                await _update_document_from_connector(result, connector, session)
 
             if result:
                 await task_logger.log_task_success(
@@ -607,6 +630,9 @@ async def process_file_in_background(
             result = await add_received_markdown_file_document(
                 session, filename, transcribed_text, search_space_id, user_id
             )
+
+            if connector:
+                await _update_document_from_connector(result, connector, session)
 
             if result:
                 await task_logger.log_task_success(
@@ -753,6 +779,9 @@ async def process_file_in_background(
                     session, filename, docs, search_space_id, user_id
                 )
 
+                if connector:
+                    await _update_document_from_connector(result, connector, session)
+
                 if result:
                     # Update page usage after successful processing
                     # allow_exceed=True because document was already created after passing initial check
@@ -897,6 +926,11 @@ async def process_file_in_background(
                         user_id, final_page_count, allow_exceed=True
                     )
 
+                    if connector:
+                        await _update_document_from_connector(
+                            last_created_doc, connector, session
+                        )
+
                     await task_logger.log_task_success(
                         log_entry,
                         f"Successfully processed file with LlamaCloud: {filename}",
@@ -1020,6 +1054,11 @@ async def process_file_in_background(
                     await page_limit_service.update_page_usage(
                         user_id, final_page_count, allow_exceed=True
                     )
+
+                    if connector:
+                        await _update_document_from_connector(
+                            doc_result, connector, session
+                        )
 
                     await task_logger.log_task_success(
                         log_entry,

@@ -15,8 +15,11 @@ import {
 	indexConnectorRequest,
 	indexConnectorResponse,
 	type ListGitHubRepositoriesRequest,
+	type ListGoogleDriveFoldersRequest,
 	listGitHubRepositoriesRequest,
 	listGitHubRepositoriesResponse,
+	listGoogleDriveFoldersRequest,
+	listGoogleDriveFoldersResponse,
 	type UpdateConnectorRequest,
 	updateConnectorRequest,
 	updateConnectorResponse,
@@ -34,7 +37,7 @@ class ConnectorsApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -66,7 +69,7 @@ class ConnectorsApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -85,7 +88,7 @@ class ConnectorsApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -118,7 +121,7 @@ class ConnectorsApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -138,7 +141,7 @@ class ConnectorsApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
@@ -157,11 +160,11 @@ class ConnectorsApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const { connector_id, queryParams } = parsedRequest.data;
+		const { connector_id, queryParams, body } = parsedRequest.data;
 
 		// Transform query params to be string values
 		const transformedQueryParams = Object.fromEntries(
@@ -174,7 +177,10 @@ class ConnectorsApiService {
 
 		return baseApiService.post(
 			`/api/v1/search-source-connectors/${connector_id}/index?${queryString}`,
-			indexConnectorResponse
+			indexConnectorResponse,
+			{
+				body: body || {},
+			}
 		);
 	};
 
@@ -187,13 +193,36 @@ class ConnectorsApiService {
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
 
-			const errorMessage = parsedRequest.error.errors.map((err) => err.message).join(", ");
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
 		return baseApiService.post(`/api/v1/github/repositories`, listGitHubRepositoriesResponse, {
 			body: parsedRequest.data,
 		});
+	};
+
+	/**
+	 * List Google Drive folders and files
+	 */
+	listGoogleDriveFolders = async (request: ListGoogleDriveFoldersRequest) => {
+		const parsedRequest = listGoogleDriveFoldersRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		const { connector_id, parent_id } = parsedRequest.data;
+
+		const queryParams = parent_id ? `?parent_id=${encodeURIComponent(parent_id)}` : "";
+
+		return baseApiService.get(
+			`/api/v1/connectors/${connector_id}/google-drive/folders${queryParams}`,
+			listGoogleDriveFoldersResponse
+		);
 	};
 }
 

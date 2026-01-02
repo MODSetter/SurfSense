@@ -14,6 +14,7 @@ import {
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
@@ -240,36 +241,34 @@ export function DashboardClientLayout({
 	}
 
 	return (
-		<SidebarProvider
-			className="h-full overflow-hidden"
-			open={open}
-			onOpenChange={setOpen}
-		>
-			{/* Use AppSidebarProvider which fetches user, search space, and recent chats */}
-			<AppSidebarProvider
-				searchSpaceId={searchSpaceId}
-				navSecondary={translatedNavSecondary}
-				navMain={translatedNavMain}
-			/>
-			<SidebarInset className="h-full ">
-				<main className="flex flex-col h-full">
-					<header className="sticky top-0 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b">
-						<div className="flex items-center justify-between w-full gap-2 px-4">
-							<div className="flex items-center gap-2">
-								<SidebarTrigger className="-ml-1" />
-								<div className="hidden md:flex items-center gap-2">
-									<Separator orientation="vertical" className="h-6" />
-									<DashboardBreadcrumb />
+		<DocumentUploadDialogProvider>
+			<SidebarProvider className="h-full overflow-hidden" open={open} onOpenChange={setOpen}>
+				{/* Use AppSidebarProvider which fetches user, search space, and recent chats */}
+				<AppSidebarProvider
+					searchSpaceId={searchSpaceId}
+					navSecondary={translatedNavSecondary}
+					navMain={translatedNavMain}
+				/>
+				<SidebarInset className="h-full ">
+					<main className="flex flex-col h-full">
+						<header className="sticky top-0 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b">
+							<div className="flex items-center justify-between w-full gap-2 px-4">
+								<div className="flex items-center gap-2">
+									<SidebarTrigger className="-ml-1" />
+									<div className="hidden md:flex items-center gap-2">
+										<Separator orientation="vertical" className="h-6" />
+										<DashboardBreadcrumb />
+									</div>
+								</div>
+								<div className="flex items-center gap-2">
+									<LanguageSwitcher />
 								</div>
 							</div>
-							<div className="flex items-center gap-2">
-								<LanguageSwitcher />
-							</div>
-						</div>
-					</header>
-					<div className="flex-1 overflow-hidden">{children}</div>
-				</main>
-			</SidebarInset>
-		</SidebarProvider>
+						</header>
+						<div className="flex-1 overflow-hidden">{children}</div>
+					</main>
+				</SidebarInset>
+			</SidebarProvider>
+		</DocumentUploadDialogProvider>
 	);
 }

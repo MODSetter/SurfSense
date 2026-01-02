@@ -255,9 +255,10 @@ async def airtable_callback(
             await session.commit()
             logger.info(f"Successfully saved Airtable connector for user {user_id}")
 
-            # Redirect to the frontend success page
+            # Redirect to the frontend with success params for indexing config
+            # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/airtable-connector?success=true"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=airtable-connector"
             )
 
         except ValidationError as e:

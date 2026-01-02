@@ -11,6 +11,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		DISCORD_CONNECTOR: "Discord",
 		LINKUP_API: "Linkup",
 		CONFLUENCE_CONNECTOR: "Confluence",
+		BOOKSTACK_CONNECTOR: "BookStack",
 		CLICKUP_CONNECTOR: "ClickUp",
 		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
 		GOOGLE_GMAIL_CONNECTOR: "Google Gmail",
@@ -18,6 +19,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		LUMA_CONNECTOR: "Luma",
 		ELASTICSEARCH_CONNECTOR: "Elasticsearch",
 		WEBCRAWLER_CONNECTOR: "Web Pages",
+		CIRCLEBACK_CONNECTOR: "Circleback",
 	};
 	return typeMap[type] || type;
 };

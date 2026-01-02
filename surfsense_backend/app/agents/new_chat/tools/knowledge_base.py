@@ -36,6 +36,7 @@ _ALL_CONNECTORS: list[str] = [
     "CLICKUP_CONNECTOR",
     "GOOGLE_CALENDAR_CONNECTOR",
     "GOOGLE_GMAIL_CONNECTOR",
+    "GOOGLE_DRIVE_FILE",
     "DISCORD_CONNECTOR",
     "AIRTABLE_CONNECTOR",
     "TAVILY_API",
@@ -46,6 +47,7 @@ _ALL_CONNECTORS: list[str] = [
     "NOTE",
     "BOOKSTACK_CONNECTOR",
     "CRAWLED_URL",
+    "CIRCLEBACK",
 ]
 
 
@@ -425,6 +427,16 @@ async def search_knowledge_base_async(
                 )
                 all_documents.extend(chunks)
 
+            elif connector == "GOOGLE_DRIVE_FILE":
+                _, chunks = await connector_service.search_google_drive(
+                    user_query=query,
+                    search_space_id=search_space_id,
+                    top_k=top_k,
+                    start_date=resolved_start_date,
+                    end_date=resolved_end_date,
+                )
+                all_documents.extend(chunks)
+
             elif connector == "CONFLUENCE_CONNECTOR":
                 _, chunks = await connector_service.search_confluence(
                     user_query=query,
@@ -477,6 +489,16 @@ async def search_knowledge_base_async(
 
             elif connector == "BOOKSTACK_CONNECTOR":
                 _, chunks = await connector_service.search_bookstack(
+                    user_query=query,
+                    search_space_id=search_space_id,
+                    top_k=top_k,
+                    start_date=resolved_start_date,
+                    end_date=resolved_end_date,
+                )
+                all_documents.extend(chunks)
+
+            elif connector == "CIRCLEBACK":
+                _, chunks = await connector_service.search_circleback(
                     user_query=query,
                     search_space_id=search_space_id,
                     top_k=top_k,
@@ -561,6 +583,7 @@ def create_search_knowledge_base_tool(
         - CLICKUP_CONNECTOR: "ClickUp tasks and project data" (personal task management)
         - GOOGLE_CALENDAR_CONNECTOR: "Google Calendar events, meetings, and schedules" (personal calendar and time management)
         - GOOGLE_GMAIL_CONNECTOR: "Google Gmail emails and conversations" (personal emails and communications)
+        - GOOGLE_DRIVE_FILE: "Google Drive files and documents" (personal cloud storage and file management)
         - DISCORD_CONNECTOR: "Discord server conversations and shared content" (personal community communications)
         - AIRTABLE_CONNECTOR: "Airtable records, tables, and database content" (personal data management and organization)
         - TAVILY_API: "Tavily search API results" (personalized search results)
@@ -570,6 +593,7 @@ def create_search_knowledge_base_tool(
         - LUMA_CONNECTOR: "Luma events"
         - WEBCRAWLER_CONNECTOR: "Webpages indexed by SurfSense" (personally selected websites)
         - BOOKSTACK_CONNECTOR: "BookStack pages" (personal documentation)
+        - CIRCLEBACK: "Circleback meeting notes, transcripts, and action items" (personal meeting records)
 
         NOTE: `WEBCRAWLER_CONNECTOR` is mapped internally to the canonical document type `CRAWLED_URL`.
 

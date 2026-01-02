@@ -268,3 +268,105 @@ async def _process_file_upload(
             )
             logger.error(error_message)
             raise
+
+
+@celery_app.task(name="process_circleback_meeting", bind=True)
+def process_circleback_meeting_task(
+    self,
+    meeting_id: int,
+    meeting_name: str,
+    markdown_content: str,
+    metadata: dict,
+    search_space_id: int,
+):
+    """
+    Celery task to process Circleback meeting webhook data.
+
+    Args:
+        meeting_id: Circleback meeting ID
+        meeting_name: Name of the meeting
+        markdown_content: Meeting content formatted as markdown
+        metadata: Meeting metadata dictionary
+        search_space_id: ID of the search space
+    """
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _process_circleback_meeting(
+                meeting_id,
+                meeting_name,
+                markdown_content,
+                metadata,
+                search_space_id,
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _process_circleback_meeting(
+    meeting_id: int,
+    meeting_name: str,
+    markdown_content: str,
+    metadata: dict,
+    search_space_id: int,
+):
+    """Process Circleback meeting with new session."""
+    from app.tasks.document_processors.circleback_processor import (
+        add_circleback_meeting_document,
+    )
+
+    async with get_celery_session_maker()() as session:
+        task_logger = TaskLoggingService(session, search_space_id)
+
+        log_entry = await task_logger.log_task_start(
+            task_name="process_circleback_meeting",
+            source="circleback_webhook",
+            message=f"Starting Circleback meeting processing: {meeting_name}",
+            metadata={
+                "document_type": "CIRCLEBACK",
+                "meeting_id": meeting_id,
+                "meeting_name": meeting_name,
+                **metadata,
+            },
+        )
+
+        try:
+            result = await add_circleback_meeting_document(
+                session=session,
+                meeting_id=meeting_id,
+                meeting_name=meeting_name,
+                markdown_content=markdown_content,
+                metadata=metadata,
+                search_space_id=search_space_id,
+            )
+
+            if result:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Successfully processed Circleback meeting: {meeting_name}",
+                    {
+                        "document_id": result.id,
+                        "meeting_id": meeting_id,
+                        "content_hash": result.content_hash,
+                    },
+                )
+            else:
+                await task_logger.log_task_success(
+                    log_entry,
+                    f"Circleback meeting document already exists (duplicate): {meeting_name}",
+                    {"duplicate_detected": True, "meeting_id": meeting_id},
+                )
+        except Exception as e:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to process Circleback meeting: {meeting_name}",
+                str(e),
+                {"error_type": type(e).__name__, "meeting_id": meeting_id},
+            )
+            logger.error(f"Error processing Circleback meeting: {e!s}")
+            raise
