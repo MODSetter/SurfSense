@@ -4,7 +4,6 @@ Linear Connector OAuth Routes.
 Handles OAuth 2.0 authentication flow for Linear connector.
 """
 
-import json
 import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -89,9 +88,7 @@ async def connect_linear(space_id: int, user: User = Depends(current_active_user
             raise HTTPException(status_code=400, detail="space_id is required")
 
         if not config.LINEAR_CLIENT_ID:
-            raise HTTPException(
-                status_code=500, detail="Linear OAuth not configured."
-            )
+            raise HTTPException(status_code=500, detail="Linear OAuth not configured.")
 
         if not config.SECRET_KEY:
             raise HTTPException(
@@ -115,9 +112,7 @@ async def connect_linear(space_id: int, user: User = Depends(current_active_user
 
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info(
-            f"Generated Linear OAuth URL for user {user.id}, space {space_id}"
-        )
+        logger.info(f"Generated Linear OAuth URL for user {user.id}, space {space_id}")
         return {"auth_url": auth_url}
 
     except Exception as e:
@@ -162,7 +157,7 @@ async def linear_callback(
                 except Exception:
                     # If state is invalid, we'll redirect without space_id
                     logger.warning("Failed to validate state in error handler")
-            
+
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
@@ -172,16 +167,12 @@ async def linear_callback(
                 return RedirectResponse(
                     url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=linear_oauth_denied"
                 )
-        
+
         # Validate required parameters for successful flow
         if not code:
-            raise HTTPException(
-                status_code=400, detail="Missing authorization code"
-            )
+            raise HTTPException(status_code=400, detail="Missing authorization code")
         if not state:
-            raise HTTPException(
-                status_code=400, detail="Missing state parameter"
-            )
+            raise HTTPException(status_code=400, detail="Missing state parameter")
 
         # Validate and decode state with signature verification
         state_manager = get_state_manager()
@@ -242,7 +233,7 @@ async def linear_callback(
         token_encryption = get_token_encryption()
         access_token = token_json.get("access_token")
         refresh_token = token_json.get("refresh_token")
-        
+
         if not access_token:
             raise HTTPException(
                 status_code=400, detail="No access token received from Linear"
@@ -337,4 +328,3 @@ async def linear_callback(
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Linear OAuth: {e!s}"
         ) from e
-

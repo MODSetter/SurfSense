@@ -44,9 +44,14 @@ class LinearConnector:
             ValueError: If no Linear access token has been set
         """
         if not self.access_token:
-            raise ValueError("Linear access token not initialized. Call set_token() first.")
+            raise ValueError(
+                "Linear access token not initialized. Call set_token() first."
+            )
 
-        return {"Content-Type": "application/json", "Authorization": f"Bearer {self.access_token}"}
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.access_token}",
+        }
 
     def execute_graphql_query(
         self, query: str, variables: dict[str, Any] | None = None
@@ -66,7 +71,9 @@ class LinearConnector:
             Exception: If the API request fails
         """
         if not self.access_token:
-            raise ValueError("Linear access token not initialized. Call set_token() first.")
+            raise ValueError(
+                "Linear access token not initialized. Call set_token() first."
+            )
 
         headers = self.get_headers()
         payload = {"query": query}
@@ -174,9 +181,15 @@ class LinearConnector:
         """
         # Validate date strings
         if not start_date or start_date.lower() in ("undefined", "null", "none"):
-            return [], "Invalid start_date: must be a valid date string in YYYY-MM-DD format"
+            return (
+                [],
+                "Invalid start_date: must be a valid date string in YYYY-MM-DD format",
+            )
         if not end_date or end_date.lower() in ("undefined", "null", "none"):
-            return [], "Invalid end_date: must be a valid date string in YYYY-MM-DD format"
+            return (
+                [],
+                "Invalid end_date: must be a valid date string in YYYY-MM-DD format",
+            )
 
         # Convert date strings to ISO format
         try:

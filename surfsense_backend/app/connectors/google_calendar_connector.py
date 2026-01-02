@@ -109,14 +109,14 @@ class GoogleCalendarConnector:
                         raise RuntimeError(
                             "GOOGLE_CALENDAR_CONNECTOR connector not found; cannot persist refreshed token."
                         )
-                    
+
                     # Encrypt sensitive credentials before storing
                     from app.config import config
                     from app.utils.oauth_security import TokenEncryption
-                    
+
                     creds_dict = json.loads(self._credentials.to_json())
                     token_encrypted = connector.config.get("_token_encrypted", False)
-                    
+
                     if token_encrypted and config.SECRET_KEY:
                         token_encryption = TokenEncryption(config.SECRET_KEY)
                         # Encrypt sensitive fields
@@ -125,15 +125,19 @@ class GoogleCalendarConnector:
                                 creds_dict["token"]
                             )
                         if creds_dict.get("refresh_token"):
-                            creds_dict["refresh_token"] = token_encryption.encrypt_token(
-                                creds_dict["refresh_token"]
+                            creds_dict["refresh_token"] = (
+                                token_encryption.encrypt_token(
+                                    creds_dict["refresh_token"]
+                                )
                             )
                         if creds_dict.get("client_secret"):
-                            creds_dict["client_secret"] = token_encryption.encrypt_token(
-                                creds_dict["client_secret"]
+                            creds_dict["client_secret"] = (
+                                token_encryption.encrypt_token(
+                                    creds_dict["client_secret"]
+                                )
                             )
                         creds_dict["_token_encrypted"] = True
-                    
+
                     connector.config = creds_dict
                     flag_modified(connector, "config")
                     await self._session.commit()
@@ -209,9 +213,15 @@ class GoogleCalendarConnector:
         try:
             # Validate date strings
             if not start_date or start_date.lower() in ("undefined", "null", "none"):
-                return [], "Invalid start_date: must be a valid date string in YYYY-MM-DD format"
+                return (
+                    [],
+                    "Invalid start_date: must be a valid date string in YYYY-MM-DD format",
+                )
             if not end_date or end_date.lower() in ("undefined", "null", "none"):
-                return [], "Invalid end_date: must be a valid date string in YYYY-MM-DD format"
+                return (
+                    [],
+                    "Invalid end_date: must be a valid date string in YYYY-MM-DD format",
+                )
 
             service = await self._get_service()
 

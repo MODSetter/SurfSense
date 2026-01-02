@@ -4,7 +4,6 @@ Notion Connector OAuth Routes.
 Handles OAuth 2.0 authentication flow for Notion connector.
 """
 
-import json
 import logging
 from uuid import UUID
 
@@ -85,9 +84,7 @@ async def connect_notion(space_id: int, user: User = Depends(current_active_user
             raise HTTPException(status_code=400, detail="space_id is required")
 
         if not config.NOTION_CLIENT_ID:
-            raise HTTPException(
-                status_code=500, detail="Notion OAuth not configured."
-            )
+            raise HTTPException(status_code=500, detail="Notion OAuth not configured.")
 
         if not config.SECRET_KEY:
             raise HTTPException(
@@ -111,9 +108,7 @@ async def connect_notion(space_id: int, user: User = Depends(current_active_user
 
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info(
-            f"Generated Notion OAuth URL for user {user.id}, space {space_id}"
-        )
+        logger.info(f"Generated Notion OAuth URL for user {user.id}, space {space_id}")
         return {"auth_url": auth_url}
 
     except Exception as e:
@@ -158,7 +153,7 @@ async def notion_callback(
                 except Exception:
                     # If state is invalid, we'll redirect without space_id
                     logger.warning("Failed to validate state in error handler")
-            
+
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
@@ -168,16 +163,12 @@ async def notion_callback(
                 return RedirectResponse(
                     url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=notion_oauth_denied"
                 )
-        
+
         # Validate required parameters for successful flow
         if not code:
-            raise HTTPException(
-                status_code=400, detail="Missing authorization code"
-            )
+            raise HTTPException(status_code=400, detail="Missing authorization code")
         if not state:
-            raise HTTPException(
-                status_code=400, detail="Missing state parameter"
-            )
+            raise HTTPException(status_code=400, detail="Missing state parameter")
 
         # Validate and decode state with signature verification
         state_manager = get_state_manager()
@@ -325,4 +316,3 @@ async def notion_callback(
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Notion OAuth: {e!s}"
         ) from e
-

@@ -191,7 +191,7 @@ async def airtable_callback(
                 except Exception:
                     # If state is invalid, we'll redirect without space_id
                     logger.warning("Failed to validate state in error handler")
-            
+
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
@@ -201,16 +201,12 @@ async def airtable_callback(
                 return RedirectResponse(
                     url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=airtable_oauth_denied"
                 )
-        
+
         # Validate required parameters for successful flow
         if not code:
-            raise HTTPException(
-                status_code=400, detail="Missing authorization code"
-            )
+            raise HTTPException(status_code=400, detail="Missing authorization code")
         if not state:
-            raise HTTPException(
-                status_code=400, detail="Missing state parameter"
-            )
+            raise HTTPException(status_code=400, detail="Missing state parameter")
 
         # Validate and decode state with signature verification
         state_manager = get_state_manager()
@@ -226,7 +222,7 @@ async def airtable_callback(
         user_id = UUID(data["user_id"])
         space_id = data["space_id"]
         code_verifier = data.get("code_verifier")
-        
+
         if not code_verifier:
             raise HTTPException(
                 status_code=400, detail="Missing code_verifier in state parameter"
@@ -273,7 +269,7 @@ async def airtable_callback(
         token_encryption = get_token_encryption()
         access_token = token_json.get("access_token")
         refresh_token = token_json.get("refresh_token")
-        
+
         if not access_token:
             raise HTTPException(
                 status_code=400, detail="No access token received from Airtable"
@@ -296,7 +292,7 @@ async def airtable_callback(
             expires_at=expires_at,
             scope=token_json.get("scope"),
         )
-        
+
         # Mark that tokens are encrypted for backward compatibility
         credentials_dict = credentials.to_dict()
         credentials_dict["_token_encrypted"] = True
@@ -390,11 +386,11 @@ async def refresh_airtable_token(
         logger.info(f"Refreshing Airtable token for connector {connector.id}")
 
         credentials = AirtableAuthCredentialsBase.from_dict(connector.config)
-        
+
         # Decrypt tokens if they are encrypted
         token_encryption = get_token_encryption()
         is_encrypted = connector.config.get("_token_encrypted", False)
-        
+
         refresh_token = credentials.refresh_token
         if is_encrypted and refresh_token:
             try:
@@ -404,7 +400,7 @@ async def refresh_airtable_token(
                 raise HTTPException(
                     status_code=500, detail="Failed to decrypt stored refresh token"
                 ) from e
-        
+
         auth_header = make_basic_auth_header(
             config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
         )
@@ -444,7 +440,7 @@ async def refresh_airtable_token(
         # Encrypt new tokens before storing
         access_token = token_json.get("access_token")
         new_refresh_token = token_json.get("refresh_token")
-        
+
         if not access_token:
             raise HTTPException(
                 status_code=400, detail="No access token received from Airtable refresh"
@@ -453,7 +449,9 @@ async def refresh_airtable_token(
         # Update credentials object with encrypted tokens
         credentials.access_token = token_encryption.encrypt_token(access_token)
         if new_refresh_token:
-            credentials.refresh_token = token_encryption.encrypt_token(new_refresh_token)
+            credentials.refresh_token = token_encryption.encrypt_token(
+                new_refresh_token
+            )
         credentials.expires_in = token_json.get("expires_in")
         credentials.expires_at = expires_at
         credentials.scope = token_json.get("scope")

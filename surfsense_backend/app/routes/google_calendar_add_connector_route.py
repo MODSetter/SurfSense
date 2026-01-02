@@ -142,13 +142,9 @@ async def calendar_callback(
 
         # Validate required parameters for successful flow
         if not code:
-            raise HTTPException(
-                status_code=400, detail="Missing authorization code"
-            )
+            raise HTTPException(status_code=400, detail="Missing authorization code")
         if not state:
-            raise HTTPException(
-                status_code=400, detail="Missing state parameter"
-            )
+            raise HTTPException(status_code=400, detail="Missing state parameter")
 
         # Validate and decode state with signature verification
         state_manager = get_state_manager()
@@ -178,7 +174,7 @@ async def calendar_callback(
 
         # Encrypt sensitive credentials before storing
         token_encryption = get_token_encryption()
-        
+
         # Encrypt sensitive fields: token, refresh_token, client_secret
         if creds_dict.get("token"):
             creds_dict["token"] = token_encryption.encrypt_token(creds_dict["token"])
@@ -190,7 +186,7 @@ async def calendar_callback(
             creds_dict["client_secret"] = token_encryption.encrypt_token(
                 creds_dict["client_secret"]
             )
-        
+
         # Mark that credentials are encrypted for backward compatibility
         creds_dict["_token_encrypted"] = True
 

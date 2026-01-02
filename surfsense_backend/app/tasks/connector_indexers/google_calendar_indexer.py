@@ -8,7 +8,6 @@ from google.oauth2.credentials import Credentials
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.google_calendar_connector import GoogleCalendarConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
@@ -85,7 +84,7 @@ async def index_google_calendar_events(
 
         # Get the Google Calendar credentials from the connector config
         config_data = connector.config
-        
+
         # Decrypt sensitive credentials if encrypted (for backward compatibility)
         from app.config import config
         from app.utils.oauth_security import TokenEncryption
@@ -94,7 +93,7 @@ async def index_google_calendar_events(
         if token_encrypted and config.SECRET_KEY:
             try:
                 token_encryption = TokenEncryption(config.SECRET_KEY)
-                
+
                 # Decrypt sensitive fields
                 if config_data.get("token"):
                     config_data["token"] = token_encryption.decrypt_token(
@@ -108,7 +107,7 @@ async def index_google_calendar_events(
                     config_data["client_secret"] = token_encryption.decrypt_token(
                         config_data["client_secret"]
                     )
-                
+
                 logger.info(
                     f"Decrypted Google Calendar credentials for connector {connector_id}"
                 )

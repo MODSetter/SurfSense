@@ -43,14 +43,16 @@ async def get_valid_credentials(
     if not connector:
         raise ValueError(f"Connector {connector_id} not found")
 
-    config_data = connector.config.copy()  # Work with a copy to avoid modifying original
-    
+    config_data = (
+        connector.config.copy()
+    )  # Work with a copy to avoid modifying original
+
     # Decrypt credentials if they are encrypted
     token_encrypted = config_data.get("_token_encrypted", False)
     if token_encrypted and config.SECRET_KEY:
         try:
             token_encryption = TokenEncryption(config.SECRET_KEY)
-            
+
             # Decrypt sensitive fields
             if config_data.get("token"):
                 config_data["token"] = token_encryption.decrypt_token(
@@ -64,7 +66,7 @@ async def get_valid_credentials(
                 config_data["client_secret"] = token_encryption.decrypt_token(
                     config_data["client_secret"]
                 )
-            
+
             logger.info(
                 f"Decrypted Google Drive credentials for connector {connector_id}"
             )
@@ -104,10 +106,10 @@ async def get_valid_credentials(
             credentials.refresh(Request())
 
             creds_dict = json.loads(credentials.to_json())
-            
+
             # Encrypt sensitive credentials before storing
             token_encrypted = connector.config.get("_token_encrypted", False)
-            
+
             if token_encrypted and config.SECRET_KEY:
                 token_encryption = TokenEncryption(config.SECRET_KEY)
                 # Encrypt sensitive fields
@@ -124,7 +126,7 @@ async def get_valid_credentials(
                         creds_dict["client_secret"]
                     )
                 creds_dict["_token_encrypted"] = True
-            
+
             connector.config = creds_dict
             flag_modified(connector, "config")
             await session.commit()

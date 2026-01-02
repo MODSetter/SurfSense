@@ -110,7 +110,11 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 
 const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
 
-export function DocumentUploadTab({ searchSpaceId, onSuccess, onAccordionStateChange }: DocumentUploadTabProps) {
+export function DocumentUploadTab({
+	searchSpaceId,
+	onSuccess,
+	onAccordionStateChange,
+}: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
 	const router = useRouter();
 	const [files, setFiles] = useState<File[]>([]);
@@ -157,10 +161,13 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess, onAccordionStateCh
 	const totalFileSize = files.reduce((total, file) => total + file.size, 0);
 
 	// Track accordion state changes
-	const handleAccordionChange = useCallback((value: string) => {
-		setAccordionValue(value);
-		onAccordionStateChange?.(value === "supported-file-types");
-	}, [onAccordionStateChange]);
+	const handleAccordionChange = useCallback(
+		(value: string) => {
+			setAccordionValue(value);
+			onAccordionStateChange?.(value === "supported-file-types");
+		},
+		[onAccordionStateChange]
+	);
 
 	const handleUpload = async () => {
 		setUploadProgress(0);
@@ -202,7 +209,9 @@ export function DocumentUploadTab({ searchSpaceId, onSuccess, onAccordionStateCh
 		>
 			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5 flex items-start gap-3 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg~*]:pl-0">
 				<Info className="h-4 w-4 shrink-0 mt-0.5" />
-				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">{t("file_size_limit")}</AlertDescription>
+				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
+					{t("file_size_limit")}
+				</AlertDescription>
 			</Alert>
 
 			<Card className={`relative overflow-hidden ${cardClass}`}>

@@ -46,7 +46,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 }) => {
 	const searchParams = useSearchParams();
 	const isFromOAuth = searchParams.get("view") === "configure";
-	
+
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
 		() => (connector ? getConnectorConfigComponent(connector.connector_type) : null),

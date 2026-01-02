@@ -35,7 +35,9 @@ class OAuthStateManager:
         self.secret_key = secret_key
         self.max_age_seconds = max_age_seconds
 
-    def generate_secure_state(self, space_id: int, user_id: UUID, **extra_fields) -> str:
+    def generate_secure_state(
+        self, space_id: int, user_id: UUID, **extra_fields
+    ) -> str:
         """
         Generate cryptographically signed state parameter.
 
@@ -53,7 +55,7 @@ class OAuthStateManager:
             "user_id": str(user_id),
             "timestamp": timestamp,
         }
-        
+
         # Add any extra fields (e.g., code_verifier for PKCE)
         state_payload.update(extra_fields)
 
@@ -97,9 +99,7 @@ class OAuthStateManager:
         # Verify signature exists
         signature = data.pop("signature", None)
         if not signature:
-            raise HTTPException(
-                status_code=400, detail="Missing state signature"
-            )
+            raise HTTPException(status_code=400, detail="Missing state signature")
 
         # Verify signature
         payload_str = json.dumps(data, sort_keys=True)
@@ -120,9 +120,7 @@ class OAuthStateManager:
         age = current_time - timestamp
 
         if age < 0:
-            raise HTTPException(
-                status_code=400, detail="Invalid state timestamp"
-            )
+            raise HTTPException(status_code=400, detail="Invalid state timestamp")
 
         if age > self.max_age_seconds:
             raise HTTPException(
@@ -147,15 +145,11 @@ class TokenEncryption:
             raise ValueError("secret_key is required for token encryption")
         # Derive Fernet key from secret using SHA256
         # Note: In production, consider using HKDF for key derivation
-        key = base64.urlsafe_b64encode(
-            hashlib.sha256(secret_key.encode()).digest()
-        )
+        key = base64.urlsafe_b64encode(hashlib.sha256(secret_key.encode()).digest())
         try:
             self.cipher = Fernet(key)
         except Exception as e:
-            raise ValueError(
-                f"Failed to initialize encryption cipher: {e!s}"
-            ) from e
+            raise ValueError(f"Failed to initialize encryption cipher: {e!s}") from e
 
     def encrypt_token(self, token: str) -> str:
         """

@@ -7,7 +7,6 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.linear_connector import LinearConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
@@ -114,7 +113,9 @@ async def index_linear_issues(
         ):
             try:
                 token_encryption = TokenEncryption(config.SECRET_KEY)
-                linear_access_token = token_encryption.decrypt_token(linear_access_token)
+                linear_access_token = token_encryption.decrypt_token(
+                    linear_access_token
+                )
                 logger.info(
                     f"Decrypted Linear access token for connector {connector_id}"
                 )

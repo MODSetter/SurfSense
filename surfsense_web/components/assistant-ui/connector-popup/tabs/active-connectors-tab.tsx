@@ -1,12 +1,6 @@
 "use client";
 
-import {
-	differenceInDays,
-	differenceInMinutes,
-	format,
-	isToday,
-	isYesterday,
-} from "date-fns";
+import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } from "date-fns";
 import { ArrowRight, Cable, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FC } from "react";

@@ -99,7 +99,7 @@ const DocumentUploadPopupContent: FC<{
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[calc(100vh-2rem)] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-12 [&>button]:top-4 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button]:z-[100] [&>button_svg]:size-4 sm:[&>button_svg]:size-5">
 				<DialogTitle className="sr-only">Upload Document</DialogTitle>
-				
+
 				{/* Fixed Header */}
 				<div className="flex-shrink-0 px-4 sm:px-12 pt-6 sm:pt-10 transition-shadow duration-200 relative z-10">
 					{/* Upload header */}
@@ -120,8 +120,8 @@ const DocumentUploadPopupContent: FC<{
 				<div className="flex-1 min-h-0 relative overflow-hidden">
 					<div className={`h-full ${isAccordionExpanded ? "overflow-y-auto" : ""}`}>
 						<div className="px-6 sm:px-12 pb-5 sm:pb-16">
-							<DocumentUploadTab 
-								searchSpaceId={searchSpaceId} 
+							<DocumentUploadTab
+								searchSpaceId={searchSpaceId}
 								onSuccess={handleSuccess}
 								onAccordionStateChange={setIsAccordionExpanded}
 							/>
