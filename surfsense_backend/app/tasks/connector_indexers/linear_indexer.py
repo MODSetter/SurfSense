@@ -92,16 +92,16 @@ async def index_linear_issues(
                 f"Connector with ID {connector_id} not found or is not a Linear connector",
             )
 
-        # Get the Linear token from the connector config
-        linear_token = connector.config.get("LINEAR_API_KEY")
-        if not linear_token:
+        # Get the Linear access token from the connector config
+        linear_access_token = connector.config.get("access_token")
+        if not linear_access_token:
             await task_logger.log_task_failure(
                 log_entry,
-                f"Linear API token not found in connector config for connector {connector_id}",
-                "Missing Linear token",
+                f"Linear access token not found in connector config for connector {connector_id}",
+                "Missing Linear access token",
                 {"error_type": "MissingToken"},
             )
-            return 0, "Linear API token not found in connector config"
+            return 0, "Linear access token not found in connector config"
 
         # Initialize Linear client
         await task_logger.log_task_progress(
@@ -110,7 +110,7 @@ async def index_linear_issues(
             {"stage": "client_initialization"},
         )
 
-        linear_client = LinearConnector(token=linear_token)
+        linear_client = LinearConnector(access_token=linear_access_token)
 
         # Calculate date range
         start_date_str, end_date_str = calculate_date_range(

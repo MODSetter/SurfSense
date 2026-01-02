@@ -18,6 +18,7 @@ from .google_gmail_add_connector_route import (
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
 from .new_chat_routes import router as new_chat_router
+from .linear_add_connector_route import router as linear_add_connector_router
 from .notion_add_connector_route import router as notion_add_connector_router
 from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
@@ -40,6 +41,7 @@ router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
 router.include_router(google_drive_add_connector_router)
 router.include_router(airtable_add_connector_router)
+router.include_router(linear_add_connector_router)
 router.include_router(luma_add_connector_router)
 router.include_router(notion_add_connector_router)
 router.include_router(new_llm_config_router)  # LLM configs with prompt configuration

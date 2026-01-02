@@ -8,7 +8,6 @@ import { DiscordConnectForm } from "./components/discord-connect-form";
 import { ElasticsearchConnectForm } from "./components/elasticsearch-connect-form";
 import { GithubConnectForm } from "./components/github-connect-form";
 import { JiraConnectForm } from "./components/jira-connect-form";
-import { LinearConnectForm } from "./components/linear-connect-form";
 import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
 import { LumaConnectForm } from "./components/luma-connect-form";
 import { SearxngConnectForm } from "./components/searxng-connect-form";
@@ -50,8 +49,6 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 			return LinkupApiConnectForm;
 		case "BAIDU_SEARCH_API":
 			return BaiduSearchApiConnectForm;
-		case "LINEAR_CONNECTOR":
-			return LinearConnectForm;
 		case "ELASTICSEARCH_CONNECTOR":
 			return ElasticsearchConnectForm;
 		case "SLACK_CONNECTOR":

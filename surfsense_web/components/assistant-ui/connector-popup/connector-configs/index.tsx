@@ -12,7 +12,6 @@ import { ElasticsearchConfig } from "./components/elasticsearch-config";
 import { GithubConfig } from "./components/github-config";
 import { GoogleDriveConfig } from "./components/google-drive-config";
 import { JiraConfig } from "./components/jira-config";
-import { LinearConfig } from "./components/linear-config";
 import { LinkupApiConfig } from "./components/linkup-api-config";
 import { LumaConfig } from "./components/luma-config";
 import { SearxngConfig } from "./components/searxng-config";
@@ -45,8 +44,6 @@ export function getConnectorConfigComponent(
 			return LinkupApiConfig;
 		case "BAIDU_SEARCH_API":
 			return BaiduSearchApiConfig;
-		case "LINEAR_CONNECTOR":
-			return LinearConfig;
 		case "WEBCRAWLER_CONNECTOR":
 			return WebcrawlerConfig;
 		case "ELASTICSEARCH_CONNECTOR":

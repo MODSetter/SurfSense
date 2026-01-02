@@ -63,7 +63,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 
 				<div className="w-full sm:w-72 sm:pb-1">
 					<div className="relative">
-						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60" />
+						<Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-500" />
 						<input
 							type="text"
 							placeholder="Search"
@@ -78,7 +78,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 							<button
 								type="button"
 								onClick={() => onSearchChange("")}
-								className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+								className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
 								aria-label="Clear search"
 							>
 								<X className="size-4" />

@@ -14,24 +14,24 @@ import requests
 class LinearConnector:
     """Class for retrieving issues and comments from Linear."""
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, access_token: str | None = None):
         """
         Initialize the LinearConnector class.
 
         Args:
-            token: Linear API token (optional, can be set later with set_token)
+            access_token: Linear OAuth access token (optional, can be set later with set_token)
         """
-        self.token = token
+        self.access_token = access_token
         self.api_url = "https://api.linear.app/graphql"
 
-    def set_token(self, token: str) -> None:
+    def set_token(self, access_token: str) -> None:
         """
-        Set the Linear API token.
+        Set the Linear OAuth access token.
 
         Args:
-            token: Linear API token
+            access_token: Linear OAuth access token
         """
-        self.token = token
+        self.access_token = access_token
 
     def get_headers(self) -> dict[str, str]:
         """
@@ -41,12 +41,12 @@ class LinearConnector:
             Dictionary of headers
 
         Raises:
-            ValueError: If no Linear token has been set
+            ValueError: If no Linear access token has been set
         """
-        if not self.token:
-            raise ValueError("Linear token not initialized. Call set_token() first.")
+        if not self.access_token:
+            raise ValueError("Linear access token not initialized. Call set_token() first.")
 
-        return {"Content-Type": "application/json", "Authorization": self.token}
+        return {"Content-Type": "application/json", "Authorization": f"Bearer {self.access_token}"}
 
     def execute_graphql_query(
         self, query: str, variables: dict[str, Any] | None = None
@@ -62,11 +62,11 @@ class LinearConnector:
             Response data from the API
 
         Raises:
-            ValueError: If no Linear token has been set
+            ValueError: If no Linear access token has been set
             Exception: If the API request fails
         """
-        if not self.token:
-            raise ValueError("Linear token not initialized. Call set_token() first.")
+        if not self.access_token:
+            raise ValueError("Linear access token not initialized. Call set_token() first.")
 
         headers = self.get_headers()
         payload = {"query": query}
@@ -94,7 +94,7 @@ class LinearConnector:
             List of issue objects
 
         Raises:
-            ValueError: If no Linear token has been set
+            ValueError: If no Linear access token has been set
             Exception: If the API request fails
         """
         comments_query = ""
@@ -451,10 +451,10 @@ class LinearConnector:
 # Example usage (uncomment to use):
 """
 if __name__ == "__main__":
-    # Set your token here
-    token = "YOUR_LINEAR_API_KEY"
+    # Set your OAuth access token here
+    access_token = "YOUR_LINEAR_ACCESS_TOKEN"
     
-    linear = LinearConnector(token)
+    linear = LinearConnector(access_token=access_token)
     
     try:
         # Get all issues with comments

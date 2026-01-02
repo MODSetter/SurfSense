@@ -95,6 +95,11 @@ class Config:
     NOTION_CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
     NOTION_REDIRECT_URI = os.getenv("NOTION_REDIRECT_URI")
 
+    # Linear OAuth
+    LINEAR_CLIENT_ID = os.getenv("LINEAR_CLIENT_ID")
+    LINEAR_CLIENT_SECRET = os.getenv("LINEAR_CLIENT_SECRET")
+    LINEAR_REDIRECT_URI = os.getenv("LINEAR_REDIRECT_URI")
+
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 
