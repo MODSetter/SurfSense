@@ -118,7 +118,7 @@ export function SearchSpaceForm({
 		>
 			<motion.div className="flex items-center justify-between" variants={itemVariants}>
 				<div className="flex flex-col space-y-2">
-					<h2 className="text-3xl font-bold tracking-tight">
+					<h2 className="text-2xl md:text-3xl font-bold tracking-tight">
 						{isEditing ? "Edit Search Space" : "Create Search Space"}
 					</h2>
 				</div>
@@ -157,7 +157,7 @@ export function SearchSpaceForm({
 							mass: 0.2,
 						}}
 					/>
-					<div className="flex flex-col p-8 rounded-xl border-2 bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50 shadow-sm">
+					<div className="flex flex-col p-4 md:p-6 lg:p-8 rounded-xl border-2 bg-muted/30 backdrop-blur-sm transition-all hover:border-primary/50 shadow-sm">
 						<div className="flex items-center justify-between mb-4">
 							<div className="flex items-center space-x-4">
 								<span className="p-3 rounded-full bg-blue-100 dark:bg-blue-950/50">
