@@ -12,10 +12,8 @@ import { ElasticsearchConfig } from "./components/elasticsearch-config";
 import { GithubConfig } from "./components/github-config";
 import { GoogleDriveConfig } from "./components/google-drive-config";
 import { JiraConfig } from "./components/jira-config";
-import { LinearConfig } from "./components/linear-config";
 import { LinkupApiConfig } from "./components/linkup-api-config";
 import { LumaConfig } from "./components/luma-config";
-import { NotionConfig } from "./components/notion-config";
 import { SearxngConfig } from "./components/searxng-config";
 import { SlackConfig } from "./components/slack-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
@@ -46,8 +44,6 @@ export function getConnectorConfigComponent(
 			return LinkupApiConfig;
 		case "BAIDU_SEARCH_API":
 			return BaiduSearchApiConfig;
-		case "LINEAR_CONNECTOR":
-			return LinearConfig;
 		case "WEBCRAWLER_CONNECTOR":
 			return WebcrawlerConfig;
 		case "ELASTICSEARCH_CONNECTOR":
@@ -56,8 +52,6 @@ export function getConnectorConfigComponent(
 			return SlackConfig;
 		case "DISCORD_CONNECTOR":
 			return DiscordConfig;
-		case "NOTION_CONNECTOR":
-			return NotionConfig;
 		case "CONFLUENCE_CONNECTOR":
 			return ConfluenceConfig;
 		case "BOOKSTACK_CONNECTOR":
@@ -72,7 +66,7 @@ export function getConnectorConfigComponent(
 			return LumaConfig;
 		case "CIRCLEBACK_CONNECTOR":
 			return CirclebackConfig;
-		// OAuth connectors (Gmail, Calendar, Airtable) and others don't need special config UI
+		// OAuth connectors (Gmail, Calendar, Airtable, Notion) and others don't need special config UI
 		default:
 			return null;
 	}

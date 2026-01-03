@@ -18,6 +18,7 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+from app.utils.oauth_security import TokenEncryption
 
 from .base import (
     calculate_date_range,
@@ -85,7 +86,52 @@ async def index_airtable_records(
             return 0, f"Connector with ID {connector_id} not found"
 
         # Create credentials from connector config
-        config_data = connector.config
+        config_data = (
+            connector.config.copy()
+        )  # Work with a copy to avoid modifying original
+
+        # Decrypt tokens if they are encrypted (only when explicitly marked)
+        token_encrypted = config_data.get("_token_encrypted", False)
+        if token_encrypted:
+            # Tokens are explicitly marked as encrypted, attempt decryption
+            if not config.SECRET_KEY:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"SECRET_KEY not configured but tokens are marked as encrypted for connector {connector_id}",
+                    "Missing SECRET_KEY for token decryption",
+                    {"error_type": "MissingSecretKey"},
+                )
+                return 0, "SECRET_KEY not configured but tokens are marked as encrypted"
+            try:
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+
+                # Decrypt access_token
+                if config_data.get("access_token"):
+                    config_data["access_token"] = token_encryption.decrypt_token(
+                        config_data["access_token"]
+                    )
+                    logger.info(
+                        f"Decrypted Airtable access token for connector {connector_id}"
+                    )
+
+                # Decrypt refresh_token if present
+                if config_data.get("refresh_token"):
+                    config_data["refresh_token"] = token_encryption.decrypt_token(
+                        config_data["refresh_token"]
+                    )
+                    logger.info(
+                        f"Decrypted Airtable refresh token for connector {connector_id}"
+                    )
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to decrypt Airtable tokens for connector {connector_id}: {e!s}",
+                    "Token decryption failed",
+                    {"error_type": "TokenDecryptionError"},
+                )
+                return 0, f"Failed to decrypt Airtable tokens: {e!s}"
+        # If _token_encrypted is False or not set, treat tokens as plaintext
+
         try:
             credentials = AirtableAuthCredentialsBase.from_dict(config_data)
         except Exception as e:

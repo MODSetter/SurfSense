@@ -616,6 +616,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 													<SelectValue placeholder="Select frequency" />
 												</SelectTrigger>
 												<SelectContent className="z-[100]">
+													<SelectItem value="5" className="text-xs sm:text-sm">
+														Every 5 minutes
+													</SelectItem>
 													<SelectItem value="15" className="text-xs sm:text-sm">
 														Every 15 minutes
 													</SelectItem>

@@ -1,84 +1,27 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
+import { Info } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { ConnectorConfigProps } from "../index";
 
 export interface SlackConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
-export const SlackConfig: FC<SlackConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
-	const [botToken, setBotToken] = useState<string>(
-		(connector.config?.SLACK_BOT_TOKEN as string) || ""
-	);
-	const [name, setName] = useState<string>(connector.name || "");
-
-	// Update bot token and name when connector changes
-	useEffect(() => {
-		const token = (connector.config?.SLACK_BOT_TOKEN as string) || "";
-		setBotToken(token);
-		setName(connector.name || "");
-	}, [connector.config, connector.name]);
-
-	const handleBotTokenChange = (value: string) => {
-		setBotToken(value);
-		if (onConfigChange) {
-			onConfigChange({
-				...connector.config,
-				SLACK_BOT_TOKEN: value,
-			});
-		}
-	};
-
-	const handleNameChange = (value: string) => {
-		setName(value);
-		if (onNameChange) {
-			onNameChange(value);
-		}
-	};
-
+export const SlackConfig: FC<SlackConfigProps> = () => {
 	return (
 		<div className="space-y-6">
-			{/* Connector Name */}
-			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
-				<div className="space-y-2">
-					<Label className="text-xs sm:text-sm">Connector Name</Label>
-					<Input
-						value={name}
-						onChange={(e) => handleNameChange(e.target.value)}
-						placeholder="My Slack Connector"
-						className="border-slate-400/20 focus-visible:border-slate-400/40"
-					/>
-					<p className="text-[10px] sm:text-xs text-muted-foreground">
-						A friendly name to identify this connector.
-					</p>
+			<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
+				<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
+					<Info className="size-4" />
 				</div>
-			</div>
-
-			{/* Configuration */}
-			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
-				<div className="space-y-1 sm:space-y-2">
-					<h3 className="font-medium text-sm sm:text-base">Configuration</h3>
-				</div>
-
-				<div className="space-y-2">
-					<Label className="flex items-center gap-2 text-xs sm:text-sm">
-						<KeyRound className="h-4 w-4" />
-						Slack Bot User OAuth Token
-					</Label>
-					<Input
-						type="password"
-						value={botToken}
-						onChange={(e) => handleBotTokenChange(e.target.value)}
-						placeholder="Begins with xoxb-..."
-						className="border-slate-400/20 focus-visible:border-slate-400/40"
-					/>
-					<p className="text-[10px] sm:text-xs text-muted-foreground">
-						Update your Bot User OAuth Token if needed.
+				<div className="text-xs sm:text-sm">
+					<p className="font-medium text-xs sm:text-sm">Add Bot to Channels</p>
+					<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+						Before indexing, add the SurfSense bot to each channel you want to index. The bot can
+						only access messages from channels it's been added to. Type{" "}
+						<code className="bg-muted px-1 py-0.5 rounded text-[9px]">/invite @SurfSense</code> in
+						any channel to add it.
 					</p>
 				</div>
 			</div>

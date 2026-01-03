@@ -189,7 +189,7 @@ export const ConnectorIndicator: FC = () => {
 				)}
 			</TooltipIconButton>
 
-			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
+			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
@@ -272,7 +272,7 @@ export const ConnectorIndicator: FC = () => {
 						{/* Content */}
 						<div className="flex-1 min-h-0 relative overflow-hidden">
 							<div className="h-full overflow-y-auto" onScroll={handleScroll}>
-								<div className="px-6 sm:px-12 py-6 sm:py-8 pb-16 sm:pb-16">
+								<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
 									<TabsContent value="all" className="m-0">
 										<AllConnectorsTab
 											searchQuery={searchQuery}

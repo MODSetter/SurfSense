@@ -1,7 +1,10 @@
-import base64
-import hashlib
+"""
+Slack Connector OAuth Routes.
+
+Handles OAuth 2.0 authentication flow for Slack connector.
+"""
+
 import logging
-import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -20,7 +23,7 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
+from app.schemas.slack_auth_credentials import SlackAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
@@ -28,16 +31,19 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Airtable OAuth endpoints
-AUTHORIZATION_URL = "https://airtable.com/oauth2/v1/authorize"
-TOKEN_URL = "https://airtable.com/oauth2/v1/token"
+# Slack OAuth endpoints
+AUTHORIZATION_URL = "https://slack.com/oauth/v2/authorize"
+TOKEN_URL = "https://slack.com/api/oauth.v2.access"
 
-# OAuth scopes for Airtable
+# OAuth scopes for Slack (Bot Token)
 SCOPES = [
-    "data.records:read",
-    "data.recordComments:read",
-    "schema.bases:read",
-    "user.email:read",
+    "channels:history",  # Read messages in public channels
+    "channels:read",  # View basic information about public channels
+    "groups:history",  # Read messages in private channels
+    "groups:read",  # View basic information about private channels
+    "im:history",  # Read messages in direct messages
+    "mpim:history",  # Read messages in group direct messages
+    "users:read",  # Read user information
 ]
 
 # Initialize security utilities
@@ -65,38 +71,10 @@ def get_token_encryption() -> TokenEncryption:
     return _token_encryption
 
 
-def make_basic_auth_header(client_id: str, client_secret: str) -> str:
-    credentials = f"{client_id}:{client_secret}".encode()
-    b64 = base64.b64encode(credentials).decode("ascii")
-    return f"Basic {b64}"
-
-
-def generate_pkce_pair() -> tuple[str, str]:
+@router.get("/auth/slack/connector/add")
+async def connect_slack(space_id: int, user: User = Depends(current_active_user)):
     """
-    Generate PKCE code verifier and code challenge.
-
-    Returns:
-        Tuple of (code_verifier, code_challenge)
-    """
-    # Generate code verifier (43-128 characters)
-    code_verifier = (
-        base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("utf-8").rstrip("=")
-    )
-
-    # Generate code challenge (SHA256 hash of verifier, base64url encoded)
-    code_challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("utf-8")).digest())
-        .decode("utf-8")
-        .rstrip("=")
-    )
-
-    return code_verifier, code_challenge
-
-
-@router.get("/auth/airtable/connector/add")
-async def connect_airtable(space_id: int, user: User = Depends(current_active_user)):
-    """
-    Initiate Airtable OAuth flow.
+    Initiate Slack OAuth flow.
 
     Args:
         space_id: The search space ID
@@ -109,55 +87,42 @@ async def connect_airtable(space_id: int, user: User = Depends(current_active_us
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
 
-        if not config.AIRTABLE_CLIENT_ID:
-            raise HTTPException(
-                status_code=500, detail="Airtable OAuth not configured."
-            )
+        if not config.SLACK_CLIENT_ID:
+            raise HTTPException(status_code=500, detail="Slack OAuth not configured.")
 
         if not config.SECRET_KEY:
             raise HTTPException(
                 status_code=500, detail="SECRET_KEY not configured for OAuth security."
             )
 
-        # Generate PKCE parameters
-        code_verifier, code_challenge = generate_pkce_pair()
-
-        # Generate secure state parameter with HMAC signature (including code_verifier for PKCE)
+        # Generate secure state parameter with HMAC signature
         state_manager = get_state_manager()
-        state_encoded = state_manager.generate_secure_state(
-            space_id, user.id, code_verifier=code_verifier
-        )
+        state_encoded = state_manager.generate_secure_state(space_id, user.id)
 
         # Build authorization URL
-        auth_params = {
-            "client_id": config.AIRTABLE_CLIENT_ID,
-            "redirect_uri": config.AIRTABLE_REDIRECT_URI,
-            "response_type": "code",
-            "scope": " ".join(SCOPES),
-            "state": state_encoded,
-            "code_challenge": code_challenge,
-            "code_challenge_method": "S256",
-        }
-
-        # Construct URL manually to ensure proper encoding
         from urllib.parse import urlencode
+
+        auth_params = {
+            "client_id": config.SLACK_CLIENT_ID,
+            "scope": ",".join(SCOPES),
+            "redirect_uri": config.SLACK_REDIRECT_URI,
+            "state": state_encoded,
+        }
 
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info(
-            f"Generated Airtable OAuth URL for user {user.id}, space {space_id}"
-        )
+        logger.info(f"Generated Slack OAuth URL for user {user.id}, space {space_id}")
         return {"auth_url": auth_url}
 
     except Exception as e:
-        logger.error(f"Failed to initiate Airtable OAuth: {e!s}", exc_info=True)
+        logger.error(f"Failed to initiate Slack OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate Airtable OAuth: {e!s}"
+            status_code=500, detail=f"Failed to initiate Slack OAuth: {e!s}"
         ) from e
 
 
-@router.get("/auth/airtable/connector/callback")
-async def airtable_callback(
+@router.get("/auth/slack/connector/callback")
+async def slack_callback(
     request: Request,
     code: str | None = None,
     error: str | None = None,
@@ -165,12 +130,12 @@ async def airtable_callback(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Handle Airtable OAuth callback.
+    Handle Slack OAuth callback.
 
     Args:
         request: FastAPI request object
-        code: Authorization code from Airtable (if user granted access)
-        error: Error code from Airtable (if user denied access or error occurred)
+        code: Authorization code from Slack (if user granted access)
+        error: Error code from Slack (if user denied access or error occurred)
         state: State parameter containing user/space info
         session: Database session
 
@@ -180,7 +145,7 @@ async def airtable_callback(
     try:
         # Handle OAuth errors (e.g., user denied access)
         if error:
-            logger.warning(f"Airtable OAuth error: {error}")
+            logger.warning(f"Slack OAuth error: {error}")
             # Try to decode state to get space_id for redirect, but don't fail if it's invalid
             space_id = None
             if state:
@@ -195,11 +160,11 @@ async def airtable_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=airtable_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=slack_oauth_denied"
                 )
             else:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=airtable_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=slack_oauth_denied"
                 )
 
         # Validate required parameters for successful flow
@@ -221,34 +186,26 @@ async def airtable_callback(
 
         user_id = UUID(data["user_id"])
         space_id = data["space_id"]
-        code_verifier = data.get("code_verifier")
 
-        if not code_verifier:
+        # Validate redirect URI (security: ensure it matches configured value)
+        if not config.SLACK_REDIRECT_URI:
             raise HTTPException(
-                status_code=400, detail="Missing code_verifier in state parameter"
+                status_code=500, detail="SLACK_REDIRECT_URI not configured"
             )
-        auth_header = make_basic_auth_header(
-            config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
-        )
 
         # Exchange authorization code for access token
         token_data = {
-            "client_id": config.AIRTABLE_CLIENT_ID,
-            "client_secret": config.AIRTABLE_CLIENT_SECRET,
-            "redirect_uri": config.AIRTABLE_REDIRECT_URI,
+            "client_id": config.SLACK_CLIENT_ID,
+            "client_secret": config.SLACK_CLIENT_SECRET,
             "code": code,
-            "grant_type": "authorization_code",
-            "code_verifier": code_verifier,
+            "redirect_uri": config.SLACK_REDIRECT_URI,
         }
 
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 TOKEN_URL,
                 data=token_data,
-                headers={
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Authorization": auth_header,
-                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=30.0,
             )
 
@@ -256,7 +213,7 @@ async def airtable_callback(
             error_detail = token_response.text
             try:
                 error_json = token_response.json()
-                error_detail = error_json.get("error_description", error_detail)
+                error_detail = error_json.get("error", error_detail)
             except Exception:
                 pass
             raise HTTPException(
@@ -265,37 +222,55 @@ async def airtable_callback(
 
         token_json = token_response.json()
 
-        # Encrypt sensitive tokens before storing
-        token_encryption = get_token_encryption()
-        access_token = token_json.get("access_token")
-        refresh_token = token_json.get("refresh_token")
-
-        if not access_token:
+        # Slack OAuth v2 returns success status in the JSON
+        if not token_json.get("ok", False):
+            error_msg = token_json.get("error", "Unknown error")
             raise HTTPException(
-                status_code=400, detail="No access token received from Airtable"
+                status_code=400, detail=f"Slack OAuth error: {error_msg}"
             )
 
+        # Extract bot token from Slack response
+        # Slack OAuth v2 returns: { "ok": true, "access_token": "...", "bot": { "bot_user_id": "...", "bot_access_token": "xoxb-..." }, "refresh_token": "...", ... }
+        bot_token = None
+        if token_json.get("bot") and token_json["bot"].get("bot_access_token"):
+            bot_token = token_json["bot"]["bot_access_token"]
+        elif token_json.get("access_token"):
+            # Fallback to access_token if bot token not available
+            bot_token = token_json["access_token"]
+        else:
+            raise HTTPException(
+                status_code=400, detail="No bot token received from Slack"
+            )
+
+        # Extract refresh token if available (for token rotation)
+        refresh_token = token_json.get("refresh_token")
+
+        # Encrypt sensitive tokens before storing
+        token_encryption = get_token_encryption()
+
         # Calculate expiration time (UTC, tz-aware)
+        # Slack tokens don't expire by default, but we'll store expiration info if provided
         expires_at = None
         if token_json.get("expires_in"):
             now_utc = datetime.now(UTC)
             expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
 
-        # Create credentials object with encrypted tokens
-        credentials = AirtableAuthCredentialsBase(
-            access_token=token_encryption.encrypt_token(access_token),
-            refresh_token=token_encryption.encrypt_token(refresh_token)
+        # Store the encrypted bot token and refresh token in connector config
+        connector_config = {
+            "bot_token": token_encryption.encrypt_token(bot_token),
+            "refresh_token": token_encryption.encrypt_token(refresh_token)
             if refresh_token
             else None,
-            token_type=token_json.get("token_type", "Bearer"),
-            expires_in=token_json.get("expires_in"),
-            expires_at=expires_at,
-            scope=token_json.get("scope"),
-        )
-
-        # Mark that tokens are encrypted for backward compatibility
-        credentials_dict = credentials.to_dict()
-        credentials_dict["_token_encrypted"] = True
+            "bot_user_id": token_json.get("bot", {}).get("bot_user_id"),
+            "team_id": token_json.get("team", {}).get("id"),
+            "team_name": token_json.get("team", {}).get("name"),
+            "token_type": token_json.get("token_type", "Bearer"),
+            "expires_in": token_json.get("expires_in"),
+            "expires_at": expires_at.isoformat() if expires_at else None,
+            "scope": token_json.get("scope"),
+            # Mark that tokens are encrypted for backward compatibility
+            "_token_encrypted": True,
+        }
 
         # Check if connector already exists for this search space and user
         existing_connector_result = await session.execute(
@@ -303,42 +278,41 @@ async def airtable_callback(
                 SearchSourceConnector.search_space_id == space_id,
                 SearchSourceConnector.user_id == user_id,
                 SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+                == SearchSourceConnectorType.SLACK_CONNECTOR,
             )
         )
         existing_connector = existing_connector_result.scalars().first()
 
         if existing_connector:
             # Update existing connector
-            existing_connector.config = credentials_dict
-            existing_connector.name = "Airtable Connector"
+            existing_connector.config = connector_config
+            existing_connector.name = "Slack Connector"
             existing_connector.is_indexable = True
             logger.info(
-                f"Updated existing Airtable connector for user {user_id} in space {space_id}"
+                f"Updated existing Slack connector for user {user_id} in space {space_id}"
             )
         else:
             # Create new connector
             new_connector = SearchSourceConnector(
-                name="Airtable Connector",
-                connector_type=SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+                name="Slack Connector",
+                connector_type=SearchSourceConnectorType.SLACK_CONNECTOR,
                 is_indexable=True,
-                config=credentials_dict,
+                config=connector_config,
                 search_space_id=space_id,
                 user_id=user_id,
             )
             session.add(new_connector)
             logger.info(
-                f"Created new Airtable connector for user {user_id} in space {space_id}"
+                f"Created new Slack connector for user {user_id} in space {space_id}"
             )
 
         try:
             await session.commit()
-            logger.info(f"Successfully saved Airtable connector for user {user_id}")
+            logger.info(f"Successfully saved Slack connector for user {user_id}")
 
-            # Redirect to the frontend with success params for indexing config
-            # Using query params to auto-open the popup with config view on new-chat page
+            # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=airtable-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=slack-connector"
             )
 
         except ValidationError as e:
@@ -363,29 +337,29 @@ async def airtable_callback(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to complete Airtable OAuth: {e!s}", exc_info=True)
+        logger.error(f"Failed to complete Slack OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to complete Airtable OAuth: {e!s}"
+            status_code=500, detail=f"Failed to complete Slack OAuth: {e!s}"
         ) from e
 
 
-async def refresh_airtable_token(
+async def refresh_slack_token(
     session: AsyncSession, connector: SearchSourceConnector
-):
+) -> SearchSourceConnector:
     """
-    Refresh the Airtable access token for a connector.
+    Refresh the Slack bot token for a connector.
 
     Args:
         session: Database session
-        connector: Airtable connector to refresh
+        connector: Slack connector to refresh
 
     Returns:
         Updated connector object
     """
     try:
-        logger.info(f"Refreshing Airtable token for connector {connector.id}")
+        logger.info(f"Refreshing Slack token for connector {connector.id}")
 
-        credentials = AirtableAuthCredentialsBase.from_dict(connector.config)
+        credentials = SlackAuthCredentialsBase.from_dict(connector.config)
 
         # Decrypt tokens if they are encrypted
         token_encryption = get_token_encryption()
@@ -401,60 +375,86 @@ async def refresh_airtable_token(
                     status_code=500, detail="Failed to decrypt stored refresh token"
                 ) from e
 
-        auth_header = make_basic_auth_header(
-            config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
-        )
+        if not refresh_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No refresh token available. Please re-authenticate.",
+            )
 
-        # Prepare token refresh data
+        # Slack uses oauth.v2.access for token refresh with grant_type=refresh_token
         refresh_data = {
+            "client_id": config.SLACK_CLIENT_ID,
+            "client_secret": config.SLACK_CLIENT_SECRET,
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
-            "client_id": config.AIRTABLE_CLIENT_ID,
-            "client_secret": config.AIRTABLE_CLIENT_SECRET,
         }
 
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 TOKEN_URL,
                 data=refresh_data,
-                headers={
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Authorization": auth_header,
-                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=30.0,
             )
 
         if token_response.status_code != 200:
+            error_detail = token_response.text
+            try:
+                error_json = token_response.json()
+                error_detail = error_json.get("error", error_detail)
+            except Exception:
+                pass
             raise HTTPException(
-                status_code=400, detail="Token refresh failed: {token_response.text}"
+                status_code=400, detail=f"Token refresh failed: {error_detail}"
             )
 
         token_json = token_response.json()
 
-        # Calculate expiration time (UTC, tz-aware)
-        expires_at = None
-        if token_json.get("expires_in"):
-            now_utc = datetime.now(UTC)
-            expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
-
-        # Encrypt new tokens before storing
-        access_token = token_json.get("access_token")
-        new_refresh_token = token_json.get("refresh_token")
-
-        if not access_token:
+        # Slack OAuth v2 returns success status in the JSON
+        if not token_json.get("ok", False):
+            error_msg = token_json.get("error", "Unknown error")
             raise HTTPException(
-                status_code=400, detail="No access token received from Airtable refresh"
+                status_code=400, detail=f"Slack OAuth refresh error: {error_msg}"
             )
 
+        # Extract bot token from refresh response
+        bot_token = None
+        if token_json.get("bot") and token_json["bot"].get("bot_access_token"):
+            bot_token = token_json["bot"]["bot_access_token"]
+        elif token_json.get("access_token"):
+            bot_token = token_json["access_token"]
+        else:
+            raise HTTPException(
+                status_code=400, detail="No bot token received from Slack refresh"
+            )
+
+        # Get new refresh token if provided (Slack may rotate refresh tokens)
+        new_refresh_token = token_json.get("refresh_token")
+
+        # Calculate expiration time (UTC, tz-aware)
+        expires_at = None
+        expires_in = token_json.get("expires_in")
+        if expires_in:
+            now_utc = datetime.now(UTC)
+            expires_at = now_utc + timedelta(seconds=int(expires_in))
+
         # Update credentials object with encrypted tokens
-        credentials.access_token = token_encryption.encrypt_token(access_token)
+        credentials.bot_token = token_encryption.encrypt_token(bot_token)
         if new_refresh_token:
             credentials.refresh_token = token_encryption.encrypt_token(
                 new_refresh_token
             )
-        credentials.expires_in = token_json.get("expires_in")
+        credentials.expires_in = expires_in
         credentials.expires_at = expires_at
         credentials.scope = token_json.get("scope")
+
+        # Preserve team info
+        if not credentials.team_id:
+            credentials.team_id = connector.config.get("team_id")
+        if not credentials.team_name:
+            credentials.team_name = connector.config.get("team_name")
+        if not credentials.bot_user_id:
+            credentials.bot_user_id = connector.config.get("bot_user_id")
 
         # Update connector config with encrypted tokens
         credentials_dict = credentials.to_dict()
@@ -463,12 +463,16 @@ async def refresh_airtable_token(
         await session.commit()
         await session.refresh(connector)
 
-        logger.info(
-            f"Successfully refreshed Airtable token for connector {connector.id}"
-        )
+        logger.info(f"Successfully refreshed Slack token for connector {connector.id}")
 
         return connector
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(
+            f"Failed to refresh Slack token for connector {connector.id}: {e!s}",
+            exc_info=True,
+        )
         raise HTTPException(
-            status_code=500, detail=f"Failed to refresh Airtable token: {e!s}"
+            status_code=500, detail=f"Failed to refresh Slack token: {e!s}"
         ) from e

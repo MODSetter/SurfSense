@@ -92,25 +92,24 @@ async def index_slack_messages(
                 f"Connector with ID {connector_id} not found or is not a Slack connector",
             )
 
-        # Get the Slack token from the connector config
-        slack_token = connector.config.get("SLACK_BOT_TOKEN")
-        if not slack_token:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Slack token not found in connector config for connector {connector_id}",
-                "Missing Slack token",
-                {"error_type": "MissingToken"},
-            )
-            return 0, "Slack token not found in connector config"
+        # Note: Token handling is now done automatically by SlackHistory
+        # with auto-refresh support. We just need to pass session and connector_id.
 
-        # Initialize Slack client
+        # Initialize Slack client with auto-refresh support
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Slack client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
 
-        slack_client = SlackHistory(token=slack_token)
+        # Use the new pattern with session and connector_id for auto-refresh
+        slack_client = SlackHistory(session=session, connector_id=connector_id)
+
+        # Handle 'undefined' string from frontend (treat as None)
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
 
         # Calculate date range
         await task_logger.log_task_progress(
@@ -141,7 +140,7 @@ async def index_slack_messages(
 
         # Get all channels
         try:
-            channels = slack_client.get_all_channels()
+            channels = await slack_client.get_all_channels()
         except Exception as e:
             await task_logger.log_task_failure(
                 log_entry,
@@ -190,7 +189,7 @@ async def index_slack_messages(
                     continue
 
                 # Get messages for this channel
-                messages, error = slack_client.get_history_by_date_range(
+                messages, error = await slack_client.get_history_by_date_range(
                     channel_id=channel_id,
                     start_date=start_date_str,
                     end_date=end_date_str,
@@ -223,7 +222,7 @@ async def index_slack_messages(
                     ]:
                         continue
 
-                    formatted_msg = slack_client.format_message(
+                    formatted_msg = await slack_client.format_message(
                         msg, include_user_info=True
                     )
                     formatted_messages.append(formatted_msg)
