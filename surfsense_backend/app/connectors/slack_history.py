@@ -65,19 +65,23 @@ class SlackHistory:
         """
         # If we have a direct token (backward compatibility), use it
         # Check if client was initialized with a token directly (not via credentials)
-        if self.client and self._session is None and self._connector_id is None:
+        if (
+            self.client
+            and self._session is None
+            and self._connector_id is None
+            and self._credentials is None
+        ):
             # This means it was initialized with a direct token, extract it
             # WebClient stores token internally, we need to get it from the client
             # For backward compatibility, we'll use the client directly
             # But we can't easily extract the token, so we'll just use the client
             # In this case, we'll skip refresh logic
-            if self._credentials is None:
-                # This is the old pattern - just use the client as-is
-                # We can't extract token easily, so we'll raise an error
-                # asking to use the new pattern
-                raise ValueError(
-                    "Cannot refresh token: Please use session and connector_id for auto-refresh support"
-                )
+            # This is the old pattern - just use the client as-is
+            # We can't extract token easily, so we'll raise an error
+            # asking to use the new pattern
+            raise ValueError(
+                "Cannot refresh token: Please use session and connector_id for auto-refresh support"
+            )
 
         # Load credentials from DB if not provided
         if self._credentials is None:

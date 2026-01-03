@@ -103,9 +103,7 @@ async def index_slack_messages(
         )
 
         # Use the new pattern with session and connector_id for auto-refresh
-        slack_client = SlackHistory(
-            session=session, connector_id=connector_id
-        )
+        slack_client = SlackHistory(session=session, connector_id=connector_id)
 
         # Handle 'undefined' string from frontend (treat as None)
         if start_date == "undefined" or start_date == "":

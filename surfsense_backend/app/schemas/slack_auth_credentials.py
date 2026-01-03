@@ -73,4 +73,3 @@ class SlackAuthCredentialsBase(BaseModel):
         if isinstance(v, datetime):
             return v if v.tzinfo else v.replace(tzinfo=UTC)
         return v
-
