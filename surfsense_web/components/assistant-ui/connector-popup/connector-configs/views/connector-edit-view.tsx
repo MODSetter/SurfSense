@@ -59,6 +59,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	const [isScrolled, setIsScrolled] = useState(false);
 	const [hasMoreContent, setHasMoreContent] = useState(false);
 	const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+	const [isQuickIndexing, setIsQuickIndexing] = useState(false);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
 	const checkScrollState = useCallback(() => {
@@ -94,6 +95,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		};
 	}, [checkScrollState]);
 
+	// Reset local quick indexing state when indexing completes
+	useEffect(() => {
+		if (!isIndexing) {
+			setIsQuickIndexing(false);
+		}
+	}, [isIndexing]);
+
 	const handleDisconnectClick = () => {
 		setShowDisconnectConfirm(true);
 	};
@@ -106,6 +114,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	const handleDisconnectCancel = () => {
 		setShowDisconnectConfirm(false);
 	};
+
+	const handleQuickIndex = useCallback(() => {
+		if (onQuickIndex) {
+			setIsQuickIndexing(true);
+			onQuickIndex();
+		}
+	}, [onQuickIndex]);
 
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -146,11 +161,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							<Button
 								variant="secondary"
 								size="sm"
-								onClick={onQuickIndex}
-								disabled={isIndexing || isSaving || isDisconnecting}
+								onClick={handleQuickIndex}
+								disabled={isQuickIndexing || isIndexing || isSaving || isDisconnecting}
 								className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
 							>
-								{isIndexing ? (
+								{isQuickIndexing || isIndexing ? (
 									<>
 										<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
 										Indexing...

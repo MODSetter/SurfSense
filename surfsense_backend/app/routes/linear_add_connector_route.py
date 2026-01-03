@@ -1,7 +1,10 @@
-import base64
-import hashlib
+"""
+Linear Connector OAuth Routes.
+
+Handles OAuth 2.0 authentication flow for Linear connector.
+"""
+
 import logging
-import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -20,7 +23,7 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
+from app.schemas.linear_auth_credentials import LinearAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
@@ -28,17 +31,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Airtable OAuth endpoints
-AUTHORIZATION_URL = "https://airtable.com/oauth2/v1/authorize"
-TOKEN_URL = "https://airtable.com/oauth2/v1/token"
+# Linear OAuth endpoints
+AUTHORIZATION_URL = "https://linear.app/oauth/authorize"
+TOKEN_URL = "https://api.linear.app/oauth/token"
 
-# OAuth scopes for Airtable
-SCOPES = [
-    "data.records:read",
-    "data.recordComments:read",
-    "schema.bases:read",
-    "user.email:read",
-]
+# OAuth scopes for Linear
+SCOPES = ["read", "write"]
 
 # Initialize security utilities
 _state_manager = None
@@ -66,37 +64,18 @@ def get_token_encryption() -> TokenEncryption:
 
 
 def make_basic_auth_header(client_id: str, client_secret: str) -> str:
+    """Create Basic Auth header for Linear OAuth."""
+    import base64
+
     credentials = f"{client_id}:{client_secret}".encode()
     b64 = base64.b64encode(credentials).decode("ascii")
     return f"Basic {b64}"
 
 
-def generate_pkce_pair() -> tuple[str, str]:
+@router.get("/auth/linear/connector/add")
+async def connect_linear(space_id: int, user: User = Depends(current_active_user)):
     """
-    Generate PKCE code verifier and code challenge.
-
-    Returns:
-        Tuple of (code_verifier, code_challenge)
-    """
-    # Generate code verifier (43-128 characters)
-    code_verifier = (
-        base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("utf-8").rstrip("=")
-    )
-
-    # Generate code challenge (SHA256 hash of verifier, base64url encoded)
-    code_challenge = (
-        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode("utf-8")).digest())
-        .decode("utf-8")
-        .rstrip("=")
-    )
-
-    return code_verifier, code_challenge
-
-
-@router.get("/auth/airtable/connector/add")
-async def connect_airtable(space_id: int, user: User = Depends(current_active_user)):
-    """
-    Initiate Airtable OAuth flow.
+    Initiate Linear OAuth flow.
 
     Args:
         space_id: The search space ID
@@ -109,55 +88,43 @@ async def connect_airtable(space_id: int, user: User = Depends(current_active_us
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
 
-        if not config.AIRTABLE_CLIENT_ID:
-            raise HTTPException(
-                status_code=500, detail="Airtable OAuth not configured."
-            )
+        if not config.LINEAR_CLIENT_ID:
+            raise HTTPException(status_code=500, detail="Linear OAuth not configured.")
 
         if not config.SECRET_KEY:
             raise HTTPException(
                 status_code=500, detail="SECRET_KEY not configured for OAuth security."
             )
 
-        # Generate PKCE parameters
-        code_verifier, code_challenge = generate_pkce_pair()
-
-        # Generate secure state parameter with HMAC signature (including code_verifier for PKCE)
+        # Generate secure state parameter with HMAC signature
         state_manager = get_state_manager()
-        state_encoded = state_manager.generate_secure_state(
-            space_id, user.id, code_verifier=code_verifier
-        )
+        state_encoded = state_manager.generate_secure_state(space_id, user.id)
 
         # Build authorization URL
+        from urllib.parse import urlencode
+
         auth_params = {
-            "client_id": config.AIRTABLE_CLIENT_ID,
-            "redirect_uri": config.AIRTABLE_REDIRECT_URI,
+            "client_id": config.LINEAR_CLIENT_ID,
             "response_type": "code",
+            "redirect_uri": config.LINEAR_REDIRECT_URI,
             "scope": " ".join(SCOPES),
             "state": state_encoded,
-            "code_challenge": code_challenge,
-            "code_challenge_method": "S256",
         }
-
-        # Construct URL manually to ensure proper encoding
-        from urllib.parse import urlencode
 
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info(
-            f"Generated Airtable OAuth URL for user {user.id}, space {space_id}"
-        )
+        logger.info(f"Generated Linear OAuth URL for user {user.id}, space {space_id}")
         return {"auth_url": auth_url}
 
     except Exception as e:
-        logger.error(f"Failed to initiate Airtable OAuth: {e!s}", exc_info=True)
+        logger.error(f"Failed to initiate Linear OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate Airtable OAuth: {e!s}"
+            status_code=500, detail=f"Failed to initiate Linear OAuth: {e!s}"
         ) from e
 
 
-@router.get("/auth/airtable/connector/callback")
-async def airtable_callback(
+@router.get("/auth/linear/connector/callback")
+async def linear_callback(
     request: Request,
     code: str | None = None,
     error: str | None = None,
@@ -165,12 +132,12 @@ async def airtable_callback(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Handle Airtable OAuth callback.
+    Handle Linear OAuth callback.
 
     Args:
         request: FastAPI request object
-        code: Authorization code from Airtable (if user granted access)
-        error: Error code from Airtable (if user denied access or error occurred)
+        code: Authorization code from Linear (if user granted access)
+        error: Error code from Linear (if user denied access or error occurred)
         state: State parameter containing user/space info
         session: Database session
 
@@ -180,7 +147,7 @@ async def airtable_callback(
     try:
         # Handle OAuth errors (e.g., user denied access)
         if error:
-            logger.warning(f"Airtable OAuth error: {error}")
+            logger.warning(f"Linear OAuth error: {error}")
             # Try to decode state to get space_id for redirect, but don't fail if it's invalid
             space_id = None
             if state:
@@ -195,11 +162,11 @@ async def airtable_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=airtable_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=linear_oauth_denied"
                 )
             else:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=airtable_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=linear_oauth_denied"
                 )
 
         # Validate required parameters for successful flow
@@ -221,24 +188,22 @@ async def airtable_callback(
 
         user_id = UUID(data["user_id"])
         space_id = data["space_id"]
-        code_verifier = data.get("code_verifier")
 
-        if not code_verifier:
+        # Validate redirect URI (security: ensure it matches configured value)
+        if not config.LINEAR_REDIRECT_URI:
             raise HTTPException(
-                status_code=400, detail="Missing code_verifier in state parameter"
+                status_code=500, detail="LINEAR_REDIRECT_URI not configured"
             )
-        auth_header = make_basic_auth_header(
-            config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
-        )
 
         # Exchange authorization code for access token
+        auth_header = make_basic_auth_header(
+            config.LINEAR_CLIENT_ID, config.LINEAR_CLIENT_SECRET
+        )
+
         token_data = {
-            "client_id": config.AIRTABLE_CLIENT_ID,
-            "client_secret": config.AIRTABLE_CLIENT_SECRET,
-            "redirect_uri": config.AIRTABLE_REDIRECT_URI,
-            "code": code,
             "grant_type": "authorization_code",
-            "code_verifier": code_verifier,
+            "code": code,
+            "redirect_uri": config.LINEAR_REDIRECT_URI,  # Use stored value, not from request
         }
 
         async with httpx.AsyncClient() as client:
@@ -272,7 +237,7 @@ async def airtable_callback(
 
         if not access_token:
             raise HTTPException(
-                status_code=400, detail="No access token received from Airtable"
+                status_code=400, detail="No access token received from Linear"
             )
 
         # Calculate expiration time (UTC, tz-aware)
@@ -281,21 +246,19 @@ async def airtable_callback(
             now_utc = datetime.now(UTC)
             expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
 
-        # Create credentials object with encrypted tokens
-        credentials = AirtableAuthCredentialsBase(
-            access_token=token_encryption.encrypt_token(access_token),
-            refresh_token=token_encryption.encrypt_token(refresh_token)
+        # Store the encrypted access token and refresh token in connector config
+        connector_config = {
+            "access_token": token_encryption.encrypt_token(access_token),
+            "refresh_token": token_encryption.encrypt_token(refresh_token)
             if refresh_token
             else None,
-            token_type=token_json.get("token_type", "Bearer"),
-            expires_in=token_json.get("expires_in"),
-            expires_at=expires_at,
-            scope=token_json.get("scope"),
-        )
-
-        # Mark that tokens are encrypted for backward compatibility
-        credentials_dict = credentials.to_dict()
-        credentials_dict["_token_encrypted"] = True
+            "token_type": token_json.get("token_type", "Bearer"),
+            "expires_in": token_json.get("expires_in"),
+            "expires_at": expires_at.isoformat() if expires_at else None,
+            "scope": token_json.get("scope"),
+            # Mark that tokens are encrypted for backward compatibility
+            "_token_encrypted": True,
+        }
 
         # Check if connector already exists for this search space and user
         existing_connector_result = await session.execute(
@@ -303,42 +266,41 @@ async def airtable_callback(
                 SearchSourceConnector.search_space_id == space_id,
                 SearchSourceConnector.user_id == user_id,
                 SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+                == SearchSourceConnectorType.LINEAR_CONNECTOR,
             )
         )
         existing_connector = existing_connector_result.scalars().first()
 
         if existing_connector:
             # Update existing connector
-            existing_connector.config = credentials_dict
-            existing_connector.name = "Airtable Connector"
+            existing_connector.config = connector_config
+            existing_connector.name = "Linear Connector"
             existing_connector.is_indexable = True
             logger.info(
-                f"Updated existing Airtable connector for user {user_id} in space {space_id}"
+                f"Updated existing Linear connector for user {user_id} in space {space_id}"
             )
         else:
             # Create new connector
             new_connector = SearchSourceConnector(
-                name="Airtable Connector",
-                connector_type=SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+                name="Linear Connector",
+                connector_type=SearchSourceConnectorType.LINEAR_CONNECTOR,
                 is_indexable=True,
-                config=credentials_dict,
+                config=connector_config,
                 search_space_id=space_id,
                 user_id=user_id,
             )
             session.add(new_connector)
             logger.info(
-                f"Created new Airtable connector for user {user_id} in space {space_id}"
+                f"Created new Linear connector for user {user_id} in space {space_id}"
             )
 
         try:
             await session.commit()
-            logger.info(f"Successfully saved Airtable connector for user {user_id}")
+            logger.info(f"Successfully saved Linear connector for user {user_id}")
 
-            # Redirect to the frontend with success params for indexing config
-            # Using query params to auto-open the popup with config view on new-chat page
+            # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=airtable-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=linear-connector"
             )
 
         except ValidationError as e:
@@ -363,29 +325,29 @@ async def airtable_callback(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to complete Airtable OAuth: {e!s}", exc_info=True)
+        logger.error(f"Failed to complete Linear OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to complete Airtable OAuth: {e!s}"
+            status_code=500, detail=f"Failed to complete Linear OAuth: {e!s}"
         ) from e
 
 
-async def refresh_airtable_token(
+async def refresh_linear_token(
     session: AsyncSession, connector: SearchSourceConnector
-):
+) -> SearchSourceConnector:
     """
-    Refresh the Airtable access token for a connector.
+    Refresh the Linear access token for a connector.
 
     Args:
         session: Database session
-        connector: Airtable connector to refresh
+        connector: Linear connector to refresh
 
     Returns:
         Updated connector object
     """
     try:
-        logger.info(f"Refreshing Airtable token for connector {connector.id}")
+        logger.info(f"Refreshing Linear token for connector {connector.id}")
 
-        credentials = AirtableAuthCredentialsBase.from_dict(connector.config)
+        credentials = LinearAuthCredentialsBase.from_dict(connector.config)
 
         # Decrypt tokens if they are encrypted
         token_encryption = get_token_encryption()
@@ -401,16 +363,20 @@ async def refresh_airtable_token(
                     status_code=500, detail="Failed to decrypt stored refresh token"
                 ) from e
 
+        if not refresh_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No refresh token available. Please re-authenticate.",
+            )
+
         auth_header = make_basic_auth_header(
-            config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
+            config.LINEAR_CLIENT_ID, config.LINEAR_CLIENT_SECRET
         )
 
         # Prepare token refresh data
         refresh_data = {
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
-            "client_id": config.AIRTABLE_CLIENT_ID,
-            "client_secret": config.AIRTABLE_CLIENT_SECRET,
         }
 
         async with httpx.AsyncClient() as client:
@@ -425,17 +391,24 @@ async def refresh_airtable_token(
             )
 
         if token_response.status_code != 200:
+            error_detail = token_response.text
+            try:
+                error_json = token_response.json()
+                error_detail = error_json.get("error_description", error_detail)
+            except Exception:
+                pass
             raise HTTPException(
-                status_code=400, detail="Token refresh failed: {token_response.text}"
+                status_code=400, detail=f"Token refresh failed: {error_detail}"
             )
 
         token_json = token_response.json()
 
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None
-        if token_json.get("expires_in"):
+        expires_in = token_json.get("expires_in")
+        if expires_in:
             now_utc = datetime.now(UTC)
-            expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
+            expires_at = now_utc + timedelta(seconds=int(expires_in))
 
         # Encrypt new tokens before storing
         access_token = token_json.get("access_token")
@@ -443,7 +416,7 @@ async def refresh_airtable_token(
 
         if not access_token:
             raise HTTPException(
-                status_code=400, detail="No access token received from Airtable refresh"
+                status_code=400, detail="No access token received from Linear refresh"
             )
 
         # Update credentials object with encrypted tokens
@@ -452,7 +425,7 @@ async def refresh_airtable_token(
             credentials.refresh_token = token_encryption.encrypt_token(
                 new_refresh_token
             )
-        credentials.expires_in = token_json.get("expires_in")
+        credentials.expires_in = expires_in
         credentials.expires_at = expires_at
         credentials.scope = token_json.get("scope")
 
@@ -463,12 +436,13 @@ async def refresh_airtable_token(
         await session.commit()
         await session.refresh(connector)
 
-        logger.info(
-            f"Successfully refreshed Airtable token for connector {connector.id}"
-        )
+        logger.info(f"Successfully refreshed Linear token for connector {connector.id}")
 
         return connector
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Failed to refresh Linear token: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to refresh Airtable token: {e!s}"
+            status_code=500, detail=f"Failed to refresh Linear token: {e!s}"
         ) from e

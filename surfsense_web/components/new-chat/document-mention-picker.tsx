@@ -12,7 +12,7 @@ import {
 	useState,
 } from "react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { Document } from "@/contracts/types/document.types";
+import type { Document, GetDocumentsResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,8 @@ interface DocumentMentionPickerProps {
 	initialSelectedDocuments?: Document[];
 	externalSearch?: string;
 }
+
+const PAGE_SIZE = 20;
 
 function useDebounced<T>(value: T, delay = 300) {
 	const [debounced, setDebounced] = useState(value);
@@ -52,12 +54,29 @@ export const DocumentMentionPicker = forwardRef<
 	const debouncedSearch = useDebounced(search, 150);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+	// State for pagination
+	const [accumulatedDocuments, setAccumulatedDocuments] = useState<Document[]>([]);
+	const [currentPage, setCurrentPage] = useState(0);
+	const [hasMore, setHasMore] = useState(false);
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+	// Reset pagination when search or search space changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset pagination when search/space changes
+	useEffect(() => {
+		setAccumulatedDocuments([]);
+		setCurrentPage(0);
+		setHasMore(false);
+		setHighlightedIndex(0);
+	}, [debouncedSearch, searchSpaceId]);
+
+	// Query params for initial fetch (page 0)
 	const fetchQueryParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
 			page: 0,
-			page_size: 20,
+			page_size: PAGE_SIZE,
 		}),
 		[searchSpaceId]
 	);
@@ -66,31 +85,97 @@ export const DocumentMentionPicker = forwardRef<
 		return {
 			search_space_id: searchSpaceId,
 			page: 0,
-			page_size: 20,
+			page_size: PAGE_SIZE,
 			title: debouncedSearch,
 		};
 	}, [debouncedSearch, searchSpaceId]);
 
-	// Use query for fetching documents
+	// Use query for fetching first page of documents
 	const { data: documents, isLoading: isDocumentsLoading } = useQuery({
 		queryKey: cacheKeys.documents.withQueryParams(fetchQueryParams),
 		queryFn: () => documentsApiService.getDocuments({ queryParams: fetchQueryParams }),
 		staleTime: 3 * 60 * 1000,
-		enabled: !!searchSpaceId && !debouncedSearch.trim(),
+		enabled: !!searchSpaceId && !debouncedSearch.trim() && currentPage === 0,
 	});
 
-	// Searching
+	// Searching - first page
 	const { data: searchedDocuments, isLoading: isSearchedDocumentsLoading } = useQuery({
 		queryKey: cacheKeys.documents.withQueryParams(searchQueryParams),
 		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
 		staleTime: 3 * 60 * 1000,
-		enabled: !!searchSpaceId && !!debouncedSearch.trim(),
+		enabled: !!searchSpaceId && !!debouncedSearch.trim() && currentPage === 0,
 	});
 
-	const actualDocuments = debouncedSearch.trim()
-		? searchedDocuments?.items || []
-		: documents?.items || [];
-	const actualLoading = debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading;
+	// Update accumulated documents when first page loads
+	useEffect(() => {
+		if (currentPage === 0) {
+			if (debouncedSearch.trim()) {
+				if (searchedDocuments) {
+					setAccumulatedDocuments(searchedDocuments.items);
+					setHasMore(searchedDocuments.has_more);
+				}
+			} else {
+				if (documents) {
+					setAccumulatedDocuments(documents.items);
+					setHasMore(documents.has_more);
+				}
+			}
+		}
+	}, [documents, searchedDocuments, debouncedSearch, currentPage]);
+
+	// Function to load next page
+	const loadNextPage = useCallback(async () => {
+		if (isLoadingMore || !hasMore) return;
+
+		const nextPage = currentPage + 1;
+		setIsLoadingMore(true);
+
+		try {
+			let response: GetDocumentsResponse;
+			if (debouncedSearch.trim()) {
+				const queryParams = {
+					search_space_id: searchSpaceId,
+					page: nextPage,
+					page_size: PAGE_SIZE,
+					title: debouncedSearch,
+				};
+				response = await documentsApiService.searchDocuments({ queryParams });
+			} else {
+				const queryParams = {
+					search_space_id: searchSpaceId,
+					page: nextPage,
+					page_size: PAGE_SIZE,
+				};
+				response = await documentsApiService.getDocuments({ queryParams });
+			}
+
+			setAccumulatedDocuments((prev) => [...prev, ...response.items]);
+			setHasMore(response.has_more);
+			setCurrentPage(nextPage);
+		} catch (error) {
+			console.error("Failed to load next page:", error);
+		} finally {
+			setIsLoadingMore(false);
+		}
+	}, [currentPage, hasMore, isLoadingMore, debouncedSearch, searchSpaceId]);
+
+	// Infinite scroll handler
+	const handleScroll = useCallback(
+		(e: React.UIEvent<HTMLDivElement>) => {
+			const target = e.currentTarget;
+			const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+
+			// Load more when within 50px of bottom
+			if (scrollBottom < 50 && hasMore && !isLoadingMore) {
+				loadNextPage();
+			}
+		},
+		[hasMore, isLoadingMore, loadNextPage]
+	);
+
+	const actualDocuments = accumulatedDocuments;
+	const actualLoading =
+		(debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading) && currentPage === 0;
 
 	// Track already selected document IDs
 	const selectedIds = useMemo(
@@ -184,8 +269,12 @@ export const DocumentMentionPicker = forwardRef<
 			role="listbox"
 			tabIndex={-1}
 		>
-			{/* Document List - Shows max 3 items on mobile, 5 items on desktop */}
-			<div className="max-h-[108px] sm:max-h-[180px] overflow-y-auto">
+			{/* Document List - Shows max 5 items on mobile, 7-8 items on desktop */}
+			<div
+				ref={scrollContainerRef}
+				className="max-h-[180px] sm:max-h-[280px] overflow-y-auto"
+				onScroll={handleScroll}
+			>
 				{actualLoading ? (
 					<div className="flex items-center justify-center py-4">
 						<div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
@@ -235,6 +324,12 @@ export const DocumentMentionPicker = forwardRef<
 								</button>
 							);
 						})}
+						{/* Loading indicator for additional pages */}
+						{isLoadingMore && (
+							<div className="flex items-center justify-center py-2">
+								<div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+							</div>
+						)}
 					</div>
 				)}
 			</div>

@@ -5,6 +5,7 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 from app.connectors.google_drive import (
     GoogleDriveClient,
     categorize_change,
@@ -86,6 +87,26 @@ async def index_google_drive_files(
             f"Initializing Google Drive client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
+
+        # Check if credentials are encrypted (only when explicitly marked)
+        token_encrypted = connector.config.get("_token_encrypted", False)
+        if token_encrypted:
+            # Credentials are explicitly marked as encrypted, will be decrypted during client initialization
+            if not config.SECRET_KEY:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
+                    "Missing SECRET_KEY for token decryption",
+                    {"error_type": "MissingSecretKey"},
+                )
+                return (
+                    0,
+                    "SECRET_KEY not configured but credentials are marked as encrypted",
+                )
+            logger.info(
+                f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
+            )
+        # If _token_encrypted is False or not set, treat credentials as plaintext
 
         drive_client = GoogleDriveClient(session, connector_id)
 
@@ -248,6 +269,26 @@ async def index_google_drive_single_file(
             f"Initializing Google Drive client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
+
+        # Check if credentials are encrypted (only when explicitly marked)
+        token_encrypted = connector.config.get("_token_encrypted", False)
+        if token_encrypted:
+            # Credentials are explicitly marked as encrypted, will be decrypted during client initialization
+            if not config.SECRET_KEY:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
+                    "Missing SECRET_KEY for token decryption",
+                    {"error_type": "MissingSecretKey"},
+                )
+                return (
+                    0,
+                    "SECRET_KEY not configured but credentials are marked as encrypted",
+                )
+            logger.info(
+                f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
+            )
+        # If _token_encrypted is False or not set, treat credentials as plaintext
 
         drive_client = GoogleDriveClient(session, connector_id)
 

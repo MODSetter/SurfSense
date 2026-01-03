@@ -1,19 +1,167 @@
+import logging
+
 from notion_client import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from app.config import config
+from app.db import SearchSourceConnector
+from app.routes.notion_add_connector_route import refresh_notion_token
+from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase
+from app.utils.oauth_security import TokenEncryption
+
+logger = logging.getLogger(__name__)
 
 
 class NotionHistoryConnector:
-    def __init__(self, token):
+    def __init__(
+        self,
+        session: AsyncSession,
+        connector_id: int,
+        credentials: NotionAuthCredentialsBase | None = None,
+    ):
         """
-        Initialize the NotionPageFetcher with a token.
+        Initialize the NotionHistoryConnector with auto-refresh capability.
 
         Args:
-            token (str): Notion integration token
+            session: Database session for updating connector
+            connector_id: Connector ID for direct updates
+            credentials: Notion OAuth credentials (optional, will be loaded from DB if not provided)
         """
-        self.notion = AsyncClient(auth=token)
+        self._session = session
+        self._connector_id = connector_id
+        self._credentials = credentials
+        self._notion_client: AsyncClient | None = None
+
+    async def _get_valid_token(self) -> str:
+        """
+        Get valid Notion access token, refreshing if needed.
+
+        Returns:
+            Valid access token
+
+        Raises:
+            ValueError: If credentials are missing or invalid
+            Exception: If token refresh fails
+        """
+        # Load credentials from DB if not provided
+        if self._credentials is None:
+            result = await self._session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == self._connector_id
+                )
+            )
+            connector = result.scalars().first()
+
+            if not connector:
+                raise ValueError(f"Connector {self._connector_id} not found")
+
+            config_data = connector.config.copy()
+
+            # Decrypt credentials if they are encrypted
+            token_encrypted = config_data.get("_token_encrypted", False)
+            if token_encrypted and config.SECRET_KEY:
+                try:
+                    token_encryption = TokenEncryption(config.SECRET_KEY)
+
+                    # Decrypt sensitive fields
+                    if config_data.get("access_token"):
+                        config_data["access_token"] = token_encryption.decrypt_token(
+                            config_data["access_token"]
+                        )
+                    if config_data.get("refresh_token"):
+                        config_data["refresh_token"] = token_encryption.decrypt_token(
+                            config_data["refresh_token"]
+                        )
+
+                    logger.info(
+                        f"Decrypted Notion credentials for connector {self._connector_id}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to decrypt Notion credentials for connector {self._connector_id}: {e!s}"
+                    )
+                    raise ValueError(
+                        f"Failed to decrypt Notion credentials: {e!s}"
+                    ) from e
+
+            try:
+                self._credentials = NotionAuthCredentialsBase.from_dict(config_data)
+            except Exception as e:
+                raise ValueError(f"Invalid Notion credentials: {e!s}") from e
+
+        # Check if token is expired and refreshable
+        if self._credentials.is_expired and self._credentials.is_refreshable:
+            try:
+                logger.info(
+                    f"Notion token expired for connector {self._connector_id}, refreshing..."
+                )
+
+                # Get connector for refresh
+                result = await self._session.execute(
+                    select(SearchSourceConnector).filter(
+                        SearchSourceConnector.id == self._connector_id
+                    )
+                )
+                connector = result.scalars().first()
+
+                if not connector:
+                    raise RuntimeError(
+                        f"Connector {self._connector_id} not found; cannot refresh token."
+                    )
+
+                # Refresh token
+                connector = await refresh_notion_token(self._session, connector)
+
+                # Reload credentials after refresh
+                config_data = connector.config.copy()
+                token_encrypted = config_data.get("_token_encrypted", False)
+                if token_encrypted and config.SECRET_KEY:
+                    token_encryption = TokenEncryption(config.SECRET_KEY)
+                    if config_data.get("access_token"):
+                        config_data["access_token"] = token_encryption.decrypt_token(
+                            config_data["access_token"]
+                        )
+                    if config_data.get("refresh_token"):
+                        config_data["refresh_token"] = token_encryption.decrypt_token(
+                            config_data["refresh_token"]
+                        )
+
+                self._credentials = NotionAuthCredentialsBase.from_dict(config_data)
+
+                # Invalidate cached client so it's recreated with new token
+                self._notion_client = None
+
+                logger.info(
+                    f"Successfully refreshed Notion token for connector {self._connector_id}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to refresh Notion token for connector {self._connector_id}: {e!s}"
+                )
+                raise Exception(
+                    f"Failed to refresh Notion OAuth credentials: {e!s}"
+                ) from e
+
+        return self._credentials.access_token
+
+    async def _get_client(self) -> AsyncClient:
+        """
+        Get or create Notion AsyncClient with valid token.
+
+        Returns:
+            Notion AsyncClient instance
+        """
+        if self._notion_client is None:
+            token = await self._get_valid_token()
+            self._notion_client = AsyncClient(auth=token)
+        return self._notion_client
 
     async def close(self):
         """Close the async client connection."""
-        await self.notion.aclose()
+        if self._notion_client:
+            await self._notion_client.aclose()
+            self._notion_client = None
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -34,6 +182,8 @@ class NotionHistoryConnector:
         Returns:
             list: List of dictionaries containing page data
         """
+        notion = await self._get_client()
+
         # Build the filter for the search
         # Note: Notion API requires specific filter structure
         search_params = {}
@@ -67,7 +217,7 @@ class NotionHistoryConnector:
             if cursor:
                 search_params["start_cursor"] = cursor
 
-            search_results = await self.notion.search(**search_params)
+            search_results = await notion.search(**search_params)
 
             pages.extend(search_results["results"])
             has_more = search_results.get("has_more", False)
@@ -125,6 +275,8 @@ class NotionHistoryConnector:
         Returns:
             list: List of processed blocks from the page
         """
+        notion = await self._get_client()
+
         blocks = []
         has_more = True
         cursor = None
@@ -132,11 +284,11 @@ class NotionHistoryConnector:
         # Paginate through all blocks
         while has_more:
             if cursor:
-                response = await self.notion.blocks.children.list(
+                response = await notion.blocks.children.list(
                     block_id=page_id, start_cursor=cursor
                 )
             else:
-                response = await self.notion.blocks.children.list(block_id=page_id)
+                response = await notion.blocks.children.list(block_id=page_id)
 
             blocks.extend(response["results"])
             has_more = response["has_more"]
@@ -162,6 +314,8 @@ class NotionHistoryConnector:
         Returns:
             dict: Processed block with content and children
         """
+        notion = await self._get_client()
+
         block_id = block["id"]
         block_type = block["type"]
 
@@ -174,9 +328,7 @@ class NotionHistoryConnector:
 
         if has_children:
             # Fetch and process child blocks
-            children_response = await self.notion.blocks.children.list(
-                block_id=block_id
-            )
+            children_response = await notion.blocks.children.list(block_id=block_id)
             for child_block in children_response["results"]:
                 child_blocks.append(await self.process_block(child_block))
 

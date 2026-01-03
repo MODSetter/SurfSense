@@ -15,11 +15,13 @@ from .google_drive_add_connector_route import (
 from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
+from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
 from .new_chat_routes import router as new_chat_router
 from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
+from .notion_add_connector_route import router as notion_add_connector_router
 from .podcasts_routes import router as podcasts_router
 from .rbac_routes import router as rbac_router
 from .search_source_connectors_routes import router as search_source_connectors_router
@@ -39,7 +41,9 @@ router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
 router.include_router(google_drive_add_connector_router)
 router.include_router(airtable_add_connector_router)
+router.include_router(linear_add_connector_router)
 router.include_router(luma_add_connector_router)
+router.include_router(notion_add_connector_router)
 router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks

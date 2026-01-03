@@ -514,10 +514,6 @@ def validate_connector_config(
             "validators": {},
         },
         "SLACK_CONNECTOR": {"required": ["SLACK_BOT_TOKEN"], "validators": {}},
-        "NOTION_CONNECTOR": {
-            "required": ["NOTION_INTEGRATION_TOKEN"],
-            "validators": {},
-        },
         "GITHUB_CONNECTOR": {
             "required": ["GITHUB_PAT", "repo_full_names"],
             "validators": {
@@ -526,7 +522,6 @@ def validate_connector_config(
                 )
             },
         },
-        "LINEAR_CONNECTOR": {"required": ["LINEAR_API_KEY"], "validators": {}},
         "DISCORD_CONNECTOR": {"required": ["DISCORD_BOT_TOKEN"], "validators": {}},
         "JIRA_CONNECTOR": {
             "required": ["JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_BASE_URL"],

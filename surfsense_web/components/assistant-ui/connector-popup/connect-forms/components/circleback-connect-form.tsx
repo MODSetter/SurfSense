@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Info, Webhook } from "lucide-react";
+import { Webhook } from "lucide-react";
 import type { FC } from "react";
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
