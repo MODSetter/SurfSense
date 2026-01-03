@@ -23,6 +23,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.schemas.slack_auth_credentials import SlackAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
@@ -229,7 +230,7 @@ async def slack_callback(
             )
 
         # Extract bot token from Slack response
-        # Slack OAuth v2 returns: { "ok": true, "access_token": "...", "bot": { "bot_user_id": "...", "bot_access_token": "xoxb-..." }, ... }
+        # Slack OAuth v2 returns: { "ok": true, "access_token": "...", "bot": { "bot_user_id": "...", "bot_access_token": "xoxb-..." }, "refresh_token": "...", ... }
         bot_token = None
         if token_json.get("bot") and token_json["bot"].get("bot_access_token"):
             bot_token = token_json["bot"]["bot_access_token"]
@@ -241,6 +242,9 @@ async def slack_callback(
                 status_code=400, detail="No bot token received from Slack"
             )
 
+        # Extract refresh token if available (for token rotation)
+        refresh_token = token_json.get("refresh_token")
+
         # Encrypt sensitive tokens before storing
         token_encryption = get_token_encryption()
 
@@ -251,9 +255,12 @@ async def slack_callback(
             now_utc = datetime.now(UTC)
             expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
 
-        # Store the encrypted bot token in connector config
+        # Store the encrypted bot token and refresh token in connector config
         connector_config = {
             "bot_token": token_encryption.encrypt_token(bot_token),
+            "refresh_token": token_encryption.encrypt_token(refresh_token)
+            if refresh_token
+            else None,
             "bot_user_id": token_json.get("bot", {}).get("bot_user_id"),
             "team_id": token_json.get("team", {}).get("id"),
             "team_name": token_json.get("team", {}).get("name"),
@@ -333,4 +340,139 @@ async def slack_callback(
         logger.error(f"Failed to complete Slack OAuth: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Slack OAuth: {e!s}"
+        ) from e
+
+
+async def refresh_slack_token(
+    session: AsyncSession, connector: SearchSourceConnector
+) -> SearchSourceConnector:
+    """
+    Refresh the Slack bot token for a connector.
+
+    Args:
+        session: Database session
+        connector: Slack connector to refresh
+
+    Returns:
+        Updated connector object
+    """
+    try:
+        logger.info(f"Refreshing Slack token for connector {connector.id}")
+
+        credentials = SlackAuthCredentialsBase.from_dict(connector.config)
+
+        # Decrypt tokens if they are encrypted
+        token_encryption = get_token_encryption()
+        is_encrypted = connector.config.get("_token_encrypted", False)
+
+        refresh_token = credentials.refresh_token
+        if is_encrypted and refresh_token:
+            try:
+                refresh_token = token_encryption.decrypt_token(refresh_token)
+            except Exception as e:
+                logger.error(f"Failed to decrypt refresh token: {e!s}")
+                raise HTTPException(
+                    status_code=500, detail="Failed to decrypt stored refresh token"
+                ) from e
+
+        if not refresh_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No refresh token available. Please re-authenticate.",
+            )
+
+        # Slack uses oauth.v2.access for token refresh with grant_type=refresh_token
+        refresh_data = {
+            "client_id": config.SLACK_CLIENT_ID,
+            "client_secret": config.SLACK_CLIENT_SECRET,
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        }
+
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                TOKEN_URL,
+                data=refresh_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=30.0,
+            )
+
+        if token_response.status_code != 200:
+            error_detail = token_response.text
+            try:
+                error_json = token_response.json()
+                error_detail = error_json.get("error", error_detail)
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=400, detail=f"Token refresh failed: {error_detail}"
+            )
+
+        token_json = token_response.json()
+
+        # Slack OAuth v2 returns success status in the JSON
+        if not token_json.get("ok", False):
+            error_msg = token_json.get("error", "Unknown error")
+            raise HTTPException(
+                status_code=400, detail=f"Slack OAuth refresh error: {error_msg}"
+            )
+
+        # Extract bot token from refresh response
+        bot_token = None
+        if token_json.get("bot") and token_json["bot"].get("bot_access_token"):
+            bot_token = token_json["bot"]["bot_access_token"]
+        elif token_json.get("access_token"):
+            bot_token = token_json["access_token"]
+        else:
+            raise HTTPException(
+                status_code=400, detail="No bot token received from Slack refresh"
+            )
+
+        # Get new refresh token if provided (Slack may rotate refresh tokens)
+        new_refresh_token = token_json.get("refresh_token")
+
+        # Calculate expiration time (UTC, tz-aware)
+        expires_at = None
+        expires_in = token_json.get("expires_in")
+        if expires_in:
+            now_utc = datetime.now(UTC)
+            expires_at = now_utc + timedelta(seconds=int(expires_in))
+
+        # Update credentials object with encrypted tokens
+        credentials.bot_token = token_encryption.encrypt_token(bot_token)
+        if new_refresh_token:
+            credentials.refresh_token = token_encryption.encrypt_token(
+                new_refresh_token
+            )
+        credentials.expires_in = expires_in
+        credentials.expires_at = expires_at
+        credentials.scope = token_json.get("scope")
+
+        # Preserve team info
+        if not credentials.team_id:
+            credentials.team_id = connector.config.get("team_id")
+        if not credentials.team_name:
+            credentials.team_name = connector.config.get("team_name")
+        if not credentials.bot_user_id:
+            credentials.bot_user_id = connector.config.get("bot_user_id")
+
+        # Update connector config with encrypted tokens
+        credentials_dict = credentials.to_dict()
+        credentials_dict["_token_encrypted"] = True
+        connector.config = credentials_dict
+        await session.commit()
+        await session.refresh(connector)
+
+        logger.info(f"Successfully refreshed Slack token for connector {connector.id}")
+
+        return connector
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to refresh Slack token for connector {connector.id}: {e!s}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Failed to refresh Slack token: {e!s}"
         ) from e

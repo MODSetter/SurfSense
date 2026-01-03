@@ -17,7 +17,6 @@ from app.utils.document_converters import (
     generate_content_hash,
     generate_unique_identifier_hash,
 )
-from app.utils.oauth_security import TokenEncryption
 
 from .base import (
     build_document_metadata_markdown,
@@ -93,44 +92,20 @@ async def index_slack_messages(
                 f"Connector with ID {connector_id} not found or is not a Slack connector",
             )
 
-        # Get the Slack token from the connector config
-        # Support both new OAuth format (bot_token) and old API format (SLACK_BOT_TOKEN)
-        config_data = connector.config.copy()
-        slack_token = config_data.get("bot_token") or config_data.get("SLACK_BOT_TOKEN")
+        # Note: Token handling is now done automatically by SlackHistory
+        # with auto-refresh support. We just need to pass session and connector_id.
 
-        if not slack_token:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Slack token not found in connector config for connector {connector_id}",
-                "Missing Slack token",
-                {"error_type": "MissingToken"},
-            )
-            return 0, "Slack token not found in connector config"
-
-        # Decrypt token if it's encrypted (OAuth format)
-        token_encrypted = config_data.get("_token_encrypted", False)
-        if token_encrypted and config.SECRET_KEY:
-            try:
-                token_encryption = TokenEncryption(config.SECRET_KEY)
-                slack_token = token_encryption.decrypt_token(slack_token)
-                logger.info(f"Decrypted Slack bot token for connector {connector_id}")
-            except Exception as e:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Failed to decrypt Slack token for connector {connector_id}: {e!s}",
-                    "Token decryption failed",
-                    {"error_type": "TokenDecryptionError"},
-                )
-                return 0, f"Failed to decrypt Slack token: {e!s}"
-
-        # Initialize Slack client
+        # Initialize Slack client with auto-refresh support
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Slack client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
 
-        slack_client = SlackHistory(token=slack_token)
+        # Use the new pattern with session and connector_id for auto-refresh
+        slack_client = SlackHistory(
+            session=session, connector_id=connector_id
+        )
 
         # Handle 'undefined' string from frontend (treat as None)
         if start_date == "undefined" or start_date == "":
@@ -167,7 +142,7 @@ async def index_slack_messages(
 
         # Get all channels
         try:
-            channels = slack_client.get_all_channels()
+            channels = await slack_client.get_all_channels()
         except Exception as e:
             await task_logger.log_task_failure(
                 log_entry,
@@ -216,7 +191,7 @@ async def index_slack_messages(
                     continue
 
                 # Get messages for this channel
-                messages, error = slack_client.get_history_by_date_range(
+                messages, error = await slack_client.get_history_by_date_range(
                     channel_id=channel_id,
                     start_date=start_date_str,
                     end_date=end_date_str,
@@ -249,7 +224,7 @@ async def index_slack_messages(
                     ]:
                         continue
 
-                    formatted_msg = slack_client.format_message(
+                    formatted_msg = await slack_client.format_message(
                         msg, include_user_info=True
                     )
                     formatted_messages.append(formatted_msg)
