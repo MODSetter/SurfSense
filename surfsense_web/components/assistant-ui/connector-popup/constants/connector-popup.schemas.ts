@@ -39,7 +39,7 @@ export type IndexingConfigState = z.infer<typeof indexingConfigStateSchema>;
 /**
  * Schema for frequency minutes (must be one of the allowed values)
  */
-export const frequencyMinutesSchema = z.enum(["15", "60", "360", "720", "1440", "10080"], {
+export const frequencyMinutesSchema = z.enum(["5", "15", "60", "360", "720", "1440", "10080"], {
 	message: "Invalid frequency value",
 });
 
