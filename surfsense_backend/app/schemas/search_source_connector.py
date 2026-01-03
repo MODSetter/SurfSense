@@ -31,7 +31,7 @@ class SearchSourceConnectorBase(BaseModel):
     @model_validator(mode="after")
     def validate_periodic_indexing(self):
         """Validate that periodic indexing configuration is consistent.
-        
+
         Supported frequencies: Any positive integer (in minutes).
         Common values: 5, 15, 60 (1 hour), 360 (6 hours), 720 (12 hours), 1440 (daily), etc.
         The schedule checker will handle any frequency >= 1 minute.

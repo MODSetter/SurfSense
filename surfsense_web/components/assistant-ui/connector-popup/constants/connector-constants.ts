@@ -44,6 +44,13 @@ export const OAUTH_CONNECTORS = [
 		connectorType: EnumConnectorName.LINEAR_CONNECTOR,
 		authEndpoint: "/api/v1/auth/linear/connector/add/",
 	},
+	{
+		id: "slack-connector",
+		title: "Slack",
+		description: "Search Slack messages",
+		connectorType: EnumConnectorName.SLACK_CONNECTOR,
+		authEndpoint: "/api/v1/auth/slack/connector/add/",
+	},
 ] as const;
 
 // Content Sources (tools that extract and import content from external sources)
@@ -64,12 +71,6 @@ export const CRAWLERS = [
 
 // Non-OAuth Connectors (redirect to old connector config pages)
 export const OTHER_CONNECTORS = [
-	{
-		id: "slack-connector",
-		title: "Slack",
-		description: "Search Slack messages",
-		connectorType: EnumConnectorName.SLACK_CONNECTOR,
-	},
 	{
 		id: "discord-connector",
 		title: "Discord",

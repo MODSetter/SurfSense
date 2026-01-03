@@ -17,6 +17,7 @@ from app.utils.document_converters import (
     generate_content_hash,
     generate_unique_identifier_hash,
 )
+from app.utils.oauth_security import TokenEncryption
 
 from .base import (
     build_document_metadata_markdown,
@@ -93,7 +94,10 @@ async def index_slack_messages(
             )
 
         # Get the Slack token from the connector config
-        slack_token = connector.config.get("SLACK_BOT_TOKEN")
+        # Support both new OAuth format (bot_token) and old API format (SLACK_BOT_TOKEN)
+        config_data = connector.config.copy()
+        slack_token = config_data.get("bot_token") or config_data.get("SLACK_BOT_TOKEN")
+
         if not slack_token:
             await task_logger.log_task_failure(
                 log_entry,
@@ -103,6 +107,22 @@ async def index_slack_messages(
             )
             return 0, "Slack token not found in connector config"
 
+        # Decrypt token if it's encrypted (OAuth format)
+        token_encrypted = config_data.get("_token_encrypted", False)
+        if token_encrypted and config.SECRET_KEY:
+            try:
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+                slack_token = token_encryption.decrypt_token(slack_token)
+                logger.info(f"Decrypted Slack bot token for connector {connector_id}")
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to decrypt Slack token for connector {connector_id}: {e!s}",
+                    "Token decryption failed",
+                    {"error_type": "TokenDecryptionError"},
+                )
+                return 0, f"Failed to decrypt Slack token: {e!s}"
+
         # Initialize Slack client
         await task_logger.log_task_progress(
             log_entry,
@@ -111,6 +131,12 @@ async def index_slack_messages(
         )
 
         slack_client = SlackHistory(token=slack_token)
+
+        # Handle 'undefined' string from frontend (treat as None)
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
 
         # Calculate date range
         await task_logger.log_task_progress(

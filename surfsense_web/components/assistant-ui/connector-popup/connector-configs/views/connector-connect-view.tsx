@@ -52,7 +52,6 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			LINKUP_API: "linkup-api-connect-form",
 			BAIDU_SEARCH_API: "baidu-search-api-connect-form",
 			ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
-			SLACK_CONNECTOR: "slack-connect-form",
 			DISCORD_CONNECTOR: "discord-connect-form",
 			CONFLUENCE_CONNECTOR: "confluence-connect-form",
 			BOOKSTACK_CONNECTOR: "bookstack-connect-form",

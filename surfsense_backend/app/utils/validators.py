@@ -513,7 +513,22 @@ def validate_connector_config(
             ],
             "validators": {},
         },
-        "SLACK_CONNECTOR": {"required": ["SLACK_BOT_TOKEN"], "validators": {}},
+        # "SLACK_CONNECTOR": {
+        #     "required": [],  # OAuth uses bot_token (encrypted), legacy uses SLACK_BOT_TOKEN
+        #     "optional": [
+        #         "bot_token",
+        #         "SLACK_BOT_TOKEN",
+        #         "bot_user_id",
+        #         "team_id",
+        #         "team_name",
+        #         "token_type",
+        #         "expires_in",
+        #         "expires_at",
+        #         "scope",
+        #         "_token_encrypted",
+        #     ],
+        #     "validators": {},
+        # },
         "GITHUB_CONNECTOR": {
             "required": ["GITHUB_PAT", "repo_full_names"],
             "validators": {

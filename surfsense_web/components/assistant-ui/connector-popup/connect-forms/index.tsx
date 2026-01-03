@@ -11,7 +11,6 @@ import { JiraConnectForm } from "./components/jira-connect-form";
 import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
 import { LumaConnectForm } from "./components/luma-connect-form";
 import { SearxngConnectForm } from "./components/searxng-connect-form";
-import { SlackConnectForm } from "./components/slack-connect-form";
 import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
 
 export interface ConnectFormProps {
@@ -51,8 +50,6 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 			return BaiduSearchApiConnectForm;
 		case "ELASTICSEARCH_CONNECTOR":
 			return ElasticsearchConnectForm;
-		case "SLACK_CONNECTOR":
-			return SlackConnectForm;
 		case "DISCORD_CONNECTOR":
 			return DiscordConnectForm;
 		case "CONFLUENCE_CONNECTOR":

@@ -100,6 +100,11 @@ class Config:
     LINEAR_CLIENT_SECRET = os.getenv("LINEAR_CLIENT_SECRET")
     LINEAR_REDIRECT_URI = os.getenv("LINEAR_REDIRECT_URI")
 
+    # Slack OAuth
+    SLACK_CLIENT_ID = os.getenv("SLACK_CLIENT_ID")
+    SLACK_CLIENT_SECRET = os.getenv("SLACK_CLIENT_SECRET")
+    SLACK_REDIRECT_URI = os.getenv("SLACK_REDIRECT_URI")
+
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 
