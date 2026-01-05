@@ -16,7 +16,9 @@
 
 # SurfSense
 
-虽然像 NotebookLM 和 Perplexity 这样的工具在对任何主题/查询进行研究时令人印象深刻且非常有效，但 SurfSense 通过与您的个人知识库集成，将这一能力提升到了新的高度。它是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp、Google Drive、Slack、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch 等，未来还会支持更多。
+将任何 LLM 连接到您的内部知识源，并与团队成员实时聊天。NotebookLM、Perplexity 和 Glean 的开源替代方案。
+
+SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch 等，未来还会支持更多。
 
 <div align="center">
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -38,7 +40,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 ## 核心功能
 
 ### 💡 **理念**: 
-- 拥有您自己的高度可定制的私有 NotebookLM 和 Perplexity，并与外部数据源集成。
+- NotebookLM、Perplexity 和 Glean 的开源替代方案。将任何 LLM 连接到您的内部知识源，并与团队实时协作。
 
 ### 📁 **支持多种文件格式上传**
 - 将您个人文件中的内容（文档、图像、视频，支持 **50+ 种文件扩展名**）保存到您自己的个人知识库。
