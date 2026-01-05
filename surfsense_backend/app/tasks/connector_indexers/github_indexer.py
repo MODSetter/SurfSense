@@ -138,7 +138,7 @@ async def index_github_repos(
             logger.info(f"Processing repository: {repo_full_name}")
 
             try:
-                result = github_client.process_repository(repo_full_name)
+                result = await github_client.process_repository(repo_full_name)
 
                 content = result["content"]
                 tree = result.get("tree", "")

@@ -56,8 +56,12 @@ class GitHubConnector:
             logger.error(f"Failed to fetch GitHub repositories: {e}")
             return []
 
-    def process_repository(self, repo_full_name: str) -> dict[str, Any]:
-        """Process a repository using gitingest and return content with metadata."""
+    async def process_repository(self, repo_full_name: str) -> dict[str, Any]:
+        """
+        Process a repository using gitingest and return content with metadata.
+        
+        This method is async to support non-blocking operation within Celery tasks.
+        """
         try:
             owner, repo_name = repo_full_name.split("/")
             repo = self.gh.repository(owner, repo_name)
@@ -70,7 +74,8 @@ class GitHubConnector:
 
             logger.info(f"Processing repository {repo_full_name} (branch: {branch})")
 
-            result = self.gitingest.process_repository(repo_url, branch)
+            # Await the async gitingest call
+            result = await self.gitingest.process_repository(repo_url, branch)
 
             result["metadata"].update(
                 {
@@ -93,16 +98,20 @@ class GitHubConnector:
             logger.error(f"Failed to process repository {repo_full_name}: {e}")
             raise ValueError(f"Failed to process {repo_full_name}: {e!s}") from e
 
-    def process_multiple_repositories(
+    async def process_multiple_repositories(
         self, repo_full_names: list[str]
     ) -> dict[str, Any]:
-        """Process multiple repositories and return results with errors."""
+        """
+        Process multiple repositories asynchronously and return results with errors.
+        
+        Processes repositories sequentially to avoid overwhelming the system.
+        """
         results = {}
         errors = {}
 
         for repo_full_name in repo_full_names:
             try:
-                result = self.process_repository(repo_full_name)
+                result = await self.process_repository(repo_full_name)
                 results[repo_full_name] = result
                 logger.info(f"✓ Successfully processed {repo_full_name}")
             except Exception as e:

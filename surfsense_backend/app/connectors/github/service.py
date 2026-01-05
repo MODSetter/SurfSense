@@ -5,6 +5,7 @@ This module provides a wrapper around the gitingest library to convert
 GitHub repositories into text format optimized for indexing and LLM processing.
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -21,11 +22,14 @@ class GitIngestService:
         self.max_file_size = MAX_FILE_SIZE
         logger.info("GitIngest service initialized")
 
-    def process_repository(
+    async def process_repository(
         self, repo_url: str, branch: str = "main"
     ) -> dict[str, Any]:
         """
-        Process a GitHub repository and extract its content.
+        Process a GitHub repository and extract its content asynchronously.
+
+        Uses gitingest's native ingest_async function for proper async support
+        within Celery tasks and other async contexts.
 
         Args:
             repo_url: GitHub repository URL (e.g., "https://github.com/owner/repo")
@@ -36,7 +40,7 @@ class GitIngestService:
         """
         try:
             try:
-                from gitingest import ingest_from_query
+                from gitingest import ingest_async
             except ImportError:
                 logger.error("gitingest package not installed")
                 raise ImportError(
@@ -49,25 +53,14 @@ class GitIngestService:
             exclude_patterns = [f"{dir_name}/**" for dir_name in SKIPPED_DIRS]
             exclude_patterns.append("*.pyc")
 
-            result = ingest_from_query(
+            # Use gitingest's native async function for non-blocking operation
+            # ingest_async returns a tuple: (summary, tree, content)
+            summary, tree, content = await ingest_async(
                 query=repo_url,
                 max_file_size=self.max_file_size,
                 include_patterns=None,
                 exclude_patterns=exclude_patterns,
             )
-
-            if hasattr(result, "content"):
-                content = result.content
-                tree = getattr(result, "tree", "")
-                summary = getattr(result, "summary", "")
-            elif isinstance(result, dict):
-                content = result.get("content", "")
-                tree = result.get("tree", "")
-                summary = result.get("summary", "")
-            else:
-                content = str(result)
-                tree = ""
-                summary = ""
 
             logger.info(
                 f"Successfully processed repository {repo_full_name}: {len(content)} characters"
@@ -117,16 +110,20 @@ class GitIngestService:
                 f"Expected format: 'owner/repo' or 'https://github.com/owner/repo'"
             )
 
-    def process_multiple_repositories(
+    async def process_multiple_repositories(
         self, repo_urls: list[str], branch: str = "main"
     ) -> dict[str, dict[str, Any]]:
-        """Process multiple GitHub repositories and return results with errors."""
+        """
+        Process multiple GitHub repositories asynchronously and return results with errors.
+        
+        Processes repositories sequentially to avoid overwhelming the system.
+        """
         results = {}
         errors = {}
 
         for repo_url in repo_urls:
             try:
-                result = self.process_repository(repo_url, branch)
+                result = await self.process_repository(repo_url, branch)
                 repo_name = result["repo_full_name"]
                 results[repo_name] = result
                 logger.info(f"✓ Successfully processed {repo_name}")
