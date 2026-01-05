@@ -1,49 +1,4 @@
-"""Constants for GitHub connector."""
-
-CODE_EXTENSIONS = {
-    ".py",
-    ".js",
-    ".jsx",
-    ".ts",
-    ".tsx",
-    ".java",
-    ".c",
-    ".cpp",
-    ".h",
-    ".hpp",
-    ".cs",
-    ".go",
-    ".rb",
-    ".php",
-    ".swift",
-    ".kt",
-    ".scala",
-    ".rs",
-    ".m",
-    ".sh",
-    ".bash",
-    ".ps1",
-    ".lua",
-    ".pl",
-    ".pm",
-    ".r",
-    ".dart",
-    ".sql",
-}
-
-DOC_EXTENSIONS = {
-    ".md",
-    ".txt",
-    ".rst",
-    ".adoc",
-    ".html",
-    ".htm",
-    ".xml",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".toml",
-}
+"""Constants for GitHub connector with gitingest."""
 
 SKIPPED_DIRS = {
     ".git",
@@ -64,5 +19,7 @@ SKIPPED_DIRS = {
     "logs",
 }
 
-MAX_FILE_SIZE = 1 * 1024 * 1024
+CODE_EXTENSIONS = set()
+DOC_EXTENSIONS = set()
+MAX_FILE_SIZE = 10 * 1024 * 1024
 

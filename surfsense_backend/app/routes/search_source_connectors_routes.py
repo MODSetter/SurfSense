@@ -44,7 +44,6 @@ from app.tasks.connector_indexers import (
     index_discord_messages,
     index_elasticsearch_documents,
     index_github_repos,
-    index_github_repos_gitingest,
     index_google_calendar_events,
     index_google_gmail_messages,
     index_jira_issues,
@@ -1036,7 +1035,7 @@ async def run_github_indexing(
 ):
     """Runs the GitHub indexing task with gitingest and updates the timestamp."""
     try:
-        indexed_count, error_message = await index_github_repos_gitingest(
+        indexed_count, error_message = await index_github_repos(
             session,
             connector_id,
             search_space_id,
