@@ -8,6 +8,8 @@ GitHub repositories into text format optimized for indexing and LLM processing.
 import logging
 from typing import Any
 
+from .constants import MAX_FILE_SIZE, SKIPPED_DIRS
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +18,7 @@ class GitIngestService:
 
     def __init__(self, token: str | None = None):
         self.token = token
-        self.max_file_size = 10_000_000
+        self.max_file_size = MAX_FILE_SIZE
         logger.info("GitIngest service initialized")
 
     def process_repository(
@@ -44,20 +46,14 @@ class GitIngestService:
             logger.info(f"Processing repository: {repo_url} (branch: {branch})")
             repo_full_name = self._parse_repo_url(repo_url)
 
+            exclude_patterns = [f"{dir_name}/**" for dir_name in SKIPPED_DIRS]
+            exclude_patterns.append("*.pyc")
+
             result = ingest_from_query(
                 query=repo_url,
                 max_file_size=self.max_file_size,
                 include_patterns=None,
-                exclude_patterns=[
-                    "node_modules/**",
-                    ".git/**",
-                    "__pycache__/**",
-                    "*.pyc",
-                    "build/**",
-                    "dist/**",
-                    ".venv/**",
-                    "venv/**",
-                ],
+                exclude_patterns=exclude_patterns,
             )
 
             if hasattr(result, "content"):
