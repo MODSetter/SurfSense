@@ -446,7 +446,17 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						};
 					}
 					break;
-				case "JIRA_CONNECTOR":
+				case "JIRA_CONNECTOR": {
+					// Check if this is an OAuth connector (has access_token or _token_encrypted flag)
+					const isJiraOAuth = !!(originalConfig.access_token || originalConfig._token_encrypted);
+					
+					if (isJiraOAuth) {
+						// OAuth connectors don't allow editing credentials through the form
+						// Only allow name changes, which are handled separately
+						break;
+					}
+					
+					// Legacy API token connector - allow editing credentials
 					if (
 						formData.JIRA_BASE_URL !== originalConfig.JIRA_BASE_URL ||
 						formData.JIRA_EMAIL !== originalConfig.JIRA_EMAIL ||
@@ -464,6 +474,7 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						};
 					}
 					break;
+				}
 				case "LUMA_CONNECTOR":
 					if (formData.LUMA_API_KEY !== originalConfig.LUMA_API_KEY) {
 						if (!formData.LUMA_API_KEY) {
