@@ -105,6 +105,12 @@ class Config:
     SLACK_CLIENT_SECRET = os.getenv("SLACK_CLIENT_SECRET")
     SLACK_REDIRECT_URI = os.getenv("SLACK_REDIRECT_URI")
 
+    # Discord OAuth
+    DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
+    DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
+    DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
+    DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 

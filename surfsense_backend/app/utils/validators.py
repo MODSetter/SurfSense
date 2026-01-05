@@ -537,7 +537,7 @@ def validate_connector_config(
                 )
             },
         },
-        "DISCORD_CONNECTOR": {"required": ["DISCORD_BOT_TOKEN"], "validators": {}},
+        # "DISCORD_CONNECTOR": {"required": ["DISCORD_BOT_TOKEN"], "validators": {}},
         "JIRA_CONNECTOR": {
             "required": ["JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_BASE_URL"],
             "validators": {

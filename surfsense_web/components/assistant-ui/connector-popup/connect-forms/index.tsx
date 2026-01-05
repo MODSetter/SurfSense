@@ -4,7 +4,6 @@ import { BookStackConnectForm } from "./components/bookstack-connect-form";
 import { CirclebackConnectForm } from "./components/circleback-connect-form";
 import { ClickUpConnectForm } from "./components/clickup-connect-form";
 import { ConfluenceConnectForm } from "./components/confluence-connect-form";
-import { DiscordConnectForm } from "./components/discord-connect-form";
 import { ElasticsearchConnectForm } from "./components/elasticsearch-connect-form";
 import { GithubConnectForm } from "./components/github-connect-form";
 import { JiraConnectForm } from "./components/jira-connect-form";
@@ -50,8 +49,6 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 			return BaiduSearchApiConnectForm;
 		case "ELASTICSEARCH_CONNECTOR":
 			return ElasticsearchConnectForm;
-		case "DISCORD_CONNECTOR":
-			return DiscordConnectForm;
 		case "CONFLUENCE_CONNECTOR":
 			return ConfluenceConnectForm;
 		case "BOOKSTACK_CONNECTOR":
