@@ -1033,7 +1033,7 @@ async def run_github_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the GitHub indexing task with gitingest and updates the timestamp."""
+    """Runs the GitHub indexing task and updates the timestamp."""
     try:
         indexed_count, error_message = await index_github_repos(
             session,

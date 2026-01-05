@@ -1,4 +1,4 @@
-"""GitHub connector indexer using gitingest."""
+"""GitHub connector indexer."""
 
 from datetime import UTC, datetime
 
@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.connectors.github import GitHubConnectorGitingest
+from app.connectors.github import GitHubConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
@@ -25,7 +25,7 @@ from .base import (
 )
 
 
-async def index_github_repos_gitingest(
+async def index_github_repos(
     session: AsyncSession,
     connector_id: int,
     search_space_id: int,
@@ -42,8 +42,8 @@ async def index_github_repos_gitingest(
         connector_id: ID of the GitHub connector
         search_space_id: ID of the search space
         user_id: ID of the user
-        start_date: Not used in gitingest mode
-        end_date: Not used in gitingest mode
+        start_date: Not used
+        end_date: Not used
         update_last_indexed: Whether to update last_indexed_at timestamp
 
     Returns:
@@ -52,13 +52,12 @@ async def index_github_repos_gitingest(
     task_logger = TaskLoggingService(session, search_space_id)
 
     log_entry = await task_logger.log_task_start(
-        task_name="github_repos_gitingest_indexing",
+        task_name="github_repos_indexing",
         source="connector_indexing_task",
-        message=f"Starting GitHub repositories indexing with gitingest for connector {connector_id}",
+        message=f"Starting GitHub repositories indexing for connector {connector_id}",
         metadata={
             "connector_id": connector_id,
             "user_id": str(user_id),
-            "mode": "gitingest",
         },
     )
 
@@ -108,12 +107,12 @@ async def index_github_repos_gitingest(
 
         await task_logger.log_task_progress(
             log_entry,
-            f"Initializing GitHub gitingest client",
+            f"Initializing GitHub client",
             {"stage": "client_initialization", "repo_count": len(repo_full_names)},
         )
 
         try:
-            github_client = GitHubConnectorGitingest(token=github_pat)
+            github_client = GitHubConnector(token=github_pat)
         except ValueError as e:
             await task_logger.log_task_failure(
                 log_entry,
@@ -125,11 +124,11 @@ async def index_github_repos_gitingest(
 
         await task_logger.log_task_progress(
             log_entry,
-            f"Processing {len(repo_full_names)} repositories with gitingest",
+            f"Processing {len(repo_full_names)} repositories",
             {"stage": "repo_processing", "repo_count": len(repo_full_names)},
         )
 
-        logger.info(f"Processing {len(repo_full_names)} repositories with gitingest")
+        logger.info(f"Processing {len(repo_full_names)} repositories")
 
         for repo_full_name in repo_full_names:
             if not repo_full_name or not isinstance(repo_full_name, str):
@@ -150,7 +149,7 @@ async def index_github_repos_gitingest(
                     logger.warning(f"No content extracted for {repo_full_name}")
                     continue
 
-                unique_identifier = f"{repo_full_name}:gitingest"
+                unique_identifier = f"{repo_full_name}"
                 unique_identifier_hash = generate_unique_identifier_hash(
                     DocumentType.GITHUB_CONNECTOR, unique_identifier, search_space_id
                 )
@@ -177,7 +176,7 @@ async def index_github_repos_gitingest(
                         if user_llm:
                             doc_metadata = {
                                 "repository": repo_full_name,
-                                "document_type": "GitHub Repository (gitingest)",
+                                "document_type": "GitHub Repository",
                                 "connector_type": "GitHub",
                             }
                             summary_content, summary_embedding = (
@@ -222,7 +221,7 @@ async def index_github_repos_gitingest(
                 if user_llm:
                     doc_metadata = {
                         "repository": repo_full_name,
-                        "document_type": "GitHub Repository (gitingest)",
+                        "document_type": "GitHub Repository",
                         "connector_type": "GitHub",
                     }
                     summary_content, summary_embedding = (
@@ -276,7 +275,7 @@ async def index_github_repos_gitingest(
 
         await task_logger.log_task_success(
             log_entry,
-            f"Successfully completed GitHub gitingest indexing",
+            f"Successfully completed GitHub indexing",
             {
                 "documents_processed": documents_processed,
                 "errors_count": len(errors),

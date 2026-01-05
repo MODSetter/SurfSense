@@ -1,14 +1,11 @@
-"""GitHub Connector Module using Gitingest."""
+"""GitHub Connector Module."""
 
+from .client import GitHubConnector
 from .constants import MAX_FILE_SIZE, SKIPPED_DIRS
-from .gitingest_client import GitHubConnectorGitingest
-from .gitingest_service import GitIngestService
-
-GitHubConnector = GitHubConnectorGitingest
+from .service import GitIngestService
 
 __all__ = [
     "GitHubConnector",
-    "GitHubConnectorGitingest",
     "GitIngestService",
     "MAX_FILE_SIZE",
     "SKIPPED_DIRS",

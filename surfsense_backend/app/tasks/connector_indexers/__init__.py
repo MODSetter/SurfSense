@@ -32,10 +32,8 @@ from .discord_indexer import index_discord_messages
 
 # Development platforms
 from .elasticsearch_indexer import index_elasticsearch_documents
-from .github_indexer_gitingest import index_github_repos_gitingest
+from .github_indexer import index_github_repos
 from .google_calendar_indexer import index_google_calendar_events
-
-index_github_repos = index_github_repos_gitingest
 from .google_drive_indexer import index_google_drive_files
 from .google_gmail_indexer import index_google_gmail_messages
 from .jira_indexer import index_jira_issues
@@ -51,7 +49,6 @@ from .webcrawler_indexer import index_crawled_urls
 
 __all__ = [  # noqa: RUF022
     "index_airtable_records",
-    "index_github_repos_gitingest",
     "index_bookstack_pages",
     "index_clickup_tasks",
     "index_confluence_pages",

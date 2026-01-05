@@ -1,4 +1,4 @@
-"""GitHub connector using gitingest for bulk repository processing."""
+"""GitHub connector for repository processing."""
 
 import logging
 from typing import Any
@@ -7,13 +7,13 @@ from github3 import exceptions as github_exceptions
 from github3 import login as github_login
 from github3.exceptions import ForbiddenError
 
-from .gitingest_service import GitIngestService
+from .service import GitIngestService
 
 logger = logging.getLogger(__name__)
 
 
-class GitHubConnectorGitingest:
-    """GitHub connector using gitingest for bulk repository processing."""
+class GitHubConnector:
+    """GitHub connector for bulk repository processing."""
 
     def __init__(self, token: str):
         if not token:
