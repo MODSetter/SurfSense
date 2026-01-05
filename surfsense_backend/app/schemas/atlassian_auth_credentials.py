@@ -1,9 +1,23 @@
+"""
+Atlassian OAuth 2.0 Authentication Credentials Schema.
+
+Shared schema for both Jira and Confluence OAuth credentials.
+Both products use the same Atlassian OAuth 2.0 (3LO) flow and token structure.
+"""
+
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, field_validator
 
 
-class JiraAuthCredentialsBase(BaseModel):
+class AtlassianAuthCredentialsBase(BaseModel):
+    """
+    Base model for Atlassian OAuth 2.0 credentials.
+    
+    Used for both Jira and Confluence connectors since they share
+    the same Atlassian OAuth infrastructure and token structure.
+    """
+
     access_token: str
     refresh_token: str | None = None
     token_type: str = "Bearer"
@@ -39,7 +53,7 @@ class JiraAuthCredentialsBase(BaseModel):
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "JiraAuthCredentialsBase":
+    def from_dict(cls, data: dict) -> "AtlassianAuthCredentialsBase":
         """Create credentials from dictionary."""
         expires_at = None
         if data.get("expires_at"):
@@ -70,3 +84,4 @@ class JiraAuthCredentialsBase(BaseModel):
         if isinstance(v, datetime):
             return v if v.tzinfo else v.replace(tzinfo=UTC)
         return v
+

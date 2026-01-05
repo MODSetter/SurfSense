@@ -24,7 +24,7 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.schemas.jira_auth_credentials import JiraAuthCredentialsBase
+from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
@@ -392,7 +392,7 @@ async def refresh_jira_token(
     try:
         logger.info(f"Refreshing Jira token for connector {connector.id}")
 
-        credentials = JiraAuthCredentialsBase.from_dict(connector.config)
+        credentials = AtlassianAuthCredentialsBase.from_dict(connector.config)
 
         # Decrypt tokens if they are encrypted
         token_encryption = get_token_encryption()

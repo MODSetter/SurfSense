@@ -131,8 +131,8 @@ async def index_jira_issues(
                 return 0, f"Failed to decrypt Jira tokens: {e!s}"
 
             try:
-                from app.schemas.jira_auth_credentials import JiraAuthCredentialsBase
-                credentials = JiraAuthCredentialsBase.from_dict(config_data)
+                from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
+                credentials = AtlassianAuthCredentialsBase.from_dict(config_data)
             except Exception as e:
                 await task_logger.log_task_failure(
                     log_entry,
@@ -160,7 +160,7 @@ async def index_jira_issues(
                         config_data["access_token"] = token_encryption.decrypt_token(
                             config_data["access_token"]
                         )
-                    credentials = JiraAuthCredentialsBase.from_dict(config_data)
+                    credentials = AtlassianAuthCredentialsBase.from_dict(config_data)
                 except Exception as e:
                     await task_logger.log_task_failure(
                         log_entry,
