@@ -538,13 +538,13 @@ def validate_connector_config(
             },
         },
         # "DISCORD_CONNECTOR": {"required": ["DISCORD_BOT_TOKEN"], "validators": {}},
-        "JIRA_CONNECTOR": {
-            "required": ["JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_BASE_URL"],
-            "validators": {
-                "JIRA_EMAIL": lambda: validate_email_field("JIRA_EMAIL", "JIRA"),
-                "JIRA_BASE_URL": lambda: validate_url_field("JIRA_BASE_URL", "JIRA"),
-            },
-        },
+        # "JIRA_CONNECTOR": {
+        #     "required": ["JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_BASE_URL"],
+        #     "validators": {
+        #         "JIRA_EMAIL": lambda: validate_email_field("JIRA_EMAIL", "JIRA"),
+        #         "JIRA_BASE_URL": lambda: validate_url_field("JIRA_BASE_URL", "JIRA"),
+        #     },
+        # },
         "CONFLUENCE_CONNECTOR": {
             "required": [
                 "CONFLUENCE_BASE_URL",
