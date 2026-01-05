@@ -6,6 +6,7 @@ import { ClickUpConnectForm } from "./components/clickup-connect-form";
 import { ConfluenceConnectForm } from "./components/confluence-connect-form";
 import { ElasticsearchConnectForm } from "./components/elasticsearch-connect-form";
 import { GithubConnectForm } from "./components/github-connect-form";
+import { JiraConnectForm } from "./components/jira-connect-form";
 import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
 import { LumaConnectForm } from "./components/luma-connect-form";
 import { SearxngConnectForm } from "./components/searxng-connect-form";
@@ -54,6 +55,8 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 			return BookStackConnectForm;
 		case "GITHUB_CONNECTOR":
 			return GithubConnectForm;
+		case "JIRA_CONNECTOR":
+			return JiraConnectForm;
 		case "CLICKUP_CONNECTOR":
 			return ClickUpConnectForm;
 		case "LUMA_CONNECTOR":

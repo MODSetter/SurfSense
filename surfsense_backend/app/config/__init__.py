@@ -111,11 +111,6 @@ class Config:
     DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-    # Jira OAuth
-    JIRA_CLIENT_ID = os.getenv("JIRA_CLIENT_ID")
-    JIRA_CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
-    JIRA_REDIRECT_URI = os.getenv("JIRA_REDIRECT_URI")
-
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 

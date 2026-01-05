@@ -84,137 +84,31 @@ async def index_jira_issues(
             return 0, f"Connector with ID {connector_id} not found"
 
         # Get the Jira credentials from the connector config
-        # Support both OAuth (preferred) and legacy API token authentication
-        config_data = connector.config.copy()
-        is_oauth = config_data.get("_token_encrypted", False) or config_data.get("access_token")
+        jira_email = connector.config.get("JIRA_EMAIL")
+        jira_api_token = connector.config.get("JIRA_API_TOKEN")
+        jira_base_url = connector.config.get("JIRA_BASE_URL")
 
-        if is_oauth:
-            # OAuth 2.0 authentication
-            from app.utils.oauth_security import TokenEncryption
-
-            if not config.SECRET_KEY:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"SECRET_KEY not configured but tokens are marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
-                    {"error_type": "MissingSecretKey"},
-                )
-                return 0, "SECRET_KEY not configured but tokens are marked as encrypted"
-            
-            try:
-                token_encryption = TokenEncryption(config.SECRET_KEY)
-
-                # Decrypt access_token
-                if config_data.get("access_token"):
-                    config_data["access_token"] = token_encryption.decrypt_token(
-                        config_data["access_token"]
-                    )
-                    logger.info(
-                        f"Decrypted Jira access token for connector {connector_id}"
-                    )
-
-                # Decrypt refresh_token if present
-                if config_data.get("refresh_token"):
-                    config_data["refresh_token"] = token_encryption.decrypt_token(
-                        config_data["refresh_token"]
-                    )
-                    logger.info(
-                        f"Decrypted Jira refresh token for connector {connector_id}"
-                    )
-            except Exception as e:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Failed to decrypt Jira tokens for connector {connector_id}: {e!s}",
-                    "Token decryption failed",
-                    {"error_type": "TokenDecryptionError"},
-                )
-                return 0, f"Failed to decrypt Jira tokens: {e!s}"
-
-            try:
-                from app.schemas.jira_auth_credentials import JiraAuthCredentialsBase
-                credentials = JiraAuthCredentialsBase.from_dict(config_data)
-            except Exception as e:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Invalid Jira OAuth credentials in connector {connector_id}",
-                    str(e),
-                    {"error_type": "InvalidCredentials"},
-                )
-                return 0, f"Invalid Jira OAuth credentials: {e!s}"
-
-            # Check if credentials are expired and refresh if needed
-            if credentials.is_expired:
-                await task_logger.log_task_progress(
-                    log_entry,
-                    f"Jira credentials expired for connector {connector_id}, refreshing token",
-                    {"stage": "token_refresh"},
-                )
-
-                from app.routes.jira_add_connector_route import refresh_jira_token
-
-                try:
-                    connector = await refresh_jira_token(session, connector)
-                    # Re-fetch credentials after refresh
-                    config_data = connector.config.copy()
-                    if config_data.get("access_token"):
-                        config_data["access_token"] = token_encryption.decrypt_token(
-                            config_data["access_token"]
-                        )
-                    credentials = JiraAuthCredentialsBase.from_dict(config_data)
-                except Exception as e:
-                    await task_logger.log_task_failure(
-                        log_entry,
-                        f"Failed to refresh Jira token for connector {connector_id}: {e!s}",
-                        "Token refresh failed",
-                        {"error_type": "TokenRefreshError"},
-                    )
-                    return 0, f"Failed to refresh Jira token: {e!s}"
-
-            # Initialize Jira client with OAuth credentials
-            await task_logger.log_task_progress(
+        if not jira_email or not jira_api_token or not jira_base_url:
+            await task_logger.log_task_failure(
                 log_entry,
-                f"Initializing Jira client with OAuth for connector {connector_id}",
-                {"stage": "client_initialization"},
+                f"Jira credentials not found in connector config for connector {connector_id}",
+                "Missing Jira credentials",
+                {"error_type": "MissingCredentials"},
             )
+            return 0, "Jira credentials not found in connector config"
 
-            jira_client = JiraConnector(
-                base_url=credentials.base_url,
-                access_token=credentials.access_token,
-                cloud_id=credentials.cloud_id,
-            )
-        else:
-            # Legacy API token authentication
-            jira_email = config_data.get("JIRA_EMAIL")
-            jira_api_token = config_data.get("JIRA_API_TOKEN")
-            jira_base_url = config_data.get("JIRA_BASE_URL")
+        # Initialize Jira client
+        await task_logger.log_task_progress(
+            log_entry,
+            f"Initializing Jira client for connector {connector_id}",
+            {"stage": "client_initialization"},
+        )
 
-            if not jira_email or not jira_api_token or not jira_base_url:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Jira credentials not found in connector config for connector {connector_id}",
-                    "Missing Jira credentials",
-                    {"error_type": "MissingCredentials"},
-                )
-                return 0, "Jira credentials not found in connector config"
-
-            # Initialize Jira client with legacy credentials
-            await task_logger.log_task_progress(
-                log_entry,
-                f"Initializing Jira client with API token for connector {connector_id}",
-                {"stage": "client_initialization"},
-            )
-
-            jira_client = JiraConnector(
-                base_url=jira_base_url, email=jira_email, api_token=jira_api_token
-            )
+        jira_client = JiraConnector(
+            base_url=jira_base_url, email=jira_email, api_token=jira_api_token
+        )
 
         # Calculate date range
-        # Handle "undefined" strings from frontend
-        if start_date == "undefined" or start_date == "":
-            start_date = None
-        if end_date == "undefined" or end_date == "":
-            end_date = None
-
         start_date_str, end_date_str = calculate_date_range(
             connector, start_date, end_date, default_days_back=365
         )
