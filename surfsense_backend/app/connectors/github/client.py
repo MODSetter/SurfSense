@@ -59,7 +59,18 @@ class GitHubConnector:
     def process_repository(self, repo_full_name: str) -> dict[str, Any]:
         """Process a repository using gitingest and return content with metadata."""
         try:
-            owner, repo_name = repo_full_name.split("/")
+            # Handle both "owner/repo" and full URLs
+            if repo_full_name.startswith("http"):
+                # Extract owner/repo from URL
+                parts = repo_full_name.rstrip("/").split("/")
+                owner = parts[-2]
+                repo_name = parts[-1]
+                if repo_name.endswith(".git"):
+                    repo_name = repo_name[:-4]
+            else:
+                # Already in owner/repo format
+                owner, repo_name = repo_full_name.split("/")
+            
             repo = self.gh.repository(owner, repo_name)
 
             if not repo:
