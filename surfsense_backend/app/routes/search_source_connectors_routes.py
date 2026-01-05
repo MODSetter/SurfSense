@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.connectors.github_connector import GitHubConnector
+from app.connectors.github import GitHubConnector
 from app.db import (
     Permission,
     SearchSourceConnector,

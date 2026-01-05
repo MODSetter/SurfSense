@@ -1,93 +1,23 @@
+"""GitHub API client for file-by-file repository processing."""
+
 import base64
 import logging
 from typing import Any
 
-from github3 import exceptions as github_exceptions, login as github_login
+from github3 import exceptions as github_exceptions
+from github3 import login as github_login
 from github3.exceptions import ForbiddenError, NotFoundError
 from github3.repos.contents import Contents
 
+from .constants import CODE_EXTENSIONS, DOC_EXTENSIONS, MAX_FILE_SIZE, SKIPPED_DIRS
+
 logger = logging.getLogger(__name__)
-
-# List of common code file extensions to target
-CODE_EXTENSIONS = {
-    ".py",
-    ".js",
-    ".jsx",
-    ".ts",
-    ".tsx",
-    ".java",
-    ".c",
-    ".cpp",
-    ".h",
-    ".hpp",
-    ".cs",
-    ".go",
-    ".rb",
-    ".php",
-    ".swift",
-    ".kt",
-    ".scala",
-    ".rs",
-    ".m",
-    ".sh",
-    ".bash",
-    ".ps1",
-    ".lua",
-    ".pl",
-    ".pm",
-    ".r",
-    ".dart",
-    ".sql",
-}
-
-# List of common documentation/text file extensions
-DOC_EXTENSIONS = {
-    ".md",
-    ".txt",
-    ".rst",
-    ".adoc",
-    ".html",
-    ".htm",
-    ".xml",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".toml",
-}
-
-# Maximum file size in bytes (e.g., 1MB)
-MAX_FILE_SIZE = 1 * 1024 * 1024
 
 
 class GitHubConnector:
     """Connector for interacting with the GitHub API."""
 
-    # Directories to skip during file traversal
-    SKIPPED_DIRS = {
-        # Version control
-        ".git",
-        # Dependencies
-        "node_modules",
-        "vendor",
-        # Build artifacts / Caches
-        "build",
-        "dist",
-        "target",
-        "__pycache__",
-        # Virtual environments
-        "venv",
-        ".venv",
-        "env",
-        # IDE/Editor config
-        ".vscode",
-        ".idea",
-        ".project",
-        ".settings",
-        # Temporary / Logs
-        "tmp",
-        "logs",
-        # Add other project-specific irrelevant directories if needed
-    }
+    SKIPPED_DIRS = SKIPPED_DIRS
 
     def __init__(self, token: str):
         """

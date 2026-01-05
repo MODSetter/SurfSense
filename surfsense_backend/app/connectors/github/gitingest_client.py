@@ -1,4 +1,4 @@
-"""GitHub connector using gitingest for repository processing."""
+"""GitHub connector using gitingest for bulk repository processing."""
 
 import logging
 from typing import Any
