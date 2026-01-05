@@ -13,6 +13,7 @@ dependencies = [
     "docling>=2.15.0",
     "fastapi>=0.115.8",
     "github3.py==4.0.1",
+    "gitingest>=0.1.0",
     "google-api-python-client>=2.156.0",
     "google-auth-oauthlib>=1.2.1",
     "kokoro>=0.9.4",
