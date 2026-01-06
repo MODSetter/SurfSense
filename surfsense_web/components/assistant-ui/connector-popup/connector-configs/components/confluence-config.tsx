@@ -80,7 +80,7 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 
 	// For OAuth connectors, show simple info message
 	if (isOAuth) {
-		const siteUrl = (connector.config?.site_url as string) || "Unknown";
+		const siteUrl = (connector.config?.base_url as string) || (connector.config?.site_url as string) || "Unknown";
 		return (
 			<div className="space-y-6">
 				{/* OAuth Info */}
@@ -94,10 +94,10 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 							This connector is authenticated using OAuth 2.0. Your Confluence instance is:
 						</p>
 						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-							<code className="bg-muted px-1 py-0.5 rounded text-[9px]">{siteUrl}</code>
+							<code className="bg-muted px-1 py-0.5 rounded text-inherit">{siteUrl}</code>
 						</p>
-						<p className="text-muted-foreground mt-2 text-[10px] sm:text-sm">
-							To update your connection, disconnect and reconnect through the OAuth flow.
+						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+							To update your connection, reconnect this connector.
 						</p>
 					</div>
 				</div>

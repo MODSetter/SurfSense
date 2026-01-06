@@ -88,10 +88,10 @@ export const JiraConfig: FC<JiraConfigProps> = ({ connector, onConfigChange, onN
 							This connector is authenticated using OAuth 2.0. Your Jira instance is:
 						</p>
 						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-							<code className="bg-muted px-1 py-0.5 rounded text-[9px]">{baseUrl}</code>
+							<code className="bg-muted px-1 py-0.5 rounded text-inherit">{baseUrl}</code>
 						</p>
-						<p className="text-muted-foreground mt-2 text-[10px] sm:text-sm">
-							To update your connection, disconnect and reconnect through the OAuth flow.
+						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+							To update your connection, reconnect this connector.
 						</p>
 					</div>
 				</div>

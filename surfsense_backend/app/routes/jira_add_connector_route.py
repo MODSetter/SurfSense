@@ -40,7 +40,6 @@ ACCESSIBLE_RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-res
 # OAuth scopes for Jira
 SCOPES = [
     "read:jira-work",
-    "write:jira-work",
     "read:jira-user",
     "offline_access",  # Required for refresh tokens
 ]

@@ -38,8 +38,6 @@ RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
 
 # OAuth scopes for Confluence
 SCOPES = [
-    "read:confluence-content.all",
-    "read:confluence-space.summary",
     "read:confluence-user",
     "read:space:confluence",
     "read:page:confluence",
