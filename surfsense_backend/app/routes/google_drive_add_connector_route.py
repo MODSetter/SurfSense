@@ -37,6 +37,7 @@ from app.db import (
 )
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.connector_naming import generate_unique_connector_name, extract_identifier_from_credentials
 
 # Relax token scope validation for Google OAuth
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
@@ -245,26 +246,17 @@ async def drive_callback(
         # Mark that credentials are encrypted for backward compatibility
         creds_dict["_token_encrypted"] = True
 
-        # Check if connector already exists for this space/user
-        result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == space_id,
-                SearchSourceConnector.user_id == user_id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
-            )
+        # Extract unique identifier from connector credentials
+        connector_identifier = extract_identifier_from_credentials(
+            SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR, creds_dict
         )
-        existing_connector = result.scalars().first()
+        # Generate a unique, user-friendly connector name from credentials/account info
+        connector_name = generate_unique_connector_name(
+            SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR, connector_identifier
+        )
 
-        if existing_connector:
-            raise HTTPException(
-                status_code=409,
-                detail="A GOOGLE_DRIVE_CONNECTOR already exists in this search space. Each search space can have only one connector of each type per user.",
-            )
-
-        # Create new connector (NO folder selection here - happens at index time)
         db_connector = SearchSourceConnector(
-            name="Google Drive Connector",
+            name=connector_name,
             connector_type=SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
             config={
                 **creds_dict,
@@ -318,7 +310,7 @@ async def drive_callback(
         logger.error(f"Database integrity error: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=409,
-            detail="A connector with this configuration already exists.",
+            detail=f"Database integrity error: {e!s}",
         ) from e
     except Exception as e:
         await session.rollback()

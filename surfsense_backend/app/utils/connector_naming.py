@@ -28,7 +28,7 @@ def generate_unique_connector_name(connector_type: SearchSourceConnectorType, id
     return base
 
 
-def extract_email_from_credentials(connector_type: SearchSourceConnectorType, credentials: dict) -> str | None:
+def extract_identifier_from_credentials(connector_type: SearchSourceConnectorType, credentials: dict) -> str | None:
     if connector_type == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR:
         return credentials.get("email") or credentials.get("user_email")
     if connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR:
