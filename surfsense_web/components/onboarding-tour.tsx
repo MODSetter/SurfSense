@@ -16,7 +16,7 @@ const TOUR_STEPS: TourStep[] = [
 		target: '[data-joyride="connector-icon"]',
 		title: "Connect your data sources",
 		content:
-			"Click this icon to connect and sync data from GitHub, Slack, Notion, Jira, Confluence, and more.",
+			"Connect and sync data from Gmail, Drive, Slack, Notion, Jira, Confluence, and more.",
 		placement: "bottom",
 	},
 	{
@@ -78,18 +78,21 @@ function calculatePosition(targetEl: Element, placement: TourStep["placement"]):
 function Spotlight({
 	targetEl,
 	isDarkMode,
-	stepIndex,
+	currentStepTarget,
 }: {
 	targetEl: Element;
 	isDarkMode: boolean;
-	stepIndex: number;
+	currentStepTarget: string;
 }) {
 	const rect = targetEl.getBoundingClientRect();
 	const padding = 6;
 	const shadowColor = isDarkMode ? "#172554" : "#0c1a3a";
 
-	// Check if this is the connector icon step (stepIndex === 0)
-	const isConnectorStep = stepIndex === 0;
+	// Check if this is the connector icon step - verify both the selector matches AND the element matches
+	// This prevents the shape from changing before targetEl updates
+	const isConnectorSelector = currentStepTarget === '[data-joyride="connector-icon"]';
+	const isConnectorElement = targetEl.matches('[data-joyride="connector-icon"]');
+	const isConnectorStep = isConnectorSelector && isConnectorElement;
 
 	// For circle, use the larger dimension to ensure it's a perfect circle
 	const circleSize = isConnectorStep ? Math.max(rect.width, rect.height) : 0;
@@ -135,7 +138,6 @@ function TourTooltip({
 	stepIndex,
 	totalSteps,
 	position,
-	targetRect,
 	onNext,
 	onPrev,
 	onSkip,
@@ -243,7 +245,7 @@ function TourTooltip({
 			<div className="flex items-center gap-1.5">
 				{Array.from({ length: totalSteps }).map((_, i) => (
 					<div
-						key={`step-dot-${i}`}
+						key={TOUR_STEPS[i]?.target ?? `step-${i}`}
 						style={{
 							width: 6,
 							height: 6,
@@ -425,10 +427,25 @@ export function OnboardingTour() {
 	// Update target when step changes
 	useEffect(() => {
 		if (isActive && currentStep) {
-			const timer = setTimeout(() => {
-				updateTarget();
-			}, 100);
-			return () => clearTimeout(timer);
+			// Try to find element synchronously first to prevent any delay
+			const el = document.querySelector(currentStep.target);
+			if (el) {
+				// Found immediately - update state synchronously to prevent flicker
+				const rect = el.getBoundingClientRect();
+				const newPosition = calculatePosition(el, currentStep.placement);
+				// React 18+ automatically batches these updates
+				setTargetEl(el);
+				setTargetRect(rect);
+				setPosition(newPosition);
+				retryCountRef.current = 0;
+			} else {
+				// Not found immediately, use updateTarget with retry logic
+				// Use requestAnimationFrame to batch with next paint
+				const frameId = requestAnimationFrame(() => {
+					updateTarget();
+				});
+				return () => cancelAnimationFrame(frameId);
+			}
 		}
 	}, [isActive, updateTarget, currentStep]);
 
@@ -492,7 +509,7 @@ export function OnboardingTour() {
 	}, [isActive]);
 
 	// Don't render if not active or not mounted
-	if (!mounted || !isActive || !targetEl || !position || !currentStep || !targetRect) {
+	if (!mounted || !isActive) {
 		return null;
 	}
 
@@ -505,18 +522,23 @@ export function OnboardingTour() {
 				onClick={handleOverlayClick}
 				aria-label="Close tour"
 			/>
-			<Spotlight targetEl={targetEl} isDarkMode={isDarkMode} stepIndex={stepIndex} />
-			<TourTooltip
-				step={currentStep}
-				stepIndex={stepIndex}
-				totalSteps={TOUR_STEPS.length}
-				position={position}
-				targetRect={targetRect}
-				onNext={handleNext}
-				onPrev={handlePrev}
-				onSkip={handleSkip}
-				isDarkMode={isDarkMode}
-			/>
+			{/* Only render Spotlight and TourTooltip when we have target data */}
+			{targetEl && position && currentStep && targetRect && (
+				<>
+					<Spotlight targetEl={targetEl} isDarkMode={isDarkMode} currentStepTarget={currentStep.target} />
+					<TourTooltip
+						step={currentStep}
+						stepIndex={stepIndex}
+						totalSteps={TOUR_STEPS.length}
+						position={position}
+						targetRect={targetRect}
+						onNext={handleNext}
+						onPrev={handlePrev}
+						onSkip={handleSkip}
+						isDarkMode={isDarkMode}
+					/>
+				</>
+			)}
 		</div>,
 		document.body
 	);
