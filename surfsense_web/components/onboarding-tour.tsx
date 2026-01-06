@@ -15,8 +15,7 @@ const TOUR_STEPS: TourStep[] = [
 	{
 		target: '[data-joyride="connector-icon"]',
 		title: "Connect your data sources",
-		content:
-			"Connect and sync data from Gmail, Drive, Slack, Notion, Jira, Confluence, and more.",
+		content: "Connect and sync data from Gmail, Drive, Slack, Notion, Jira, Confluence, and more.",
 		placement: "bottom",
 	},
 	{
@@ -86,7 +85,7 @@ function Spotlight({
 }) {
 	const rect = targetEl.getBoundingClientRect();
 	const padding = 6;
-	const shadowColor = isDarkMode ? "#172554" : "#0c1a3a";
+	const shadowColor = isDarkMode ? "#172554" : "#3b82f6";
 
 	// Check if this is the connector icon step - verify both the selector matches AND the element matches
 	// This prevents the shape from changing before targetEl updates
@@ -110,7 +109,9 @@ function Spotlight({
 					width: isConnectorStep ? circleSize + padding * 2 : rect.width + padding * 2,
 					height: isConnectorStep ? circleSize + padding * 2 : rect.height + padding * 2,
 					borderRadius: isConnectorStep ? "50%" : 8,
-					boxShadow: `0 0 0 9999px rgba(0, 0, 0, 0.6)`,
+					boxShadow: isDarkMode
+						? `0 0 0 9999px rgba(0, 0, 0, 0.6)`
+						: `0 0 0 9999px rgba(0, 0, 0, 0.3)`,
 					backgroundColor: "transparent",
 					zIndex: 99996,
 				}}
@@ -124,7 +125,9 @@ function Spotlight({
 					width: isConnectorStep ? circleSize : rect.width,
 					height: isConnectorStep ? circleSize : rect.height,
 					borderRadius: isConnectorStep ? "50%" : 8,
-					boxShadow: `0 0 10px 2px ${shadowColor}CC, 0 0 20px 6px ${shadowColor}99, 0 0 40px 12px ${shadowColor}66`,
+					boxShadow: isDarkMode
+						? `0 0 10px 2px ${shadowColor}CC, 0 0 20px 6px ${shadowColor}99, 0 0 40px 12px ${shadowColor}66`
+						: `0 0 6px 1px ${shadowColor}80, 0 0 12px 3px ${shadowColor}50, 0 0 20px 6px ${shadowColor}30`,
 					backgroundColor: "transparent",
 					zIndex: 99997,
 				}}
@@ -153,12 +156,25 @@ function TourTooltip({
 	onSkip: () => void;
 	isDarkMode: boolean;
 }) {
+	const [contentKey, setContentKey] = useState(stepIndex);
+	const [shouldAnimate, setShouldAnimate] = useState(false);
+	const prevStepIndexRef = useRef(stepIndex);
 	const isLastStep = stepIndex === totalSteps - 1;
 	const isFirstStep = stepIndex === 0;
 
-	const bgColor = isDarkMode ? "#18181b" : "#18181b"; // Dark tooltip for both modes as shown in image
-	const textColor = "#ffffff";
-	const mutedTextColor = "#a1a1aa";
+	// Update content key when step changes to trigger animation
+	// Only animate if stepIndex actually changes (not on initial mount)
+	useEffect(() => {
+		if (prevStepIndexRef.current !== stepIndex) {
+			setShouldAnimate(true);
+			setContentKey(stepIndex);
+			prevStepIndexRef.current = stepIndex;
+		}
+	}, [stepIndex]);
+
+	const bgColor = isDarkMode ? "#18181b" : "#ffffff";
+	const textColor = isDarkMode ? "#ffffff" : "#18181b";
+	const mutedTextColor = isDarkMode ? "#a1a1aa" : "#71717a";
 
 	// Calculate pointer line position
 	const getPointerStyles = (): React.CSSProperties => {
@@ -192,7 +208,7 @@ function TourTooltip({
 	};
 
 	const renderPointer = () => {
-		const lineColor = "#18181B";
+		const lineColor = isDarkMode ? "#18181B" : "#ffffff";
 
 		if (position.pointerPosition === "left") {
 			return (
@@ -250,7 +266,14 @@ function TourTooltip({
 							width: 6,
 							height: 6,
 							borderRadius: "50%",
-							backgroundColor: i === stepIndex ? "#ffffff" : "#52525b",
+							backgroundColor:
+								i === stepIndex
+									? isDarkMode
+										? "#ffffff"
+										: "#18181b"
+									: isDarkMode
+										? "#52525b"
+										: "#d4d4d8",
 							transition: "background-color 0.2s",
 						}}
 					/>
@@ -269,6 +292,7 @@ function TourTooltip({
 				top: position.top,
 				left: position.left,
 				width: 280,
+				transition: "top 0.4s cubic-bezier(0.4, 0, 0.2, 1), left 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
 			}}
 			onClick={(e) => e.stopPropagation()}
 			onKeyDown={(e) => e.stopPropagation()}
@@ -281,11 +305,19 @@ function TourTooltip({
 				style={{
 					backgroundColor: bgColor,
 					color: textColor,
-					boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+					boxShadow: isDarkMode
+						? "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
+						: "0 25px 50px -12px rgba(0, 0, 0, 0.15)",
 				}}
 			>
 				{/* Content */}
-				<div>
+				<div
+					key={contentKey}
+					style={{
+						animation: shouldAnimate ? "fadeInSlide 0.3s ease-out" : "none",
+					}}
+					onAnimationEnd={() => setShouldAnimate(false)}
+				>
 					<h3 id="tour-title" className="text-sm font-semibold mb-1.5" style={{ color: textColor }}>
 						{step.title}
 					</h3>
@@ -349,6 +381,8 @@ export function OnboardingTour() {
 	const [isActive, setIsActive] = useState(false);
 	const [stepIndex, setStepIndex] = useState(0);
 	const [targetEl, setTargetEl] = useState<Element | null>(null);
+	const [spotlightTargetEl, setSpotlightTargetEl] = useState<Element | null>(null);
+	const [spotlightStepTarget, setSpotlightStepTarget] = useState<string | null>(null);
 	const [position, setPosition] = useState<TooltipPosition | null>(null);
 	const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 	const [mounted, setMounted] = useState(false);
@@ -395,6 +429,8 @@ export function OnboardingTour() {
 			if (el) {
 				setIsActive(true);
 				setTargetEl(el);
+				setSpotlightTargetEl(el);
+				setSpotlightStepTarget(TOUR_STEPS[0].target);
 				setTargetRect(el.getBoundingClientRect());
 				setPosition(calculatePosition(el, TOUR_STEPS[0].placement));
 			}
@@ -448,6 +484,17 @@ export function OnboardingTour() {
 			}
 		}
 	}, [isActive, updateTarget, currentStep]);
+
+	// Delay spotlight update to sync with tooltip animation
+	useEffect(() => {
+		if (targetEl && currentStep) {
+			const timer = setTimeout(() => {
+				setSpotlightTargetEl(targetEl);
+				setSpotlightStepTarget(currentStep.target);
+			}, 100);
+			return () => clearTimeout(timer);
+		}
+	}, [targetEl, currentStep]);
 
 	// Ensure target element is above overlay layers so content is fully visible
 	useEffect(() => {
@@ -514,32 +561,60 @@ export function OnboardingTour() {
 	}
 
 	return createPortal(
-		<div className="fixed inset-0 z-[99995]">
-			{/* Clickable backdrop to close */}
-			<button
-				type="button"
-				className="fixed inset-0 w-full h-full bg-transparent border-0 cursor-default"
-				onClick={handleOverlayClick}
-				aria-label="Close tour"
-			/>
-			{/* Only render Spotlight and TourTooltip when we have target data */}
-			{targetEl && position && currentStep && targetRect && (
-				<>
-					<Spotlight targetEl={targetEl} isDarkMode={isDarkMode} currentStepTarget={currentStep.target} />
-					<TourTooltip
-						step={currentStep}
-						stepIndex={stepIndex}
-						totalSteps={TOUR_STEPS.length}
-						position={position}
-						targetRect={targetRect}
-						onNext={handleNext}
-						onPrev={handlePrev}
-						onSkip={handleSkip}
-						isDarkMode={isDarkMode}
-					/>
-				</>
-			)}
-		</div>,
+		<>
+			<style>{`
+				@keyframes fadeInSlide {
+					from {
+						opacity: 0;
+						transform: translateY(8px);
+					}
+					to {
+						opacity: 1;
+						transform: translateY(0);
+					}
+				}
+				@keyframes fadeIn {
+					from {
+						opacity: 0;
+					}
+					to {
+						opacity: 1;
+					}
+				}
+			`}</style>
+			<div className="fixed inset-0 z-[99995]">
+				{/* Clickable backdrop to close */}
+				<button
+					type="button"
+					className="fixed inset-0 w-full h-full bg-transparent border-0 cursor-default"
+					onClick={handleOverlayClick}
+					aria-label="Close tour"
+				/>
+				{/* Only render Spotlight and TourTooltip when we have target data */}
+				{targetEl && position && currentStep && targetRect && (
+					<>
+						{spotlightTargetEl && spotlightStepTarget && (
+							<Spotlight
+								targetEl={spotlightTargetEl}
+								isDarkMode={isDarkMode}
+								currentStepTarget={spotlightStepTarget}
+							/>
+						)}
+						<TourTooltip
+							step={currentStep}
+							stepIndex={stepIndex}
+							totalSteps={TOUR_STEPS.length}
+							position={position}
+							targetRect={targetRect}
+							onNext={handleNext}
+							onPrev={handlePrev}
+							onSkip={handleSkip}
+							isDarkMode={isDarkMode}
+						/>
+					</>
+				)}
+			</div>
+		</>,
 		document.body
 	);
 }
