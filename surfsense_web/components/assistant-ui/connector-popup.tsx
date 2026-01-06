@@ -162,6 +162,7 @@ export const ConnectorIndicator: FC = () => {
 	return (
 		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 			<TooltipIconButton
+				data-joyride="connector-icon"
 				tooltip={hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"}
 				side="bottom"
 				className={cn(
