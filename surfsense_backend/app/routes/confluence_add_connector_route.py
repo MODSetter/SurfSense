@@ -87,7 +87,9 @@ async def connect_confluence(space_id: int, user: User = Depends(current_active_
             raise HTTPException(status_code=400, detail="space_id is required")
 
         if not config.ATLASSIAN_CLIENT_ID:
-            raise HTTPException(status_code=500, detail="Atlassian OAuth not configured.")
+            raise HTTPException(
+                status_code=500, detail="Atlassian OAuth not configured."
+            )
 
         if not config.SECRET_KEY:
             raise HTTPException(
@@ -113,7 +115,9 @@ async def connect_confluence(space_id: int, user: User = Depends(current_active_
 
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info(f"Generated Confluence OAuth URL for user {user.id}, space {space_id}")
+        logger.info(
+            f"Generated Confluence OAuth URL for user {user.id}, space {space_id}"
+        )
         return {"auth_url": auth_url}
 
     except Exception as e:
@@ -216,7 +220,9 @@ async def confluence_callback(
             error_detail = token_response.text
             try:
                 error_json = token_response.json()
-                error_detail = error_json.get("error_description", error_json.get("error", error_detail))
+                error_detail = error_json.get(
+                    "error_description", error_json.get("error", error_detail)
+                )
             except Exception:
                 pass
             raise HTTPException(
@@ -252,7 +258,9 @@ async def confluence_callback(
                     break
 
         if not cloud_id:
-            logger.warning("Could not determine Confluence cloud ID from accessible resources")
+            logger.warning(
+                "Could not determine Confluence cloud ID from accessible resources"
+            )
 
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None
@@ -409,7 +417,9 @@ async def refresh_confluence_token(
             error_detail = token_response.text
             try:
                 error_json = token_response.json()
-                error_detail = error_json.get("error_description", error_json.get("error", error_detail))
+                error_detail = error_json.get(
+                    "error_description", error_json.get("error", error_detail)
+                )
             except Exception:
                 pass
             raise HTTPException(
@@ -431,7 +441,8 @@ async def refresh_confluence_token(
 
         if not access_token:
             raise HTTPException(
-                status_code=400, detail="No access token received from Confluence refresh"
+                status_code=400,
+                detail="No access token received from Confluence refresh",
             )
 
         # Update credentials object with encrypted tokens
@@ -449,7 +460,9 @@ async def refresh_confluence_token(
             credentials.cloud_id = connector.config.get("cloud_id")
         if not credentials.base_url:
             # Check both base_url and site_url for backward compatibility
-            credentials.base_url = connector.config.get("base_url") or connector.config.get("site_url")
+            credentials.base_url = connector.config.get(
+                "base_url"
+            ) or connector.config.get("site_url")
 
         # Update connector config with encrypted tokens
         credentials_dict = credentials.to_dict()
@@ -458,7 +471,9 @@ async def refresh_confluence_token(
         await session.commit()
         await session.refresh(connector)
 
-        logger.info(f"Successfully refreshed Confluence token for connector {connector.id}")
+        logger.info(
+            f"Successfully refreshed Confluence token for connector {connector.id}"
+        )
 
         return connector
     except HTTPException:
@@ -468,4 +483,3 @@ async def refresh_confluence_token(
         raise HTTPException(
             status_code=500, detail=f"Failed to refresh Confluence token: {e!s}"
         ) from e
-

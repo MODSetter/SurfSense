@@ -90,9 +90,11 @@ async def index_confluence_pages(
             {"stage": "client_initialization"},
         )
 
-        confluence_client: ConfluenceHistoryConnector | None = ConfluenceHistoryConnector(
-            session=session,
-            connector_id=connector_id,
+        confluence_client: ConfluenceHistoryConnector | None = (
+            ConfluenceHistoryConnector(
+                session=session,
+                connector_id=connector_id,
+            )
         )
 
         # Calculate date range
@@ -421,11 +423,11 @@ async def index_confluence_pages(
         logger.info(
             f"Confluence indexing completed: {documents_indexed} new pages, {documents_skipped} skipped"
         )
-        
+
         # Close the client connection
         if confluence_client:
             await confluence_client.close()
-        
+
         return (
             total_processed,
             None,

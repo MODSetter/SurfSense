@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class JiraHistoryConnector:
     """
     Jira connector with OAuth support and automatic token refresh.
-    
+
     This connector uses OAuth 2.0 access tokens to authenticate with the
     Jira API. It automatically refreshes expired tokens when needed.
     Also supports legacy API token authentication for backward compatibility.
@@ -80,8 +80,10 @@ class JiraHistoryConnector:
             config_data = connector.config.copy()
 
             # Check if using OAuth or legacy API token
-            is_oauth = config_data.get("_token_encrypted", False) or config_data.get("access_token")
-            
+            is_oauth = config_data.get("_token_encrypted", False) or config_data.get(
+                "access_token"
+            )
+
             if is_oauth:
                 # OAuth 2.0 authentication
                 if not config.SECRET_KEY:
@@ -118,7 +120,9 @@ class JiraHistoryConnector:
                     ) from e
 
                 try:
-                    self._credentials = AtlassianAuthCredentialsBase.from_dict(config_data)
+                    self._credentials = AtlassianAuthCredentialsBase.from_dict(
+                        config_data
+                    )
                     self._cloud_id = config_data.get("cloud_id")
                     self._base_url = config_data.get("base_url")
                     self._use_oauth = True
@@ -131,11 +135,19 @@ class JiraHistoryConnector:
                 self._base_url = config_data.get("JIRA_BASE_URL")
                 self._use_oauth = False
 
-                if not self._legacy_email or not self._legacy_api_token or not self._base_url:
+                if (
+                    not self._legacy_email
+                    or not self._legacy_api_token
+                    or not self._base_url
+                ):
                     raise ValueError("Jira credentials not found in connector config")
 
         # Check if token is expired and refreshable (only for OAuth)
-        if self._use_oauth and self._credentials.is_expired and self._credentials.is_refreshable:
+        if (
+            self._use_oauth
+            and self._credentials.is_expired
+            and self._credentials.is_refreshable
+        ):
             try:
                 logger.info(
                     f"Jira token expired for connector {self._connector_id}, refreshing..."
@@ -206,7 +218,7 @@ class JiraHistoryConnector:
             if self._use_oauth:
                 # Ensure we have valid token (will refresh if needed)
                 await self._get_valid_token()
-                
+
                 self._jira_client = JiraConnector(
                     base_url=self._base_url,
                     access_token=self._credentials.access_token,
@@ -230,7 +242,7 @@ class JiraHistoryConnector:
                         access_token=self._credentials.access_token,
                         cloud_id=self._cloud_id,
                     )
-        
+
         return self._jira_client
 
     async def get_issues_by_date_range(
@@ -256,10 +268,10 @@ class JiraHistoryConnector:
         # Ensure token is valid (will refresh if needed)
         if self._use_oauth:
             await self._get_valid_token()
-        
+
         # Get client with valid credentials
         client = await self._get_jira_client()
-        
+
         # JiraConnector methods are synchronous, so we call them directly
         # Token refresh has already been handled above
         return client.get_issues_by_date_range(
@@ -317,4 +329,3 @@ class JiraHistoryConnector:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
-

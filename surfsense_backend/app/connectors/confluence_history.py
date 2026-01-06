@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class ConfluenceHistoryConnector:
     """
     Confluence connector with OAuth support and automatic token refresh.
-    
+
     This connector uses OAuth 2.0 access tokens to authenticate with the
     Confluence API. It automatically refreshes expired tokens when needed.
     Also supports legacy API token authentication for backward compatibility.
@@ -81,8 +81,10 @@ class ConfluenceHistoryConnector:
             config_data = connector.config.copy()
 
             # Check if using OAuth or legacy API token
-            is_oauth = config_data.get("_token_encrypted", False) or config_data.get("access_token")
-            
+            is_oauth = config_data.get("_token_encrypted", False) or config_data.get(
+                "access_token"
+            )
+
             if is_oauth:
                 # OAuth 2.0 authentication
                 # Decrypt credentials if they are encrypted
@@ -93,12 +95,16 @@ class ConfluenceHistoryConnector:
 
                         # Decrypt sensitive fields
                         if config_data.get("access_token"):
-                            config_data["access_token"] = token_encryption.decrypt_token(
-                                config_data["access_token"]
+                            config_data["access_token"] = (
+                                token_encryption.decrypt_token(
+                                    config_data["access_token"]
+                                )
                             )
                         if config_data.get("refresh_token"):
-                            config_data["refresh_token"] = token_encryption.decrypt_token(
-                                config_data["refresh_token"]
+                            config_data["refresh_token"] = (
+                                token_encryption.decrypt_token(
+                                    config_data["refresh_token"]
+                                )
                             )
 
                         logger.info(
@@ -113,13 +119,19 @@ class ConfluenceHistoryConnector:
                         ) from e
 
                 try:
-                    self._credentials = AtlassianAuthCredentialsBase.from_dict(config_data)
+                    self._credentials = AtlassianAuthCredentialsBase.from_dict(
+                        config_data
+                    )
                     # Store cloud_id and base_url for API calls (with backward compatibility for site_url)
                     self._cloud_id = config_data.get("cloud_id")
-                    self._base_url = config_data.get("base_url") or config_data.get("site_url")
+                    self._base_url = config_data.get("base_url") or config_data.get(
+                        "site_url"
+                    )
                     self._use_oauth = True
                 except Exception as e:
-                    raise ValueError(f"Invalid Confluence OAuth credentials: {e!s}") from e
+                    raise ValueError(
+                        f"Invalid Confluence OAuth credentials: {e!s}"
+                    ) from e
             else:
                 # Legacy API token authentication
                 self._legacy_email = config_data.get("CONFLUENCE_EMAIL")
@@ -127,11 +139,21 @@ class ConfluenceHistoryConnector:
                 self._base_url = config_data.get("CONFLUENCE_BASE_URL")
                 self._use_oauth = False
 
-                if not self._legacy_email or not self._legacy_api_token or not self._base_url:
-                    raise ValueError("Confluence credentials not found in connector config")
+                if (
+                    not self._legacy_email
+                    or not self._legacy_api_token
+                    or not self._base_url
+                ):
+                    raise ValueError(
+                        "Confluence credentials not found in connector config"
+                    )
 
         # Check if token is expired and refreshable (only for OAuth)
-        if self._use_oauth and self._credentials.is_expired and self._credentials.is_refreshable:
+        if (
+            self._use_oauth
+            and self._credentials.is_expired
+            and self._credentials.is_refreshable
+        ):
             try:
                 logger.info(
                     f"Confluence token expired for connector {self._connector_id}, refreshing..."
@@ -170,7 +192,9 @@ class ConfluenceHistoryConnector:
                 self._credentials = AtlassianAuthCredentialsBase.from_dict(config_data)
                 self._cloud_id = config_data.get("cloud_id")
                 # Handle backward compatibility: check both base_url and site_url
-                self._base_url = config_data.get("base_url") or config_data.get("site_url")
+                self._base_url = config_data.get("base_url") or config_data.get(
+                    "site_url"
+                )
 
                 # Invalidate cached client so it's recreated with new token
                 if self._http_client:
@@ -230,10 +254,10 @@ class ConfluenceHistoryConnector:
         if not self._use_oauth:
             # For legacy auth, use the base_url directly
             return self._base_url or ""
-        
+
         if not self._cloud_id:
             raise ValueError("Cloud ID not available. Cannot construct API URL.")
-        
+
         # Use the Atlassian API format: https://api.atlassian.com/ex/confluence/{cloudid}
         return f"https://api.atlassian.com/ex/confluence/{self._cloud_id}"
 
@@ -261,11 +285,12 @@ class ConfluenceHistoryConnector:
             # For now, we'll use the legacy client's make_api_request method
             # But since it's sync, we'll need to wrap it
             import asyncio
+
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(
                 None, client.make_api_request, endpoint, params
             )
-        
+
         # OAuth flow
         token = await self._get_valid_token()
         base_url = await self._get_base_url()
@@ -446,7 +471,9 @@ class ConfluenceHistoryConnector:
             if cursor:
                 params["cursor"] = cursor
 
-            result = await self._make_api_request(f"pages/{page_id}/{comment_type}", params)
+            result = await self._make_api_request(
+                f"pages/{page_id}/{comment_type}", params
+            )
 
             if not isinstance(result, dict) or "results" not in result:
                 break  # No comments or invalid response
@@ -495,6 +522,7 @@ class ConfluenceHistoryConnector:
                 await self._get_valid_token()
                 # ConfluenceConnector.get_pages_by_date_range is synchronous
                 import asyncio
+
                 loop = asyncio.get_event_loop()
                 return await loop.run_in_executor(
                     None,
@@ -504,7 +532,7 @@ class ConfluenceHistoryConnector:
                     space_ids,
                     include_comments,
                 )
-            
+
             # OAuth flow
             all_pages = []
 
@@ -562,4 +590,3 @@ class ConfluenceHistoryConnector:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
-

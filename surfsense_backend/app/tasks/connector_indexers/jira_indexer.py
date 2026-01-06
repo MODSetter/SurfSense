@@ -95,9 +95,7 @@ async def index_jira_issues(
 
         # Create connector with session and connector_id for internal refresh
         # Token refresh will happen automatically when needed
-        jira_client = JiraHistoryConnector(
-            session=session, connector_id=connector_id
-        )
+        jira_client = JiraHistoryConnector(session=session, connector_id=connector_id)
 
         # Calculate date range
         # Handle "undefined" strings from frontend
@@ -395,10 +393,10 @@ async def index_jira_issues(
         logger.info(
             f"JIRA indexing completed: {documents_indexed} new issues, {documents_skipped} skipped"
         )
-        
+
         # Clean up the connector
         await jira_client.close()
-        
+
         return (
             total_processed,
             None,

@@ -217,7 +217,9 @@ async def discord_callback(
             error_detail = token_response.text
             try:
                 error_json = token_response.json()
-                error_detail = error_json.get("error_description", error_json.get("error", error_detail))
+                error_detail = error_json.get(
+                    "error_description", error_json.get("error", error_detail)
+                )
             except Exception:
                 pass
             raise HTTPException(
@@ -263,7 +265,9 @@ async def discord_callback(
 
         # Store the bot token from config and OAuth metadata
         connector_config = {
-            "bot_token": token_encryption.encrypt_token(bot_token),  # Use bot token from config
+            "bot_token": token_encryption.encrypt_token(
+                bot_token
+            ),  # Use bot token from config
             "oauth_access_token": token_encryption.encrypt_token(oauth_access_token)
             if oauth_access_token
             else None,  # Store OAuth token for reference
@@ -356,7 +360,7 @@ async def refresh_discord_token(
 ) -> SearchSourceConnector:
     """
     Refresh the Discord OAuth tokens for a connector.
-    
+
     Note: Bot tokens from config don't expire, but OAuth access tokens might.
     This function refreshes OAuth tokens if needed, but always uses bot token from config.
 
@@ -400,7 +404,9 @@ async def refresh_discord_token(
                 f"No refresh token available for connector {connector.id}. Using bot token from config."
             )
             # Update bot token from config (in case it was changed)
-            credentials.bot_token = token_encryption.encrypt_token(config.DISCORD_BOT_TOKEN)
+            credentials.bot_token = token_encryption.encrypt_token(
+                config.DISCORD_BOT_TOKEN
+            )
             credentials_dict = credentials.to_dict()
             credentials_dict["_token_encrypted"] = True
             connector.config = credentials_dict
@@ -428,7 +434,9 @@ async def refresh_discord_token(
             error_detail = token_response.text
             try:
                 error_json = token_response.json()
-                error_detail = error_json.get("error_description", error_json.get("error", error_detail))
+                error_detail = error_json.get(
+                    "error_description", error_json.get("error", error_detail)
+                )
             except Exception:
                 pass
             # If refresh fails, bot token from config is still valid
@@ -437,7 +445,9 @@ async def refresh_discord_token(
                 "Using bot token from config."
             )
             # Update bot token from config
-            credentials.bot_token = token_encryption.encrypt_token(config.DISCORD_BOT_TOKEN)
+            credentials.bot_token = token_encryption.encrypt_token(
+                config.DISCORD_BOT_TOKEN
+            )
             credentials.refresh_token = None  # Clear invalid refresh token
             credentials_dict = credentials.to_dict()
             credentials_dict["_token_encrypted"] = True
@@ -463,7 +473,7 @@ async def refresh_discord_token(
 
         # Always use bot token from config (bot tokens don't expire)
         credentials.bot_token = token_encryption.encrypt_token(config.DISCORD_BOT_TOKEN)
-        
+
         # Update OAuth tokens if available
         if oauth_access_token:
             # Store OAuth access token for reference
@@ -493,7 +503,9 @@ async def refresh_discord_token(
         await session.commit()
         await session.refresh(connector)
 
-        logger.info(f"Successfully refreshed Discord OAuth tokens for connector {connector.id}")
+        logger.info(
+            f"Successfully refreshed Discord OAuth tokens for connector {connector.id}"
+        )
 
         return connector
     except HTTPException:
@@ -506,4 +518,3 @@ async def refresh_discord_token(
         raise HTTPException(
             status_code=500, detail=f"Failed to refresh Discord tokens: {e!s}"
         ) from e
-

@@ -86,7 +86,9 @@ async def connect_jira(space_id: int, user: User = Depends(current_active_user))
             raise HTTPException(status_code=400, detail="space_id is required")
 
         if not config.ATLASSIAN_CLIENT_ID:
-            raise HTTPException(status_code=500, detail="Atlassian OAuth not configured.")
+            raise HTTPException(
+                status_code=500, detail="Atlassian OAuth not configured."
+            )
 
         if not config.SECRET_KEY:
             raise HTTPException(
@@ -215,7 +217,9 @@ async def jira_callback(
             error_detail = token_response.text
             try:
                 error_json = token_response.json()
-                error_detail = error_json.get("error_description", error_json.get("error", error_detail))
+                error_detail = error_json.get(
+                    "error_description", error_json.get("error", error_detail)
+                )
             except Exception:
                 pass
             raise HTTPException(
@@ -254,9 +258,7 @@ async def jira_callback(
 
         # Filter for Jira instances (resources with type "jira" or id field)
         jira_instances = [
-            r
-            for r in resources
-            if r.get("id") and (r.get("name") or r.get("url"))
+            r for r in resources if r.get("id") and (r.get("name") or r.get("url"))
         ]
 
         if not jira_instances:
@@ -270,7 +272,7 @@ async def jira_callback(
         jira_instance = jira_instances[0]
         cloud_id = jira_instance["id"]
         base_url = jira_instance.get("url")
-        
+
         # If URL is not provided, construct it from cloud_id
         if not base_url:
             # Try to extract from name or construct default format
@@ -433,7 +435,9 @@ async def refresh_jira_token(
             error_detail = token_response.text
             try:
                 error_json = token_response.json()
-                error_detail = error_json.get("error_description", error_json.get("error", error_detail))
+                error_detail = error_json.get(
+                    "error_description", error_json.get("error", error_detail)
+                )
             except Exception:
                 pass
             raise HTTPException(

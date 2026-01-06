@@ -13,7 +13,7 @@ from pydantic import BaseModel, field_validator
 class AtlassianAuthCredentialsBase(BaseModel):
     """
     Base model for Atlassian OAuth 2.0 credentials.
-    
+
     Used for both Jira and Confluence connectors since they share
     the same Atlassian OAuth infrastructure and token structure.
     """
@@ -84,4 +84,3 @@ class AtlassianAuthCredentialsBase(BaseModel):
         if isinstance(v, datetime):
             return v if v.tzinfo else v.replace(tzinfo=UTC)
         return v
-

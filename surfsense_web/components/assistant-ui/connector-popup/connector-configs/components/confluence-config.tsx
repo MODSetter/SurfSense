@@ -80,7 +80,8 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 
 	// For OAuth connectors, show simple info message
 	if (isOAuth) {
-		const siteUrl = (connector.config?.base_url as string) || (connector.config?.site_url as string) || "Unknown";
+		const siteUrl =
+			(connector.config?.base_url as string) || (connector.config?.site_url as string) || "Unknown";
 		return (
 			<div className="space-y-6">
 				{/* OAuth Info */}

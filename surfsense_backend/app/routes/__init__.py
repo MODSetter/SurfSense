@@ -4,6 +4,7 @@ from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
 from .circleback_webhook_route import router as circleback_webhook_router
+from .confluence_add_connector_route import router as confluence_add_connector_router
 from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
 from .editor_routes import router as editor_router
@@ -17,7 +18,6 @@ from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
 from .jira_add_connector_route import router as jira_add_connector_router
-from .confluence_add_connector_route import router as confluence_add_connector_router
 from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router

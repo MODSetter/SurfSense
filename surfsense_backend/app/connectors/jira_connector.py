@@ -283,11 +283,11 @@ class JiraConnector:
             # Query issues that were either created OR updated within the date range
             # Use end_date + 1 day with < operator to include the full end date
             from datetime import datetime, timedelta
-            
+
             # Parse end_date and add 1 day for inclusive end date
             end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
             end_date_next = (end_date_obj + timedelta(days=1)).strftime("%Y-%m-%d")
-            
+
             # Check both created and updated dates to catch all relevant issues
             # Use 'created' and 'updated' (standard JQL field names)
             date_filter = (
@@ -297,9 +297,7 @@ class JiraConnector:
 
             jql = f"{date_filter} ORDER BY created DESC"
             if project_key:
-                jql = (
-                    f'project = "{project_key}" AND ({date_filter}) ORDER BY created DESC'
-                )
+                jql = f'project = "{project_key}" AND ({date_filter}) ORDER BY created DESC'
 
             # Define fields to retrieve
             fields = [

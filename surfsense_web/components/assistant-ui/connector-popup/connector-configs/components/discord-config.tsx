@@ -18,9 +18,9 @@ export const DiscordConfig: FC<DiscordConfigProps> = () => {
 				<div className="text-xs sm:text-sm">
 					<p className="font-medium text-xs sm:text-sm">Add Bot to Servers</p>
 					<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-						Before indexing, make sure the Discord bot has been added to the servers (guilds) you want to
-						index. The bot can only access messages from servers it's been added to. Use the OAuth
-						authorization flow to add the bot to your servers.
+						Before indexing, make sure the Discord bot has been added to the servers (guilds) you
+						want to index. The bot can only access messages from servers it's been added to. Use the
+						OAuth authorization flow to add the bot to your servers.
 					</p>
 				</div>
 			</div>
