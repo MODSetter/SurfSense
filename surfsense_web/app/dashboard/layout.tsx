@@ -2,7 +2,6 @@
 
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AnnouncementBanner } from "@/components/announcement-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
@@ -43,7 +42,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
 	return (
 		<div className="h-full flex flex-col ">
-			<AnnouncementBanner />
 			<div className="flex-1 min-h-0">{children}</div>
 		</div>
 	);
