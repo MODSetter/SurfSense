@@ -29,7 +29,7 @@ const TOUR_STEPS: TourStep[] = [
 	{
 		target: '[data-joyride="documents-sidebar"]',
 		title: "Manage your documents",
-		content: "Access and manage all your uploaded documents from the sidebar.",
+		content: "Access and manage all your uploaded documents.",
 		placement: "right",
 	},
 ];
