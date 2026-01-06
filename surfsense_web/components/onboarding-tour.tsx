@@ -398,6 +398,8 @@ export function OnboardingTour() {
 	const pathname = usePathname();
 	const retryCountRef = useRef(0);
 	const maxRetries = 10;
+	// Track previous user ID to detect user changes
+	const previousUserIdRef = useRef<string | null>(null);
 
 	// Get user data
 	const { data: user } = useAtomValue(currentUserAtom);
@@ -448,7 +450,7 @@ export function OnboardingTour() {
 		}
 	}, [currentStep]);
 
-	// Check if tour should run: localStorage + data validation
+	// Check if tour should run: localStorage + data validation with user ID tracking
 	useEffect(() => {
 		// Don't check if not mounted or no user
 		if (!mounted || !user?.id || !searchSpaceId) return;
@@ -466,11 +468,31 @@ export function OnboardingTour() {
 		const dataLoaded = threadsData !== undefined && documentTypeCounts !== undefined;
 		if (!dataLoaded) return;
 
-		// Check localStorage first (fast check)
-		const tourKey = `surfsense-tour-${user.id}`;
+		const currentUserId = user.id;
+		const previousUserId = previousUserIdRef.current;
+
+		// Detect user change - if user ID changed, reset tour state
+		if (previousUserId !== null && previousUserId !== currentUserId) {
+			// User changed - reset tour state and re-evaluate for new user
+			setIsActive(false);
+			setStepIndex(0);
+			setTargetEl(null);
+			setSpotlightTargetEl(null);
+			setSpotlightStepTarget(null);
+			setPosition(null);
+			setTargetRect(null);
+			retryCountRef.current = 0;
+		}
+
+		// Update previous user ID ref
+		previousUserIdRef.current = currentUserId;
+
+		// Check localStorage for CURRENT user ID (not stale cache)
+		// This ensures we check the correct user's tour status
+		const tourKey = `surfsense-tour-${currentUserId}`;
 		const hasSeenTour = localStorage.getItem(tourKey);
 		if (hasSeenTour === "true") {
-			return; // User has seen tour, don't show
+			return; // Current user has seen tour, don't show
 		}
 
 		// Validate user is actually new (reliable check)
@@ -488,10 +510,10 @@ export function OnboardingTour() {
 		// User is new if they have no threads, documents, or connectors
 		const isNewUser = !hasThreads && !hasDocuments && !hasConnectors;
 
-		// If user has data but localStorage was cleared, mark as seen
+		// Only show tour if user is new and hasn't seen it
+		// Don't auto-mark as seen if user has data - let them explicitly dismiss it
 		if (!isNewUser) {
-			localStorage.setItem(tourKey, "true");
-			return;
+			return; // User has data, don't show tour
 		}
 
 		// User is new and hasn't seen tour - wait for DOM elements and start tour
