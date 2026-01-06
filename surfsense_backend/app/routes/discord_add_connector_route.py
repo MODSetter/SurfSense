@@ -26,6 +26,7 @@ from app.db import (
 from app.schemas.discord_auth_credentials import DiscordAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
+from app.utils.connector_naming import generate_unique_connector_name, extract_identifier_from_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -284,39 +285,27 @@ async def discord_callback(
             "_token_encrypted": True,
         }
 
-        # Check if connector already exists for this search space and user
-        existing_connector_result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == space_id,
-                SearchSourceConnector.user_id == user_id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.DISCORD_CONNECTOR,
-            )
+        # Extract unique identifier from connector credentials
+        connector_identifier = extract_identifier_from_credentials(
+            SearchSourceConnectorType.DISCORD_CONNECTOR, connector_config
         )
-        existing_connector = existing_connector_result.scalars().first()
-
-        if existing_connector:
-            # Update existing connector
-            existing_connector.config = connector_config
-            existing_connector.name = "Discord Connector"
-            existing_connector.is_indexable = True
-            logger.info(
-                f"Updated existing Discord connector for user {user_id} in space {space_id}"
-            )
-        else:
-            # Create new connector
-            new_connector = SearchSourceConnector(
-                name="Discord Connector",
-                connector_type=SearchSourceConnectorType.DISCORD_CONNECTOR,
-                is_indexable=True,
-                config=connector_config,
-                search_space_id=space_id,
-                user_id=user_id,
-            )
-            session.add(new_connector)
-            logger.info(
-                f"Created new Discord connector for user {user_id} in space {space_id}"
-            )
+        # Generate a unique, user-friendly connector name from credentials/account info
+        connector_name = generate_unique_connector_name(
+            SearchSourceConnectorType.DISCORD_CONNECTOR, connector_identifier
+        )
+        # Create new connector
+        new_connector = SearchSourceConnector(
+            name=connector_name,
+            connector_type=SearchSourceConnectorType.DISCORD_CONNECTOR,
+            is_indexable=True,
+            config=connector_config,
+            search_space_id=space_id,
+            user_id=user_id,
+        )
+        session.add(new_connector)
+        logger.info(
+            f"Created new Discord connector for user {user_id} in space {space_id}"
+        )
 
         try:
             await session.commit()
@@ -336,7 +325,7 @@ async def discord_callback(
             await session.rollback()
             raise HTTPException(
                 status_code=409,
-                detail=f"Integrity error: A connector with this type already exists. {e!s}",
+                detail=f"Database integrity error: {e!s}",
             ) from e
         except Exception as e:
             logger.error(f"Failed to create search source connector: {e!s}")
