@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
+import { Info, KeyRound } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,9 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
+	// Check if this is an OAuth connector (has access_token or _token_encrypted flag)
+	const isOAuth = !!(connector.config?.access_token || connector.config?._token_encrypted);
+
 	const [baseUrl, setBaseUrl] = useState<string>(
 		(connector.config?.CONFLUENCE_BASE_URL as string) || ""
 	);
@@ -25,16 +28,18 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 	);
 	const [name, setName] = useState<string>(connector.name || "");
 
-	// Update values when connector changes
+	// Update values when connector changes (only for legacy connectors)
 	useEffect(() => {
-		const url = (connector.config?.CONFLUENCE_BASE_URL as string) || "";
-		const emailVal = (connector.config?.CONFLUENCE_EMAIL as string) || "";
-		const token = (connector.config?.CONFLUENCE_API_TOKEN as string) || "";
-		setBaseUrl(url);
-		setEmail(emailVal);
-		setApiToken(token);
+		if (!isOAuth) {
+			const url = (connector.config?.CONFLUENCE_BASE_URL as string) || "";
+			const emailVal = (connector.config?.CONFLUENCE_EMAIL as string) || "";
+			const token = (connector.config?.CONFLUENCE_API_TOKEN as string) || "";
+			setBaseUrl(url);
+			setEmail(emailVal);
+			setApiToken(token);
+		}
 		setName(connector.name || "");
-	}, [connector.config, connector.name]);
+	}, [connector.config, connector.name, isOAuth]);
 
 	const handleBaseUrlChange = (value: string) => {
 		setBaseUrl(value);
@@ -73,6 +78,34 @@ export const ConfluenceConfig: FC<ConfluenceConfigProps> = ({
 		}
 	};
 
+	// For OAuth connectors, show simple info message
+	if (isOAuth) {
+		const siteUrl = (connector.config?.site_url as string) || "Unknown";
+		return (
+			<div className="space-y-6">
+				{/* OAuth Info */}
+				<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
+					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
+						<Info className="size-4" />
+					</div>
+					<div className="text-xs sm:text-sm">
+						<p className="font-medium text-xs sm:text-sm">Connected via OAuth</p>
+						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+							This connector is authenticated using OAuth 2.0. Your Confluence instance is:
+						</p>
+						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+							<code className="bg-muted px-1 py-0.5 rounded text-[9px]">{siteUrl}</code>
+						</p>
+						<p className="text-muted-foreground mt-2 text-[10px] sm:text-sm">
+							To update your connection, disconnect and reconnect through the OAuth flow.
+						</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// For legacy API token connectors, show the form
 	return (
 		<div className="space-y-6">
 			{/* Connector Name */}

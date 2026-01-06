@@ -17,6 +17,7 @@ from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
 from .jira_add_connector_route import router as jira_add_connector_router
+from .confluence_add_connector_route import router as confluence_add_connector_router
 from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
@@ -50,6 +51,7 @@ router.include_router(notion_add_connector_router)
 router.include_router(slack_add_connector_router)
 router.include_router(discord_add_connector_router)
 router.include_router(jira_add_connector_router)
+router.include_router(confluence_add_connector_router)
 router.include_router(new_llm_config_router)  # LLM configs with prompt configuration
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks

@@ -545,21 +545,12 @@ def validate_connector_config(
         #         "JIRA_BASE_URL": lambda: validate_url_field("JIRA_BASE_URL", "JIRA"),
         #     },
         # },
-        "CONFLUENCE_CONNECTOR": {
-            "required": [
-                "CONFLUENCE_BASE_URL",
-                "CONFLUENCE_EMAIL",
-                "CONFLUENCE_API_TOKEN",
-            ],
-            "validators": {
-                "CONFLUENCE_EMAIL": lambda: validate_email_field(
-                    "CONFLUENCE_EMAIL", "Confluence"
-                ),
-                "CONFLUENCE_BASE_URL": lambda: validate_url_field(
-                    "CONFLUENCE_BASE_URL", "Confluence"
-                ),
-            },
-        },
+        # "CONFLUENCE_CONNECTOR": {
+        #     "required": [
+        #         "access_token",
+        #     ],
+        #     "validators": {},
+        # },
         "CLICKUP_CONNECTOR": {"required": ["CLICKUP_API_TOKEN"], "validators": {}},
         # "GOOGLE_CALENDAR_CONNECTOR": {
         #     "required": ["token", "refresh_token", "token_uri", "client_id", "expiry", "scopes", "client_secret"],

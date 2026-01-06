@@ -95,10 +95,11 @@ class Config:
     NOTION_CLIENT_SECRET = os.getenv("NOTION_CLIENT_SECRET")
     NOTION_REDIRECT_URI = os.getenv("NOTION_REDIRECT_URI")
 
-    # Jira OAuth
-    JIRA_CLIENT_ID = os.getenv("JIRA_CLIENT_ID")
-    JIRA_CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
+    # Atlassian OAuth (shared for Jira and Confluence)
+    ATLASSIAN_CLIENT_ID = os.getenv("ATLASSIAN_CLIENT_ID")
+    ATLASSIAN_CLIENT_SECRET = os.getenv("ATLASSIAN_CLIENT_SECRET")
     JIRA_REDIRECT_URI = os.getenv("JIRA_REDIRECT_URI")
+    CONFLUENCE_REDIRECT_URI = os.getenv("CONFLUENCE_REDIRECT_URI")
 
     # Linear OAuth
     LINEAR_CLIENT_ID = os.getenv("LINEAR_CLIENT_ID")

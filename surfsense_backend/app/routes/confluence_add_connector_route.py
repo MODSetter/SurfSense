@@ -1,8 +1,7 @@
 """
-Jira Connector OAuth Routes.
+Confluence Connector OAuth Routes.
 
-Handles OAuth 2.0 authentication flow for Jira connector.
-Uses Atlassian OAuth 2.0 (3LO) with accessible-resources API to discover Jira instances.
+Handles OAuth 2.0 authentication flow for Confluence connector.
 """
 
 import logging
@@ -35,13 +34,16 @@ router = APIRouter()
 # Atlassian OAuth endpoints
 AUTHORIZATION_URL = "https://auth.atlassian.com/authorize"
 TOKEN_URL = "https://auth.atlassian.com/oauth/token"
-ACCESSIBLE_RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
+RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
 
-# OAuth scopes for Jira
+# OAuth scopes for Confluence
 SCOPES = [
-    "read:jira-work",
-    "write:jira-work",
-    "read:jira-user",
+    "read:confluence-content.all",
+    "read:confluence-space.summary",
+    "read:confluence-user",
+    "read:space:confluence",
+    "read:page:confluence",
+    "read:comment:confluence",
     "offline_access",  # Required for refresh tokens
 ]
 
@@ -70,10 +72,10 @@ def get_token_encryption() -> TokenEncryption:
     return _token_encryption
 
 
-@router.get("/auth/jira/connector/add")
-async def connect_jira(space_id: int, user: User = Depends(current_active_user)):
+@router.get("/auth/confluence/connector/add")
+async def connect_confluence(space_id: int, user: User = Depends(current_active_user)):
     """
-    Initiate Jira OAuth flow.
+    Initiate Confluence OAuth flow.
 
     Args:
         space_id: The search space ID
@@ -105,26 +107,26 @@ async def connect_jira(space_id: int, user: User = Depends(current_active_user))
             "audience": "api.atlassian.com",
             "client_id": config.ATLASSIAN_CLIENT_ID,
             "scope": " ".join(SCOPES),
-            "redirect_uri": config.JIRA_REDIRECT_URI,
+            "redirect_uri": config.CONFLUENCE_REDIRECT_URI,
             "state": state_encoded,
             "response_type": "code",
-            "prompt": "consent",  # Force consent screen to get refresh token
+            "prompt": "consent",
         }
 
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info(f"Generated Jira OAuth URL for user {user.id}, space {space_id}")
+        logger.info(f"Generated Confluence OAuth URL for user {user.id}, space {space_id}")
         return {"auth_url": auth_url}
 
     except Exception as e:
-        logger.error(f"Failed to initiate Jira OAuth: {e!s}", exc_info=True)
+        logger.error(f"Failed to initiate Confluence OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate Jira OAuth: {e!s}"
+            status_code=500, detail=f"Failed to initiate Confluence OAuth: {e!s}"
         ) from e
 
 
-@router.get("/auth/jira/connector/callback")
-async def jira_callback(
+@router.get("/auth/confluence/connector/callback")
+async def confluence_callback(
     request: Request,
     code: str | None = None,
     error: str | None = None,
@@ -132,7 +134,7 @@ async def jira_callback(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Handle Jira OAuth callback.
+    Handle Confluence OAuth callback.
 
     Args:
         request: FastAPI request object
@@ -147,7 +149,7 @@ async def jira_callback(
     try:
         # Handle OAuth errors (e.g., user denied access)
         if error:
-            logger.warning(f"Jira OAuth error: {error}")
+            logger.warning(f"Confluence OAuth error: {error}")
             # Try to decode state to get space_id for redirect, but don't fail if it's invalid
             space_id = None
             if state:
@@ -162,11 +164,11 @@ async def jira_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=jira_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=confluence_oauth_denied"
                 )
             else:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=jira_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=confluence_oauth_denied"
                 )
 
         # Validate required parameters for successful flow
@@ -190,9 +192,9 @@ async def jira_callback(
         space_id = data["space_id"]
 
         # Validate redirect URI (security: ensure it matches configured value)
-        if not config.JIRA_REDIRECT_URI:
+        if not config.CONFLUENCE_REDIRECT_URI:
             raise HTTPException(
-                status_code=500, detail="JIRA_REDIRECT_URI not configured"
+                status_code=500, detail="CONFLUENCE_REDIRECT_URI not configured"
             )
 
         # Exchange authorization code for access token
@@ -201,14 +203,14 @@ async def jira_callback(
             "client_id": config.ATLASSIAN_CLIENT_ID,
             "client_secret": config.ATLASSIAN_CLIENT_SECRET,
             "code": code,
-            "redirect_uri": config.JIRA_REDIRECT_URI,
+            "redirect_uri": config.CONFLUENCE_REDIRECT_URI,
         }
 
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 TOKEN_URL,
-                data=token_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                json=token_data,
+                headers={"Content-Type": "application/json"},
                 timeout=30.0,
             )
 
@@ -225,62 +227,34 @@ async def jira_callback(
 
         token_json = token_response.json()
 
-        # Encrypt sensitive tokens before storing
-        token_encryption = get_token_encryption()
         access_token = token_json.get("access_token")
         refresh_token = token_json.get("refresh_token")
-
         if not access_token:
             raise HTTPException(
                 status_code=400, detail="No access token received from Atlassian"
             )
 
-        # Fetch accessible resources to get Jira instance information
+        # Get accessible resources to find Confluence cloud ID and site URL
         async with httpx.AsyncClient() as client:
             resources_response = await client.get(
-                ACCESSIBLE_RESOURCES_URL,
+                RESOURCES_URL,
                 headers={"Authorization": f"Bearer {access_token}"},
                 timeout=30.0,
             )
 
-        if resources_response.status_code != 200:
-            error_detail = resources_response.text
-            logger.error(f"Failed to fetch accessible resources: {error_detail}")
-            raise HTTPException(
-                status_code=400,
-                detail=f"Failed to fetch Jira instances: {error_detail}",
-            )
+        cloud_id = None
+        site_url = None
+        if resources_response.status_code == 200:
+            resources = resources_response.json()
+            # Find Confluence resource
+            for resource in resources:
+                if resource.get("id") and resource.get("name"):
+                    cloud_id = resource.get("id")
+                    site_url = resource.get("url")
+                    break
 
-        resources = resources_response.json()
-
-        # Filter for Jira instances (resources with type "jira" or id field)
-        jira_instances = [
-            r
-            for r in resources
-            if r.get("id") and (r.get("name") or r.get("url"))
-        ]
-
-        if not jira_instances:
-            raise HTTPException(
-                status_code=400,
-                detail="No accessible Jira instances found. Please ensure you have access to at least one Jira instance.",
-            )
-
-        # For now, use the first Jira instance
-        # TODO: Support multiple instances by letting user choose during OAuth
-        jira_instance = jira_instances[0]
-        cloud_id = jira_instance["id"]
-        base_url = jira_instance.get("url")
-        
-        # If URL is not provided, construct it from cloud_id
-        if not base_url:
-            # Try to extract from name or construct default format
-            instance_name = jira_instance.get("name", "").lower().replace(" ", "")
-            if instance_name:
-                base_url = f"https://{instance_name}.atlassian.net"
-            else:
-                # Fallback: use cloud_id directly (though this may not work)
-                base_url = f"https://{cloud_id}.atlassian.net"
+        if not cloud_id:
+            logger.warning("Could not determine Confluence cloud ID from accessible resources")
 
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None
@@ -289,7 +263,10 @@ async def jira_callback(
             now_utc = datetime.now(UTC)
             expires_at = now_utc + timedelta(seconds=int(expires_in))
 
-        # Store the encrypted access token and refresh token in connector config
+        # Encrypt sensitive tokens before storing
+        token_encryption = get_token_encryption()
+
+        # Store the encrypted tokens and metadata in connector config
         connector_config = {
             "access_token": token_encryption.encrypt_token(access_token),
             "refresh_token": token_encryption.encrypt_token(refresh_token)
@@ -300,7 +277,7 @@ async def jira_callback(
             "expires_at": expires_at.isoformat() if expires_at else None,
             "scope": token_json.get("scope"),
             "cloud_id": cloud_id,
-            "base_url": base_url.rstrip("/") if base_url else None,
+            "base_url": site_url,  # Store as base_url to match shared schema
             # Mark that tokens are encrypted for backward compatibility
             "_token_encrypted": True,
         }
@@ -311,7 +288,7 @@ async def jira_callback(
                 SearchSourceConnector.search_space_id == space_id,
                 SearchSourceConnector.user_id == user_id,
                 SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.JIRA_CONNECTOR,
+                == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
             )
         )
         existing_connector = existing_connector_result.scalars().first()
@@ -319,16 +296,16 @@ async def jira_callback(
         if existing_connector:
             # Update existing connector
             existing_connector.config = connector_config
-            existing_connector.name = "Jira Connector"
+            existing_connector.name = "Confluence Connector"
             existing_connector.is_indexable = True
             logger.info(
-                f"Updated existing Jira connector for user {user_id} in space {space_id}"
+                f"Updated existing Confluence connector for user {user_id} in space {space_id}"
             )
         else:
             # Create new connector
             new_connector = SearchSourceConnector(
-                name="Jira Connector",
-                connector_type=SearchSourceConnectorType.JIRA_CONNECTOR,
+                name="Confluence Connector",
+                connector_type=SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
                 is_indexable=True,
                 config=connector_config,
                 search_space_id=space_id,
@@ -336,16 +313,16 @@ async def jira_callback(
             )
             session.add(new_connector)
             logger.info(
-                f"Created new Jira connector for user {user_id} in space {space_id}"
+                f"Created new Confluence connector for user {user_id} in space {space_id}"
             )
 
         try:
             await session.commit()
-            logger.info(f"Successfully saved Jira connector for user {user_id}")
+            logger.info(f"Successfully saved Confluence connector for user {user_id}")
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=jira-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=confluence-connector"
             )
 
         except ValidationError as e:
@@ -370,27 +347,27 @@ async def jira_callback(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to complete Jira OAuth: {e!s}", exc_info=True)
+        logger.error(f"Failed to complete Confluence OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to complete Jira OAuth: {e!s}"
+            status_code=500, detail=f"Failed to complete Confluence OAuth: {e!s}"
         ) from e
 
 
-async def refresh_jira_token(
+async def refresh_confluence_token(
     session: AsyncSession, connector: SearchSourceConnector
 ) -> SearchSourceConnector:
     """
-    Refresh the Jira access token for a connector.
+    Refresh the Confluence access token for a connector.
 
     Args:
         session: Database session
-        connector: Jira connector to refresh
+        connector: Confluence connector to refresh
 
     Returns:
         Updated connector object
     """
     try:
-        logger.info(f"Refreshing Jira token for connector {connector.id}")
+        logger.info(f"Refreshing Confluence token for connector {connector.id}")
 
         credentials = AtlassianAuthCredentialsBase.from_dict(connector.config)
 
@@ -425,8 +402,8 @@ async def refresh_jira_token(
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 TOKEN_URL,
-                data=refresh_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                json=refresh_data,
+                headers={"Content-Type": "application/json"},
                 timeout=30.0,
             )
 
@@ -456,7 +433,7 @@ async def refresh_jira_token(
 
         if not access_token:
             raise HTTPException(
-                status_code=400, detail="No access token received from Jira refresh"
+                status_code=400, detail="No access token received from Confluence refresh"
             )
 
         # Update credentials object with encrypted tokens
@@ -469,11 +446,12 @@ async def refresh_jira_token(
         credentials.expires_at = expires_at
         credentials.scope = token_json.get("scope")
 
-        # Preserve cloud_id and base_url
+        # Preserve cloud_id and base_url (with backward compatibility for site_url)
         if not credentials.cloud_id:
             credentials.cloud_id = connector.config.get("cloud_id")
         if not credentials.base_url:
-            credentials.base_url = connector.config.get("base_url")
+            # Check both base_url and site_url for backward compatibility
+            credentials.base_url = connector.config.get("base_url") or connector.config.get("site_url")
 
         # Update connector config with encrypted tokens
         credentials_dict = credentials.to_dict()
@@ -482,13 +460,14 @@ async def refresh_jira_token(
         await session.commit()
         await session.refresh(connector)
 
-        logger.info(f"Successfully refreshed Jira token for connector {connector.id}")
+        logger.info(f"Successfully refreshed Confluence token for connector {connector.id}")
 
         return connector
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to refresh Jira token: {e!s}", exc_info=True)
+        logger.error(f"Failed to refresh Confluence token: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to refresh Jira token: {e!s}"
+            status_code=500, detail=f"Failed to refresh Confluence token: {e!s}"
         ) from e
+
