@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 from app.connectors.discord_connector import DiscordConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
@@ -69,6 +70,12 @@ async def index_discord_messages(
     )
 
     try:
+        # Normalize date parameters - handle 'undefined' strings from frontend
+        if start_date and (start_date.lower() == "undefined" or start_date.strip() == ""):
+            start_date = None
+        if end_date and (end_date.lower() == "undefined" or end_date.strip() == ""):
+            end_date = None
+
         # Get the connector
         await task_logger.log_task_progress(
             log_entry,
@@ -92,27 +99,54 @@ async def index_discord_messages(
                 f"Connector with ID {connector_id} not found or is not a Discord connector",
             )
 
-        # Get the Discord token from the connector config
-        discord_token = connector.config.get("DISCORD_BOT_TOKEN")
-        if not discord_token:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Discord token not found in connector config for connector {connector_id}",
-                "Missing Discord token",
-                {"error_type": "MissingToken"},
-            )
-            return 0, "Discord token not found in connector config"
-
         logger.info(f"Starting Discord indexing for connector {connector_id}")
 
-        # Initialize Discord client
+        # Initialize Discord client with OAuth credentials support
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Discord client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
 
-        discord_client = DiscordConnector(token=discord_token)
+        # Check if using OAuth (has bot_token in config) or legacy (has DISCORD_BOT_TOKEN)
+        has_oauth = connector.config.get("bot_token") is not None
+        has_legacy = connector.config.get("DISCORD_BOT_TOKEN") is not None
+
+        if has_oauth:
+            # Use OAuth credentials with auto-refresh
+            discord_client = DiscordConnector(
+                session=session, connector_id=connector_id
+            )
+        elif has_legacy:
+            # Backward compatibility: use legacy token format
+            discord_token = connector.config.get("DISCORD_BOT_TOKEN")
+            
+            # Decrypt token if it's encrypted (legacy tokens might be encrypted)
+            token_encrypted = connector.config.get("_token_encrypted", False)
+            if token_encrypted and config.SECRET_KEY and discord_token:
+                try:
+                    from app.utils.oauth_security import TokenEncryption
+                    token_encryption = TokenEncryption(config.SECRET_KEY)
+                    discord_token = token_encryption.decrypt_token(discord_token)
+                    logger.info(
+                        f"Decrypted legacy Discord token for connector {connector_id}"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to decrypt legacy Discord token for connector {connector_id}: {e!s}. "
+                        "Trying to use token as-is (might be unencrypted)."
+                    )
+                    # Continue with token as-is - might be unencrypted legacy token
+            
+            discord_client = DiscordConnector(token=discord_token)
+        else:
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Discord credentials not found in connector config for connector {connector_id}",
+                "Missing Discord credentials",
+                {"error_type": "MissingCredentials"},
+            )
+            return 0, "Discord credentials not found in connector config"
 
         # Calculate date range
         if start_date is None or end_date is None:
@@ -135,32 +169,63 @@ async def index_discord_messages(
             if start_date is None:
                 start_date_iso = calculated_start_date.isoformat()
             else:
-                # Convert YYYY-MM-DD to ISO format
+                # Validate and convert YYYY-MM-DD to ISO format
+                try:
+                    start_date_iso = (
+                        datetime.strptime(start_date, "%Y-%m-%d")
+                        .replace(tzinfo=UTC)
+                        .isoformat()
+                    )
+                except ValueError as e:
+                    logger.warning(
+                        f"Invalid start_date format '{start_date}', using calculated start date: {e!s}"
+                    )
+                    start_date_iso = calculated_start_date.isoformat()
+
+            if end_date is None:
+                end_date_iso = calculated_end_date.isoformat()
+            else:
+                # Validate and convert YYYY-MM-DD to ISO format
+                try:
+                    end_date_iso = (
+                        datetime.strptime(end_date, "%Y-%m-%d")
+                        .replace(tzinfo=UTC)
+                        .isoformat()
+                    )
+                except ValueError as e:
+                    logger.warning(
+                        f"Invalid end_date format '{end_date}', using calculated end date: {e!s}"
+                    )
+                    end_date_iso = calculated_end_date.isoformat()
+        else:
+            # Convert provided dates to ISO format for Discord API
+            try:
                 start_date_iso = (
                     datetime.strptime(start_date, "%Y-%m-%d")
                     .replace(tzinfo=UTC)
                     .isoformat()
                 )
-
-            if end_date is None:
-                end_date_iso = calculated_end_date.isoformat()
-            else:
-                # Convert YYYY-MM-DD to ISO format
-                end_date_iso = (
-                    datetime.strptime(end_date, "%Y-%m-%d")
-                    .replace(tzinfo=UTC)
-                    .isoformat()
+            except ValueError as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Invalid start_date format: {start_date}",
+                    f"Date parsing error: {e!s}",
+                    {"error_type": "InvalidDateFormat", "start_date": start_date},
                 )
-        else:
-            # Convert provided dates to ISO format for Discord API
-            start_date_iso = (
-                datetime.strptime(start_date, "%Y-%m-%d")
-                .replace(tzinfo=UTC)
-                .isoformat()
-            )
-            end_date_iso = (
-                datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=UTC).isoformat()
-            )
+                return 0, f"Invalid start_date format: {start_date}. Expected YYYY-MM-DD format."
+
+            try:
+                end_date_iso = (
+                    datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=UTC).isoformat()
+                )
+            except ValueError as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Invalid end_date format: {end_date}",
+                    f"Date parsing error: {e!s}",
+                    {"error_type": "InvalidDateFormat", "end_date": end_date},
+                )
+                return 0, f"Invalid end_date format: {end_date}. Expected YYYY-MM-DD format."
 
         logger.info(
             f"Indexing Discord messages from {start_date_iso} to {end_date_iso}"

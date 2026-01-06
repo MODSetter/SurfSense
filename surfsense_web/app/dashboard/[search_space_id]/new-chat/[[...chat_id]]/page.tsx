@@ -20,7 +20,7 @@ import {
 } from "@/atoms/chat/mentioned-documents.atom";
 import {
 	clearPlanOwnerRegistry,
-	extractWriteTodosFromContent,
+	// extractWriteTodosFromContent,
 	hydratePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -30,7 +30,7 @@ import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
-import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
+// import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
 import {
@@ -199,7 +199,7 @@ const TOOLS_WITH_UI = new Set([
 	"link_preview",
 	"display_image",
 	"scrape_webpage",
-	"write_todos",
+	// "write_todos", // Disabled for now
 ]);
 
 /**
@@ -291,10 +291,11 @@ export default function NewChatPage() {
 								restoredThinkingSteps.set(`msg-${msg.id}`, steps);
 							}
 							// Hydrate write_todos plan state from persisted tool calls
-							const writeTodosCalls = extractWriteTodosFromContent(msg.content);
-							for (const todoData of writeTodosCalls) {
-								hydratePlanState(todoData);
-							}
+							// Disabled for now
+							// const writeTodosCalls = extractWriteTodosFromContent(msg.content);
+							// for (const todoData of writeTodosCalls) {
+							// 	hydratePlanState(todoData);
+							// }
 						}
 						if (msg.role === "user") {
 							const docs = extractMentionedDocuments(msg.content);
@@ -911,7 +912,7 @@ export default function NewChatPage() {
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
-			<WriteTodosToolUI />
+			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 				<Thread
 					messageThinkingSteps={messageThinkingSteps}

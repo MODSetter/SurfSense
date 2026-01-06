@@ -86,7 +86,6 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			SEARXNG_LANGUAGE: "",
 			SEARXNG_SAFESEARCH: "",
 			SEARXNG_VERIFY_SSL: "",
-			LINEAR_API_KEY: "",
 			DISCORD_BOT_TOKEN: "",
 			CONFLUENCE_BASE_URL: "",
 			CONFLUENCE_EMAIL: "",
@@ -134,7 +133,6 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 						config.SEARXNG_VERIFY_SSL !== undefined && config.SEARXNG_VERIFY_SSL !== null
 							? String(config.SEARXNG_VERIFY_SSL)
 							: "",
-					LINEAR_API_KEY: config.LINEAR_API_KEY || "",
 					LINKUP_API_KEY: config.LINKUP_API_KEY || "",
 					DISCORD_BOT_TOKEN: config.DISCORD_BOT_TOKEN || "",
 					CONFLUENCE_BASE_URL: config.CONFLUENCE_BASE_URL || "",
@@ -384,16 +382,6 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 					break;
 				}
 
-				case "LINEAR_CONNECTOR":
-					if (formData.LINEAR_API_KEY !== originalConfig.LINEAR_API_KEY) {
-						if (!formData.LINEAR_API_KEY) {
-							toast.error("Linear API Key cannot be empty.");
-							setIsSaving(false);
-							return;
-						}
-						newConfig = { LINEAR_API_KEY: formData.LINEAR_API_KEY };
-					}
-					break;
 				case "LINKUP_API":
 					if (formData.LINKUP_API_KEY !== originalConfig.LINKUP_API_KEY) {
 						if (!formData.LINKUP_API_KEY) {
@@ -599,8 +587,6 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 							"SEARXNG_VERIFY_SSL",
 							verifyValue === null ? "" : String(verifyValue)
 						);
-					} else if (connector.connector_type === "LINEAR_CONNECTOR") {
-						editForm.setValue("LINEAR_API_KEY", newlySavedConfig.LINEAR_API_KEY || "");
 					} else if (connector.connector_type === "LINKUP_API") {
 						editForm.setValue("LINKUP_API_KEY", newlySavedConfig.LINKUP_API_KEY || "");
 					} else if (connector.connector_type === "DISCORD_CONNECTOR") {

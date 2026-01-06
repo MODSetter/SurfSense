@@ -36,7 +36,6 @@ export const editConnectorSchema = z.object({
 	SEARXNG_LANGUAGE: z.string().optional(),
 	SEARXNG_SAFESEARCH: z.string().optional(),
 	SEARXNG_VERIFY_SSL: z.string().optional(),
-	LINEAR_API_KEY: z.string().optional(),
 	LINKUP_API_KEY: z.string().optional(),
 	DISCORD_BOT_TOKEN: z.string().optional(),
 	CONFLUENCE_BASE_URL: z.string().optional(),

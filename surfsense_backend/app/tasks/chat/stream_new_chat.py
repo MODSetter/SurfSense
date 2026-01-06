@@ -270,7 +270,8 @@ async def stream_new_chat(
         # Track if we just finished a tool (text flows silently after tools)
         just_finished_tool: bool = False
         # Track write_todos calls to show "Creating plan" vs "Updating plan"
-        write_todos_call_count: int = 0
+        # Disabled for now
+        # write_todos_call_count: int = 0
 
         def next_thinking_step_id() -> str:
             nonlocal thinking_step_counter
@@ -479,60 +480,60 @@ async def stream_new_chat(
                         status="in_progress",
                         items=last_active_step_items,
                     )
-                elif tool_name == "write_todos":
-                    # Track write_todos calls for better messaging
-                    write_todos_call_count += 1
-                    todos = (
-                        tool_input.get("todos", [])
-                        if isinstance(tool_input, dict)
-                        else []
-                    )
-                    todo_count = len(todos) if isinstance(todos, list) else 0
+                # elif tool_name == "write_todos":  # Disabled for now
+                #     # Track write_todos calls for better messaging
+                #     write_todos_call_count += 1
+                #     todos = (
+                #         tool_input.get("todos", [])
+                #         if isinstance(tool_input, dict)
+                #         else []
+                #     )
+                #     todo_count = len(todos) if isinstance(todos, list) else 0
 
-                    if write_todos_call_count == 1:
-                        # First call - creating the plan
-                        last_active_step_title = "Creating plan"
-                        last_active_step_items = [f"Defining {todo_count} tasks..."]
-                    else:
-                        # Subsequent calls - updating the plan
-                        # Try to provide context about what's being updated
-                        in_progress_count = (
-                            sum(
-                                1
-                                for t in todos
-                                if isinstance(t, dict)
-                                and t.get("status") == "in_progress"
-                            )
-                            if isinstance(todos, list)
-                            else 0
-                        )
-                        completed_count = (
-                            sum(
-                                1
-                                for t in todos
-                                if isinstance(t, dict)
-                                and t.get("status") == "completed"
-                            )
-                            if isinstance(todos, list)
-                            else 0
-                        )
+                #     if write_todos_call_count == 1:
+                #         # First call - creating the plan
+                #         last_active_step_title = "Creating plan"
+                #         last_active_step_items = [f"Defining {todo_count} tasks..."]
+                #     else:
+                #         # Subsequent calls - updating the plan
+                #         # Try to provide context about what's being updated
+                #         in_progress_count = (
+                #             sum(
+                #                 1
+                #                 for t in todos
+                #                 if isinstance(t, dict)
+                #                 and t.get("status") == "in_progress"
+                #             )
+                #             if isinstance(todos, list)
+                #             else 0
+                #         )
+                #         completed_count = (
+                #             sum(
+                #                 1
+                #                 for t in todos
+                #                 if isinstance(t, dict)
+                #                 and t.get("status") == "completed"
+                #             )
+                #             if isinstance(todos, list)
+                #             else 0
+                #         )
 
-                        last_active_step_title = "Updating progress"
-                        last_active_step_items = (
-                            [
-                                f"Progress: {completed_count}/{todo_count} completed",
-                                f"In progress: {in_progress_count} tasks",
-                            ]
-                            if completed_count > 0
-                            else [f"Working on {todo_count} tasks"]
-                        )
+                #         last_active_step_title = "Updating progress"
+                #         last_active_step_items = (
+                #             [
+                #                 f"Progress: {completed_count}/{todo_count} completed",
+                #                 f"In progress: {in_progress_count} tasks",
+                #             ]
+                #             if completed_count > 0
+                #             else [f"Working on {todo_count} tasks"]
+                #         )
 
-                    yield streaming_service.format_thinking_step(
-                        step_id=tool_step_id,
-                        title=last_active_step_title,
-                        status="in_progress",
-                        items=last_active_step_items,
-                    )
+                #     yield streaming_service.format_thinking_step(
+                #         step_id=tool_step_id,
+                #         title=last_active_step_title,
+                #         status="in_progress",
+                #         items=last_active_step_items,
+                #     )
                 elif tool_name == "generate_podcast":
                     podcast_title = (
                         tool_input.get("podcast_title", "SurfSense Podcast")
@@ -596,10 +597,12 @@ async def stream_new_chat(
                 raw_output = event.get("data", {}).get("output", "")
 
                 # Handle deepagents' write_todos Command object specially
-                if tool_name == "write_todos" and hasattr(raw_output, "update"):
-                    # deepagents returns a Command object - extract todos directly
-                    tool_output = extract_todos_from_deepagents(raw_output)
-                elif hasattr(raw_output, "content"):
+                # Disabled for now
+                # if tool_name == "write_todos" and hasattr(raw_output, "update"):
+                #     # deepagents returns a Command object - extract todos directly
+                #     tool_output = extract_todos_from_deepagents(raw_output)
+                # elif hasattr(raw_output, "content"):
+                if hasattr(raw_output, "content"):
                     # It's a ToolMessage object - extract the content
                     content = raw_output.content
                     # If content is a string that looks like JSON, try to parse it
@@ -758,63 +761,63 @@ async def stream_new_chat(
                         status="completed",
                         items=completed_items,
                     )
-                elif tool_name == "write_todos":
-                    # Build completion items for planning/updating
-                    if isinstance(tool_output, dict):
-                        todos = tool_output.get("todos", [])
-                        todo_count = len(todos) if isinstance(todos, list) else 0
-                        completed_count = (
-                            sum(
-                                1
-                                for t in todos
-                                if isinstance(t, dict)
-                                and t.get("status") == "completed"
-                            )
-                            if isinstance(todos, list)
-                            else 0
-                        )
-                        in_progress_count = (
-                            sum(
-                                1
-                                for t in todos
-                                if isinstance(t, dict)
-                                and t.get("status") == "in_progress"
-                            )
-                            if isinstance(todos, list)
-                            else 0
-                        )
+                # elif tool_name == "write_todos":  # Disabled for now
+                #     # Build completion items for planning/updating
+                #     if isinstance(tool_output, dict):
+                #         todos = tool_output.get("todos", [])
+                #         todo_count = len(todos) if isinstance(todos, list) else 0
+                #         completed_count = (
+                #             sum(
+                #                 1
+                #                 for t in todos
+                #                 if isinstance(t, dict)
+                #                 and t.get("status") == "completed"
+                #             )
+                #             if isinstance(todos, list)
+                #             else 0
+                #         )
+                #         in_progress_count = (
+                #             sum(
+                #                 1
+                #                 for t in todos
+                #                 if isinstance(t, dict)
+                #                 and t.get("status") == "in_progress"
+                #             )
+                #             if isinstance(todos, list)
+                #             else 0
+                #         )
 
-                        # Use context-aware completion message
-                        if last_active_step_title == "Creating plan":
-                            completed_items = [f"Created {todo_count} tasks"]
-                        else:
-                            # Updating progress - show stats
-                            completed_items = [
-                                f"Progress: {completed_count}/{todo_count} completed",
-                            ]
-                            if in_progress_count > 0:
-                                # Find the currently in-progress task name
-                                in_progress_task = next(
-                                    (
-                                        t.get("content", "")[:40]
-                                        for t in todos
-                                        if isinstance(t, dict)
-                                        and t.get("status") == "in_progress"
-                                    ),
-                                    None,
-                                )
-                                if in_progress_task:
-                                    completed_items.append(
-                                        f"Current: {in_progress_task}..."
-                                    )
-                    else:
-                        completed_items = ["Plan updated"]
-                    yield streaming_service.format_thinking_step(
-                        step_id=original_step_id,
-                        title=last_active_step_title,
-                        status="completed",
-                        items=completed_items,
-                    )
+                #         # Use context-aware completion message
+                #         if last_active_step_title == "Creating plan":
+                #             completed_items = [f"Created {todo_count} tasks"]
+                #         else:
+                #             # Updating progress - show stats
+                #             completed_items = [
+                #                 f"Progress: {completed_count}/{todo_count} completed",
+                #             ]
+                #             if in_progress_count > 0:
+                #                 # Find the currently in-progress task name
+                #                 in_progress_task = next(
+                #                     (
+                #                         t.get("content", "")[:40]
+                #                         for t in todos
+                #                         if isinstance(t, dict)
+                #                         and t.get("status") == "in_progress"
+                #                     ),
+                #                     None,
+                #                 )
+                #                 if in_progress_task:
+                #                     completed_items.append(
+                #                         f"Current: {in_progress_task}..."
+                #                     )
+                #     else:
+                #         completed_items = ["Plan updated"]
+                #     yield streaming_service.format_thinking_step(
+                #         step_id=original_step_id,
+                #         title=last_active_step_title,
+                #         status="completed",
+                #         items=completed_items,
+                #     )
                 elif tool_name == "ls":
                     # Build completion items showing file names found
                     if isinstance(tool_output, dict):
@@ -992,27 +995,27 @@ async def stream_new_chat(
                     yield streaming_service.format_terminal_info(
                         "Knowledge base search completed", "success"
                     )
-                elif tool_name == "write_todos":
-                    # Stream the full write_todos result so frontend can render the Plan component
-                    yield streaming_service.format_tool_output_available(
-                        tool_call_id,
-                        tool_output
-                        if isinstance(tool_output, dict)
-                        else {"result": tool_output},
-                    )
-                    # Send terminal message with plan info
-                    if isinstance(tool_output, dict):
-                        todos = tool_output.get("todos", [])
-                        todo_count = len(todos) if isinstance(todos, list) else 0
-                        yield streaming_service.format_terminal_info(
-                            f"Plan created ({todo_count} tasks)",
-                            "success",
-                        )
-                    else:
-                        yield streaming_service.format_terminal_info(
-                            "Plan created",
-                            "success",
-                        )
+                # elif tool_name == "write_todos":  # Disabled for now
+                #     # Stream the full write_todos result so frontend can render the Plan component
+                #     yield streaming_service.format_tool_output_available(
+                #         tool_call_id,
+                #         tool_output
+                #         if isinstance(tool_output, dict)
+                #         else {"result": tool_output},
+                #     )
+                #     # Send terminal message with plan info
+                #     if isinstance(tool_output, dict):
+                #         todos = tool_output.get("todos", [])
+                #         todo_count = len(todos) if isinstance(todos, list) else 0
+                #         yield streaming_service.format_terminal_info(
+                #             f"Plan created ({todo_count} tasks)",
+                #             "success",
+                #         )
+                #     else:
+                #         yield streaming_service.format_terminal_info(
+                #             "Plan created",
+                #             "success",
+                #         )
                 else:
                     # Default handling for other tools
                     yield streaming_service.format_tool_output_available(

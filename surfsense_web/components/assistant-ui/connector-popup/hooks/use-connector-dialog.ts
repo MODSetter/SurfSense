@@ -472,7 +472,7 @@ export const useConnectorDialog = () => {
 							}
 
 							// Auto-start indexing for non-OAuth reindexable connectors
-							// This only applies to non-OAuth reindexable connectors (e.g., Elasticsearch, Linear)
+							// This only applies to non-OAuth reindexable connectors (e.g., Elasticsearch)
 							// Non-reindexable connectors (e.g., Tavily) have is_indexable: false, so they won't trigger this
 							// Backend will use default date ranges (365 days ago to today) if dates are not provided
 							if (connector.is_indexable) {

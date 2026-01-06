@@ -92,25 +92,34 @@ async def index_linear_issues(
                 f"Connector with ID {connector_id} not found or is not a Linear connector",
             )
 
-        # Get the Linear token from the connector config
-        linear_token = connector.config.get("LINEAR_API_KEY")
-        if not linear_token:
+        # Check if access_token exists (support both new OAuth format and old API key format)
+        if not connector.config.get("access_token") and not connector.config.get(
+            "LINEAR_API_KEY"
+        ):
             await task_logger.log_task_failure(
                 log_entry,
-                f"Linear API token not found in connector config for connector {connector_id}",
-                "Missing Linear token",
+                f"Linear access token not found in connector config for connector {connector_id}",
+                "Missing Linear access token",
                 {"error_type": "MissingToken"},
             )
-            return 0, "Linear API token not found in connector config"
+            return 0, "Linear access token not found in connector config"
 
-        # Initialize Linear client
+        # Initialize Linear client with internal refresh capability
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Linear client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
 
-        linear_client = LinearConnector(token=linear_token)
+        # Create connector with session and connector_id for internal refresh
+        # Token refresh will happen automatically when needed
+        linear_client = LinearConnector(session=session, connector_id=connector_id)
+
+        # Handle 'undefined' string from frontend (treat as None)
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
 
         # Calculate date range
         start_date_str, end_date_str = calculate_date_range(
@@ -131,7 +140,7 @@ async def index_linear_issues(
 
         # Get issues within date range
         try:
-            issues, error = linear_client.get_issues_by_date_range(
+            issues, error = await linear_client.get_issues_by_date_range(
                 start_date=start_date_str, end_date=end_date_str, include_comments=True
             )
 
