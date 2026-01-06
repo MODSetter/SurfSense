@@ -1,24 +1,37 @@
+"""
+Atlassian OAuth 2.0 Authentication Credentials Schema.
+
+Shared schema for both Jira and Confluence OAuth credentials.
+Both products use the same Atlassian OAuth 2.0 (3LO) flow and token structure.
+"""
+
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, field_validator
 
 
-class DiscordAuthCredentialsBase(BaseModel):
-    bot_token: str
+class AtlassianAuthCredentialsBase(BaseModel):
+    """
+    Base model for Atlassian OAuth 2.0 credentials.
+
+    Used for both Jira and Confluence connectors since they share
+    the same Atlassian OAuth infrastructure and token structure.
+    """
+
+    access_token: str
     refresh_token: str | None = None
     token_type: str = "Bearer"
     expires_in: int | None = None
     expires_at: datetime | None = None
     scope: str | None = None
-    bot_user_id: str | None = None
-    guild_id: str | None = None
-    guild_name: str | None = None
+    cloud_id: str | None = None
+    base_url: str | None = None
 
     @property
     def is_expired(self) -> bool:
         """Check if the credentials have expired."""
         if self.expires_at is None:
-            return False  # Long-lived token, treat as not expired
+            return False
         return self.expires_at <= datetime.now(UTC)
 
     @property
@@ -29,34 +42,32 @@ class DiscordAuthCredentialsBase(BaseModel):
     def to_dict(self) -> dict:
         """Convert credentials to dictionary for storage."""
         return {
-            "bot_token": self.bot_token,
+            "access_token": self.access_token,
             "refresh_token": self.refresh_token,
             "token_type": self.token_type,
             "expires_in": self.expires_in,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "scope": self.scope,
-            "bot_user_id": self.bot_user_id,
-            "guild_id": self.guild_id,
-            "guild_name": self.guild_name,
+            "cloud_id": self.cloud_id,
+            "base_url": self.base_url,
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DiscordAuthCredentialsBase":
+    def from_dict(cls, data: dict) -> "AtlassianAuthCredentialsBase":
         """Create credentials from dictionary."""
         expires_at = None
         if data.get("expires_at"):
             expires_at = datetime.fromisoformat(data["expires_at"])
 
         return cls(
-            bot_token=data.get("bot_token", ""),
+            access_token=data["access_token"],
             refresh_token=data.get("refresh_token"),
             token_type=data.get("token_type", "Bearer"),
             expires_in=data.get("expires_in"),
             expires_at=expires_at,
             scope=data.get("scope"),
-            bot_user_id=data.get("bot_user_id"),
-            guild_id=data.get("guild_id"),
-            guild_name=data.get("guild_name"),
+            cloud_id=data.get("cloud_id"),
+            base_url=data.get("base_url"),
         )
 
     @field_validator("expires_at", mode="before")

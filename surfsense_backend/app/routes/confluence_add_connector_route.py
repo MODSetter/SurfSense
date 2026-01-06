@@ -1,7 +1,7 @@
 """
-Discord Connector OAuth Routes.
+Confluence Connector OAuth Routes.
 
-Handles OAuth 2.0 authentication flow for Discord connector.
+Handles OAuth 2.0 authentication flow for Confluence connector.
 """
 
 import logging
@@ -23,7 +23,7 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.schemas.discord_auth_credentials import DiscordAuthCredentialsBase
+from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
@@ -31,15 +31,18 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Discord OAuth endpoints
-AUTHORIZATION_URL = "https://discord.com/api/oauth2/authorize"
-TOKEN_URL = "https://discord.com/api/oauth2/token"
+# Atlassian OAuth endpoints
+AUTHORIZATION_URL = "https://auth.atlassian.com/authorize"
+TOKEN_URL = "https://auth.atlassian.com/oauth/token"
+RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
 
-# OAuth scopes for Discord (Bot Token)
+# OAuth scopes for Confluence
 SCOPES = [
-    "bot",  # Basic bot scope
-    "guilds",  # Access to guild information
-    "guilds.members.read",  # Read member information
+    "read:confluence-user",
+    "read:space:confluence",
+    "read:page:confluence",
+    "read:comment:confluence",
+    "offline_access",  # Required for refresh tokens
 ]
 
 # Initialize security utilities
@@ -67,10 +70,10 @@ def get_token_encryption() -> TokenEncryption:
     return _token_encryption
 
 
-@router.get("/auth/discord/connector/add")
-async def connect_discord(space_id: int, user: User = Depends(current_active_user)):
+@router.get("/auth/confluence/connector/add")
+async def connect_confluence(space_id: int, user: User = Depends(current_active_user)):
     """
-    Initiate Discord OAuth flow.
+    Initiate Confluence OAuth flow.
 
     Args:
         space_id: The search space ID
@@ -83,13 +86,9 @@ async def connect_discord(space_id: int, user: User = Depends(current_active_use
         if not space_id:
             raise HTTPException(status_code=400, detail="space_id is required")
 
-        if not config.DISCORD_CLIENT_ID:
-            raise HTTPException(status_code=500, detail="Discord OAuth not configured.")
-
-        if not config.DISCORD_BOT_TOKEN:
+        if not config.ATLASSIAN_CLIENT_ID:
             raise HTTPException(
-                status_code=500,
-                detail="Discord bot token not configured. Please set DISCORD_BOT_TOKEN in backend configuration.",
+                status_code=500, detail="Atlassian OAuth not configured."
             )
 
         if not config.SECRET_KEY:
@@ -105,27 +104,31 @@ async def connect_discord(space_id: int, user: User = Depends(current_active_use
         from urllib.parse import urlencode
 
         auth_params = {
-            "client_id": config.DISCORD_CLIENT_ID,
-            "scope": " ".join(SCOPES),  # Discord uses space-separated scopes
-            "redirect_uri": config.DISCORD_REDIRECT_URI,
-            "response_type": "code",
+            "audience": "api.atlassian.com",
+            "client_id": config.ATLASSIAN_CLIENT_ID,
+            "scope": " ".join(SCOPES),
+            "redirect_uri": config.CONFLUENCE_REDIRECT_URI,
             "state": state_encoded,
+            "response_type": "code",
+            "prompt": "consent",
         }
 
         auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
 
-        logger.info(f"Generated Discord OAuth URL for user {user.id}, space {space_id}")
+        logger.info(
+            f"Generated Confluence OAuth URL for user {user.id}, space {space_id}"
+        )
         return {"auth_url": auth_url}
 
     except Exception as e:
-        logger.error(f"Failed to initiate Discord OAuth: {e!s}", exc_info=True)
+        logger.error(f"Failed to initiate Confluence OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate Discord OAuth: {e!s}"
+            status_code=500, detail=f"Failed to initiate Confluence OAuth: {e!s}"
         ) from e
 
 
-@router.get("/auth/discord/connector/callback")
-async def discord_callback(
+@router.get("/auth/confluence/connector/callback")
+async def confluence_callback(
     request: Request,
     code: str | None = None,
     error: str | None = None,
@@ -133,12 +136,12 @@ async def discord_callback(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Handle Discord OAuth callback.
+    Handle Confluence OAuth callback.
 
     Args:
         request: FastAPI request object
-        code: Authorization code from Discord (if user granted access)
-        error: Error code from Discord (if user denied access or error occurred)
+        code: Authorization code from Atlassian (if user granted access)
+        error: Error code from Atlassian (if user denied access or error occurred)
         state: State parameter containing user/space info
         session: Database session
 
@@ -148,7 +151,7 @@ async def discord_callback(
     try:
         # Handle OAuth errors (e.g., user denied access)
         if error:
-            logger.warning(f"Discord OAuth error: {error}")
+            logger.warning(f"Confluence OAuth error: {error}")
             # Try to decode state to get space_id for redirect, but don't fail if it's invalid
             space_id = None
             if state:
@@ -163,11 +166,11 @@ async def discord_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=discord_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=confluence_oauth_denied"
                 )
             else:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=discord_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard?error=confluence_oauth_denied"
                 )
 
         # Validate required parameters for successful flow
@@ -191,25 +194,25 @@ async def discord_callback(
         space_id = data["space_id"]
 
         # Validate redirect URI (security: ensure it matches configured value)
-        if not config.DISCORD_REDIRECT_URI:
+        if not config.CONFLUENCE_REDIRECT_URI:
             raise HTTPException(
-                status_code=500, detail="DISCORD_REDIRECT_URI not configured"
+                status_code=500, detail="CONFLUENCE_REDIRECT_URI not configured"
             )
 
         # Exchange authorization code for access token
         token_data = {
-            "client_id": config.DISCORD_CLIENT_ID,
-            "client_secret": config.DISCORD_CLIENT_SECRET,
             "grant_type": "authorization_code",
+            "client_id": config.ATLASSIAN_CLIENT_ID,
+            "client_secret": config.ATLASSIAN_CLIENT_SECRET,
             "code": code,
-            "redirect_uri": config.DISCORD_REDIRECT_URI,
+            "redirect_uri": config.CONFLUENCE_REDIRECT_URI,
         }
 
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 TOKEN_URL,
-                data=token_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                json=token_data,
+                headers={"Content-Type": "application/json"},
                 timeout=30.0,
             )
 
@@ -228,58 +231,59 @@ async def discord_callback(
 
         token_json = token_response.json()
 
-        # Log OAuth response for debugging (without sensitive data)
-        logger.info(f"Discord OAuth response received. Keys: {list(token_json.keys())}")
-
-        # Discord OAuth with 'bot' scope returns access_token (user token), not bot token
-        # The bot token must come from backend config (DISCORD_BOT_TOKEN)
-        # OAuth is used to authorize bot installation to servers, not to get bot token
-        if not config.DISCORD_BOT_TOKEN:
+        access_token = token_json.get("access_token")
+        refresh_token = token_json.get("refresh_token")
+        if not access_token:
             raise HTTPException(
-                status_code=500,
-                detail="Discord bot token not configured. Please set DISCORD_BOT_TOKEN in backend configuration.",
+                status_code=400, detail="No access token received from Atlassian"
             )
 
-        # Use the bot token from backend config (not the OAuth access_token)
-        bot_token = config.DISCORD_BOT_TOKEN
+        # Get accessible resources to find Confluence cloud ID and site URL
+        async with httpx.AsyncClient() as client:
+            resources_response = await client.get(
+                RESOURCES_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=30.0,
+            )
 
-        # Extract OAuth access_token and refresh_token (for reference, not used for bot operations)
-        oauth_access_token = token_json.get("access_token")
-        refresh_token = token_json.get("refresh_token")
+        cloud_id = None
+        site_url = None
+        if resources_response.status_code == 200:
+            resources = resources_response.json()
+            # Find Confluence resource
+            for resource in resources:
+                if resource.get("id") and resource.get("name"):
+                    cloud_id = resource.get("id")
+                    site_url = resource.get("url")
+                    break
+
+        if not cloud_id:
+            logger.warning(
+                "Could not determine Confluence cloud ID from accessible resources"
+            )
+
+        # Calculate expiration time (UTC, tz-aware)
+        expires_at = None
+        expires_in = token_json.get("expires_in")
+        if expires_in:
+            now_utc = datetime.now(UTC)
+            expires_at = now_utc + timedelta(seconds=int(expires_in))
 
         # Encrypt sensitive tokens before storing
         token_encryption = get_token_encryption()
 
-        # Calculate expiration time (UTC, tz-aware)
-        expires_at = None
-        if token_json.get("expires_in"):
-            now_utc = datetime.now(UTC)
-            expires_at = now_utc + timedelta(seconds=int(token_json["expires_in"]))
-
-        # Extract guild info from OAuth response if available
-        guild_id = None
-        guild_name = None
-        if token_json.get("guild"):
-            guild_id = token_json["guild"].get("id")
-            guild_name = token_json["guild"].get("name")
-
-        # Store the bot token from config and OAuth metadata
+        # Store the encrypted tokens and metadata in connector config
         connector_config = {
-            "bot_token": token_encryption.encrypt_token(
-                bot_token
-            ),  # Use bot token from config
-            "oauth_access_token": token_encryption.encrypt_token(oauth_access_token)
-            if oauth_access_token
-            else None,  # Store OAuth token for reference
+            "access_token": token_encryption.encrypt_token(access_token),
             "refresh_token": token_encryption.encrypt_token(refresh_token)
             if refresh_token
             else None,
             "token_type": token_json.get("token_type", "Bearer"),
-            "expires_in": token_json.get("expires_in"),
+            "expires_in": expires_in,
             "expires_at": expires_at.isoformat() if expires_at else None,
             "scope": token_json.get("scope"),
-            "guild_id": guild_id,
-            "guild_name": guild_name,
+            "cloud_id": cloud_id,
+            "base_url": site_url,  # Store as base_url to match shared schema
             # Mark that tokens are encrypted for backward compatibility
             "_token_encrypted": True,
         }
@@ -290,7 +294,7 @@ async def discord_callback(
                 SearchSourceConnector.search_space_id == space_id,
                 SearchSourceConnector.user_id == user_id,
                 SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.DISCORD_CONNECTOR,
+                == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
             )
         )
         existing_connector = existing_connector_result.scalars().first()
@@ -298,16 +302,16 @@ async def discord_callback(
         if existing_connector:
             # Update existing connector
             existing_connector.config = connector_config
-            existing_connector.name = "Discord Connector"
+            existing_connector.name = "Confluence Connector"
             existing_connector.is_indexable = True
             logger.info(
-                f"Updated existing Discord connector for user {user_id} in space {space_id}"
+                f"Updated existing Confluence connector for user {user_id} in space {space_id}"
             )
         else:
             # Create new connector
             new_connector = SearchSourceConnector(
-                name="Discord Connector",
-                connector_type=SearchSourceConnectorType.DISCORD_CONNECTOR,
+                name="Confluence Connector",
+                connector_type=SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
                 is_indexable=True,
                 config=connector_config,
                 search_space_id=space_id,
@@ -315,16 +319,16 @@ async def discord_callback(
             )
             session.add(new_connector)
             logger.info(
-                f"Created new Discord connector for user {user_id} in space {space_id}"
+                f"Created new Confluence connector for user {user_id} in space {space_id}"
             )
 
         try:
             await session.commit()
-            logger.info(f"Successfully saved Discord connector for user {user_id}")
+            logger.info(f"Successfully saved Confluence connector for user {user_id}")
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=discord-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=confluence-connector"
             )
 
         except ValidationError as e:
@@ -349,39 +353,29 @@ async def discord_callback(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to complete Discord OAuth: {e!s}", exc_info=True)
+        logger.error(f"Failed to complete Confluence OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to complete Discord OAuth: {e!s}"
+            status_code=500, detail=f"Failed to complete Confluence OAuth: {e!s}"
         ) from e
 
 
-async def refresh_discord_token(
+async def refresh_confluence_token(
     session: AsyncSession, connector: SearchSourceConnector
 ) -> SearchSourceConnector:
     """
-    Refresh the Discord OAuth tokens for a connector.
-
-    Note: Bot tokens from config don't expire, but OAuth access tokens might.
-    This function refreshes OAuth tokens if needed, but always uses bot token from config.
+    Refresh the Confluence access token for a connector.
 
     Args:
         session: Database session
-        connector: Discord connector to refresh
+        connector: Confluence connector to refresh
 
     Returns:
         Updated connector object
     """
     try:
-        logger.info(f"Refreshing Discord OAuth tokens for connector {connector.id}")
+        logger.info(f"Refreshing Confluence token for connector {connector.id}")
 
-        # Bot token always comes from config, not from OAuth
-        if not config.DISCORD_BOT_TOKEN:
-            raise HTTPException(
-                status_code=500,
-                detail="Discord bot token not configured. Please set DISCORD_BOT_TOKEN in backend configuration.",
-            )
-
-        credentials = DiscordAuthCredentialsBase.from_dict(connector.config)
+        credentials = AtlassianAuthCredentialsBase.from_dict(connector.config)
 
         # Decrypt tokens if they are encrypted
         token_encryption = get_token_encryption()
@@ -397,36 +391,25 @@ async def refresh_discord_token(
                     status_code=500, detail="Failed to decrypt stored refresh token"
                 ) from e
 
-        # If no refresh token, bot token from config is still valid (bot tokens don't expire)
-        # Just update the bot token from config in case it was changed
         if not refresh_token:
-            logger.info(
-                f"No refresh token available for connector {connector.id}. Using bot token from config."
+            raise HTTPException(
+                status_code=400,
+                detail="No refresh token available. Please re-authenticate.",
             )
-            # Update bot token from config (in case it was changed)
-            credentials.bot_token = token_encryption.encrypt_token(
-                config.DISCORD_BOT_TOKEN
-            )
-            credentials_dict = credentials.to_dict()
-            credentials_dict["_token_encrypted"] = True
-            connector.config = credentials_dict
-            await session.commit()
-            await session.refresh(connector)
-            return connector
 
-        # Discord uses oauth2/token for token refresh with grant_type=refresh_token
+        # Prepare token refresh data
         refresh_data = {
-            "client_id": config.DISCORD_CLIENT_ID,
-            "client_secret": config.DISCORD_CLIENT_SECRET,
             "grant_type": "refresh_token",
+            "client_id": config.ATLASSIAN_CLIENT_ID,
+            "client_secret": config.ATLASSIAN_CLIENT_SECRET,
             "refresh_token": refresh_token,
         }
 
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 TOKEN_URL,
-                data=refresh_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                json=refresh_data,
+                headers={"Content-Type": "application/json"},
                 timeout=30.0,
             )
 
@@ -439,30 +422,11 @@ async def refresh_discord_token(
                 )
             except Exception:
                 pass
-            # If refresh fails, bot token from config is still valid
-            logger.warning(
-                f"OAuth token refresh failed for connector {connector.id}: {error_detail}. "
-                "Using bot token from config."
+            raise HTTPException(
+                status_code=400, detail=f"Token refresh failed: {error_detail}"
             )
-            # Update bot token from config
-            credentials.bot_token = token_encryption.encrypt_token(
-                config.DISCORD_BOT_TOKEN
-            )
-            credentials.refresh_token = None  # Clear invalid refresh token
-            credentials_dict = credentials.to_dict()
-            credentials_dict["_token_encrypted"] = True
-            connector.config = credentials_dict
-            await session.commit()
-            await session.refresh(connector)
-            return connector
 
         token_json = token_response.json()
-
-        # Extract OAuth access token from refresh response (for reference)
-        oauth_access_token = token_json.get("access_token")
-
-        # Get new refresh token if provided (Discord may rotate refresh tokens)
-        new_refresh_token = token_json.get("refresh_token")
 
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None
@@ -471,15 +435,18 @@ async def refresh_discord_token(
             now_utc = datetime.now(UTC)
             expires_at = now_utc + timedelta(seconds=int(expires_in))
 
-        # Always use bot token from config (bot tokens don't expire)
-        credentials.bot_token = token_encryption.encrypt_token(config.DISCORD_BOT_TOKEN)
+        # Encrypt new tokens before storing
+        access_token = token_json.get("access_token")
+        new_refresh_token = token_json.get("refresh_token")
 
-        # Update OAuth tokens if available
-        if oauth_access_token:
-            # Store OAuth access token for reference
-            connector.config["oauth_access_token"] = token_encryption.encrypt_token(
-                oauth_access_token
+        if not access_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No access token received from Confluence refresh",
             )
+
+        # Update credentials object with encrypted tokens
+        credentials.access_token = token_encryption.encrypt_token(access_token)
         if new_refresh_token:
             credentials.refresh_token = token_encryption.encrypt_token(
                 new_refresh_token
@@ -488,13 +455,14 @@ async def refresh_discord_token(
         credentials.expires_at = expires_at
         credentials.scope = token_json.get("scope")
 
-        # Preserve guild info if present
-        if not credentials.guild_id:
-            credentials.guild_id = connector.config.get("guild_id")
-        if not credentials.guild_name:
-            credentials.guild_name = connector.config.get("guild_name")
-        if not credentials.bot_user_id:
-            credentials.bot_user_id = connector.config.get("bot_user_id")
+        # Preserve cloud_id and base_url (with backward compatibility for site_url)
+        if not credentials.cloud_id:
+            credentials.cloud_id = connector.config.get("cloud_id")
+        if not credentials.base_url:
+            # Check both base_url and site_url for backward compatibility
+            credentials.base_url = connector.config.get(
+                "base_url"
+            ) or connector.config.get("site_url")
 
         # Update connector config with encrypted tokens
         credentials_dict = credentials.to_dict()
@@ -504,17 +472,14 @@ async def refresh_discord_token(
         await session.refresh(connector)
 
         logger.info(
-            f"Successfully refreshed Discord OAuth tokens for connector {connector.id}"
+            f"Successfully refreshed Confluence token for connector {connector.id}"
         )
 
         return connector
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            f"Failed to refresh Discord tokens for connector {connector.id}: {e!s}",
-            exc_info=True,
-        )
+        logger.error(f"Failed to refresh Confluence token: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to refresh Discord tokens: {e!s}"
+            status_code=500, detail=f"Failed to refresh Confluence token: {e!s}"
         ) from e

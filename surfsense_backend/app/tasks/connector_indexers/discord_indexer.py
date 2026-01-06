@@ -69,7 +69,9 @@ async def index_discord_messages(
 
     try:
         # Normalize date parameters - handle 'undefined' strings from frontend
-        if start_date and (start_date.lower() == "undefined" or start_date.strip() == ""):
+        if start_date and (
+            start_date.lower() == "undefined" or start_date.strip() == ""
+        ):
             start_date = None
         if end_date and (end_date.lower() == "undefined" or end_date.strip() == ""):
             end_date = None
@@ -118,12 +120,13 @@ async def index_discord_messages(
         elif has_legacy:
             # Backward compatibility: use legacy token format
             discord_token = connector.config.get("DISCORD_BOT_TOKEN")
-            
+
             # Decrypt token if it's encrypted (legacy tokens might be encrypted)
             token_encrypted = connector.config.get("_token_encrypted", False)
             if token_encrypted and config.SECRET_KEY and discord_token:
                 try:
                     from app.utils.oauth_security import TokenEncryption
+
                     token_encryption = TokenEncryption(config.SECRET_KEY)
                     discord_token = token_encryption.decrypt_token(discord_token)
                     logger.info(
@@ -135,7 +138,7 @@ async def index_discord_messages(
                         "Trying to use token as-is (might be unencrypted)."
                     )
                     # Continue with token as-is - might be unencrypted legacy token
-            
+
             discord_client = DiscordConnector(token=discord_token)
         else:
             await task_logger.log_task_failure(
@@ -210,11 +213,16 @@ async def index_discord_messages(
                     f"Date parsing error: {e!s}",
                     {"error_type": "InvalidDateFormat", "start_date": start_date},
                 )
-                return 0, f"Invalid start_date format: {start_date}. Expected YYYY-MM-DD format."
+                return (
+                    0,
+                    f"Invalid start_date format: {start_date}. Expected YYYY-MM-DD format.",
+                )
 
             try:
                 end_date_iso = (
-                    datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=UTC).isoformat()
+                    datetime.strptime(end_date, "%Y-%m-%d")
+                    .replace(tzinfo=UTC)
+                    .isoformat()
                 )
             except ValueError as e:
                 await task_logger.log_task_failure(
@@ -223,7 +231,10 @@ async def index_discord_messages(
                     f"Date parsing error: {e!s}",
                     {"error_type": "InvalidDateFormat", "end_date": end_date},
                 )
-                return 0, f"Invalid end_date format: {end_date}. Expected YYYY-MM-DD format."
+                return (
+                    0,
+                    f"Invalid end_date format: {end_date}. Expected YYYY-MM-DD format.",
+                )
 
         logger.info(
             f"Indexing Discord messages from {start_date_iso} to {end_date_iso}"
@@ -384,8 +395,10 @@ async def index_discord_messages(
                             )
 
                             # Check if document with this unique identifier already exists
-                            existing_document = await check_document_by_unique_identifier(
-                                session, unique_identifier_hash
+                            existing_document = (
+                                await check_document_by_unique_identifier(
+                                    session, unique_identifier_hash
+                                )
                             )
 
                             if existing_document:
@@ -406,8 +419,10 @@ async def index_discord_messages(
                                     chunks = await create_document_chunks(
                                         combined_document_string
                                     )
-                                    doc_embedding = config.embedding_model_instance.embed(
-                                        combined_document_string
+                                    doc_embedding = (
+                                        config.embedding_model_instance.embed(
+                                            combined_document_string
+                                        )
                                     )
 
                                     # Update existing document
@@ -429,7 +444,9 @@ async def index_discord_messages(
 
                                     # Delete old chunks and add new ones
                                     existing_document.chunks = chunks
-                                    existing_document.updated_at = get_current_timestamp()
+                                    existing_document.updated_at = (
+                                        get_current_timestamp()
+                                    )
 
                                     documents_indexed += 1
                                     logger.info(
@@ -439,7 +456,9 @@ async def index_discord_messages(
 
                             # Document doesn't exist - create new one
                             # Process chunks
-                            chunks = await create_document_chunks(combined_document_string)
+                            chunks = await create_document_chunks(
+                                combined_document_string
+                            )
                             doc_embedding = config.embedding_model_instance.embed(
                                 combined_document_string
                             )

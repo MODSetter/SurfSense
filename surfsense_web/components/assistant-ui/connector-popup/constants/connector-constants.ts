@@ -58,6 +58,20 @@ export const OAUTH_CONNECTORS = [
 		connectorType: EnumConnectorName.DISCORD_CONNECTOR,
 		authEndpoint: "/api/v1/auth/discord/connector/add/",
 	},
+	{
+		id: "jira-connector",
+		title: "Jira",
+		description: "Search Jira issues",
+		connectorType: EnumConnectorName.JIRA_CONNECTOR,
+		authEndpoint: "/api/v1/auth/jira/connector/add/",
+	},
+	{
+		id: "confluence-connector",
+		title: "Confluence",
+		description: "Search documentation",
+		connectorType: EnumConnectorName.CONFLUENCE_CONNECTOR,
+		authEndpoint: "/api/v1/auth/confluence/connector/add/",
+	},
 ] as const;
 
 // Content Sources (tools that extract and import content from external sources)
@@ -79,12 +93,6 @@ export const CRAWLERS = [
 // Non-OAuth Connectors (redirect to old connector config pages)
 export const OTHER_CONNECTORS = [
 	{
-		id: "confluence-connector",
-		title: "Confluence",
-		description: "Search documentation",
-		connectorType: EnumConnectorName.CONFLUENCE_CONNECTOR,
-	},
-	{
 		id: "bookstack-connector",
 		title: "BookStack",
 		description: "Search BookStack docs",
@@ -95,12 +103,6 @@ export const OTHER_CONNECTORS = [
 		title: "GitHub",
 		description: "Search repositories",
 		connectorType: EnumConnectorName.GITHUB_CONNECTOR,
-	},
-	{
-		id: "jira-connector",
-		title: "Jira",
-		description: "Search Jira issues",
-		connectorType: EnumConnectorName.JIRA_CONNECTOR,
 	},
 	{
 		id: "clickup-connector",
