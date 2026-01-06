@@ -371,7 +371,7 @@ async def airtable_callback(
 
 async def refresh_airtable_token(
     session: AsyncSession, connector: SearchSourceConnector
-):
+) -> SearchSourceConnector:
     """
     Refresh the Airtable access token for a connector.
 
@@ -401,6 +401,12 @@ async def refresh_airtable_token(
                     status_code=500, detail="Failed to decrypt stored refresh token"
                 ) from e
 
+        if not refresh_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No refresh token available. Please re-authenticate.",
+            )
+
         auth_header = make_basic_auth_header(
             config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
         )
@@ -425,8 +431,14 @@ async def refresh_airtable_token(
             )
 
         if token_response.status_code != 200:
+            error_detail = token_response.text
+            try:
+                error_json = token_response.json()
+                error_detail = error_json.get("error_description", error_detail)
+            except Exception:
+                pass
             raise HTTPException(
-                status_code=400, detail="Token refresh failed: {token_response.text}"
+                status_code=400, detail=f"Token refresh failed: {error_detail}"
             )
 
         token_json = token_response.json()
@@ -468,6 +480,8 @@ async def refresh_airtable_token(
         )
 
         return connector
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to refresh Airtable token: {e!s}"

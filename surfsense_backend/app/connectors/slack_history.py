@@ -377,7 +377,7 @@ class SlackHistory:
                     else:
                         raise  # Re-raise to outer handler for not_in_channel or other SlackApiErrors
 
-                if not current_api_call_successful:
+                if not current_api_call_successful or result is None:
                     continue  # Retry the current page fetch due to handled rate limit
 
                 # Process result if successful

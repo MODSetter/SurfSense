@@ -294,6 +294,12 @@ class AirtableConnector:
             Tuple of (records, error_message)
         """
         try:
+            # Validate date strings before parsing
+            if not start_date or start_date.lower() in ("undefined", "null", "none"):
+                return [], "Invalid start_date: date string is required"
+            if not end_date or end_date.lower() in ("undefined", "null", "none"):
+                return [], "Invalid end_date: date string is required"
+
             # Parse and validate dates
             start_dt = isoparse(start_date)
             end_dt = isoparse(end_date)
