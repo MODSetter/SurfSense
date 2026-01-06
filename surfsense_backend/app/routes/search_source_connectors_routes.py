@@ -7,7 +7,7 @@ PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
 POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
 
-Note: Each search space can have only one connector of each type per user (based on search_space_id, user_id, and connector_type).
+Note: Each search space can have multiple connectors of the same type per user (uniqueness is no longer enforced, you may connect several accounts of the same type).
 """
 
 import logging
@@ -111,7 +111,7 @@ async def create_search_source_connector(
     Create a new search source connector.
     Requires CONNECTORS_CREATE permission.
 
-    Each search space can have only one connector of each type (based on search_space_id and connector_type).
+    Each search space can have multiple connectors of the same type (e.g., multiple Gmail, Slack, etc. accounts).
     The config must contain the appropriate keys for the connector type.
     """
     try:
@@ -123,20 +123,6 @@ async def create_search_source_connector(
             Permission.CONNECTORS_CREATE.value,
             "You don't have permission to create connectors in this search space",
         )
-
-        # Check if a connector with the same type already exists for this search space
-        result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == search_space_id,
-                SearchSourceConnector.connector_type == connector.connector_type,
-            )
-        )
-        existing_connector = result.scalars().first()
-        if existing_connector:
-            raise HTTPException(
-                status_code=409,
-                detail=f"A connector with type {connector.connector_type} already exists in this search space.",
-            )
 
         # Prepare connector data
         connector_data = connector.model_dump()
@@ -183,7 +169,7 @@ async def create_search_source_connector(
         await session.rollback()
         raise HTTPException(
             status_code=409,
-            detail=f"Integrity error: A connector with this type already exists in this search space. {e!s}",
+            detail=f"Integrity error: {e!s}",
         ) from e
     except HTTPException:
         await session.rollback()
