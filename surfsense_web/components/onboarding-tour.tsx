@@ -1,8 +1,16 @@
 "use client";
 
+import { useAtomValue } from "jotai";
+import { useQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
+import { fetchThreads } from "@/lib/chat/thread-persistence";
 
 interface TourStep {
 	target: string;
@@ -387,8 +395,26 @@ export function OnboardingTour() {
 	const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 	const [mounted, setMounted] = useState(false);
 	const { resolvedTheme } = useTheme();
+	const pathname = usePathname();
 	const retryCountRef = useRef(0);
 	const maxRetries = 10;
+
+	// Get user data
+	const { data: user } = useAtomValue(currentUserAtom);
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+
+	// Fetch threads data
+	const { data: threadsData } = useQuery({
+		queryKey: ["threads", searchSpaceId],
+		queryFn: () => fetchThreads(Number(searchSpaceId), 1), // Only need to check if any exist
+		enabled: !!searchSpaceId,
+	});
+
+	// Get document type counts
+	const { data: documentTypeCounts } = useAtomValue(documentTypeCountsAtom);
+
+	// Get connectors
+	const { data: connectors = [] } = useAtomValue(connectorsAtom);
 
 	const isDarkMode = resolvedTheme === "dark";
 	const currentStep = TOUR_STEPS[stepIndex];
@@ -422,22 +448,84 @@ export function OnboardingTour() {
 		}
 	}, [currentStep]);
 
-	// Start tour and find first target
+	// Check if tour should run: localStorage + data validation
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			const el = document.querySelector(TOUR_STEPS[0].target);
-			if (el) {
-				setIsActive(true);
-				setTargetEl(el);
-				setSpotlightTargetEl(el);
-				setSpotlightStepTarget(TOUR_STEPS[0].target);
-				setTargetRect(el.getBoundingClientRect());
-				setPosition(calculatePosition(el, TOUR_STEPS[0].placement));
-			}
-		}, 1000);
+		// Don't check if not mounted or no user
+		if (!mounted || !user?.id || !searchSpaceId) return;
 
+		// Check if on new-chat page
+		const isNewChatPage = pathname?.includes("/new-chat");
+		if (!isNewChatPage) return;
+
+		// Wait for all data to be loaded before making decision
+		// Data is considered loaded when:
+		// - threadsData is defined (query completed, even if empty)
+		// - documentTypeCounts is defined (query completed, even if empty object)
+		// - connectors is an array (always defined with default [])
+		// If searchSpaceId is not set, connectors query won't run, but that's okay
+		const dataLoaded = threadsData !== undefined && documentTypeCounts !== undefined;
+		if (!dataLoaded) return;
+
+		// Check localStorage first (fast check)
+		const tourKey = `surfsense-tour-${user.id}`;
+		const hasSeenTour = localStorage.getItem(tourKey);
+		if (hasSeenTour === "true") {
+			return; // User has seen tour, don't show
+		}
+
+		// Validate user is actually new (reliable check)
+		const threads = threadsData?.threads ?? [];
+		const hasThreads = threads.length > 0;
+
+		// Check document counts - sum all document type counts
+		const totalDocuments = documentTypeCounts
+			? Object.values(documentTypeCounts).reduce((sum, count) => sum + count, 0)
+			: 0;
+		const hasDocuments = totalDocuments > 0;
+
+		const hasConnectors = connectors.length > 0;
+
+		// User is new if they have no threads, documents, or connectors
+		const isNewUser = !hasThreads && !hasDocuments && !hasConnectors;
+
+		// If user has data but localStorage was cleared, mark as seen
+		if (!isNewUser) {
+			localStorage.setItem(tourKey, "true");
+			return;
+		}
+
+		// User is new and hasn't seen tour - wait for DOM elements and start tour
+		const checkAndStartTour = () => {
+			// Check if both required elements exist
+			const connectorEl = document.querySelector(TOUR_STEPS[0].target);
+			const documentsEl = document.querySelector(TOUR_STEPS[1].target);
+
+			if (connectorEl && documentsEl) {
+				// Both elements found, start tour
+				setIsActive(true);
+				setTargetEl(connectorEl);
+				setSpotlightTargetEl(connectorEl);
+				setSpotlightStepTarget(TOUR_STEPS[0].target);
+				setTargetRect(connectorEl.getBoundingClientRect());
+				setPosition(calculatePosition(connectorEl, TOUR_STEPS[0].placement));
+			} else {
+				// Retry after delay
+				setTimeout(checkAndStartTour, 200);
+			}
+		};
+
+		// Start checking after initial delay
+		const timer = setTimeout(checkAndStartTour, 500);
 		return () => clearTimeout(timer);
-	}, []);
+	}, [
+		mounted,
+		user?.id,
+		searchSpaceId,
+		pathname,
+		threadsData,
+		documentTypeCounts,
+		connectors,
+	]);
 
 	// Update position on resize/scroll
 	useEffect(() => {
@@ -524,9 +612,14 @@ export function OnboardingTour() {
 			retryCountRef.current = 0;
 			setStepIndex(stepIndex + 1);
 		} else {
+			// Tour completed - save to localStorage
+			if (user?.id) {
+				const tourKey = `surfsense-tour-${user.id}`;
+				localStorage.setItem(tourKey, "true");
+			}
 			setIsActive(false);
 		}
-	}, [stepIndex]);
+	}, [stepIndex, user?.id]);
 
 	const handlePrev = useCallback(() => {
 		if (stepIndex > 0) {
@@ -536,24 +629,39 @@ export function OnboardingTour() {
 	}, [stepIndex]);
 
 	const handleSkip = useCallback(() => {
+		// Tour skipped - save to localStorage
+		if (user?.id) {
+			const tourKey = `surfsense-tour-${user.id}`;
+			localStorage.setItem(tourKey, "true");
+		}
 		setIsActive(false);
-	}, []);
+	}, [user?.id]);
 
 	// Handle overlay click to close
 	const handleOverlayClick = useCallback(() => {
+		// Tour closed - save to localStorage
+		if (user?.id) {
+			const tourKey = `surfsense-tour-${user.id}`;
+			localStorage.setItem(tourKey, "true");
+		}
 		setIsActive(false);
-	}, []);
+	}, [user?.id]);
 
 	// Handle escape key
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && isActive) {
+				// Tour closed via escape - save to localStorage
+				if (user?.id) {
+					const tourKey = `surfsense-tour-${user.id}`;
+					localStorage.setItem(tourKey, "true");
+				}
 				setIsActive(false);
 			}
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [isActive]);
+	}, [isActive, user?.id]);
 
 	// Don't render if not active or not mounted
 	if (!mounted || !isActive) {
