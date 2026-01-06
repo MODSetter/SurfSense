@@ -517,15 +517,7 @@ export function OnboardingTour() {
 		// Start checking after initial delay
 		const timer = setTimeout(checkAndStartTour, 500);
 		return () => clearTimeout(timer);
-	}, [
-		mounted,
-		user?.id,
-		searchSpaceId,
-		pathname,
-		threadsData,
-		documentTypeCounts,
-		connectors,
-	]);
+	}, [mounted, user?.id, searchSpaceId, pathname, threadsData, documentTypeCounts, connectors]);
 
 	// Update position on resize/scroll
 	useEffect(() => {
