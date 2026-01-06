@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.connectors.jira_connector import JiraConnector
+from app.connectors.jira_history import JiraHistoryConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
@@ -83,130 +83,21 @@ async def index_jira_issues(
             )
             return 0, f"Connector with ID {connector_id} not found"
 
-        # Get the Jira credentials from the connector config
-        # Support both OAuth (preferred) and legacy API token authentication
-        config_data = connector.config.copy()
-        is_oauth = config_data.get("_token_encrypted", False) or config_data.get("access_token")
+        # Initialize Jira client with internal refresh capability
+        # Token refresh will happen automatically when needed
+        await task_logger.log_task_progress(
+            log_entry,
+            f"Initializing Jira client for connector {connector_id}",
+            {"stage": "client_initialization"},
+        )
 
-        if is_oauth:
-            # OAuth 2.0 authentication
-            from app.utils.oauth_security import TokenEncryption
+        logger.info(f"Initializing Jira client for connector {connector_id}")
 
-            if not config.SECRET_KEY:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"SECRET_KEY not configured but tokens are marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
-                    {"error_type": "MissingSecretKey"},
-                )
-                return 0, "SECRET_KEY not configured but tokens are marked as encrypted"
-            
-            try:
-                token_encryption = TokenEncryption(config.SECRET_KEY)
-
-                # Decrypt access_token
-                if config_data.get("access_token"):
-                    config_data["access_token"] = token_encryption.decrypt_token(
-                        config_data["access_token"]
-                    )
-                    logger.info(
-                        f"Decrypted Jira access token for connector {connector_id}"
-                    )
-
-                # Decrypt refresh_token if present
-                if config_data.get("refresh_token"):
-                    config_data["refresh_token"] = token_encryption.decrypt_token(
-                        config_data["refresh_token"]
-                    )
-                    logger.info(
-                        f"Decrypted Jira refresh token for connector {connector_id}"
-                    )
-            except Exception as e:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Failed to decrypt Jira tokens for connector {connector_id}: {e!s}",
-                    "Token decryption failed",
-                    {"error_type": "TokenDecryptionError"},
-                )
-                return 0, f"Failed to decrypt Jira tokens: {e!s}"
-
-            try:
-                from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
-                credentials = AtlassianAuthCredentialsBase.from_dict(config_data)
-            except Exception as e:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Invalid Jira OAuth credentials in connector {connector_id}",
-                    str(e),
-                    {"error_type": "InvalidCredentials"},
-                )
-                return 0, f"Invalid Jira OAuth credentials: {e!s}"
-
-            # Check if credentials are expired and refresh if needed
-            if credentials.is_expired:
-                await task_logger.log_task_progress(
-                    log_entry,
-                    f"Jira credentials expired for connector {connector_id}, refreshing token",
-                    {"stage": "token_refresh"},
-                )
-
-                from app.routes.jira_add_connector_route import refresh_jira_token
-
-                try:
-                    connector = await refresh_jira_token(session, connector)
-                    # Re-fetch credentials after refresh
-                    config_data = connector.config.copy()
-                    if config_data.get("access_token"):
-                        config_data["access_token"] = token_encryption.decrypt_token(
-                            config_data["access_token"]
-                        )
-                    credentials = AtlassianAuthCredentialsBase.from_dict(config_data)
-                except Exception as e:
-                    await task_logger.log_task_failure(
-                        log_entry,
-                        f"Failed to refresh Jira token for connector {connector_id}: {e!s}",
-                        "Token refresh failed",
-                        {"error_type": "TokenRefreshError"},
-                    )
-                    return 0, f"Failed to refresh Jira token: {e!s}"
-
-            # Initialize Jira client with OAuth credentials
-            await task_logger.log_task_progress(
-                log_entry,
-                f"Initializing Jira client with OAuth for connector {connector_id}",
-                {"stage": "client_initialization"},
-            )
-
-            jira_client = JiraConnector(
-                base_url=credentials.base_url,
-                access_token=credentials.access_token,
-                cloud_id=credentials.cloud_id,
-            )
-        else:
-            # Legacy API token authentication
-            jira_email = config_data.get("JIRA_EMAIL")
-            jira_api_token = config_data.get("JIRA_API_TOKEN")
-            jira_base_url = config_data.get("JIRA_BASE_URL")
-
-            if not jira_email or not jira_api_token or not jira_base_url:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Jira credentials not found in connector config for connector {connector_id}",
-                    "Missing Jira credentials",
-                    {"error_type": "MissingCredentials"},
-                )
-                return 0, "Jira credentials not found in connector config"
-
-            # Initialize Jira client with legacy credentials
-            await task_logger.log_task_progress(
-                log_entry,
-                f"Initializing Jira client with API token for connector {connector_id}",
-                {"stage": "client_initialization"},
-            )
-
-            jira_client = JiraConnector(
-                base_url=jira_base_url, email=jira_email, api_token=jira_api_token
-            )
+        # Create connector with session and connector_id for internal refresh
+        # Token refresh will happen automatically when needed
+        jira_client = JiraHistoryConnector(
+            session=session, connector_id=connector_id
+        )
 
         # Calculate date range
         # Handle "undefined" strings from frontend
@@ -231,7 +122,7 @@ async def index_jira_issues(
 
         # Get issues within date range
         try:
-            issues, error = jira_client.get_issues_by_date_range(
+            issues, error = await jira_client.get_issues_by_date_range(
                 start_date=start_date_str, end_date=end_date_str, include_comments=True
             )
 
@@ -504,6 +395,10 @@ async def index_jira_issues(
         logger.info(
             f"JIRA indexing completed: {documents_indexed} new issues, {documents_skipped} skipped"
         )
+        
+        # Clean up the connector
+        await jira_client.close()
+        
         return (
             total_processed,
             None,
@@ -518,6 +413,12 @@ async def index_jira_issues(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
+        # Clean up the connector in case of error
+        if "jira_client" in locals():
+            try:
+                await jira_client.close()
+            except Exception:
+                pass
         return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
@@ -528,4 +429,10 @@ async def index_jira_issues(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index JIRA issues: {e!s}", exc_info=True)
+        # Clean up the connector in case of error
+        if "jira_client" in locals():
+            try:
+                await jira_client.close()
+            except Exception:
+                pass
         return 0, f"Failed to index JIRA issues: {e!s}"
