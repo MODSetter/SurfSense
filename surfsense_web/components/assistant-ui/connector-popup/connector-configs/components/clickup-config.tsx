@@ -63,7 +63,8 @@ export const ClickUpConfig: FC<ClickUpConfigProps> = ({
 					<div className="text-xs sm:text-sm">
 						<p className="font-medium text-xs sm:text-sm">Connected via OAuth</p>
 						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-							Workspace: <code className="bg-muted px-1 py-0.5 rounded text-inherit">{workspaceName}</code>
+							Workspace:{" "}
+							<code className="bg-muted px-1 py-0.5 rounded text-inherit">{workspaceName}</code>
 						</p>
 						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
 							To update your connection, reconnect this connector.
@@ -112,8 +113,8 @@ export const ClickUpConfig: FC<ClickUpConfigProps> = ({
 						className="border-slate-400/20 focus-visible:border-slate-400/40"
 					/>
 					<p className="text-[10px] sm:text-xs text-muted-foreground">
-						Update your ClickUp API Token if needed. For better security and automatic token refresh,
-						consider disconnecting and reconnecting using OAuth 2.0.
+						Update your ClickUp API Token if needed. For better security and automatic token
+						refresh, consider disconnecting and reconnecting using OAuth 2.0.
 					</p>
 				</div>
 			</div>
