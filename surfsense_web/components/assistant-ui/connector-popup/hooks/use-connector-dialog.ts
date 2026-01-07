@@ -148,14 +148,22 @@ export const useConnectorDialog = () => {
 					// YouTube view is active - no additional state needed
 				}
 
-				if (params.view === "configure" && params.connector && !indexingConfig) {
+				// Handle configure view (for page refresh support)
+				if (params.view === "configure" && params.connector && !indexingConfig && allConnectors) {
 					const oauthConnector = OAUTH_CONNECTORS.find((c) => c.id === params.connector);
-					if (oauthConnector && allConnectors) {
-						const existingConnector = allConnectors.find(
-							(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
-						);
+					if (oauthConnector) {
+						let existingConnector: SearchSourceConnector | undefined;
+						if (params.connectorId) {
+							const connectorId = parseInt(params.connectorId, 10);
+							existingConnector = allConnectors.find(
+								(c: SearchSourceConnector) => c.id === connectorId
+							);
+						} else {
+							existingConnector = allConnectors.find(
+								(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+							);
+						}
 						if (existingConnector) {
-							// Validate connector data before setting state
 							const connectorValidation = searchSourceConnector.safeParse(existingConnector);
 							if (connectorValidation.success) {
 								const config = validateIndexingConfigState({
@@ -253,11 +261,19 @@ export const useConnectorDialog = () => {
 					refetchAllConnectors().then((result) => {
 						if (!result.data) return;
 
-						const newConnector = result.data.find(
-							(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
-						);
+						let newConnector: SearchSourceConnector | undefined;
+						if (params.connectorId) {
+							const connectorId = parseInt(params.connectorId, 10);
+							newConnector = result.data.find(
+								(c: SearchSourceConnector) => c.id === connectorId
+							);
+						} else {
+							newConnector = result.data.find(
+								(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+							);
+						}
+
 						if (newConnector) {
-							// Validate connector data before setting state
 							const connectorValidation = searchSourceConnector.safeParse(newConnector);
 							if (connectorValidation.success) {
 								const config = validateIndexingConfigState({
@@ -271,6 +287,7 @@ export const useConnectorDialog = () => {
 								setIsOpen(true);
 								const url = new URL(window.location.href);
 								url.searchParams.delete("success");
+								url.searchParams.set("connectorId", newConnector.id.toString());
 								url.searchParams.set("view", "configure");
 								window.history.replaceState({}, "", url.toString());
 							} else {
@@ -691,39 +708,6 @@ export const useConnectorDialog = () => {
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
 
-	// Handle adding a new account for OAuth connector (from accounts list view)
-	const handleAddAccountOAuth = useCallback(
-		async (connector: (typeof OAUTH_CONNECTORS)[number]) => {
-			if (!searchSpaceId || !connector.authEndpoint) return;
-
-			// Set connecting state
-			setConnectingId(connector.id);
-
-			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}?space_id=${searchSpaceId}`,
-					{ method: "GET" }
-				);
-
-				if (!response.ok) {
-					throw new Error(`Failed to initiate ${connector.title} OAuth`);
-				}
-
-				const data = await response.json();
-				const validatedData = parseOAuthAuthResponse(data);
-				window.location.href = validatedData.auth_url;
-			} catch (error) {
-				console.error(`Error connecting to ${connector.title}:`, error);
-				if (error instanceof Error && error.message.includes("Invalid auth URL")) {
-					toast.error(`Invalid response from ${connector.title} OAuth endpoint`);
-				} else {
-					toast.error(`Failed to connect to ${connector.title}`);
-				}
-				setConnectingId(null);
-			}
-		},
-		[searchSpaceId]
-	);
 
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(
@@ -1249,7 +1233,6 @@ export const useConnectorDialog = () => {
 		handleBackFromYouTube,
 		handleViewAccountsList,
 		handleBackFromAccountsList,
-		handleAddAccountOAuth,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,

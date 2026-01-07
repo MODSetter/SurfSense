@@ -86,7 +86,6 @@ export const ConnectorIndicator: FC = () => {
 		handleBackFromYouTube,
 		handleViewAccountsList,
 		handleBackFromAccountsList,
-		handleAddAccountOAuth,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
@@ -214,7 +213,7 @@ export const ConnectorIndicator: FC = () => {
 								(c) => c.connectorType === viewingAccountsType.connectorType
 							);
 							if (oauthConnector) {
-								handleAddAccountOAuth(oauthConnector);
+								handleConnectOAuth(oauthConnector);
 							}
 						}}
 						isConnecting={connectingId !== null}
