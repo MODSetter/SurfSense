@@ -277,7 +277,6 @@ async def airtable_callback(
                 status_code=400, detail="No access token received from Airtable"
             )
 
-        # Fetch user email before encrypting credentials
         user_email = await fetch_airtable_user_email(access_token)
 
 

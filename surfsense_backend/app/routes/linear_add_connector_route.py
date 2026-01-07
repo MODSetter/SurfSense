@@ -242,7 +242,7 @@ async def linear_callback(
                 status_code=400, detail="No access token received from Linear"
             )
 
-        # Fetch organization name before encrypting credentials
+        # Fetch organization name
         org_name = await fetch_linear_organization_name(access_token)
 
         # Calculate expiration time (UTC, tz-aware)

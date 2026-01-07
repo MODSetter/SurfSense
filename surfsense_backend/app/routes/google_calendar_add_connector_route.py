@@ -174,7 +174,7 @@ async def calendar_callback(
         creds = flow.credentials
         creds_dict = json.loads(creds.to_json())
 
-        # Fetch user email before encrypting credentials
+        # Fetch user email
         user_email = fetch_google_user_email(creds)
 
         # Encrypt sensitive credentials before storing

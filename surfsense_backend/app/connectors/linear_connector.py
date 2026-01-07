@@ -16,7 +16,6 @@ from sqlalchemy.future import select
 
 from app.config import config
 from app.db import SearchSourceConnector
-from app.routes.linear_add_connector_route import refresh_linear_token
 from app.schemas.linear_auth_credentials import LinearAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
@@ -168,6 +167,9 @@ class LinearConnector:
                     raise RuntimeError(
                         f"Connector {self._connector_id} not found; cannot refresh token."
                     )
+
+                # Lazy import to avoid circular dependency
+                from app.routes.linear_add_connector_route import refresh_linear_token
 
                 # Refresh token
                 connector = await refresh_linear_token(self._session, connector)
@@ -640,4 +642,3 @@ class LinearConnector:
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             return iso_date
-
