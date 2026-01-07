@@ -12,6 +12,7 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
+import { getConnectorDisplayName } from "./all-connectors-tab";
 
 interface ActiveConnectorsTabProps {
 	searchQuery: string;
@@ -171,7 +172,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 											</div>
 											<div className="flex-1 min-w-0">
 												<p className="text-[14px] font-semibold leading-tight truncate">
-													{connector.name}
+													{getConnectorDisplayName(connector.name)}
 												</p>
 												{isIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
