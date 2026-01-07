@@ -131,7 +131,11 @@ export function NavMain({ items }: NavMainProps) {
 												isActive={isActive}
 												aria-label={`${translatedTitle} with submenu`}
 											>
-												<button type="button" className="flex items-center gap-2 w-full text-left">
+												<button
+													type="button"
+													className="flex items-center gap-2 w-full text-left"
+													{...(item.title === "Sources" ? { "data-joyride": "sources-menu" } : {})}
+												>
 													<item.icon />
 													<span>{translatedTitle}</span>
 												</button>
@@ -152,10 +156,18 @@ export function NavMain({ items }: NavMainProps) {
 											<SidebarMenuSub>
 												{item.items?.map((subItem, subIndex) => {
 													const translatedSubTitle = translateTitle(subItem.title);
+													const isDocumentsLink =
+														subItem.title === "Manage Documents" ||
+														translatedSubTitle.toLowerCase().includes("documents");
 													return (
 														<SidebarMenuSubItem key={`${subItem.title}-${subIndex}`}>
 															<SidebarMenuSubButton asChild aria-label={translatedSubTitle}>
-																<a href={subItem.url}>
+																<a
+																	href={subItem.url}
+																	{...(isDocumentsLink
+																		? { "data-joyride": "documents-sidebar" }
+																		: {})}
+																>
 																	<span>{translatedSubTitle}</span>
 																</a>
 															</SidebarMenuSubButton>
@@ -173,7 +185,13 @@ export function NavMain({ items }: NavMainProps) {
 										isActive={isActive}
 										aria-label={translatedTitle}
 									>
-										<a href={item.url}>
+										<a
+											href={item.url}
+											{...(item.title === "Documents" ||
+											translatedTitle.toLowerCase() === "documents"
+												? { "data-joyride": "documents-sidebar" }
+												: {})}
+										>
 											<item.icon />
 											<span>{translatedTitle}</span>
 										</a>

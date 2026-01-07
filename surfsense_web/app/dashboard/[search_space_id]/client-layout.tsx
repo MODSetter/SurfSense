@@ -17,6 +17,7 @@ import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-quer
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { OnboardingTour } from "@/components/onboarding-tour";
 import { AppSidebarProvider } from "@/components/sidebar/AppSidebarProvider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -242,6 +243,7 @@ export function DashboardClientLayout({
 
 	return (
 		<DocumentUploadDialogProvider>
+			<OnboardingTour />
 			<SidebarProvider className="h-full overflow-hidden" open={open} onOpenChange={setOpen}>
 				{/* Use AppSidebarProvider which fetches user, search space, and recent chats */}
 				<AppSidebarProvider
