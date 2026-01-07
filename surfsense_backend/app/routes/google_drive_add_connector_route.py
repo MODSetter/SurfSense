@@ -29,6 +29,7 @@ from app.connectors.google_drive import (
     get_start_page_token,
     list_folder_contents,
 )
+from app.connectors.google_gmail_connector import fetch_google_user_email
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -36,8 +37,8 @@ from app.db import (
     get_async_session,
 )
 from app.users import current_active_user
+from app.utils.connector_naming import generate_unique_connector_name
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
-from app.utils.connector_naming import generate_unique_connector_name, extract_identifier_from_credentials
 
 # Relax token scope validation for Google OAuth
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
@@ -228,6 +229,9 @@ async def drive_callback(
         creds = flow.credentials
         creds_dict = json.loads(creds.to_json())
 
+        # Fetch user email before encrypting credentials
+        user_email = fetch_google_user_email(creds)
+
         # Encrypt sensitive credentials before storing
         token_encryption = get_token_encryption()
 
@@ -246,13 +250,13 @@ async def drive_callback(
         # Mark that credentials are encrypted for backward compatibility
         creds_dict["_token_encrypted"] = True
 
-        # Extract unique identifier from connector credentials
-        connector_identifier = extract_identifier_from_credentials(
-            SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR, creds_dict
-        )
-        # Generate a unique, user-friendly connector name from credentials/account info
-        connector_name = generate_unique_connector_name(
-            SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR, connector_identifier
+        # Generate a unique, user-friendly connector name
+        connector_name = await generate_unique_connector_name(
+            session,
+            SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+            space_id,
+            user_id,
+            user_email,
         )
 
         db_connector = SearchSourceConnector(
