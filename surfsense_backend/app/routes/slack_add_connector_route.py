@@ -14,7 +14,6 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
 from app.db import (

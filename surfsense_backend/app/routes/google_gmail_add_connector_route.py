@@ -12,7 +12,6 @@ from google_auth_oauthlib.flow import Flow
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
 from app.connectors.google_gmail_connector import fetch_google_user_email
@@ -23,7 +22,10 @@ from app.db import (
     get_async_session,
 )
 from app.users import current_active_user
-from app.utils.connector_naming import check_duplicate_connector, generate_unique_connector_name
+from app.utils.connector_naming import (
+    check_duplicate_connector,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)

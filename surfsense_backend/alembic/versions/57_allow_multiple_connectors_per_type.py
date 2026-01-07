@@ -7,6 +7,7 @@ Create Date: 2026-01-06 12:00:00.000000
 """
 
 from collections.abc import Sequence
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -16,6 +17,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 from sqlalchemy import text
+
 
 def upgrade() -> None:
     connection = op.get_bind()
@@ -31,8 +33,9 @@ def upgrade() -> None:
         op.drop_constraint(
             "uq_searchspace_user_connector_type",
             "search_source_connectors",
-            type_="unique"
+            type_="unique",
         )
+
 
 def downgrade() -> None:
     connection = op.get_bind()
@@ -48,6 +51,5 @@ def downgrade() -> None:
         op.create_unique_constraint(
             "uq_searchspace_user_connector_type",
             "search_source_connectors",
-            ["search_space_id", "user_id", "connector_type"]
+            ["search_space_id", "user_id", "connector_type"],
         )
-

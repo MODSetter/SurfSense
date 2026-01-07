@@ -37,7 +37,10 @@ from app.db import (
     get_async_session,
 )
 from app.users import current_active_user
-from app.utils.connector_naming import check_duplicate_connector, generate_unique_connector_name
+from app.utils.connector_naming import (
+    check_duplicate_connector,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 # Relax token scope validation for Google OAuth

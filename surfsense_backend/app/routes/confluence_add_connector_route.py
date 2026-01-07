@@ -14,7 +14,6 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
 from app.db import (
@@ -25,12 +24,12 @@ from app.db import (
 )
 from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
 from app.users import current_active_user
-from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 from app.utils.connector_naming import (
     check_duplicate_connector,
     extract_identifier_from_credentials,
     generate_unique_connector_name,
 )
+from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
 

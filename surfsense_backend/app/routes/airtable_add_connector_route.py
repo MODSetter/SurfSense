@@ -11,19 +11,21 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
+from app.connectors.airtable_connector import fetch_airtable_user_email
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
     User,
     get_async_session,
 )
-from app.connectors.airtable_connector import fetch_airtable_user_email
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.users import current_active_user
-from app.utils.connector_naming import check_duplicate_connector, generate_unique_connector_name
+from app.utils.connector_naming import (
+    check_duplicate_connector,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -278,7 +280,6 @@ async def airtable_callback(
             )
 
         user_email = await fetch_airtable_user_email(access_token)
-
 
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None

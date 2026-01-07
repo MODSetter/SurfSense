@@ -14,19 +14,21 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
+from app.connectors.linear_connector import fetch_linear_organization_name
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
     User,
     get_async_session,
 )
-from app.connectors.linear_connector import fetch_linear_organization_name
 from app.schemas.linear_auth_credentials import LinearAuthCredentialsBase
 from app.users import current_active_user
-from app.utils.connector_naming import check_duplicate_connector, generate_unique_connector_name
+from app.utils.connector_naming import (
+    check_duplicate_connector,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)

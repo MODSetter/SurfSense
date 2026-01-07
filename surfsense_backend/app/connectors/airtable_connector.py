@@ -414,7 +414,9 @@ async def fetch_airtable_user_email(access_token: str) -> str | None:
                     logger.debug(f"Fetched Airtable user email: {email}")
                     return email
 
-            logger.warning(f"Failed to fetch Airtable user info: {response.status_code}")
+            logger.warning(
+                f"Failed to fetch Airtable user info: {response.status_code}"
+            )
             return None
 
     except Exception as e:
