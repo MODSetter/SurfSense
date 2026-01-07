@@ -17,6 +17,7 @@ interface ConnectorCardProps {
 	isConnected?: boolean;
 	isConnecting?: boolean;
 	documentCount?: number;
+	accountCount?: number;
 	lastIndexedAt?: string | null;
 	isIndexing?: boolean;
 	activeTask?: LogActiveTask;
@@ -96,6 +97,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	isConnected = false,
 	isConnecting = false,
 	documentCount,
+	accountCount,
 	lastIndexedAt,
 	isIndexing = false,
 	activeTask,
@@ -154,8 +156,14 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				</div>
 				<div className="text-[10px] text-muted-foreground mt-1">{getStatusContent()}</div>
 				{isConnected && documentCount !== undefined && (
-					<p className="text-[10px] text-muted-foreground mt-0.5">
-						{formatDocumentCount(documentCount)}
+					<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+						<span>{formatDocumentCount(documentCount)}</span>
+						{accountCount !== undefined && accountCount > 0 && (
+							<>
+								<span className="text-muted-foreground/50">•</span>
+								<span>{accountCount} {accountCount === 1 ? "Account" : "Accounts"}</span>
+							</>
+						)}
 					</p>
 				)}
 			</div>

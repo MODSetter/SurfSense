@@ -147,6 +147,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
                   isConnected={isConnected}
                   isConnecting={isConnecting}
                   documentCount={documentCount}
+                  accountCount={typeConnectors.length}
                   lastIndexedAt={mostRecentLastIndexed}
                   isIndexing={isIndexing}
                   activeTask={activeTask}

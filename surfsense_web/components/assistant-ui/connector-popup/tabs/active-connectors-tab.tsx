@@ -200,10 +200,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
 											)}
 										>
-											{/* Account count badge */}
-											<div className="absolute -top-2 -right-2 flex h-5 items-center justify-center rounded-md bg-primary px-2 text-[10px] font-semibold text-primary-foreground whitespace-nowrap">
-												{accountCount > 99 ? "99+" : accountCount} {accountCount === 1 ? "Account" : "Accounts"}
-											</div>
 											<div
 												className={cn(
 													"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
@@ -230,8 +226,10 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 															: "Never indexed"}
 													</p>
 												)}
-												<p className="text-[10px] text-muted-foreground mt-0.5">
-													{formatDocumentCount(documentCount)}
+												<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+													<span>{formatDocumentCount(documentCount)}</span>
+													<span className="text-muted-foreground/50">•</span>
+													<span>{accountCount} {accountCount === 1 ? "Account" : "Accounts"}</span>
 												</p>
 											</div>
 											<Button
