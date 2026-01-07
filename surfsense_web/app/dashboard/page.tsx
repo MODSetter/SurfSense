@@ -177,10 +177,10 @@ const DashboardPage = () => {
 	// Auto-redirect to chat for users with exactly 1 search space, or auto-create if none
 	useEffect(() => {
 		const handleAutoRedirect = async () => {
-			// Don't run if still loading or already attempted
+			
 			if (loading || hasAttemptedAutoCreate.current) return;
 
-			// If user has exactly 1 search space, redirect to its chat
+			
 			if (searchSpaces.length === 1) {
 				router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
 				return;
@@ -190,8 +190,7 @@ const DashboardPage = () => {
 				return;
 			}
 
-			// If no search spaces exist (edge case for users who registered before this feature),
-			// auto-create one and redirect
+			
 			hasAttemptedAutoCreate.current = true;
 			setIsAutoCreating(true);
 
