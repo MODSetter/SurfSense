@@ -161,7 +161,9 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 						{accountCount !== undefined && accountCount > 0 && (
 							<>
 								<span className="text-muted-foreground/50">•</span>
-								<span>{accountCount} {accountCount === 1 ? "Account" : "Accounts"}</span>
+								<span>
+									{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
+								</span>
 							</>
 						)}
 					</p>

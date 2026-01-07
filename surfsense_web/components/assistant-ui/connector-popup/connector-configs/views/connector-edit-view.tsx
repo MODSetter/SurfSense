@@ -148,7 +148,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							{getConnectorIcon(connector.connector_type, "size-7")}
 						</div>
 						<div className="flex-1 min-w-0">
-							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal wrap-break-word">{connector.name}</h2>
+							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal wrap-break-word">
+								{connector.name}
+							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
 								Manage your connector settings and sync configuration
 							</p>

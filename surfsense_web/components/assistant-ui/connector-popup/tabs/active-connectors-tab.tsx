@@ -83,7 +83,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	};
 
 	// Get most recent last indexed date from a list of connectors
-	const getMostRecentLastIndexed = (connectorsList: SearchSourceConnector[]): string | undefined => {
+	const getMostRecentLastIndexed = (
+		connectorsList: SearchSourceConnector[]
+	): string | undefined => {
 		return connectorsList.reduce<string | undefined>((latest, c) => {
 			if (!c.last_indexed_at) return latest;
 			if (!latest) return c.last_indexed_at;
@@ -131,20 +133,27 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	const getOAuthConnectorTypeInfo = (connectorType: string) => {
 		const oauthConnector = OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType);
 		return {
-			title: oauthConnector?.title || connectorType.replace(/_/g, " ").replace(/connector/gi, "").trim(),
+			title:
+				oauthConnector?.title ||
+				connectorType
+					.replace(/_/g, " ")
+					.replace(/connector/gi, "")
+					.trim(),
 		};
 	};
 
 	// Filter OAuth connector types based on search query
-	const filteredOAuthConnectorTypes = Object.entries(oauthConnectorsByType).filter(([connectorType]) => {
-		if (!searchQuery) return true;
-		const searchLower = searchQuery.toLowerCase();
-		const { title } = getOAuthConnectorTypeInfo(connectorType);
-		return (
-			title.toLowerCase().includes(searchLower) ||
-			connectorType.toLowerCase().includes(searchLower)
-		);
-	});
+	const filteredOAuthConnectorTypes = Object.entries(oauthConnectorsByType).filter(
+		([connectorType]) => {
+			if (!searchQuery) return true;
+			const searchLower = searchQuery.toLowerCase();
+			const { title } = getOAuthConnectorTypeInfo(connectorType);
+			return (
+				title.toLowerCase().includes(searchLower) ||
+				connectorType.toLowerCase().includes(searchLower)
+			);
+		}
+	);
 
 	// Filter non-OAuth connectors based on search query
 	const filteredNonOAuthConnectors = nonOauthConnectors.filter((connector) => {
@@ -156,7 +165,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		);
 	});
 
-	const hasActiveConnectors = filteredOAuthConnectorTypes.length > 0 || filteredNonOAuthConnectors.length > 0;
+	const hasActiveConnectors =
+		filteredOAuthConnectorTypes.length > 0 || filteredNonOAuthConnectors.length > 0;
 
 	return (
 		<TabsContent value="active" className="m-0">
@@ -172,8 +182,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 								{/* OAuth Connectors - Grouped by Type */}
 								{filteredOAuthConnectorTypes.map(([connectorType, typeConnectors]) => {
 									const { title } = getOAuthConnectorTypeInfo(connectorType);
-									const isAnyIndexing = typeConnectors.some(
-										(c: SearchSourceConnector) => indexingConnectorIds.has(c.id)
+									const isAnyIndexing = typeConnectors.some((c: SearchSourceConnector) =>
+										indexingConnectorIds.has(c.id)
 									);
 									const documentCount = getDocumentCountForConnector(
 										connectorType,
@@ -211,9 +221,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												{getConnectorIcon(connectorType, "size-6")}
 											</div>
 											<div className="flex-1 min-w-0">
-												<p className="text-[14px] font-semibold leading-tight truncate">
-													{title}
-												</p>
+												<p className="text-[14px] font-semibold leading-tight truncate">{title}</p>
 												{isAnyIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
@@ -229,7 +237,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
 													<span>{formatDocumentCount(documentCount)}</span>
 													<span className="text-muted-foreground/50">•</span>
-													<span>{accountCount} {accountCount === 1 ? "Account" : "Accounts"}</span>
+													<span>
+														{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
+													</span>
 												</p>
 											</div>
 											<Button

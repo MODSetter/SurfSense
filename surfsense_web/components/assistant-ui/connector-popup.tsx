@@ -316,19 +316,19 @@ export const ConnectorIndicator: FC = () => {
 										/>
 									</TabsContent>
 
-								<ActiveConnectorsTab
-									searchQuery={searchQuery}
-									hasSources={hasSources}
-									totalSourceCount={totalSourceCount}
-									activeDocumentTypes={activeDocumentTypes}
-									connectors={connectors as SearchSourceConnector[]}
-									indexingConnectorIds={indexingConnectorIds}
-									logsSummary={logsSummary}
-									searchSpaceId={searchSpaceId}
-									onTabChange={handleTabChange}
-									onManage={handleStartEdit}
-									onViewAccountsList={handleViewAccountsList}
-								/>
+									<ActiveConnectorsTab
+										searchQuery={searchQuery}
+										hasSources={hasSources}
+										totalSourceCount={totalSourceCount}
+										activeDocumentTypes={activeDocumentTypes}
+										connectors={connectors as SearchSourceConnector[]}
+										indexingConnectorIds={indexingConnectorIds}
+										logsSummary={logsSummary}
+										searchSpaceId={searchSpaceId}
+										onTabChange={handleTabChange}
+										onManage={handleStartEdit}
+										onViewAccountsList={handleViewAccountsList}
+									/>
 								</div>
 							</div>
 							{/* Bottom fade shadow */}

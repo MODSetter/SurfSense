@@ -243,7 +243,14 @@ export const useConnectorDialog = () => {
 			console.warn("Invalid connector popup query params:", error);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [searchParams, allConnectors, editingConnector, indexingConfig, connectingConnectorType, viewingAccountsType]);
+	}, [
+		searchParams,
+		allConnectors,
+		editingConnector,
+		indexingConfig,
+		connectingConnectorType,
+		viewingAccountsType,
+	]);
 
 	// Detect OAuth success / Failure and transition to config view
 	useEffect(() => {
@@ -292,9 +299,7 @@ export const useConnectorDialog = () => {
 						let newConnector: SearchSourceConnector | undefined;
 						if (params.connectorId) {
 							const connectorId = parseInt(params.connectorId, 10);
-							newConnector = result.data.find(
-								(c: SearchSourceConnector) => c.id === connectorId
-							);
+							newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
 						} else {
 							newConnector = result.data.find(
 								(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
@@ -736,7 +741,6 @@ export const useConnectorDialog = () => {
 		url.searchParams.delete("connectorType");
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
-
 
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(

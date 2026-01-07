@@ -6,11 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { ConnectorCard } from "../components/connector-card";
-import {
-  CRAWLERS,
-  OAUTH_CONNECTORS,
-  OTHER_CONNECTORS,
-} from "../constants/connector-constants";
+import { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 /**
@@ -19,293 +15,271 @@ import { getDocumentCountForConnector } from "../utils/connector-document-mappin
  * Returns just the identifier (e.g : john@example.com).
  */
 export function getConnectorDisplayName(fullName: string): string {
-  const separatorIndex = fullName.indexOf(" - ");
-  if (separatorIndex !== -1) {
-    return fullName.substring(separatorIndex + 3);
-  }
-  return fullName;
+	const separatorIndex = fullName.indexOf(" - ");
+	if (separatorIndex !== -1) {
+		return fullName.substring(separatorIndex + 3);
+	}
+	return fullName;
 }
 
 interface AllConnectorsTabProps {
-  searchQuery: string;
-  searchSpaceId: string;
-  connectedTypes: Set<string>;
-  connectingId: string | null;
-  allConnectors: SearchSourceConnector[] | undefined;
-  documentTypeCounts?: Record<string, number>;
-  indexingConnectorIds?: Set<number>;
-  logsSummary?: LogSummary;
-  onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[number]) => void;
-  onConnectNonOAuth?: (connectorType: string) => void;
-  onCreateWebcrawler?: () => void;
-  onCreateYouTubeCrawler?: () => void;
-  onManage?: (connector: SearchSourceConnector) => void;
-  onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
+	searchQuery: string;
+	searchSpaceId: string;
+	connectedTypes: Set<string>;
+	connectingId: string | null;
+	allConnectors: SearchSourceConnector[] | undefined;
+	documentTypeCounts?: Record<string, number>;
+	indexingConnectorIds?: Set<number>;
+	logsSummary?: LogSummary;
+	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[number]) => void;
+	onConnectNonOAuth?: (connectorType: string) => void;
+	onCreateWebcrawler?: () => void;
+	onCreateYouTubeCrawler?: () => void;
+	onManage?: (connector: SearchSourceConnector) => void;
+	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
 }
 
 export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
-  searchQuery,
-  searchSpaceId,
-  connectedTypes,
-  connectingId,
-  allConnectors,
-  documentTypeCounts,
-  indexingConnectorIds,
-  logsSummary,
-  onConnectOAuth,
-  onConnectNonOAuth,
-  onCreateWebcrawler,
-  onCreateYouTubeCrawler,
-  onManage,
-  onViewAccountsList,
+	searchQuery,
+	searchSpaceId,
+	connectedTypes,
+	connectingId,
+	allConnectors,
+	documentTypeCounts,
+	indexingConnectorIds,
+	logsSummary,
+	onConnectOAuth,
+	onConnectNonOAuth,
+	onCreateWebcrawler,
+	onCreateYouTubeCrawler,
+	onManage,
+	onViewAccountsList,
 }) => {
-  // Helper to find active task for a connector
-  const getActiveTaskForConnector = (
-    connectorId: number
-  ): LogActiveTask | undefined => {
-    if (!logsSummary?.active_tasks) return undefined;
-    return logsSummary.active_tasks.find(
-      (task: LogActiveTask) => task.connector_id === connectorId
-    );
-  };
+	// Helper to find active task for a connector
+	const getActiveTaskForConnector = (connectorId: number): LogActiveTask | undefined => {
+		if (!logsSummary?.active_tasks) return undefined;
+		return logsSummary.active_tasks.find(
+			(task: LogActiveTask) => task.connector_id === connectorId
+		);
+	};
 
-  // Filter connectors based on search
-  const filteredOAuth = OAUTH_CONNECTORS.filter(
-    (c) =>
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+	// Filter connectors based on search
+	const filteredOAuth = OAUTH_CONNECTORS.filter(
+		(c) =>
+			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			c.description.toLowerCase().includes(searchQuery.toLowerCase())
+	);
 
-  const filteredCrawlers = CRAWLERS.filter(
-    (c) =>
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+	const filteredCrawlers = CRAWLERS.filter(
+		(c) =>
+			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			c.description.toLowerCase().includes(searchQuery.toLowerCase())
+	);
 
-  const filteredOther = OTHER_CONNECTORS.filter(
-    (c) =>
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+	const filteredOther = OTHER_CONNECTORS.filter(
+		(c) =>
+			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			c.description.toLowerCase().includes(searchQuery.toLowerCase())
+	);
 
-  return (
-    <div className="space-y-8">
-      {/* Quick Connect */}
-      {filteredOAuth.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              Quick Connect
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filteredOAuth.map((connector) => {
-              const isConnected = connectedTypes.has(connector.connectorType);
-              const isConnecting = connectingId === connector.id;
-              
-              // Find all connectors of this type
-              const typeConnectors =
-                isConnected && allConnectors
-                  ? allConnectors.filter(
-                      (c: SearchSourceConnector) =>
-                        c.connector_type === connector.connectorType
-                    )
-                  : [];
+	return (
+		<div className="space-y-8">
+			{/* Quick Connect */}
+			{filteredOAuth.length > 0 && (
+				<section>
+					<div className="flex items-center gap-2 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground">Quick Connect</h3>
+					</div>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						{filteredOAuth.map((connector) => {
+							const isConnected = connectedTypes.has(connector.connectorType);
+							const isConnecting = connectingId === connector.id;
 
-              // Get the most recent last_indexed_at across all accounts
-              const mostRecentLastIndexed = typeConnectors.reduce<string | undefined>(
-                (latest, c) => {
-                  if (!c.last_indexed_at) return latest;
-                  if (!latest) return c.last_indexed_at;
-                  return new Date(c.last_indexed_at) > new Date(latest) ? c.last_indexed_at : latest;
-                },
-                undefined
-              );
+							// Find all connectors of this type
+							const typeConnectors =
+								isConnected && allConnectors
+									? allConnectors.filter(
+											(c: SearchSourceConnector) => c.connector_type === connector.connectorType
+										)
+									: [];
 
-              const documentCount = getDocumentCountForConnector(
-                connector.connectorType,
-                documentTypeCounts
-              );
-              
-              // Check if any account is currently indexing
-              const isIndexing = typeConnectors.some(
-                (c) => indexingConnectorIds?.has(c.id)
-              );
-              
-              // Get active task from any indexing account
-              const activeTask = typeConnectors
-                .map((c) => getActiveTaskForConnector(c.id))
-                .find((task) => task !== undefined);
+							// Get the most recent last_indexed_at across all accounts
+							const mostRecentLastIndexed = typeConnectors.reduce<string | undefined>(
+								(latest, c) => {
+									if (!c.last_indexed_at) return latest;
+									if (!latest) return c.last_indexed_at;
+									return new Date(c.last_indexed_at) > new Date(latest)
+										? c.last_indexed_at
+										: latest;
+								},
+								undefined
+							);
 
-              return (
-                <ConnectorCard
-                  key={connector.id}
-                  id={connector.id}
-                  title={connector.title}
-                  description={connector.description}
-                  connectorType={connector.connectorType}
-                  isConnected={isConnected}
-                  isConnecting={isConnecting}
-                  documentCount={documentCount}
-                  accountCount={typeConnectors.length}
-                  lastIndexedAt={mostRecentLastIndexed}
-                  isIndexing={isIndexing}
-                  activeTask={activeTask}
-                  onConnect={() => onConnectOAuth(connector)}
-                  onManage={
-                    isConnected && onViewAccountsList
-                      ? () => onViewAccountsList(connector.connectorType, connector.title)
-                      : undefined
-                  }
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
+							const documentCount = getDocumentCountForConnector(
+								connector.connectorType,
+								documentTypeCounts
+							);
 
-      {/* More Integrations */}
-      {filteredOther.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              More Integrations
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filteredOther.map((connector) => {
-              const isConnected = connectedTypes.has(connector.connectorType);
-              const isConnecting = connectingId === connector.id;
+							// Check if any account is currently indexing
+							const isIndexing = typeConnectors.some((c) => indexingConnectorIds?.has(c.id));
 
-              // Find the actual connector object if connected
-              const actualConnector =
-                isConnected && allConnectors
-                  ? allConnectors.find(
-                      (c: SearchSourceConnector) =>
-                        c.connector_type === connector.connectorType
-                    )
-                  : undefined;
+							// Get active task from any indexing account
+							const activeTask = typeConnectors
+								.map((c) => getActiveTaskForConnector(c.id))
+								.find((task) => task !== undefined);
 
-              const documentCount = getDocumentCountForConnector(
-                connector.connectorType,
-                documentTypeCounts
-              );
-              const isIndexing =
-                actualConnector &&
-                indexingConnectorIds?.has(actualConnector.id);
-              const activeTask = actualConnector
-                ? getActiveTaskForConnector(actualConnector.id)
-                : undefined;
+							return (
+								<ConnectorCard
+									key={connector.id}
+									id={connector.id}
+									title={connector.title}
+									description={connector.description}
+									connectorType={connector.connectorType}
+									isConnected={isConnected}
+									isConnecting={isConnecting}
+									documentCount={documentCount}
+									accountCount={typeConnectors.length}
+									lastIndexedAt={mostRecentLastIndexed}
+									isIndexing={isIndexing}
+									activeTask={activeTask}
+									onConnect={() => onConnectOAuth(connector)}
+									onManage={
+										isConnected && onViewAccountsList
+											? () => onViewAccountsList(connector.connectorType, connector.title)
+											: undefined
+									}
+								/>
+							);
+						})}
+					</div>
+				</section>
+			)}
 
-              const handleConnect = onConnectNonOAuth
-                ? () => onConnectNonOAuth(connector.connectorType)
-                : () => {}; // Fallback - connector popup should handle all connector types
+			{/* More Integrations */}
+			{filteredOther.length > 0 && (
+				<section>
+					<div className="flex items-center gap-2 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground">More Integrations</h3>
+					</div>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						{filteredOther.map((connector) => {
+							const isConnected = connectedTypes.has(connector.connectorType);
+							const isConnecting = connectingId === connector.id;
 
-              return (
-                <ConnectorCard
-                  key={connector.id}
-                  id={connector.id}
-                  title={connector.title}
-                  description={connector.description}
-                  connectorType={connector.connectorType}
-                  isConnected={isConnected}
-                  isConnecting={isConnecting}
-                  documentCount={documentCount}
-                  lastIndexedAt={actualConnector?.last_indexed_at}
-                  isIndexing={isIndexing}
-                  activeTask={activeTask}
-                  onConnect={handleConnect}
-                  onManage={
-                    actualConnector && onManage
-                      ? () => onManage(actualConnector)
-                      : undefined
-                  }
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
+							// Find the actual connector object if connected
+							const actualConnector =
+								isConnected && allConnectors
+									? allConnectors.find(
+											(c: SearchSourceConnector) => c.connector_type === connector.connectorType
+										)
+									: undefined;
 
-      {/* Content Sources */}
-      {filteredCrawlers.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              Content Sources
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filteredCrawlers.map((crawler) => {
-              const isYouTube = crawler.id === "youtube-crawler";
-              const isWebcrawler = crawler.id === "webcrawler-connector";
+							const documentCount = getDocumentCountForConnector(
+								connector.connectorType,
+								documentTypeCounts
+							);
+							const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
+							const activeTask = actualConnector
+								? getActiveTaskForConnector(actualConnector.id)
+								: undefined;
 
-              // For crawlers that are actual connectors, check connection status
-              const isConnected = crawler.connectorType
-                ? connectedTypes.has(crawler.connectorType)
-                : false;
-              const isConnecting = connectingId === crawler.id;
+							const handleConnect = onConnectNonOAuth
+								? () => onConnectNonOAuth(connector.connectorType)
+								: () => {}; // Fallback - connector popup should handle all connector types
 
-              // Find the actual connector object if connected
-              const actualConnector =
-                isConnected && crawler.connectorType && allConnectors
-                  ? allConnectors.find(
-                      (c: SearchSourceConnector) =>
-                        c.connector_type === crawler.connectorType
-                    )
-                  : undefined;
+							return (
+								<ConnectorCard
+									key={connector.id}
+									id={connector.id}
+									title={connector.title}
+									description={connector.description}
+									connectorType={connector.connectorType}
+									isConnected={isConnected}
+									isConnecting={isConnecting}
+									documentCount={documentCount}
+									lastIndexedAt={actualConnector?.last_indexed_at}
+									isIndexing={isIndexing}
+									activeTask={activeTask}
+									onConnect={handleConnect}
+									onManage={
+										actualConnector && onManage ? () => onManage(actualConnector) : undefined
+									}
+								/>
+							);
+						})}
+					</div>
+				</section>
+			)}
 
-              const documentCount = crawler.connectorType
-                ? getDocumentCountForConnector(
-                    crawler.connectorType,
-                    documentTypeCounts
-                  )
-                : undefined;
-              const isIndexing =
-                actualConnector &&
-                indexingConnectorIds?.has(actualConnector.id);
-              const activeTask = actualConnector
-                ? getActiveTaskForConnector(actualConnector.id)
-                : undefined;
+			{/* Content Sources */}
+			{filteredCrawlers.length > 0 && (
+				<section>
+					<div className="flex items-center gap-2 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground">Content Sources</h3>
+					</div>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						{filteredCrawlers.map((crawler) => {
+							const isYouTube = crawler.id === "youtube-crawler";
+							const isWebcrawler = crawler.id === "webcrawler-connector";
 
-              const handleConnect =
-                isYouTube && onCreateYouTubeCrawler
-                  ? onCreateYouTubeCrawler
-                  : isWebcrawler && onCreateWebcrawler
-                  ? onCreateWebcrawler
-                  : crawler.connectorType && onConnectNonOAuth
-                  ? () => {
-                      if (crawler.connectorType) {
-                        onConnectNonOAuth(crawler.connectorType);
-                      }
-                    }
-                  : () => {}; // Fallback for non-connector crawlers
+							// For crawlers that are actual connectors, check connection status
+							const isConnected = crawler.connectorType
+								? connectedTypes.has(crawler.connectorType)
+								: false;
+							const isConnecting = connectingId === crawler.id;
 
-              return (
-                <ConnectorCard
-                  key={crawler.id}
-                  id={crawler.id}
-                  title={crawler.title}
-                  description={crawler.description}
-                  connectorType={crawler.connectorType || undefined}
-                  isConnected={isConnected}
-                  isConnecting={isConnecting}
-                  documentCount={documentCount}
-                  lastIndexedAt={actualConnector?.last_indexed_at}
-                  isIndexing={isIndexing}
-                  activeTask={activeTask}
-                  onConnect={handleConnect}
-                  onManage={
-                    actualConnector && onManage
-                      ? () => onManage(actualConnector)
-                      : undefined
-                  }
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
-    </div>
-  );
+							// Find the actual connector object if connected
+							const actualConnector =
+								isConnected && crawler.connectorType && allConnectors
+									? allConnectors.find(
+											(c: SearchSourceConnector) => c.connector_type === crawler.connectorType
+										)
+									: undefined;
+
+							const documentCount = crawler.connectorType
+								? getDocumentCountForConnector(crawler.connectorType, documentTypeCounts)
+								: undefined;
+							const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
+							const activeTask = actualConnector
+								? getActiveTaskForConnector(actualConnector.id)
+								: undefined;
+
+							const handleConnect =
+								isYouTube && onCreateYouTubeCrawler
+									? onCreateYouTubeCrawler
+									: isWebcrawler && onCreateWebcrawler
+										? onCreateWebcrawler
+										: crawler.connectorType && onConnectNonOAuth
+											? () => {
+													if (crawler.connectorType) {
+														onConnectNonOAuth(crawler.connectorType);
+													}
+												}
+											: () => {}; // Fallback for non-connector crawlers
+
+							return (
+								<ConnectorCard
+									key={crawler.id}
+									id={crawler.id}
+									title={crawler.title}
+									description={crawler.description}
+									connectorType={crawler.connectorType || undefined}
+									isConnected={isConnected}
+									isConnecting={isConnecting}
+									documentCount={documentCount}
+									lastIndexedAt={actualConnector?.last_indexed_at}
+									isIndexing={isIndexing}
+									activeTask={activeTask}
+									onConnect={handleConnect}
+									onManage={
+										actualConnector && onManage ? () => onManage(actualConnector) : undefined
+									}
+								/>
+							);
+						})}
+					</div>
+				</section>
+			)}
+		</div>
+	);
 };

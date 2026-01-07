@@ -1,17 +1,17 @@
 "use client";
 
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
-import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import { OAUTH_CONNECTORS, type IndexingConfigState } from "../../constants/connector-constants";
-import { getConnectorConfigComponent } from "../index";
-import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
+import { type IndexingConfigState, OAUTH_CONNECTORS } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
+import { getConnectorConfigComponent } from "../index";
 
 interface IndexingConfigurationViewProps {
 	config: IndexingConfigState;
@@ -121,7 +121,12 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 					</div>
 					<div>
 						<div className="flex flex-col">
-							<span className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal wrap-break-word">{getConnectorTypeDisplay(connector?.connector_type || "")} Connected !</span> <span className="text-xl sm:text-xl font-semibold text-muted-foreground tracking-tight text-wrap whitespace-normal wrap-break-word">{getConnectorDisplayName(connector?.name || "")}</span>
+							<span className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal wrap-break-word">
+								{getConnectorTypeDisplay(connector?.connector_type || "")} Connected !
+							</span>{" "}
+							<span className="text-xl sm:text-xl font-semibold text-muted-foreground tracking-tight text-wrap whitespace-normal wrap-break-word">
+								{getConnectorDisplayName(connector?.name || "")}
+							</span>
 						</div>
 						<p className="text-xs sm:text-base text-muted-foreground mt-1">
 							Configure when to start syncing your data

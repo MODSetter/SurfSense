@@ -187,4 +187,3 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 		</div>
 	);
 };
-
