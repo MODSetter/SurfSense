@@ -72,6 +72,13 @@ export const OAUTH_CONNECTORS = [
 		connectorType: EnumConnectorName.CONFLUENCE_CONNECTOR,
 		authEndpoint: "/api/v1/auth/confluence/connector/add/",
 	},
+	{
+		id: "clickup-connector",
+		title: "ClickUp",
+		description: "Search ClickUp tasks",
+		connectorType: EnumConnectorName.CLICKUP_CONNECTOR,
+		authEndpoint: "/api/v1/auth/clickup/connector/add/",
+	},
 ] as const;
 
 // Content Sources (tools that extract and import content from external sources)
@@ -103,12 +110,6 @@ export const OTHER_CONNECTORS = [
 		title: "GitHub",
 		description: "Search repositories",
 		connectorType: EnumConnectorName.GITHUB_CONNECTOR,
-	},
-	{
-		id: "clickup-connector",
-		title: "ClickUp",
-		description: "Search ClickUp tasks",
-		connectorType: EnumConnectorName.CLICKUP_CONNECTOR,
 	},
 	{
 		id: "luma-connector",

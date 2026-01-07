@@ -2,13 +2,14 @@
 ClickUp connector indexer.
 """
 
+import contextlib
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.connectors.clickup_connector import ClickUpConnector
+from app.connectors.clickup_history import ClickUpHistoryConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
@@ -82,26 +83,30 @@ async def index_clickup_tasks(
             )
             return 0, error_msg
 
-        # Extract ClickUp configuration
-        clickup_api_token = connector.config.get("CLICKUP_API_TOKEN")
+        # Check if using OAuth (has access_token in config) or legacy (has CLICKUP_API_TOKEN)
+        has_oauth = connector.config.get("access_token") is not None
+        has_legacy = connector.config.get("CLICKUP_API_TOKEN") is not None
 
-        if not clickup_api_token:
-            error_msg = "ClickUp API token not found in connector configuration"
+        if not has_oauth and not has_legacy:
+            error_msg = "ClickUp credentials not found in connector configuration (neither OAuth nor API token)"
             await task_logger.log_task_failure(
                 log_entry,
-                f"ClickUp API token not found in connector config for connector {connector_id}",
-                "Missing ClickUp token",
-                {"error_type": "MissingToken"},
+                f"ClickUp credentials not found in connector config for connector {connector_id}",
+                "Missing ClickUp credentials",
+                {"error_type": "MissingCredentials"},
             )
             return 0, error_msg
 
         await task_logger.log_task_progress(
             log_entry,
-            f"Initializing ClickUp client for connector {connector_id}",
+            f"Initializing ClickUp client for connector {connector_id} ({'OAuth' if has_oauth else 'API Token'})",
             {"stage": "client_initialization"},
         )
 
-        clickup_client = ClickUpConnector(api_token=clickup_api_token)
+        # Use history connector which supports both OAuth and legacy API tokens
+        clickup_client = ClickUpHistoryConnector(
+            session=session, connector_id=connector_id
+        )
 
         # Get authorized workspaces
         await task_logger.log_task_progress(
@@ -110,7 +115,7 @@ async def index_clickup_tasks(
             {"stage": "workspace_fetching"},
         )
 
-        workspaces_response = clickup_client.get_authorized_workspaces()
+        workspaces_response = await clickup_client.get_authorized_workspaces()
         workspaces = workspaces_response.get("teams", [])
 
         if not workspaces:
@@ -141,7 +146,7 @@ async def index_clickup_tasks(
 
             # Fetch tasks for date range if provided
             if start_date and end_date:
-                tasks, error = clickup_client.get_tasks_in_date_range(
+                tasks, error = await clickup_client.get_tasks_in_date_range(
                     workspace_id=workspace_id,
                     start_date=start_date,
                     end_date=end_date,
@@ -153,7 +158,7 @@ async def index_clickup_tasks(
                     )
                     continue
             else:
-                tasks = clickup_client.get_workspace_tasks(
+                tasks = await clickup_client.get_workspace_tasks(
                     workspace_id=workspace_id, include_closed=True
                 )
 
@@ -393,10 +398,21 @@ async def index_clickup_tasks(
         logger.info(
             f"clickup indexing completed: {documents_indexed} new tasks, {documents_skipped} skipped"
         )
+
+        # Close client connection
+        try:
+            await clickup_client.close()
+        except Exception as e:
+            logger.warning(f"Error closing ClickUp client: {e!s}")
+
         return total_processed, None
 
     except SQLAlchemyError as db_error:
         await session.rollback()
+        # Clean up the connector in case of error
+        if "clickup_client" in locals():
+            with contextlib.suppress(Exception):
+                await clickup_client.close()
         await task_logger.log_task_failure(
             log_entry,
             f"Database error during ClickUp indexing for connector {connector_id}",
@@ -407,6 +423,10 @@ async def index_clickup_tasks(
         return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
+        # Clean up the connector in case of error
+        if "clickup_client" in locals():
+            with contextlib.suppress(Exception):
+                await clickup_client.close()
         await task_logger.log_task_failure(
             log_entry,
             f"Failed to index ClickUp tasks for connector {connector_id}",

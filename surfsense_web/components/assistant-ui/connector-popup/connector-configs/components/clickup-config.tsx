@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
+import { Info, KeyRound } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -16,17 +16,22 @@ export const ClickUpConfig: FC<ClickUpConfigProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
+	// Check if this is an OAuth connector (has access_token or _token_encrypted flag)
+	const isOAuth = !!(connector.config?.access_token || connector.config?._token_encrypted);
+
 	const [apiToken, setApiToken] = useState<string>(
 		(connector.config?.CLICKUP_API_TOKEN as string) || ""
 	);
 	const [name, setName] = useState<string>(connector.name || "");
 
-	// Update API token and name when connector changes
+	// Update values when connector changes (only for legacy connectors)
 	useEffect(() => {
-		const token = (connector.config?.CLICKUP_API_TOKEN as string) || "";
-		setApiToken(token);
+		if (!isOAuth) {
+			const token = (connector.config?.CLICKUP_API_TOKEN as string) || "";
+			setApiToken(token);
+		}
 		setName(connector.name || "");
-	}, [connector.config, connector.name]);
+	}, [connector.config, connector.name, isOAuth]);
 
 	const handleApiTokenChange = (value: string) => {
 		setApiToken(value);
@@ -45,6 +50,32 @@ export const ClickUpConfig: FC<ClickUpConfigProps> = ({
 		}
 	};
 
+	// For OAuth connectors, show simple info message
+	if (isOAuth) {
+		const workspaceName = (connector.config?.workspace_name as string) || "Unknown Workspace";
+		return (
+			<div className="space-y-6">
+				{/* OAuth Info */}
+				<div className="rounded-xl border border-border bg-primary/5 p-4 flex items-start gap-3">
+					<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
+						<Info className="size-4" />
+					</div>
+					<div className="text-xs sm:text-sm">
+						<p className="font-medium text-xs sm:text-sm">Connected via OAuth</p>
+						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+							Workspace:{" "}
+							<code className="bg-muted px-1 py-0.5 rounded text-inherit">{workspaceName}</code>
+						</p>
+						<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
+							To update your connection, reconnect this connector.
+						</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// For legacy API token connectors, show the form
 	return (
 		<div className="space-y-6">
 			{/* Connector Name */}
@@ -82,7 +113,8 @@ export const ClickUpConfig: FC<ClickUpConfigProps> = ({
 						className="border-slate-400/20 focus-visible:border-slate-400/40"
 					/>
 					<p className="text-[10px] sm:text-xs text-muted-foreground">
-						Update your ClickUp API Token if needed.
+						Update your ClickUp API Token if needed. For better security and automatic token
+						refresh, consider disconnecting and reconnecting using OAuth 2.0.
 					</p>
 				</div>
 			</div>
