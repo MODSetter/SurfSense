@@ -3,31 +3,82 @@ title: Notion
 description: Connect your Notion workspaces to SurfSense
 ---
 
-# Notion Connector
+# Notion OAuth Integration Setup Guide
 
-Connect your Notion workspaces to index pages, databases, and content.
+This guide walks you through setting up a Notion OAuth integration for SurfSense.
 
-## Prerequisites
+## Step 1: Access Notion Integrations
 
-- A Notion account
-- Access to the workspaces you want to connect
+1. Navigate to [notion.so/profile/integrations](https://notion.so/profile/integrations)
+2. Click the **"New integration"** button
 
-## Setup
+![Notion Integrations Page](/docs/connectors/notion/notion-integrations-page.png)
 
-1. Navigate to your Search Space settings
-2. Click on **Add Connector**
-3. Select **Notion** from the list
-4. Authorize SurfSense to access your Notion workspace
-5. Select the pages and databases you want to index
+## Step 2: Configure New Integration
 
-## What Gets Indexed
+Fill in the integration details:
 
-- Pages and subpages
-- Database entries
-- Comments and discussions
-- Embedded content
+| Field | Value |
+|-------|-------|
+| **Integration Name** | `SurfSense` |
+| **Associated workspace** | Select your workspace |
+| **Type** | `Public` |
+| **Company name** | Your company name |
+| **Website** | Your website URL |
+| **Tagline** | Brief description |
+| **Privacy Policy URL** | Your privacy policy URL |
+| **Terms of Use URL** | Your terms of use URL |
+| **Email** | Your developer email |
+| **Logo** | Upload a 512x512 logo |
 
-## Sync Frequency
+### OAuth Redirect URI
 
-The Notion connector supports scheduled syncing to keep your content up to date.
+Under **OAuth domains & URIs**, set the **Redirect URI** to:
 
+```
+http://localhost:8000/api/v1/auth/notion/connector/callback
+```
+
+Click **Save** to create the integration.
+
+![New Integration Form](/docs/connectors/notion/notion-new-integration-form.png)
+
+## Step 3: Get OAuth Credentials & Configure Capabilities
+
+After creating the integration, you'll see the configuration page with your credentials:
+
+1. Copy your **OAuth Client ID**
+2. Copy your **OAuth Client Secret** (click Refresh if needed)
+
+### Set Required Capabilities
+
+Under **Content Capabilities**, enable:
+- ✅ Read content
+
+Under **Comment Capabilities**, enable:
+- ✅ Read comments
+
+Under **User Capabilities**, select:
+- 🔘 Read user information including email addresses
+
+Click **Save** to apply the capabilities.
+
+![Integration Configuration](/docs/connectors/notion/notion-integration-config.png)
+
+---
+
+## Running SurfSense with Notion Connector
+
+Add the Notion environment variables to your Docker run command:
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # Notion Connector
+  -e NOTION_OAUTH_CLIENT_ID=your_notion_client_id \
+  -e NOTION_OAUTH_CLIENT_SECRET=your_notion_client_secret \
+  -e NOTION_REDIRECT_URI=http://localhost:8000/api/v1/auth/notion/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
