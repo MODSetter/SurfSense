@@ -1,11 +1,8 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { membersApiService } from "@/lib/apis/members-api.service";
 import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
-import { trackLoginSuccess } from "@/lib/posthog/events";
-import { queryClient } from "@/lib/query-client/client";
 
 interface TokenHandlerProps {
 	redirectPath?: string; // Default path to redirect after storing token (if no saved path)
@@ -27,7 +24,6 @@ const TokenHandler = ({
 	tokenParamName = "token",
 	storageKey = "surfsense_bearer_token",
 }: TokenHandlerProps) => {
-	const router = useRouter();
 	const searchParams = useSearchParams();
 
 	useEffect(() => {
@@ -38,56 +34,26 @@ const TokenHandler = ({
 		const token = searchParams.get(tokenParamName);
 
 		if (token) {
-			const handleAuth = async () => {
-				try {
-					// Track login success for OAuth flows (e.g., Google)
-					// Local login already tracks success before redirecting here
-					const alreadyTracked = sessionStorage.getItem("login_success_tracked");
-					if (!alreadyTracked) {
-						// This is an OAuth flow (Google login) - track success
-						trackLoginSuccess("google");
-					}
-					// Clear the flag for future logins
-					sessionStorage.removeItem("login_success_tracked");
+			try {
+				// Store token in localStorage using both methods for compatibility
+				localStorage.setItem(storageKey, token);
+				setBearerToken(token);
 
-					// Store token in localStorage using both methods for compatibility
-					localStorage.setItem(storageKey, token);
-					setBearerToken(token);
+				// Check if there's a saved redirect path from before the auth flow
+				const savedRedirectPath = getAndClearRedirectPath();
 
-					// Clear any cached data from previous sessions
-					queryClient.clear();
+				// Use the saved path if available, otherwise use the default redirectPath
+				const finalRedirectPath = savedRedirectPath || redirectPath;
 
-					// Check if there's a saved redirect path from before the auth flow
-					const savedRedirectPath = getAndClearRedirectPath();
-
-					// Check if saved path contains a search space ID and verify access
-					const searchSpaceMatch = savedRedirectPath?.match(/^\/dashboard\/(\d+)/);
-					if (searchSpaceMatch && savedRedirectPath) {
-						const searchSpaceId = Number(searchSpaceMatch[1]);
-						try {
-							await membersApiService.getMyAccess({ search_space_id: searchSpaceId });
-							router.push(savedRedirectPath);
-							return;
-						} catch {
-							// User doesn't have access, fall through to default
-						}
-					}
-
-					// Use the saved path if available, otherwise use the default redirectPath
-					const finalRedirectPath = savedRedirectPath || redirectPath;
-
-					// Redirect to the appropriate path
-					router.push(finalRedirectPath);
-				} catch (error) {
-					console.error("Error storing token in localStorage:", error);
-					// Even if there's an error, try to redirect to the default path
-					router.push(redirectPath);
-				}
-			};
-
-			handleAuth();
+				// Use hard navigation to clear all React/jotai state from previous session
+				window.location.href = finalRedirectPath;
+			} catch (error) {
+				console.error("Error storing token in localStorage:", error);
+				// Even if there's an error, try to redirect to the default path
+				window.location.href = redirectPath;
+			}
 		}
-	}, [searchParams, tokenParamName, storageKey, redirectPath, router]);
+	}, [searchParams, tokenParamName, storageKey, redirectPath]);
 
 	return (
 		<div className="flex items-center justify-center min-h-[200px]">
