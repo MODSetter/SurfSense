@@ -7,7 +7,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
+import { useEffect, useRef, useState } from "react";
+import {
+	createSearchSpaceMutationAtom,
+	deleteSearchSpaceMutationAtom,
+} from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Logo } from "@/components/Logo";
@@ -129,6 +133,11 @@ const ErrorScreen = ({ message }: { message: string }) => {
 const DashboardPage = () => {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
+	const router = useRouter();
+
+	// State for auto-creating search space
+	const [isAutoCreating, setIsAutoCreating] = useState(false);
+	const hasAttemptedAutoCreate = useRef(false);
 
 	// Animation variants
 	const containerVariants: Variants = {
@@ -161,8 +170,41 @@ const DashboardPage = () => {
 		refetch: refreshSearchSpaces,
 	} = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
+	const { mutateAsync: createSearchSpace } = useAtomValue(createSearchSpaceMutationAtom);
 
 	const { data: user, isPending: isLoadingUser, error: userError } = useAtomValue(currentUserAtom);
+
+	// Auto-redirect to chat or auto-create search space
+	useEffect(() => {
+		const handleAutoRedirect = async () => {
+			// Don't run if still loading or already attempted
+			if (loading || hasAttemptedAutoCreate.current) return;
+
+			// If user has search spaces, redirect to the first one's chat
+			if (searchSpaces.length > 0) {
+				router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
+				return;
+			}
+
+			// If no search spaces exist (edge case for users who registered before this feature),
+			// auto-create one and redirect
+			hasAttemptedAutoCreate.current = true;
+			setIsAutoCreating(true);
+
+			try {
+				const newSearchSpace = await createSearchSpace({
+					name: "My Search Space",
+					description: "Your personal search space",
+				});
+				router.replace(`/dashboard/${newSearchSpace.id}/new-chat`);
+			} catch (err) {
+				console.error("Failed to auto-create search space:", err);
+				setIsAutoCreating(false);
+			}
+		};
+
+		handleAutoRedirect();
+	}, [loading, searchSpaces, router, createSearchSpace]);
 
 	// Create user object for UserDropdown
 	const customUser = {
@@ -173,7 +215,8 @@ const DashboardPage = () => {
 		avatar: "/icon-128.png", // Default avatar
 	};
 
-	if (loading) return <LoadingScreen />;
+	// Show loading while loading, auto-redirecting, or auto-creating
+	if (loading || isAutoCreating || (searchSpaces.length > 0 && !error)) return <LoadingScreen />;
 	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
 
 	const handleDeleteSearchSpace = async (id: number) => {
