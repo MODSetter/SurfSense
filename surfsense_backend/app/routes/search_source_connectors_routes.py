@@ -7,7 +7,8 @@ PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
 POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
 
-Note: Each search space can have only one connector of each type per user (based on search_space_id, user_id, and connector_type).
+Note: OAuth connectors (Gmail, Drive, Slack, etc.) support multiple accounts per search space.
+Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search space.
 """
 
 import logging
@@ -125,6 +126,7 @@ async def create_search_source_connector(
         )
 
         # Check if a connector with the same type already exists for this search space
+        # (for non-OAuth connectors that don't support multiple accounts)
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.search_space_id == search_space_id,

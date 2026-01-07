@@ -19,9 +19,11 @@ import { ConnectorDialogHeader } from "./connector-popup/components/connector-di
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
 import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
 import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
+import { OAUTH_CONNECTORS } from "./connector-popup/constants/connector-constants";
 import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
+import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
 export const ConnectorIndicator: FC = () => {
@@ -60,6 +62,7 @@ export const ConnectorIndicator: FC = () => {
 		periodicEnabled,
 		frequencyMinutes,
 		allConnectors,
+		viewingAccountsType,
 		setSearchQuery,
 		setStartDate,
 		setEndDate,
@@ -81,6 +84,8 @@ export const ConnectorIndicator: FC = () => {
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,
+		handleViewAccountsList,
+		handleBackFromAccountsList,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
@@ -194,6 +199,25 @@ export const ConnectorIndicator: FC = () => {
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
+				) : viewingAccountsType ? (
+					<ConnectorAccountsListView
+						connectorType={viewingAccountsType.connectorType}
+						connectorTitle={viewingAccountsType.connectorTitle}
+						connectors={(allConnectors || []) as SearchSourceConnector[]}
+						indexingConnectorIds={indexingConnectorIds}
+						logsSummary={logsSummary}
+						onBack={handleBackFromAccountsList}
+						onManage={handleStartEdit}
+						onAddAccount={() => {
+							const oauthConnector = OAUTH_CONNECTORS.find(
+								(c) => c.connectorType === viewingAccountsType.connectorType
+							);
+							if (oauthConnector) {
+								handleConnectOAuth(oauthConnector);
+							}
+						}}
+						isConnecting={connectingId !== null}
+					/>
 				) : connectingConnectorType ? (
 					<ConnectorConnectView
 						connectorType={connectingConnectorType}
@@ -289,6 +313,7 @@ export const ConnectorIndicator: FC = () => {
 											onCreateWebcrawler={handleCreateWebcrawler}
 											onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
 											onManage={handleStartEdit}
+											onViewAccountsList={handleViewAccountsList}
 										/>
 									</TabsContent>
 
@@ -303,6 +328,7 @@ export const ConnectorIndicator: FC = () => {
 										searchSpaceId={searchSpaceId}
 										onTabChange={handleTabChange}
 										onManage={handleStartEdit}
+										onViewAccountsList={handleViewAccountsList}
 									/>
 								</div>
 							</div>

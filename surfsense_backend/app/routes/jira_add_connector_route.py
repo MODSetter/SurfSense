@@ -15,7 +15,6 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
 from app.db import (
@@ -26,6 +25,11 @@ from app.db import (
 )
 from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
 from app.users import current_active_user
+from app.utils.connector_naming import (
+    check_duplicate_connector,
+    extract_identifier_from_credentials,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -306,39 +310,48 @@ async def jira_callback(
             "_token_encrypted": True,
         }
 
-        # Check if connector already exists for this search space and user
-        existing_connector_result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == space_id,
-                SearchSourceConnector.user_id == user_id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.JIRA_CONNECTOR,
-            )
+        # Extract unique identifier from connector credentials
+        connector_identifier = extract_identifier_from_credentials(
+            SearchSourceConnectorType.JIRA_CONNECTOR, connector_config
         )
-        existing_connector = existing_connector_result.scalars().first()
 
-        if existing_connector:
-            # Update existing connector
-            existing_connector.config = connector_config
-            existing_connector.name = "Jira Connector"
-            existing_connector.is_indexable = True
-            logger.info(
-                f"Updated existing Jira connector for user {user_id} in space {space_id}"
+        # Check for duplicate connector (same Jira instance already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.JIRA_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Jira connector detected for user {user_id} with instance {connector_identifier}"
             )
-        else:
-            # Create new connector
-            new_connector = SearchSourceConnector(
-                name="Jira Connector",
-                connector_type=SearchSourceConnectorType.JIRA_CONNECTOR,
-                is_indexable=True,
-                config=connector_config,
-                search_space_id=space_id,
-                user_id=user_id,
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=jira-connector"
             )
-            session.add(new_connector)
-            logger.info(
-                f"Created new Jira connector for user {user_id} in space {space_id}"
-            )
+
+        # Generate a unique, user-friendly connector name
+        connector_name = await generate_unique_connector_name(
+            session,
+            SearchSourceConnectorType.JIRA_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
+        )
+        # Create new connector
+        new_connector = SearchSourceConnector(
+            name=connector_name,
+            connector_type=SearchSourceConnectorType.JIRA_CONNECTOR,
+            is_indexable=True,
+            config=connector_config,
+            search_space_id=space_id,
+            user_id=user_id,
+        )
+        session.add(new_connector)
+        logger.info(
+            f"Created new Jira connector for user {user_id} in space {space_id}"
+        )
 
         try:
             await session.commit()
@@ -346,7 +359,7 @@ async def jira_callback(
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=jira-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=jira-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:
@@ -358,7 +371,7 @@ async def jira_callback(
             await session.rollback()
             raise HTTPException(
                 status_code=409,
-                detail=f"Integrity error: A connector with this type already exists. {e!s}",
+                detail=f"Database integrity error: {e!s}",
             ) from e
         except Exception as e:
             logger.error(f"Failed to create search source connector: {e!s}")

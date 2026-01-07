@@ -15,6 +15,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		CLICKUP_CONNECTOR: "ClickUp",
 		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
 		GOOGLE_GMAIL_CONNECTOR: "Google Gmail",
+		GOOGLE_DRIVE_CONNECTOR: "Google Drive",
 		AIRTABLE_CONNECTOR: "Airtable",
 		LUMA_CONNECTOR: "Luma",
 		ELASTICSEARCH_CONNECTOR: "Elasticsearch",

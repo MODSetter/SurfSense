@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { type StreamdownProps, Streamdown } from "streamdown";
+import { Streamdown, type StreamdownProps } from "streamdown";
 import { cn } from "@/lib/utils";
 
 interface MarkdownViewerProps {

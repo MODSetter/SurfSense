@@ -11,9 +11,9 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
+from app.connectors.airtable_connector import fetch_airtable_user_email
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -22,6 +22,10 @@ from app.db import (
 )
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.users import current_active_user
+from app.utils.connector_naming import (
+    check_duplicate_connector,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -275,6 +279,8 @@ async def airtable_callback(
                 status_code=400, detail="No access token received from Airtable"
             )
 
+        user_email = await fetch_airtable_user_email(access_token)
+
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None
         if token_json.get("expires_in"):
@@ -297,39 +303,43 @@ async def airtable_callback(
         credentials_dict = credentials.to_dict()
         credentials_dict["_token_encrypted"] = True
 
-        # Check if connector already exists for this search space and user
-        existing_connector_result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == space_id,
-                SearchSourceConnector.user_id == user_id,
-                SearchSourceConnector.connector_type
-                == SearchSourceConnectorType.AIRTABLE_CONNECTOR,
-            )
+        # Check for duplicate connector (same account already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+            space_id,
+            user_id,
+            user_email,
         )
-        existing_connector = existing_connector_result.scalars().first()
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Airtable connector detected for user {user_id} with email {user_email}"
+            )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=airtable-connector"
+            )
 
-        if existing_connector:
-            # Update existing connector
-            existing_connector.config = credentials_dict
-            existing_connector.name = "Airtable Connector"
-            existing_connector.is_indexable = True
-            logger.info(
-                f"Updated existing Airtable connector for user {user_id} in space {space_id}"
-            )
-        else:
-            # Create new connector
-            new_connector = SearchSourceConnector(
-                name="Airtable Connector",
-                connector_type=SearchSourceConnectorType.AIRTABLE_CONNECTOR,
-                is_indexable=True,
-                config=credentials_dict,
-                search_space_id=space_id,
-                user_id=user_id,
-            )
-            session.add(new_connector)
-            logger.info(
-                f"Created new Airtable connector for user {user_id} in space {space_id}"
-            )
+        # Generate a unique, user-friendly connector name
+        connector_name = await generate_unique_connector_name(
+            session,
+            SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+            space_id,
+            user_id,
+            user_email,
+        )
+        # Create new connector
+        new_connector = SearchSourceConnector(
+            name=connector_name,
+            connector_type=SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+            is_indexable=True,
+            config=credentials_dict,
+            search_space_id=space_id,
+            user_id=user_id,
+        )
+        session.add(new_connector)
+        logger.info(
+            f"Created new Airtable connector for user {user_id} in space {space_id}"
+        )
 
         try:
             await session.commit()
@@ -338,7 +348,7 @@ async def airtable_callback(
             # Redirect to the frontend with success params for indexing config
             # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=airtable-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=airtable-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:
@@ -350,7 +360,7 @@ async def airtable_callback(
             await session.rollback()
             raise HTTPException(
                 status_code=409,
-                detail=f"Integrity error: A connector with this type already exists. {e!s}",
+                detail=f"Database integrity error: {e!s}",
             ) from e
         except Exception as e:
             logger.error(f"Failed to create search source connector: {e!s}")

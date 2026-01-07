@@ -382,3 +382,43 @@ class AirtableConnector:
                 markdown_parts.append("")
 
         return "\n".join(markdown_parts)
+
+
+# --- OAuth User Info ---
+
+AIRTABLE_WHOAMI_URL = "https://api.airtable.com/v0/meta/whoami"
+
+
+async def fetch_airtable_user_email(access_token: str) -> str | None:
+    """
+    Fetch user email from Airtable whoami API.
+
+    Args:
+        access_token: The Airtable OAuth access token
+
+    Returns:
+        User's email address or None if fetch fails
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                AIRTABLE_WHOAMI_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10.0,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                email = data.get("email")
+                if email:
+                    logger.debug(f"Fetched Airtable user email: {email}")
+                    return email
+
+            logger.warning(
+                f"Failed to fetch Airtable user info: {response.status_code}"
+            )
+            return None
+
+    except Exception as e:
+        logger.warning(f"Error fetching Airtable user email: {e!s}")
+        return None
