@@ -26,7 +26,10 @@ from app.db import (
 from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
-from app.utils.connector_naming import generate_unique_connector_name, extract_identifier_from_credentials
+from app.utils.connector_naming import (
+    extract_identifier_from_credentials,
+    generate_unique_connector_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -293,9 +296,13 @@ async def confluence_callback(
         connector_identifier = extract_identifier_from_credentials(
             SearchSourceConnectorType.CONFLUENCE_CONNECTOR, connector_config
         )
-        # Generate a unique, user-friendly connector name from credentials/account info
-        connector_name = generate_unique_connector_name(
-            SearchSourceConnectorType.CONFLUENCE_CONNECTOR, connector_identifier
+        # Generate a unique, user-friendly connector name
+        connector_name = await generate_unique_connector_name(
+            session,
+            SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
         )
         # Create new connector
         new_connector = SearchSourceConnector(

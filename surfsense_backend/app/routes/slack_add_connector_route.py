@@ -25,8 +25,11 @@ from app.db import (
 )
 from app.schemas.slack_auth_credentials import SlackAuthCredentialsBase
 from app.users import current_active_user
+from app.utils.connector_naming import (
+    extract_identifier_from_credentials,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
-from app.utils.connector_naming import generate_unique_connector_name, extract_identifier_from_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -277,9 +280,13 @@ async def slack_callback(
         connector_identifier = extract_identifier_from_credentials(
             SearchSourceConnectorType.SLACK_CONNECTOR, connector_config
         )
-        # Generate a unique, user-friendly connector name from credentials/account info
-        connector_name = generate_unique_connector_name(
-            SearchSourceConnectorType.SLACK_CONNECTOR, connector_identifier
+        # Generate a unique, user-friendly connector name
+        connector_name = await generate_unique_connector_name(
+            session,
+            SearchSourceConnectorType.SLACK_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
         )
 
         # Create new connector
