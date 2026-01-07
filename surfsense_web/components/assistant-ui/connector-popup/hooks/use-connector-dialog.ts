@@ -679,19 +679,20 @@ export const useConnectorDialog = () => {
 
 	// Handle viewing accounts list for OAuth connector type
 	const handleViewAccountsList = useCallback(
-		(connector: (typeof OAUTH_CONNECTORS)[number]) => {
+		(connectorType: string, connectorTitle: string) => {
 			if (!searchSpaceId) return;
 
 			setViewingAccountsType({
-				connectorType: connector.connectorType,
-				connectorTitle: connector.title,
+				connectorType,
+				connectorTitle,
 			});
 
-			// Update URL to show accounts view
+			// Update URL to show accounts view, preserving current tab
 			const url = new URL(window.location.href);
 			url.searchParams.set("modal", "connectors");
 			url.searchParams.set("view", "accounts");
-			url.searchParams.set("connectorType", connector.connectorType);
+			url.searchParams.set("connectorType", connectorType);
+			// Keep the current tab in URL so we can go back to it
 			window.history.pushState({ modal: true }, "", url.toString());
 		},
 		[searchSpaceId]
@@ -702,7 +703,7 @@ export const useConnectorDialog = () => {
 		setViewingAccountsType(null);
 		const url = new URL(window.location.href);
 		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("tab", "all");
+		// Keep the current tab (don't change it) - just remove view-specific params
 		url.searchParams.delete("view");
 		url.searchParams.delete("connectorType");
 		router.replace(url.pathname + url.search, { scroll: false });

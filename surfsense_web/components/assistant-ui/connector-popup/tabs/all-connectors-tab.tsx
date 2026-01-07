@@ -40,7 +40,7 @@ interface AllConnectorsTabProps {
   onCreateWebcrawler?: () => void;
   onCreateYouTubeCrawler?: () => void;
   onManage?: (connector: SearchSourceConnector) => void;
-  onViewAccountsList?: (connector: (typeof OAUTH_CONNECTORS)[number]) => void;
+  onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
 }
 
 export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
@@ -102,25 +102,40 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
             {filteredOAuth.map((connector) => {
               const isConnected = connectedTypes.has(connector.connectorType);
               const isConnecting = connectingId === connector.id;
-              // Find the actual connector object if connected
-              const actualConnector =
+              
+              // Find all connectors of this type
+              const typeConnectors =
                 isConnected && allConnectors
-                  ? allConnectors.find(
+                  ? allConnectors.filter(
                       (c: SearchSourceConnector) =>
                         c.connector_type === connector.connectorType
                     )
-                  : undefined;
+                  : [];
+
+              // Get the most recent last_indexed_at across all accounts
+              const mostRecentLastIndexed = typeConnectors.reduce<string | undefined>(
+                (latest, c) => {
+                  if (!c.last_indexed_at) return latest;
+                  if (!latest) return c.last_indexed_at;
+                  return new Date(c.last_indexed_at) > new Date(latest) ? c.last_indexed_at : latest;
+                },
+                undefined
+              );
 
               const documentCount = getDocumentCountForConnector(
                 connector.connectorType,
                 documentTypeCounts
               );
-              const isIndexing =
-                actualConnector &&
-                indexingConnectorIds?.has(actualConnector.id);
-              const activeTask = actualConnector
-                ? getActiveTaskForConnector(actualConnector.id)
-                : undefined;
+              
+              // Check if any account is currently indexing
+              const isIndexing = typeConnectors.some(
+                (c) => indexingConnectorIds?.has(c.id)
+              );
+              
+              // Get active task from any indexing account
+              const activeTask = typeConnectors
+                .map((c) => getActiveTaskForConnector(c.id))
+                .find((task) => task !== undefined);
 
               return (
                 <ConnectorCard
@@ -132,13 +147,13 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
                   isConnected={isConnected}
                   isConnecting={isConnecting}
                   documentCount={documentCount}
-                  lastIndexedAt={actualConnector?.last_indexed_at}
+                  lastIndexedAt={mostRecentLastIndexed}
                   isIndexing={isIndexing}
                   activeTask={activeTask}
                   onConnect={() => onConnectOAuth(connector)}
                   onManage={
                     isConnected && onViewAccountsList
-                      ? () => onViewAccountsList(connector)
+                      ? () => onViewAccountsList(connector.connectorType, connector.title)
                       : undefined
                   }
                 />

@@ -8,7 +8,6 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
-import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
 
 interface ConnectorAccountsListViewProps {
@@ -17,25 +16,10 @@ interface ConnectorAccountsListViewProps {
 	connectors: SearchSourceConnector[];
 	indexingConnectorIds: Set<number>;
 	logsSummary: LogSummary | undefined;
-	documentTypeCounts?: Record<string, number>;
 	onBack: () => void;
 	onManage: (connector: SearchSourceConnector) => void;
 	onAddAccount: () => void;
 	isConnecting?: boolean;
-}
-
-/**
- * Format document count (e.g., "1.2k docs", "500 docs", "1.5M docs")
- */
-function formatDocumentCount(count: number | undefined): string {
-	if (count === undefined || count === 0) return "0 docs";
-	if (count < 1000) return `${count} docs`;
-	if (count < 1000000) {
-		const k = (count / 1000).toFixed(1);
-		return `${k.replace(/\.0$/, "")}k docs`;
-	}
-	const m = (count / 1000000).toFixed(1);
-	return `${m.replace(/\.0$/, "")}M docs`;
 }
 
 /**
@@ -76,7 +60,6 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	connectors,
 	indexingConnectorIds,
 	logsSummary,
-	documentTypeCounts,
 	onBack,
 	onManage,
 	onAddAccount,
@@ -145,10 +128,6 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 						const activeTask = logsSummary?.active_tasks?.find(
 							(task: LogActiveTask) => task.connector_id === connector.id
 						);
-						const documentCount = getDocumentCountForConnector(
-							connector.connector_type,
-							documentTypeCounts
-						);
 
 						return (
 							<div
@@ -191,9 +170,6 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 												: "Never indexed"}
 										</p>
 									)}
-									<p className="text-[10px] text-muted-foreground mt-0.5">
-										{formatDocumentCount(documentCount)}
-									</p>
 								</div>
 								<Button
 									variant="secondary"
