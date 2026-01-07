@@ -23,7 +23,7 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.connectors.linear_oauth import fetch_linear_organization_name
+from app.connectors.linear_connector import fetch_linear_organization_name
 from app.schemas.linear_auth_credentials import LinearAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.connector_naming import check_duplicate_connector, generate_unique_connector_name

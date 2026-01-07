@@ -399,11 +399,6 @@ async def fetch_airtable_user_email(access_token: str) -> str | None:
     Returns:
         User's email address or None if fetch fails
     """
-    import httpx
-    import logging
-
-    logger = logging.getLogger(__name__)
-
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
