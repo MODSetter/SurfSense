@@ -155,8 +155,7 @@ combine-as-imports = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["app*"]
-exclude = ["alembic*"]
+include = ["app*", "alembic*"]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
