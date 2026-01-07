@@ -117,6 +117,11 @@ class Config:
     DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
+    # ClickUp OAuth
+    CLICKUP_CLIENT_ID = os.getenv("CLICKUP_CLIENT_ID")
+    CLICKUP_CLIENT_SECRET = os.getenv("CLICKUP_CLIENT_SECRET")
+    CLICKUP_REDIRECT_URI = os.getenv("CLICKUP_REDIRECT_URI")
+
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 

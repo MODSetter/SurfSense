@@ -2,6 +2,7 @@
 Confluence connector indexer.
 """
 
+import contextlib
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -142,10 +143,8 @@ async def index_confluence_pages(
                     )
                     # Close client before returning
                     if confluence_client:
-                        try:
+                        with contextlib.suppress(Exception):
                             await confluence_client.close()
-                        except Exception:
-                            pass
                     return 0, None
                 else:
                     await task_logger.log_task_failure(
@@ -156,10 +155,8 @@ async def index_confluence_pages(
                     )
                     # Close client on error
                     if confluence_client:
-                        try:
+                        with contextlib.suppress(Exception):
                             await confluence_client.close()
-                        except Exception:
-                            pass
                     return 0, f"Failed to get Confluence pages: {error}"
 
             logger.info(f"Retrieved {len(pages)} pages from Confluence API")
@@ -168,10 +165,8 @@ async def index_confluence_pages(
             logger.error(f"Error fetching Confluence pages: {e!s}", exc_info=True)
             # Close client on error
             if confluence_client:
-                try:
+                with contextlib.suppress(Exception):
                     await confluence_client.close()
-                except Exception:
-                    pass
             return 0, f"Error fetching Confluence pages: {e!s}"
 
         # Process and index each page
@@ -437,10 +432,8 @@ async def index_confluence_pages(
         await session.rollback()
         # Close client if it exists
         if confluence_client:
-            try:
+            with contextlib.suppress(Exception):
                 await confluence_client.close()
-            except Exception:
-                pass
         await task_logger.log_task_failure(
             log_entry,
             f"Database error during Confluence indexing for connector {connector_id}",
@@ -453,10 +446,8 @@ async def index_confluence_pages(
         await session.rollback()
         # Close client if it exists
         if confluence_client:
-            try:
+            with contextlib.suppress(Exception):
                 await confluence_client.close()
-            except Exception:
-                pass
         await task_logger.log_task_failure(
             log_entry,
             f"Failed to index Confluence pages for connector {connector_id}",
