@@ -66,6 +66,12 @@ export const useConnectorDialog = () => {
 	const [isCreatingConnector, setIsCreatingConnector] = useState(false);
 	const isCreatingConnectorRef = useRef(false);
 
+	// Accounts list view state (for OAuth connectors with multiple accounts)
+	const [viewingAccountsType, setViewingAccountsType] = useState<{
+		connectorType: string;
+		connectorTitle: string;
+	} | null>(null);
+
 	// Helper function to get frequency label
 	const getFrequencyLabel = useCallback((minutes: string): string => {
 		switch (minutes) {
@@ -114,9 +120,27 @@ export const useConnectorDialog = () => {
 					setConnectingConnectorType(null);
 				}
 
+				// Clear viewing accounts type if view is not "accounts" anymore
+				if (params.view !== "accounts" && viewingAccountsType) {
+					setViewingAccountsType(null);
+				}
+
 				// Handle connect view
 				if (params.view === "connect" && params.connectorType && !connectingConnectorType) {
 					setConnectingConnectorType(params.connectorType);
+				}
+
+				// Handle accounts view
+				if (params.view === "accounts" && params.connectorType && !viewingAccountsType) {
+					const oauthConnector = OAUTH_CONNECTORS.find(
+						(c) => c.connectorType === params.connectorType
+					);
+					if (oauthConnector) {
+						setViewingAccountsType({
+							connectorType: oauthConnector.connectorType,
+							connectorTitle: oauthConnector.title,
+						});
+					}
 				}
 
 				// Handle YouTube view
@@ -200,6 +224,10 @@ export const useConnectorDialog = () => {
 				if (connectingConnectorType) {
 					setConnectingConnectorType(null);
 				}
+				// Clear viewing accounts type when modal is closed
+				if (viewingAccountsType) {
+					setViewingAccountsType(null);
+				}
 				// Clear YouTube view when modal is closed (handled by view param check)
 			}
 		} catch (error) {
@@ -207,7 +235,7 @@ export const useConnectorDialog = () => {
 			console.warn("Invalid connector popup query params:", error);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [searchParams, allConnectors, editingConnector, indexingConfig, connectingConnectorType]);
+	}, [searchParams, allConnectors, editingConnector, indexingConfig, connectingConnectorType, viewingAccountsType]);
 
 	// Detect OAuth success and transition to config view
 	useEffect(() => {
@@ -631,6 +659,71 @@ export const useConnectorDialog = () => {
 		url.searchParams.delete("view");
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
+
+	// Handle viewing accounts list for OAuth connector type
+	const handleViewAccountsList = useCallback(
+		(connector: (typeof OAUTH_CONNECTORS)[number]) => {
+			if (!searchSpaceId) return;
+
+			setViewingAccountsType({
+				connectorType: connector.connectorType,
+				connectorTitle: connector.title,
+			});
+
+			// Update URL to show accounts view
+			const url = new URL(window.location.href);
+			url.searchParams.set("modal", "connectors");
+			url.searchParams.set("view", "accounts");
+			url.searchParams.set("connectorType", connector.connectorType);
+			window.history.pushState({ modal: true }, "", url.toString());
+		},
+		[searchSpaceId]
+	);
+
+	// Handle going back from accounts list view
+	const handleBackFromAccountsList = useCallback(() => {
+		setViewingAccountsType(null);
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("tab", "all");
+		url.searchParams.delete("view");
+		url.searchParams.delete("connectorType");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
+	// Handle adding a new account for OAuth connector (from accounts list view)
+	const handleAddAccountOAuth = useCallback(
+		async (connector: (typeof OAUTH_CONNECTORS)[number]) => {
+			if (!searchSpaceId || !connector.authEndpoint) return;
+
+			// Set connecting state
+			setConnectingId(connector.id);
+
+			try {
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}?space_id=${searchSpaceId}`,
+					{ method: "GET" }
+				);
+
+				if (!response.ok) {
+					throw new Error(`Failed to initiate ${connector.title} OAuth`);
+				}
+
+				const data = await response.json();
+				const validatedData = parseOAuthAuthResponse(data);
+				window.location.href = validatedData.auth_url;
+			} catch (error) {
+				console.error(`Error connecting to ${connector.title}:`, error);
+				if (error instanceof Error && error.message.includes("Invalid auth URL")) {
+					toast.error(`Invalid response from ${connector.title} OAuth endpoint`);
+				} else {
+					toast.error(`Failed to connect to ${connector.title}`);
+				}
+				setConnectingId(null);
+			}
+		},
+		[searchSpaceId]
+	);
 
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(
@@ -1081,6 +1174,7 @@ export const useConnectorDialog = () => {
 					setConnectorName(null);
 					setConnectorConfig(null);
 					setConnectingConnectorType(null);
+					setViewingAccountsType(null);
 					setStartDate(undefined);
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
@@ -1126,6 +1220,7 @@ export const useConnectorDialog = () => {
 		frequencyMinutes,
 		searchSpaceId,
 		allConnectors,
+		viewingAccountsType,
 
 		// Setters
 		setSearchQuery,
@@ -1152,6 +1247,9 @@ export const useConnectorDialog = () => {
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,
+		handleViewAccountsList,
+		handleBackFromAccountsList,
+		handleAddAccountOAuth,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
