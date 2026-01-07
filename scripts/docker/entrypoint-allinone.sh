@@ -97,6 +97,30 @@ if [ -d /app/frontend/.next/standalone ]; then
 fi
 
 # ================================================
+# Runtime Environment Variable Replacement
+# ================================================
+# Next.js NEXT_PUBLIC_* vars are baked in at build time.
+# This replaces placeholder values with actual runtime env vars.
+echo "🔧 Applying runtime environment configuration..."
+
+# Set defaults if not provided
+NEXT_PUBLIC_FASTAPI_BACKEND_URL="${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-http://localhost:8000}"
+NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE="${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE:-LOCAL}"
+NEXT_PUBLIC_ETL_SERVICE="${NEXT_PUBLIC_ETL_SERVICE:-DOCLING}"
+
+# Replace placeholders in all JS files
+find /app/frontend -type f \( -name "*.js" -o -name "*.json" \) -exec sed -i \
+    -e "s|__NEXT_PUBLIC_FASTAPI_BACKEND_URL__|${NEXT_PUBLIC_FASTAPI_BACKEND_URL}|g" \
+    -e "s|__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__|${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE}|g" \
+    -e "s|__NEXT_PUBLIC_ETL_SERVICE__|${NEXT_PUBLIC_ETL_SERVICE}|g" \
+    {} +
+
+echo "✅ Environment configuration applied"
+echo "   Backend URL:  ${NEXT_PUBLIC_FASTAPI_BACKEND_URL}"
+echo "   Auth Type:    ${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE}"
+echo "   ETL Service:  ${NEXT_PUBLIC_ETL_SERVICE}"
+
+# ================================================
 # Run database migrations
 # ================================================
 run_migrations() {
@@ -135,10 +159,10 @@ echo "==========================================="
 echo "  📋 Configuration"
 echo "==========================================="
 echo "  Frontend URL:    http://localhost:3000"
-echo "  Backend API:     http://localhost:8000"
-echo "  API Docs:        http://localhost:8000/docs"
-echo "  Auth Type:       ${AUTH_TYPE:-LOCAL}"
-echo "  ETL Service:     ${ETL_SERVICE:-DOCLING}"
+echo "  Backend API:     ${NEXT_PUBLIC_FASTAPI_BACKEND_URL}"
+echo "  API Docs:        ${NEXT_PUBLIC_FASTAPI_BACKEND_URL}/docs"
+echo "  Auth Type:       ${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE}"
+echo "  ETL Service:     ${NEXT_PUBLIC_ETL_SERVICE}"
 echo "  TTS Service:     ${TTS_SERVICE}"
 echo "  STT Service:     ${STT_SERVICE}"
 echo "==========================================="

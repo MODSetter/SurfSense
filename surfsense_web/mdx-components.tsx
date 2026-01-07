@@ -7,12 +7,17 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import Image, { type ImageProps } from "next/image";
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
 	return {
 		...defaultMdxComponents,
-		img: ({ className, ...props }: React.ComponentProps<"img">) => (
-			<img className={cn("rounded-md border", className)} {...props} />
+		img: ({ className, alt, ...props }: React.ComponentProps<"img">) => (
+			<Image
+				className={cn("rounded-md border", className)}
+				alt={alt ?? ""}
+				{...(props as ImageProps)}
+			/>
 		),
 		Video: ({ className, ...props }: React.ComponentProps<"video">) => (
 			<video className={cn("rounded-md border", className)} controls loop {...props} />
