@@ -174,15 +174,19 @@ const DashboardPage = () => {
 
 	const { data: user, isPending: isLoadingUser, error: userError } = useAtomValue(currentUserAtom);
 
-	// Auto-redirect to chat or auto-create search space
+	// Auto-redirect to chat for users with exactly 1 search space, or auto-create if none
 	useEffect(() => {
 		const handleAutoRedirect = async () => {
 			// Don't run if still loading or already attempted
 			if (loading || hasAttemptedAutoCreate.current) return;
 
-			// If user has search spaces, redirect to the first one's chat
-			if (searchSpaces.length > 0) {
+			// If user has exactly 1 search space, redirect to its chat
+			if (searchSpaces.length === 1) {
 				router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
+				return;
+			}
+
+			if (searchSpaces.length > 1) {
 				return;
 			}
 
@@ -215,8 +219,8 @@ const DashboardPage = () => {
 		avatar: "/icon-128.png", // Default avatar
 	};
 
-	// Show loading while loading, auto-redirecting, or auto-creating
-	if (loading || isAutoCreating || (searchSpaces.length > 0 && !error)) return <LoadingScreen />;
+	// Show loading while loading, auto-redirecting (single search space), or auto-creating
+	if (loading || isAutoCreating || (searchSpaces.length === 1 && !error)) return <LoadingScreen />;
 	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
 
 	const handleDeleteSearchSpace = async (id: number) => {
