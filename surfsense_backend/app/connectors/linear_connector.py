@@ -592,3 +592,4 @@ class LinearConnector:
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             return iso_date
+

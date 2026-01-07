@@ -23,10 +23,11 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.connectors.linear_oauth import fetch_linear_organization_name
 from app.schemas.linear_auth_credentials import LinearAuthCredentialsBase
 from app.users import current_active_user
+from app.utils.connector_naming import generate_unique_connector_name
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
-from app.utils.connector_naming import generate_unique_connector_name, extract_identifier_from_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +242,9 @@ async def linear_callback(
                 status_code=400, detail="No access token received from Linear"
             )
 
+        # Fetch organization name before encrypting credentials
+        org_name = await fetch_linear_organization_name(access_token)
+
         # Calculate expiration time (UTC, tz-aware)
         expires_at = None
         if token_json.get("expires_in"):
@@ -261,13 +265,13 @@ async def linear_callback(
             "_token_encrypted": True,
         }
 
-        # Extract unique identifier from connector credentials
-        connector_identifier = extract_identifier_from_credentials(
-            SearchSourceConnectorType.LINEAR_CONNECTOR, connector_config
-        )
-        # Generate a unique, user-friendly connector name from credentials/account info
-        connector_name = generate_unique_connector_name(
-            SearchSourceConnectorType.LINEAR_CONNECTOR, connector_identifier
+        # Generate a unique, user-friendly connector name
+        connector_name = await generate_unique_connector_name(
+            session,
+            SearchSourceConnectorType.LINEAR_CONNECTOR,
+            space_id,
+            user_id,
+            org_name,
         )
         # Create new connector
         new_connector = SearchSourceConnector(
