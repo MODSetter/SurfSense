@@ -23,7 +23,7 @@ from app.db import (
     get_async_session,
 )
 from app.users import current_active_user
-from app.utils.connector_naming import generate_unique_connector_name
+from app.utils.connector_naming import check_duplicate_connector, generate_unique_connector_name
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -225,6 +225,22 @@ async def gmail_callback(
 
         # Mark that credentials are encrypted for backward compatibility
         creds_dict["_token_encrypted"] = True
+
+        # Check for duplicate connector (same account already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+            space_id,
+            user_id,
+            user_email,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Gmail connector detected for user {user_id} with email {user_email}"
+            )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=google-gmail-connector"
+            )
 
         try:
             # Generate a unique, user-friendly connector name

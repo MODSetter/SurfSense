@@ -12,6 +12,7 @@ export const connectorPopupQueryParamsSchema = z.object({
 	connectorId: z.string().optional(),
 	connectorType: z.string().optional(),
 	success: z.enum(["true", "false"]).optional(),
+	error: z.string().optional(),
 });
 
 export type ConnectorPopupQueryParams = z.infer<typeof connectorPopupQueryParamsSchema>;

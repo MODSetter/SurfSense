@@ -27,6 +27,7 @@ from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 from app.utils.connector_naming import (
+    check_duplicate_connector,
     extract_identifier_from_credentials,
     generate_unique_connector_name,
 )
@@ -296,6 +297,23 @@ async def confluence_callback(
         connector_identifier = extract_identifier_from_credentials(
             SearchSourceConnectorType.CONFLUENCE_CONNECTOR, connector_config
         )
+
+        # Check for duplicate connector (same Confluence instance already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Confluence connector detected for user {user_id} with instance {connector_identifier}"
+            )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=confluence-connector"
+            )
+
         # Generate a unique, user-friendly connector name
         connector_name = await generate_unique_connector_name(
             session,

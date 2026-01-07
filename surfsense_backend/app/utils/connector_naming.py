@@ -114,6 +114,41 @@ async def count_connectors_of_type(
     return result.scalar() or 0
 
 
+async def check_duplicate_connector(
+    session: AsyncSession,
+    connector_type: SearchSourceConnectorType,
+    search_space_id: int,
+    user_id: UUID,
+    identifier: str | None,
+) -> bool:
+    """
+    Check if a connector with the same identifier already exists.
+
+    Args:
+        session: Database session
+        connector_type: The type of connector
+        search_space_id: The search space ID
+        user_id: The user ID
+        identifier: User identifier (email, workspace name, etc.)
+
+    Returns:
+        True if a duplicate exists, False otherwise
+    """
+    if not identifier:
+        return False
+
+    expected_name = f"{get_base_name_for_type(connector_type)} - {identifier}"
+    result = await session.execute(
+        select(func.count(SearchSourceConnector.id)).where(
+            SearchSourceConnector.connector_type == connector_type,
+            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.user_id == user_id,
+            SearchSourceConnector.name == expected_name,
+        )
+    )
+    return (result.scalar() or 0) > 0
+
+
 async def generate_unique_connector_name(
     session: AsyncSession,
     connector_type: SearchSourceConnectorType,

@@ -245,10 +245,38 @@ export const useConnectorDialog = () => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [searchParams, allConnectors, editingConnector, indexingConfig, connectingConnectorType, viewingAccountsType]);
 
-	// Detect OAuth success and transition to config view
+	// Detect OAuth success / Failure and transition to config view
 	useEffect(() => {
 		try {
 			const params = parseConnectorPopupQueryParams(searchParams);
+
+			// Handle OAuth errors (e.g., duplicate account)
+			if (params.error && params.modal === "connectors") {
+				const oauthConnector = params.connector
+					? OAUTH_CONNECTORS.find((c) => c.id === params.connector)
+					: null;
+				const connectorName = oauthConnector?.title || "connector";
+
+				if (params.error === "duplicate_account") {
+					toast.error(`This ${connectorName} account is already connected`, {
+						description: "Please use a different account or manage the existing connection.",
+					});
+				} else {
+					toast.error(`Failed to connect ${connectorName}`, {
+						description: params.error.replace(/_/g, " "),
+					});
+				}
+
+				// Clean up error params from URL
+				const url = new URL(window.location.href);
+				url.searchParams.delete("error");
+				url.searchParams.delete("connector");
+				window.history.replaceState({}, "", url.toString());
+
+				// Open the popup to show the connectors
+				setIsOpen(true);
+				return;
+			}
 
 			if (
 				params.success === "true" &&

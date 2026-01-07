@@ -27,6 +27,7 @@ from app.schemas.discord_auth_credentials import DiscordAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 from app.utils.connector_naming import (
+    check_duplicate_connector,
     extract_identifier_from_credentials,
     generate_unique_connector_name,
 )
@@ -292,6 +293,23 @@ async def discord_callback(
         connector_identifier = extract_identifier_from_credentials(
             SearchSourceConnectorType.DISCORD_CONNECTOR, connector_config
         )
+
+        # Check for duplicate connector (same server already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.DISCORD_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Discord connector detected for user {user_id} with server {connector_identifier}"
+            )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=discord-connector"
+            )
+
         # Generate a unique, user-friendly connector name
         connector_name = await generate_unique_connector_name(
             session,

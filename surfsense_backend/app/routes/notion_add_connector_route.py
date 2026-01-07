@@ -27,6 +27,7 @@ from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase
 from app.users import current_active_user
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 from app.utils.connector_naming import (
+    check_duplicate_connector,
     extract_identifier_from_credentials,
     generate_unique_connector_name,
 )
@@ -270,6 +271,23 @@ async def notion_callback(
         connector_identifier = extract_identifier_from_credentials(
             SearchSourceConnectorType.NOTION_CONNECTOR, connector_config
         )
+
+        # Check for duplicate connector (same workspace already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.NOTION_CONNECTOR,
+            space_id,
+            user_id,
+            connector_identifier,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Notion connector detected for user {user_id} with workspace {connector_identifier}"
+            )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=notion-connector"
+            )
+
         # Generate a unique, user-friendly connector name
         connector_name = await generate_unique_connector_name(
             session,

@@ -26,7 +26,7 @@ from app.db import (
 from app.connectors.linear_oauth import fetch_linear_organization_name
 from app.schemas.linear_auth_credentials import LinearAuthCredentialsBase
 from app.users import current_active_user
-from app.utils.connector_naming import generate_unique_connector_name
+from app.utils.connector_naming import check_duplicate_connector, generate_unique_connector_name
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -264,6 +264,22 @@ async def linear_callback(
             # Mark that tokens are encrypted for backward compatibility
             "_token_encrypted": True,
         }
+
+        # Check for duplicate connector (same organization already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.LINEAR_CONNECTOR,
+            space_id,
+            user_id,
+            org_name,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Linear connector detected for user {user_id} with org {org_name}"
+            )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=linear-connector"
+            )
 
         # Generate a unique, user-friendly connector name
         connector_name = await generate_unique_connector_name(

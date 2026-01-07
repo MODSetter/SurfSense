@@ -23,7 +23,7 @@ from app.db import (
 from app.connectors.airtable_connector import fetch_airtable_user_email
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.users import current_active_user
-from app.utils.connector_naming import generate_unique_connector_name
+from app.utils.connector_naming import check_duplicate_connector, generate_unique_connector_name
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -302,6 +302,22 @@ async def airtable_callback(
         # Mark that tokens are encrypted for backward compatibility
         credentials_dict = credentials.to_dict()
         credentials_dict["_token_encrypted"] = True
+
+        # Check for duplicate connector (same account already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.AIRTABLE_CONNECTOR,
+            space_id,
+            user_id,
+            user_email,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Airtable connector detected for user {user_id} with email {user_email}"
+            )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=airtable-connector"
+            )
 
         # Generate a unique, user-friendly connector name
         connector_name = await generate_unique_connector_name(
