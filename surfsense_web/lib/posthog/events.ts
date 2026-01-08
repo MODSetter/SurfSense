@@ -321,6 +321,18 @@ export function trackSearchSpaceUserAdded(
 	});
 }
 
+export function trackSearchSpaceUsersViewed(
+	searchSpaceId: number,
+	userCount: number,
+	ownerCount: number
+) {
+	posthog.capture("search_space_users_viewed", {
+		search_space_id: searchSpaceId,
+		user_count: userCount,
+		owner_count: ownerCount,
+	});
+}
+
 // ============================================
 // CONNECTOR CONNECTION EVENTS
 // ============================================
