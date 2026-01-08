@@ -116,6 +116,7 @@ import type {
 } from "@/contracts/types/roles.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
+import { trackSearchSpaceInviteSent } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
@@ -1088,10 +1089,12 @@ function InvitesTab({
 function CreateInviteDialog({
 	roles,
 	onCreateInvite,
+	searchSpaceId,
 	className,
 }: {
 	roles: Role[];
 	onCreateInvite: (data: CreateInviteRequest["data"]) => Promise<Invite>;
+	searchSpaceId: number;
 	className?: string;
 }) {
 	const [open, setOpen] = useState(false);
@@ -1114,6 +1117,17 @@ function CreateInviteDialog({
 
 			const invite = await onCreateInvite(data);
 			setCreatedInvite(invite);
+
+			// Track invite sent event
+			const roleName =
+				roleId && roleId !== "default"
+					? roles.find((r) => r.id.toString() === roleId)?.name
+					: undefined;
+			trackSearchSpaceInviteSent(searchSpaceId, {
+				roleName,
+				hasExpiry: !!expiresAt,
+				hasMaxUses: !!maxUses,
+			});
 		} catch (error) {
 			console.error("Failed to create invite:", error);
 		} finally {
