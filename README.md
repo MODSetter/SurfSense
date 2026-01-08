@@ -194,8 +194,6 @@ docker run -d -p 3000:3000 -p 8000:8000 \
 ```
 
 > [!NOTE]
-> - For Google OAuth, create credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-> - For Airtable connector, create an OAuth integration in the [Airtable Developer Hub](https://airtable.com/create/oauth)
 > - If deploying behind a reverse proxy with HTTPS, add `-e BACKEND_URL=https://api.yourdomain.com`
 
 After starting, access SurfSense at:

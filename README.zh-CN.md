@@ -201,8 +201,6 @@ docker run -d -p 3000:3000 -p 8000:8000 \
 ```
 
 > [!NOTE]
-> - 对于 Google OAuth，请在 [Google Cloud Console](https://console.cloud.google.com/apis/credentials) 中创建凭据
-> - 对于 Airtable 连接器，请在 [Airtable 开发者中心](https://airtable.com/create/oauth) 中创建 OAuth 集成
 > - 如果部署在带有 HTTPS 的反向代理后面，请添加 `-e BACKEND_URL=https://api.yourdomain.com`
 
 启动后，访问 SurfSense：
