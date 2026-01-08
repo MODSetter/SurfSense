@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
-import { cn } from "@/lib/utils";
 import { trackLoginAttempt } from "@/lib/posthog/events";
+import { cn } from "@/lib/utils";
 
 // Official Google "G" logo with brand colors
 const GoogleLogo = ({ className }: { className?: string }) => (
@@ -181,10 +181,7 @@ function GetStartedButton() {
 	}
 
 	return (
-		<motion.div
-			whileHover={{ scale: 1.02, y: -2 }}
-			whileTap={{ scale: 0.98 }}
-		>
+		<motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
 			<Link
 				href="/login"
 				className="group relative z-20 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow duration-300 hover:shadow-xl sm:w-56 dark:bg-white dark:text-black"

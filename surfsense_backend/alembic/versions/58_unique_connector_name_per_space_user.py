@@ -9,14 +9,14 @@ Create Date: 2026-01-06 14:00:00.000000
 
 from collections.abc import Sequence
 
+from sqlalchemy import text
+
 from alembic import op
 
 revision: str = "58"
 down_revision: str | None = "57"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
-
-from sqlalchemy import text
 
 
 def upgrade() -> None:
