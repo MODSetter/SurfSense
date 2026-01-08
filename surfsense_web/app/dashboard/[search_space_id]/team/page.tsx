@@ -115,8 +115,8 @@ import type {
 	UpdateRoleRequest,
 } from "@/contracts/types/roles.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
-import { trackSearchSpaceInviteSent } from "@/lib/posthog/events";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
+import { trackSearchSpaceInviteSent } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
@@ -1119,9 +1119,10 @@ function CreateInviteDialog({
 			setCreatedInvite(invite);
 
 			// Track invite sent event
-			const roleName = roleId && roleId !== "default"
-				? roles.find((r) => r.id.toString() === roleId)?.name
-				: undefined;
+			const roleName =
+				roleId && roleId !== "default"
+					? roles.find((r) => r.id.toString() === roleId)?.name
+					: undefined;
 			trackSearchSpaceInviteSent(searchSpaceId, {
 				roleName,
 				hasExpiry: !!expiresAt,

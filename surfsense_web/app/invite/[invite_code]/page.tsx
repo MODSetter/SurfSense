@@ -347,11 +347,7 @@ export default function InviteAcceptPage() {
 								)}
 							</CardContent>
 							<CardFooter className="flex gap-2">
-								<Button
-									variant="outline"
-									className="flex-1"
-									onClick={handleDecline}
-								>
+								<Button variant="outline" className="flex-1" onClick={handleDecline}>
 									Cancel
 								</Button>
 								<Button className="flex-1 gap-2" onClick={handleAccept} disabled={accepting}>
