@@ -151,3 +151,4 @@ export default function InferenceParamsEditor({ params, setParams }: InferencePa
 		</div>
 	);
 }
+

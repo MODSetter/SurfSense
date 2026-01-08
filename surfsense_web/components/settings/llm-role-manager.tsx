@@ -45,7 +45,7 @@ const ROLE_DESCRIPTIONS = {
 	document_summary: {
 		icon: FileText,
 		title: "Document Summary LLM",
-		description: "Handles document summarization, long context analysis, and query reformulation",
+		description: "Handles document summarization",
 		color: "bg-purple-100 text-purple-800 border-purple-200",
 		examples: "Document analysis, podcasts, research synthesis",
 		characteristics: ["Large context window", "Deep reasoning", "Summarization"],
@@ -74,7 +74,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		data: preferences = {},
 		isFetching: preferencesLoading,
 		error: preferencesError,
-		refetch: refreshPreferences,
 	} = useAtomValue(llmPreferencesAtom);
 
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
@@ -186,19 +185,6 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						/>
 						<span className="hidden sm:inline">Refresh Configs</span>
 						<span className="sm:hidden">Configs</span>
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => refreshPreferences()}
-						disabled={isLoading}
-						className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
-					>
-						<RefreshCw
-							className={`h-3 w-3 md:h-4 md:w-4 ${preferencesLoading ? "animate-spin" : ""}`}
-						/>
-						<span className="hidden sm:inline">Refresh Preferences</span>
-						<span className="sm:hidden">Prefs</span>
 					</Button>
 				</div>
 			</div>
