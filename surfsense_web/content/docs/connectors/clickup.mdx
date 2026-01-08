@@ -1,0 +1,57 @@
+---
+title: ClickUp
+description: Connect your ClickUp workspace to SurfSense
+---
+
+# ClickUp OAuth Integration Setup Guide
+
+This guide walks you through setting up a ClickUp OAuth integration for SurfSense.
+
+## Step 1: Access ClickUp API Settings
+
+1. Open your ClickUp workspace
+2. Navigate to **Settings** (gear icon) → **ClickUp API**
+3. You'll see the **ClickUp API Settings** page
+
+![ClickUp API Settings Page](/docs/connectors/clickup/clickup-api-settings.png)
+
+## Step 2: Create an App
+
+1. Click **"+ Create an App"** in the top-right corner
+2. Fill in the app details:
+
+| Field | Value |
+|-------|-------|
+| **App Name** | `SurfSense` |
+| **Redirect URL(s)** | `localhost:8000` |
+
+3. Click **"Save"** to create the app
+
+![App Created with Credentials](/docs/connectors/clickup/clickup-app-credentials.png)
+
+## Step 3: Get OAuth Credentials
+
+After creating the app, you'll see your credentials:
+
+1. Copy your **Client ID**
+2. Copy your **Client Secret** (click "Show" to reveal, or "Regenerate" if needed)
+
+> ⚠️ Never share your client secret publicly.
+
+---
+
+## Running SurfSense with ClickUp Connector
+
+Add the ClickUp environment variables to your Docker run command:
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # ClickUp Connector
+  -e CLICKUP_CLIENT_ID=your_clickup_client_id \
+  -e CLICKUP_CLIENT_SECRET=your_clickup_client_secret \
+  -e CLICKUP_REDIRECT_URI=http://localhost:8000/api/v1/auth/clickup/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```

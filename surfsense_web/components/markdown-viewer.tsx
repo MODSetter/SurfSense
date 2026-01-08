@@ -1,6 +1,5 @@
 import Image from "next/image";
-import type { Components } from "react-markdown";
-import { Streamdown } from "streamdown";
+import { Streamdown, type StreamdownProps } from "streamdown";
 import { cn } from "@/lib/utils";
 
 interface MarkdownViewerProps {
@@ -9,7 +8,7 @@ interface MarkdownViewerProps {
 }
 
 export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
-	const components: Components = {
+	const components: StreamdownProps["components"] = {
 		// Define custom components for markdown elements
 		p: ({ children, ...props }) => (
 			<p className="my-2" {...props}>

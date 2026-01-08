@@ -1,0 +1,91 @@
+---
+title: Slack
+description: Connect your Slack workspace to SurfSense
+---
+
+# Slack OAuth Integration Setup Guide
+
+This guide walks you through setting up a Slack OAuth integration for SurfSense.
+
+## Step 1: Create a New Slack App
+
+1. Navigate to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click **"Create New App"**
+3. Select **"From scratch"** to manually configure your app
+
+![Create an App Dialog](/docs/connectors/slack/slack-create-app.png)
+
+## Step 2: Name App & Choose Workspace
+
+1. Enter **App Name**: `SurfSense`
+2. Select the workspace to develop your app in
+3. Click **"Create App"**
+
+> ⚠️ You won't be able to change the workspace later. The workspace will control the app even if you leave it.
+
+![Name App & Choose Workspace](/docs/connectors/slack/slack-name-workspace.png)
+
+## Step 3: Get App Credentials
+
+After creating the app, you'll be taken to the **Basic Information** page. Here you'll find your credentials:
+
+1. Copy your **Client ID**
+2. Copy your **Client Secret** (click Show to reveal)
+
+> ⚠️ Never share your app credentials publicly.
+
+![Basic Information - App Credentials](/docs/connectors/slack/slack-app-credentials.png)
+
+## Step 4: Configure Redirect URLs
+
+1. In the left sidebar, click **"OAuth & Permissions"**
+2. Scroll down to **Redirect URLs**
+3. Click **"Add New Redirect URL"**
+4. Enter: `https://localhost:8000/api/v1/auth/slack/connector/callback`
+5. Click **"Add"**, then **"Save URLs"**
+
+![Redirect URLs Configuration](/docs/connectors/slack/slack-redirect-urls.png)
+
+## Step 5: Configure Bot Token Scopes
+
+On the same **OAuth & Permissions** page, scroll to **Scopes** and add the following **Bot Token Scopes**:
+
+| OAuth Scope | Description |
+|-------------|-------------|
+| `channels:history` | View messages and other content in public channels |
+| `channels:read` | View basic information about public channels |
+| `groups:history` | View messages and other content in private channels |
+| `groups:read` | View basic information about private channels |
+| `im:history` | View messages and other content in direct messages |
+| `mpim:history` | View messages and other content in group direct messages |
+| `users:read` | View people in a workspace |
+
+Click **"Add an OAuth Scope"** to add each scope.
+
+![Bot Token Scopes](/docs/connectors/slack/slack-scopes.png)
+
+## Step 6: Enable Public Distribution
+
+1. In the left sidebar, click **"Manage Distribution"**
+2. Under **Share Your App with Other Workspaces**, ensure distribution is enabled
+3. You can use the **"Add to Slack"** button or **Sharable URL** to install the app
+
+![Manage Distribution](/docs/connectors/slack/slack-distribution.png)
+
+---
+
+## Running SurfSense with Slack Connector
+
+Add the Slack environment variables to your Docker run command:
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # Slack Connector
+  -e SLACK_CLIENT_ID=your_slack_client_id \
+  -e SLACK_CLIENT_SECRET=your_slack_client_secret \
+  -e SLACK_REDIRECT_URI=https://localhost:8000/api/v1/auth/slack/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```

@@ -1,0 +1,83 @@
+---
+title: Google Drive
+description: Connect your Google Drive to SurfSense
+---
+
+# Google Drive OAuth Integration Setup Guide
+
+This guide walks you through setting up a Google OAuth 2.0 integration for SurfSense to connect your Google Drive.
+
+## Step 1: Access the Google Cloud Console
+
+1. Navigate to [Google Cloud Console](https://console.cloud.google.com/)
+2. Select an existing project or create a new one
+
+## Step 2: Enable Required APIs
+
+1. Go to **APIs & Services** > **Library**
+2. Search for and enable the following APIs:
+   - **People API** (required for Google OAuth)
+   - **Google Drive API** (required for Drive connector)
+
+![Google Developer Console People API](/docs/connectors/google/google_oauth_people_api.png)
+
+## Step 3: Configure OAuth Consent Screen
+
+1. Go to **APIs & Services** > **OAuth consent screen**
+2. Select **External** user type (or Internal if using Google Workspace)
+3. Fill in the required information:
+   - **App name**: `SurfSense`
+   - **User support email**: Your email address
+   - **Developer contact information**: Your email address
+4. Click **Save and Continue**
+
+![Google Developer Console OAuth consent screen](/docs/connectors/google/google_oauth_screen.png)
+
+### Add Scopes
+
+1. Click **Add or Remove Scopes**
+2. Add the following scopes:
+   - `https://www.googleapis.com/auth/drive.readonly` - Read-only access to Google Drive
+   - `https://www.googleapis.com/auth/userinfo.email` - View user email address
+3. Click **Update** and then **Save and Continue**
+
+## Step 4: Create OAuth Client ID
+
+1. Go to **APIs & Services** > **Credentials**
+2. Click **Create Credentials** > **OAuth client ID**
+3. Select **Web application** as the application type
+4. Enter **Name**: `SurfSense`
+5. Under **Authorized redirect URIs**, add:
+   ```
+   http://localhost:8000/api/v1/auth/google/drive/connector/callback
+   ```
+6. Click **Create**
+
+![Google Developer Console OAuth client ID](/docs/connectors/google/google_oauth_client.png)
+
+## Step 5: Get OAuth Credentials
+
+1. After creating the OAuth client, you'll see a dialog with your credentials
+2. Copy your **Client ID** and **Client Secret**
+
+> ⚠️ Never share your client secret publicly.
+
+![Google Developer Console Config](/docs/connectors/google/google_oauth_config.png)
+
+---
+
+## Running SurfSense with Google Drive Connector
+
+Add the Google OAuth environment variables to your Docker run command:
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # Google Drive Connector
+  -e GOOGLE_OAUTH_CLIENT_ID=your_google_client_id \
+  -e GOOGLE_OAUTH_CLIENT_SECRET=your_google_client_secret \
+  -e GOOGLE_DRIVE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/drive/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```

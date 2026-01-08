@@ -12,6 +12,14 @@ from typing import Any
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from app.config import config
+from app.db import SearchSourceConnector
+from app.routes.slack_add_connector_route import refresh_slack_token
+from app.schemas.slack_auth_credentials import SlackAuthCredentialsBase
+from app.utils.oauth_security import TokenEncryption
 
 logger = logging.getLogger(__name__)  # Added logger
 
@@ -19,25 +27,199 @@ logger = logging.getLogger(__name__)  # Added logger
 class SlackHistory:
     """Class for retrieving conversation history from Slack channels."""
 
-    def __init__(self, token: str | None = None):
+    def __init__(
+        self,
+        token: str | None = None,
+        session: AsyncSession | None = None,
+        connector_id: int | None = None,
+        credentials: SlackAuthCredentialsBase | None = None,
+    ):
         """
         Initialize the SlackHistory class.
 
         Args:
-            token: Slack API token (optional, can be set later with set_token)
+            token: Slack API token (optional, for backward compatibility)
+            session: Database session for token refresh (optional)
+            connector_id: Connector ID for token refresh (optional)
+            credentials: Slack OAuth credentials (optional, will be loaded from DB if not provided)
         """
-        self.client = WebClient(token=token) if token else None
+        self._session = session
+        self._connector_id = connector_id
+        self._credentials = credentials
+        # For backward compatibility, if token is provided directly, use it
+        if token:
+            self.client = WebClient(token=token)
+        else:
+            self.client = None
+
+    async def _get_valid_token(self) -> str:
+        """
+        Get valid Slack bot token, refreshing if needed.
+
+        Returns:
+            Valid bot token
+
+        Raises:
+            ValueError: If credentials are missing or invalid
+            Exception: If token refresh fails
+        """
+        # If we have a direct token (backward compatibility), use it
+        # Check if client was initialized with a token directly (not via credentials)
+        if (
+            self.client
+            and self._session is None
+            and self._connector_id is None
+            and self._credentials is None
+        ):
+            # This means it was initialized with a direct token, extract it
+            # WebClient stores token internally, we need to get it from the client
+            # For backward compatibility, we'll use the client directly
+            # But we can't easily extract the token, so we'll just use the client
+            # In this case, we'll skip refresh logic
+            # This is the old pattern - just use the client as-is
+            # We can't extract token easily, so we'll raise an error
+            # asking to use the new pattern
+            raise ValueError(
+                "Cannot refresh token: Please use session and connector_id for auto-refresh support"
+            )
+
+        # Load credentials from DB if not provided
+        if self._credentials is None:
+            if not self._session or not self._connector_id:
+                raise ValueError(
+                    "Cannot load credentials: session and connector_id required"
+                )
+
+            result = await self._session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == self._connector_id
+                )
+            )
+            connector = result.scalars().first()
+
+            if not connector:
+                raise ValueError(f"Connector {self._connector_id} not found")
+
+            config_data = connector.config.copy()
+
+            # Decrypt credentials if they are encrypted
+            token_encrypted = config_data.get("_token_encrypted", False)
+            if token_encrypted and config.SECRET_KEY:
+                try:
+                    token_encryption = TokenEncryption(config.SECRET_KEY)
+
+                    # Decrypt sensitive fields
+                    if config_data.get("bot_token"):
+                        config_data["bot_token"] = token_encryption.decrypt_token(
+                            config_data["bot_token"]
+                        )
+                    if config_data.get("refresh_token"):
+                        config_data["refresh_token"] = token_encryption.decrypt_token(
+                            config_data["refresh_token"]
+                        )
+
+                    logger.info(
+                        f"Decrypted Slack credentials for connector {self._connector_id}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to decrypt Slack credentials for connector {self._connector_id}: {e!s}"
+                    )
+                    raise ValueError(
+                        f"Failed to decrypt Slack credentials: {e!s}"
+                    ) from e
+
+            try:
+                self._credentials = SlackAuthCredentialsBase.from_dict(config_data)
+            except Exception as e:
+                raise ValueError(f"Invalid Slack credentials: {e!s}") from e
+
+        # Check if token is expired and refreshable
+        if self._credentials.is_expired and self._credentials.is_refreshable:
+            try:
+                logger.info(
+                    f"Slack token expired for connector {self._connector_id}, refreshing..."
+                )
+
+                # Get connector for refresh
+                result = await self._session.execute(
+                    select(SearchSourceConnector).filter(
+                        SearchSourceConnector.id == self._connector_id
+                    )
+                )
+                connector = result.scalars().first()
+
+                if not connector:
+                    raise RuntimeError(
+                        f"Connector {self._connector_id} not found; cannot refresh token."
+                    )
+
+                # Refresh token
+                connector = await refresh_slack_token(self._session, connector)
+
+                # Reload credentials after refresh
+                config_data = connector.config.copy()
+                token_encrypted = config_data.get("_token_encrypted", False)
+                if token_encrypted and config.SECRET_KEY:
+                    token_encryption = TokenEncryption(config.SECRET_KEY)
+                    if config_data.get("bot_token"):
+                        config_data["bot_token"] = token_encryption.decrypt_token(
+                            config_data["bot_token"]
+                        )
+                    if config_data.get("refresh_token"):
+                        config_data["refresh_token"] = token_encryption.decrypt_token(
+                            config_data["refresh_token"]
+                        )
+
+                self._credentials = SlackAuthCredentialsBase.from_dict(config_data)
+
+                # Invalidate cached client so it's recreated with new token
+                self.client = None
+
+                logger.info(
+                    f"Successfully refreshed Slack token for connector {self._connector_id}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to refresh Slack token for connector {self._connector_id}: {e!s}"
+                )
+                raise Exception(
+                    f"Failed to refresh Slack OAuth credentials: {e!s}"
+                ) from e
+
+        return self._credentials.bot_token
+
+    async def _ensure_client(self) -> WebClient:
+        """
+        Ensure Slack client is initialized with valid token.
+
+        Returns:
+            WebClient instance
+        """
+        # If client was initialized with direct token (backward compatibility), use it
+        if self.client and (self._session is None or self._connector_id is None):
+            return self.client
+
+        # Otherwise, initialize with token from credentials (with auto-refresh)
+        if self.client is None:
+            token = await self._get_valid_token()
+            # Skip if it's the placeholder for direct token initialization
+            if token != "direct_token_initialized":
+                self.client = WebClient(token=token)
+        return self.client
 
     def set_token(self, token: str) -> None:
         """
-        Set the Slack API token.
+        Set the Slack API token (for backward compatibility).
 
         Args:
             token: Slack API token
         """
         self.client = WebClient(token=token)
 
-    def get_all_channels(self, include_private: bool = True) -> list[dict[str, Any]]:
+    async def get_all_channels(
+        self, include_private: bool = True
+    ) -> list[dict[str, Any]]:
         """
         Fetch all channels that the bot has access to, with rate limit handling.
 
@@ -52,8 +234,7 @@ class SlackHistory:
             SlackApiError: If there's an unrecoverable error calling the Slack API
             RuntimeError: For unexpected errors during channel fetching.
         """
-        if not self.client:
-            raise ValueError("Slack client not initialized. Call set_token() first.")
+        client = await self._ensure_client()
 
         channels_list = []  # Changed from dict to list
         types = "public_channel"
@@ -72,7 +253,7 @@ class SlackHistory:
                     time.sleep(3)
 
                 current_limit = 1000  # Max limit
-                api_result = self.client.conversations_list(
+                api_result = client.conversations_list(
                     types=types, cursor=next_cursor, limit=current_limit
                 )
 
@@ -129,7 +310,7 @@ class SlackHistory:
 
         return channels_list
 
-    def get_conversation_history(
+    async def get_conversation_history(
         self,
         channel_id: str,
         limit: int = 1000,
@@ -152,8 +333,7 @@ class SlackHistory:
             ValueError: If no Slack client has been initialized
             SlackApiError: If there's an error calling the Slack API
         """
-        if not self.client:
-            raise ValueError("Slack client not initialized. Call set_token() first.")
+        client = await self._ensure_client()
 
         messages = []
         next_cursor = None
@@ -177,7 +357,7 @@ class SlackHistory:
                 current_api_call_successful = False
                 result = None  # Ensure result is defined
                 try:
-                    result = self.client.conversations_history(**kwargs)
+                    result = client.conversations_history(**kwargs)
                     current_api_call_successful = True
                 except SlackApiError as e_history:
                     if (
@@ -197,7 +377,7 @@ class SlackHistory:
                     else:
                         raise  # Re-raise to outer handler for not_in_channel or other SlackApiErrors
 
-                if not current_api_call_successful:
+                if not current_api_call_successful or result is None:
                     continue  # Retry the current page fetch due to handled rate limit
 
                 # Process result if successful
@@ -252,7 +432,7 @@ class SlackHistory:
         except ValueError:
             return None
 
-    def get_history_by_date_range(
+    async def get_history_by_date_range(
         self, channel_id: str, start_date: str, end_date: str, limit: int = 1000
     ) -> tuple[list[dict[str, Any]], str | None]:
         """
@@ -282,7 +462,7 @@ class SlackHistory:
         latest += 86400  # seconds in a day
 
         try:
-            messages = self.get_conversation_history(
+            messages = await self.get_conversation_history(
                 channel_id=channel_id, limit=limit, oldest=oldest, latest=latest
             )
             return messages, None
@@ -291,7 +471,7 @@ class SlackHistory:
         except ValueError as e:
             return [], str(e)
 
-    def get_user_info(self, user_id: str) -> dict[str, Any]:
+    async def get_user_info(self, user_id: str) -> dict[str, Any]:
         """
         Get information about a user.
 
@@ -305,8 +485,7 @@ class SlackHistory:
             ValueError: If no Slack client has been initialized
             SlackApiError: If there's an error calling the Slack API
         """
-        if not self.client:
-            raise ValueError("Slack client not initialized. Call set_token() first.")
+        client = await self._ensure_client()
 
         while True:
             try:
@@ -314,7 +493,7 @@ class SlackHistory:
                 # For now, we are only adding Retry-After as per plan.
                 # time.sleep(0.6) # Optional: ~100 req/min if ever needed.
 
-                result = self.client.users_info(user=user_id)
+                result = client.users_info(user=user_id)
                 return result["user"]  # Success, return and exit loop implicitly
 
             except SlackApiError as e_user_info:
@@ -343,7 +522,7 @@ class SlackHistory:
                 )
                 raise general_error from general_error  # Re-raise unexpected errors
 
-    def format_message(
+    async def format_message(
         self, msg: dict[str, Any], include_user_info: bool = False
     ) -> dict[str, Any]:
         """
@@ -369,9 +548,9 @@ class SlackHistory:
             "is_thread": "thread_ts" in msg,
         }
 
-        if include_user_info and "user" in msg and self.client:
+        if include_user_info and "user" in msg:
             try:
-                user_info = self.get_user_info(msg["user"])
+                user_info = await self.get_user_info(msg["user"])
                 formatted["user_name"] = user_info.get("real_name", "Unknown")
                 formatted["user_email"] = user_info.get("profile", {}).get("email", "")
             except Exception:

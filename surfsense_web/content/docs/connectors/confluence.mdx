@@ -1,0 +1,106 @@
+---
+title: Confluence
+description: Connect your Confluence spaces to SurfSense
+---
+
+# Confluence OAuth Integration Setup Guide
+
+This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration for SurfSense to connect your Confluence spaces.
+
+## Step 1: Access the Developer Console
+
+1. Navigate to [developer.atlassian.com](https://developer.atlassian.com)
+2. Click your profile icon in the top-right corner
+3. Select **"Developer console"** from the dropdown
+
+![Atlassian Developer Console Access](/docs/connectors/atlassian/atlassian-dev-console-access.png)
+
+## Step 2: Create a New OAuth 2.0 Integration
+
+1. In the Developer Console, under **My apps**, click the **"Create"** button
+2. Select **"OAuth 2.0 integration"** from the dropdown
+
+![Create OAuth 2.0 Integration](/docs/connectors/atlassian/atlassian-create-app.png)
+
+## Step 3: Name Your Integration
+
+1. Enter **Name**: `SurfSense`
+2. Check the box to agree to Atlassian's developer terms
+3. Click **"Create"**
+
+> ℹ️ New OAuth 2.0 integrations use rotating refresh tokens, which improve security by limiting token validity and enabling automatic detection of token reuse.
+
+![Create New Integration Form](/docs/connectors/atlassian/atlassian-name-integration.png)
+
+## Step 4: Configure Callback URL
+
+1. In the left sidebar, click **"Authorization"**
+2. Under **Callback URLs**, enter the redirect URI:
+   ```
+   http://localhost:8000/api/v1/auth/confluence/connector/callback
+   ```
+3. Click **"Save changes"**
+
+> ℹ️ You can enter up to 10 redirect URIs, one per line.
+
+![Authorization Callback URLs](/docs/connectors/atlassian/atlassian-authorization.png)
+
+## Step 5: Configure API Permissions
+
+1. In the left sidebar, click **"Permissions"**
+2. You'll see a list of available APIs including Confluence API
+
+![Permissions Overview](/docs/connectors/atlassian/atlassian-permissions.png)
+
+## Step 6: Configure Confluence API Scopes
+
+1. Click **"Configure"** next to **Confluence API**
+
+### Classic Scopes
+
+Select the **"Classic scopes"** tab and enable:
+
+| Scope Name | Code | Description |
+|------------|------|-------------|
+| ✅ Read user | `read:confluence-user` | View user information in Confluence that you have access to, including usernames, email addresses and profile pictures |
+
+![Confluence API Classic Scopes](/docs/connectors/atlassian/confluence/atlassian-confluence-classic-scopes.png)
+
+### Granular Scopes
+
+Select the **"Granular scopes"** tab and enable:
+
+| Scope Name | Code | Description |
+|------------|------|-------------|
+| ✅ View pages | `read:page:confluence` | View page content |
+| ✅ View comments | `read:comment:confluence` | View comments on pages or blogposts |
+| ✅ View spaces | `read:space:confluence` | View space details |
+
+4. Click **"Save"**
+
+![Confluence API Granular Scopes](/docs/connectors/atlassian/confluence/atlassian-confluence-granular-scopes.png)
+
+## Step 7: Get OAuth Credentials
+
+1. In the left sidebar, click **"Settings"**
+2. Copy your **Client ID** and **Client Secret**
+
+> ⚠️ Never share your client secret publicly.
+
+---
+
+## Running SurfSense with Confluence Connector
+
+Add the Atlassian environment variables to your Docker run command:
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # Confluence Connector
+  -e ATLASSIAN_CLIENT_ID=your_atlassian_client_id \
+  -e ATLASSIAN_CLIENT_SECRET=your_atlassian_client_secret \
+  -e CONFLUENCE_REDIRECT_URI=http://localhost:8000/api/v1/auth/confluence/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```

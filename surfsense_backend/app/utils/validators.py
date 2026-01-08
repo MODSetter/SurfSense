@@ -513,11 +513,22 @@ def validate_connector_config(
             ],
             "validators": {},
         },
-        "SLACK_CONNECTOR": {"required": ["SLACK_BOT_TOKEN"], "validators": {}},
-        "NOTION_CONNECTOR": {
-            "required": ["NOTION_INTEGRATION_TOKEN"],
-            "validators": {},
-        },
+        # "SLACK_CONNECTOR": {
+        #     "required": [],  # OAuth uses bot_token (encrypted), legacy uses SLACK_BOT_TOKEN
+        #     "optional": [
+        #         "bot_token",
+        #         "SLACK_BOT_TOKEN",
+        #         "bot_user_id",
+        #         "team_id",
+        #         "team_name",
+        #         "token_type",
+        #         "expires_in",
+        #         "expires_at",
+        #         "scope",
+        #         "_token_encrypted",
+        #     ],
+        #     "validators": {},
+        # },
         "GITHUB_CONNECTOR": {
             "required": ["GITHUB_PAT", "repo_full_names"],
             "validators": {
@@ -526,31 +537,21 @@ def validate_connector_config(
                 )
             },
         },
-        "LINEAR_CONNECTOR": {"required": ["LINEAR_API_KEY"], "validators": {}},
-        "DISCORD_CONNECTOR": {"required": ["DISCORD_BOT_TOKEN"], "validators": {}},
-        "JIRA_CONNECTOR": {
-            "required": ["JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_BASE_URL"],
-            "validators": {
-                "JIRA_EMAIL": lambda: validate_email_field("JIRA_EMAIL", "JIRA"),
-                "JIRA_BASE_URL": lambda: validate_url_field("JIRA_BASE_URL", "JIRA"),
-            },
-        },
-        "CONFLUENCE_CONNECTOR": {
-            "required": [
-                "CONFLUENCE_BASE_URL",
-                "CONFLUENCE_EMAIL",
-                "CONFLUENCE_API_TOKEN",
-            ],
-            "validators": {
-                "CONFLUENCE_EMAIL": lambda: validate_email_field(
-                    "CONFLUENCE_EMAIL", "Confluence"
-                ),
-                "CONFLUENCE_BASE_URL": lambda: validate_url_field(
-                    "CONFLUENCE_BASE_URL", "Confluence"
-                ),
-            },
-        },
-        "CLICKUP_CONNECTOR": {"required": ["CLICKUP_API_TOKEN"], "validators": {}},
+        # "DISCORD_CONNECTOR": {"required": ["DISCORD_BOT_TOKEN"], "validators": {}},
+        # "JIRA_CONNECTOR": {
+        #     "required": ["JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_BASE_URL"],
+        #     "validators": {
+        #         "JIRA_EMAIL": lambda: validate_email_field("JIRA_EMAIL", "JIRA"),
+        #         "JIRA_BASE_URL": lambda: validate_url_field("JIRA_BASE_URL", "JIRA"),
+        #     },
+        # },
+        # "CONFLUENCE_CONNECTOR": {
+        #     "required": [
+        #         "access_token",
+        #     ],
+        #     "validators": {},
+        # },
+        # "CLICKUP_CONNECTOR": {"required": ["CLICKUP_API_TOKEN"], "validators": {}},
         # "GOOGLE_CALENDAR_CONNECTOR": {
         #     "required": ["token", "refresh_token", "token_uri", "client_id", "expiry", "scopes", "client_secret"],
         #     "validators": {},

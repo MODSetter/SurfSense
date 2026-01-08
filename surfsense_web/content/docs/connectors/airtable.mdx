@@ -1,0 +1,101 @@
+---
+title: Airtable
+description: Connect your Airtable bases to SurfSense
+---
+
+# Airtable OAuth Integration Setup Guide
+
+This guide walks you through setting up an Airtable OAuth integration for SurfSense.
+
+## Step 1: Access Airtable OAuth Integrations
+
+1. Navigate to [airtable.com/create/oauth](https://airtable.com/create/oauth)
+2. In the **Builder Hub**, under **Developers**, click **"OAuth integrations"**
+3. Click **"Register an OAuth integration"**
+
+![Airtable OAuth Integrations Page](/docs/connectors/airtable/airtable-oauth-integrations.png)
+
+## Step 2: Register an Integration
+
+Fill in the basic integration details:
+
+| Field | Value |
+|-------|-------|
+| **Name** | `SurfSense` |
+| **OAuth redirect URL** | `http://localhost:8000/api/v1/auth/airtable/connector/callback` |
+
+Click **"Register integration"**
+
+![Register Integration Form](/docs/connectors/airtable/airtable-register-integration.png)
+
+## Step 3: Configure Scopes
+
+After registration, configure the required scopes (permissions) for your integration:
+
+### Record data and comments
+
+| Scope | Description |
+|-------|-------------|
+| ✅ `data.recordComments:read` | See comments in records |
+| ✅ `data.records:read` | See the data in records |
+
+### Base schema
+
+| Scope | Description |
+|-------|-------------|
+| ✅ `schema.bases:read` | See the structure of a base, like table names or field types |
+
+### User metadata
+
+| Scope | Description |
+|-------|-------------|
+| ✅ `user.email:read` | See the user's email address |
+
+![Scopes Configuration](/docs/connectors/airtable/airtable-scopes.png)
+
+## Step 4: Configure Support Information
+
+Scroll down to configure the support information and authorization preview:
+
+| Field | Value |
+|-------|-------|
+| **Support email** | Your support email address |
+| **Privacy policy URL** | Your privacy policy URL |
+| **Terms of service URL** | Your terms of service URL |
+
+The preview shows what users will see when authorizing SurfSense:
+- The data in your records
+- Comments in your records
+- The structure of your base, like table names or field types
+- Your email address
+
+Click **"Save changes"**
+
+![Support Information & Preview](/docs/connectors/airtable/airtable-support-info.png)
+
+## Step 5: Get OAuth Credentials
+
+After saving, you'll find your OAuth credentials on the integration page:
+
+1. Copy your **Client ID**
+2. Copy your **Client Secret**
+
+> ⚠️ Never share your client secret publicly.
+
+---
+
+## Running SurfSense with Airtable Connector
+
+Add the Airtable environment variables to your Docker run command:
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # Airtable Connector
+  -e AIRTABLE_CLIENT_ID=your_airtable_client_id \
+  -e AIRTABLE_CLIENT_SECRET=your_airtable_client_secret \
+  -e AIRTABLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/airtable/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```

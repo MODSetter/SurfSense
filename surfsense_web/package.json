@@ -1,6 +1,6 @@
 {
 	"name": "surfsense_web",
-	"version": "0.0.10",
+	"version": "0.0.11",
 	"private": true,
 	"description": "SurfSense Frontend",
 	"scripts": {
@@ -89,7 +89,6 @@
 		"react-dropzone": "^14.3.8",
 		"react-hook-form": "^7.61.1",
 		"react-json-view-lite": "^2.4.1",
-		"react-markdown": "^10.1.0",
 		"react-syntax-highlighter": "^15.6.1",
 		"react-wrap-balancer": "^1.1.1",
 		"rehype-raw": "^7.0.0",

@@ -7,11 +7,12 @@ import { searchSourceConnectorTypeEnum } from "@/contracts/types/connector.types
 export const connectorPopupQueryParamsSchema = z.object({
 	modal: z.enum(["connectors"]).optional(),
 	tab: z.enum(["all", "active"]).optional(),
-	view: z.enum(["configure", "edit", "connect", "youtube"]).optional(),
+	view: z.enum(["configure", "edit", "connect", "youtube", "accounts"]).optional(),
 	connector: z.string().optional(),
 	connectorId: z.string().optional(),
 	connectorType: z.string().optional(),
 	success: z.enum(["true", "false"]).optional(),
+	error: z.string().optional(),
 });
 
 export type ConnectorPopupQueryParams = z.infer<typeof connectorPopupQueryParamsSchema>;
@@ -39,7 +40,7 @@ export type IndexingConfigState = z.infer<typeof indexingConfigStateSchema>;
 /**
  * Schema for frequency minutes (must be one of the allowed values)
  */
-export const frequencyMinutesSchema = z.enum(["15", "60", "360", "720", "1440", "10080"], {
+export const frequencyMinutesSchema = z.enum(["5", "15", "60", "360", "720", "1440", "10080"], {
 	message: "Invalid frequency value",
 });
 

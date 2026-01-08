@@ -25,6 +25,9 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Document } from "./types";
 
+// Only FILE and NOTE document types can be edited
+const EDITABLE_DOCUMENT_TYPES = ["FILE", "NOTE"] as const;
+
 export function RowActions({
 	document,
 	deleteDocument,
@@ -40,6 +43,10 @@ export function RowActions({
 	const [isMetadataOpen, setIsMetadataOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const router = useRouter();
+
+	const isEditable = EDITABLE_DOCUMENT_TYPES.includes(
+		document.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
+	);
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
@@ -65,28 +72,30 @@ export function RowActions({
 		<div className="flex items-center justify-end gap-1">
 			{/* Desktop Actions */}
 			<div className="hidden md:flex items-center gap-1">
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<motion.div
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.95 }}
-							transition={{ type: "spring", stiffness: 400, damping: 17 }}
-						>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-								onClick={handleEdit}
+				{isEditable && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<motion.div
+								whileHover={{ scale: 1.1 }}
+								whileTap={{ scale: 0.95 }}
+								transition={{ type: "spring", stiffness: 400, damping: 17 }}
 							>
-								<Pencil className="h-4 w-4" />
-								<span className="sr-only">Edit Document</span>
-							</Button>
-						</motion.div>
-					</TooltipTrigger>
-					<TooltipContent side="top">
-						<p>Edit Document</p>
-					</TooltipContent>
-				</Tooltip>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
+									onClick={handleEdit}
+								>
+									<Pencil className="h-4 w-4" />
+									<span className="sr-only">Edit Document</span>
+								</Button>
+							</motion.div>
+						</TooltipTrigger>
+						<TooltipContent side="top">
+							<p>Edit Document</p>
+						</TooltipContent>
+					</Tooltip>
+				)}
 
 				<Tooltip>
 					<TooltipTrigger asChild>
@@ -146,10 +155,12 @@ export function RowActions({
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" className="w-40">
-						<DropdownMenuItem onClick={handleEdit}>
-							<Pencil className="mr-2 h-4 w-4" />
-							<span>Edit</span>
-						</DropdownMenuItem>
+						{isEditable && (
+							<DropdownMenuItem onClick={handleEdit}>
+								<Pencil className="mr-2 h-4 w-4" />
+								<span>Edit</span>
+							</DropdownMenuItem>
+						)}
 						<DropdownMenuItem onClick={() => setIsMetadataOpen(true)}>
 							<FileText className="mr-2 h-4 w-4" />
 							<span>Metadata</span>

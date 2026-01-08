@@ -1,6 +1,13 @@
 {
-	"title": "Setup",
-	"description": "The setup guide for Surfsense",
+	"title": "Documentation",
+	"description": "SurfSense Documentation",
 	"root": true,
-	"pages": ["index", "installation", "docker-installation", "manual-installation"]
+	"pages": [
+		"---Guides---",
+		"index",
+		"installation",
+		"docker-installation",
+		"manual-installation",
+		"connectors"
+	]
 }

@@ -6,10 +6,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.connectors.airtable_connector import AirtableConnector
+from app.connectors.airtable_history import AirtableHistoryConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
-from app.routes.airtable_add_connector_route import refresh_airtable_token
-from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
@@ -84,31 +82,11 @@ async def index_airtable_records(
             )
             return 0, f"Connector with ID {connector_id} not found"
 
-        # Create credentials from connector config
-        config_data = connector.config
-        try:
-            credentials = AirtableAuthCredentialsBase.from_dict(config_data)
-        except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Invalid Airtable credentials in connector {connector_id}",
-                str(e),
-                {"error_type": "InvalidCredentials"},
-            )
-            return 0, f"Invalid Airtable credentials: {e!s}"
-
-        # Check if credentials are expired
-        if credentials.is_expired:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Airtable credentials expired for connector {connector_id}",
-                "Credentials expired",
-                {"error_type": "ExpiredCredentials"},
-            )
-
-            connector = await refresh_airtable_token(session, connector)
-
-            # return 0, "Airtable credentials have expired. Please re-authenticate."
+        # Normalize "undefined" strings to None (from frontend)
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
 
         # Calculate date range for indexing
         start_date_str, end_date_str = calculate_date_range(
@@ -120,8 +98,9 @@ async def index_airtable_records(
             f"from {start_date_str} to {end_date_str}"
         )
 
-        # Initialize Airtable connector
-        airtable_connector = AirtableConnector(credentials)
+        # Initialize Airtable history connector with auto-refresh capability
+        airtable_history = AirtableHistoryConnector(session, connector_id)
+        airtable_connector = await airtable_history._get_connector()
         total_processed = 0
 
         try:
@@ -413,47 +392,56 @@ async def index_airtable_records(
                             documents_skipped += 1
                             continue  # Skip this message and continue with others
 
-                    # Update the last_indexed_at timestamp for the connector only if requested
-                    total_processed = documents_indexed
-                    if total_processed > 0:
-                        await update_connector_last_indexed(
-                            session, connector, update_last_indexed
-                        )
+                    # Accumulate total processed across all tables
+                    total_processed += documents_indexed
 
                     # Final commit for any remaining documents not yet committed in batches
-                    logger.info(
-                        f"Final commit: Total {documents_indexed} Airtable records processed"
-                    )
-                    await session.commit()
-                    logger.info(
-                        "Successfully committed all Airtable document changes to database"
-                    )
+                    if documents_indexed > 0:
+                        logger.info(
+                            f"Final commit for table {table_name}: {documents_indexed} Airtable records processed"
+                        )
+                        await session.commit()
+                        logger.info(
+                            f"Successfully committed all Airtable document changes for table {table_name}"
+                        )
 
-                    # Log success
-                    await task_logger.log_task_success(
-                        log_entry,
-                        f"Successfully completed Airtable indexing for connector {connector_id}",
-                        {
-                            "events_processed": total_processed,
-                            "documents_indexed": documents_indexed,
-                            "documents_skipped": documents_skipped,
-                            "skipped_messages_count": len(skipped_messages),
-                        },
-                    )
+            # Update the last_indexed_at timestamp for the connector only if requested
+            # (after all tables in all bases are processed)
+            if total_processed > 0:
+                await update_connector_last_indexed(
+                    session, connector, update_last_indexed
+                )
 
-                    logger.info(
-                        f"Airtable indexing completed: {documents_indexed} new records, {documents_skipped} skipped"
-                    )
-                    return (
-                        total_processed,
-                        None,
-                    )  # Return None as the error message to indicate success
+            # Log success after processing all bases and tables
+            await task_logger.log_task_success(
+                log_entry,
+                f"Successfully completed Airtable indexing for connector {connector_id}",
+                {
+                    "events_processed": total_processed,
+                    "documents_indexed": total_processed,
+                },
+            )
+
+            logger.info(
+                f"Airtable indexing completed: {total_processed} total records processed"
+            )
+            return (
+                total_processed,
+                None,
+            )  # Return None as the error message to indicate success
 
         except Exception as e:
             logger.error(
                 f"Fetching Airtable bases for connector {connector_id} failed: {e!s}",
                 exc_info=True,
             )
+            await task_logger.log_task_failure(
+                log_entry,
+                f"Failed to fetch Airtable bases for connector {connector_id}",
+                str(e),
+                {"error_type": type(e).__name__},
+            )
+            return 0, f"Failed to fetch Airtable bases: {e!s}"
 
     except SQLAlchemyError as db_error:
         await session.rollback()

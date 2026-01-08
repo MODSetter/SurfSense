@@ -1,0 +1,67 @@
+---
+title: Linear
+description: Connect your Linear workspace to SurfSense
+---
+
+# Linear OAuth Integration Setup Guide
+
+This guide walks you through setting up a Linear OAuth integration for SurfSense.
+
+## Step 1: Access Linear API Settings
+
+1. Navigate to your workspace's API settings at `linear.app/<your-workspace>/settings/api`
+2. Under **OAuth Applications**, click **"+ New OAuth application"**
+
+![Linear API Settings Page](/docs/connectors/linear/linear-api-settings.png)
+
+## Step 2: Create New Application
+
+Fill in the application details:
+
+| Field | Value |
+|-------|-------|
+| **Application icon** | Upload an icon (at least 256x256px) |
+| **Application name** | `SurfSense` |
+| **Developer name** | `SurfSense` |
+| **Developer URL** | `https://www.surfsense.com/` |
+| **Description** | Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. |
+| **Callback URLs** | `http://localhost:8000/api/v1/auth/linear/connector/callback` |
+| **GitHub username** | Your GitHub username (optional) |
+
+### Settings
+
+- ✅ **Public** - Enable this to allow the application to be installed by other workspaces
+
+Click **Create** to create the application.
+
+![Create New Application Form](/docs/connectors/linear/linear-new-application.png)
+
+## Step 3: Get OAuth Credentials
+
+After creating the application, you'll see your OAuth credentials:
+
+1. Copy your **Client ID**
+2. Copy your **Client Secret**
+
+> ⚠️ Never share your client secret publicly.
+
+![OAuth Credentials](/docs/connectors/linear/linear-oauth-credentials.png)
+
+---
+
+## Running SurfSense with Linear Connector
+
+Add the Linear environment variables to your Docker run command:
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # Linear Connector
+  -e LINEAR_CLIENT_ID=your_linear_client_id \
+  -e LINEAR_CLIENT_SECRET=your_linear_client_secret \
+  -e LINEAR_REDIRECT_URI=http://localhost:8000/api/v1/auth/linear/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+

@@ -1,13 +1,16 @@
 "use client";
 
 import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import type { IndexingConfigState } from "../../constants/connector-constants";
+import { type IndexingConfigState, OAUTH_CONNECTORS } from "../../constants/connector-constants";
+import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 
 interface IndexingConfigurationViewProps {
@@ -43,6 +46,9 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	onStartIndexing,
 	onSkip,
 }) => {
+	const searchParams = useSearchParams();
+	const isFromOAuth = searchParams.get("view") === "configure";
+
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
 		() => (connector ? getConnectorConfigComponent(connector.connector_type) : null),
@@ -85,34 +91,43 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 		};
 	}, [checkScrollState]);
 
+	const authConnector = OAUTH_CONNECTORS.find((c) => c.connectorType === connector?.connector_type);
+
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Fixed Header */}
 			<div
 				className={cn(
-					"flex-shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
+					"shrink-0 px-6 sm:px-12 pt-8 sm:pt-10 transition-shadow duration-200 relative z-10",
 					isScrolled && "shadow-sm"
 				)}
 			>
-				{/* Back button */}
-				<button
-					type="button"
-					onClick={onSkip}
-					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
-				>
-					<ArrowLeft className="size-4" />
-					Back to connectors
-				</button>
+				{/* Back button - only show if not from OAuth */}
+				{!isFromOAuth && (
+					<button
+						type="button"
+						onClick={onSkip}
+						className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+					>
+						<ArrowLeft className="size-4" />
+						Back to connectors
+					</button>
+				)}
 
 				{/* Success header */}
-				<div className="flex items-center gap-4 mb-6">
+				<div className="flex gap-4 mb-6">
 					<div className="flex h-14 w-14 items-center justify-center rounded-xl bg-green-500/10 border border-green-500/20">
 						<Check className="size-7 text-green-500" />
 					</div>
 					<div>
-						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-							{config.connectorTitle} Connected!
-						</h2>
+						<div className="flex flex-col">
+							<span className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal wrap-break-word">
+								{getConnectorTypeDisplay(connector?.connector_type || "")} Connected !
+							</span>{" "}
+							<span className="text-xl sm:text-xl font-semibold text-muted-foreground tracking-tight text-wrap whitespace-normal wrap-break-word">
+								{getConnectorDisplayName(connector?.name || "")}
+							</span>
+						</div>
 						<p className="text-xs sm:text-base text-muted-foreground mt-1">
 							Configure when to start syncing your data
 						</p>
@@ -187,15 +202,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 			</div>
 
 			{/* Fixed Footer - Action buttons */}
-			<div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-12 py-6 bg-muted">
-				<Button
-					variant="ghost"
-					onClick={onSkip}
-					disabled={isStartingIndexing}
-					className="text-xs sm:text-sm"
-				>
-					Skip for now
-				</Button>
+			<div className="flex-shrink-0 flex items-center justify-end px-6 sm:px-12 py-6 bg-muted">
 				<Button
 					onClick={onStartIndexing}
 					disabled={isStartingIndexing}

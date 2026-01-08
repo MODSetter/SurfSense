@@ -6,6 +6,7 @@ Allows fetching emails from Gmail mailbox using Google OAuth credentials.
 
 import base64
 import json
+import logging
 import re
 from typing import Any
 
@@ -20,6 +21,34 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def fetch_google_user_email(credentials: Credentials) -> str | None:
+    """
+    Fetch user email from Gmail API using Google credentials.
+
+    Uses the Gmail users.getProfile endpoint which returns the authenticated
+    user's email address.
+
+    Args:
+        credentials: Google OAuth Credentials object (not encrypted)
+
+    Returns:
+        User's email address or None if fetch fails
+    """
+    try:
+        service = build("gmail", "v1", credentials=credentials)
+        profile = service.users().getProfile(userId="me").execute()
+        email = profile.get("emailAddress")
+        if email:
+            logger.debug(f"Fetched Google user email: {email}")
+            return email
+        return None
+    except Exception as e:
+        logger.warning(f"Error fetching Google user email: {e!s}")
+        return None
 
 
 class GoogleGmailConnector:

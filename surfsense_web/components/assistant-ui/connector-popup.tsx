@@ -19,9 +19,11 @@ import { ConnectorDialogHeader } from "./connector-popup/components/connector-di
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
 import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
 import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
+import { OAUTH_CONNECTORS } from "./connector-popup/constants/connector-constants";
 import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
+import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
 export const ConnectorIndicator: FC = () => {
@@ -60,6 +62,7 @@ export const ConnectorIndicator: FC = () => {
 		periodicEnabled,
 		frequencyMinutes,
 		allConnectors,
+		viewingAccountsType,
 		setSearchQuery,
 		setStartDate,
 		setEndDate,
@@ -81,6 +84,8 @@ export const ConnectorIndicator: FC = () => {
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,
+		handleViewAccountsList,
+		handleBackFromAccountsList,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
@@ -162,6 +167,7 @@ export const ConnectorIndicator: FC = () => {
 	return (
 		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 			<TooltipIconButton
+				data-joyride="connector-icon"
 				tooltip={hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"}
 				side="bottom"
 				className={cn(
@@ -189,10 +195,29 @@ export const ConnectorIndicator: FC = () => {
 				)}
 			</TooltipIconButton>
 
-			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-6 sm:[&>button]:right-12 [&>button]:top-8 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
+			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
+				) : viewingAccountsType ? (
+					<ConnectorAccountsListView
+						connectorType={viewingAccountsType.connectorType}
+						connectorTitle={viewingAccountsType.connectorTitle}
+						connectors={(allConnectors || []) as SearchSourceConnector[]}
+						indexingConnectorIds={indexingConnectorIds}
+						logsSummary={logsSummary}
+						onBack={handleBackFromAccountsList}
+						onManage={handleStartEdit}
+						onAddAccount={() => {
+							const oauthConnector = OAUTH_CONNECTORS.find(
+								(c) => c.connectorType === viewingAccountsType.connectorType
+							);
+							if (oauthConnector) {
+								handleConnectOAuth(oauthConnector);
+							}
+						}}
+						isConnecting={connectingId !== null}
+					/>
 				) : connectingConnectorType ? (
 					<ConnectorConnectView
 						connectorType={connectingConnectorType}
@@ -272,7 +297,7 @@ export const ConnectorIndicator: FC = () => {
 						{/* Content */}
 						<div className="flex-1 min-h-0 relative overflow-hidden">
 							<div className="h-full overflow-y-auto" onScroll={handleScroll}>
-								<div className="px-6 sm:px-12 py-6 sm:py-8 pb-16 sm:pb-16">
+								<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
 									<TabsContent value="all" className="m-0">
 										<AllConnectorsTab
 											searchQuery={searchQuery}
@@ -288,6 +313,7 @@ export const ConnectorIndicator: FC = () => {
 											onCreateWebcrawler={handleCreateWebcrawler}
 											onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
 											onManage={handleStartEdit}
+											onViewAccountsList={handleViewAccountsList}
 										/>
 									</TabsContent>
 
@@ -302,6 +328,7 @@ export const ConnectorIndicator: FC = () => {
 										searchSpaceId={searchSpaceId}
 										onTabChange={handleTabChange}
 										onManage={handleStartEdit}
+										onViewAccountsList={handleViewAccountsList}
 									/>
 								</div>
 							</div>

@@ -2,13 +2,14 @@
 Confluence connector indexer.
 """
 
+import contextlib
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.connectors.confluence_connector import ConfluenceConnector
+from app.connectors.confluence_history import ConfluenceHistoryConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
@@ -83,31 +84,18 @@ async def index_confluence_pages(
             )
             return 0, f"Connector with ID {connector_id} not found"
 
-        # Get the Confluence credentials from the connector config
-        confluence_email = connector.config.get("CONFLUENCE_EMAIL")
-        confluence_api_token = connector.config.get("CONFLUENCE_API_TOKEN")
-        confluence_base_url = connector.config.get("CONFLUENCE_BASE_URL")
-
-        if not confluence_email or not confluence_api_token or not confluence_base_url:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Confluence credentials not found in connector config for connector {connector_id}",
-                "Missing Confluence credentials",
-                {"error_type": "MissingCredentials"},
-            )
-            return 0, "Confluence credentials not found in connector config"
-
-        # Initialize Confluence client
+        # Initialize Confluence OAuth client
         await task_logger.log_task_progress(
             log_entry,
-            f"Initializing Confluence client for connector {connector_id}",
+            f"Initializing Confluence OAuth client for connector {connector_id}",
             {"stage": "client_initialization"},
         )
 
-        confluence_client = ConfluenceConnector(
-            base_url=confluence_base_url,
-            email=confluence_email,
-            api_token=confluence_api_token,
+        confluence_client: ConfluenceHistoryConnector | None = (
+            ConfluenceHistoryConnector(
+                session=session,
+                connector_id=connector_id,
+            )
         )
 
         # Calculate date range
@@ -127,7 +115,7 @@ async def index_confluence_pages(
 
         # Get pages within date range
         try:
-            pages, error = confluence_client.get_pages_by_date_range(
+            pages, error = await confluence_client.get_pages_by_date_range(
                 start_date=start_date_str, end_date=end_date_str, include_comments=True
             )
 
@@ -153,6 +141,10 @@ async def index_confluence_pages(
                         f"No Confluence pages found in date range {start_date_str} to {end_date_str}",
                         {"pages_found": 0},
                     )
+                    # Close client before returning
+                    if confluence_client:
+                        with contextlib.suppress(Exception):
+                            await confluence_client.close()
                     return 0, None
                 else:
                     await task_logger.log_task_failure(
@@ -161,12 +153,20 @@ async def index_confluence_pages(
                         "API Error",
                         {"error_type": "APIError"},
                     )
+                    # Close client on error
+                    if confluence_client:
+                        with contextlib.suppress(Exception):
+                            await confluence_client.close()
                     return 0, f"Failed to get Confluence pages: {error}"
 
             logger.info(f"Retrieved {len(pages)} pages from Confluence API")
 
         except Exception as e:
             logger.error(f"Error fetching Confluence pages: {e!s}", exc_info=True)
+            # Close client on error
+            if confluence_client:
+                with contextlib.suppress(Exception):
+                    await confluence_client.close()
             return 0, f"Error fetching Confluence pages: {e!s}"
 
         # Process and index each page
@@ -418,6 +418,11 @@ async def index_confluence_pages(
         logger.info(
             f"Confluence indexing completed: {documents_indexed} new pages, {documents_skipped} skipped"
         )
+
+        # Close the client connection
+        if confluence_client:
+            await confluence_client.close()
+
         return (
             total_processed,
             None,
@@ -425,6 +430,10 @@ async def index_confluence_pages(
 
     except SQLAlchemyError as db_error:
         await session.rollback()
+        # Close client if it exists
+        if confluence_client:
+            with contextlib.suppress(Exception):
+                await confluence_client.close()
         await task_logger.log_task_failure(
             log_entry,
             f"Database error during Confluence indexing for connector {connector_id}",
@@ -435,6 +444,10 @@ async def index_confluence_pages(
         return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
+        # Close client if it exists
+        if confluence_client:
+            with contextlib.suppress(Exception):
+                await confluence_client.close()
         await task_logger.log_task_failure(
             log_entry,
             f"Failed to index Confluence pages for connector {connector_id}",

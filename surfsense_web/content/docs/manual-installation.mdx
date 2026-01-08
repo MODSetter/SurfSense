@@ -1,7 +1,6 @@
 ---
 title: Manual Installation
 description: Setting up SurfSense manually for customized deployments (Preferred)
-full: true
 ---
 
 # Manual Installation (Preferred)
@@ -234,7 +233,7 @@ redis-cli ping
 
 In a new terminal window, start the Celery worker to handle background tasks:
 
-**Linux/macOS/Windows:**
+**If using uv:**
 
 ```bash
 # Make sure you're in the surfsense_backend directory
@@ -244,13 +243,31 @@ cd surfsense_backend
 uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo
 ```
 
+**If using pip/venv:**
+
+```bash
+# Make sure you're in the surfsense_backend directory
+cd surfsense_backend
+
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# OR
+.venv\Scripts\activate     # Windows
+
+# Start Celery worker
+celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo
+```
+
 **Optional: Start Flower for monitoring Celery tasks:**
 
 In another terminal window:
 
 ```bash
-# Start Flower (Celery monitoring tool)
+# If using uv
 uv run celery -A celery_worker.celery_app flower --port=5555
+
+# If using pip/venv (activate venv first)
+celery -A celery_worker.celery_app flower --port=5555
 ```
 
 Access Flower at [http://localhost:5555](http://localhost:5555) to monitor your Celery tasks.
@@ -259,7 +276,7 @@ Access Flower at [http://localhost:5555](http://localhost:5555) to monitor your 
 
 In another new terminal window, start Celery Beat to enable periodic tasks (like scheduled connector indexing):
 
-**Linux/macOS/Windows:**
+**If using uv:**
 
 ```bash
 # Make sure you're in the surfsense_backend directory
@@ -269,13 +286,28 @@ cd surfsense_backend
 uv run celery -A celery_worker.celery_app beat --loglevel=info
 ```
 
+**If using pip/venv:**
+
+```bash
+# Make sure you're in the surfsense_backend directory
+cd surfsense_backend
+
+# Activate virtual environment
+source .venv/bin/activate  # Linux/macOS
+# OR
+.venv\Scripts\activate     # Windows
+
+# Start Celery Beat
+celery -A celery_worker.celery_app beat --loglevel=info
+```
+
 **Important**: Celery Beat is required for the periodic indexing functionality to work. Without it, scheduled connector tasks won't run automatically. The schedule interval can be configured using the `SCHEDULE_CHECKER_INTERVAL` environment variable.
 
 ### 6. Run the Backend
 
 Start the backend server:
 
-**Linux/macOS/Windows:**
+**If using uv:**
 
 ```bash
 # Run without hot reloading
@@ -283,6 +315,21 @@ uv run main.py
 
 # Or with hot reloading for development
 uv run main.py --reload
+```
+
+**If using pip/venv:**
+
+```bash
+# Activate virtual environment if not already activated
+source .venv/bin/activate  # Linux/macOS
+# OR
+.venv\Scripts\activate     # Windows
+
+# Run without hot reloading
+python main.py
+
+# Or with hot reloading for development
+python main.py --reload
 ```
 
 If everything is set up correctly, you should see output indicating the server is running on `http://localhost:8000`.

@@ -8,7 +8,6 @@ from google.oauth2.credentials import Credentials
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.google_gmail_connector import GoogleGmailConnector
 from app.db import (
     Document,
@@ -88,9 +87,47 @@ async def index_google_gmail_messages(
             )
             return 0, error_msg
 
-        # Create credentials from connector config
+        # Get the Google Gmail credentials from the connector config
         config_data = connector.config
-        exp = config_data.get("expiry").replace("Z", "")
+
+        # Decrypt sensitive credentials if encrypted (for backward compatibility)
+        from app.config import config
+        from app.utils.oauth_security import TokenEncryption
+
+        token_encrypted = config_data.get("_token_encrypted", False)
+        if token_encrypted and config.SECRET_KEY:
+            try:
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+
+                # Decrypt sensitive fields
+                if config_data.get("token"):
+                    config_data["token"] = token_encryption.decrypt_token(
+                        config_data["token"]
+                    )
+                if config_data.get("refresh_token"):
+                    config_data["refresh_token"] = token_encryption.decrypt_token(
+                        config_data["refresh_token"]
+                    )
+                if config_data.get("client_secret"):
+                    config_data["client_secret"] = token_encryption.decrypt_token(
+                        config_data["client_secret"]
+                    )
+
+                logger.info(
+                    f"Decrypted Google Gmail credentials for connector {connector_id}"
+                )
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to decrypt Google Gmail credentials for connector {connector_id}: {e!s}",
+                    "Credential decryption failed",
+                    {"error_type": "CredentialDecryptionError"},
+                )
+                return 0, f"Failed to decrypt Google Gmail credentials: {e!s}"
+
+        exp = config_data.get("expiry", "")
+        if exp:
+            exp = exp.replace("Z", "")
         credentials = Credentials(
             token=config_data.get("token"),
             refresh_token=config_data.get("refresh_token"),
@@ -98,7 +135,7 @@ async def index_google_gmail_messages(
             client_id=config_data.get("client_id"),
             client_secret=config_data.get("client_secret"),
             scopes=config_data.get("scopes", []),
-            expiry=datetime.fromisoformat(exp),
+            expiry=datetime.fromisoformat(exp) if exp else None,
         )
 
         if (

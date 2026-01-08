@@ -3,6 +3,7 @@ Jira Connector Module
 
 A module for retrieving data from Jira.
 Allows fetching issue lists and their comments, projects and more.
+Supports both OAuth 2.0 (preferred) and legacy API token authentication.
 """
 
 import base64
@@ -18,6 +19,8 @@ class JiraConnector:
     def __init__(
         self,
         base_url: str | None = None,
+        access_token: str | None = None,
+        cloud_id: str | None = None,
         email: str | None = None,
         api_token: str | None = None,
     ):
@@ -25,18 +28,39 @@ class JiraConnector:
         Initialize the JiraConnector class.
 
         Args:
-            base_url: Jira instance base URL (e.g., 'https://yourcompany.atlassian.net') (optional)
-            email: Jira account email address (optional)
-            api_token: Jira API token (optional)
+            base_url: Jira instance base URL (e.g., 'https://yourcompany.atlassian.net')
+            access_token: OAuth 2.0 access token (preferred method)
+            cloud_id: Atlassian cloud ID (used with OAuth for API URL construction)
+            email: Jira account email address (legacy method, used with api_token)
+            api_token: Jira API token (legacy method, used with email)
         """
         self.base_url = base_url.rstrip("/") if base_url else None
+        self.access_token = access_token
+        self.cloud_id = cloud_id
         self.email = email
         self.api_token = api_token
         self.api_version = "3"  # Jira Cloud API version
+        self._use_oauth = access_token is not None
+
+    def set_oauth_credentials(
+        self, base_url: str, access_token: str, cloud_id: str | None = None
+    ) -> None:
+        """
+        Set OAuth 2.0 credentials (preferred method).
+
+        Args:
+            base_url: Jira instance base URL
+            access_token: OAuth 2.0 access token
+            cloud_id: Atlassian cloud ID (optional, used for API URL construction)
+        """
+        self.base_url = base_url.rstrip("/")
+        self.access_token = access_token
+        self.cloud_id = cloud_id
+        self._use_oauth = True
 
     def set_credentials(self, base_url: str, email: str, api_token: str) -> None:
         """
-        Set the Jira credentials.
+        Set the Jira credentials (legacy method using API token).
 
         Args:
             base_url: Jira instance base URL
@@ -46,50 +70,69 @@ class JiraConnector:
         self.base_url = base_url.rstrip("/")
         self.email = email
         self.api_token = api_token
+        self._use_oauth = False
 
     def set_email(self, email: str) -> None:
         """
-        Set the Jira account email.
+        Set the Jira account email (legacy method).
 
         Args:
             email: Jira account email address
         """
         self.email = email
+        self._use_oauth = False
 
     def set_api_token(self, api_token: str) -> None:
         """
-        Set the Jira API token.
+        Set the Jira API token (legacy method).
 
         Args:
             api_token: Jira API token
         """
         self.api_token = api_token
+        self._use_oauth = False
 
     def get_headers(self) -> dict[str, str]:
         """
-        Get headers for Jira API requests using Basic Authentication.
+        Get headers for Jira API requests.
+
+        Uses OAuth Bearer token if available, otherwise falls back to Basic Auth.
 
         Returns:
             Dictionary of headers
 
         Raises:
-            ValueError: If email, api_token, or base_url have not been set
+            ValueError: If credentials have not been set
         """
-        if not all([self.base_url, self.email, self.api_token]):
-            raise ValueError(
-                "Jira credentials not initialized. Call set_credentials() first."
-            )
+        if self._use_oauth:
+            # OAuth 2.0 authentication
+            if not self.base_url or not self.access_token:
+                raise ValueError(
+                    "Jira OAuth credentials not initialized. Call set_oauth_credentials() first."
+                )
 
-        # Create Basic Auth header using email:api_token
-        auth_str = f"{self.email}:{self.api_token}"
-        auth_bytes = auth_str.encode("utf-8")
-        auth_header = "Basic " + base64.b64encode(auth_bytes).decode("ascii")
+            return {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.access_token}",
+                "Accept": "application/json",
+            }
+        else:
+            # Legacy Basic Auth
+            if not all([self.base_url, self.email, self.api_token]):
+                raise ValueError(
+                    "Jira credentials not initialized. Call set_credentials() first."
+                )
 
-        return {
-            "Content-Type": "application/json",
-            "Authorization": auth_header,
-            "Accept": "application/json",
-        }
+            # Create Basic Auth header using email:api_token
+            auth_str = f"{self.email}:{self.api_token}"
+            auth_bytes = auth_str.encode("utf-8")
+            auth_header = "Basic " + base64.b64encode(auth_bytes).decode("ascii")
+
+            return {
+                "Content-Type": "application/json",
+                "Authorization": auth_header,
+                "Accept": "application/json",
+            }
 
     def make_api_request(
         self,
@@ -104,21 +147,25 @@ class JiraConnector:
         Args:
             endpoint: API endpoint (without base URL)
             params: Query parameters for the request (optional)
+            method: HTTP method (GET or POST)
+            json_payload: JSON payload for POST requests (optional)
 
         Returns:
             Response data from the API
 
         Raises:
-            ValueError: If email, api_token, or base_url have not been set
+            ValueError: If credentials have not been set
             Exception: If the API request fails
         """
-        if not all([self.base_url, self.email, self.api_token]):
-            raise ValueError(
-                "Jira credentials not initialized. Call set_credentials() first."
-            )
-
-        url = f"{self.base_url}/rest/api/{self.api_version}/{endpoint}"
         headers = self.get_headers()
+
+        # Construct API URL based on authentication method
+        if self._use_oauth and self.cloud_id:
+            # Use Atlassian API gateway with cloud_id for OAuth
+            url = f"https://api.atlassian.com/ex/jira/{self.cloud_id}/rest/api/{self.api_version}/{endpoint}"
+        else:
+            # Use direct base URL (works for both OAuth and legacy)
+            url = f"{self.base_url}/rest/api/{self.api_version}/{endpoint}"
 
         if method.upper() == "POST":
             response = requests.post(
@@ -234,16 +281,23 @@ class JiraConnector:
         try:
             # Build JQL query for date range
             # Query issues that were either created OR updated within the date range
-            date_filter = (
-                f"(createdDate >= '{start_date}' AND createdDate <= '{end_date}')"
-            )
-            # TODO : This JQL needs some improvement to work as expected
+            # Use end_date + 1 day with < operator to include the full end date
+            from datetime import datetime, timedelta
 
-            jql = f"{date_filter}"
+            # Parse end_date and add 1 day for inclusive end date
+            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+            end_date_next = (end_date_obj + timedelta(days=1)).strftime("%Y-%m-%d")
+
+            # Check both created and updated dates to catch all relevant issues
+            # Use 'created' and 'updated' (standard JQL field names)
+            date_filter = (
+                f"(created >= '{start_date}' AND created < '{end_date_next}') "
+                f"OR (updated >= '{start_date}' AND updated < '{end_date_next}')"
+            )
+
+            jql = f"{date_filter} ORDER BY created DESC"
             if project_key:
-                jql = (
-                    f'project = "{project_key}" AND {date_filter} ORDER BY created DESC'
-                )
+                jql = f'project = "{project_key}" AND ({date_filter}) ORDER BY created DESC'
 
             # Define fields to retrieve
             fields = [

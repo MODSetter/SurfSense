@@ -8,7 +8,6 @@ from google.oauth2.credentials import Credentials
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.google_calendar_connector import GoogleCalendarConnector
 from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
@@ -84,15 +83,52 @@ async def index_google_calendar_events(
             return 0, f"Connector with ID {connector_id} not found"
 
         # Get the Google Calendar credentials from the connector config
-        exp = connector.config.get("expiry").replace("Z", "")
+        config_data = connector.config
+
+        # Decrypt sensitive credentials if encrypted (for backward compatibility)
+        from app.config import config
+        from app.utils.oauth_security import TokenEncryption
+
+        token_encrypted = config_data.get("_token_encrypted", False)
+        if token_encrypted and config.SECRET_KEY:
+            try:
+                token_encryption = TokenEncryption(config.SECRET_KEY)
+
+                # Decrypt sensitive fields
+                if config_data.get("token"):
+                    config_data["token"] = token_encryption.decrypt_token(
+                        config_data["token"]
+                    )
+                if config_data.get("refresh_token"):
+                    config_data["refresh_token"] = token_encryption.decrypt_token(
+                        config_data["refresh_token"]
+                    )
+                if config_data.get("client_secret"):
+                    config_data["client_secret"] = token_encryption.decrypt_token(
+                        config_data["client_secret"]
+                    )
+
+                logger.info(
+                    f"Decrypted Google Calendar credentials for connector {connector_id}"
+                )
+            except Exception as e:
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to decrypt Google Calendar credentials for connector {connector_id}: {e!s}",
+                    "Credential decryption failed",
+                    {"error_type": "CredentialDecryptionError"},
+                )
+                return 0, f"Failed to decrypt Google Calendar credentials: {e!s}"
+
+        exp = config_data.get("expiry", "").replace("Z", "")
         credentials = Credentials(
-            token=connector.config.get("token"),
-            refresh_token=connector.config.get("refresh_token"),
-            token_uri=connector.config.get("token_uri"),
-            client_id=connector.config.get("client_id"),
-            client_secret=connector.config.get("client_secret"),
-            scopes=connector.config.get("scopes"),
-            expiry=datetime.fromisoformat(exp),
+            token=config_data.get("token"),
+            refresh_token=config_data.get("refresh_token"),
+            token_uri=config_data.get("token_uri"),
+            client_id=config_data.get("client_id"),
+            client_secret=config_data.get("client_secret"),
+            scopes=config_data.get("scopes"),
+            expiry=datetime.fromisoformat(exp) if exp else None,
         )
 
         if (
@@ -121,6 +157,12 @@ async def index_google_calendar_events(
             user_id=user_id,
             connector_id=connector_id,
         )
+
+        # Handle 'undefined' string from frontend (treat as None)
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
 
         # Calculate date range
         if start_date is None or end_date is None:
