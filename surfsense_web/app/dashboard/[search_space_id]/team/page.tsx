@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	createInviteMutationAtom,
@@ -116,7 +116,7 @@ import type {
 } from "@/contracts/types/roles.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
-import { trackSearchSpaceInviteSent } from "@/lib/posthog/events";
+import { trackSearchSpaceInviteSent, trackSearchSpaceUsersViewed } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
@@ -297,6 +297,14 @@ export default function TeamManagementPage() {
 		await Promise.all([fetchMembers(), fetchRoles(), fetchInvites()]);
 		toast.success("Team data refreshed");
 	}, [fetchMembers, fetchRoles, fetchInvites]);
+
+	// Track users per search space when team page is viewed
+	useEffect(() => {
+		if (members.length > 0 && !membersLoading) {
+			const ownerCount = members.filter((m) => m.is_owner).length;
+			trackSearchSpaceUsersViewed(searchSpaceId, members.length, ownerCount);
+		}
+	}, [members, membersLoading, searchSpaceId]);
 
 	if (accessLoading) {
 		return (
