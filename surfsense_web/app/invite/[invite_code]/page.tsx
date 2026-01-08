@@ -33,6 +33,11 @@ import {
 import type { AcceptInviteResponse } from "@/contracts/types/invites.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
+import {
+	trackSearchSpaceInviteAccepted,
+	trackSearchSpaceInviteDeclined,
+	trackSearchSpaceUserAdded,
+} from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export default function InviteAcceptPage() {
@@ -91,12 +96,30 @@ export default function InviteAcceptPage() {
 			if (result) {
 				setAccepted(true);
 				setAcceptedData(result);
+
+				// Track invite accepted and user added events
+				trackSearchSpaceInviteAccepted(
+					result.search_space_id,
+					result.search_space_name,
+					result.role_name
+				);
+				trackSearchSpaceUserAdded(
+					result.search_space_id,
+					result.search_space_name,
+					result.role_name
+				);
 			}
 		} catch (err: any) {
 			setError(err.message || "Failed to accept invite");
 		} finally {
 			setAccepting(false);
 		}
+	};
+
+	const handleDecline = () => {
+		// Track invite declined event
+		trackSearchSpaceInviteDeclined(inviteInfo?.search_space_name);
+		router.push("/dashboard");
 	};
 
 	const handleLoginRedirect = () => {
@@ -327,7 +350,7 @@ export default function InviteAcceptPage() {
 								<Button
 									variant="outline"
 									className="flex-1"
-									onClick={() => router.push("/dashboard")}
+									onClick={handleDecline}
 								>
 									Cancel
 								</Button>

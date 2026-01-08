@@ -15,6 +15,14 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import {
+	trackConnectorConnected,
+	trackConnectorDeleted,
+	trackIndexWithDateRangeOpened,
+	trackIndexWithDateRangeStarted,
+	trackPeriodicIndexingStarted,
+	trackQuickIndexClicked,
+} from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
@@ -309,6 +317,13 @@ export const useConnectorDialog = () => {
 						if (newConnector) {
 							const connectorValidation = searchSourceConnector.safeParse(newConnector);
 							if (connectorValidation.success) {
+								// Track connector connected event for OAuth connectors
+								trackConnectorConnected(
+									Number(searchSpaceId),
+									oauthConnector.connectorType,
+									newConnector.id
+								);
+
 								const config = validateIndexingConfigState({
 									connectorType: oauthConnector.connectorType,
 									connectorId: newConnector.id,
@@ -419,6 +434,13 @@ export const useConnectorDialog = () => {
 				if (connector) {
 					const connectorValidation = searchSourceConnector.safeParse(connector);
 					if (connectorValidation.success) {
+						// Track webcrawler connector connected
+						trackConnectorConnected(
+							Number(searchSpaceId),
+							EnumConnectorName.WEBCRAWLER_CONNECTOR,
+							connector.id
+						);
+
 						const config = validateIndexingConfigState({
 							connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 							connectorId: connector.id,
@@ -513,6 +535,9 @@ export const useConnectorDialog = () => {
 						if (connectorValidation.success) {
 							// Store connectingConnectorType before clearing it
 							const currentConnectorType = connectingConnectorType;
+
+							// Track connector connected event for non-OAuth connectors
+							trackConnectorConnected(Number(searchSpaceId), currentConnectorType, connector.id);
 
 							// Find connector title from constants
 							const connectorInfo = OTHER_CONNECTORS.find(
@@ -848,46 +873,70 @@ export const useConnectorDialog = () => {
 					});
 				}
 
-				toast.success(`${indexingConfig.connectorTitle} indexing started`, {
-					description: periodicEnabled
-						? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutes)}.`
-						: "You can continue working while we sync your data.",
-				});
+			// Track index with date range started event
+			trackIndexWithDateRangeStarted(
+				Number(searchSpaceId),
+				indexingConfig.connectorType,
+				indexingConfig.connectorId,
+				{
+					hasStartDate: !!startDate,
+					hasEndDate: !!endDate,
+				}
+			);
 
-				// Update URL - the effect will handle closing the modal and clearing state
-				const url = new URL(window.location.href);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("success");
-				url.searchParams.delete("connector");
-				url.searchParams.delete("view");
-				router.replace(url.pathname + url.search, { scroll: false });
-
-				refreshConnectors();
-				queryClient.invalidateQueries({
-					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-				});
-			} catch (error) {
-				console.error("Error starting indexing:", error);
-				toast.error("Failed to start indexing");
-			} finally {
-				setIsStartingIndexing(false);
+			// Track periodic indexing started if enabled
+			if (
+				periodicEnabled &&
+				indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR"
+			) {
+				trackPeriodicIndexingStarted(
+					Number(searchSpaceId),
+					indexingConfig.connectorType,
+					indexingConfig.connectorId,
+					parseInt(frequencyMinutes, 10)
+				);
 			}
-		},
-		[
-			indexingConfig,
-			searchSpaceId,
-			startDate,
-			endDate,
-			indexConnector,
-			updateConnector,
-			periodicEnabled,
-			frequencyMinutes,
-			getFrequencyLabel,
-			router,
-			indexingConnectorConfig,
-		]
-	);
+
+			toast.success(`${indexingConfig.connectorTitle} indexing started`, {
+				description: periodicEnabled
+					? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutes)}.`
+					: "You can continue working while we sync your data.",
+			});
+
+			// Update URL - the effect will handle closing the modal and clearing state
+			const url = new URL(window.location.href);
+			url.searchParams.delete("modal");
+			url.searchParams.delete("tab");
+			url.searchParams.delete("success");
+			url.searchParams.delete("connector");
+			url.searchParams.delete("view");
+			router.replace(url.pathname + url.search, { scroll: false });
+
+			refreshConnectors();
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+		} catch (error) {
+			console.error("Error starting indexing:", error);
+			toast.error("Failed to start indexing");
+		} finally {
+			setIsStartingIndexing(false);
+		}
+	},
+	[
+		indexingConfig,
+		searchSpaceId,
+		startDate,
+		endDate,
+		indexConnector,
+		updateConnector,
+		periodicEnabled,
+		frequencyMinutes,
+		getFrequencyLabel,
+		router,
+		indexingConnectorConfig,
+	]
+);
 
 	// Handle skipping indexing
 	const handleSkipIndexing = useCallback(() => {
@@ -912,6 +961,15 @@ export const useConnectorDialog = () => {
 			if (!connectorValidation.success) {
 				toast.error("Invalid connector data");
 				return;
+			}
+
+			// Track index with date range opened event
+			if (connector.is_indexable) {
+				trackIndexWithDateRangeOpened(
+					Number(searchSpaceId),
+					connector.connector_type,
+					connector.id
+				);
 			}
 
 			setEditingConnector(connector);
@@ -1049,46 +1107,76 @@ export const useConnectorDialog = () => {
 					indexingDescription = "Re-indexing started with new date range.";
 				}
 
-				toast.success(`${editingConnector.name} updated successfully`, {
-					description: periodicEnabled
-						? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
-						: indexingDescription,
-				});
-
-				// Update URL - the effect will handle closing the modal and clearing state
-				const url = new URL(window.location.href);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("view");
-				url.searchParams.delete("connectorId");
-				router.replace(url.pathname + url.search, { scroll: false });
-
-				refreshConnectors();
-				queryClient.invalidateQueries({
-					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-				});
-			} catch (error) {
-				console.error("Error saving connector:", error);
-				toast.error("Failed to save connector changes");
-			} finally {
-				setIsSaving(false);
+			// Track indexing started if re-indexing was performed
+			if (
+				editingConnector.is_indexable &&
+				(indexingDescription.includes("Re-indexing") || indexingDescription.includes("indexing"))
+			) {
+				trackIndexWithDateRangeStarted(
+					Number(searchSpaceId),
+					editingConnector.connector_type,
+					editingConnector.id,
+					{
+						hasStartDate: !!startDateStr,
+						hasEndDate: !!endDateStr,
+					}
+				);
 			}
-		},
-		[
-			editingConnector,
-			searchSpaceId,
-			startDate,
-			endDate,
-			indexConnector,
-			updateConnector,
-			periodicEnabled,
-			frequencyMinutes,
-			getFrequencyLabel,
-			router,
-			connectorConfig,
-			connectorName,
-		]
-	);
+
+			// Track periodic indexing if enabled (for non-Google Drive connectors)
+			if (
+				periodicEnabled &&
+				editingConnector.is_indexable &&
+				editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
+			) {
+				trackPeriodicIndexingStarted(
+					Number(searchSpaceId),
+					editingConnector.connector_type,
+					editingConnector.id,
+					frequency || parseInt(frequencyMinutes, 10)
+				);
+			}
+
+			toast.success(`${editingConnector.name} updated successfully`, {
+				description: periodicEnabled
+					? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
+					: indexingDescription,
+			});
+
+			// Update URL - the effect will handle closing the modal and clearing state
+			const url = new URL(window.location.href);
+			url.searchParams.delete("modal");
+			url.searchParams.delete("tab");
+			url.searchParams.delete("view");
+			url.searchParams.delete("connectorId");
+			router.replace(url.pathname + url.search, { scroll: false });
+
+			refreshConnectors();
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+		} catch (error) {
+			console.error("Error saving connector:", error);
+			toast.error("Failed to save connector changes");
+		} finally {
+			setIsSaving(false);
+		}
+	},
+	[
+		editingConnector,
+		searchSpaceId,
+		startDate,
+		endDate,
+		indexConnector,
+		updateConnector,
+		periodicEnabled,
+		frequencyMinutes,
+		getFrequencyLabel,
+		router,
+		connectorConfig,
+		connectorName,
+	]
+);
 
 	// Handle disconnecting connector
 	const handleDisconnectConnector = useCallback(
@@ -1100,6 +1188,13 @@ export const useConnectorDialog = () => {
 				await deleteConnector({
 					id: editingConnector.id,
 				});
+
+				// Track connector deleted event
+				trackConnectorDeleted(
+					Number(searchSpaceId),
+					editingConnector.connector_type,
+					editingConnector.id
+				);
 
 				toast.success(`${editingConnector.name} disconnected successfully`);
 
@@ -1127,8 +1222,13 @@ export const useConnectorDialog = () => {
 
 	// Handle quick index (index without date picker, uses backend defaults)
 	const handleQuickIndexConnector = useCallback(
-		async (connectorId: number) => {
+		async (connectorId: number, connectorType?: string) => {
 			if (!searchSpaceId) return;
+
+			// Track quick index clicked event
+			if (connectorType) {
+				trackQuickIndexClicked(Number(searchSpaceId), connectorType, connectorId);
+			}
 
 			try {
 				await indexConnector({
