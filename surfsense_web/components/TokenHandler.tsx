@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
+import { trackLoginSuccess } from "@/lib/posthog/events";
 
 interface TokenHandlerProps {
 	redirectPath?: string; // Default path to redirect after storing token (if no saved path)
@@ -35,6 +36,16 @@ const TokenHandler = ({
 
 		if (token) {
 			try {
+				// Track login success for OAuth flows (e.g., Google)
+				// Local login already tracks success before redirecting here
+				const alreadyTracked = sessionStorage.getItem("login_success_tracked");
+				if (!alreadyTracked) {
+					// This is an OAuth flow (Google login) - track success
+					trackLoginSuccess("google");
+				}
+				// Clear the flag for future logins
+				sessionStorage.removeItem("login_success_tracked");
+				
 				// Store token in localStorage using both methods for compatibility
 				localStorage.setItem(storageKey, token);
 				setBearerToken(token);
