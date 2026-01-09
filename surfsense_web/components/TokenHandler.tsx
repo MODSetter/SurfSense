@@ -45,7 +45,7 @@ const TokenHandler = ({
 				}
 				// Clear the flag for future logins
 				sessionStorage.removeItem("login_success_tracked");
-				
+
 				// Store token in localStorage using both methods for compatibility
 				localStorage.setItem(storageKey, token);
 				setBearerToken(token);
@@ -56,7 +56,7 @@ const TokenHandler = ({
 				// Use the saved path if available, otherwise use the default redirectPath
 				const finalRedirectPath = savedRedirectPath || redirectPath;
 
-				// Use hard navigation to clear all React/jotai state from previous session
+				// Redirect to the appropriate path
 				window.location.href = finalRedirectPath;
 			} catch (error) {
 				console.error("Error storing token in localStorage:", error);
