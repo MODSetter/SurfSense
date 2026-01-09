@@ -79,7 +79,7 @@ export const useConnectorDialog = () => {
 		connectorType: string;
 		connectorTitle: string;
 	} | null>(null);
-	
+
 	// Track if we came from accounts list when entering edit mode
 	const [cameFromAccountsList, setCameFromAccountsList] = useState<{
 		connectorType: string;

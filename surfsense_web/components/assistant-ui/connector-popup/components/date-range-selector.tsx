@@ -102,10 +102,8 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 									!endDate && "text-muted-foreground"
 								)}
 							>
-							<CalendarIcon className="mr-2 h-4 w-4" />
-							{endDate
-								? format(endDate, "PPP")
-								: "Default (Today)"}
+								<CalendarIcon className="mr-2 h-4 w-4" />
+								{endDate ? format(endDate, "PPP") : "Default (Today)"}
 							</Button>
 						</PopoverTrigger>
 						<PopoverContent className="w-auto p-0 z-[100]" align="start">
