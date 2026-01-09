@@ -54,7 +54,6 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
 			BOOKSTACK_CONNECTOR: "bookstack-connect-form",
 			GITHUB_CONNECTOR: "github-connect-form",
-			CLICKUP_CONNECTOR: "clickup-connect-form",
 			LUMA_CONNECTOR: "luma-connect-form",
 			CIRCLEBACK_CONNECTOR: "circleback-connect-form",
 		};

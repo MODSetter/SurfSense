@@ -12,9 +12,9 @@ from google_auth_oauthlib.flow import Flow
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
+from app.connectors.google_gmail_connector import fetch_google_user_email
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -22,6 +22,10 @@ from app.db import (
     get_async_session,
 )
 from app.users import current_active_user
+from app.utils.connector_naming import (
+    check_duplicate_connector,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -203,6 +207,9 @@ async def gmail_callback(
         creds = flow.credentials
         creds_dict = json.loads(creds.to_json())
 
+        # Fetch user email
+        user_email = fetch_google_user_email(creds)
+
         # Encrypt sensitive credentials before storing
         token_encryption = get_token_encryption()
 
@@ -221,24 +228,33 @@ async def gmail_callback(
         # Mark that credentials are encrypted for backward compatibility
         creds_dict["_token_encrypted"] = True
 
-        try:
-            # Check if a connector with the same type already exists for this search space and user
-            result = await session.execute(
-                select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id == space_id,
-                    SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type
-                    == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
-                )
+        # Check for duplicate connector (same account already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+            space_id,
+            user_id,
+            user_email,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Gmail connector detected for user {user_id} with email {user_email}"
             )
-            existing_connector = result.scalars().first()
-            if existing_connector:
-                raise HTTPException(
-                    status_code=409,
-                    detail="A GOOGLE_GMAIL_CONNECTOR connector already exists in this search space. Each search space can have only one connector of each type per user.",
-                )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=google-gmail-connector"
+            )
+
+        try:
+            # Generate a unique, user-friendly connector name
+            connector_name = await generate_unique_connector_name(
+                session,
+                SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+                space_id,
+                user_id,
+                user_email,
+            )
             db_connector = SearchSourceConnector(
-                name="Google Gmail Connector",
+                name=connector_name,
                 connector_type=SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
                 config=creds_dict,
                 search_space_id=space_id,
@@ -256,7 +272,7 @@ async def gmail_callback(
             # Redirect to the frontend with success params for indexing config
             # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-gmail-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-gmail-connector&connectorId={db_connector.id}"
             )
 
         except IntegrityError as e:
@@ -264,7 +280,7 @@ async def gmail_callback(
             logger.error(f"Database integrity error: {e!s}")
             raise HTTPException(
                 status_code=409,
-                detail="A connector with this configuration already exists.",
+                detail=f"Database integrity error: {e!s}",
             ) from e
         except ValidationError as e:
             await session.rollback()

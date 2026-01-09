@@ -342,61 +342,8 @@ async def get_document_summary_llm(
     )
 
 
-# Backward-compatible aliases (deprecated - will be removed in future versions)
-async def get_user_llm_instance(
-    session: AsyncSession, user_id: str, search_space_id: int, role: str
-) -> ChatLiteLLM | None:
-    """
-    Deprecated: Use get_search_space_llm_instance instead.
-    LLM preferences are now stored at the search space level, not per-user.
-    """
-    return await get_search_space_llm_instance(session, search_space_id, role)
-
-
-# Legacy aliases for backward compatibility
-async def get_long_context_llm(
-    session: AsyncSession, search_space_id: int
-) -> ChatLiteLLM | None:
-    """Deprecated: Use get_document_summary_llm instead."""
-    return await get_document_summary_llm(session, search_space_id)
-
-
-async def get_fast_llm(
-    session: AsyncSession, search_space_id: int
-) -> ChatLiteLLM | None:
-    """Deprecated: Use get_agent_llm instead."""
-    return await get_agent_llm(session, search_space_id)
-
-
-async def get_strategic_llm(
-    session: AsyncSession, search_space_id: int
-) -> ChatLiteLLM | None:
-    """Deprecated: Use get_document_summary_llm instead."""
-    return await get_document_summary_llm(session, search_space_id)
-
-
-# User-based legacy aliases (LLM preferences are now per-search-space, not per-user)
+# Backward-compatible alias (LLM preferences are now per-search-space, not per-user)
 async def get_user_long_context_llm(
-    session: AsyncSession, user_id: str, search_space_id: int
-) -> ChatLiteLLM | None:
-    """
-    Deprecated: Use get_document_summary_llm instead.
-    The user_id parameter is ignored as LLM preferences are now per-search-space.
-    """
-    return await get_document_summary_llm(session, search_space_id)
-
-
-async def get_user_fast_llm(
-    session: AsyncSession, user_id: str, search_space_id: int
-) -> ChatLiteLLM | None:
-    """
-    Deprecated: Use get_agent_llm instead.
-    The user_id parameter is ignored as LLM preferences are now per-search-space.
-    """
-    return await get_agent_llm(session, search_space_id)
-
-
-async def get_user_strategic_llm(
     session: AsyncSession, user_id: str, search_space_id: int
 ) -> ChatLiteLLM | None:
     """

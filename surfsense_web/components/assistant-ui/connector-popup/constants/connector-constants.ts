@@ -52,6 +52,13 @@ export const OAUTH_CONNECTORS = [
 		authEndpoint: "/api/v1/auth/slack/connector/add/",
 	},
 	{
+		id: "teams-connector",
+		title: "Microsoft Teams",
+		description: "Search Teams messages",
+		connectorType: EnumConnectorName.TEAMS_CONNECTOR,
+		authEndpoint: "/api/v1/auth/teams/connector/add/",
+	},
+	{
 		id: "discord-connector",
 		title: "Discord",
 		description: "Search Discord messages",
@@ -71,6 +78,13 @@ export const OAUTH_CONNECTORS = [
 		description: "Search documentation",
 		connectorType: EnumConnectorName.CONFLUENCE_CONNECTOR,
 		authEndpoint: "/api/v1/auth/confluence/connector/add/",
+	},
+	{
+		id: "clickup-connector",
+		title: "ClickUp",
+		description: "Search ClickUp tasks",
+		connectorType: EnumConnectorName.CLICKUP_CONNECTOR,
+		authEndpoint: "/api/v1/auth/clickup/connector/add/",
 	},
 ] as const;
 
@@ -103,12 +117,6 @@ export const OTHER_CONNECTORS = [
 		title: "GitHub",
 		description: "Search repositories",
 		connectorType: EnumConnectorName.GITHUB_CONNECTOR,
-	},
-	{
-		id: "clickup-connector",
-		title: "ClickUp",
-		description: "Search ClickUp tasks",
-		connectorType: EnumConnectorName.CLICKUP_CONNECTOR,
 	},
 	{
 		id: "luma-connector",

@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: UV Run with Reload",
+            "name": "Backend: FastAPI",
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
@@ -25,7 +25,7 @@
             "python": "${command:python.interpreterPath}"
         },
         {
-            "name": "Python Debugger: main.py (direct)",
+            "name": "Backend: FastAPI (main.py)",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/surfsense_backend/main.py",
@@ -34,16 +34,94 @@
             "cwd": "${workspaceFolder}/surfsense_backend"
         },
         {
-            "name": "Python Debugger: Chat DeepAgent",
+            "name": "Frontend: Next.js",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/surfsense_web",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "- Local:.+(https?://.+)",
+                "uriFormat": "%s",
+                "action": "debugWithChrome"
+            }
+        },
+        {
+            "name": "Frontend: Next.js (Server-Side Debug)",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/surfsense_web",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "debug:server"],
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "- Local:.+(https?://.+)",
+                "uriFormat": "%s",
+                "action": "debugWithChrome"
+            }
+        },
+        {
+            "name": "Celery: Worker",
             "type": "debugpy",
             "request": "launch",
-            "module": "app.agents.new_chat.chat_deepagent",
+            "module": "celery",
+            "args": [
+                "-A",
+                "app.celery_app:celery_app",
+                "worker",
+                "--loglevel=info",
+                "--pool=solo"
+            ],
             "console": "integratedTerminal",
             "justMyCode": false,
             "cwd": "${workspaceFolder}/surfsense_backend",
-            "python": "${command:python.interpreterPath}",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}/surfsense_backend"
+            "python": "${command:python.interpreterPath}"
+        },
+        {
+            "name": "Celery: Beat Scheduler",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "celery",
+            "args": [
+                "-A",
+                "app.celery_app:celery_app",
+                "beat",
+                "--loglevel=info"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/surfsense_backend",
+            "python": "${command:python.interpreterPath}"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Stack: Backend + Frontend + Celery",
+            "configurations": [
+                "Backend: FastAPI",
+                "Frontend: Next.js",
+                "Celery: Worker",
+                "Celery: Beat Scheduler"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Full Stack",
+                "order": 1
+            }
+        },
+        {
+            "name": "Full Stack: Backend + Frontend",
+            "configurations": [
+                "Backend: FastAPI",
+                "Frontend: Next.js"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Full Stack",
+                "order": 2
             }
         }
     ]

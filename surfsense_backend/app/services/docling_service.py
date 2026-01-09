@@ -128,42 +128,6 @@ class DoclingService:
             logger.error(f"❌ Docling initialization failed: {e}")
             raise RuntimeError(f"Docling initialization failed: {e}") from e
 
-    def _configure_easyocr_local_models(self):
-        """Configure EasyOCR to use pre-downloaded local models."""
-        try:
-            import os
-
-            import easyocr
-
-            # Set SSL environment for EasyOCR downloads
-            os.environ["CURL_CA_BUNDLE"] = ""
-            os.environ["REQUESTS_CA_BUNDLE"] = ""
-
-            # Try to use local models first, fallback to download if needed
-            try:
-                reader = easyocr.Reader(
-                    ["en"],
-                    download_enabled=False,
-                    model_storage_directory="/root/.EasyOCR/model",
-                )
-                logger.info("✅ EasyOCR configured for local models")
-                return reader
-            except Exception:
-                # If local models fail, allow download with SSL bypass
-                logger.info(
-                    "🔄 Local models failed, attempting download with SSL bypass..."
-                )
-                reader = easyocr.Reader(
-                    ["en"],
-                    download_enabled=True,
-                    model_storage_directory="/root/.EasyOCR/model",
-                )
-                logger.info("✅ EasyOCR configured with downloaded models")
-                return reader
-        except Exception as e:
-            logger.warning(f"⚠️ EasyOCR configuration failed: {e}")
-            return None
-
     async def process_document(
         self, file_path: str, filename: str | None = None
     ) -> dict[str, Any]:

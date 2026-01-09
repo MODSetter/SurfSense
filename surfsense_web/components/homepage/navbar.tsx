@@ -54,7 +54,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					: "bg-transparent border border-transparent"
 			)}
 		>
-			<div className="flex flex-1 flex-row items-center gap-2">
+			<div className="flex flex-1 flex-row items-center gap-0.5">
 				<Logo className="h-8 w-8 rounded-md" />
 				<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 			</div>
