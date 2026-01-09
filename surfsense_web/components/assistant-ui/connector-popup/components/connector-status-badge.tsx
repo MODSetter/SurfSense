@@ -52,11 +52,11 @@ export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({ status, cl
 	const Icon = config.icon;
 
 	return (
-		<div
-			className={cn("flex items-center justify-center shrink-0", className)}
+		<span
+			className={cn("inline-flex items-center justify-center shrink-0", className)}
 			title={config.title}
 		>
 			<Icon className={cn("size-3.5", config.className)} />
-		</div>
+		</span>
 	);
 };

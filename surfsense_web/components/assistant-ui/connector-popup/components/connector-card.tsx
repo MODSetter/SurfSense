@@ -140,13 +140,14 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			);
 		}
 
-		// Show status message if available and connector is not connected
-		if (!isConnected && statusMessage) {
+		// Priority 1: Show status message if available (for both connected and disconnected connectors)
+		// This takes precedence over indexed dates and warnings
+		if (statusMessage) {
 			return <span className="text-[10px] text-muted-foreground">{statusMessage}</span>;
 		}
 
 		if (isConnected) {
-			// Show last indexed date for connected connectors
+			// Show last indexed date for connected connectors (only if no status message)
 			if (lastIndexedAt) {
 				return (
 					<span className="whitespace-nowrap text-[10px]">
@@ -158,7 +159,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			return <span className="whitespace-nowrap text-[10px]">Never indexed</span>;
 		}
 
-		// Show warning message if available and warnings are enabled
+		// Show warning message if available and warnings are enabled (only if no status message)
 		if (warning && showWarnings) {
 			return <span className="text-[10px] text-yellow-600 dark:text-yellow-500">{warning}</span>;
 		}
@@ -196,10 +197,10 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				)}
 			</div>
 			<div className="flex-1 min-w-0">
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-1.5">
 					<span className="text-[14px] font-semibold leading-tight truncate">{title}</span>
 					{showWarnings && status.status !== "active" && (
-						<ConnectorStatusBadge status={status.status} />
+						<ConnectorStatusBadge status={status.status} className="flex-shrink-0" />
 					)}
 				</div>
 				<div className="text-[10px] text-muted-foreground mt-1">{getStatusContent()}</div>

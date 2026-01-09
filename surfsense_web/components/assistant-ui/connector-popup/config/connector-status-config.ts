@@ -48,23 +48,20 @@ export type ConnectorStatusConfigFile = z.infer<typeof connectorStatusConfigFile
  */
 const rawConnectorStatusConfig = {
 	connectorStatuses: {
-		// Example: Disabled connector
 		// "SLACK_CONNECTOR": {
 		// 	enabled: false,
 		// 	status: "disabled",
 		// 	warning: null,
-		// 	statusMessage: "Slack connector is currently unavailable due to API changes",
+		// 	statusMessage: "Unavailable due to API changes",
 		// 	disableReason: "maintenance",
 		// },
-		// Example: Connector with warning
 		// "NOTION_CONNECTOR": {
 		// 	enabled: true,
 		// 	status: "warning",
 		// 	warning: "Rate limits may apply",
-		// 	statusMessage: "Notion API rate limits are currently active. Some requests may be delayed.",
+		// 	statusMessage: "Some requests may be delayed due to Notion API rate limits",
 		// 	disableReason: null,
 		// },
-		// Example: Connector in maintenance
 		// "TEAMS_CONNECTOR": {
 		// 	enabled: false,
 		// 	status: "maintenance",

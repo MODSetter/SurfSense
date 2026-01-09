@@ -82,7 +82,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}
-			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-4 border-b border-border/50 bg-muted">
+			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-1 sm:pb-4 border-b border-border/50 bg-muted">
 				{/* Back button */}
 				<button
 					type="button"
@@ -114,21 +114,21 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 						onClick={onAddAccount}
 						disabled={isConnecting || !isEnabled}
 						className={cn(
-							"flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed text-left transition-all duration-200 shrink-0 self-center sm:self-auto sm:w-auto",
+							"flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border-2 border-dashed text-left transition-all duration-200 shrink-0 self-center sm:self-auto sm:w-auto",
 							!isEnabled
 								? "border-border/30 opacity-50 cursor-not-allowed"
 								: "border-primary/50 hover:bg-primary/5",
 							isConnecting && "opacity-50 cursor-not-allowed"
 						)}
 					>
-						<div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 shrink-0">
+						<div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-primary/10 shrink-0">
 							{isConnecting ? (
-								<Loader2 className="size-3.5 animate-spin text-primary" />
+								<Loader2 className="size-3 sm:size-3.5 animate-spin text-primary" />
 							) : (
-								<Plus className="size-3.5 text-primary" />
+								<Plus className="size-3 sm:size-3.5 text-primary" />
 							)}
 						</div>
-						<span className="text-[12px] font-medium">
+						<span className="text-[11px] sm:text-[12px] font-medium">
 							{isConnecting ? "Connecting..." : "Add Account"}
 						</span>
 					</button>
@@ -136,7 +136,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 			</div>
 
 			{/* Content */}
-			<div className="flex-1 overflow-y-auto px-6 sm:px-12 py-6 sm:py-8">
+			<div className="flex-1 overflow-y-auto px-6 sm:px-12 pt-0 sm:pt-6 pb-6 sm:pb-8">
 				{/* Warning Banner */}
 				{warning && showWarnings && (
 					<ConnectorWarningBanner warning={warning} statusMessage={statusMessage} />
