@@ -2,15 +2,21 @@
 
 import { AlertTriangle, Ban, Wrench } from "lucide-react";
 import type { FC } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ConnectorStatus } from "../config/connector-status-config";
 import { cn } from "@/lib/utils";
 
 interface ConnectorStatusBadgeProps {
 	status: ConnectorStatus;
+	statusMessage?: string | null;
 	className?: string;
 }
 
-export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({ status, className }) => {
+export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({
+	status,
+	statusMessage,
+	className,
+}) => {
 	if (status === "active") {
 		return null;
 	}
@@ -21,25 +27,25 @@ export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({ status, cl
 				return {
 					icon: AlertTriangle,
 					className: "text-yellow-500 dark:text-yellow-400",
-					title: "Warning",
+					defaultTitle: "Warning",
 				};
 			case "disabled":
 				return {
 					icon: Ban,
 					className: "text-red-500 dark:text-red-400",
-					title: "Disabled",
+					defaultTitle: "Disabled",
 				};
 			case "maintenance":
 				return {
 					icon: Wrench,
 					className: "text-orange-500 dark:text-orange-400",
-					title: "Maintenance",
+					defaultTitle: "Maintenance",
 				};
 			case "deprecated":
 				return {
 					icon: AlertTriangle,
 					className: "text-amber-500 dark:text-amber-400",
-					title: "Deprecated",
+					defaultTitle: "Deprecated",
 				};
 			default:
 				return null;
@@ -50,11 +56,33 @@ export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({ status, cl
 	if (!config) return null;
 
 	const Icon = config.icon;
+	// Only show statusMessage in tooltip for warning status
+	// For disabled/maintenance, the card tooltip will show the statusMessage
+	const shouldUseTooltip = status === "warning" && statusMessage;
+	const tooltipTitle = shouldUseTooltip ? statusMessage : config.defaultTitle;
+
+	// Use Tooltip component for warning status with statusMessage, native title for others
+	if (shouldUseTooltip) {
+		return (
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<span
+						className={cn("inline-flex items-center justify-center shrink-0", className)}
+					>
+						<Icon className={cn("size-3.5", config.className)} />
+					</span>
+				</TooltipTrigger>
+				<TooltipContent side="top" className="max-w-xs">
+					{statusMessage}
+				</TooltipContent>
+			</Tooltip>
+		);
+	}
 
 	return (
 		<span
 			className={cn("inline-flex items-center justify-center shrink-0", className)}
-			title={config.title}
+			title={tooltipTitle}
 		>
 			<Icon className={cn("size-3.5", config.className)} />
 		</span>

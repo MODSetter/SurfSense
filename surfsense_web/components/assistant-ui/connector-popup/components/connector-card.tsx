@@ -5,6 +5,7 @@ import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } f
 import { FileText, Loader2 } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { LogActiveTask } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
@@ -138,14 +139,8 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			);
 		}
 
-		// Priority 1: Show status message if available (for both connected and disconnected connectors)
-		// This takes precedence over indexed dates and warnings
-		if (statusMessage) {
-			return <span className="text-[10px] text-muted-foreground">{statusMessage}</span>;
-		}
-
 		if (isConnected) {
-			// Show last indexed date for connected connectors (only if no status message)
+			// Show last indexed date for connected connectors
 			if (lastIndexedAt) {
 				return (
 					<span className="whitespace-nowrap text-[10px]">
@@ -160,7 +155,12 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		return description;
 	};
 
-	return (
+	// Determine if we should show tooltip on the whole card (for disabled/maintenance)
+	const shouldShowCardTooltip =
+		statusMessage &&
+		(status.status === "disabled" || status.status === "maintenance");
+
+	const cardContent = (
 		<div
 			className={cn(
 				"group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border",
@@ -193,7 +193,11 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				<div className="flex items-center gap-1.5">
 					<span className="text-[14px] font-semibold leading-tight truncate">{title}</span>
 					{showWarnings && status.status !== "active" && (
-						<ConnectorStatusBadge status={status.status} className="flex-shrink-0" />
+						<ConnectorStatusBadge
+							status={status.status}
+							statusMessage={statusMessage}
+							className="flex-shrink-0"
+						/>
 					)}
 				</div>
 				<div className="text-[10px] text-muted-foreground mt-1">{getStatusContent()}</div>
@@ -239,4 +243,20 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			</Button>
 		</div>
 	);
+
+	// Wrap card in tooltip for disabled/maintenance status
+	if (shouldShowCardTooltip) {
+		return (
+			<Tooltip>
+				<TooltipTrigger asChild>
+					{cardContent}
+				</TooltipTrigger>
+				<TooltipContent side="top" className="max-w-xs">
+					{statusMessage}
+				</TooltipContent>
+			</Tooltip>
+		);
+	}
+
+	return cardContent;
 };
