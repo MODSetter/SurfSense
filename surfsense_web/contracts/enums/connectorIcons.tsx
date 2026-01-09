@@ -31,8 +31,6 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Image src="/connectors/baidu-search.svg" alt="Baidu" {...imgProps} />;
 		case EnumConnectorName.SLACK_CONNECTOR:
 			return <Image src="/connectors/slack.svg" alt="Slack" {...imgProps} />;
-		case EnumConnectorName.TEAMS_CONNECTOR:
-			return <Image src="/connectors/microsoft-teams.svg" alt="Microsoft Teams" {...imgProps} />;
 		case EnumConnectorName.NOTION_CONNECTOR:
 			return <Image src="/connectors/notion.svg" alt="Notion" {...imgProps} />;
 		case EnumConnectorName.DISCORD_CONNECTOR:

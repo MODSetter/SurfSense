@@ -52,13 +52,6 @@ export const OAUTH_CONNECTORS = [
 		authEndpoint: "/api/v1/auth/slack/connector/add/",
 	},
 	{
-		id: "teams-connector",
-		title: "Microsoft Teams",
-		description: "Search Teams messages",
-		connectorType: EnumConnectorName.TEAMS_CONNECTOR,
-		authEndpoint: "/api/v1/auth/teams/connector/add/",
-	},
-	{
 		id: "discord-connector",
 		title: "Discord",
 		description: "Search Discord messages",

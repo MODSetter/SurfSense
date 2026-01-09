@@ -26,7 +26,6 @@ _ALL_CONNECTORS: list[str] = [
     "EXTENSION",
     "FILE",
     "SLACK_CONNECTOR",
-    "TEAMS_CONNECTOR",
     "NOTION_CONNECTOR",
     "YOUTUBE_VIDEO",
     "GITHUB_CONNECTOR",
@@ -574,7 +573,6 @@ def create_search_knowledge_base_tool(
         - FILE: "User-uploaded documents (PDFs, Word, etc.)" (personal files)
         - NOTE: "SurfSense Notes" (notes created inside SurfSense)
         - SLACK_CONNECTOR: "Slack conversations and shared content" (personal workspace communications)
-        - TEAMS_CONNECTOR: "Microsoft Teams messages and conversations" (personal Teams communications)
         - NOTION_CONNECTOR: "Notion workspace pages and databases" (personal knowledge management)
         - YOUTUBE_VIDEO: "YouTube video transcripts and metadata" (personally saved videos)
         - GITHUB_CONNECTOR: "GitHub repository content and issues" (personal repositories and interactions)
