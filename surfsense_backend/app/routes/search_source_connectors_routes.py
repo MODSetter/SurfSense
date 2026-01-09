@@ -1188,6 +1188,69 @@ async def run_discord_indexing(
         logger.error(f"Error in background Discord indexing task: {e!s}")
 
 
+async def run_teams_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Create a new session and run the Microsoft Teams indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    async with async_session_maker() as session:
+        await run_teams_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+
+async def run_teams_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Background task to run Microsoft Teams indexing.
+    Args:
+        session: Database session
+        connector_id: ID of the Teams connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    try:
+        from app.tasks.connector_indexers.teams_indexer import index_teams_messages
+
+        # Index Teams messages without updating last_indexed_at (we'll do it separately)
+        documents_processed, error_or_warning = await index_teams_messages(
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            update_last_indexed=False,  # Don't update timestamp in the indexing function
+        )
+
+        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
+        if documents_processed > 0:
+            await update_connector_last_indexed(session, connector_id)
+            logger.info(
+                f"Teams indexing completed successfully: {documents_processed} documents processed"
+            )
+        else:
+            logger.error(
+                f"Teams indexing failed or no documents processed: {error_or_warning}"
+            )
+    except Exception as e:
+        logger.error(f"Error in background Teams indexing task: {e!s}")
+
+
 # Add new helper functions for Jira indexing
 async def run_jira_indexing_with_new_session(
     connector_id: int,

@@ -1,3 +1,4 @@
 {
-	"biome.configurationPath": "./surfsense_web/biome.json"
+	"biome.configurationPath": "./surfsense_web/biome.json",
+	"python-envs.pythonProjects": []
 }
