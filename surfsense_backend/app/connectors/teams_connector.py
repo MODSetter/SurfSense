@@ -7,7 +7,7 @@ Supports OAuth-based authentication with token refresh.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -255,25 +255,11 @@ class TeamsConnector:
         async with httpx.AsyncClient() as client:
             url = f"{self.GRAPH_API_BASE}/teams/{team_id}/channels/{channel_id}/messages"
 
-            # Build query parameters for date filtering if needed
-            params = {}
-            if start_date or end_date:
-                filter_parts = []
-                if start_date:
-                    filter_parts.append(
-                        f"createdDateTime ge {start_date.strftime('%Y-%m-%dT%H:%M:%SZ')}"
-                    )
-                if end_date:
-                    filter_parts.append(
-                        f"createdDateTime le {end_date.strftime('%Y-%m-%dT%H:%M:%SZ')}"
-                    )
-                if filter_parts:
-                    params["$filter"] = " and ".join(filter_parts)
-
+            # Note: The Graph API for channel messages doesn't support $filter parameter
+            # We fetch all messages and filter them client-side
             response = await client.get(
                 url,
                 headers={"Authorization": f"Bearer {access_token}"},
-                params=params,
                 timeout=30.0,
             )
 
@@ -283,7 +269,36 @@ class TeamsConnector:
                 )
 
             data = response.json()
-            return data.get("value", [])
+            messages = data.get("value", [])
+            
+            # Filter messages by date if needed (client-side filtering)
+            if start_date or end_date:
+                # Make sure comparison dates are timezone-aware (UTC)
+                if start_date and start_date.tzinfo is None:
+                    start_date = start_date.replace(tzinfo=timezone.utc)
+                if end_date and end_date.tzinfo is None:
+                    end_date = end_date.replace(tzinfo=timezone.utc)
+                
+                filtered_messages = []
+                for message in messages:
+                    created_at_str = message.get("createdDateTime")
+                    if not created_at_str:
+                        continue
+                    
+                    # Parse the ISO 8601 datetime string (already timezone-aware)
+                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    
+                    # Check if message is within date range
+                    if start_date and created_at < start_date:
+                        continue
+                    if end_date and created_at > end_date:
+                        continue
+                    
+                    filtered_messages.append(message)
+                
+                return filtered_messages
+            
+            return messages
 
     async def get_message_replies(
         self, team_id: str, channel_id: str, message_id: str

@@ -558,6 +558,7 @@ async def index_connector_content(
 
     Currently supports:
     - SLACK_CONNECTOR: Indexes messages from all accessible Slack channels
+    - TEAMS_CONNECTOR: Indexes messages from all accessible Microsoft Teams channels
     - NOTION_CONNECTOR: Indexes pages from all accessible Notion pages
     - GITHUB_CONNECTOR: Indexes code and documentation from GitHub repositories
     - LINEAR_CONNECTOR: Indexes issues and comments from Linear
@@ -630,6 +631,19 @@ async def index_connector_content(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
             response_message = "Slack indexing started in the background."
+
+        elif connector.connector_type == SearchSourceConnectorType.TEAMS_CONNECTOR:
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_teams_messages_task,
+            )
+
+            logger.info(
+                f"Triggering Teams indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            index_teams_messages_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "Teams indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.NOTION_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import index_notion_pages_task
@@ -1237,16 +1251,14 @@ async def run_teams_indexing(
             update_last_indexed=False,  # Don't update timestamp in the indexing function
         )
 
-        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
-        if documents_processed > 0:
+        # Update last_indexed_at if indexing was successful (regardless of new/skipped docs)
+        if error_or_warning is None:
             await update_connector_last_indexed(session, connector_id)
             logger.info(
                 f"Teams indexing completed successfully: {documents_processed} documents processed"
             )
         else:
-            logger.error(
-                f"Teams indexing failed or no documents processed: {error_or_warning}"
-            )
+            logger.error(f"Teams indexing failed: {error_or_warning}")
     except Exception as e:
         logger.error(f"Error in background Teams indexing task: {e!s}")
 
