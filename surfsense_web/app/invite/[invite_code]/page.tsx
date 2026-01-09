@@ -33,6 +33,11 @@ import {
 import type { AcceptInviteResponse } from "@/contracts/types/invites.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
+import {
+	trackSearchSpaceInviteAccepted,
+	trackSearchSpaceInviteDeclined,
+	trackSearchSpaceUserAdded,
+} from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 export default function InviteAcceptPage() {
@@ -91,12 +96,30 @@ export default function InviteAcceptPage() {
 			if (result) {
 				setAccepted(true);
 				setAcceptedData(result);
+
+				// Track invite accepted and user added events
+				trackSearchSpaceInviteAccepted(
+					result.search_space_id,
+					result.search_space_name,
+					result.role_name
+				);
+				trackSearchSpaceUserAdded(
+					result.search_space_id,
+					result.search_space_name,
+					result.role_name
+				);
 			}
 		} catch (err: any) {
 			setError(err.message || "Failed to accept invite");
 		} finally {
 			setAccepting(false);
 		}
+	};
+
+	const handleDecline = () => {
+		// Track invite declined event
+		trackSearchSpaceInviteDeclined(inviteInfo?.search_space_name);
+		router.push("/dashboard");
 	};
 
 	const handleLoginRedirect = () => {
@@ -324,11 +347,7 @@ export default function InviteAcceptPage() {
 								)}
 							</CardContent>
 							<CardFooter className="flex gap-2">
-								<Button
-									variant="outline"
-									className="flex-1"
-									onClick={() => router.push("/dashboard")}
-								>
+								<Button variant="outline" className="flex-1" onClick={handleDecline}>
 									Cancel
 								</Button>
 								<Button className="flex-1 gap-2" onClick={handleAccept} disabled={accepting}>
@@ -360,7 +379,7 @@ export default function InviteAcceptPage() {
 						href="/"
 						className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
 					>
-						<Image src="/icon-128.png" alt="SurfSense" width={24} height={24} className="rounded" />
+						<Image src="/icon-128.svg" alt="SurfSense" width={24} height={24} className="rounded" />
 						<span className="text-sm font-medium">SurfSense</span>
 					</Link>
 				</motion.div>

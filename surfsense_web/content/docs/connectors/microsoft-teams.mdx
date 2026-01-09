@@ -1,0 +1,101 @@
+---
+title: Microsoft Teams
+description: Connect your Microsoft Teams to SurfSense
+---
+
+# Microsoft Teams OAuth Integration Setup Guide
+
+This guide walks you through setting up a Microsoft Teams OAuth integration for SurfSense using Azure App Registration.
+
+## Step 1: Access Azure App Registrations
+
+1. Navigate to [portal.azure.com](https://portal.azure.com)
+2. In the search bar, type **"app reg"**
+3. Select **"App registrations"** from the Services results
+
+![Azure Portal Search](/docs/connectors/microsoft-teams/azure-search-app-reg.png)
+
+## Step 2: Create New Registration
+
+1. On the **App registrations** page, click **"+ New registration"**
+
+![App Registrations Page](/docs/connectors/microsoft-teams/azure-app-registrations.png)
+
+## Step 3: Register the Application
+
+Fill in the application details:
+
+| Field | Value |
+|-------|-------|
+| **Name** | `SurfSense` |
+| **Supported account types** | Select **"Accounts in any organizational directory (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts"** |
+| **Redirect URI** | Platform: `Web`, URI: `http://localhost:8000/api/v1/auth/teams/connector/callback` |
+
+Click **"Register"**
+
+![Register Application Form](/docs/connectors/microsoft-teams/azure-register-app.png)
+
+## Step 4: Get Application (Client) ID
+
+After registration, you'll be taken to the app's **Overview** page. Here you'll find:
+
+1. Copy the **Application (client) ID** - this is your Client ID
+2. Note the **Directory (tenant) ID** if needed
+
+![Application Overview](/docs/connectors/microsoft-teams/azure-app-overview.png)
+
+## Step 5: Create Client Secret
+
+1. In the left sidebar under **Manage**, click **"Certificates & secrets"**
+2. Select the **"Client secrets"** tab
+3. Click **"+ New client secret"**
+4. Enter a description (e.g., `SurfSense`) and select an expiration period
+5. Click **"Add"**
+
+![Certificates & Secrets - Empty](/docs/connectors/microsoft-teams/azure-certificates-empty.png)
+
+6. **Important**: Copy the secret **Value** immediately - it won't be shown again!
+
+![Certificates & Secrets - Created](/docs/connectors/microsoft-teams/azure-certificates-created.png)
+
+> ⚠️ Never share your client secret publicly or include it in code repositories.
+
+## Step 6: Configure API Permissions
+
+1. In the left sidebar under **Manage**, click **"API permissions"**
+2. Click **"+ Add a permission"**
+3. Select **"Microsoft Graph"**
+4. Select **"Delegated permissions"**
+5. Add the following permissions:
+
+| Permission | Type | Description | Admin Consent |
+|------------|------|-------------|---------------|
+| `Channel.ReadBasic.All` | Delegated | Read the names and descriptions of channels | No |
+| `ChannelMessage.Read.All` | Delegated | Read user channel messages | Yes |
+| `offline_access` | Delegated | Maintain access to data you have given it access to | No |
+| `Team.ReadBasic.All` | Delegated | Read the names and descriptions of teams | No |
+| `User.Read` | Delegated | Sign in and read user profile | No |
+
+6. Click **"Add permissions"**
+
+> ⚠️ The `ChannelMessage.Read.All` permission requires admin consent. An admin will need to click **"Grant admin consent for [Directory]"** for full functionality.
+
+![API Permissions](/docs/connectors/microsoft-teams/azure-api-permissions.png)
+
+---
+
+## Running SurfSense with Microsoft Teams Connector
+
+Add the Microsoft Teams environment variables to your Docker run command:
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 \
+  -v surfsense-data:/data \
+  # Microsoft Teams Connector
+  -e TEAMS_CLIENT_ID=your_microsoft_client_id \
+  -e TEAMS_CLIENT_SECRET=your_microsoft_client_secret \
+  -e TEAMS_REDIRECT_URI=http://localhost:8000/api/v1/auth/teams/connector/callback \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
