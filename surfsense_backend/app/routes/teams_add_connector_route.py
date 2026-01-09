@@ -312,17 +312,18 @@ async def teams_callback(
             session,
             SearchSourceConnectorType.TEAMS_CONNECTOR,
             space_id,
-            connector_config,
+            user_id,
+            connector_identifier,
         )
 
         # Create new connector
         new_connector = SearchSourceConnector(
+            name=connector_name,
             connector_type=SearchSourceConnectorType.TEAMS_CONNECTOR,
+            is_indexable=True,
             config=connector_config,
-            is_enabled=True,
             search_space_id=space_id,
             user_id=user_id,
-            connector_name=connector_name,
         )
 
         try:

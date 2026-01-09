@@ -165,14 +165,16 @@ async def index_teams_messages(
         )
 
         # Convert date strings to datetime objects for filtering
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         start_datetime = None
         end_datetime = None
         if start_date_str:
-            start_datetime = datetime.strptime(start_date_str, "%Y-%m-%d")
+            # Parse as naive datetime and make it timezone-aware (UTC)
+            start_datetime = datetime.strptime(start_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         if end_date_str:
-            end_datetime = datetime.strptime(end_date_str, "%Y-%m-%d")
+            # Parse as naive datetime, set to end of day, and make it timezone-aware (UTC)
+            end_datetime = datetime.strptime(end_date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
 
         # Process each team
         for team in teams:
