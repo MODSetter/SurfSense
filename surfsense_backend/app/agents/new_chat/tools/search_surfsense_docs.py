@@ -82,7 +82,7 @@ def format_surfsense_docs_results(results: list[tuple]) -> str:
 async def search_surfsense_docs_async(
     query: str,
     db_session: AsyncSession,
-    top_k: int = 5,
+    top_k: int = 10,
 ) -> str:
     """
     Search Surfsense documentation using vector similarity.
@@ -127,7 +127,7 @@ def create_search_surfsense_docs_tool(db_session: AsyncSession):
     """
 
     @tool
-    async def search_surfsense_docs(query: str, top_k: int = 5) -> str:
+    async def search_surfsense_docs(query: str, top_k: int = 10) -> str:
         """
         Search Surfsense documentation for help with using the application.
 
@@ -145,7 +145,7 @@ def create_search_surfsense_docs_tool(db_session: AsyncSession):
 
         Args:
             query: The search query about Surfsense usage or features
-            top_k: Number of documentation chunks to retrieve (default: 5)
+            top_k: Number of documentation chunks to retrieve (default: 10)
 
         Returns:
             Relevant documentation content formatted with chunk IDs for citations
