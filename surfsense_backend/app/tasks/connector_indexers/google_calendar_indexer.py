@@ -45,8 +45,9 @@ async def index_google_calendar_events(
         connector_id: ID of the Google Calendar connector
         search_space_id: ID of the search space to store documents in
         user_id: User ID
-        start_date: Start date for indexing (YYYY-MM-DD format)
-        end_date: End date for indexing (YYYY-MM-DD format)
+        start_date: Start date for indexing (YYYY-MM-DD format). Can be in the past or future.
+        end_date: End date for indexing (YYYY-MM-DD format). Can be in the future to index upcoming events.
+                  Defaults to today if not provided.
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
 
     Returns:
@@ -165,8 +166,10 @@ async def index_google_calendar_events(
             end_date = None
 
         # Calculate date range
+        # For calendar connectors, allow future dates to index upcoming events
         if start_date is None or end_date is None:
             # Fall back to calculating dates based on last_indexed_at
+            # Default to today (users can manually select future dates if needed)
             calculated_end_date = datetime.now()
 
             # Use last_indexed_at as start date if available, otherwise use 30 days ago
@@ -178,19 +181,13 @@ async def index_google_calendar_events(
                     else connector.last_indexed_at
                 )
 
-                # Check if last_indexed_at is in the future or after end_date
-                if last_indexed_naive > calculated_end_date:
-                    logger.warning(
-                        f"Last indexed date ({last_indexed_naive.strftime('%Y-%m-%d')}) is in the future. Using 30 days ago instead."
-                    )
-                    calculated_start_date = calculated_end_date - timedelta(days=30)
-                else:
-                    calculated_start_date = last_indexed_naive
-                    logger.info(
-                        f"Using last_indexed_at ({calculated_start_date.strftime('%Y-%m-%d')}) as start date"
-                    )
+                # Allow future dates - use last_indexed_at as start date
+                calculated_start_date = last_indexed_naive
+                logger.info(
+                    f"Using last_indexed_at ({calculated_start_date.strftime('%Y-%m-%d')}) as start date"
+                )
             else:
-                calculated_start_date = calculated_end_date - timedelta(
+                calculated_start_date = datetime.now() - timedelta(
                     days=30
                 )  # Use 30 days as default for calendar events
                 logger.info(
@@ -205,7 +202,7 @@ async def index_google_calendar_events(
                 end_date if end_date else calculated_end_date.strftime("%Y-%m-%d")
             )
         else:
-            # Use provided dates
+            # Use provided dates (including future dates)
             start_date_str = start_date
             end_date_str = end_date
 

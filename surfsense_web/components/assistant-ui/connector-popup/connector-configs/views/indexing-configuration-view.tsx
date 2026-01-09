@@ -150,6 +150,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 											endDate={endDate}
 											onStartDateChange={onStartDateChange}
 											onEndDateChange={onEndDateChange}
+											allowFutureDates={
+												config.connectorType === "GOOGLE_CALENDAR_CONNECTOR" ||
+												config.connectorType === "LUMA_CONNECTOR"
+											}
 										/>
 									)}
 
