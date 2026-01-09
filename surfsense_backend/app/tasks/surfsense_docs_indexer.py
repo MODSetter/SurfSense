@@ -6,10 +6,14 @@ Indexes MDX documentation files at migration time.
 import hashlib
 import logging
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
+
 from app.config import config
-from app.db import SurfsenseDocsChunk
+from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument
 
 logger = logging.getLogger(__name__)
 
@@ -83,4 +87,107 @@ def create_surfsense_docs_chunks(content: str) -> list[SurfsenseDocsChunk]:
         )
         for chunk in config.chunker_instance.chunk(content)
     ]
+
+
+def index_surfsense_docs(session: Session) -> tuple[int, int, int, int]:
+    """
+    Index all Surfsense documentation files.
+    
+    Args:
+        session: SQLAlchemy sync session
+        
+    Returns:
+        Tuple of (created, updated, skipped, deleted) counts
+    """
+    created = 0
+    updated = 0
+    skipped = 0
+    deleted = 0
+    
+    # Get all existing docs from database
+    existing_docs_result = session.execute(
+        select(SurfsenseDocsDocument).options(selectinload(SurfsenseDocsDocument.chunks))
+    )
+    existing_docs = {doc.source: doc for doc in existing_docs_result.scalars().all()}
+    
+    # Track which sources we've processed
+    processed_sources = set()
+    
+    # Get all MDX files
+    mdx_files = get_all_mdx_files()
+    logger.info(f"Found {len(mdx_files)} MDX files to index")
+    
+    for mdx_file in mdx_files:
+        try:
+            source = str(mdx_file.relative_to(DOCS_DIR))
+            processed_sources.add(source)
+            
+            # Read file content
+            raw_content = mdx_file.read_text(encoding="utf-8")
+            title, content = parse_mdx_frontmatter(raw_content)
+            content_hash = generate_surfsense_docs_content_hash(raw_content)
+            
+            if source in existing_docs:
+                existing_doc = existing_docs[source]
+                
+                # Check if content changed
+                if existing_doc.content_hash == content_hash:
+                    logger.debug(f"Skipping unchanged: {source}")
+                    skipped += 1
+                    continue
+                
+                # Content changed - update document
+                logger.info(f"Updating changed document: {source}")
+                
+                # Create new chunks
+                chunks = create_surfsense_docs_chunks(content)
+                
+                # Update document fields
+                existing_doc.title = title
+                existing_doc.content = content
+                existing_doc.content_hash = content_hash
+                existing_doc.embedding = config.embedding_model_instance.embed(content)
+                existing_doc.chunks = chunks
+                existing_doc.updated_at = datetime.now(UTC)
+                
+                updated += 1
+            else:
+                # New document - create it
+                logger.info(f"Creating new document: {source}")
+                
+                chunks = create_surfsense_docs_chunks(content)
+                
+                document = SurfsenseDocsDocument(
+                    source=source,
+                    title=title,
+                    content=content,
+                    content_hash=content_hash,
+                    embedding=config.embedding_model_instance.embed(content),
+                    chunks=chunks,
+                    updated_at=datetime.now(UTC),
+                )
+                
+                session.add(document)
+                created += 1
+                
+        except Exception as e:
+            logger.error(f"Error processing {mdx_file}: {e}", exc_info=True)
+            continue
+    
+    # Delete documents for removed files
+    for source, doc in existing_docs.items():
+        if source not in processed_sources:
+            logger.info(f"Deleting removed document: {source}")
+            session.delete(doc)
+            deleted += 1
+    
+    # Commit all changes
+    session.commit()
+    
+    logger.info(
+        f"Indexing complete: {created} created, {updated} updated, "
+        f"{skipped} skipped, {deleted} deleted"
+    )
+    
+    return created, updated, skipped, deleted
 
