@@ -11,6 +11,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
+import { OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 interface ActiveConnectorsTabProps {
@@ -24,6 +25,7 @@ interface ActiveConnectorsTabProps {
 	searchSpaceId: string;
 	onTabChange: (value: string) => void;
 	onManage?: (connector: SearchSourceConnector) => void;
+	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
 }
 
 export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
@@ -36,6 +38,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	searchSpaceId,
 	onTabChange,
 	onManage,
+	onViewAccountsList,
 }) => {
 	const router = useRouter();
 
@@ -71,38 +74,26 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		const minutesAgo = differenceInMinutes(now, date);
 		const daysAgo = differenceInDays(now, date);
 
-		// Just now (within last minute)
-		if (minutesAgo < 1) {
-			return "Just now";
-		}
-
-		// X minutes ago (less than 1 hour)
-		if (minutesAgo < 60) {
-			return `${minutesAgo} ${minutesAgo === 1 ? "minute" : "minutes"} ago`;
-		}
-
-		// Today at [time]
-		if (isToday(date)) {
-			return `Today at ${format(date, "h:mm a")}`;
-		}
-
-		// Yesterday at [time]
-		if (isYesterday(date)) {
-			return `Yesterday at ${format(date, "h:mm a")}`;
-		}
-
-		// X days ago (less than 7 days)
-		if (daysAgo < 7) {
-			return `${daysAgo} ${daysAgo === 1 ? "day" : "days"} ago`;
-		}
-
-		// Full date for older entries
+		if (minutesAgo < 1) return "Just now";
+		if (minutesAgo < 60) return `${minutesAgo} ${minutesAgo === 1 ? "minute" : "minutes"} ago`;
+		if (isToday(date)) return `Today at ${format(date, "h:mm a")}`;
+		if (isYesterday(date)) return `Yesterday at ${format(date, "h:mm a")}`;
+		if (daysAgo < 7) return `${daysAgo} ${daysAgo === 1 ? "day" : "days"} ago`;
 		return format(date, "MMM d, yyyy");
 	};
 
-	// Document types that should be shown as cards (not from connectors)
-	// These are: EXTENSION (browser extension), FILE (uploaded files), NOTE (editor notes),
-	// YOUTUBE_VIDEO (YouTube videos), and CRAWLED_URL (web pages - shown separately even though it can come from WEBCRAWLER_CONNECTOR)
+	// Get most recent last indexed date from a list of connectors
+	const getMostRecentLastIndexed = (
+		connectorsList: SearchSourceConnector[]
+	): string | undefined => {
+		return connectorsList.reduce<string | undefined>((latest, c) => {
+			if (!c.last_indexed_at) return latest;
+			if (!latest) return c.last_indexed_at;
+			return new Date(c.last_indexed_at) > new Date(latest) ? c.last_indexed_at : latest;
+		}, undefined);
+	};
+
+	// Document types that should be shown as standalone cards (not from connectors)
 	const standaloneDocumentTypes = ["EXTENSION", "FILE", "NOTE", "YOUTUBE_VIDEO", "CRAWLED_URL"];
 
 	// Filter to only show standalone document types that have documents (count > 0)
@@ -118,8 +109,54 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 			return doc.label.toLowerCase().includes(searchQuery.toLowerCase());
 		});
 
-	// Filter connectors based on search query
-	const filteredConnectors = connectors.filter((connector) => {
+	// Get OAuth connector types set for quick lookup
+	const oauthConnectorTypes = new Set<string>(OAUTH_CONNECTORS.map((c) => c.connectorType));
+
+	// Separate OAuth and non-OAuth connectors
+	const oauthConnectors = connectors.filter((c) => oauthConnectorTypes.has(c.connector_type));
+	const nonOauthConnectors = connectors.filter((c) => !oauthConnectorTypes.has(c.connector_type));
+
+	// Group OAuth connectors by type
+	const oauthConnectorsByType = oauthConnectors.reduce(
+		(acc, connector) => {
+			const type = connector.connector_type;
+			if (!acc[type]) {
+				acc[type] = [];
+			}
+			acc[type].push(connector);
+			return acc;
+		},
+		{} as Record<string, SearchSourceConnector[]>
+	);
+
+	// Get display info for OAuth connector type
+	const getOAuthConnectorTypeInfo = (connectorType: string) => {
+		const oauthConnector = OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType);
+		return {
+			title:
+				oauthConnector?.title ||
+				connectorType
+					.replace(/_/g, " ")
+					.replace(/connector/gi, "")
+					.trim(),
+		};
+	};
+
+	// Filter OAuth connector types based on search query
+	const filteredOAuthConnectorTypes = Object.entries(oauthConnectorsByType).filter(
+		([connectorType]) => {
+			if (!searchQuery) return true;
+			const searchLower = searchQuery.toLowerCase();
+			const { title } = getOAuthConnectorTypeInfo(connectorType);
+			return (
+				title.toLowerCase().includes(searchLower) ||
+				connectorType.toLowerCase().includes(searchLower)
+			);
+		}
+	);
+
+	// Filter non-OAuth connectors based on search query
+	const filteredNonOAuthConnectors = nonOauthConnectors.filter((connector) => {
 		if (!searchQuery) return true;
 		const searchLower = searchQuery.toLowerCase();
 		return (
@@ -128,18 +165,97 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		);
 	});
 
+	const hasActiveConnectors =
+		filteredOAuthConnectorTypes.length > 0 || filteredNonOAuthConnectors.length > 0;
+
 	return (
 		<TabsContent value="active" className="m-0">
 			{hasSources ? (
 				<div className="space-y-6">
 					{/* Active Connectors Section */}
-					{filteredConnectors.length > 0 && (
+					{hasActiveConnectors && (
 						<div className="space-y-4">
 							<div className="flex items-center gap-2">
 								<h3 className="text-sm font-semibold text-muted-foreground">Active Connectors</h3>
 							</div>
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-								{filteredConnectors.map((connector) => {
+								{/* OAuth Connectors - Grouped by Type */}
+								{filteredOAuthConnectorTypes.map(([connectorType, typeConnectors]) => {
+									const { title } = getOAuthConnectorTypeInfo(connectorType);
+									const isAnyIndexing = typeConnectors.some((c: SearchSourceConnector) =>
+										indexingConnectorIds.has(c.id)
+									);
+									const documentCount = getDocumentCountForConnector(
+										connectorType,
+										documentTypeCounts
+									);
+									const accountCount = typeConnectors.length;
+									const mostRecentLastIndexed = getMostRecentLastIndexed(typeConnectors);
+
+									const handleManageClick = () => {
+										if (onViewAccountsList) {
+											onViewAccountsList(connectorType, title);
+										} else if (onManage && typeConnectors[0]) {
+											onManage(typeConnectors[0]);
+										}
+									};
+
+									return (
+										<div
+											key={`oauth-type-${connectorType}`}
+											className={cn(
+												"relative flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
+												isAnyIndexing
+													? "bg-primary/5 border-primary/20"
+													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+											)}
+										>
+											<div
+												className={cn(
+													"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
+													isAnyIndexing
+														? "bg-primary/10 border-primary/20"
+														: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+												)}
+											>
+												{getConnectorIcon(connectorType, "size-6")}
+											</div>
+											<div className="flex-1 min-w-0">
+												<p className="text-[14px] font-semibold leading-tight truncate">{title}</p>
+												{isAnyIndexing ? (
+													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
+														<Loader2 className="size-3 animate-spin" />
+														Indexing...
+													</p>
+												) : (
+													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
+														{mostRecentLastIndexed
+															? `Last indexed: ${formatLastIndexedDate(mostRecentLastIndexed)}`
+															: "Never indexed"}
+													</p>
+												)}
+												<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+													<span>{formatDocumentCount(documentCount)}</span>
+													<span className="text-muted-foreground/50">•</span>
+													<span>
+														{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
+													</span>
+												</p>
+											</div>
+											<Button
+												variant="secondary"
+												size="sm"
+												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+												onClick={handleManageClick}
+											>
+												Manage
+											</Button>
+										</div>
+									);
+								})}
+
+								{/* Non-OAuth Connectors - Individual Cards */}
+								{filteredNonOAuthConnectors.map((connector) => {
 									const isIndexing = indexingConnectorIds.has(connector.id);
 									const activeTask = logsSummary?.active_tasks?.find(
 										(task: LogActiveTask) => task.connector_id === connector.id
@@ -161,7 +277,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										>
 											<div
 												className={cn(
-													"flex h-12 w-12 items-center justify-center rounded-lg border",
+													"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
 													isIndexing
 														? "bg-primary/10 border-primary/20"
 														: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
@@ -197,7 +313,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 											<Button
 												variant="secondary"
 												size="sm"
-												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
+												className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
 												onClick={onManage ? () => onManage(connector) : undefined}
 											>
 												Manage

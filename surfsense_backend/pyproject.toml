@@ -1,8 +1,7 @@
 [project]
 name = "surf-new-backend"
-version = "0.0.10"
+version = "0.0.11"
 description = "SurfSense Backend"
-readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13.0",
@@ -153,3 +152,11 @@ line-ending = "auto"
 known-first-party = ["app"]
 force-single-line = false
 combine-as-imports = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "alembic*"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"

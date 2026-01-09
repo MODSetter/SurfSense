@@ -12,9 +12,9 @@ from google_auth_oauthlib.flow import Flow
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
+from app.connectors.google_gmail_connector import fetch_google_user_email
 from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
@@ -22,6 +22,10 @@ from app.db import (
     get_async_session,
 )
 from app.users import current_active_user
+from app.utils.connector_naming import (
+    check_duplicate_connector,
+    generate_unique_connector_name,
+)
 from app.utils.oauth_security import OAuthStateManager, TokenEncryption
 
 logger = logging.getLogger(__name__)
@@ -172,6 +176,9 @@ async def calendar_callback(
         creds = flow.credentials
         creds_dict = json.loads(creds.to_json())
 
+        # Fetch user email
+        user_email = fetch_google_user_email(creds)
+
         # Encrypt sensitive credentials before storing
         token_encryption = get_token_encryption()
 
@@ -190,24 +197,33 @@ async def calendar_callback(
         # Mark that credentials are encrypted for backward compatibility
         creds_dict["_token_encrypted"] = True
 
-        try:
-            # Check if a connector with the same type already exists for this search space and user
-            result = await session.execute(
-                select(SearchSourceConnector).filter(
-                    SearchSourceConnector.search_space_id == space_id,
-                    SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type
-                    == SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
-                )
+        # Check for duplicate connector (same account already connected)
+        is_duplicate = await check_duplicate_connector(
+            session,
+            SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+            space_id,
+            user_id,
+            user_email,
+        )
+        if is_duplicate:
+            logger.warning(
+                f"Duplicate Google Calendar connector detected for user {user_id} with email {user_email}"
             )
-            existing_connector = result.scalars().first()
-            if existing_connector:
-                raise HTTPException(
-                    status_code=409,
-                    detail="A GOOGLE_CALENDAR_CONNECTOR connector already exists in this search space. Each search space can have only one connector of each type per user.",
-                )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=google-calendar-connector"
+            )
+
+        try:
+            # Generate a unique, user-friendly connector name
+            connector_name = await generate_unique_connector_name(
+                session,
+                SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+                space_id,
+                user_id,
+                user_email,
+            )
             db_connector = SearchSourceConnector(
-                name="Google Calendar Connector",
+                name=connector_name,
                 connector_type=SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
                 config=creds_dict,
                 search_space_id=space_id,
@@ -220,7 +236,7 @@ async def calendar_callback(
             # Redirect to the frontend with success params for indexing config
             # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-calendar-connector"
+                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-calendar-connector&connectorId={db_connector.id}"
             )
         except ValidationError as e:
             await session.rollback()
@@ -231,7 +247,7 @@ async def calendar_callback(
             await session.rollback()
             raise HTTPException(
                 status_code=409,
-                detail=f"Integrity error: A connector with this type already exists. {e!s}",
+                detail=f"Database integrity error: {e!s}",
             ) from e
         except HTTPException:
             await session.rollback()

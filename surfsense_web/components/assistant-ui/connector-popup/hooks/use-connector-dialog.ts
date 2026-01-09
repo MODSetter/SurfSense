@@ -15,6 +15,14 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { searchSourceConnector } from "@/contracts/types/connector.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import {
+	trackConnectorConnected,
+	trackConnectorDeleted,
+	trackIndexWithDateRangeOpened,
+	trackIndexWithDateRangeStarted,
+	trackPeriodicIndexingStarted,
+	trackQuickIndexClicked,
+} from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
@@ -66,6 +74,12 @@ export const useConnectorDialog = () => {
 	const [isCreatingConnector, setIsCreatingConnector] = useState(false);
 	const isCreatingConnectorRef = useRef(false);
 
+	// Accounts list view state (for OAuth connectors with multiple accounts)
+	const [viewingAccountsType, setViewingAccountsType] = useState<{
+		connectorType: string;
+		connectorTitle: string;
+	} | null>(null);
+
 	// Helper function to get frequency label
 	const getFrequencyLabel = useCallback((minutes: string): string => {
 		switch (minutes) {
@@ -114,9 +128,27 @@ export const useConnectorDialog = () => {
 					setConnectingConnectorType(null);
 				}
 
+				// Clear viewing accounts type if view is not "accounts" anymore
+				if (params.view !== "accounts" && viewingAccountsType) {
+					setViewingAccountsType(null);
+				}
+
 				// Handle connect view
 				if (params.view === "connect" && params.connectorType && !connectingConnectorType) {
 					setConnectingConnectorType(params.connectorType);
+				}
+
+				// Handle accounts view
+				if (params.view === "accounts" && params.connectorType && !viewingAccountsType) {
+					const oauthConnector = OAUTH_CONNECTORS.find(
+						(c) => c.connectorType === params.connectorType
+					);
+					if (oauthConnector) {
+						setViewingAccountsType({
+							connectorType: oauthConnector.connectorType,
+							connectorTitle: oauthConnector.title,
+						});
+					}
 				}
 
 				// Handle YouTube view
@@ -124,14 +156,22 @@ export const useConnectorDialog = () => {
 					// YouTube view is active - no additional state needed
 				}
 
-				if (params.view === "configure" && params.connector && !indexingConfig) {
+				// Handle configure view (for page refresh support)
+				if (params.view === "configure" && params.connector && !indexingConfig && allConnectors) {
 					const oauthConnector = OAUTH_CONNECTORS.find((c) => c.id === params.connector);
-					if (oauthConnector && allConnectors) {
-						const existingConnector = allConnectors.find(
-							(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
-						);
+					if (oauthConnector) {
+						let existingConnector: SearchSourceConnector | undefined;
+						if (params.connectorId) {
+							const connectorId = parseInt(params.connectorId, 10);
+							existingConnector = allConnectors.find(
+								(c: SearchSourceConnector) => c.id === connectorId
+							);
+						} else {
+							existingConnector = allConnectors.find(
+								(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+							);
+						}
 						if (existingConnector) {
-							// Validate connector data before setting state
 							const connectorValidation = searchSourceConnector.safeParse(existingConnector);
 							if (connectorValidation.success) {
 								const config = validateIndexingConfigState({
@@ -200,6 +240,10 @@ export const useConnectorDialog = () => {
 				if (connectingConnectorType) {
 					setConnectingConnectorType(null);
 				}
+				// Clear viewing accounts type when modal is closed
+				if (viewingAccountsType) {
+					setViewingAccountsType(null);
+				}
 				// Clear YouTube view when modal is closed (handled by view param check)
 			}
 		} catch (error) {
@@ -207,12 +251,47 @@ export const useConnectorDialog = () => {
 			console.warn("Invalid connector popup query params:", error);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [searchParams, allConnectors, editingConnector, indexingConfig, connectingConnectorType]);
+	}, [
+		searchParams,
+		allConnectors,
+		editingConnector,
+		indexingConfig,
+		connectingConnectorType,
+		viewingAccountsType,
+	]);
 
-	// Detect OAuth success and transition to config view
+	// Detect OAuth success / Failure and transition to config view
 	useEffect(() => {
 		try {
 			const params = parseConnectorPopupQueryParams(searchParams);
+
+			// Handle OAuth errors (e.g., duplicate account)
+			if (params.error && params.modal === "connectors") {
+				const oauthConnector = params.connector
+					? OAUTH_CONNECTORS.find((c) => c.id === params.connector)
+					: null;
+				const connectorName = oauthConnector?.title || "connector";
+
+				if (params.error === "duplicate_account") {
+					toast.error(`This ${connectorName} account is already connected`, {
+						description: "Please use a different account or manage the existing connection.",
+					});
+				} else {
+					toast.error(`Failed to connect ${connectorName}`, {
+						description: params.error.replace(/_/g, " "),
+					});
+				}
+
+				// Clean up error params from URL
+				const url = new URL(window.location.href);
+				url.searchParams.delete("error");
+				url.searchParams.delete("connector");
+				window.history.replaceState({}, "", url.toString());
+
+				// Open the popup to show the connectors
+				setIsOpen(true);
+				return;
+			}
 
 			if (
 				params.success === "true" &&
@@ -225,13 +304,26 @@ export const useConnectorDialog = () => {
 					refetchAllConnectors().then((result) => {
 						if (!result.data) return;
 
-						const newConnector = result.data.find(
-							(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
-						);
+						let newConnector: SearchSourceConnector | undefined;
+						if (params.connectorId) {
+							const connectorId = parseInt(params.connectorId, 10);
+							newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
+						} else {
+							newConnector = result.data.find(
+								(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+							);
+						}
+
 						if (newConnector) {
-							// Validate connector data before setting state
 							const connectorValidation = searchSourceConnector.safeParse(newConnector);
 							if (connectorValidation.success) {
+								// Track connector connected event for OAuth connectors
+								trackConnectorConnected(
+									Number(searchSpaceId),
+									oauthConnector.connectorType,
+									newConnector.id
+								);
+
 								const config = validateIndexingConfigState({
 									connectorType: oauthConnector.connectorType,
 									connectorId: newConnector.id,
@@ -243,6 +335,7 @@ export const useConnectorDialog = () => {
 								setIsOpen(true);
 								const url = new URL(window.location.href);
 								url.searchParams.delete("success");
+								url.searchParams.set("connectorId", newConnector.id.toString());
 								url.searchParams.set("view", "configure");
 								window.history.replaceState({}, "", url.toString());
 							} else {
@@ -341,6 +434,13 @@ export const useConnectorDialog = () => {
 				if (connector) {
 					const connectorValidation = searchSourceConnector.safeParse(connector);
 					if (connectorValidation.success) {
+						// Track webcrawler connector connected
+						trackConnectorConnected(
+							Number(searchSpaceId),
+							EnumConnectorName.WEBCRAWLER_CONNECTOR,
+							connector.id
+						);
+
 						const config = validateIndexingConfigState({
 							connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 							connectorId: connector.id,
@@ -435,6 +535,9 @@ export const useConnectorDialog = () => {
 						if (connectorValidation.success) {
 							// Store connectingConnectorType before clearing it
 							const currentConnectorType = connectingConnectorType;
+
+							// Track connector connected event for non-OAuth connectors
+							trackConnectorConnected(Number(searchSpaceId), currentConnectorType, connector.id);
 
 							// Find connector title from constants
 							const connectorInfo = OTHER_CONNECTORS.find(
@@ -632,6 +735,38 @@ export const useConnectorDialog = () => {
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
 
+	// Handle viewing accounts list for OAuth connector type
+	const handleViewAccountsList = useCallback(
+		(connectorType: string, connectorTitle: string) => {
+			if (!searchSpaceId) return;
+
+			setViewingAccountsType({
+				connectorType,
+				connectorTitle,
+			});
+
+			// Update URL to show accounts view, preserving current tab
+			const url = new URL(window.location.href);
+			url.searchParams.set("modal", "connectors");
+			url.searchParams.set("view", "accounts");
+			url.searchParams.set("connectorType", connectorType);
+			// Keep the current tab in URL so we can go back to it
+			window.history.pushState({ modal: true }, "", url.toString());
+		},
+		[searchSpaceId]
+	);
+
+	// Handle going back from accounts list view
+	const handleBackFromAccountsList = useCallback(() => {
+		setViewingAccountsType(null);
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		// Keep the current tab (don't change it) - just remove view-specific params
+		url.searchParams.delete("view");
+		url.searchParams.delete("connectorType");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(
 		async (refreshConnectors: () => void) => {
@@ -738,6 +873,27 @@ export const useConnectorDialog = () => {
 					});
 				}
 
+				// Track index with date range started event
+				trackIndexWithDateRangeStarted(
+					Number(searchSpaceId),
+					indexingConfig.connectorType,
+					indexingConfig.connectorId,
+					{
+						hasStartDate: !!startDate,
+						hasEndDate: !!endDate,
+					}
+				);
+
+				// Track periodic indexing started if enabled
+				if (periodicEnabled && indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR") {
+					trackPeriodicIndexingStarted(
+						Number(searchSpaceId),
+						indexingConfig.connectorType,
+						indexingConfig.connectorId,
+						parseInt(frequencyMinutes, 10)
+					);
+				}
+
 				toast.success(`${indexingConfig.connectorTitle} indexing started`, {
 					description: periodicEnabled
 						? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutes)}.`
@@ -802,6 +958,15 @@ export const useConnectorDialog = () => {
 			if (!connectorValidation.success) {
 				toast.error("Invalid connector data");
 				return;
+			}
+
+			// Track index with date range opened event
+			if (connector.is_indexable) {
+				trackIndexWithDateRangeOpened(
+					Number(searchSpaceId),
+					connector.connector_type,
+					connector.id
+				);
 			}
 
 			setEditingConnector(connector);
@@ -939,6 +1104,36 @@ export const useConnectorDialog = () => {
 					indexingDescription = "Re-indexing started with new date range.";
 				}
 
+				// Track indexing started if re-indexing was performed
+				if (
+					editingConnector.is_indexable &&
+					(indexingDescription.includes("Re-indexing") || indexingDescription.includes("indexing"))
+				) {
+					trackIndexWithDateRangeStarted(
+						Number(searchSpaceId),
+						editingConnector.connector_type,
+						editingConnector.id,
+						{
+							hasStartDate: !!startDateStr,
+							hasEndDate: !!endDateStr,
+						}
+					);
+				}
+
+				// Track periodic indexing if enabled (for non-Google Drive connectors)
+				if (
+					periodicEnabled &&
+					editingConnector.is_indexable &&
+					editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
+				) {
+					trackPeriodicIndexingStarted(
+						Number(searchSpaceId),
+						editingConnector.connector_type,
+						editingConnector.id,
+						frequency || parseInt(frequencyMinutes, 10)
+					);
+				}
+
 				toast.success(`${editingConnector.name} updated successfully`, {
 					description: periodicEnabled
 						? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
@@ -991,6 +1186,13 @@ export const useConnectorDialog = () => {
 					id: editingConnector.id,
 				});
 
+				// Track connector deleted event
+				trackConnectorDeleted(
+					Number(searchSpaceId),
+					editingConnector.connector_type,
+					editingConnector.id
+				);
+
 				toast.success(`${editingConnector.name} disconnected successfully`);
 
 				// Update URL - the effect will handle closing the modal and clearing state
@@ -1017,8 +1219,13 @@ export const useConnectorDialog = () => {
 
 	// Handle quick index (index without date picker, uses backend defaults)
 	const handleQuickIndexConnector = useCallback(
-		async (connectorId: number) => {
+		async (connectorId: number, connectorType?: string) => {
 			if (!searchSpaceId) return;
+
+			// Track quick index clicked event
+			if (connectorType) {
+				trackQuickIndexClicked(Number(searchSpaceId), connectorType, connectorId);
+			}
 
 			try {
 				await indexConnector({
@@ -1081,6 +1288,7 @@ export const useConnectorDialog = () => {
 					setConnectorName(null);
 					setConnectorConfig(null);
 					setConnectingConnectorType(null);
+					setViewingAccountsType(null);
 					setStartDate(undefined);
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
@@ -1126,6 +1334,7 @@ export const useConnectorDialog = () => {
 		frequencyMinutes,
 		searchSpaceId,
 		allConnectors,
+		viewingAccountsType,
 
 		// Setters
 		setSearchQuery,
@@ -1152,6 +1361,8 @@ export const useConnectorDialog = () => {
 		handleBackFromEdit,
 		handleBackFromConnect,
 		handleBackFromYouTube,
+		handleViewAccountsList,
+		handleBackFromAccountsList,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,

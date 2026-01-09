@@ -265,7 +265,7 @@
 		"no_documents": "No documents found",
 		"type": "Type",
 		"content_summary": "Content Summary",
-		"view_full": "View Full Content",
+		"view_full": "View Summary",
 		"filter_placeholder": "Filter by title...",
 		"rows_per_page": "Rows per page",
 		"refresh": "Refresh",

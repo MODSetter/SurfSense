@@ -47,30 +47,28 @@ docker run -d -p 3000:3000 -p 8000:8000 `
 
 ### With Custom Configuration
 
-**Using OpenAI Embeddings:**
+You can pass any [environment variable](/docs/manual-installation#backend-environment-variables) using `-e` flags:
 
 ```bash
 docker run -d -p 3000:3000 -p 8000:8000 \
   -v surfsense-data:/data \
   -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
   -e OPENAI_API_KEY=your_openai_api_key \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
-```
-
-**With Google OAuth:**
-
-```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
-  -v surfsense-data:/data \
   -e AUTH_TYPE=GOOGLE \
-  -e GOOGLE_OAUTH_CLIENT_ID=your_client_id \
-  -e GOOGLE_OAUTH_CLIENT_SECRET=your_client_secret \
+  -e GOOGLE_OAUTH_CLIENT_ID=your_google_client_id \
+  -e GOOGLE_OAUTH_CLIENT_SECRET=your_google_client_secret \
+  -e ETL_SERVICE=LLAMACLOUD \
+  -e LLAMA_CLOUD_API_KEY=your_llama_cloud_key \
   --name surfsense \
   --restart unless-stopped \
   ghcr.io/modsetter/surfsense:latest
 ```
+
+<Callout type="info">
+- For Google OAuth, create credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+- For Airtable connector, create an OAuth integration in the [Airtable Developer Hub](https://airtable.com/create/oauth)
+- If deploying behind a reverse proxy with HTTPS, add `-e BACKEND_URL=https://api.yourdomain.com`
+</Callout>
 
 ### Quick Start with Docker Compose
 

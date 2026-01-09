@@ -1,11 +1,26 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import type { FC } from "react";
+import { Button } from "@/components/ui/button";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { ConnectorCard } from "../components/connector-card";
 import { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
+
+/**
+ * Extract the display name from a full connector name.
+ * Full names are in format "Base Name - identifier" (e.g., "Gmail - john@example.com").
+ * Returns just the identifier (e.g : john@example.com).
+ */
+export function getConnectorDisplayName(fullName: string): string {
+	const separatorIndex = fullName.indexOf(" - ");
+	if (separatorIndex !== -1) {
+		return fullName.substring(separatorIndex + 3);
+	}
+	return fullName;
+}
 
 interface AllConnectorsTabProps {
 	searchQuery: string;
@@ -21,6 +36,7 @@ interface AllConnectorsTabProps {
 	onCreateWebcrawler?: () => void;
 	onCreateYouTubeCrawler?: () => void;
 	onManage?: (connector: SearchSourceConnector) => void;
+	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
 }
 
 export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
@@ -37,6 +53,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onCreateWebcrawler,
 	onCreateYouTubeCrawler,
 	onManage,
+	onViewAccountsList,
 }) => {
 	// Helper to find active task for a connector
 	const getActiveTaskForConnector = (connectorId: number): LogActiveTask | undefined => {
@@ -77,22 +94,39 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 						{filteredOAuth.map((connector) => {
 							const isConnected = connectedTypes.has(connector.connectorType);
 							const isConnecting = connectingId === connector.id;
-							// Find the actual connector object if connected
-							const actualConnector =
+
+							// Find all connectors of this type
+							const typeConnectors =
 								isConnected && allConnectors
-									? allConnectors.find(
+									? allConnectors.filter(
 											(c: SearchSourceConnector) => c.connector_type === connector.connectorType
 										)
-									: undefined;
+									: [];
+
+							// Get the most recent last_indexed_at across all accounts
+							const mostRecentLastIndexed = typeConnectors.reduce<string | undefined>(
+								(latest, c) => {
+									if (!c.last_indexed_at) return latest;
+									if (!latest) return c.last_indexed_at;
+									return new Date(c.last_indexed_at) > new Date(latest)
+										? c.last_indexed_at
+										: latest;
+								},
+								undefined
+							);
 
 							const documentCount = getDocumentCountForConnector(
 								connector.connectorType,
 								documentTypeCounts
 							);
-							const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
-							const activeTask = actualConnector
-								? getActiveTaskForConnector(actualConnector.id)
-								: undefined;
+
+							// Check if any account is currently indexing
+							const isIndexing = typeConnectors.some((c) => indexingConnectorIds?.has(c.id));
+
+							// Get active task from any indexing account
+							const activeTask = typeConnectors
+								.map((c) => getActiveTaskForConnector(c.id))
+								.find((task) => task !== undefined);
 
 							return (
 								<ConnectorCard
@@ -104,12 +138,15 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnected={isConnected}
 									isConnecting={isConnecting}
 									documentCount={documentCount}
-									lastIndexedAt={actualConnector?.last_indexed_at}
+									accountCount={typeConnectors.length}
+									lastIndexedAt={mostRecentLastIndexed}
 									isIndexing={isIndexing}
 									activeTask={activeTask}
 									onConnect={() => onConnectOAuth(connector)}
 									onManage={
-										actualConnector && onManage ? () => onManage(actualConnector) : undefined
+										isConnected && onViewAccountsList
+											? () => onViewAccountsList(connector.connectorType, connector.title)
+											: undefined
 									}
 								/>
 							);

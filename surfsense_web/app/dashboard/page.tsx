@@ -181,7 +181,7 @@ const DashboardPage = () => {
 		email:
 			user?.email ||
 			(isLoadingUser ? "Loading..." : userError ? "Error loading user" : "Unknown User"),
-		avatar: "/icon-128.png", // Default avatar
+		avatar: "/icon-128.svg", // Default avatar
 	};
 
 	// Show loading while loading or auto-redirecting (single search space)

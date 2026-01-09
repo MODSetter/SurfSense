@@ -551,7 +551,7 @@ def validate_connector_config(
         #     ],
         #     "validators": {},
         # },
-        "CLICKUP_CONNECTOR": {"required": ["CLICKUP_API_TOKEN"], "validators": {}},
+        # "CLICKUP_CONNECTOR": {"required": ["CLICKUP_API_TOKEN"], "validators": {}},
         # "GOOGLE_CALENDAR_CONNECTOR": {
         #     "required": ["token", "refresh_token", "token_uri", "client_id", "expiry", "scopes", "client_secret"],
         #     "validators": {},

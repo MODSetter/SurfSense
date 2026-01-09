@@ -1,15 +1,15 @@
 "use client";
 
-import { useAtomValue } from "jotai";
 import { useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { fetchThreads } from "@/lib/chat/thread-persistence";
 
 interface TourStep {

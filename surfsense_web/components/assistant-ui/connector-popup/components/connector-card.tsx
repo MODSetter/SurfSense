@@ -17,6 +17,7 @@ interface ConnectorCardProps {
 	isConnected?: boolean;
 	isConnecting?: boolean;
 	documentCount?: number;
+	accountCount?: number;
 	lastIndexedAt?: string | null;
 	isIndexing?: boolean;
 	activeTask?: LogActiveTask;
@@ -96,6 +97,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	isConnected = false,
 	isConnecting = false,
 	documentCount,
+	accountCount,
 	lastIndexedAt,
 	isIndexing = false,
 	activeTask,
@@ -139,7 +141,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 
 	return (
 		<div className="group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10">
-			<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors flex-shrink-0 bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
+			<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors shrink-0 bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
 				{connectorType ? (
 					getConnectorIcon(connectorType, "size-6")
 				) : id === "youtube-crawler" ? (
@@ -150,12 +152,20 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			</div>
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-2">
-					<span className="text-[14px] font-semibold leading-tight">{title}</span>
+					<span className="text-[14px] font-semibold leading-tight truncate">{title}</span>
 				</div>
 				<div className="text-[10px] text-muted-foreground mt-1">{getStatusContent()}</div>
 				{isConnected && documentCount !== undefined && (
-					<p className="text-[10px] text-muted-foreground mt-0.5">
-						{formatDocumentCount(documentCount)}
+					<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+						<span>{formatDocumentCount(documentCount)}</span>
+						{accountCount !== undefined && accountCount > 0 && (
+							<>
+								<span className="text-muted-foreground/50">•</span>
+								<span>
+									{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
+								</span>
+							</>
+						)}
 					</p>
 				)}
 			</div>
@@ -163,7 +173,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				size="sm"
 				variant={isConnected ? "secondary" : "default"}
 				className={cn(
-					"h-8 text-[11px] px-3 rounded-lg flex-shrink-0 font-medium",
+					"h-8 text-[11px] px-3 rounded-lg shrink-0 font-medium",
 					isConnected &&
 						"bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80",
 					!isConnected && "shadow-xs"

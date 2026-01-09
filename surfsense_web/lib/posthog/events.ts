@@ -272,6 +272,156 @@ export function trackSourcesTabViewed(searchSpaceId: number, tab: string) {
 }
 
 // ============================================
+// SEARCH SPACE INVITE EVENTS
+// ============================================
+
+export function trackSearchSpaceInviteSent(
+	searchSpaceId: number,
+	options?: {
+		roleName?: string;
+		hasExpiry?: boolean;
+		hasMaxUses?: boolean;
+	}
+) {
+	posthog.capture("search_space_invite_sent", {
+		search_space_id: searchSpaceId,
+		role_name: options?.roleName,
+		has_expiry: options?.hasExpiry ?? false,
+		has_max_uses: options?.hasMaxUses ?? false,
+	});
+}
+
+export function trackSearchSpaceInviteAccepted(
+	searchSpaceId: number,
+	searchSpaceName: string,
+	roleName?: string | null
+) {
+	posthog.capture("search_space_invite_accepted", {
+		search_space_id: searchSpaceId,
+		search_space_name: searchSpaceName,
+		role_name: roleName,
+	});
+}
+
+export function trackSearchSpaceInviteDeclined(searchSpaceName?: string) {
+	posthog.capture("search_space_invite_declined", {
+		search_space_name: searchSpaceName,
+	});
+}
+
+export function trackSearchSpaceUserAdded(
+	searchSpaceId: number,
+	searchSpaceName: string,
+	roleName?: string | null
+) {
+	posthog.capture("search_space_user_added", {
+		search_space_id: searchSpaceId,
+		search_space_name: searchSpaceName,
+		role_name: roleName,
+	});
+}
+
+export function trackSearchSpaceUsersViewed(
+	searchSpaceId: number,
+	userCount: number,
+	ownerCount: number
+) {
+	posthog.capture("search_space_users_viewed", {
+		search_space_id: searchSpaceId,
+		user_count: userCount,
+		owner_count: ownerCount,
+	});
+}
+
+// ============================================
+// CONNECTOR CONNECTION EVENTS
+// ============================================
+
+export function trackConnectorConnected(
+	searchSpaceId: number,
+	connectorType: string,
+	connectorId?: number
+) {
+	posthog.capture("connector_connected", {
+		search_space_id: searchSpaceId,
+		connector_type: connectorType,
+		connector_id: connectorId,
+	});
+}
+
+// ============================================
+// INDEXING EVENTS
+// ============================================
+
+export function trackIndexWithDateRangeOpened(
+	searchSpaceId: number,
+	connectorType: string,
+	connectorId: number
+) {
+	posthog.capture("index_with_date_range_opened", {
+		search_space_id: searchSpaceId,
+		connector_type: connectorType,
+		connector_id: connectorId,
+	});
+}
+
+export function trackIndexWithDateRangeStarted(
+	searchSpaceId: number,
+	connectorType: string,
+	connectorId: number,
+	options?: {
+		hasStartDate?: boolean;
+		hasEndDate?: boolean;
+	}
+) {
+	posthog.capture("index_with_date_range_started", {
+		search_space_id: searchSpaceId,
+		connector_type: connectorType,
+		connector_id: connectorId,
+		has_start_date: options?.hasStartDate ?? false,
+		has_end_date: options?.hasEndDate ?? false,
+	});
+}
+
+export function trackQuickIndexClicked(
+	searchSpaceId: number,
+	connectorType: string,
+	connectorId: number
+) {
+	posthog.capture("quick_index_clicked", {
+		search_space_id: searchSpaceId,
+		connector_type: connectorType,
+		connector_id: connectorId,
+	});
+}
+
+export function trackConfigurePeriodicIndexingOpened(
+	searchSpaceId: number,
+	connectorType: string,
+	connectorId: number
+) {
+	posthog.capture("configure_periodic_indexing_opened", {
+		search_space_id: searchSpaceId,
+		connector_type: connectorType,
+		connector_id: connectorId,
+	});
+}
+
+export function trackPeriodicIndexingStarted(
+	searchSpaceId: number,
+	connectorType: string,
+	connectorId: number,
+	frequencyMinutes: number
+) {
+	posthog.capture("periodic_indexing_started", {
+		search_space_id: searchSpaceId,
+		connector_type: connectorType,
+		connector_id: connectorId,
+		frequency_minutes: frequencyMinutes,
+	});
+}
+
+// ============================================
 // USER IDENTIFICATION
 // ============================================
 

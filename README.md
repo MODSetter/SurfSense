@@ -174,44 +174,27 @@ docker run -d -p 3000:3000 -p 8000:8000 `
   ghcr.io/modsetter/surfsense:latest
 ```
 
-**With Custom Configuration (e.g., OpenAI Embeddings):**
+**With Custom Configuration:**
+
+You can pass any environment variable using `-e` flags:
 
 ```bash
 docker run -d -p 3000:3000 -p 8000:8000 \
   -v surfsense-data:/data \
   -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
   -e OPENAI_API_KEY=your_openai_api_key \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
-```
-
-**With OAuth-based Connectors (Google Calendar, Gmail, Drive, Airtable):**
-
-To use OAuth-based connectors, you need to configure the respective client credentials:
-
-```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
-  -v surfsense-data:/data \
-  # Google Connectors (Calendar, Gmail, Drive)
+  -e AUTH_TYPE=GOOGLE \
   -e GOOGLE_OAUTH_CLIENT_ID=your_google_client_id \
   -e GOOGLE_OAUTH_CLIENT_SECRET=your_google_client_secret \
-  -e GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/calendar/connector/callback \
-  -e GOOGLE_GMAIL_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/gmail/connector/callback \
-  -e GOOGLE_DRIVE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/drive/connector/callback \
-  # Airtable Connector
-  -e AIRTABLE_CLIENT_ID=your_airtable_client_id \
-  -e AIRTABLE_CLIENT_SECRET=your_airtable_client_secret \
-  -e AIRTABLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/airtable/connector/callback \
+  -e ETL_SERVICE=LLAMACLOUD \
+  -e LLAMA_CLOUD_API_KEY=your_llama_cloud_key \
   --name surfsense \
   --restart unless-stopped \
   ghcr.io/modsetter/surfsense:latest
 ```
 
 > [!NOTE]
-> - For Google connectors, create OAuth 2.0 credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-> - For Airtable connector, create an OAuth integration in the [Airtable Developer Hub](https://airtable.com/create/oauth)
-> - If deploying behind a reverse proxy with HTTPS, add `-e BACKEND_URL=https://api.yourdomain.com` and update the redirect URIs accordingly
+> - If deploying behind a reverse proxy with HTTPS, add `-e BACKEND_URL=https://api.yourdomain.com`
 
 After starting, access SurfSense at:
 - **Frontend**: [http://localhost:3000](http://localhost:3000)

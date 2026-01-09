@@ -2,6 +2,7 @@
 Jira connector indexer.
 """
 
+import contextlib
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -413,10 +414,8 @@ async def index_jira_issues(
         logger.error(f"Database error: {db_error!s}", exc_info=True)
         # Clean up the connector in case of error
         if "jira_client" in locals():
-            try:
+            with contextlib.suppress(Exception):
                 await jira_client.close()
-            except Exception:
-                pass
         return 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
@@ -429,8 +428,6 @@ async def index_jira_issues(
         logger.error(f"Failed to index JIRA issues: {e!s}", exc_info=True)
         # Clean up the connector in case of error
         if "jira_client" in locals():
-            try:
+            with contextlib.suppress(Exception):
                 await jira_client.close()
-            except Exception:
-                pass
         return 0, f"Failed to index JIRA issues: {e!s}"
