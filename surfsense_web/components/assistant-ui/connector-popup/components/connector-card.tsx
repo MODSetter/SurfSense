@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { LogActiveTask } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
+import { useConnectorStatus } from "../hooks/use-connector-status";
+import { ConnectorStatusBadge } from "./connector-status-badge";
 
 interface ConnectorCardProps {
 	id: string;
@@ -104,6 +106,21 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	onConnect,
 	onManage,
 }) => {
+	// Get connector status
+	const {
+		getConnectorStatus,
+		isConnectorEnabled,
+		getConnectorWarning,
+		getConnectorStatusMessage,
+		shouldShowWarnings,
+	} = useConnectorStatus();
+
+	const status = getConnectorStatus(connectorType);
+	const isEnabled = isConnectorEnabled(connectorType);
+	const warning = getConnectorWarning(connectorType);
+	const statusMessage = getConnectorStatusMessage(connectorType);
+	const showWarnings = shouldShowWarnings();
+
 	// Extract count from active task message during indexing
 	const indexingCount = extractIndexedCount(activeTask?.message);
 
@@ -123,6 +140,11 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			);
 		}
 
+		// Show status message if available and connector is not connected
+		if (!isConnected && statusMessage) {
+			return <span className="text-[10px] text-muted-foreground">{statusMessage}</span>;
+		}
+
 		if (isConnected) {
 			// Show last indexed date for connected connectors
 			if (lastIndexedAt) {
@@ -136,12 +158,35 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			return <span className="whitespace-nowrap text-[10px]">Never indexed</span>;
 		}
 
+		// Show warning message if available and warnings are enabled
+		if (warning && showWarnings) {
+			return <span className="text-[10px] text-yellow-600 dark:text-yellow-500">{warning}</span>;
+		}
+
 		return description;
 	};
 
 	return (
-		<div className="group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10">
-			<div className="flex h-12 w-12 items-center justify-center rounded-lg transition-colors shrink-0 bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
+		<div
+			className={cn(
+				"group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border",
+				!isEnabled
+					? "opacity-50 border-border/50 bg-slate-400/5 dark:bg-white/5 cursor-not-allowed"
+					: status.status === "warning"
+						? "border-yellow-500/30 bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+						: "border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+			)}
+		>
+			<div
+				className={cn(
+					"flex h-12 w-12 items-center justify-center rounded-lg transition-colors shrink-0 border",
+					!isEnabled
+						? "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5 opacity-50"
+						: status.status === "warning"
+							? "bg-yellow-500/10 border-yellow-500/20 bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+							: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+				)}
+			>
 				{connectorType ? (
 					getConnectorIcon(connectorType, "size-6")
 				) : id === "youtube-crawler" ? (
@@ -153,6 +198,9 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-2">
 					<span className="text-[14px] font-semibold leading-tight truncate">{title}</span>
+					{showWarnings && status.status !== "active" && (
+						<ConnectorStatusBadge status={status.status} />
+					)}
 				</div>
 				<div className="text-[10px] text-muted-foreground mt-1">{getStatusContent()}</div>
 				{isConnected && documentCount !== undefined && (
@@ -179,10 +227,12 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 					!isConnected && "shadow-xs"
 				)}
 				onClick={isConnected ? onManage : onConnect}
-				disabled={isConnecting}
+				disabled={isConnecting || !isEnabled}
 			>
 				{isConnecting ? (
 					<Loader2 className="size-3 animate-spin" />
+				) : !isEnabled ? (
+					"Unavailable"
 				) : isConnected ? (
 					"Manage"
 				) : id === "youtube-crawler" ? (
