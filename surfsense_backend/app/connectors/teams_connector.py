@@ -7,7 +7,7 @@ Supports OAuth-based authentication with token refresh.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -275,9 +275,9 @@ class TeamsConnector:
             if start_date or end_date:
                 # Make sure comparison dates are timezone-aware (UTC)
                 if start_date and start_date.tzinfo is None:
-                    start_date = start_date.replace(tzinfo=timezone.utc)
+                    start_date = start_date.replace(tzinfo=UTC)
                 if end_date and end_date.tzinfo is None:
-                    end_date = end_date.replace(tzinfo=timezone.utc)
+                    end_date = end_date.replace(tzinfo=UTC)
                 
                 filtered_messages = []
                 for message in messages:
