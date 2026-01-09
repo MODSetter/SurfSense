@@ -8,6 +8,9 @@ import logging
 import re
 from pathlib import Path
 
+from app.config import config
+from app.db import SurfsenseDocsChunk
+
 logger = logging.getLogger(__name__)
 
 # Path to docs relative to project root
@@ -61,4 +64,23 @@ def get_all_mdx_files() -> list[Path]:
 def generate_surfsense_docs_content_hash(content: str) -> str:
     """Generate SHA-256 hash for Surfsense docs content."""
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def create_surfsense_docs_chunks(content: str) -> list[SurfsenseDocsChunk]:
+    """
+    Create chunks from Surfsense documentation content.
+
+    Args:
+        content: Document content to chunk
+
+    Returns:
+        List of SurfsenseDocsChunk objects with embeddings
+    """
+    return [
+        SurfsenseDocsChunk(
+            content=chunk.text,
+            embedding=config.embedding_model_instance.embed(chunk.text),
+        )
+        for chunk in config.chunker_instance.chunk(content)
+    ]
 
