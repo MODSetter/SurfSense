@@ -278,16 +278,41 @@ async def get_thread_messages(
         )
 
         # Return messages in the format expected by assistant-ui
-        messages = [
-            NewChatMessageRead(
-                id=msg.id,
-                thread_id=msg.thread_id,
-                role=msg.role,
-                content=msg.content,
-                created_at=msg.created_at,
+        messages = []
+        for msg in thread.messages:
+            # Eagerly extract all data while in session context
+            msg_id = msg.id
+            msg_thread_id = msg.thread_id
+            msg_role = msg.role
+            msg_content = msg.content
+            msg_created_at = msg.created_at
+            msg_updated_at = msg.updated_at
+            msg_user_id = msg.user_id
+            msg_metadata = msg.message_metadata
+
+            # Manually construct user info to avoid lazy loading
+            user_info = None
+            if msg_user_id and msg.user:
+                user_info = MessageUserInfo(
+                    id=msg.user.id,
+                    email=msg.user.email,
+                    is_active=msg.user.is_active,
+                    is_superuser=msg.user.is_superuser,
+                    is_verified=msg.user.is_verified,
+                )
+
+            messages.append(
+                NewChatMessageRead(
+                    id=msg_id,
+                    thread_id=msg_thread_id,
+                    role=msg_role,
+                    content=msg_content,
+                    created_at=msg_created_at,
+                    updated_at=msg_updated_at,
+                    user=user_info,
+                    message_metadata=msg_metadata,
+                )
             )
-            for msg in thread.messages
-        ]
 
         return ThreadHistoryLoadResponse(messages=messages)
 
