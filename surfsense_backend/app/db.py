@@ -450,6 +450,22 @@ class SurfsenseDocsDocument(BaseModel, TimestampMixin):
     )
 
 
+class SurfsenseDocsChunk(BaseModel, TimestampMixin):
+    """Chunk storage for Surfsense documentation."""
+
+    __tablename__ = "surfsense_docs_chunks"
+
+    content = Column(Text, nullable=False)
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+
+    document_id = Column(
+        Integer,
+        ForeignKey("surfsense_docs_documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document = relationship("SurfsenseDocsDocument", back_populates="chunks")
+
+
 class Podcast(BaseModel, TimestampMixin):
     """Podcast model for storing generated podcasts."""
 
