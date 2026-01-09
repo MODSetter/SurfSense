@@ -1251,14 +1251,11 @@ async def run_teams_indexing(
             update_last_indexed=False,  # Don't update timestamp in the indexing function
         )
 
-        # Update last_indexed_at if indexing was successful (regardless of new/skipped docs)
-        if error_or_warning is None:
-            await update_connector_last_indexed(session, connector_id)
-            logger.info(
-                f"Teams indexing completed successfully: {documents_processed} documents processed"
-            )
-        else:
-            logger.error(f"Teams indexing failed: {error_or_warning}")
+        # Update last_indexed_at after successful indexing (even if 0 new docs - they were checked)
+        await update_connector_last_indexed(session, connector_id)
+        logger.info(
+            f"Teams indexing completed successfully: {documents_processed} documents processed. {error_or_warning or ''}"
+        )
     except Exception as e:
         logger.error(f"Error in background Teams indexing task: {e!s}")
 
