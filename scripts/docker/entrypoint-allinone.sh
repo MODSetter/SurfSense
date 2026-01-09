@@ -167,8 +167,13 @@ seed_surfsense_docs() {
 # Run migrations on first start or when explicitly requested
 if [ ! -f /data/.migrations_run ] || [ "${FORCE_MIGRATIONS:-false}" = "true" ]; then
     run_migrations
-    seed_surfsense_docs
     touch /data/.migrations_run
+fi
+
+# Seed docs on first start or when explicitly requested
+if [ ! -f /data/.docs_seeded ] || [ "${FORCE_SEED_DOCS:-false}" = "true" ]; then
+    seed_surfsense_docs
+    touch /data/.docs_seeded
 fi
 
 # ================================================
