@@ -173,10 +173,14 @@ async def index_teams_messages(
         end_datetime = None
         if start_date_str:
             # Parse as naive datetime and make it timezone-aware (UTC)
-            start_datetime = datetime.strptime(start_date_str, "%Y-%m-%d").replace(tzinfo=UTC)
+            start_datetime = datetime.strptime(start_date_str, "%Y-%m-%d").replace(
+                tzinfo=UTC
+            )
         if end_date_str:
             # Parse as naive datetime, set to end of day, and make it timezone-aware (UTC)
-            end_datetime = datetime.strptime(end_date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=UTC)
+            end_datetime = datetime.strptime(end_date_str, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, tzinfo=UTC
+            )
 
         # Process each team
         for team in teams:
@@ -314,8 +318,10 @@ async def index_teams_messages(
                                     chunks = await create_document_chunks(
                                         combined_document_string
                                     )
-                                    doc_embedding = config.embedding_model_instance.embed(
-                                        combined_document_string
+                                    doc_embedding = (
+                                        config.embedding_model_instance.embed(
+                                            combined_document_string
+                                        )
                                     )
 
                                     # Update existing document
@@ -337,11 +343,14 @@ async def index_teams_messages(
 
                                     # Delete old chunks and add new ones
                                     existing_document.chunks = chunks
-                                    existing_document.updated_at = get_current_timestamp()
+                                    existing_document.updated_at = (
+                                        get_current_timestamp()
+                                    )
 
                                     documents_indexed += 1
                                     logger.info(
-                                        "Successfully updated Teams message %s", message_id
+                                        "Successfully updated Teams message %s",
+                                        message_id,
                                     )
                                     continue
 

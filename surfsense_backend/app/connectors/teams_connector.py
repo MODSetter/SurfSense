@@ -253,7 +253,9 @@ class TeamsConnector:
         access_token = await self._get_valid_token()
 
         async with httpx.AsyncClient() as client:
-            url = f"{self.GRAPH_API_BASE}/teams/{team_id}/channels/{channel_id}/messages"
+            url = (
+                f"{self.GRAPH_API_BASE}/teams/{team_id}/channels/{channel_id}/messages"
+            )
 
             # Note: The Graph API for channel messages doesn't support $filter parameter
             # We fetch all messages and filter them client-side
@@ -270,7 +272,7 @@ class TeamsConnector:
 
             data = response.json()
             messages = data.get("value", [])
-            
+
             # Filter messages by date if needed (client-side filtering)
             if start_date or end_date:
                 # Make sure comparison dates are timezone-aware (UTC)
@@ -278,26 +280,28 @@ class TeamsConnector:
                     start_date = start_date.replace(tzinfo=UTC)
                 if end_date and end_date.tzinfo is None:
                     end_date = end_date.replace(tzinfo=UTC)
-                
+
                 filtered_messages = []
                 for message in messages:
                     created_at_str = message.get("createdDateTime")
                     if not created_at_str:
                         continue
-                    
+
                     # Parse the ISO 8601 datetime string (already timezone-aware)
-                    created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                    
+                    created_at = datetime.fromisoformat(
+                        created_at_str.replace("Z", "+00:00")
+                    )
+
                     # Check if message is within date range
                     if start_date and created_at < start_date:
                         continue
                     if end_date and created_at > end_date:
                         continue
-                    
+
                     filtered_messages.append(message)
-                
+
                 return filtered_messages
-            
+
             return messages
 
     async def get_message_replies(

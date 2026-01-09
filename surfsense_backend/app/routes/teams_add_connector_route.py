@@ -343,8 +343,12 @@ async def teams_callback(
 
         except IntegrityError as e:
             await session.rollback()
-            logger.error("Database integrity error creating Teams connector: %s", str(e))
-            redirect_url = f"{config.NEXT_FRONTEND_URL}/dashboard?error=connector_creation_failed"
+            logger.error(
+                "Database integrity error creating Teams connector: %s", str(e)
+            )
+            redirect_url = (
+                f"{config.NEXT_FRONTEND_URL}/dashboard?error=connector_creation_failed"
+            )
             return RedirectResponse(url=redirect_url)
 
     except HTTPException:
