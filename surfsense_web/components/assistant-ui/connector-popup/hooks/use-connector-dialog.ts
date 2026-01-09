@@ -79,6 +79,12 @@ export const useConnectorDialog = () => {
 		connectorType: string;
 		connectorTitle: string;
 	} | null>(null);
+	
+	// Track if we came from accounts list when entering edit mode
+	const [cameFromAccountsList, setCameFromAccountsList] = useState<{
+		connectorType: string;
+		connectorTitle: string;
+	} | null>(null);
 
 	// Helper function to get frequency label
 	const getFrequencyLabel = useCallback((minutes: string): string => {
@@ -960,6 +966,14 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
+			// Track if we came from accounts list view
+			// If viewingAccountsType matches this connector type, preserve it
+			if (viewingAccountsType && viewingAccountsType.connectorType === connector.connector_type) {
+				setCameFromAccountsList(viewingAccountsType);
+			} else {
+				setCameFromAccountsList(null);
+			}
+
 			// Track index with date range opened event
 			if (connector.is_indexable) {
 				trackIndexWithDateRangeOpened(
@@ -989,7 +1003,7 @@ export const useConnectorDialog = () => {
 			url.searchParams.set("connectorId", connector.id.toString());
 			window.history.pushState({ modal: true }, "", url.toString());
 		},
-		[searchSpaceId]
+		[searchSpaceId, viewingAccountsType]
 	);
 
 	// Handle saving connector changes
@@ -1252,13 +1266,30 @@ export const useConnectorDialog = () => {
 
 	// Handle going back from edit view
 	const handleBackFromEdit = useCallback(() => {
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("tab", "all");
-		url.searchParams.delete("view");
-		url.searchParams.delete("connectorId");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
+		// If we came from accounts list view, go back there
+		if (cameFromAccountsList && editingConnector) {
+			// Restore accounts list view
+			setViewingAccountsType(cameFromAccountsList);
+			setCameFromAccountsList(null);
+			const url = new URL(window.location.href);
+			url.searchParams.set("modal", "connectors");
+			url.searchParams.set("view", "accounts");
+			url.searchParams.set("connectorType", cameFromAccountsList.connectorType);
+			url.searchParams.delete("connectorId");
+			router.replace(url.pathname + url.search, { scroll: false });
+		} else {
+			// Otherwise, go back to main connector popup
+			const url = new URL(window.location.href);
+			url.searchParams.set("modal", "connectors");
+			url.searchParams.set("tab", "all");
+			url.searchParams.delete("view");
+			url.searchParams.delete("connectorId");
+			router.replace(url.pathname + url.search, { scroll: false });
+		}
+		setEditingConnector(null);
+		setConnectorName(null);
+		setConnectorConfig(null);
+	}, [router, cameFromAccountsList, editingConnector]);
 
 	// Handle dialog open/close
 	const handleOpenChange = useCallback(
@@ -1289,6 +1320,7 @@ export const useConnectorDialog = () => {
 					setConnectorConfig(null);
 					setConnectingConnectorType(null);
 					setViewingAccountsType(null);
+					setCameFromAccountsList(null);
 					setStartDate(undefined);
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
