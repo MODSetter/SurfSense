@@ -117,11 +117,6 @@ class Config:
     DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-    # Microsoft Teams OAuth
-    TEAMS_CLIENT_ID = os.getenv("TEAMS_CLIENT_ID")
-    TEAMS_CLIENT_SECRET = os.getenv("TEAMS_CLIENT_SECRET")
-    TEAMS_REDIRECT_URI = os.getenv("TEAMS_REDIRECT_URI")
-
     # ClickUp OAuth
     CLICKUP_CLIENT_ID = os.getenv("CLICKUP_CLIENT_ID")
     CLICKUP_CLIENT_SECRET = os.getenv("CLICKUP_CLIENT_SECRET")
