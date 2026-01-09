@@ -1,8 +1,8 @@
 /**
  * Connector Status Configuration
  *
- * This configuration allows managing connector statuses in the frontend without backend changes.
- * Statuses control warnings, disabling connectors, and displaying status messages.
+ * This configuration allows managing connector statuses.
+ * Statuses control disabling connectors and displaying status messages.
  */
 
 import { z } from "zod";
@@ -19,9 +19,7 @@ export const connectorStatusSchema = z.enum([
 export const connectorStatusConfigSchema = z.object({
 	enabled: z.boolean(),
 	status: connectorStatusSchema,
-	warning: z.string().nullable().optional(),
 	statusMessage: z.string().nullable().optional(),
-	disableReason: z.string().nullable().optional(),
 });
 
 export const connectorStatusMapSchema = z.record(z.string(), connectorStatusConfigSchema);
@@ -48,27 +46,21 @@ export type ConnectorStatusConfigFile = z.infer<typeof connectorStatusConfigFile
  */
 const rawConnectorStatusConfig = {
 	connectorStatuses: {
-		// "SLACK_CONNECTOR": {
-		// 	enabled: false,
-		// 	status: "disabled",
-		// 	warning: null,
-		// 	statusMessage: "Unavailable due to API changes",
-		// 	disableReason: "maintenance",
-		// },
-		// "NOTION_CONNECTOR": {
-		// 	enabled: true,
-		// 	status: "warning",
-		// 	warning: "Rate limits may apply",
-		// 	statusMessage: "Some requests may be delayed due to Notion API rate limits",
-		// 	disableReason: null,
-		// },
-		// "TEAMS_CONNECTOR": {
-		// 	enabled: false,
-		// 	status: "maintenance",
-		// 	warning: "Under maintenance",
-		// 	statusMessage: "Temporarily unavailable for maintenance",
-		// 	disableReason: "maintenance",
-		// },
+		"SLACK_CONNECTOR": {
+			enabled: false,
+			status: "disabled",
+			statusMessage: "Unavailable due to API changes",
+		},
+		"NOTION_CONNECTOR": {
+			enabled: true,
+			status: "warning",
+			statusMessage: "Rate limits may apply",
+		},
+		"TEAMS_CONNECTOR": {
+			enabled: false,
+			status: "maintenance",
+			statusMessage: "Temporarily unavailable for maintenance",
+		},
 	},
 	globalSettings: {
 		showWarnings: true,
@@ -89,9 +81,7 @@ export function getDefaultConnectorStatus(): ConnectorStatusConfig {
 	return connectorStatusConfigSchema.parse({
 		enabled: true,
 		status: "active",
-		warning: null,
 		statusMessage: null,
-		disableReason: null,
 	});
 }
 

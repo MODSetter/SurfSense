@@ -110,14 +110,12 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	const {
 		getConnectorStatus,
 		isConnectorEnabled,
-		getConnectorWarning,
 		getConnectorStatusMessage,
 		shouldShowWarnings,
 	} = useConnectorStatus();
 
 	const status = getConnectorStatus(connectorType);
 	const isEnabled = isConnectorEnabled(connectorType);
-	const warning = getConnectorWarning(connectorType);
 	const statusMessage = getConnectorStatusMessage(connectorType);
 	const showWarnings = shouldShowWarnings();
 
@@ -157,11 +155,6 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			}
 			// Fallback for connected but never indexed
 			return <span className="whitespace-nowrap text-[10px]">Never indexed</span>;
-		}
-
-		// Show warning message if available and warnings are enabled (only if no status message)
-		if (warning && showWarnings) {
-			return <span className="text-[10px] text-yellow-600 dark:text-yellow-500">{warning}</span>;
 		}
 
 		return description;

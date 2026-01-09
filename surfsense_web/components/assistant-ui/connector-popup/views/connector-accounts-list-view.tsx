@@ -10,7 +10,6 @@ import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
 import { useConnectorStatus } from "../hooks/use-connector-status";
-import { ConnectorWarningBanner } from "../components/connector-warning-banner";
 
 interface ConnectorAccountsListViewProps {
 	connectorType: string;
@@ -68,13 +67,10 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	isConnecting = false,
 }) => {
 	// Get connector status
-	const { isConnectorEnabled, getConnectorWarning, getConnectorStatusMessage, shouldShowWarnings } =
-		useConnectorStatus();
+	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
 
 	const isEnabled = isConnectorEnabled(connectorType);
-	const warning = getConnectorWarning(connectorType);
 	const statusMessage = getConnectorStatusMessage(connectorType);
-	const showWarnings = shouldShowWarnings();
 
 	// Filter connectors to only show those of this type
 	const typeConnectors = connectors.filter((c) => c.connector_type === connectorType);
@@ -137,10 +133,6 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 
 			{/* Content */}
 			<div className="flex-1 overflow-y-auto px-6 sm:px-12 pt-0 sm:pt-6 pb-6 sm:pb-8">
-				{/* Warning Banner */}
-				{warning && showWarnings && (
-					<ConnectorWarningBanner warning={warning} statusMessage={statusMessage} />
-				)}
 				{/* Connected Accounts Grid */}
 				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					{typeConnectors.map((connector) => {

@@ -30,13 +30,6 @@ export function useConnectorStatus() {
 	};
 
 	/**
-	 * Get warning message for a connector (if any)
-	 */
-	const getConnectorWarning = (connectorType: string | undefined): string | null => {
-		return getConnectorStatus(connectorType).warning || null;
-	};
-
-	/**
 	 * Get status message for a connector
 	 */
 	const getConnectorStatusMessage = (connectorType: string | undefined): string | null => {
@@ -54,7 +47,6 @@ export function useConnectorStatus() {
 		() => ({
 			getConnectorStatus,
 			isConnectorEnabled,
-			getConnectorWarning,
 			getConnectorStatusMessage,
 			shouldShowWarnings,
 		}),
