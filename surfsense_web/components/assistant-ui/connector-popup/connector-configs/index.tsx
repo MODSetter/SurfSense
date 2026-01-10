@@ -18,6 +18,7 @@ import { MCPConfig } from "./components/mcp-config";
 import { SearxngConfig } from "./components/searxng-config";
 import { SlackConfig } from "./components/slack-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
+import { TeamsConfig } from "./components/teams-config";
 import { WebcrawlerConfig } from "./components/webcrawler-config";
 
 export interface ConnectorConfigProps {
@@ -53,6 +54,8 @@ export function getConnectorConfigComponent(
 			return SlackConfig;
 		case "DISCORD_CONNECTOR":
 			return DiscordConfig;
+		case "TEAMS_CONNECTOR":
+			return TeamsConfig;
 		case "CONFLUENCE_CONNECTOR":
 			return ConfluenceConfig;
 		case "BOOKSTACK_CONNECTOR":
