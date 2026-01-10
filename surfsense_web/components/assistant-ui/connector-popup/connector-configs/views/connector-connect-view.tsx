@@ -56,6 +56,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			GITHUB_CONNECTOR: "github-connect-form",
 			LUMA_CONNECTOR: "luma-connect-form",
 			CIRCLEBACK_CONNECTOR: "circleback-connect-form",
+			MCP_CONNECTOR: "mcp-connect-form",
 		};
 		const formId = formIdMap[connectorType];
 		if (formId) {

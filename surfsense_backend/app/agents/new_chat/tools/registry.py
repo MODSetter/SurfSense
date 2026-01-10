@@ -37,6 +37,7 @@ Example of adding a new tool:
     ),
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -46,6 +47,7 @@ from langchain_core.tools import BaseTool
 from .display_image import create_display_image_tool
 from .knowledge_base import create_search_knowledge_base_tool
 from .link_preview import create_link_preview_tool
+from .mcp_tool import load_mcp_tools
 from .podcast import create_generate_podcast_tool
 from .scrape_webpage import create_scrape_webpage_tool
 
@@ -228,4 +230,53 @@ def build_tools(
     if additional_tools:
         tools.extend(additional_tools)
 
+    return tools
+
+
+async def build_tools_async(
+    dependencies: dict[str, Any],
+    enabled_tools: list[str] | None = None,
+    disabled_tools: list[str] | None = None,
+    additional_tools: list[BaseTool] | None = None,
+    include_mcp_tools: bool = True,
+) -> list[BaseTool]:
+    """
+    Async version of build_tools that also loads MCP tools from database.
+
+    Args:
+        dependencies: Dict containing all possible dependencies
+        enabled_tools: Explicit list of tool names to enable. If None, uses defaults.
+        disabled_tools: List of tool names to disable (applied after enabled_tools).
+        additional_tools: Extra tools to add (e.g., custom tools not in registry).
+        include_mcp_tools: Whether to load user's MCP tools from database.
+
+    Returns:
+        List of configured tool instances ready for the agent, including MCP tools.
+    """
+    # Build standard tools
+    tools = build_tools(dependencies, enabled_tools, disabled_tools, additional_tools)
+
+    # Load MCP tools if requested and dependencies are available
+    if (
+        include_mcp_tools
+        and "db_session" in dependencies
+        and "search_space_id" in dependencies
+    ):
+        try:
+            mcp_tools = await load_mcp_tools(
+                dependencies["db_session"], dependencies["search_space_id"]
+            )
+            tools.extend(mcp_tools)
+            logging.info(
+                f"Registered {len(mcp_tools)} MCP tools: {[t.name for t in mcp_tools]}"
+            )
+        except Exception as e:
+            # Log error but don't fail - just continue without MCP tools
+            logging.error(f"Failed to load MCP tools: {e!s}")
+
+    # Log all tools being returned to agent
+    logging.info(
+        f"Total tools for agent: {len(tools)} - {[t.name for t in tools]}"
+    )
+    
     return tools

@@ -26,6 +26,7 @@ BASE_NAME_FOR_TYPE = {
     SearchSourceConnectorType.DISCORD_CONNECTOR: "Discord",
     SearchSourceConnectorType.CONFLUENCE_CONNECTOR: "Confluence",
     SearchSourceConnectorType.AIRTABLE_CONNECTOR: "Airtable",
+    SearchSourceConnectorType.MCP_CONNECTOR: "Custom API (MCP)",
 }
 
 
