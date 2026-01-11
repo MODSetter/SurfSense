@@ -1,11 +1,13 @@
 /**
  * Connector Status Configuration
  *
- * This configuration allows managing connector statuses.
- * Statuses control disabling connectors and displaying status messages.
+ * Manages connector statuses (disable/enable, status messages). Edit connector-status-config.json to configure.
+ * Valid status values: "active", "warning", "disabled", "deprecated", "maintenance".
+ * Unlisted connectors default to "active" and enabled. See connector-status-config.example.json for reference.
  */
 
 import { z } from "zod";
+import rawConnectorStatusConfigData from "./connector-status-config.json";
 
 // Zod schemas for runtime validation and type safety
 export const connectorStatusSchema = z.enum([
@@ -39,40 +41,10 @@ export type ConnectorStatusMap = z.infer<typeof connectorStatusMapSchema>;
 export type ConnectorStatusConfigFile = z.infer<typeof connectorStatusConfigFileSchema>;
 
 /**
- * Default status configuration for all connectors
- * Connectors not listed here default to "active" and enabled
- *
- * This config is validated at runtime using the Zod schema above
+ * Validated at runtime via Zod schema; invalid JSON throws at module load time.
  */
-const rawConnectorStatusConfig = {
-	connectorStatuses: {
-        // Example configs to use
-		// SLACK_CONNECTOR: {
-		// 	enabled: false,
-		// 	status: "disabled",
-		// 	statusMessage: "Unavailable due to API changes",
-		// },
-		// NOTION_CONNECTOR: {
-		// 	enabled: true,
-		// 	status: "warning",
-		// 	statusMessage: "Rate limits may apply",
-		// },
-		// TEAMS_CONNECTOR: {
-		// 	enabled: false,
-		// 	status: "maintenance",
-		// 	statusMessage: "Temporarily unavailable for maintenance",
-		// },
-	},
-	globalSettings: {
-		showWarnings: true,
-		allowManualOverride: false,
-	},
-};
-
-// Validate the config at module load time (development only)
-// In production, this will throw if config is invalid
 export const connectorStatusConfig: ConnectorStatusConfigFile =
-	connectorStatusConfigFileSchema.parse(rawConnectorStatusConfig);
+	connectorStatusConfigFileSchema.parse(rawConnectorStatusConfigData);
 
 /**
  * Get default status config for a connector (when not in config file)

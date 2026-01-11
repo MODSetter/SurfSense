@@ -44,7 +44,7 @@ export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({
 			case "deprecated":
 				return {
 					icon: AlertTriangle,
-					className: "text-amber-500 dark:text-amber-400",
+					className: "ext-slate-500 dark:text-slate-400",
 					defaultTitle: "Deprecated",
 				};
 			default:
@@ -56,12 +56,13 @@ export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({
 	if (!config) return null;
 
 	const Icon = config.icon;
-	// Only show statusMessage in tooltip for warning status
-	// For disabled/maintenance, the card tooltip will show the statusMessage
-	const shouldUseTooltip = status === "warning" && statusMessage;
+	// Show statusMessage in tooltip for warning, deprecated, disabled, and maintenance statuses
+	const shouldUseTooltip =
+		(status === "warning" || status === "deprecated" || status === "disabled" || status === "maintenance") &&
+		statusMessage;
 	const tooltipTitle = shouldUseTooltip ? statusMessage : config.defaultTitle;
 
-	// Use Tooltip component for warning status with statusMessage, native title for others
+	// Use Tooltip component for statuses with statusMessage, native title for others
 	if (shouldUseTooltip) {
 		return (
 			<Tooltip>

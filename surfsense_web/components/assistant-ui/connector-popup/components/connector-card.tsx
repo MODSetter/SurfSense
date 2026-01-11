@@ -5,7 +5,6 @@ import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } f
 import { FileText, Loader2 } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { LogActiveTask } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
@@ -151,29 +150,21 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		return description;
 	};
 
-	// Determine if we should show tooltip on the whole card (for disabled/maintenance)
-	const shouldShowCardTooltip =
-		statusMessage && (status.status === "disabled" || status.status === "maintenance");
-
 	const cardContent = (
 		<div
 			className={cn(
 				"group relative flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200 w-full border",
-				!isEnabled
-					? "opacity-50 border-border/50 bg-slate-400/5 dark:bg-white/5 cursor-not-allowed"
-					: status.status === "warning"
-						? "border-yellow-500/30 bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
-						: "border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+				status.status === "warning"
+					? "border-yellow-500/30 bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+					: "border-border bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
 			)}
 		>
 			<div
 				className={cn(
 					"flex h-12 w-12 items-center justify-center rounded-lg transition-colors shrink-0 border",
-					!isEnabled
-						? "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5 opacity-50"
-						: status.status === "warning"
-							? "bg-yellow-500/10 border-yellow-500/20 bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
-							: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+					status.status === "warning"
+						? "bg-yellow-500/10 border-yellow-500/20 bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+						: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
 				)}
 			>
 				{connectorType ? (
@@ -238,18 +229,6 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 			</Button>
 		</div>
 	);
-
-	// Wrap card in tooltip for disabled/maintenance status
-	if (shouldShowCardTooltip) {
-		return (
-			<Tooltip>
-				<TooltipTrigger asChild>{cardContent}</TooltipTrigger>
-				<TooltipContent side="top" className="max-w-xs">
-					{statusMessage}
-				</TooltipContent>
-			</Tooltip>
-		);
-	}
 
 	return cardContent;
 };
