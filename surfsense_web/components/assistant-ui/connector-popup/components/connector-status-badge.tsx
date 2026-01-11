@@ -58,7 +58,10 @@ export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({
 	const Icon = config.icon;
 	// Show statusMessage in tooltip for warning, deprecated, disabled, and maintenance statuses
 	const shouldUseTooltip =
-		(status === "warning" || status === "deprecated" || status === "disabled" || status === "maintenance") &&
+		(status === "warning" ||
+			status === "deprecated" ||
+			status === "disabled" ||
+			status === "maintenance") &&
 		statusMessage;
 	const tooltipTitle = shouldUseTooltip ? statusMessage : config.defaultTitle;
 
