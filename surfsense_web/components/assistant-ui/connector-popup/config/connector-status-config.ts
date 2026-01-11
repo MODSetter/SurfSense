@@ -46,21 +46,22 @@ export type ConnectorStatusConfigFile = z.infer<typeof connectorStatusConfigFile
  */
 const rawConnectorStatusConfig = {
 	connectorStatuses: {
-		SLACK_CONNECTOR: {
-			enabled: false,
-			status: "disabled",
-			statusMessage: "Unavailable due to API changes",
-		},
-		NOTION_CONNECTOR: {
-			enabled: true,
-			status: "warning",
-			statusMessage: "Rate limits may apply",
-		},
-		TEAMS_CONNECTOR: {
-			enabled: false,
-			status: "maintenance",
-			statusMessage: "Temporarily unavailable for maintenance",
-		},
+        // Example configs to use
+		// SLACK_CONNECTOR: {
+		// 	enabled: false,
+		// 	status: "disabled",
+		// 	statusMessage: "Unavailable due to API changes",
+		// },
+		// NOTION_CONNECTOR: {
+		// 	enabled: true,
+		// 	status: "warning",
+		// 	statusMessage: "Rate limits may apply",
+		// },
+		// TEAMS_CONNECTOR: {
+		// 	enabled: false,
+		// 	status: "maintenance",
+		// 	statusMessage: "Temporarily unavailable for maintenance",
+		// },
 	},
 	globalSettings: {
 		showWarnings: true,
