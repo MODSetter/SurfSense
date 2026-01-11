@@ -210,6 +210,18 @@ class DocumentsApiService {
 	};
 
 	/**
+	 * Get Surfsense documentation by chunk ID
+	 * Used for resolving [citation:doc-XXX] citations
+	 */
+	getSurfsenseDocByChunk = async (chunkId: number) => {
+		// Response shape matches getDocumentByChunkResponse structure
+		return baseApiService.get(
+			`/api/v1/surfsense-docs/by-chunk/${chunkId}`,
+			getDocumentByChunkResponse
+		);
+	};
+
+	/**
 	 * Update a document
 	 */
 	updateDocument = async (request: UpdateDocumentRequest) => {

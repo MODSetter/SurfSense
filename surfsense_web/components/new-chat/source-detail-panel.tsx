@@ -34,6 +34,7 @@ interface SourceDetailPanelProps {
 	description?: string;
 	url?: string;
 	children?: ReactNode;
+	isDocsChunk?: boolean;
 }
 
 const formatDocumentType = (type: string) => {
@@ -114,6 +115,7 @@ export function SourceDetailPanel({
 	description,
 	url,
 	children,
+	isDocsChunk = false,
 }: SourceDetailPanelProps) {
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
 	const hasScrolledRef = useRef(false); // Use ref to avoid stale closures
@@ -132,8 +134,13 @@ export function SourceDetailPanel({
 		isLoading: isDocumentByChunkFetching,
 		error: documentByChunkFetchingError,
 	} = useQuery({
-		queryKey: cacheKeys.documents.byChunk(chunkId.toString()),
-		queryFn: () => documentsApiService.getDocumentByChunk({ chunk_id: chunkId }),
+		queryKey: isDocsChunk
+			? cacheKeys.documents.byChunk(`doc-${chunkId}`)
+			: cacheKeys.documents.byChunk(chunkId.toString()),
+		queryFn: () =>
+			isDocsChunk
+				? documentsApiService.getSurfsenseDocByChunk(chunkId)
+				: documentsApiService.getDocumentByChunk({ chunk_id: chunkId }),
 		enabled: !!chunkId && open,
 		staleTime: 5 * 60 * 1000,
 	});

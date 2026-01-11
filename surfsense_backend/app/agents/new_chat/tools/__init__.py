@@ -6,6 +6,7 @@ To add a new tool, see the documentation in registry.py.
 
 Available tools:
 - search_knowledge_base: Search the user's personal knowledge base
+- search_surfsense_docs: Search Surfsense documentation for usage help
 - generate_podcast: Generate audio podcasts from content
 - link_preview: Fetch rich previews for URLs
 - display_image: Display images in chat
@@ -31,6 +32,7 @@ from .registry import (
     get_tool_by_name,
 )
 from .scrape_webpage import create_scrape_webpage_tool
+from .search_surfsense_docs import create_search_surfsense_docs_tool
 
 __all__ = [
     # Registry
@@ -43,6 +45,7 @@ __all__ = [
     "create_link_preview_tool",
     "create_scrape_webpage_tool",
     "create_search_knowledge_base_tool",
+    "create_search_surfsense_docs_tool",
     # Knowledge base utilities
     "format_documents_for_context",
     "get_all_tool_names",
