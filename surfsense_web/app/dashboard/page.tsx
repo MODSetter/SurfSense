@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -129,6 +130,7 @@ const ErrorScreen = ({ message }: { message: string }) => {
 const DashboardPage = () => {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
+	const router = useRouter();
 
 	// Animation variants
 	const containerVariants: Variants = {
@@ -164,6 +166,15 @@ const DashboardPage = () => {
 
 	const { data: user, isPending: isLoadingUser, error: userError } = useAtomValue(currentUserAtom);
 
+	// Auto-redirect to chat for users with exactly 1 search space
+	useEffect(() => {
+		if (loading) return;
+
+		if (searchSpaces.length === 1) {
+			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
+		}
+	}, [loading, searchSpaces, router]);
+
 	// Create user object for UserDropdown
 	const customUser = {
 		name: user?.email ? user.email.split("@")[0] : "User",
@@ -173,7 +184,8 @@ const DashboardPage = () => {
 		avatar: "/icon-128.svg", // Default avatar
 	};
 
-	if (loading) return <LoadingScreen />;
+	// Show loading while loading or auto-redirecting (single search space)
+	if (loading || (searchSpaces.length === 1 && !error)) return <LoadingScreen />;
 	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
 
 	const handleDeleteSearchSpace = async (id: number) => {

@@ -86,7 +86,7 @@ def downgrade() -> None:
         "ELASTICSEARCH_CONNECTOR",
         "WEBCRAWLER_CONNECTOR",
     )
-    
+
     # All document values except TEAMS_CONNECTOR
     old_document_values = (
         "EXTENSION",

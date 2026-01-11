@@ -543,7 +543,7 @@ async def index_connector_content(
     ),
     end_date: str = Query(
         None,
-        description="End date for indexing (YYYY-MM-DD format). If not provided, uses today's date",
+        description="End date for indexing (YYYY-MM-DD format). If not provided, uses today's date. For calendar connectors (Google Calendar, Luma), future dates can be selected to index upcoming events.",
     ),
     drive_items: GoogleDriveIndexRequest | None = Body(
         None,
@@ -617,7 +617,19 @@ async def index_connector_content(
         else:
             indexing_from = start_date
 
-        indexing_to = end_date if end_date else today_str
+        # For calendar connectors, default to today but allow future dates if explicitly provided
+        if connector.connector_type in [
+            SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+            SearchSourceConnectorType.LUMA_CONNECTOR,
+        ]:
+            # Default to today if no end_date provided (users can manually select future dates)
+            if end_date is None:
+                indexing_to = today_str
+            else:
+                indexing_to = end_date
+        else:
+            # For non-calendar connectors, cap at today
+            indexing_to = end_date if end_date else today_str
 
         if connector.connector_type == SearchSourceConnectorType.SLACK_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import (
@@ -871,9 +883,10 @@ async def index_connector_content(
         ) from e
 
 
-async def update_connector_last_indexed(session: AsyncSession, connector_id: int):
+async def _update_connector_timestamp_by_id(session: AsyncSession, connector_id: int):
     """
-    Update the last_indexed_at timestamp for a connector.
+    Update the last_indexed_at timestamp for a connector by its ID.
+    Internal helper function for routes.
 
     Args:
         session: Database session
@@ -948,7 +961,7 @@ async def run_slack_indexing(
 
         # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
         if documents_processed > 0:
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             logger.info(
                 f"Slack indexing completed successfully: {documents_processed} documents processed"
             )
@@ -1010,7 +1023,7 @@ async def run_notion_indexing(
 
         # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
         if documents_processed > 0:
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             logger.info(
                 f"Notion indexing completed successfully: {documents_processed} documents processed"
             )
@@ -1070,7 +1083,7 @@ async def run_github_indexing(
                 f"GitHub indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         await session.rollback()
@@ -1129,7 +1142,7 @@ async def run_linear_indexing(
                 f"Linear indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         await session.rollback()
@@ -1190,7 +1203,7 @@ async def run_discord_indexing(
 
         # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
         if documents_processed > 0:
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             logger.info(
                 f"Discord indexing completed successfully: {documents_processed} documents processed"
             )
@@ -1252,7 +1265,7 @@ async def run_teams_indexing(
         )
 
         # Update last_indexed_at after successful indexing (even if 0 new docs - they were checked)
-        await update_connector_last_indexed(session, connector_id)
+        await _update_connector_timestamp_by_id(session, connector_id)
         logger.info(
             f"Teams indexing completed successfully: {documents_processed} documents processed. {error_or_warning or ''}"
         )
@@ -1308,7 +1321,7 @@ async def run_jira_indexing(
                 f"Jira indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         logger.error(
@@ -1368,7 +1381,7 @@ async def run_confluence_indexing(
                 f"Confluence indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         logger.error(
@@ -1426,7 +1439,7 @@ async def run_clickup_indexing(
                 f"ClickUp indexing successful for connector {connector_id}. Indexed {indexed_count} tasks."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         logger.error(
@@ -1484,7 +1497,7 @@ async def run_airtable_indexing(
                 f"Airtable indexing successful for connector {connector_id}. Indexed {indexed_count} records."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         logger.error(
@@ -1544,7 +1557,7 @@ async def run_google_calendar_indexing(
                 f"Google Calendar indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         logger.error(
@@ -1611,7 +1624,7 @@ async def run_google_gmail_indexing(
                 f"Google Gmail indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         logger.error(
@@ -1695,7 +1708,7 @@ async def run_google_drive_indexing(
                 f"Google Drive indexing successful for connector {connector_id}. Indexed {total_indexed} documents from {len(items.folders)} folder(s) and {len(items.files)} file(s)."
             )
             # Update the last indexed timestamp only on full success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         logger.error(
@@ -1755,7 +1768,7 @@ async def run_luma_indexing(
 
         # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
         if documents_processed > 0:
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             logger.info(
                 f"Luma indexing completed successfully: {documents_processed} documents processed"
             )
@@ -1815,7 +1828,7 @@ async def run_elasticsearch_indexing(
                 f"Elasticsearch indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()
     except Exception as e:
         await session.rollback()
@@ -1874,7 +1887,7 @@ async def run_web_page_indexing(
 
         # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
         if documents_processed > 0:
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             logger.info(
                 f"Web page indexing completed successfully: {documents_processed} documents processed"
             )
@@ -1947,7 +1960,7 @@ async def run_bookstack_indexing(
                 f"BookStack indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
             )
             # Update the last indexed timestamp only on success
-            await update_connector_last_indexed(session, connector_id)
+            await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
     except Exception as e:
         logger.error(

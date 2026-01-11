@@ -173,6 +173,7 @@ export const LumaConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }
 								endDate={endDate}
 								onStartDateChange={setStartDate}
 								onEndDateChange={setEndDate}
+								allowFutureDates={true}
 							/>
 
 							{/* Periodic Sync Config */}

@@ -34,14 +34,14 @@ export function UserDropdown({
 
 			if (typeof window !== "undefined") {
 				localStorage.removeItem("surfsense_bearer_token");
-				router.push("/");
+				window.location.href = "/";
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);
 			// Optionally, provide user feedback
 			if (typeof window !== "undefined") {
 				alert("Logout failed. Please try again.");
-				router.push("/");
+				window.location.href = "/";
 			}
 		}
 	};

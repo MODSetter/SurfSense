@@ -1,6 +1,6 @@
 "use client";
 
-import { format, subDays, subYears } from "date-fns";
+import { addDays, format, subDays, subYears } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ interface DateRangeSelectorProps {
 	endDate: Date | undefined;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
+	allowFutureDates?: boolean; // Allow future dates for calendar connectors
 }
 
 export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
@@ -21,11 +22,18 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 	endDate,
 	onStartDateChange,
 	onEndDateChange,
+	allowFutureDates = false,
 }) => {
 	const handleLast30Days = () => {
 		const today = new Date();
 		onStartDateChange(subDays(today, 30));
 		onEndDateChange(today);
+	};
+
+	const handleNext30Days = () => {
+		const today = new Date();
+		onStartDateChange(today);
+		onEndDateChange(addDays(today, 30));
 	};
 
 	const handleLastYear = () => {
@@ -43,8 +51,9 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 		<div className="rounded-xl bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
 			<h3 className="font-medium text-sm sm:text-base mb-4">Select Date Range</h3>
 			<p className="text-xs sm:text-sm text-muted-foreground mb-6">
-				Choose how far back you want to sync your data. You can always re-index later with different
-				dates.
+				{allowFutureDates
+					? "Choose the date range to sync your data. You can select future dates to index upcoming events."
+					: "Choose how far back you want to sync your data. You can always re-index later with different dates."}
 			</p>
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -72,7 +81,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 								mode="single"
 								selected={startDate}
 								onSelect={onStartDateChange}
-								disabled={(date) => date > new Date()}
+								disabled={allowFutureDates ? false : (date) => date > new Date()}
 							/>
 						</PopoverContent>
 					</Popover>
@@ -102,7 +111,11 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 								mode="single"
 								selected={endDate}
 								onSelect={onEndDateChange}
-								disabled={(date) => date > new Date() || (startDate ? date < startDate : false)}
+								disabled={
+									allowFutureDates
+										? (date) => (startDate ? date < startDate : false)
+										: (date) => date > new Date() || (startDate ? date < startDate : false)
+								}
 							/>
 						</PopoverContent>
 					</Popover>
@@ -129,6 +142,17 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 				>
 					Last 30 Days
 				</Button>
+				{allowFutureDates && (
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={handleNext30Days}
+						className="text-xs sm:text-sm bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-slate-400/10"
+					>
+						Next 30 Days
+					</Button>
+				)}
 				<Button
 					type="button"
 					variant="outline"
