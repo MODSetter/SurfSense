@@ -108,12 +108,8 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	onManage,
 }) => {
 	// Get connector status
-	const {
-		getConnectorStatus,
-		isConnectorEnabled,
-		getConnectorStatusMessage,
-		shouldShowWarnings,
-	} = useConnectorStatus();
+	const { getConnectorStatus, isConnectorEnabled, getConnectorStatusMessage, shouldShowWarnings } =
+		useConnectorStatus();
 
 	const status = getConnectorStatus(connectorType);
 	const isEnabled = isConnectorEnabled(connectorType);
@@ -157,8 +153,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 
 	// Determine if we should show tooltip on the whole card (for disabled/maintenance)
 	const shouldShowCardTooltip =
-		statusMessage &&
-		(status.status === "disabled" || status.status === "maintenance");
+		statusMessage && (status.status === "disabled" || status.status === "maintenance");
 
 	const cardContent = (
 		<div
@@ -248,9 +243,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	if (shouldShowCardTooltip) {
 		return (
 			<Tooltip>
-				<TooltipTrigger asChild>
-					{cardContent}
-				</TooltipTrigger>
+				<TooltipTrigger asChild>{cardContent}</TooltipTrigger>
 				<TooltipContent side="top" className="max-w-xs">
 					{statusMessage}
 				</TooltipContent>

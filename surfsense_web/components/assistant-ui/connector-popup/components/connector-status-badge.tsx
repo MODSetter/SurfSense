@@ -66,9 +66,7 @@ export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({
 		return (
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<span
-						className={cn("inline-flex items-center justify-center shrink-0", className)}
-					>
+					<span className={cn("inline-flex items-center justify-center shrink-0", className)}>
 						<Icon className={cn("size-3.5", config.className)} />
 					</span>
 				</TooltipTrigger>
