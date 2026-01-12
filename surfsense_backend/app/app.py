@@ -13,6 +13,7 @@ from app.config import config
 from app.db import User, create_db_and_tables, get_async_session
 from app.routes import router as crud_router
 from app.schemas import UserCreate, UserRead, UserUpdate
+from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 
 
@@ -22,6 +23,8 @@ async def lifespan(app: FastAPI):
     await create_db_and_tables()
     # Setup LangGraph checkpointer tables for conversation persistence
     await setup_checkpointer_tables()
+    # Seed Surfsense documentation
+    await seed_surfsense_docs()
     yield
     # Cleanup: close checkpointer connection on shutdown
     await close_checkpointer()
