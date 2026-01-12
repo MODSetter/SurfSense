@@ -616,7 +616,15 @@
 		"more_options": "更多选项",
 		"clear_search": "清除搜索",
 		"view_all_notes": "查看所有笔记",
-		"add_note": "添加笔记"
+		"add_note": "添加笔记",
+		"new_chat": "新对话",
+		"select_workspace": "选择工作空间",
+		"invite_members": "邀请成员",
+		"workspace_settings": "工作空间设置",
+		"see_all_workspaces": "查看所有搜索空间",
+		"expand_sidebar": "展开侧边栏",
+		"collapse_sidebar": "收起侧边栏",
+		"logout": "退出登录"
 	},
 	"errors": {
 		"something_went_wrong": "出错了",

@@ -546,7 +546,7 @@ async def index_connector_content(
     ),
     end_date: str = Query(
         None,
-        description="End date for indexing (YYYY-MM-DD format). If not provided, uses today's date",
+        description="End date for indexing (YYYY-MM-DD format). If not provided, uses today's date. For calendar connectors (Google Calendar, Luma), future dates can be selected to index upcoming events.",
     ),
     drive_items: GoogleDriveIndexRequest | None = Body(
         None,
@@ -620,7 +620,19 @@ async def index_connector_content(
         else:
             indexing_from = start_date
 
-        indexing_to = end_date if end_date else today_str
+        # For calendar connectors, default to today but allow future dates if explicitly provided
+        if connector.connector_type in [
+            SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+            SearchSourceConnectorType.LUMA_CONNECTOR,
+        ]:
+            # Default to today if no end_date provided (users can manually select future dates)
+            if end_date is None:
+                indexing_to = today_str
+            else:
+                indexing_to = end_date
+        else:
+            # For non-calendar connectors, cap at today
+            indexing_to = end_date if end_date else today_str
 
         if connector.connector_type == SearchSourceConnectorType.SLACK_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import (

@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import Depends, Request, Response
@@ -12,7 +13,17 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from pydantic import BaseModel
 
 from app.config import config
-from app.db import User, get_user_db
+from app.db import (
+    SearchSpace,
+    SearchSpaceMembership,
+    SearchSpaceRole,
+    User,
+    async_session_maker,
+    get_default_roles_config,
+    get_user_db,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class BearerResponse(BaseModel):
@@ -36,7 +47,59 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     verification_token_secret = SECRET
 
     async def on_after_register(self, user: User, request: Request | None = None):
-        print(f"User {user.id} has registered.")
+        """
+        Called after a user registers. Creates a default search space for the user
+        so they can start chatting immediately without manual setup.
+        """
+        logger.info(f"User {user.id} has registered. Creating default search space...")
+
+        try:
+            async with async_session_maker() as session:
+                # Create default search space
+                default_search_space = SearchSpace(
+                    name="My Search Space",
+                    description="Your personal search space",
+                    user_id=user.id,
+                )
+                session.add(default_search_space)
+                await session.flush()  # Get the search space ID
+
+                # Create default roles
+                default_roles = get_default_roles_config()
+                owner_role_id = None
+
+                for role_config in default_roles:
+                    db_role = SearchSpaceRole(
+                        name=role_config["name"],
+                        description=role_config["description"],
+                        permissions=role_config["permissions"],
+                        is_default=role_config["is_default"],
+                        is_system_role=role_config["is_system_role"],
+                        search_space_id=default_search_space.id,
+                    )
+                    session.add(db_role)
+                    await session.flush()
+
+                    if role_config["name"] == "Owner":
+                        owner_role_id = db_role.id
+
+                # Create owner membership
+                owner_membership = SearchSpaceMembership(
+                    user_id=user.id,
+                    search_space_id=default_search_space.id,
+                    role_id=owner_role_id,
+                    is_owner=True,
+                )
+                session.add(owner_membership)
+
+                await session.commit()
+                logger.info(
+                    f"Created default search space (ID: {default_search_space.id}) for user {user.id}"
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to create default search space for user {user.id}: {e}"
+            )
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Request | None = None
