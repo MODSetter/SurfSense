@@ -101,6 +101,24 @@
 		"welcome_description": "创建您的第一个搜索空间，开始组织知识、连接数据源并与AI对话。",
 		"create_first_button": "创建第一个搜索空间"
 	},
+	"userSettings": {
+		"title": "用户设置",
+		"description": "管理您的账户设置和API访问",
+		"back_to_app": "返回应用",
+		"footer": "用户设置",
+		"api_key_nav_label": "API密钥",
+		"api_key_nav_description": "管理您的API访问令牌",
+		"api_key_title": "API密钥",
+		"api_key_description": "使用此密钥验证API请求",
+		"api_key_warning_title": "请保密",
+		"api_key_warning_description": "您的API密钥可以完全访问您的账户。请勿公开分享或提交到版本控制。",
+		"your_api_key": "您的API密钥",
+		"copied": "已复制！",
+		"copy": "复制到剪贴板",
+		"no_api_key": "未找到API密钥",
+		"usage_title": "使用方法",
+		"usage_description": "在Authorization请求头中包含您的API密钥："
+	},
 	"dashboard": {
 		"title": "仪表盘",
 		"search_spaces": "搜索空间",
@@ -652,6 +670,7 @@
 		"see_all_search_spaces": "查看所有搜索空间",
 		"expand_sidebar": "展开侧边栏",
 		"collapse_sidebar": "收起侧边栏",
+		"user_settings": "用户设置",
 		"logout": "退出登录"
 	},
 	"errors": {

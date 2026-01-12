@@ -41,6 +41,7 @@ interface LayoutShellProps {
 	onSettings?: () => void;
 	onManageMembers?: () => void;
 	onSeeAllSearchSpaces?: () => void;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	breadcrumb?: React.ReactNode;
@@ -77,6 +78,7 @@ export function LayoutShell({
 	onSettings,
 	onManageMembers,
 	onSeeAllSearchSpaces,
+	onUserSettings,
 	onLogout,
 	pageUsage,
 	breadcrumb,
@@ -131,6 +133,7 @@ export function LayoutShell({
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
 						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
+						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 					/>
@@ -179,6 +182,7 @@ export function LayoutShell({
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
 						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
+						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						className="hidden md:flex border-r shrink-0"

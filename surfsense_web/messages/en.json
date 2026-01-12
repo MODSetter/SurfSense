@@ -101,6 +101,24 @@
 		"welcome_description": "Create your first search space to start organizing your knowledge, connecting sources, and chatting with AI.",
 		"create_first_button": "Create your first search space"
 	},
+	"userSettings": {
+		"title": "User Settings",
+		"description": "Manage your account settings and API access",
+		"back_to_app": "Back to app",
+		"footer": "User Settings",
+		"api_key_nav_label": "API Key",
+		"api_key_nav_description": "Manage your API access token",
+		"api_key_title": "API Key",
+		"api_key_description": "Use this key to authenticate API requests",
+		"api_key_warning_title": "Keep it secret",
+		"api_key_warning_description": "Your API key grants full access to your account. Never share it publicly or commit it to version control.",
+		"your_api_key": "Your API Key",
+		"copied": "Copied!",
+		"copy": "Copy to clipboard",
+		"no_api_key": "No API key found",
+		"usage_title": "How to use",
+		"usage_description": "Include your API key in the Authorization header:"
+	},
 	"dashboard": {
 		"title": "Dashboard",
 		"search_spaces": "Search Spaces",
@@ -658,6 +676,7 @@
 		"see_all_search_spaces": "See all search spaces",
 		"expand_sidebar": "Expand sidebar",
 		"collapse_sidebar": "Collapse sidebar",
+		"user_settings": "User settings",
 		"logout": "Logout"
 	},
 	"errors": {

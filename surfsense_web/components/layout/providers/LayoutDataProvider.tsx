@@ -214,6 +214,10 @@ export function LayoutDataProvider({
 		setIsAllSearchSpacesSheetOpen(true);
 	}, []);
 
+	const handleUserSettings = useCallback(() => {
+		router.push("/dashboard/user/settings");
+	}, [router]);
+
 	const handleSearchSpaceSettings = useCallback(
 		(id: number) => {
 			router.push(`/dashboard/${id}/settings`);
@@ -396,6 +400,7 @@ export function LayoutDataProvider({
 				onSettings={handleSettings}
 				onManageMembers={handleManageMembers}
 				onSeeAllSearchSpaces={handleSeeAllSearchSpaces}
+				onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}

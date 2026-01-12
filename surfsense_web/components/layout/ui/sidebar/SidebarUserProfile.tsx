@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, LogOut } from "lucide-react";
+import { ChevronUp, LogOut, Settings } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
 	DropdownMenu,
@@ -16,6 +16,7 @@ import type { User } from "../../types/layout.types";
 
 interface SidebarUserProfileProps {
 	user: User;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	isCollapsed?: boolean;
 }
@@ -62,6 +63,7 @@ function getInitials(email: string): string {
 
 export function SidebarUserProfile({
 	user,
+	onUserSettings,
 	onLogout,
 	isCollapsed = false,
 }: SidebarUserProfileProps) {
@@ -114,6 +116,13 @@ export function SidebarUserProfile({
 								</div>
 							</div>
 						</DropdownMenuLabel>
+
+						<DropdownMenuSeparator />
+
+						<DropdownMenuItem onClick={onUserSettings}>
+							<Settings className="mr-2 h-4 w-4" />
+							{t("user_settings")}
+						</DropdownMenuItem>
 
 						<DropdownMenuSeparator />
 
@@ -174,6 +183,13 @@ export function SidebarUserProfile({
 							</div>
 						</div>
 					</DropdownMenuLabel>
+
+					<DropdownMenuSeparator />
+
+					<DropdownMenuItem onClick={onUserSettings}>
+						<Settings className="mr-2 h-4 w-4" />
+						{t("user_settings")}
+					</DropdownMenuItem>
 
 					<DropdownMenuSeparator />
 

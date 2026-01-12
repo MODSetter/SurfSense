@@ -45,6 +45,7 @@ interface SidebarProps {
 	onSettings?: () => void;
 	onManageMembers?: () => void;
 	onSeeAllSearchSpaces?: () => void;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	className?: string;
@@ -72,6 +73,7 @@ export function Sidebar({
 	onSettings,
 	onManageMembers,
 	onSeeAllSearchSpaces,
+	onUserSettings,
 	onLogout,
 	pageUsage,
 	className,
@@ -287,7 +289,7 @@ export function Sidebar({
 					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
 				)}
 
-				<SidebarUserProfile user={user} onLogout={onLogout} isCollapsed={isCollapsed} />
+				<SidebarUserProfile user={user} onUserSettings={onUserSettings} onLogout={onLogout} isCollapsed={isCollapsed} />
 			</div>
 		</div>
 	);
