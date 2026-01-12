@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
 import { Loader2, Plus, Search } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -44,7 +43,6 @@ interface CreateSearchSpaceDialogProps {
 export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpaceDialogProps) {
 	const t = useTranslations("searchSpace");
 	const tCommon = useTranslations("common");
-	const router = useRouter();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const { mutateAsync: createSearchSpace } = useAtomValue(createSearchSpaceMutationAtom);
@@ -65,18 +63,12 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 				description: values.description || "",
 			});
 
-			// Track search space creation
 			trackSearchSpaceCreated(result.id, values.name);
 
-			// Reset form and close dialog
-			form.reset();
-			onOpenChange(false);
-
-			// Redirect to the newly created search space's onboarding
-			router.push(`/dashboard/${result.id}/onboard`);
+			// Hard redirect to ensure fresh state
+			window.location.href = `/dashboard/${result.id}/onboard`;
 		} catch (error) {
 			console.error("Failed to create search space:", error);
-		} finally {
 			setIsSubmitting(false);
 		}
 	};
