@@ -165,6 +165,9 @@ COPY --from=frontend-builder /app/.next/standalone ./
 COPY --from=frontend-builder /app/.next/static ./.next/static
 COPY --from=frontend-builder /app/public ./public
 
+# Copy docs content for Surfsense docs indexer (used at runtime for seeding)
+COPY surfsense_web/content/docs /app/surfsense_web/content/docs
+
 # ====================
 # Setup Backend
 # ====================
