@@ -1,8 +1,18 @@
 """
-MCP (Model Context Protocol) Tool Factory.
+MCP Tool Factory.
 
 This module creates LangChain tools from user-defined MCP connector configurations.
 MCP allows users to add custom API endpoints as tools for the agent to use.
+
+Note on Implementation:
+This is a custom implementation for simplicity and flexibility. Alternative approaches:
+1. Official MCP SDK (https://github.com/modelcontextprotocol/python-sdk) - for full MCP 
+   protocol with server processes, but heavier weight
+2. LangChain's OpenAPIToolkit - auto-generate tools from OpenAPI specs, but requires users 
+   to provide/maintain OpenAPI definitions
+3. LangChain's RequestsWrapper - simpler HTTP utilities, but less dynamic tool generation
+
+Current approach keeps dependencies minimal and gives users a simple JSON-based config.
 """
 
 import logging
@@ -19,7 +29,7 @@ from app.db import SearchSourceConnector, SearchSourceConnectorType
 logger = logging.getLogger(__name__)
 
 
-def build_auth_headers(auth_config: dict[str, Any]) -> dict[str, str]:
+def _build_auth_headers(auth_config: dict[str, Any]) -> dict[str, str]:
     """
     Build authentication headers from MCP tool auth configuration.
 
@@ -60,7 +70,7 @@ def build_auth_headers(auth_config: dict[str, Any]) -> dict[str, str]:
     return headers
 
 
-def create_dynamic_input_model(
+def _create_dynamic_input_model(
     tool_name: str, parameters_schema: dict[str, Any]
 ) -> type[BaseModel]:
     """
@@ -113,7 +123,7 @@ def create_dynamic_input_model(
     return create_model(model_name, **field_definitions)
 
 
-async def create_mcp_tool_instance(
+async def _create_mcp_tool_instance(
     tool_config: dict[str, Any], connector_id: int
 ) -> StructuredTool:
     """
@@ -143,14 +153,14 @@ async def create_mcp_tool_instance(
     )
 
     # Create dynamic input model from parameters schema
-    input_model = create_dynamic_input_model(tool_name, parameters_schema)
+    input_model = _create_dynamic_input_model(tool_name, parameters_schema)
 
     async def mcp_api_call(**kwargs) -> str:
         """Execute the MCP API call with provided parameters."""
         logger.info(f"MCP tool '{tool_name}' called with params: {kwargs}")
         try:
             # Build authentication headers
-            headers = build_auth_headers(auth_config)
+            headers = _build_auth_headers(auth_config)
             headers["Content-Type"] = "application/json"
 
             logger.info(f"Making {method} request to {endpoint}")
@@ -230,7 +240,7 @@ async def load_mcp_tools(
 
             for tool_config in tool_configs:
                 try:
-                    tool = await create_mcp_tool_instance(tool_config, connector.id)
+                    tool = await _create_mcp_tool_instance(tool_config, connector.id)
                     tools.append(tool)
                     logger.info(
                         f"Loaded MCP tool '{tool_config.get('name')}' from connector {connector.id}"

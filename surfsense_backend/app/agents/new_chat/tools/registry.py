@@ -242,6 +242,15 @@ async def build_tools_async(
 ) -> list[BaseTool]:
     """
     Async version of build_tools that also loads MCP tools from database.
+    
+    Design Note:
+    This function exists because MCP tools require database queries to load user configs,
+    while built-in tools are created synchronously from static code. 
+    
+    Alternative: We could make build_tools() itself async and always query the database,
+    but that would force async everywhere even when only using built-in tools. The current
+    design keeps the simple case (static tools only) synchronous while supporting dynamic 
+    database-loaded tools through this async wrapper.
 
     Args:
         dependencies: Dict containing all possible dependencies

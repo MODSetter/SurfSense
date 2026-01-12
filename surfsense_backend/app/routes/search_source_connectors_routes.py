@@ -7,6 +7,13 @@ PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
 POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
 
+MCP (Model Context Protocol) Connector routes:
+POST /connectors/mcp - Create a new MCP connector with custom API tools
+GET /connectors/mcp - List all MCP connectors for the current user's search space
+GET /connectors/mcp/{connector_id} - Get a specific MCP connector with tools config
+PUT /connectors/mcp/{connector_id} - Update an MCP connector's tools config
+DELETE /connectors/mcp/{connector_id} - Delete an MCP connector
+
 Note: OAuth connectors (Gmail, Drive, Slack, etc.) support multiple accounts per search space.
 Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search space.
 """
@@ -2003,8 +2010,14 @@ async def create_mcp_connector(
         HTTPException: If search space not found or permission denied
     """
     try:
-        # Verify user has access to the search space
-        await verify_user_access_to_search_space(session, user, search_space_id)
+        # Check user has permission to create connectors
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.CONNECTORS_CREATE.value,
+            "You don't have permission to create connectors in this search space",
+        )
 
         # Convert MCP schema to base connector schema
         base_connector_data = connector_data.to_connector_create(search_space_id)
@@ -2063,8 +2076,14 @@ async def list_mcp_connectors(
         List of MCP connectors with their tool configurations
     """
     try:
-        # Verify user has access to the search space
-        await verify_user_access_to_search_space(session, user, search_space_id)
+        # Check user has permission to read connectors
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.CONNECTORS_READ.value,
+            "You don't have permission to view connectors in this search space",
+        )
 
         # Fetch MCP connectors
         result = await session.execute(
@@ -2121,9 +2140,13 @@ async def get_mcp_connector(
         if not connector:
             raise HTTPException(status_code=404, detail="MCP connector not found")
 
-        # Verify user has access
-        await verify_user_access_to_search_space(
-            session, user, connector.search_space_id
+        # Check user has permission to read connectors
+        await check_permission(
+            session,
+            user,
+            connector.search_space_id,
+            Permission.CONNECTORS_READ.value,
+            "You don't have permission to view this connector",
         )
 
         connector_read = SearchSourceConnectorRead.model_validate(connector)
@@ -2171,9 +2194,13 @@ async def update_mcp_connector(
         if not connector:
             raise HTTPException(status_code=404, detail="MCP connector not found")
 
-        # Verify user has access
-        await verify_user_access_to_search_space(
-            session, user, connector.search_space_id
+        # Check user has permission to update connectors
+        await check_permission(
+            session,
+            user,
+            connector.search_space_id,
+            Permission.CONNECTORS_UPDATE.value,
+            "You don't have permission to update this connector",
         )
 
         # Update fields
@@ -2233,9 +2260,13 @@ async def delete_mcp_connector(
         if not connector:
             raise HTTPException(status_code=404, detail="MCP connector not found")
 
-        # Verify user has access
-        await verify_user_access_to_search_space(
-            session, user, connector.search_space_id
+        # Check user has permission to delete connectors
+        await check_permission(
+            session,
+            user,
+            connector.search_space_id,
+            Permission.CONNECTORS_DELETE.value,
+            "You don't have permission to delete this connector",
         )
 
         await session.delete(connector)
