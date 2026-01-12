@@ -47,7 +47,7 @@ export function DocumentsFilters({
 	columnVisibility,
 	onToggleColumn,
 }: {
-	typeCounts: Record<DocumentTypeEnum, number>;
+	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	selectedIds: Set<number>;
 	onSearch: (v: string) => void;
 	searchValue: string;

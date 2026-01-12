@@ -9,6 +9,7 @@ import {
 	type GetDocumentRequest,
 	type GetDocumentsRequest,
 	type GetDocumentTypeCountsRequest,
+	type GetSurfsenseDocsRequest,
 	getDocumentByChunkRequest,
 	getDocumentByChunkResponse,
 	getDocumentRequest,
@@ -18,6 +19,7 @@ import {
 	getDocumentTypeCountsRequest,
 	getDocumentTypeCountsResponse,
 	getSurfsenseDocsByChunkResponse,
+	getSurfsenseDocsResponse,
 	type SearchDocumentsRequest,
 	searchDocumentsRequest,
 	searchDocumentsResponse,
@@ -219,6 +221,30 @@ class DocumentsApiService {
 			`/api/v1/surfsense-docs/by-chunk/${chunkId}`,
 			getSurfsenseDocsByChunkResponse
 		);
+	};
+
+	/**
+	 * List all Surfsense documentation documents
+	 */
+	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest = {}) => {
+		const queryParams = new URLSearchParams();
+
+		if (request.page !== undefined) {
+			queryParams.set("page", String(request.page));
+		}
+		if (request.page_size !== undefined) {
+			queryParams.set("page_size", String(request.page_size));
+		}
+		if (request.title) {
+			queryParams.set("title", request.title);
+		}
+
+		const queryString = queryParams.toString();
+		const url = queryString
+			? `/api/v1/surfsense-docs?${queryString}`
+			: "/api/v1/surfsense-docs";
+
+		return baseApiService.get(url, getSurfsenseDocsResponse);
 	};
 
 	/**
