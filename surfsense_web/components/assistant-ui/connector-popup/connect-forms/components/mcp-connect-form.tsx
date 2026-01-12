@@ -192,7 +192,12 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 								</div>
 
 								<div className="space-y-2">
-									<Label>Description *</Label>
+									<Label>
+										Description *{" "}
+										<span className="text-xs text-muted-foreground font-normal">
+											(Be explicit - tell the AI exactly when to use this tool)
+										</span>
+									</Label>
 									<Input
 										value={tool.description}
 										onChange={(e) => updateTool(index, "description", e.target.value)}

@@ -28,6 +28,14 @@ interface ActiveConnectorsTabProps {
 	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
 }
 
+/**
+ * Check if a connector type is indexable
+ */
+function isIndexableConnector(connectorType: string): boolean {
+	const nonIndexableTypes = ["MCP_CONNECTOR"];
+	return !nonIndexableTypes.includes(connectorType);
+}
+
 export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	searchQuery,
 	hasSources,
@@ -229,14 +237,20 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 													</p>
 												) : (
 													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-														{mostRecentLastIndexed
-															? `Last indexed: ${formatLastIndexedDate(mostRecentLastIndexed)}`
-															: "Never indexed"}
-													</p>
+														{isIndexableConnector(connectorType)
+															? mostRecentLastIndexed
+																? `Last indexed: ${formatLastIndexedDate(mostRecentLastIndexed)}`
+																: "Never indexed"
+															: "Active"}
+												</p>
 												)}
 												<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
-													<span>{formatDocumentCount(documentCount)}</span>
-													<span className="text-muted-foreground/50">•</span>
+													{isIndexableConnector(connectorType) && (
+														<>
+															<span>{formatDocumentCount(documentCount)}</span>
+															<span className="text-muted-foreground/50">•</span>
+														</>
+													)}
 													<span>
 														{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
 													</span>
@@ -301,14 +315,18 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 													</p>
 												) : (
 													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-														{connector.last_indexed_at
-															? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
-															: "Never indexed"}
+														{isIndexableConnector(connector.connector_type)
+															? connector.last_indexed_at
+																? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
+																: "Never indexed"
+															: "Active"}
 													</p>
 												)}
-												<p className="text-[10px] text-muted-foreground mt-0.5">
-													{formatDocumentCount(documentCount)}
-												</p>
+													{isIndexableConnector(connector.connector_type) && (
+														<p className="text-[10px] text-muted-foreground mt-0.5">
+															{formatDocumentCount(documentCount)}
+														</p>
+													)}
 											</div>
 											<Button
 												variant="secondary"
