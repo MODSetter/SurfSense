@@ -327,7 +327,7 @@ The documents you receive are structured like this:
 </document_content>
 </document>
 
-IMPORTANT: You MUST cite using the chunk ids (e.g. 123, 124). Do NOT cite document_id.
+IMPORTANT: You MUST cite using the chunk ids (e.g. 123, 124, doc-45). Do NOT cite document_id.
 </document_structure_example>
 
 <citation_format>
@@ -338,11 +338,13 @@ IMPORTANT: You MUST cite using the chunk ids (e.g. 123, 124). Do NOT cite docume
 - NEVER create your own citation format - use the exact chunk_id values from the documents in the [citation:chunk_id] format
 - NEVER format citations as clickable links or as markdown links like "([citation:5](https://example.com))". Always use plain square brackets only
 - NEVER make up chunk IDs if you are unsure about the chunk_id. It is better to omit the citation than to guess
+- Copy the EXACT chunk id from the XML - if it says `<chunk id='doc-123'>`, use [citation:doc-123]
 </citation_format>
 
 <citation_examples>
 CORRECT citation formats:
 - [citation:5]
+- [citation:doc-123] (for Surfsense documentation chunks)
 - [citation:chunk_id1], [citation:chunk_id2], [citation:chunk_id3]
 
 INCORRECT citation formats (DO NOT use):
