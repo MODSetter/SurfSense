@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useState } from "react";
 import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
+import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,10 @@ import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { deleteThread, fetchThreads } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import type { ChatItem, NavItem, NoteItem, Workspace } from "../types/layout.types";
+import type { ChatItem, NavItem, NoteItem, SearchSpace } from "../types/layout.types";
+import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { LayoutShell } from "../ui/shell";
+import { AllSearchSpacesSheet } from "../ui/sheets";
 import { AllChatsSidebar } from "../ui/sidebar/AllChatsSidebar";
 import { AllNotesSidebar } from "../ui/sidebar/AllNotesSidebar";
 
@@ -53,7 +56,8 @@ export function LayoutDataProvider({
 
 	// Atoms
 	const { data: user } = useAtomValue(currentUserAtom);
-	const { data: searchSpacesData } = useAtomValue(searchSpacesAtom);
+	const { data: searchSpacesData, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
+	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 	const hasUnsavedEditorChanges = useAtomValue(hasUnsavedEditorChangesAtom);
 	const setPendingNavigation = useSetAtom(pendingEditorNavigationAtom);
 
@@ -110,6 +114,10 @@ export function LayoutDataProvider({
 	const [isAllChatsSidebarOpen, setIsAllChatsSidebarOpen] = useState(false);
 	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
 
+	// Search space sheet and dialog state
+	const [isAllSearchSpacesSheetOpen, setIsAllSearchSpacesSheetOpen] = useState(false);
+	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
+
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
@@ -123,8 +131,7 @@ export function LayoutDataProvider({
 	} | null>(null);
 	const [isDeletingNote, setIsDeletingNote] = useState(false);
 
-	// Transform workspaces (API returns array directly, not { items: [...] })
-	const workspaces: Workspace[] = useMemo(() => {
+	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
 		return searchSpacesData.map((space) => ({
 			id: space.id,
@@ -132,19 +139,15 @@ export function LayoutDataProvider({
 			description: space.description,
 			isOwner: space.is_owner,
 			memberCount: space.member_count || 0,
+			createdAt: space.created_at,
 		}));
 	}, [searchSpacesData]);
 
-	// Use searchSpace query result for current workspace (more reliable than finding in list)
-	const activeWorkspace: Workspace | null = searchSpace
-		? {
-				id: searchSpace.id,
-				name: searchSpace.name,
-				description: searchSpace.description,
-				isOwner: searchSpace.is_owner,
-				memberCount: searchSpace.member_count || 0,
-			}
-		: null;
+	// Find active search space from list (has is_owner and member_count)
+	const activeSearchSpace: SearchSpace | null = useMemo(() => {
+		if (!searchSpaceId || !searchSpaces.length) return null;
+		return searchSpaces.find((s) => s.id === Number(searchSpaceId)) ?? null;
+	}, [searchSpaceId, searchSpaces]);
 
 	// Transform chats
 	const chats: ChatItem[] = useMemo(() => {
@@ -196,20 +199,47 @@ export function LayoutDataProvider({
 	);
 
 	// Handlers
-	const handleWorkspaceSelect = useCallback(
+	const handleSearchSpaceSelect = useCallback(
 		(id: number) => {
 			router.push(`/dashboard/${id}/new-chat`);
 		},
 		[router]
 	);
 
-	const handleAddWorkspace = useCallback(() => {
-		router.push("/dashboard/searchspaces");
+	const handleAddSearchSpace = useCallback(() => {
+		setIsCreateSearchSpaceDialogOpen(true);
+	}, []);
+
+	const handleSeeAllSearchSpaces = useCallback(() => {
+		setIsAllSearchSpacesSheetOpen(true);
+	}, []);
+
+	const handleUserSettings = useCallback(() => {
+		router.push("/dashboard/user/settings");
 	}, [router]);
 
-	const handleSeeAllWorkspaces = useCallback(() => {
-		router.push("/dashboard");
-	}, [router]);
+	const handleSearchSpaceSettings = useCallback(
+		(id: number) => {
+			router.push(`/dashboard/${id}/settings`);
+		},
+		[router]
+	);
+
+	const handleDeleteSearchSpace = useCallback(
+		async (id: number) => {
+			await deleteSearchSpace({ id });
+			refetchSearchSpaces();
+			if (Number(searchSpaceId) === id && searchSpaces.length > 1) {
+				const remaining = searchSpaces.filter((s) => s.id !== id);
+				if (remaining.length > 0) {
+					router.push(`/dashboard/${remaining[0].id}/new-chat`);
+				}
+			} else if (searchSpaces.length === 1) {
+				router.push("/dashboard");
+			}
+		},
+		[deleteSearchSpace, refetchSearchSpaces, searchSpaceId, searchSpaces, router]
+	);
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
@@ -266,7 +296,7 @@ export function LayoutDataProvider({
 		router.push(`/dashboard/${searchSpaceId}/settings`);
 	}, [router, searchSpaceId]);
 
-	const handleInviteMembers = useCallback(() => {
+	const handleManageMembers = useCallback(() => {
 		router.push(`/dashboard/${searchSpaceId}/team`);
 	}, [router, searchSpaceId]);
 
@@ -347,11 +377,11 @@ export function LayoutDataProvider({
 	return (
 		<>
 			<LayoutShell
-				workspaces={workspaces}
-				activeWorkspaceId={Number(searchSpaceId)}
-				onWorkspaceSelect={handleWorkspaceSelect}
-				onAddWorkspace={handleAddWorkspace}
-				workspace={activeWorkspace}
+				searchSpaces={searchSpaces}
+				activeSearchSpaceId={Number(searchSpaceId)}
+				onSearchSpaceSelect={handleSearchSpaceSelect}
+				onAddSearchSpace={handleAddSearchSpace}
+				searchSpace={activeSearchSpace}
 				navItems={navItems}
 				onNavItemClick={handleNavItemClick}
 				chats={chats}
@@ -368,8 +398,9 @@ export function LayoutDataProvider({
 				onViewAllNotes={handleViewAllNotes}
 				user={{ email: user?.email || "", name: user?.email?.split("@")[0] }}
 				onSettings={handleSettings}
-				onInviteMembers={handleInviteMembers}
-				onSeeAllWorkspaces={handleSeeAllWorkspaces}
+				onManageMembers={handleManageMembers}
+				onSeeAllSearchSpaces={handleSeeAllSearchSpaces}
+				onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}
@@ -437,6 +468,26 @@ export function LayoutDataProvider({
 				onOpenChange={setIsAllNotesSidebarOpen}
 				searchSpaceId={searchSpaceId}
 				onAddNote={handleAddNote}
+			/>
+
+			{/* All Search Spaces Sheet */}
+			<AllSearchSpacesSheet
+				open={isAllSearchSpacesSheetOpen}
+				onOpenChange={setIsAllSearchSpacesSheetOpen}
+				searchSpaces={searchSpaces}
+				onSearchSpaceSelect={handleSearchSpaceSelect}
+				onCreateNew={() => {
+					setIsAllSearchSpacesSheetOpen(false);
+					setIsCreateSearchSpaceDialogOpen(true);
+				}}
+				onSettings={handleSearchSpaceSettings}
+				onDelete={handleDeleteSearchSpace}
+			/>
+
+			{/* Create Search Space Dialog */}
+			<CreateSearchSpaceDialog
+				open={isCreateSearchSpaceDialogOpen}
+				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
 
 			{/* Delete Note Dialog */}

@@ -12,7 +12,7 @@ import type {
 	NoteItem,
 	PageUsage,
 	User,
-	Workspace,
+	SearchSpace,
 } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
@@ -24,7 +24,7 @@ import { SidebarSection } from "./SidebarSection";
 import { SidebarUserProfile } from "./SidebarUserProfile";
 
 interface SidebarProps {
-	workspace: Workspace | null;
+	searchSpace: SearchSpace | null;
 	isCollapsed?: boolean;
 	onToggleCollapse?: () => void;
 	navItems: NavItem[];
@@ -43,15 +43,16 @@ interface SidebarProps {
 	onViewAllNotes?: () => void;
 	user: User;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSeeAllWorkspaces?: () => void;
+	onManageMembers?: () => void;
+	onSeeAllSearchSpaces?: () => void;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	className?: string;
 }
 
 export function Sidebar({
-	workspace,
+	searchSpace,
 	isCollapsed = false,
 	onToggleCollapse,
 	navItems,
@@ -70,8 +71,9 @@ export function Sidebar({
 	onViewAllNotes,
 	user,
 	onSettings,
-	onInviteMembers,
-	onSeeAllWorkspaces,
+	onManageMembers,
+	onSeeAllSearchSpaces,
+	onUserSettings,
 	onLogout,
 	pageUsage,
 	className,
@@ -86,7 +88,7 @@ export function Sidebar({
 				className
 			)}
 		>
-			{/* Header - workspace name or collapse button when collapsed */}
+			{/* Header - search space name or collapse button when collapsed */}
 			{isCollapsed ? (
 				<div className="flex h-14 shrink-0 items-center justify-center border-b">
 					<SidebarCollapseButton
@@ -97,11 +99,11 @@ export function Sidebar({
 			) : (
 				<div className="flex h-14 shrink-0 items-center justify-between px-1 border-b">
 					<SidebarHeader
-						workspace={workspace}
+						searchSpace={searchSpace}
 						isCollapsed={isCollapsed}
 						onSettings={onSettings}
-						onInviteMembers={onInviteMembers}
-						onSeeAllWorkspaces={onSeeAllWorkspaces}
+						onManageMembers={onManageMembers}
+						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
 					/>
 					<div className="">
 						<SidebarCollapseButton
@@ -287,7 +289,7 @@ export function Sidebar({
 					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
 				)}
 
-				<SidebarUserProfile user={user} onLogout={onLogout} isCollapsed={isCollapsed} />
+				<SidebarUserProfile user={user} onUserSettings={onUserSettings} onLogout={onLogout} isCollapsed={isCollapsed} />
 			</div>
 		</div>
 	);

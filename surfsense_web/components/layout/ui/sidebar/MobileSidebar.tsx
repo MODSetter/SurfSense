@@ -10,7 +10,7 @@ import type {
 	NoteItem,
 	PageUsage,
 	User,
-	Workspace,
+	SearchSpace,
 } from "../../types/layout.types";
 import { IconRail } from "../icon-rail";
 import { Sidebar } from "./Sidebar";
@@ -18,11 +18,11 @@ import { Sidebar } from "./Sidebar";
 interface MobileSidebarProps {
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
-	workspaces: Workspace[];
-	activeWorkspaceId: number | null;
-	onWorkspaceSelect: (id: number) => void;
-	onAddWorkspace: () => void;
-	workspace: Workspace | null;
+	searchSpaces: SearchSpace[];
+	activeSearchSpaceId: number | null;
+	onSearchSpaceSelect: (id: number) => void;
+	onAddSearchSpace: () => void;
+	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
@@ -39,8 +39,9 @@ interface MobileSidebarProps {
 	onViewAllNotes?: () => void;
 	user: User;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSeeAllWorkspaces?: () => void;
+	onManageMembers?: () => void;
+	onSeeAllSearchSpaces?: () => void;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 }
@@ -57,11 +58,11 @@ export function MobileSidebarTrigger({ onClick }: { onClick: () => void }) {
 export function MobileSidebar({
 	isOpen,
 	onOpenChange,
-	workspaces,
-	activeWorkspaceId,
-	onWorkspaceSelect,
-	onAddWorkspace,
-	workspace,
+	searchSpaces,
+	activeSearchSpaceId,
+	onSearchSpaceSelect,
+	onAddSearchSpace,
+	searchSpace,
 	navItems,
 	onNavItemClick,
 	chats,
@@ -78,13 +79,14 @@ export function MobileSidebar({
 	onViewAllNotes,
 	user,
 	onSettings,
-	onInviteMembers,
-	onSeeAllWorkspaces,
+	onManageMembers,
+	onSeeAllSearchSpaces,
+	onUserSettings,
 	onLogout,
 	pageUsage,
 }: MobileSidebarProps) {
-	const handleWorkspaceSelect = (id: number) => {
-		onWorkspaceSelect(id);
+	const handleSearchSpaceSelect = (id: number) => {
+		onSearchSpaceSelect(id);
 	};
 
 	const handleNavItemClick = (item: NavItem) => {
@@ -110,17 +112,17 @@ export function MobileSidebar({
 				<div className="shrink-0 border-r bg-muted/40">
 					<ScrollArea className="h-full">
 						<IconRail
-							workspaces={workspaces}
-							activeWorkspaceId={activeWorkspaceId}
-							onWorkspaceSelect={handleWorkspaceSelect}
-							onAddWorkspace={onAddWorkspace}
+							searchSpaces={searchSpaces}
+							activeSearchSpaceId={activeSearchSpaceId}
+							onSearchSpaceSelect={handleSearchSpaceSelect}
+							onAddSearchSpace={onAddSearchSpace}
 						/>
 					</ScrollArea>
 				</div>
 
 				<div className="flex-1 overflow-hidden">
 					<Sidebar
-						workspace={workspace}
+						searchSpace={searchSpace}
 						isCollapsed={false}
 						navItems={navItems}
 						onNavItemClick={handleNavItemClick}
@@ -141,8 +143,9 @@ export function MobileSidebar({
 						onViewAllNotes={onViewAllNotes}
 						user={user}
 						onSettings={onSettings}
-						onInviteMembers={onInviteMembers}
-						onSeeAllWorkspaces={onSeeAllWorkspaces}
+						onManageMembers={onManageMembers}
+						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
+						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						className="w-full border-none"

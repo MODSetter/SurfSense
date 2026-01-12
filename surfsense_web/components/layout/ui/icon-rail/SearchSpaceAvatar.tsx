@@ -3,7 +3,7 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-interface WorkspaceAvatarProps {
+interface SearchSpaceAvatarProps {
 	name: string;
 	isActive?: boolean;
 	onClick?: () => void;
@@ -11,7 +11,7 @@ interface WorkspaceAvatarProps {
 }
 
 /**
- * Generates a consistent color based on workspace name
+ * Generates a consistent color based on search space name
  */
 function stringToColor(str: string): string {
 	let hash = 0;
@@ -32,7 +32,7 @@ function stringToColor(str: string): string {
 }
 
 /**
- * Gets initials from workspace name (max 2 chars)
+ * Gets initials from search space name (max 2 chars)
  */
 function getInitials(name: string): string {
 	const words = name.trim().split(/\s+/);
@@ -42,7 +42,7 @@ function getInitials(name: string): string {
 	return name.slice(0, 2).toUpperCase();
 }
 
-export function WorkspaceAvatar({ name, isActive, onClick, size = "md" }: WorkspaceAvatarProps) {
+export function SearchSpaceAvatar({ name, isActive, onClick, size = "md" }: SearchSpaceAvatarProps) {
 	const bgColor = stringToColor(name);
 	const initials = getInitials(name);
 	const sizeClasses = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";

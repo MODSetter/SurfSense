@@ -8,10 +8,12 @@ export type {
 	PageUsage,
 	SidebarSectionProps,
 	User,
-	Workspace,
+	SearchSpace,
 } from "./types/layout.types";
 export {
+	AllSearchSpacesSheet,
 	ChatListItem,
+	CreateSearchSpaceDialog,
 	Header,
 	IconRail,
 	LayoutShell,
@@ -26,5 +28,5 @@ export {
 	SidebarHeader,
 	SidebarSection,
 	SidebarUserProfile,
-	WorkspaceAvatar,
+	SearchSpaceAvatar,
 } from "./ui";
