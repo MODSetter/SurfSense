@@ -1,14 +1,13 @@
-"""
-MCP Tool Factory.
+"""MCP Tool Factory.
 
 This module creates LangChain tools from user-defined MCP connector configurations.
 MCP allows users to add custom API endpoints as tools for the agent to use.
 
 Note on Implementation:
 This is a custom implementation for simplicity and flexibility. Alternative approaches:
-1. Official MCP SDK (https://github.com/modelcontextprotocol/python-sdk) - for full MCP 
+1. Official MCP SDK (https://github.com/modelcontextprotocol/python-sdk) - for full MCP
    protocol with server processes, but heavier weight
-2. LangChain's OpenAPIToolkit - auto-generate tools from OpenAPI specs, but requires users 
+2. LangChain's OpenAPIToolkit - auto-generate tools from OpenAPI specs, but requires users
    to provide/maintain OpenAPI definitions
 3. LangChain's RequestsWrapper - simpler HTTP utilities, but less dynamic tool generation
 
@@ -30,8 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 def _build_auth_headers(auth_config: dict[str, Any]) -> dict[str, str]:
-    """
-    Build authentication headers from MCP tool auth configuration.
+    """Build authentication headers from MCP tool auth configuration.
 
     Args:
         auth_config: Authentication configuration containing:
@@ -43,6 +41,7 @@ def _build_auth_headers(auth_config: dict[str, Any]) -> dict[str, str]:
 
     Returns:
         Dictionary of HTTP headers for authentication
+
     """
     headers = {}
     auth_type = auth_config.get("auth_type", "none")
@@ -71,10 +70,9 @@ def _build_auth_headers(auth_config: dict[str, Any]) -> dict[str, str]:
 
 
 def _create_dynamic_input_model(
-    tool_name: str, parameters_schema: dict[str, Any]
+    tool_name: str, parameters_schema: dict[str, Any],
 ) -> type[BaseModel]:
-    """
-    Create a Pydantic model from JSON schema for tool parameters.
+    """Create a Pydantic model from JSON schema for tool parameters.
 
     Args:
         tool_name: Name of the tool (used for model class name)
@@ -82,6 +80,7 @@ def _create_dynamic_input_model(
 
     Returns:
         Pydantic model class for tool input validation
+
     """
     properties = parameters_schema.get("properties", {})
     required_fields = parameters_schema.get("required", [])
@@ -124,10 +123,9 @@ def _create_dynamic_input_model(
 
 
 async def _create_mcp_tool_instance(
-    tool_config: dict[str, Any], connector_id: int
+    tool_config: dict[str, Any], connector_id: int,
 ) -> StructuredTool:
-    """
-    Create a single LangChain tool from an MCP tool configuration.
+    """Create a single LangChain tool from an MCP tool configuration.
 
     Args:
         tool_config: Tool configuration containing:
@@ -142,6 +140,7 @@ async def _create_mcp_tool_instance(
 
     Returns:
         LangChain StructuredTool instance
+
     """
     tool_name = tool_config.get("name", "unnamed_tool")
     tool_description = tool_config.get("description", "No description provided")
@@ -149,7 +148,7 @@ async def _create_mcp_tool_instance(
     method = tool_config.get("method", "GET").upper()
     auth_config = tool_config.get("auth_config", {})
     parameters_schema = tool_config.get(
-        "parameters", {"type": "object", "properties": {}}
+        "parameters", {"type": "object", "properties": {}},
     )
 
     # Create dynamic input model from parameters schema
@@ -164,16 +163,16 @@ async def _create_mcp_tool_instance(
             headers["Content-Type"] = "application/json"
 
             logger.info(f"Making {method} request to {endpoint}")
-            
+
             # Make HTTP request (disable SSL verification for user-provided endpoints)
             async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
                 if method in ["GET", "DELETE"]:
                     response = await client.request(
-                        method=method, url=endpoint, headers=headers, params=kwargs
+                        method=method, url=endpoint, headers=headers, params=kwargs,
                     )
                 else:  # POST, PUT, PATCH
                     response = await client.request(
-                        method=method, url=endpoint, headers=headers, json=kwargs
+                        method=method, url=endpoint, headers=headers, json=kwargs,
                     )
 
                 response.raise_for_status()
@@ -190,11 +189,11 @@ async def _create_mcp_tool_instance(
 
         except httpx.HTTPError as e:
             error_msg = f"MCP tool '{tool_name}' HTTP error: {e!s}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             return f"Error: {error_msg}"
         except Exception as e:
             error_msg = f"MCP tool '{tool_name}' failed: {e!s}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             return f"Error: {error_msg}"
 
     # Create StructuredTool with dynamic schema
@@ -204,16 +203,15 @@ async def _create_mcp_tool_instance(
         coroutine=mcp_api_call,
         args_schema=input_model,
     )
-    
+
     logger.info(f"Created MCP tool: name='{tool_name}', description='{tool_description}', schema={input_model.model_json_schema()}")
     return tool
 
 
 async def load_mcp_tools(
-    session: AsyncSession, search_space_id: int
+    session: AsyncSession, search_space_id: int,
 ) -> list[StructuredTool]:
-    """
-    Load all MCP tools from user's active MCP connectors.
+    """Load all MCP tools from user's active MCP connectors.
 
     Args:
         session: Database session
@@ -221,6 +219,7 @@ async def load_mcp_tools(
 
     Returns:
         List of LangChain StructuredTool instances
+
     """
     try:
         # Fetch all MCP connectors for this search space
@@ -229,7 +228,7 @@ async def load_mcp_tools(
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.MCP_CONNECTOR,
                 SearchSourceConnector.search_space_id == search_space_id,
-            )
+            ),
         )
 
         tools: list[StructuredTool] = []
@@ -243,16 +242,16 @@ async def load_mcp_tools(
                     tool = await _create_mcp_tool_instance(tool_config, connector.id)
                     tools.append(tool)
                     logger.info(
-                        f"Loaded MCP tool '{tool_config.get('name')}' from connector {connector.id}"
+                        f"Loaded MCP tool '{tool_config.get('name')}' from connector {connector.id}",
                     )
                 except Exception as e:
-                    logger.error(
-                        f"Failed to create MCP tool from connector {connector.id}: {e!s}"
+                    logger.exception(
+                        f"Failed to create MCP tool from connector {connector.id}: {e!s}",
                     )
 
         logger.info(f"Loaded {len(tools)} MCP tools for search space {search_space_id}")
         return tools
 
     except Exception as e:
-        logger.error(f"Failed to load MCP tools: {e!s}")
+        logger.exception(f"Failed to load MCP tools: {e!s}")
         return []

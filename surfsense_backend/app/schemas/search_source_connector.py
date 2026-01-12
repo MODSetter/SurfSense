@@ -23,7 +23,7 @@ class SearchSourceConnectorBase(BaseModel):
     @field_validator("config")
     @classmethod
     def validate_config_for_connector_type(
-        cls, config: dict[str, Any], values: dict[str, Any]
+        cls, config: dict[str, Any], values: dict[str, Any],
     ) -> dict[str, Any]:
         connector_type = values.data.get("connector_type")
         return validate_connector_config(connector_type, config)
@@ -38,15 +38,18 @@ class SearchSourceConnectorBase(BaseModel):
         """
         if self.periodic_indexing_enabled:
             if not self.is_indexable:
+                msg = "periodic_indexing_enabled can only be True for indexable connectors"
                 raise ValueError(
-                    "periodic_indexing_enabled can only be True for indexable connectors"
+                    msg,
                 )
             if self.indexing_frequency_minutes is None:
+                msg = "indexing_frequency_minutes is required when periodic_indexing_enabled is True"
                 raise ValueError(
-                    "indexing_frequency_minutes is required when periodic_indexing_enabled is True"
+                    msg,
                 )
             if self.indexing_frequency_minutes <= 0:
-                raise ValueError("indexing_frequency_minutes must be greater than 0")
+                msg = "indexing_frequency_minutes must be greater than 0"
+                raise ValueError(msg)
         return self
 
 
@@ -94,7 +97,8 @@ class MCPToolConfig(BaseModel):
         allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
         v_upper = v.upper()
         if v_upper not in allowed_methods:
-            raise ValueError(f"Method must be one of {allowed_methods}")
+            msg = f"Method must be one of {allowed_methods}"
+            raise ValueError(msg)
         return v_upper
 
     @field_validator("auth_type")
@@ -103,7 +107,8 @@ class MCPToolConfig(BaseModel):
         allowed_types = ["none", "bearer", "api_key", "basic"]
         v_lower = v.lower()
         if v_lower not in allowed_types:
-            raise ValueError(f"Auth type must be one of {allowed_types}")
+            msg = f"Auth type must be one of {allowed_types}"
+            raise ValueError(msg)
         return v_lower
 
 
