@@ -41,12 +41,27 @@ def upgrade() -> None:
     op.create_index("ix_notifications_user_read", "notifications", ["user_id", "read"])
 
     # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
-    # This allows Electric SQL to track all column values for updates/deletes
     op.execute("ALTER TABLE notifications REPLICA IDENTITY FULL;")
 
-    # Note: ElectricSQL 1.x dynamically adds tables to the publication when
-    # clients subscribe to shapes. No need to manually create publications.
+    # Grant SELECT to electric user for Electric SQL replication
+    # This is needed because ALTER DEFAULT PRIVILEGES only applies during initial DB setup
+    op.execute("GRANT SELECT ON notifications TO electric;")
 
+    # Add notifications table to Electric SQL publication for replication
+    # This is required for Electric SQL to sync the table
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_publication_tables 
+                WHERE pubname = 'electric_publication_default' 
+                AND tablename = 'notifications'
+            ) THEN
+                ALTER PUBLICATION electric_publication_default ADD TABLE notifications;
+            END IF;
+        END
+        $$;
+    """)
 
 def downgrade() -> None:
     """Downgrade schema - remove notifications table."""

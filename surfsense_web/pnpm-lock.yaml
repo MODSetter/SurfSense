@@ -36,11 +36,11 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       '@electric-sql/pglite':
-        specifier: ^0.2.17
-        version: 0.2.17
+        specifier: ^0.3.14
+        version: 0.3.14
       '@electric-sql/pglite-sync':
         specifier: ^0.4.0
-        version: 0.4.0(@electric-sql/pglite@0.2.17)
+        version: 0.4.0(@electric-sql/pglite@0.3.14)
       '@electric-sql/react':
         specifier: ^1.0.26
         version: 1.0.26(react@19.2.3)
@@ -157,7 +157,7 @@ importers:
         version: 17.2.3
       drizzle-orm:
         specifier: ^0.44.5
-        version: 0.44.7(@electric-sql/pglite@0.2.17)(@opentelemetry/api@1.9.0)(@prisma/client@4.8.1)(@types/pg@8.16.0)(better-sqlite3@11.10.0)(pg@8.16.3)(postgres@3.4.7)
+        version: 0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@4.8.1)(@types/pg@8.16.0)(better-sqlite3@11.10.0)(pg@8.16.3)(postgres@3.4.7)
       emblor:
         specifier: ^1.4.8
         version: 1.4.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -575,8 +575,8 @@ packages:
     peerDependencies:
       '@electric-sql/pglite': 0.3.14
 
-  '@electric-sql/pglite@0.2.17':
-    resolution: {integrity: sha512-qEpKRT2oUaWDH6tjRxLHjdzMqRUGYDnGZlKrnL4dJ77JVMcP2Hpo3NYnOSPKdZdeec57B6QPprCUFg0picx5Pw==}
+  '@electric-sql/pglite@0.3.14':
+    resolution: {integrity: sha512-3DB258dhqdsArOI1fIt7cb9RpUOgcDg5hXWVgVHAeqVQ/qxtFy605QKs4gx6mFq3jWsSPqDN8TgSEsqC3OfV9Q==}
 
   '@electric-sql/react@1.0.26':
     resolution: {integrity: sha512-cCKLQrtGNaAPBzdLZk97bK/Hue3fKkfL0/aA5HAPzoo7U07/TRzzs4EVRy7q+BV6AONEK+YXxxrzH9gEH8YVQA==}
@@ -6760,13 +6760,13 @@ snapshots:
     optionalDependencies:
       '@rollup/rollup-darwin-arm64': 4.55.1
 
-  '@electric-sql/pglite-sync@0.4.0(@electric-sql/pglite@0.2.17)':
+  '@electric-sql/pglite-sync@0.4.0(@electric-sql/pglite@0.3.14)':
     dependencies:
       '@electric-sql/client': 1.4.0
       '@electric-sql/experimental': 1.0.14(@electric-sql/client@1.4.0)
-      '@electric-sql/pglite': 0.2.17
+      '@electric-sql/pglite': 0.3.14
 
-  '@electric-sql/pglite@0.2.17': {}
+  '@electric-sql/pglite@0.3.14': {}
 
   '@electric-sql/react@1.0.26(react@19.2.3)':
     dependencies:
@@ -9701,9 +9701,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.44.7(@electric-sql/pglite@0.2.17)(@opentelemetry/api@1.9.0)(@prisma/client@4.8.1)(@types/pg@8.16.0)(better-sqlite3@11.10.0)(pg@8.16.3)(postgres@3.4.7):
+  drizzle-orm@0.44.7(@electric-sql/pglite@0.3.14)(@opentelemetry/api@1.9.0)(@prisma/client@4.8.1)(@types/pg@8.16.0)(better-sqlite3@11.10.0)(pg@8.16.3)(postgres@3.4.7):
     optionalDependencies:
-      '@electric-sql/pglite': 0.2.17
+      '@electric-sql/pglite': 0.3.14
       '@opentelemetry/api': 1.9.0
       '@prisma/client': 4.8.1
       '@types/pg': 8.16.0

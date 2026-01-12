@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { initElectric, getElectric, isElectricInitialized, type ElectricClient, type SyncHandle } from '@/lib/electric/client'
+import { initElectric, isElectricInitialized, type ElectricClient, type SyncHandle } from '@/lib/electric/client'
 
 export interface Notification {
 	id: number
@@ -22,9 +22,9 @@ export function useNotifications(userId: string | null) {
 	const [initialized, setInitialized] = useState(false)
 	const [error, setError] = useState<Error | null>(null)
 	const syncHandleRef = useRef<SyncHandle | null>(null)
-	const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null)
 
-	// Initialize Electric SQL and start syncing
+	// Initialize Electric SQL and start syncing with real-time updates
 	useEffect(() => {
 		if (!userId || initialized) return
 
@@ -37,11 +37,41 @@ export function useNotifications(userId: string | null) {
 
 				setElectric(electricClient)
 
-				// Start syncing notifications for this user
-				const handle = await electricClient.syncShape<Notification>({
+				// Start syncing notifications for this user via Electric SQL
+				// Note: user_id is stored as TEXT in PGlite (UUID from backend is converted)
+				console.log('Starting Electric SQL sync for user:', userId)
+				
+				// Use string format for WHERE clause (PGlite sync plugin expects this format)
+				// The user_id is a UUID string, so we need to quote it properly
+				const handle = await electricClient.syncShape({
 					table: 'notifications',
 					where: `user_id = '${userId}'`,
 					primaryKey: ['id'],
+				})
+				
+				console.log('Electric SQL sync started:', {
+					isUpToDate: handle.isUpToDate,
+					hasStream: !!handle.stream,
+					hasInitialSyncPromise: !!handle.initialSyncPromise,
+				})
+				
+				// Wait for initial sync to complete if the promise is available
+				if (handle.initialSyncPromise) {
+					console.log('Waiting for initial sync to complete...')
+					try {
+						await handle.initialSyncPromise
+						console.log('Initial sync promise resolved, checking status:', {
+							isUpToDate: handle.isUpToDate,
+						})
+					} catch (syncErr) {
+						console.error('Initial sync failed:', syncErr)
+					}
+				}
+				
+				// Check status after waiting
+				console.log('Sync status after waiting:', {
+					isUpToDate: handle.isUpToDate,
+					hasStream: !!handle.stream,
 				})
 
 				if (!mounted) {
@@ -53,8 +83,113 @@ export function useNotifications(userId: string | null) {
 				setInitialized(true)
 				setError(null)
 
-				// Initial fetch
+				// Fetch notifications after sync is complete (we already waited above)
 				await fetchNotifications(electricClient.db)
+
+				// Set up real-time updates using PGlite live queries
+				// Electric SQL syncs data to PGlite in real-time via WebSocket/HTTP
+				// PGlite live queries detect when the synced data changes and trigger callbacks
+				try {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const db = electricClient.db as any
+					
+					// Use PGlite's live query API for real-time updates
+					// Based on latest PGlite docs: db.live.query(query, params, callback)
+					if (db.live?.query && typeof db.live.query === 'function') {
+						const liveQuery = db.live.query(
+							`SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
+							[userId],
+							(result: { rows: Notification[] }) => {
+								// This callback fires automatically when Electric SQL syncs changes
+								if (mounted) {
+									setNotifications(result.rows)
+								}
+							}
+						)
+						
+						// Set initial results immediately
+						if (liveQuery.initialResults) {
+							setNotifications(liveQuery.initialResults.rows)
+						}
+						
+						if (mounted && liveQuery && typeof liveQuery.unsubscribe === 'function') {
+							liveQueryRef.current = liveQuery
+							console.log('✅ Real-time notifications enabled via PGlite live queries')
+						}
+					} else {
+						// Fallback: Monitor sync handle for updates
+						// Electric SQL's syncShape should trigger updates, but we need to detect them
+						// This is a lightweight approach that only checks when sync indicates changes
+						console.warn('PGlite live queries not available - using sync-based change detection')
+						
+						let lastNotificationIds = new Set<number>()
+						
+						const checkForSyncUpdates = async () => {
+							if (!mounted) return
+							
+							try {
+								const result = await electricClient.db.query<Notification>(
+									`SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
+									[userId]
+								)
+								
+								// PGlite query returns { rows: [] } format
+								const rows = result.rows || []
+								
+								// Only update if data actually changed
+								const currentIds = new Set(rows.map(r => r.id))
+								const currentHash = JSON.stringify(
+									rows.map(r => ({ id: r.id, read: r.read, updated_at: r.updated_at }))
+								)
+								
+								// Check if IDs changed (new/deleted notifications)
+								const idsChanged = 
+									currentIds.size !== lastNotificationIds.size ||
+									[...currentIds].some(id => !lastNotificationIds.has(id)) ||
+									[...lastNotificationIds].some(id => !currentIds.has(id))
+								
+								if (idsChanged) {
+									setNotifications(rows)
+									lastNotificationIds = currentIds
+								} else {
+									// Check if any notification properties changed (e.g., read status)
+									// Compare with current state
+									setNotifications(prev => {
+										const prevHash = JSON.stringify(
+											prev.map(r => ({ id: r.id, read: r.read, updated_at: r.updated_at }))
+										)
+										if (prevHash !== currentHash) {
+											return rows
+										}
+										return prev
+									})
+								}
+							} catch (err) {
+								console.error('Failed to check for notification updates:', err)
+							}
+							
+							// Check again after a short delay (Electric SQL syncs are fast)
+							if (mounted) {
+								setTimeout(checkForSyncUpdates, 500) // Check every 500ms - Electric SQL syncs are near-instant
+							}
+						}
+						
+						// Start monitoring
+						checkForSyncUpdates()
+						
+						liveQueryRef.current = {
+							unsubscribe: () => {
+								mounted = false
+							}
+						}
+					}
+				} catch (liveErr) {
+					console.warn('Failed to set up real-time updates:', liveErr)
+					// Minimal fallback - this should rarely be needed
+					liveQueryRef.current = {
+						unsubscribe: () => {}
+					}
+				}
 			} catch (err) {
 				if (!mounted) return
 				console.error('Failed to initialize Electric SQL:', err)
@@ -66,17 +201,29 @@ export function useNotifications(userId: string | null) {
 
 		async function fetchNotifications(db: InstanceType<typeof import('@electric-sql/pglite').PGlite>) {
 			try {
+				// Debug: Check all notifications first
+				const allNotifications = await db.query<Notification>(
+					`SELECT * FROM notifications ORDER BY created_at DESC`
+				)
+				console.log('All notifications in PGlite:', allNotifications.rows?.length || 0, allNotifications.rows)
+				
+				// Use PGlite's query method (not exec for SELECT queries)
 				const result = await db.query<Notification>(
 					`SELECT * FROM notifications 
 					 WHERE user_id = $1 
 					 ORDER BY created_at DESC`,
 					[userId]
 				)
+				console.log(`Notifications for user ${userId}:`, result.rows?.length || 0, result.rows)
+				
 				if (mounted) {
-					setNotifications(result.rows)
+					// PGlite query returns { rows: [] } format
+					setNotifications(result.rows || [])
 				}
 			} catch (err) {
 				console.error('Failed to fetch notifications:', err)
+				// Log more details for debugging
+				console.error('Error details:', err)
 			}
 		}
 
@@ -88,37 +235,12 @@ export function useNotifications(userId: string | null) {
 				syncHandleRef.current.unsubscribe()
 				syncHandleRef.current = null
 			}
+			if (liveQueryRef.current) {
+				liveQueryRef.current.unsubscribe()
+				liveQueryRef.current = null
+			}
 		}
 	}, [userId, initialized])
-
-	// Poll for updates (PGlite doesn't have live queries like the old electric-sql)
-	useEffect(() => {
-		if (!electric || !userId || !initialized) return
-
-		const fetchNotifications = async () => {
-			try {
-				const result = await electric.db.query<Notification>(
-					`SELECT * FROM notifications 
-					 WHERE user_id = $1 
-					 ORDER BY created_at DESC`,
-					[userId]
-				)
-				setNotifications(result.rows)
-			} catch (err) {
-				console.error('Failed to fetch notifications:', err)
-			}
-		}
-
-		// Poll every 2 seconds for updates
-		pollIntervalRef.current = setInterval(fetchNotifications, 2000)
-
-		return () => {
-			if (pollIntervalRef.current) {
-				clearInterval(pollIntervalRef.current)
-				pollIntervalRef.current = null
-			}
-		}
-	}, [electric, userId, initialized])
 
 	// Mark notification as read (local only - needs backend sync)
 	const markAsRead = useCallback(
@@ -130,7 +252,7 @@ export function useNotifications(userId: string | null) {
 
 			try {
 				// Update locally in PGlite
-				await electric.db.exec(
+				await electric.db.query(
 					`UPDATE notifications SET read = true, updated_at = NOW() WHERE id = $1`,
 					[notificationId]
 				)

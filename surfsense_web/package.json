@@ -30,7 +30,7 @@
 		"@blocknote/react": "^0.45.0",
 		"@blocknote/server-util": "^0.45.0",
 		"@electric-sql/client": "^1.4.0",
-		"@electric-sql/pglite": "^0.2.17",
+		"@electric-sql/pglite": "^0.3.14",
 		"@electric-sql/pglite-sync": "^0.4.0",
 		"@electric-sql/react": "^1.0.26",
 		"@hookform/resolvers": "^5.2.2",
