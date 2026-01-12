@@ -625,9 +625,13 @@
 		"error_archiving_chat": "Failed to archive chat",
 		"new_chat": "New chat",
 		"select_workspace": "Select Workspace",
+		"select_search_space": "Select Search Space",
 		"invite_members": "Invite members",
+		"manage_members": "Manage members",
 		"workspace_settings": "Workspace settings",
+		"search_space_settings": "Search space settings",
 		"see_all_workspaces": "See all search spaces",
+		"see_all_search_spaces": "See all search spaces",
 		"expand_sidebar": "Expand sidebar",
 		"collapse_sidebar": "Collapse sidebar",
 		"logout": "Logout"

@@ -25,7 +25,7 @@ import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { deleteThread, fetchThreads } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import type { ChatItem, NavItem, NoteItem, Workspace } from "../types/layout.types";
+import type { ChatItem, NavItem, NoteItem, SearchSpace } from "../types/layout.types";
 import { LayoutShell } from "../ui/shell";
 import { AllChatsSidebar } from "../ui/sidebar/AllChatsSidebar";
 import { AllNotesSidebar } from "../ui/sidebar/AllNotesSidebar";
@@ -123,8 +123,8 @@ export function LayoutDataProvider({
 	} | null>(null);
 	const [isDeletingNote, setIsDeletingNote] = useState(false);
 
-	// Transform workspaces (API returns array directly, not { items: [...] })
-	const workspaces: Workspace[] = useMemo(() => {
+	// Transform search spaces (API returns array directly, not { items: [...] })
+	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
 		return searchSpacesData.map((space) => ({
 			id: space.id,
@@ -135,8 +135,8 @@ export function LayoutDataProvider({
 		}));
 	}, [searchSpacesData]);
 
-	// Use searchSpace query result for current workspace (more reliable than finding in list)
-	const activeWorkspace: Workspace | null = searchSpace
+	// Use searchSpace query result for active search space (more reliable than finding in list)
+	const activeSearchSpace: SearchSpace | null = searchSpace
 		? {
 				id: searchSpace.id,
 				name: searchSpace.name,
@@ -196,18 +196,18 @@ export function LayoutDataProvider({
 	);
 
 	// Handlers
-	const handleWorkspaceSelect = useCallback(
+	const handleSearchSpaceSelect = useCallback(
 		(id: number) => {
 			router.push(`/dashboard/${id}/new-chat`);
 		},
 		[router]
 	);
 
-	const handleAddWorkspace = useCallback(() => {
+	const handleAddSearchSpace = useCallback(() => {
 		router.push("/dashboard/searchspaces");
 	}, [router]);
 
-	const handleSeeAllWorkspaces = useCallback(() => {
+	const handleSeeAllSearchSpaces = useCallback(() => {
 		router.push("/dashboard");
 	}, [router]);
 
@@ -266,7 +266,7 @@ export function LayoutDataProvider({
 		router.push(`/dashboard/${searchSpaceId}/settings`);
 	}, [router, searchSpaceId]);
 
-	const handleInviteMembers = useCallback(() => {
+	const handleManageMembers = useCallback(() => {
 		router.push(`/dashboard/${searchSpaceId}/team`);
 	}, [router, searchSpaceId]);
 
@@ -347,11 +347,11 @@ export function LayoutDataProvider({
 	return (
 		<>
 			<LayoutShell
-				workspaces={workspaces}
-				activeWorkspaceId={Number(searchSpaceId)}
-				onWorkspaceSelect={handleWorkspaceSelect}
-				onAddWorkspace={handleAddWorkspace}
-				workspace={activeWorkspace}
+				searchSpaces={searchSpaces}
+				activeSearchSpaceId={Number(searchSpaceId)}
+				onSearchSpaceSelect={handleSearchSpaceSelect}
+				onAddSearchSpace={handleAddSearchSpace}
+				searchSpace={activeSearchSpace}
 				navItems={navItems}
 				onNavItemClick={handleNavItemClick}
 				chats={chats}
@@ -368,8 +368,8 @@ export function LayoutDataProvider({
 				onViewAllNotes={handleViewAllNotes}
 				user={{ email: user?.email || "", name: user?.email?.split("@")[0] }}
 				onSettings={handleSettings}
-				onInviteMembers={handleInviteMembers}
-				onSeeAllWorkspaces={handleSeeAllWorkspaces}
+				onManageMembers={handleManageMembers}
+				onSeeAllSearchSpaces={handleSeeAllSearchSpaces}
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}

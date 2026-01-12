@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-export interface Workspace {
+export interface SearchSpace {
 	id: number;
 	name: string;
 	description?: string | null;
@@ -42,15 +42,15 @@ export interface PageUsage {
 }
 
 export interface IconRailProps {
-	workspaces: Workspace[];
-	activeWorkspaceId: number | null;
-	onWorkspaceSelect: (id: number) => void;
-	onAddWorkspace: () => void;
+	searchSpaces: SearchSpace[];
+	activeSearchSpaceId: number | null;
+	onSearchSpaceSelect: (id: number) => void;
+	onAddSearchSpace: () => void;
 	className?: string;
 }
 
 export interface SidebarHeaderProps {
-	workspace: Workspace | null;
+	searchSpace: SearchSpace | null;
 	onSettings?: () => void;
 }
 
@@ -94,15 +94,15 @@ export interface SidebarUserProfileProps {
 	user: User;
 	searchSpaceId?: string;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSwitchWorkspace?: () => void;
+	onManageMembers?: () => void;
+	onSwitchSearchSpace?: () => void;
 	onToggleTheme?: () => void;
 	onLogout?: () => void;
 	theme?: string;
 }
 
 export interface SidebarProps {
-	workspace: Workspace | null;
+	searchSpace: SearchSpace | null;
 	searchSpaceId?: string;
 	navItems: NavItem[];
 	chats: ChatItem[];
@@ -120,8 +120,8 @@ export interface SidebarProps {
 	user: User;
 	theme?: string;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSwitchWorkspace?: () => void;
+	onManageMembers?: () => void;
+	onSeeAllSearchSpaces?: () => void;
 	onToggleTheme?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
@@ -129,10 +129,10 @@ export interface SidebarProps {
 }
 
 export interface LayoutShellProps {
-	workspaces: Workspace[];
-	activeWorkspaceId: number | null;
-	onWorkspaceSelect: (id: number) => void;
-	onAddWorkspace: () => void;
+	searchSpaces: SearchSpace[];
+	activeSearchSpaceId: number | null;
+	onSearchSpaceSelect: (id: number) => void;
+	onAddSearchSpace: () => void;
 	sidebarProps: Omit<SidebarProps, "className">;
 	children: React.ReactNode;
 	className?: string;

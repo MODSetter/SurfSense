@@ -11,18 +11,18 @@ import type {
 	NoteItem,
 	PageUsage,
 	User,
-	Workspace,
+	SearchSpace,
 } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import { MobileSidebar, MobileSidebarTrigger, Sidebar } from "../sidebar";
 
 interface LayoutShellProps {
-	workspaces: Workspace[];
-	activeWorkspaceId: number | null;
-	onWorkspaceSelect: (id: number) => void;
-	onAddWorkspace: () => void;
-	workspace: Workspace | null;
+	searchSpaces: SearchSpace[];
+	activeSearchSpaceId: number | null;
+	onSearchSpaceSelect: (id: number) => void;
+	onAddSearchSpace: () => void;
+	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
@@ -39,8 +39,8 @@ interface LayoutShellProps {
 	onViewAllNotes?: () => void;
 	user: User;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSeeAllWorkspaces?: () => void;
+	onManageMembers?: () => void;
+	onSeeAllSearchSpaces?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	breadcrumb?: React.ReactNode;
@@ -54,11 +54,11 @@ interface LayoutShellProps {
 }
 
 export function LayoutShell({
-	workspaces,
-	activeWorkspaceId,
-	onWorkspaceSelect,
-	onAddWorkspace,
-	workspace,
+	searchSpaces,
+	activeSearchSpaceId,
+	onSearchSpaceSelect,
+	onAddSearchSpace,
+	searchSpace,
 	navItems,
 	onNavItemClick,
 	chats,
@@ -75,8 +75,8 @@ export function LayoutShell({
 	onViewAllNotes,
 	user,
 	onSettings,
-	onInviteMembers,
-	onSeeAllWorkspaces,
+	onManageMembers,
+	onSeeAllSearchSpaces,
 	onLogout,
 	pageUsage,
 	breadcrumb,
@@ -108,11 +108,11 @@ export function LayoutShell({
 					<MobileSidebar
 						isOpen={mobileMenuOpen}
 						onOpenChange={setMobileMenuOpen}
-						workspaces={workspaces}
-						activeWorkspaceId={activeWorkspaceId}
-						onWorkspaceSelect={onWorkspaceSelect}
-						onAddWorkspace={onAddWorkspace}
-						workspace={workspace}
+						searchSpaces={searchSpaces}
+						activeSearchSpaceId={activeSearchSpaceId}
+						onSearchSpaceSelect={onSearchSpaceSelect}
+						onAddSearchSpace={onAddSearchSpace}
+						searchSpace={searchSpace}
 						navItems={navItems}
 						onNavItemClick={onNavItemClick}
 						chats={chats}
@@ -129,8 +129,8 @@ export function LayoutShell({
 						onViewAllNotes={onViewAllNotes}
 						user={user}
 						onSettings={onSettings}
-						onInviteMembers={onInviteMembers}
-						onSeeAllWorkspaces={onSeeAllWorkspaces}
+						onManageMembers={onManageMembers}
+						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 					/>
@@ -149,16 +149,16 @@ export function LayoutShell({
 			<div className={cn("flex h-screen w-full gap-2 p-2 overflow-hidden bg-muted/40", className)}>
 				<div className="hidden md:flex overflow-hidden">
 					<IconRail
-						workspaces={workspaces}
-						activeWorkspaceId={activeWorkspaceId}
-						onWorkspaceSelect={onWorkspaceSelect}
-						onAddWorkspace={onAddWorkspace}
+						searchSpaces={searchSpaces}
+						activeSearchSpaceId={activeSearchSpaceId}
+						onSearchSpaceSelect={onSearchSpaceSelect}
+						onAddSearchSpace={onAddSearchSpace}
 					/>
 				</div>
 
 				<div className="flex flex-1 rounded-xl border bg-background overflow-hidden">
 					<Sidebar
-						workspace={workspace}
+						searchSpace={searchSpace}
 						isCollapsed={isCollapsed}
 						onToggleCollapse={toggleCollapsed}
 						navItems={navItems}
@@ -177,8 +177,8 @@ export function LayoutShell({
 						onViewAllNotes={onViewAllNotes}
 						user={user}
 						onSettings={onSettings}
-						onInviteMembers={onInviteMembers}
-						onSeeAllWorkspaces={onSeeAllWorkspaces}
+						onManageMembers={onManageMembers}
+						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						className="hidden md:flex border-r shrink-0"
