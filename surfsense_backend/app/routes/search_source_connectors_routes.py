@@ -1227,36 +1227,27 @@ async def run_linear_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Linear indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_linear_issues(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Linear indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Linear indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        await session.rollback()
-        logger.error(
-            f"Critical error in run_linear_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run Linear indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Linear connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_linear_issues,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for discord indexing
@@ -1582,35 +1573,27 @@ async def run_airtable_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Airtable indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_airtable_records(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Airtable indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Airtable indexing successful for connector {connector_id}. Indexed {indexed_count} records."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_airtable_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run Airtable indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Airtable connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_airtable_records,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for Google Calendar indexing
@@ -1642,55 +1625,44 @@ async def run_google_calendar_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Google Calendar indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_google_calendar_events(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Google Calendar indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Google Calendar indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_google_calendar_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run Google Calendar indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Google Calendar connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_google_calendar_events,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 async def run_google_gmail_indexing_with_new_session(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    max_messages: int,
-    days_back: int,
+    start_date: str,
+    end_date: str,
 ):
-    """Wrapper to run Google Gmail indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing Google Gmail connector {connector_id} into space {search_space_id} for {max_messages} messages from the last {days_back} days"
-    )
+    """
+    Create a new session and run the Google Gmail indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
     async with async_session_maker() as session:
         await run_google_gmail_indexing(
-            session, connector_id, search_space_id, user_id, max_messages, days_back
+            session, connector_id, search_space_id, user_id, start_date, end_date
         )
-    logger.info(
-        f"Background task finished: Indexing Google Gmail connector {connector_id}"
-    )
 
 
 async def run_google_gmail_indexing(
@@ -1698,46 +1670,55 @@ async def run_google_gmail_indexing(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    max_messages: int,
-    days_back: int,
+    start_date: str,
+    end_date: str,
 ):
-    """Runs the Google Gmail indexing task and updates the timestamp."""
-    try:
-        # Convert days_back to start_date string in YYYY-MM-DD format
-        from datetime import datetime, timedelta
+    """
+    Background task to run Google Gmail indexing.
 
-        start_date_obj = datetime.now() - timedelta(days=days_back)
-        start_date = start_date_obj.strftime("%Y-%m-%d")
-        end_date = None  # No end date, index up to current time
-
+    Args:
+        session: Database session
+        connector_id: ID of the Google Gmail connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    # Create a wrapper function that calls index_google_gmail_messages with max_messages
+    async def gmail_indexing_wrapper(
+        session: AsyncSession,
+        connector_id: int,
+        search_space_id: int,
+        user_id: str,
+        start_date: str | None,
+        end_date: str | None,
+        update_last_indexed: bool,
+    ) -> tuple[int, str | None]:
+        # Use a reasonable default for max_messages
+        max_messages = 1000
         indexed_count, error_message = await index_google_gmail_messages(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
             start_date=start_date,
             end_date=end_date,
-            update_last_indexed=False,
+            update_last_indexed=update_last_indexed,
             max_messages=max_messages,
         )
-        if error_message:
-            logger.error(
-                f"Google Gmail indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Google Gmail indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_google_gmail_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+        # index_google_gmail_messages returns (int, str) but we need (int, str | None)
+        return indexed_count, error_message if error_message else None
+
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=gmail_indexing_wrapper,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 async def run_google_drive_indexing(

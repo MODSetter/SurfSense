@@ -105,18 +105,18 @@ export function NotificationPopup({
 											<div className="flex items-start justify-between gap-2 mb-1">
 												<p
 													className={cn(
-														"text-sm font-medium truncate",
+														"text-xs font-medium break-words",
 														!notification.read && "font-semibold"
 													)}
 												>
 													{notification.title}
 												</p>
 											</div>
-											<p className="text-xs text-muted-foreground line-clamp-2">
+											<p className="text-[11px] text-muted-foreground break-words line-clamp-2">
 												{notification.message}
 											</p>
 											<div className="flex items-center justify-between mt-2">
-												<span className="text-xs text-muted-foreground">
+												<span className="text-[10px] text-muted-foreground">
 													{formatTime(notification.created_at)}
 												</span>
 											</div>

@@ -895,6 +895,37 @@ async def create_db_and_tables():
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     await setup_indexes()
+    await setup_electric_replication()
+
+
+async def setup_electric_replication():
+    """Set up Electric SQL replication for the notifications table."""
+    async with engine.begin() as conn:
+        # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
+        # This logs full row data for UPDATE/DELETE operations in the WAL
+        await conn.execute(text("ALTER TABLE notifications REPLICA IDENTITY FULL;"))
+
+        # Add notifications table to Electric SQL publication for replication
+        # Only add if publication exists and table not already in it
+        await conn.execute(
+            text(
+                """
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'electric_publication_default') THEN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_publication_tables 
+                            WHERE pubname = 'electric_publication_default' 
+                            AND tablename = 'notifications'
+                        ) THEN
+                            ALTER PUBLICATION electric_publication_default ADD TABLE notifications;
+                        END IF;
+                    END IF;
+                END
+                $$;
+                """
+            )
+        )
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:

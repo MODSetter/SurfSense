@@ -2,6 +2,9 @@
 
 Revision ID: 60
 Revises: 59
+
+Note: Electric SQL replication setup (REPLICA IDENTITY FULL and publication)
+is handled in app/db.py setup_electric_replication() which runs on app startup.
 """
 from collections.abc import Sequence
 
@@ -31,7 +34,7 @@ def upgrade() -> None:
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ
         );
-    """
+        """
     )
 
     # Create indexes
@@ -40,28 +43,6 @@ def upgrade() -> None:
     op.create_index("ix_notifications_created_at", "notifications", ["created_at"])
     op.create_index("ix_notifications_user_read", "notifications", ["user_id", "read"])
 
-    # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
-    op.execute("ALTER TABLE notifications REPLICA IDENTITY FULL;")
-
-    # Grant SELECT to electric user for Electric SQL replication
-    # This is needed because ALTER DEFAULT PRIVILEGES only applies during initial DB setup
-    op.execute("GRANT SELECT ON notifications TO electric;")
-
-    # Add notifications table to Electric SQL publication for replication
-    # This is required for Electric SQL to sync the table
-    op.execute("""
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM pg_publication_tables 
-                WHERE pubname = 'electric_publication_default' 
-                AND tablename = 'notifications'
-            ) THEN
-                ALTER PUBLICATION electric_publication_default ADD TABLE notifications;
-            END IF;
-        END
-        $$;
-    """)
 
 def downgrade() -> None:
     """Downgrade schema - remove notifications table."""
