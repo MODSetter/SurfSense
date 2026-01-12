@@ -87,7 +87,8 @@ function SettingsSidebar({
 			<aside
 				className={cn(
 					"fixed md:relative left-0 top-0 z-50 md:z-auto",
-					"w-72 shrink-0 bg-background md:bg-muted/20 h-full flex flex-col",
+					"w-72 shrink-0 bg-background md:bg-muted/30 h-full flex flex-col",
+					"md:border-r",
 					"transition-transform duration-300 ease-out",
 					"md:translate-x-0",
 					isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
@@ -177,7 +178,7 @@ function SettingsSidebar({
 
 				{/* Footer */}
 				<div className="p-4">
-					<p className="text-xs text-muted-foreground text-center">SurfSense Settings</p>
+					<p className="text-xs text-muted-foreground text-center">Search Space Settings</p>
 				</div>
 			</aside>
 		</>
@@ -286,20 +287,24 @@ export default function SettingsPage() {
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.3 }}
-			className="h-full flex bg-background"
+			className="fixed inset-0 z-50 flex bg-muted/40"
 		>
-			<SettingsSidebar
-				activeSection={activeSection}
-				onSectionChange={setActiveSection}
-				onBackToApp={handleBackToApp}
-				isOpen={isSidebarOpen}
-				onClose={() => setIsSidebarOpen(false)}
-			/>
-			<SettingsContent
-				activeSection={activeSection}
-				searchSpaceId={searchSpaceId}
-				onMenuClick={() => setIsSidebarOpen(true)}
-			/>
+			<div className="flex h-full w-full p-0 md:p-2">
+				<div className="flex h-full w-full overflow-hidden bg-background md:rounded-xl md:border md:shadow-sm">
+					<SettingsSidebar
+						activeSection={activeSection}
+						onSectionChange={setActiveSection}
+						onBackToApp={handleBackToApp}
+						isOpen={isSidebarOpen}
+						onClose={() => setIsSidebarOpen(false)}
+					/>
+					<SettingsContent
+						activeSection={activeSection}
+						searchSpaceId={searchSpaceId}
+						onMenuClick={() => setIsSidebarOpen(true)}
+					/>
+				</div>
+			</div>
 		</motion.div>
 	);
 }

@@ -73,7 +73,8 @@ function UserSettingsSidebar({
 			<aside
 				className={cn(
 					"fixed left-0 top-0 z-50 md:relative md:z-auto",
-					"flex h-full w-72 shrink-0 flex-col bg-background md:bg-muted/20",
+					"flex h-full w-72 shrink-0 flex-col bg-background md:bg-muted/30",
+					"md:border-r",
 					"transition-transform duration-300 ease-out",
 					"md:translate-x-0",
 					isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
@@ -305,19 +306,23 @@ export default function UserSettingsPage() {
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.3 }}
-			className="fixed inset-0 z-50 flex bg-background"
+			className="fixed inset-0 z-50 flex bg-muted/40"
 		>
-			<UserSettingsSidebar
-				activeSection={activeSection}
-				onSectionChange={setActiveSection}
-				onBackToApp={handleBackToApp}
-				isOpen={isSidebarOpen}
-				onClose={() => setIsSidebarOpen(false)}
-				navItems={navItems}
-			/>
-			{activeSection === "api-key" && (
-				<ApiKeyContent onMenuClick={() => setIsSidebarOpen(true)} />
-			)}
+			<div className="flex h-full w-full p-0 md:p-2">
+				<div className="flex h-full w-full overflow-hidden bg-background md:rounded-xl md:border md:shadow-sm">
+					<UserSettingsSidebar
+						activeSection={activeSection}
+						onSectionChange={setActiveSection}
+						onBackToApp={handleBackToApp}
+						isOpen={isSidebarOpen}
+						onClose={() => setIsSidebarOpen(false)}
+						navItems={navItems}
+					/>
+					{activeSection === "api-key" && (
+						<ApiKeyContent onMenuClick={() => setIsSidebarOpen(true)} />
+					)}
+				</div>
+			</div>
 		</motion.div>
 	);
 }
