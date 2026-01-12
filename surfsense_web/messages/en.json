@@ -77,6 +77,16 @@
 		"creating_account_btn": "Creating account...",
 		"redirecting_login": "Redirecting to login page..."
 	},
+	"searchSpace": {
+		"create_title": "Create Search Space",
+		"create_description": "Create a new search space to organize your knowledge",
+		"name_label": "Name",
+		"name_placeholder": "Enter search space name",
+		"description_label": "Description",
+		"description_placeholder": "What is this search space for?",
+		"create_button": "Create",
+		"creating": "Creating..."
+	},
 	"dashboard": {
 		"title": "Dashboard",
 		"search_spaces": "Search Spaces",

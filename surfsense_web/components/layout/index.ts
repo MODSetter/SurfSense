@@ -12,6 +12,7 @@ export type {
 } from "./types/layout.types";
 export {
 	ChatListItem,
+	CreateSearchSpaceDialog,
 	Header,
 	IconRail,
 	LayoutShell,

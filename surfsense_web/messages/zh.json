@@ -77,6 +77,16 @@
 		"creating_account_btn": "创建中...",
 		"redirecting_login": "正在跳转到登录页面..."
 	},
+	"searchSpace": {
+		"create_title": "创建搜索空间",
+		"create_description": "创建一个新的搜索空间来组织您的知识",
+		"name_label": "名称",
+		"name_placeholder": "输入搜索空间名称",
+		"description_label": "描述",
+		"description_placeholder": "这个搜索空间是做什么的？",
+		"create_button": "创建",
+		"creating": "创建中..."
+	},
 	"dashboard": {
 		"title": "仪表盘",
 		"search_spaces": "搜索空间",
