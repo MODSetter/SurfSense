@@ -167,16 +167,45 @@ export async function initElectric(): Promise<ElectricClient> {
 					// Note: mapColumns is OPTIONAL per pglite-sync types.ts
 					
 					// Create a promise that resolves when initial sync is complete
+					// Using recommended approach: check isUpToDate immediately, watch stream, shorter timeout
+					// IMPORTANT: We don't unsubscribe from the stream - it must stay active for real-time updates
 					let resolveInitialSync: () => void
 					let rejectInitialSync: (error: Error) => void
+					let syncResolved = false
+					
 					const initialSyncPromise = new Promise<void>((resolve, reject) => {
-						resolveInitialSync = resolve
-						rejectInitialSync = reject
-						// Safety timeout - if sync doesn't complete in 30s, something is wrong
-						setTimeout(() => {
-							console.warn(`⚠️ Sync timeout for ${table} - sync did not complete in 30s`)
-							resolve() // Resolve anyway to not block, but log warning
-						}, 30000)
+						resolveInitialSync = () => {
+							if (!syncResolved) {
+								syncResolved = true
+								// DON'T unsubscribe from stream - it needs to stay active for real-time updates
+								resolve()
+							}
+						}
+						rejectInitialSync = (error: Error) => {
+							if (!syncResolved) {
+								syncResolved = true
+								// DON'T unsubscribe from stream even on error - let Electric handle it
+								reject(error)
+							}
+						}
+						
+						// Shorter timeout (5 seconds) as fallback
+						const timeoutId = setTimeout(() => {
+							if (!syncResolved) {
+								console.warn(`⚠️ Sync timeout for ${table} - checking isUpToDate one more time...`)
+								// Check isUpToDate one more time before resolving
+								// This will be checked after shape is created
+								setTimeout(() => {
+									if (!syncResolved) {
+										console.warn(`⚠️ Sync timeout for ${table} - resolving anyway after 5s`)
+										resolveInitialSync()
+									}
+								}, 100)
+							}
+						}, 5000)
+						
+						// Store timeout ID for cleanup if needed
+						// Note: timeout will be cleared if sync completes early
 					})
 					
 					const shapeConfig = {
@@ -220,35 +249,91 @@ export async function initElectric(): Promise<ElectricClient> {
 						streamType: typeof shape?.stream,
 					})
 					
-					// Debug the stream if available
-					if (shape?.stream) {
-						const stream = shape.stream as any
-						console.log('Shape stream details:', {
-							shapeHandle: stream?.shapeHandle,
-							lastOffset: stream?.lastOffset,
-							isUpToDate: stream?.isUpToDate,
-							error: stream?.error,
-							hasSubscribe: typeof stream?.subscribe === 'function',
-							hasUnsubscribe: typeof stream?.unsubscribe === 'function',
-						})
-						
-						// Try to subscribe to the stream to see if it's receiving messages
-						if (typeof stream?.subscribe === 'function') {
-							console.log('Subscribing to shape stream for debugging...')
-							stream.subscribe((messages: unknown[]) => {
-								console.log('🔵 Shape stream received messages:', messages?.length || 0)
-								if (messages && messages.length > 0) {
-									console.log('First message:', JSON.stringify(messages[0], null, 2))
-								}
+					// Recommended Approach Step 1: Check isUpToDate immediately
+					if (shape.isUpToDate) {
+						console.log(`✅ Sync already up-to-date for ${table} (resuming from previous state)`)
+						resolveInitialSync()
+					} else {
+						// Recommended Approach Step 2: Subscribe to stream and watch for "up-to-date" message
+						if (shape?.stream) {
+							const stream = shape.stream as any
+							console.log('Shape stream details:', {
+								shapeHandle: stream?.shapeHandle,
+								lastOffset: stream?.lastOffset,
+								isUpToDate: stream?.isUpToDate,
+								error: stream?.error,
+								hasSubscribe: typeof stream?.subscribe === 'function',
+								hasUnsubscribe: typeof stream?.unsubscribe === 'function',
 							})
+							
+							// Subscribe to the stream to watch for "up-to-date" control message
+							// NOTE: We keep this subscription active - don't unsubscribe!
+							// The stream is what Electric SQL uses for real-time updates
+							if (typeof stream?.subscribe === 'function') {
+								console.log('Subscribing to shape stream to watch for up-to-date message...')
+								// Subscribe but don't store unsubscribe - we want it to stay active
+								stream.subscribe((messages: unknown[]) => {
+									// Continue receiving updates even after sync is resolved
+									if (!syncResolved) {
+										console.log('🔵 Shape stream received messages:', messages?.length || 0)
+									}
+									
+									// Check if any message indicates sync is complete
+									if (messages && messages.length > 0) {
+										for (const message of messages) {
+											const msg = message as any
+											// Check for "up-to-date" control message
+											if (msg?.headers?.control === 'up-to-date' || 
+											    msg?.headers?.electric_up_to_date === 'true' ||
+											    (typeof msg === 'object' && 'up-to-date' in msg)) {
+												if (!syncResolved) {
+													console.log(`✅ Received up-to-date message for ${table}`)
+													resolveInitialSync()
+												}
+												// Continue listening for real-time updates - don't return!
+											}
+										}
+										if (!syncResolved && messages.length > 0) {
+											console.log('First message:', JSON.stringify(messages[0], null, 2))
+										}
+									}
+									
+									// Also check stream's isUpToDate property after receiving messages
+									if (!syncResolved && stream?.isUpToDate) {
+										console.log(`✅ Stream isUpToDate is true for ${table}`)
+										resolveInitialSync()
+									}
+								})
+								
+								// Also check stream's isUpToDate property immediately
+								if (stream?.isUpToDate) {
+									console.log(`✅ Stream isUpToDate is true immediately for ${table}`)
+									resolveInitialSync()
+								}
+							}
+							
+							// Also poll isUpToDate periodically as a backup (every 200ms)
+							const pollInterval = setInterval(() => {
+								if (syncResolved) {
+									clearInterval(pollInterval)
+									return
+								}
+								
+								if (shape.isUpToDate || stream?.isUpToDate) {
+									console.log(`✅ Sync completed (detected via polling) for ${table}`)
+									clearInterval(pollInterval)
+									resolveInitialSync()
+								}
+							}, 200)
+							
+							// Clean up polling when promise resolves
+							initialSyncPromise.finally(() => {
+								clearInterval(pollInterval)
+							})
+						} else {
+							console.warn(`⚠️ No stream available for ${table}, relying on callback and timeout`)
 						}
 					}
-					
-					// Wait briefly to see if sync starts
-					await new Promise(resolve => setTimeout(resolve, 100))
-					console.log('Shape sync result (after 100ms):', {
-						isUpToDate: shape?.isUpToDate,
-					})
 
 					// Return the shape handle - isUpToDate is a getter that reflects current state
 					return {

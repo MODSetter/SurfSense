@@ -4,7 +4,6 @@ import { Bell, Check, CheckCheck, Loader2, AlertCircle, CheckCircle2 } from "luc
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import type { Notification } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -40,34 +39,18 @@ export function NotificationPopup({
 		}
 	};
 
-	const getStatusBadge = (notification: Notification) => {
+	const getStatusIcon = (notification: Notification) => {
 		const status = notification.metadata?.status as string | undefined;
-		if (!status) return null;
-
+		
 		switch (status) {
 			case "in_progress":
-				return (
-					<Badge variant="secondary" className="text-xs">
-						<Loader2 className="h-3 w-3 mr-1 animate-spin" />
-						In Progress
-					</Badge>
-				);
+				return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
 			case "completed":
-				return (
-					<Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
-						<CheckCircle2 className="h-3 w-3 mr-1" />
-						Completed
-					</Badge>
-				);
+				return <CheckCircle2 className="h-4 w-4 text-green-500" />;
 			case "failed":
-				return (
-					<Badge variant="destructive" className="text-xs">
-						<AlertCircle className="h-3 w-3 mr-1" />
-						Failed
-					</Badge>
-				);
+				return <AlertCircle className="h-4 w-4 text-red-500" />;
 			default:
-				return null;
+				return <Bell className="h-4 w-4 text-muted-foreground" />;
 		}
 	};
 
@@ -76,13 +59,7 @@ export function NotificationPopup({
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 py-3 border-b">
 				<div className="flex items-center gap-2">
-					<Bell className="h-4 w-4" />
 					<h3 className="font-semibold text-sm">Notifications</h3>
-					{unreadCount > 0 && (
-						<span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-							{unreadCount > 99 ? "99+" : unreadCount}
-						</span>
-					)}
 				</div>
 				{unreadCount > 0 && (
 					<Button
@@ -91,7 +68,7 @@ export function NotificationPopup({
 						onClick={handleMarkAllAsRead}
 						className="h-7 text-xs"
 					>
-						<CheckCheck className="h-3.5 w-3.5 mr-1" />
+						<CheckCheck className="h-3.5 w-3.5 mr-0" />
 						Mark all read
 					</Button>
 				)}
@@ -121,6 +98,9 @@ export function NotificationPopup({
 									)}
 								>
 									<div className="flex items-start gap-3">
+										<div className="flex-shrink-0 mt-0.5">
+											{getStatusIcon(notification)}
+										</div>
 										<div className="flex-1 min-w-0">
 											<div className="flex items-start justify-between gap-2 mb-1">
 												<p
@@ -131,12 +111,6 @@ export function NotificationPopup({
 												>
 													{notification.title}
 												</p>
-												<div className="flex items-center gap-2 shrink-0">
-													{getStatusBadge(notification)}
-													{!notification.read && (
-														<div className="h-2 w-2 rounded-full bg-primary mt-1.5" />
-													)}
-												</div>
 											</div>
 											<p className="text-xs text-muted-foreground line-clamp-2">
 												{notification.message}
@@ -145,20 +119,6 @@ export function NotificationPopup({
 												<span className="text-xs text-muted-foreground">
 													{formatTime(notification.created_at)}
 												</span>
-												{!notification.read && (
-													<Button
-														variant="ghost"
-														size="sm"
-														className="h-6 px-2 text-xs"
-														onClick={(e) => {
-															e.stopPropagation();
-															handleMarkAsRead(notification.id);
-														}}
-													>
-														<Check className="h-3 w-3 mr-1" />
-														Mark read
-													</Button>
-												)}
 											</div>
 										</div>
 									</div>
@@ -172,4 +132,3 @@ export function NotificationPopup({
 		</div>
 	);
 }
-
