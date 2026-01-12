@@ -151,8 +151,6 @@ if [ ! -f /data/.migrations_run ] || [ "${FORCE_MIGRATIONS:-false}" = "true" ]; 
     touch /data/.migrations_run
 fi
 
-# Note: Surfsense docs seeding is now handled by FastAPI startup (app.py lifespan)
-
 # ================================================
 # Environment Variables Info
 # ================================================
