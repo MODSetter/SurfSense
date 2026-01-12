@@ -129,20 +129,24 @@ class BaseApiService {
 					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
 
+				// Handle 401 first before other error handling - ensures token is cleared and user redirected
+				if (response.status === 401) {
+					handleUnauthorized();
+					throw new AuthenticationError(
+						typeof data === "object" && "detail" in data
+							? data.detail
+							: "You are not authenticated. Please login again.",
+						response.status,
+						response.statusText
+					);
+				}
+
 				// For fastapi errors response
 				if (typeof data === "object" && "detail" in data) {
 					throw new AppError(data.detail, response.status, response.statusText);
 				}
 
 				switch (response.status) {
-					case 401:
-						// Use centralized auth handler for 401 responses
-						handleUnauthorized();
-						throw new AuthenticationError(
-							"You are not authenticated. Please login again.",
-							response.status,
-							response.statusText
-						);
 					case 403:
 						throw new AuthorizationError(
 							"You don't have permission to access this resource.",
@@ -157,52 +161,52 @@ class BaseApiService {
 				}
 			}
 
-			// biome-ignore lint/suspicious: Unknown
-			let data;
-			const responseType = mergedOptions.responseType;
+		// biome-ignore lint/suspicious: Unknown
+		let data;
+		const responseType = mergedOptions.responseType;
 
-			try {
-				switch (responseType) {
-					case ResponseType.JSON:
-						data = await response.json();
-						break;
-					case ResponseType.TEXT:
-						data = await response.text();
-						break;
-					case ResponseType.BLOB:
-						data = await response.blob();
-						break;
-					case ResponseType.ARRAY_BUFFER:
-						data = await response.arrayBuffer();
-						break;
-					//  Add more cases as needed
-					default:
-						data = await response.json();
-				}
-			} catch (error) {
-				console.error("Failed to parse response as JSON:", error);
-				throw new AppError("Failed to parse response", response.status, response.statusText);
+		try {
+			switch (responseType) {
+				case ResponseType.JSON:
+					data = await response.json();
+					break;
+				case ResponseType.TEXT:
+					data = await response.text();
+					break;
+				case ResponseType.BLOB:
+					data = await response.blob();
+					break;
+				case ResponseType.ARRAY_BUFFER:
+					data = await response.arrayBuffer();
+					break;
+				//  Add more cases as needed
+				default:
+					data = await response.json();
 			}
+		} catch (error) {
+			console.error("Failed to parse response as JSON:", error);
+			throw new AppError("Failed to parse response", response.status, response.statusText);
+		}
 
-			// Validate response
-			if (responseType === ResponseType.JSON) {
-				if (!responseSchema) {
-					return data;
-				}
-				const parsedData = responseSchema.safeParse(data);
-
-				if (!parsedData.success) {
-					/** The request was successful, but the response data does not match the expected schema.
-					 * 	This is a client side error, and should be fixed by updating the responseSchema to keep things typed.
-					 *  This error should not be shown to the user , it is for dev only.
-					 */
-					console.error(`Invalid API response schema - ${url} :`, JSON.stringify(parsedData.error));
-				}
-
+		// Validate response
+		if (responseType === ResponseType.JSON) {
+			if (!responseSchema) {
 				return data;
+			}
+			const parsedData = responseSchema.safeParse(data);
+
+			if (!parsedData.success) {
+				/** The request was successful, but the response data does not match the expected schema.
+				 * 	This is a client side error, and should be fixed by updating the responseSchema to keep things typed.
+				 *  This error should not be shown to the user , it is for dev only.
+				 */
+				console.error(`Invalid API response schema - ${url} :`, JSON.stringify(parsedData.error));
 			}
 
 			return data;
+		}
+
+		return data;
 		} catch (error) {
 			console.error("Request failed:", JSON.stringify(error));
 			throw error;
