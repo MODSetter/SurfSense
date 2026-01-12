@@ -21,9 +21,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type {
+	GetDocumentByChunkResponse,
+	GetSurfsenseDocsByChunkResponse,
+} from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
+
+type DocumentData = GetDocumentByChunkResponse | GetSurfsenseDocsByChunkResponse;
 
 interface SourceDetailPanelProps {
 	open: boolean;
@@ -133,14 +139,16 @@ export function SourceDetailPanel({
 		data: documentData,
 		isLoading: isDocumentByChunkFetching,
 		error: documentByChunkFetchingError,
-	} = useQuery({
+	} = useQuery<DocumentData>({
 		queryKey: isDocsChunk
 			? cacheKeys.documents.byChunk(`doc-${chunkId}`)
 			: cacheKeys.documents.byChunk(chunkId.toString()),
-		queryFn: () =>
-			isDocsChunk
-				? documentsApiService.getSurfsenseDocByChunk(chunkId)
-				: documentsApiService.getDocumentByChunk({ chunk_id: chunkId }),
+		queryFn: async () => {
+			if (isDocsChunk) {
+				return documentsApiService.getSurfsenseDocByChunk(chunkId);
+			}
+			return documentsApiService.getDocumentByChunk({ chunk_id: chunkId });
+		},
 		enabled: !!chunkId && open,
 		staleTime: 5 * 60 * 1000,
 	});
@@ -332,7 +340,7 @@ export function SourceDetailPanel({
 									{documentData?.title || title || "Source Document"}
 								</h2>
 								<p className="text-sm text-muted-foreground mt-0.5">
-									{documentData
+									{documentData && "document_type" in documentData
 										? formatDocumentType(documentData.document_type)
 										: sourceType && formatDocumentType(sourceType)}
 									{documentData?.chunks && (
@@ -498,7 +506,8 @@ export function SourceDetailPanel({
 								<ScrollArea className="flex-1" ref={scrollAreaRef}>
 									<div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
 										{/* Document Metadata */}
-										{documentData.document_metadata &&
+										{"document_metadata" in documentData &&
+											documentData.document_metadata &&
 											Object.keys(documentData.document_metadata).length > 0 && (
 												<motion.div
 													initial={{ opacity: 0, y: 10 }}

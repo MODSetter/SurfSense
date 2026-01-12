@@ -20,7 +20,8 @@ const CITATION_REGEX = /\[citation:(doc-)?(\d+)\]/g;
 
 // Track chunk IDs to citation numbers mapping for consistent numbering
 // This map is reset when a new message starts rendering
-let chunkIdToCitationNumber: Map<number, number> = new Map();
+// Uses string keys to differentiate between doc and regular chunks (e.g., "doc-123" vs "123")
+let chunkIdToCitationNumber: Map<string, number> = new Map();
 let nextCitationNumber = 1;
 
 /**
@@ -37,11 +38,11 @@ export function resetCitationCounter() {
  */
 function getCitationNumber(chunkId: number, isDocsChunk: boolean): number {
 	const key = isDocsChunk ? `doc-${chunkId}` : String(chunkId);
-	const existingNumber = chunkIdToCitationNumber.get(key as unknown as number);
+	const existingNumber = chunkIdToCitationNumber.get(key);
 	if (existingNumber === undefined) {
-		chunkIdToCitationNumber.set(key as unknown as number, nextCitationNumber++);
+		chunkIdToCitationNumber.set(key, nextCitationNumber++);
 	}
-	return chunkIdToCitationNumber.get(key as unknown as number)!;
+	return chunkIdToCitationNumber.get(key)!;
 }
 
 /**
