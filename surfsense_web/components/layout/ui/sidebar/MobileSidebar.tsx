@@ -40,7 +40,6 @@ interface MobileSidebarProps {
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSeeAllSearchSpaces?: () => void;
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
@@ -80,7 +79,6 @@ export function MobileSidebar({
 	user,
 	onSettings,
 	onManageMembers,
-	onSeeAllSearchSpaces,
 	onUserSettings,
 	onLogout,
 	pageUsage,
@@ -141,15 +139,14 @@ export function MobileSidebar({
 						onNoteDelete={onNoteDelete}
 						onAddNote={onAddNote}
 						onViewAllNotes={onViewAllNotes}
-						user={user}
-						onSettings={onSettings}
-						onManageMembers={onManageMembers}
-						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
-						onUserSettings={onUserSettings}
-						onLogout={onLogout}
-						pageUsage={pageUsage}
-						className="w-full border-none"
-					/>
+					user={user}
+					onSettings={onSettings}
+					onManageMembers={onManageMembers}
+					onUserSettings={onUserSettings}
+					onLogout={onLogout}
+					pageUsage={pageUsage}
+					className="w-full border-none"
+				/>
 				</div>
 			</SheetContent>
 		</Sheet>
