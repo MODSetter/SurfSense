@@ -20,6 +20,7 @@ export const mcpToolConfig = z.object({
 			type: "object",
 			properties: {},
 		}),
+	verify_ssl: z.boolean().default(true),
 });
 
 /**

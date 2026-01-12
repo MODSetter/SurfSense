@@ -90,6 +90,7 @@ class MCPToolConfig(BaseModel):
     auth_type: str = "none"  # "none" | "bearer" | "api_key" | "basic"
     auth_config: dict[str, Any] = {}
     parameters: dict[str, Any] = {"type": "object", "properties": {}}
+    verify_ssl: bool = True  # SSL certificate verification (disable only for self-signed certs)
 
     @field_validator("method")
     @classmethod

@@ -4,6 +4,7 @@ import { Plus, Trash2, Webhook } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -46,6 +47,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 			type: "object",
 			properties: {},
 		},
+		verify_ssl: true,
 	});
 
 	const handleNameChange = (value: string) => {
@@ -220,6 +222,19 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 									</SelectContent>
 								</Select>
 							</div>
+						</div>
+
+						<div className="flex items-center space-x-2">
+							<Checkbox
+								id={`verify-ssl-${index}`}
+								checked={tool.verify_ssl ?? true}
+								onCheckedChange={(checked) =>
+									handleToolChange(index, "verify_ssl", checked === true)
+								}
+							/>
+							<Label htmlFor={`verify-ssl-${index}`} className="text-xs sm:text-sm font-normal cursor-pointer">
+								Verify SSL certificate (recommended for security)
+							</Label>
 						</div>
 
 						{/* Authentication */}

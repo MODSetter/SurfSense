@@ -136,6 +136,7 @@ async def _create_mcp_tool_instance(
             - auth_type: Authentication type
             - auth_config: Auth credentials
             - parameters: JSON schema for parameters
+            - verify_ssl: Whether to verify SSL certificates (default: True)
         connector_id: ID of the parent MCP connector
 
     Returns:
@@ -147,6 +148,7 @@ async def _create_mcp_tool_instance(
     endpoint = tool_config.get("endpoint", "")
     method = tool_config.get("method", "GET").upper()
     auth_config = tool_config.get("auth_config", {})
+    verify_ssl = tool_config.get("verify_ssl", True)  # Default to True for security
     parameters_schema = tool_config.get(
         "parameters", {"type": "object", "properties": {}},
     )
@@ -164,8 +166,8 @@ async def _create_mcp_tool_instance(
 
             logger.info(f"Making {method} request to {endpoint}")
 
-            # Make HTTP request (disable SSL verification for user-provided endpoints)
-            async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+            # Make HTTP request with configurable SSL verification
+            async with httpx.AsyncClient(timeout=30.0, verify=verify_ssl) as client:
                 if method in ["GET", "DELETE"]:
                     response = await client.request(
                         method=method, url=endpoint, headers=headers, params=kwargs,

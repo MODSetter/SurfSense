@@ -4,6 +4,7 @@ import { Plus, Trash2, Webhook } from "lucide-react";
 import { type FC, useCallback, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,6 +34,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 			auth_type: "none",
 			auth_config: {},
 			parameters: { type: "object", properties: {} },
+			verify_ssl: true,
 		},
 	]);
 
@@ -47,6 +49,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 				auth_type: "none",
 				auth_config: {},
 				parameters: { type: "object", properties: {} },
+				verify_ssl: true,
 			},
 		]);
 	};
@@ -216,7 +219,18 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 										required
 									/>
 								</div>
-
+							<div className="flex items-center space-x-2">
+								<Checkbox
+									id={`verify-ssl-${index}`}
+									checked={tool.verify_ssl ?? true}
+									onCheckedChange={(checked) =>
+										updateTool(index, "verify_ssl", checked === true)
+									}
+								/>
+								<Label htmlFor={`verify-ssl-${index}`} className="text-sm font-normal cursor-pointer">
+									Verify SSL certificate (recommended for security)
+								</Label>
+							</div>
 								<div className="space-y-2">
 									<Label>Authentication Type</Label>
 									<Select
@@ -262,8 +276,8 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 										<div className="space-y-2">
 											<Label>API Key Value *</Label>
 											<Input
-												value={tool.auth_config.key_value || ""}
-												onChange={(e) => updateAuthConfig(index, "key_value", e.target.value)}
+											value={tool.auth_config.api_key || ""}
+											onChange={(e) => updateAuthConfig(index, "api_key", e.target.value)}
 												placeholder="your-api-key"
 												type="password"
 												required
