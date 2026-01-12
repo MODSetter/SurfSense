@@ -29,7 +29,9 @@
 		"required": "必填",
 		"optional": "可选",
 		"retry": "重试",
-		"owner": "所有者"
+		"owner": "所有者",
+		"shared": "共享",
+		"settings": "设置"
 	},
 	"auth": {
 		"login": "登录",
@@ -92,7 +94,9 @@
 		"no_search_spaces": "暂无搜索空间",
 		"create_first_search_space": "创建您的第一个搜索空间以开始使用",
 		"members_count": "{count, plural, other {# 位成员}}",
-		"create_new_search_space": "创建新的搜索空间"
+		"create_new_search_space": "创建新的搜索空间",
+		"delete_title": "删除搜索空间",
+		"delete_confirm": "您确定要删除「{name}」吗？此操作无法撤销，将永久删除所有数据。"
 	},
 	"dashboard": {
 		"title": "仪表盘",

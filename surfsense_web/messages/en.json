@@ -29,7 +29,9 @@
 		"required": "Required",
 		"optional": "Optional",
 		"retry": "Retry",
-		"owner": "Owner"
+		"owner": "Owner",
+		"shared": "Shared",
+		"settings": "Settings"
 	},
 	"auth": {
 		"login": "Login",
@@ -92,7 +94,9 @@
 		"no_search_spaces": "No search spaces yet",
 		"create_first_search_space": "Create your first search space to get started",
 		"members_count": "{count, plural, =1 {1 member} other {# members}}",
-		"create_new_search_space": "Create new search space"
+		"create_new_search_space": "Create new search space",
+		"delete_title": "Delete Search Space",
+		"delete_confirm": "Are you sure you want to delete \"{name}\"? This action cannot be undone and will permanently remove all data."
 	},
 	"dashboard": {
 		"title": "Dashboard",

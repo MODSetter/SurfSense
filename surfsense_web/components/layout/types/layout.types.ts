@@ -6,6 +6,7 @@ export interface SearchSpace {
 	description?: string | null;
 	isOwner: boolean;
 	memberCount: number;
+	createdAt?: string;
 }
 
 export interface User {
