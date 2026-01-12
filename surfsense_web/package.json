@@ -18,9 +18,7 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
-		"format:fix": "npx @biomejs/biome check --fix",
-		"electric:generate": "electric generate",
-		"electric:watch": "electric watch"
+		"format:fix": "npx @biomejs/biome check --fix"
 	},
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
@@ -33,6 +31,8 @@
 		"@blocknote/server-util": "^0.45.0",
 		"@electric-sql/client": "^1.4.0",
 		"@electric-sql/pglite": "^0.2.17",
+		"@electric-sql/pglite-sync": "^0.4.0",
+		"@electric-sql/react": "^1.0.26",
 		"@hookform/resolvers": "^5.2.2",
 		"@number-flow/react": "^0.5.10",
 		"@posthog/react": "^1.5.2",
@@ -71,7 +71,6 @@
 		"date-fns": "^4.1.0",
 		"dotenv": "^17.2.3",
 		"drizzle-orm": "^0.44.5",
-		"electric-sql": "^0.12.1",
 		"emblor": "^1.4.8",
 		"fumadocs-core": "^16.3.1",
 		"fumadocs-mdx": "^14.2.1",
@@ -110,7 +109,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.1.2",
-		"@electric-sql/cli": "0.11.4-canary.cb19c58",
 		"@eslint/eslintrc": "^3.3.1",
 		"@tailwindcss/postcss": "^4.1.11",
 		"@tailwindcss/typography": "^0.5.16",

@@ -40,6 +40,13 @@ def upgrade() -> None:
     op.create_index("ix_notifications_created_at", "notifications", ["created_at"])
     op.create_index("ix_notifications_user_read", "notifications", ["user_id", "read"])
 
+    # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
+    # This allows Electric SQL to track all column values for updates/deletes
+    op.execute("ALTER TABLE notifications REPLICA IDENTITY FULL;")
+
+    # Note: ElectricSQL 1.x dynamically adds tables to the publication when
+    # clients subscribe to shapes. No need to manually create publications.
+
 
 def downgrade() -> None:
     """Downgrade schema - remove notifications table."""
@@ -48,4 +55,3 @@ def downgrade() -> None:
     op.drop_index("ix_notifications_read", table_name="notifications")
     op.drop_index("ix_notifications_user_id", table_name="notifications")
     op.drop_table("notifications")
-

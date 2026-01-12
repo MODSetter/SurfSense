@@ -8,6 +8,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/docker/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./scripts/docker/init-electric-user.sql:/docker-entrypoint-initdb.d/init-electric-user.sql:ro
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
@@ -115,17 +116,16 @@ services:
   electric:
     image: electricsql/electric:latest
     ports:
-      - "${ELECTRIC_PORT:-5133}:5133"
+      - "${ELECTRIC_PORT:-5133}:3000"
     environment:
       - DATABASE_URL=postgresql://electric:electric_password@db:5432/${POSTGRES_DB:-surfsense}?sslmode=disable
-      - AUTH_MODE=insecure
+      - ELECTRIC_INSECURE=true
       - ELECTRIC_WRITE_TO_PG_MODE=direct
-      - ELECTRIC_READ_FROM_PG_MODE=direct
     depends_on:
       - db
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5133/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5

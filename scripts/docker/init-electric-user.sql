@@ -19,5 +19,12 @@ GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO electric;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO electric;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO electric;
 
--- Note: Electric SQL will create its own publications automatically
--- We don't need to create publications here
+-- Create the publication that Electric SQL expects
+-- Electric will add tables to this publication when shapes are subscribed
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_publication WHERE pubname = 'electric_publication_default') THEN
+        CREATE PUBLICATION electric_publication_default;
+    END IF;
+END
+$$;
