@@ -1,6 +1,15 @@
 "use client";
 
-import { Calendar, MoreHorizontal, Search, Settings, Share2, Trash2, UserCheck, Users } from "lucide-react";
+import {
+	Calendar,
+	MoreHorizontal,
+	Search,
+	Settings,
+	Share2,
+	Trash2,
+	UserCheck,
+	Users,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
@@ -112,9 +121,7 @@ export function AllSearchSpacesSheet({
 								</div>
 								<div className="flex flex-col gap-1">
 									<p className="font-medium">{t("no_search_spaces")}</p>
-									<p className="text-sm text-muted-foreground">
-										{t("create_first_search_space")}
-									</p>
+									<p className="text-sm text-muted-foreground">{t("create_first_search_space")}</p>
 								</div>
 								{onCreateNew && (
 									<Button onClick={onCreateNew} className="mt-2">
@@ -132,9 +139,7 @@ export function AllSearchSpacesSheet({
 								>
 									<div className="flex items-start justify-between gap-2">
 										<div className="flex flex-1 flex-col gap-1">
-											<span className="font-medium leading-tight">
-												{space.name}
-											</span>
+											<span className="font-medium leading-tight">{space.name}</span>
 											{space.description && (
 												<span className="text-sm text-muted-foreground line-clamp-2">
 													{space.description}
@@ -143,42 +148,42 @@ export function AllSearchSpacesSheet({
 										</div>
 
 										<div className="flex shrink-0 items-center gap-2">
-										{space.memberCount > 1 && (
-											<Badge variant="outline" className="shrink-0">
-												<Share2 className="mr-1 h-3 w-3" />
-												{tCommon("shared")}
-											</Badge>
-										)}
+											{space.memberCount > 1 && (
+												<Badge variant="outline" className="shrink-0">
+													<Share2 className="mr-1 h-3 w-3" />
+													{tCommon("shared")}
+												</Badge>
+											)}
 
-										{space.isOwner && (
-											<DropdownMenu>
-												<DropdownMenuTrigger asChild>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-6 w-6 shrink-0"
-														onClick={(e) => e.stopPropagation()}
-													>
-														<MoreHorizontal className="h-4 w-4" />
-													</Button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align="end">
-													<DropdownMenuItem onClick={(e) => handleSettings(e, space)}>
-														<Settings className="mr-2 h-4 w-4" />
-														{tCommon("settings")}
-													</DropdownMenuItem>
-													<DropdownMenuSeparator />
-													<DropdownMenuItem
-														onClick={(e) => handleDeleteClick(e, space)}
-														className="text-destructive focus:text-destructive"
-													>
-														<Trash2 className="mr-2 h-4 w-4" />
-														{tCommon("delete")}
-													</DropdownMenuItem>
-												</DropdownMenuContent>
-											</DropdownMenu>
-										)}
-									</div>
+											{space.isOwner && (
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-6 w-6 shrink-0"
+															onClick={(e) => e.stopPropagation()}
+														>
+															<MoreHorizontal className="h-4 w-4" />
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														<DropdownMenuItem onClick={(e) => handleSettings(e, space)}>
+															<Settings className="mr-2 h-4 w-4" />
+															{tCommon("settings")}
+														</DropdownMenuItem>
+														<DropdownMenuSeparator />
+														<DropdownMenuItem
+															onClick={(e) => handleDeleteClick(e, space)}
+															className="text-destructive focus:text-destructive"
+														>
+															<Trash2 className="mr-2 h-4 w-4" />
+															{tCommon("delete")}
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+											)}
+										</div>
 									</div>
 
 									<div className="flex items-center gap-4 text-xs text-muted-foreground">

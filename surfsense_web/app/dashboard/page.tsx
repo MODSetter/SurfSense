@@ -105,9 +105,7 @@ function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
 
 				<div className="flex flex-col gap-2">
 					<h1 className="text-2xl font-bold">{t("welcome_title")}</h1>
-					<p className="max-w-md text-muted-foreground">
-						{t("welcome_description")}
-					</p>
+					<p className="max-w-md text-muted-foreground">{t("welcome_description")}</p>
 				</div>
 
 				<Button size="lg" onClick={onCreateClick} className="gap-2">
@@ -123,11 +121,7 @@ export default function DashboardPage() {
 	const router = useRouter();
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-	const {
-		data: searchSpaces = [],
-		isLoading,
-		error,
-	} = useAtomValue(searchSpacesAtom);
+	const { data: searchSpaces = [], isLoading, error } = useAtomValue(searchSpacesAtom);
 
 	useEffect(() => {
 		if (isLoading) return;

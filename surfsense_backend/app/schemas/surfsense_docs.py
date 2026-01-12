@@ -24,4 +24,3 @@ class SurfsenseDocsDocumentWithChunksRead(BaseModel):
     chunks: list[SurfsenseDocsChunkRead]
 
     model_config = ConfigDict(from_attributes=True)
-

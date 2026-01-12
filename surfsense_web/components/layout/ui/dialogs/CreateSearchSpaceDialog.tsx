@@ -104,11 +104,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 								<FormItem>
 									<FormLabel>{t("name_label")}</FormLabel>
 									<FormControl>
-										<Input
-											placeholder={t("name_placeholder")}
-											{...field}
-											autoFocus
-										/>
+										<Input placeholder={t("name_placeholder")} {...field} autoFocus />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -163,4 +159,3 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 		</Dialog>
 	);
 }
-

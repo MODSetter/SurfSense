@@ -623,10 +623,7 @@ async def index_connector_content(
             SearchSourceConnectorType.LUMA_CONNECTOR,
         ]:
             # Default to today if no end_date provided (users can manually select future dates)
-            if end_date is None:
-                indexing_to = today_str
-            else:
-                indexing_to = end_date
+            indexing_to = today_str if end_date is None else end_date
         else:
             # For non-calendar connectors, cap at today
             indexing_to = end_date if end_date else today_str

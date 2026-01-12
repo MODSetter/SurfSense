@@ -24,9 +24,9 @@ def main():
     print("=" * 50)
     print("  Surfsense Documentation Seeding")
     print("=" * 50)
-    
+
     created, updated, skipped, deleted = asyncio.run(seed_surfsense_docs())
-    
+
     print()
     print("Results:")
     print(f"  Created: {created}")

@@ -42,7 +42,12 @@ function getInitials(name: string): string {
 	return name.slice(0, 2).toUpperCase();
 }
 
-export function SearchSpaceAvatar({ name, isActive, onClick, size = "md" }: SearchSpaceAvatarProps) {
+export function SearchSpaceAvatar({
+	name,
+	isActive,
+	onClick,
+	size = "md",
+}: SearchSpaceAvatarProps) {
 	const bgColor = stringToColor(name);
 	const initials = getInitials(name);
 	const sizeClasses = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";

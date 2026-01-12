@@ -15,7 +15,11 @@ interface InlineCitationProps {
  * Renders a clickable numbered badge that opens the SourceDetailPanel with document chunk details.
  * Supports both regular knowledge base chunks and Surfsense documentation chunks.
  */
-export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, citationNumber, isDocsChunk = false }) => {
+export const InlineCitation: FC<InlineCitationProps> = ({
+	chunkId,
+	citationNumber,
+	isDocsChunk = false,
+}) => {
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (

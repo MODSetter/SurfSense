@@ -8,8 +8,8 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
-import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
 import { useConnectorStatus } from "../hooks/use-connector-status";
+import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
 
 interface ConnectorAccountsListViewProps {
 	connectorType: string;

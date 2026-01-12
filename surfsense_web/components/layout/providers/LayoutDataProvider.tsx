@@ -28,8 +28,8 @@ import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, NoteItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
-import { LayoutShell } from "../ui/shell";
 import { AllSearchSpacesSheet } from "../ui/sheets";
+import { LayoutShell } from "../ui/shell";
 import { AllChatsSidebar } from "../ui/sidebar/AllChatsSidebar";
 import { AllNotesSidebar } from "../ui/sidebar/AllNotesSidebar";
 

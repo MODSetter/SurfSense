@@ -436,7 +436,9 @@ class SurfsenseDocsDocument(BaseModel, TimestampMixin):
 
     __tablename__ = "surfsense_docs_documents"
 
-    source = Column(String, nullable=False, unique=True, index=True)  # File path: "connectors/slack.mdx"
+    source = Column(
+        String, nullable=False, unique=True, index=True
+    )  # File path: "connectors/slack.mdx"
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     content_hash = Column(String, nullable=False, index=True)  # For detecting changes

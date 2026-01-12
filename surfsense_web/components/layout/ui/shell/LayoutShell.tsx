@@ -10,8 +10,8 @@ import type {
 	NavItem,
 	NoteItem,
 	PageUsage,
-	User,
 	SearchSpace,
+	User,
 } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";

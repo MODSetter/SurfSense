@@ -9,8 +9,8 @@ import type {
 	NavItem,
 	NoteItem,
 	PageUsage,
-	User,
 	SearchSpace,
+	User,
 } from "../../types/layout.types";
 import { IconRail } from "../icon-rail";
 import { Sidebar } from "./Sidebar";

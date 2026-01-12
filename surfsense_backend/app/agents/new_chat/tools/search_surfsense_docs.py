@@ -48,10 +48,12 @@ def format_surfsense_docs_results(results: list[tuple]) -> str:
                 "metadata": {"source": doc.source},
                 "chunks": [],
             }
-        grouped[doc.id]["chunks"].append({
-            "chunk_id": f"doc-{chunk.id}",
-            "content": chunk.content,
-        })
+        grouped[doc.id]["chunks"].append(
+            {
+                "chunk_id": f"doc-{chunk.id}",
+                "content": chunk.content,
+            }
+        )
 
     # Render XML matching format_documents_for_context structure
     parts: list[str] = []
@@ -70,7 +72,9 @@ def format_surfsense_docs_results(results: list[tuple]) -> str:
         parts.append("<document_content>")
 
         for ch in g["chunks"]:
-            parts.append(f"  <chunk id='{ch['chunk_id']}'><![CDATA[{ch['content']}]]></chunk>")
+            parts.append(
+                f"  <chunk id='{ch['chunk_id']}'><![CDATA[{ch['content']}]]></chunk>"
+            )
 
         parts.append("</document_content>")
         parts.append("</document>")
@@ -157,4 +161,3 @@ def create_search_surfsense_docs_tool(db_session: AsyncSession):
         )
 
     return search_surfsense_docs
-

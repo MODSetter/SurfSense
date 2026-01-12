@@ -6,9 +6,9 @@ export type {
 	NavItem,
 	NoteItem,
 	PageUsage,
+	SearchSpace,
 	SidebarSectionProps,
 	User,
-	SearchSpace,
 } from "./types/layout.types";
 export {
 	AllSearchSpacesSheet,
@@ -23,10 +23,10 @@ export {
 	NavSection,
 	NoteListItem,
 	PageUsageDisplay,
+	SearchSpaceAvatar,
 	Sidebar,
 	SidebarCollapseButton,
 	SidebarHeader,
 	SidebarSection,
 	SidebarUserProfile,
-	SearchSpaceAvatar,
 } from "./ui";

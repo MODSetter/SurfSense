@@ -3,8 +3,8 @@
 import { AlertTriangle, Ban, Wrench } from "lucide-react";
 import type { FC } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { ConnectorStatus } from "../config/connector-status-config";
 import { cn } from "@/lib/utils";
+import type { ConnectorStatus } from "../config/connector-status-config";
 
 interface ConnectorStatusBadgeProps {
 	status: ConnectorStatus;

@@ -19,7 +19,12 @@ from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument, async_session_make
 logger = logging.getLogger(__name__)
 
 # Path to docs relative to project root
-DOCS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "surfsense_web" / "content" / "docs"
+DOCS_DIR = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "surfsense_web"
+    / "content"
+    / "docs"
+)
 
 
 def parse_mdx_frontmatter(content: str) -> tuple[str, str]:
@@ -38,7 +43,7 @@ def parse_mdx_frontmatter(content: str) -> tuple[str, str]:
 
     if match:
         frontmatter = match.group(1)
-        content_without_frontmatter = content[match.end():]
+        content_without_frontmatter = content[match.end() :]
 
         # Extract title from frontmatter
         title_match = re.search(r"^title:\s*(.+)$", frontmatter, re.MULTILINE)
@@ -93,10 +98,10 @@ def create_surfsense_docs_chunks(content: str) -> list[SurfsenseDocsChunk]:
 async def index_surfsense_docs(session: AsyncSession) -> tuple[int, int, int, int]:
     """
     Index all Surfsense documentation files.
-    
+
     Args:
         session: SQLAlchemy async session
-        
+
     Returns:
         Tuple of (created, updated, skipped, deleted) counts
     """
@@ -104,45 +109,47 @@ async def index_surfsense_docs(session: AsyncSession) -> tuple[int, int, int, in
     updated = 0
     skipped = 0
     deleted = 0
-    
+
     # Get all existing docs from database
     existing_docs_result = await session.execute(
-        select(SurfsenseDocsDocument).options(selectinload(SurfsenseDocsDocument.chunks))
+        select(SurfsenseDocsDocument).options(
+            selectinload(SurfsenseDocsDocument.chunks)
+        )
     )
     existing_docs = {doc.source: doc for doc in existing_docs_result.scalars().all()}
-    
+
     # Track which sources we've processed
     processed_sources = set()
-    
+
     # Get all MDX files
     mdx_files = get_all_mdx_files()
     logger.info(f"Found {len(mdx_files)} MDX files to index")
-    
+
     for mdx_file in mdx_files:
         try:
             source = str(mdx_file.relative_to(DOCS_DIR))
             processed_sources.add(source)
-            
+
             # Read file content
             raw_content = mdx_file.read_text(encoding="utf-8")
             title, content = parse_mdx_frontmatter(raw_content)
             content_hash = generate_surfsense_docs_content_hash(raw_content)
-            
+
             if source in existing_docs:
                 existing_doc = existing_docs[source]
-                
+
                 # Check if content changed
                 if existing_doc.content_hash == content_hash:
                     logger.debug(f"Skipping unchanged: {source}")
                     skipped += 1
                     continue
-                
+
                 # Content changed - update document
                 logger.info(f"Updating changed document: {source}")
-                
+
                 # Create new chunks
                 chunks = create_surfsense_docs_chunks(content)
-                
+
                 # Update document fields
                 existing_doc.title = title
                 existing_doc.content = content
@@ -150,14 +157,14 @@ async def index_surfsense_docs(session: AsyncSession) -> tuple[int, int, int, in
                 existing_doc.embedding = config.embedding_model_instance.embed(content)
                 existing_doc.chunks = chunks
                 existing_doc.updated_at = datetime.now(UTC)
-                
+
                 updated += 1
             else:
                 # New document - create it
                 logger.info(f"Creating new document: {source}")
-                
+
                 chunks = create_surfsense_docs_chunks(content)
-                
+
                 document = SurfsenseDocsDocument(
                     source=source,
                     title=title,
@@ -167,56 +174,56 @@ async def index_surfsense_docs(session: AsyncSession) -> tuple[int, int, int, in
                     chunks=chunks,
                     updated_at=datetime.now(UTC),
                 )
-                
+
                 session.add(document)
                 created += 1
-                
+
         except Exception as e:
             logger.error(f"Error processing {mdx_file}: {e}", exc_info=True)
             continue
-    
+
     # Delete documents for removed files
     for source, doc in existing_docs.items():
         if source not in processed_sources:
             logger.info(f"Deleting removed document: {source}")
             await session.delete(doc)
             deleted += 1
-    
+
     # Commit all changes
     await session.commit()
-    
+
     logger.info(
         f"Indexing complete: {created} created, {updated} updated, "
         f"{skipped} skipped, {deleted} deleted"
     )
-    
+
     return created, updated, skipped, deleted
 
 
 async def seed_surfsense_docs() -> tuple[int, int, int, int]:
     """
     Seed Surfsense documentation into the database.
-    
+
     This function indexes all MDX files from the docs directory.
     It handles creating, updating, and deleting docs based on content changes.
-    
+
     Returns:
         Tuple of (created, updated, skipped, deleted) counts
         Returns (0, 0, 0, 0) if an error occurs
     """
     logger.info("Starting Surfsense docs indexing...")
-    
+
     try:
         async with async_session_maker() as session:
             created, updated, skipped, deleted = await index_surfsense_docs(session)
-        
+
         logger.info(
             f"Surfsense docs indexing complete: "
             f"created={created}, updated={updated}, skipped={skipped}, deleted={deleted}"
         )
-        
+
         return created, updated, skipped, deleted
-        
+
     except Exception as e:
         logger.error(f"Failed to seed Surfsense docs: {e}", exc_info=True)
         return 0, 0, 0, 0

@@ -43,7 +43,9 @@ export function SidebarHeader({
 							isCollapsed ? "w-10" : "w-50"
 						)}
 					>
-						<span className="truncate text-base">{searchSpace?.name ?? t("select_search_space")}</span>
+						<span className="truncate text-base">
+							{searchSpace?.name ?? t("select_search_space")}
+						</span>
 						<ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
 					</Button>
 				</DropdownMenuTrigger>

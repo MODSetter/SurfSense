@@ -17,12 +17,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApiKey } from "@/hooks/use-api-key";
 import { cn } from "@/lib/utils";
 
@@ -249,16 +244,10 @@ function ApiKeyContent({ onMenuClick }: { onMenuClick: () => void }) {
 														onClick={copyToClipboard}
 														className="shrink-0"
 													>
-														{copied ? (
-															<Check className="h-4 w-4" />
-														) : (
-															<Copy className="h-4 w-4" />
-														)}
+														{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
 													</Button>
 												</TooltipTrigger>
-												<TooltipContent>
-													{copied ? t("copied") : t("copy")}
-												</TooltipContent>
+												<TooltipContent>{copied ? t("copied") : t("copy")}</TooltipContent>
 											</Tooltip>
 										</TooltipProvider>
 									</div>

@@ -11,8 +11,8 @@ import type {
 	NavItem,
 	NoteItem,
 	PageUsage,
-	User,
 	SearchSpace,
+	User,
 } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
@@ -289,7 +289,12 @@ export function Sidebar({
 					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
 				)}
 
-				<SidebarUserProfile user={user} onUserSettings={onUserSettings} onLogout={onLogout} isCollapsed={isCollapsed} />
+				<SidebarUserProfile
+					user={user}
+					onUserSettings={onUserSettings}
+					onLogout={onLogout}
+					isCollapsed={isCollapsed}
+				/>
 			</div>
 		</div>
 	);

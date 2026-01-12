@@ -7,7 +7,6 @@ Revises: 59
 from collections.abc import Sequence
 
 from alembic import op
-
 from app.config import config
 
 # revision identifiers, used by Alembic.
@@ -22,7 +21,7 @@ EMBEDDING_DIM = config.embedding_model_instance.dimension
 
 def upgrade() -> None:
     """Create surfsense_docs_documents and surfsense_docs_chunks tables."""
-    
+
     # Create surfsense_docs_documents table
     op.execute(
         f"""
@@ -46,7 +45,7 @@ def upgrade() -> None:
         END$$;
         """
     )
-    
+
     # Create indexes for surfsense_docs_documents
     op.execute(
         """
@@ -75,7 +74,7 @@ def upgrade() -> None:
         END$$;
         """
     )
-    
+
     # Create surfsense_docs_chunks table
     op.execute(
         f"""
@@ -96,7 +95,7 @@ def upgrade() -> None:
         END$$;
         """
     )
-    
+
     # Create indexes for surfsense_docs_chunks
     op.execute(
         """
@@ -111,7 +110,7 @@ def upgrade() -> None:
         END$$;
         """
     )
-    
+
     # Create vector indexes for similarity search
     op.execute(
         """
@@ -119,14 +118,14 @@ def upgrade() -> None:
         ON surfsense_docs_documents USING hnsw (embedding public.vector_cosine_ops);
         """
     )
-    
+
     op.execute(
         """
         CREATE INDEX IF NOT EXISTS surfsense_docs_chunks_vector_index 
         ON surfsense_docs_chunks USING hnsw (embedding public.vector_cosine_ops);
         """
     )
-    
+
     # Create full-text search indexes (same pattern as documents/chunks tables)
     op.execute(
         """
@@ -134,7 +133,7 @@ def upgrade() -> None:
         ON surfsense_docs_documents USING gin (to_tsvector('english', content));
         """
     )
-    
+
     op.execute(
         """
         CREATE INDEX IF NOT EXISTS surfsense_docs_chunks_search_index 
@@ -148,18 +147,17 @@ def downgrade() -> None:
     # Drop full-text search indexes
     op.execute("DROP INDEX IF EXISTS surfsense_docs_chunks_search_index")
     op.execute("DROP INDEX IF EXISTS surfsense_docs_documents_search_index")
-    
+
     # Drop vector indexes
     op.execute("DROP INDEX IF EXISTS surfsense_docs_chunks_vector_index")
     op.execute("DROP INDEX IF EXISTS surfsense_docs_documents_vector_index")
-    
+
     # Drop regular indexes
     op.execute("DROP INDEX IF EXISTS ix_surfsense_docs_chunks_document_id")
     op.execute("DROP INDEX IF EXISTS ix_surfsense_docs_documents_updated_at")
     op.execute("DROP INDEX IF EXISTS ix_surfsense_docs_documents_content_hash")
     op.execute("DROP INDEX IF EXISTS ix_surfsense_docs_documents_source")
-    
+
     # Drop tables (chunks first due to FK)
     op.execute("DROP TABLE IF EXISTS surfsense_docs_chunks")
     op.execute("DROP TABLE IF EXISTS surfsense_docs_documents")
-
