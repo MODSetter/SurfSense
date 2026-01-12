@@ -17,6 +17,7 @@ import {
 	getDocumentsResponse,
 	getDocumentTypeCountsRequest,
 	getDocumentTypeCountsResponse,
+	getSurfsenseDocsByChunkResponse,
 	type SearchDocumentsRequest,
 	searchDocumentsRequest,
 	searchDocumentsResponse,
@@ -206,6 +207,17 @@ class DocumentsApiService {
 		return baseApiService.get(
 			`/api/v1/documents/by-chunk/${request.chunk_id}`,
 			getDocumentByChunkResponse
+		);
+	};
+
+	/**
+	 * Get Surfsense documentation by chunk ID
+	 * Used for resolving [citation:doc-XXX] citations
+	 */
+	getSurfsenseDocByChunk = async (chunkId: number) => {
+		return baseApiService.get(
+			`/api/v1/surfsense-docs/by-chunk/${chunkId}`,
+			getSurfsenseDocsByChunkResponse
 		);
 	};
 

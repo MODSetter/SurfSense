@@ -15,12 +15,13 @@ import { InlineCitation } from "@/components/assistant-ui/inline-citation";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
-// Citation pattern: [citation:CHUNK_ID]
-const CITATION_REGEX = /\[citation:(\d+)\]/g;
+// Citation pattern: [citation:CHUNK_ID] or [citation:doc-CHUNK_ID]
+const CITATION_REGEX = /\[citation:(doc-)?(\d+)\]/g;
 
 // Track chunk IDs to citation numbers mapping for consistent numbering
 // This map is reset when a new message starts rendering
-let chunkIdToCitationNumber: Map<number, number> = new Map();
+// Uses string keys to differentiate between doc and regular chunks (e.g., "doc-123" vs "123")
+let chunkIdToCitationNumber: Map<string, number> = new Map();
 let nextCitationNumber = 1;
 
 /**
@@ -33,16 +34,20 @@ export function resetCitationCounter() {
 
 /**
  * Gets or assigns a citation number for a chunk ID
+ * Uses string key to differentiate between doc and regular chunks
  */
-function getCitationNumber(chunkId: number): number {
-	if (!chunkIdToCitationNumber.has(chunkId)) {
-		chunkIdToCitationNumber.set(chunkId, nextCitationNumber++);
+function getCitationNumber(chunkId: number, isDocsChunk: boolean): number {
+	const key = isDocsChunk ? `doc-${chunkId}` : String(chunkId);
+	const existingNumber = chunkIdToCitationNumber.get(key);
+	if (existingNumber === undefined) {
+		chunkIdToCitationNumber.set(key, nextCitationNumber++);
 	}
-	return chunkIdToCitationNumber.get(chunkId)!;
+	return chunkIdToCitationNumber.get(key)!;
 }
 
 /**
  * Parses text and replaces [citation:XXX] patterns with InlineCitation components
+ * Supports both regular chunks [citation:123] and docs chunks [citation:doc-123]
  */
 function parseTextWithCitations(text: string): ReactNode[] {
 	const parts: ReactNode[] = [];
@@ -59,14 +64,16 @@ function parseTextWithCitations(text: string): ReactNode[] {
 			parts.push(text.substring(lastIndex, match.index));
 		}
 
-		// Add the citation component
-		const chunkId = Number.parseInt(match[1], 10);
-		const citationNumber = getCitationNumber(chunkId);
+		// Check if this is a docs chunk (has "doc-" prefix)
+		const isDocsChunk = match[1] === "doc-";
+		const chunkId = Number.parseInt(match[2], 10);
+		const citationNumber = getCitationNumber(chunkId, isDocsChunk);
 		parts.push(
 			<InlineCitation
-				key={`citation-${chunkId}-${instanceIndex}`}
+				key={`citation-${isDocsChunk ? "doc-" : ""}${chunkId}-${instanceIndex}`}
 				chunkId={chunkId}
 				citationNumber={citationNumber}
+				isDocsChunk={isDocsChunk}
 			/>
 		);
 

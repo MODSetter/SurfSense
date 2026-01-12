@@ -60,6 +60,26 @@ export const documentWithChunks = document.extend({
 });
 
 /**
+ * Surfsense documentation schemas
+ * Follows the same pattern as document/documentWithChunks
+ */
+export const surfsenseDocsChunk = z.object({
+	id: z.number(),
+	content: z.string(),
+});
+
+export const surfsenseDocsDocument = z.object({
+	id: z.number(),
+	title: z.string(),
+	source: z.string(),
+	content: z.string(),
+});
+
+export const surfsenseDocsDocumentWithChunks = surfsenseDocsDocument.extend({
+	chunks: z.array(surfsenseDocsChunk),
+});
+
+/**
  * Get documents
  */
 export const getDocumentsRequest = z.object({
@@ -155,6 +175,15 @@ export const getDocumentByChunkRequest = z.object({
 export const getDocumentByChunkResponse = documentWithChunks;
 
 /**
+ * Get Surfsense docs by chunk
+ */
+export const getSurfsenseDocsByChunkRequest = z.object({
+	chunk_id: z.number(),
+});
+
+export const getSurfsenseDocsByChunkResponse = surfsenseDocsDocumentWithChunks;
+
+/**
  * Update document
  */
 export const updateDocumentRequest = z.object({
@@ -193,3 +222,8 @@ export type UpdateDocumentResponse = z.infer<typeof updateDocumentResponse>;
 export type DeleteDocumentRequest = z.infer<typeof deleteDocumentRequest>;
 export type DeleteDocumentResponse = z.infer<typeof deleteDocumentResponse>;
 export type DocumentTypeEnum = z.infer<typeof documentTypeEnum>;
+export type SurfsenseDocsChunk = z.infer<typeof surfsenseDocsChunk>;
+export type SurfsenseDocsDocument = z.infer<typeof surfsenseDocsDocument>;
+export type SurfsenseDocsDocumentWithChunks = z.infer<typeof surfsenseDocsDocumentWithChunks>;
+export type GetSurfsenseDocsByChunkRequest = z.infer<typeof getSurfsenseDocsByChunkRequest>;
+export type GetSurfsenseDocsByChunkResponse = z.infer<typeof getSurfsenseDocsByChunkResponse>;

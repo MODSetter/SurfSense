@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
 import { trackLoginSuccess } from "@/lib/posthog/events";
@@ -25,7 +25,6 @@ const TokenHandler = ({
 	tokenParamName = "token",
 	storageKey = "surfsense_bearer_token",
 }: TokenHandlerProps) => {
-	const router = useRouter();
 	const searchParams = useSearchParams();
 
 	useEffect(() => {
@@ -58,14 +57,14 @@ const TokenHandler = ({
 				const finalRedirectPath = savedRedirectPath || redirectPath;
 
 				// Redirect to the appropriate path
-				router.push(finalRedirectPath);
+				window.location.href = finalRedirectPath;
 			} catch (error) {
 				console.error("Error storing token in localStorage:", error);
 				// Even if there's an error, try to redirect to the default path
-				router.push(redirectPath);
+				window.location.href = redirectPath;
 			}
 		}
-	}, [searchParams, tokenParamName, storageKey, redirectPath, router]);
+	}, [searchParams, tokenParamName, storageKey, redirectPath]);
 
 	return (
 		<div className="flex items-center justify-center min-h-[200px]">

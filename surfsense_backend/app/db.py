@@ -36,6 +36,7 @@ class DocumentType(str, Enum):
     CRAWLED_URL = "CRAWLED_URL"
     FILE = "FILE"
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
+    TEAMS_CONNECTOR = "TEAMS_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     YOUTUBE_VIDEO = "YOUTUBE_VIDEO"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
@@ -62,6 +63,7 @@ class SearchSourceConnectorType(str, Enum):
     LINKUP_API = "LINKUP_API"
     BAIDU_SEARCH_API = "BAIDU_SEARCH_API"  # Baidu AI Search API for Chinese web search
     SLACK_CONNECTOR = "SLACK_CONNECTOR"
+    TEAMS_CONNECTOR = "TEAMS_CONNECTOR"
     NOTION_CONNECTOR = "NOTION_CONNECTOR"
     GITHUB_CONNECTOR = "GITHUB_CONNECTOR"
     LINEAR_CONNECTOR = "LINEAR_CONNECTOR"
@@ -424,6 +426,46 @@ class Chunk(BaseModel, TimestampMixin):
         Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
     document = relationship("Document", back_populates="chunks")
+
+
+class SurfsenseDocsDocument(BaseModel, TimestampMixin):
+    """
+    Surfsense documentation storage.
+    Indexed at migration time from MDX files.
+    """
+
+    __tablename__ = "surfsense_docs_documents"
+
+    source = Column(
+        String, nullable=False, unique=True, index=True
+    )  # File path: "connectors/slack.mdx"
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    content_hash = Column(String, nullable=False, index=True)  # For detecting changes
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
+
+    chunks = relationship(
+        "SurfsenseDocsChunk",
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
+
+
+class SurfsenseDocsChunk(BaseModel, TimestampMixin):
+    """Chunk storage for Surfsense documentation."""
+
+    __tablename__ = "surfsense_docs_chunks"
+
+    content = Column(Text, nullable=False)
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+
+    document_id = Column(
+        Integer,
+        ForeignKey("surfsense_docs_documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document = relationship("SurfsenseDocsDocument", back_populates="chunks")
 
 
 class Podcast(BaseModel, TimestampMixin):

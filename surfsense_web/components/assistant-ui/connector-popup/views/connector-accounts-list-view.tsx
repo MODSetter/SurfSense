@@ -8,6 +8,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
+import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
 
 interface ConnectorAccountsListViewProps {
@@ -65,54 +66,65 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	onAddAccount,
 	isConnecting = false,
 }) => {
+	// Get connector status
+	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
+
+	const isEnabled = isConnectorEnabled(connectorType);
+	const statusMessage = getConnectorStatusMessage(connectorType);
+
 	// Filter connectors to only show those of this type
 	const typeConnectors = connectors.filter((c) => c.connector_type === connectorType);
 
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}
-			<div className="px-4 sm:px-12 pt-6 sm:pt-10 pb-4 border-b border-border/50 bg-muted">
-				<div className="flex items-center justify-between gap-4 sm:pr-4">
-					<div className="flex items-center gap-4">
-						<Button
-							variant="ghost"
-							size="icon"
-							className="size-8 rounded-full shrink-0"
-							onClick={onBack}
-						>
-							<ArrowLeft className="size-4" />
-						</Button>
-						<div className="flex items-center gap-3">
-							<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-400/5 dark:bg-white/5 border border-slate-400/5 dark:border-white/5">
-								{getConnectorIcon(connectorType, "size-5")}
-							</div>
-							<div>
-								<h2 className="text-lg font-semibold">{connectorTitle} Accounts</h2>
-								<p className="text-xs text-muted-foreground">
-									{typeConnectors.length} connected account{typeConnectors.length !== 1 ? "s" : ""}
-								</p>
-							</div>
+			<div className="px-6 sm:px-12 pt-8 sm:pt-10 pb-1 sm:pb-4 border-b border-border/50 bg-muted">
+				{/* Back button */}
+				<button
+					type="button"
+					onClick={onBack}
+					className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-6 w-fit"
+				>
+					<ArrowLeft className="size-4" />
+					Back to connectors
+				</button>
+
+				{/* Connector header */}
+				<div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+					<div className="flex gap-4 flex-1 w-full sm:w-auto">
+						<div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 shrink-0">
+							{getConnectorIcon(connectorType, "size-7")}
+						</div>
+						<div className="flex-1 min-w-0">
+							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal">
+								{connectorTitle}
+							</h2>
+							<p className="text-xs sm:text-base text-muted-foreground mt-1">
+								{statusMessage || "Manage your connector settings and sync configuration"}
+							</p>
 						</div>
 					</div>
 					{/* Add Account Button with dashed border */}
 					<button
 						type="button"
 						onClick={onAddAccount}
-						disabled={isConnecting}
+						disabled={isConnecting || !isEnabled}
 						className={cn(
-							"flex items-center gap-2 px-3 py-2 rounded-lg mr-4 border-2 border-dashed border-border/70 text-left transition-all duration-200",
-							"border-primary/50 hover:bg-primary/5",
+							"flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border-2 border-dashed text-left transition-all duration-200 shrink-0 self-center sm:self-auto sm:w-auto",
+							!isEnabled
+								? "border-border/30 opacity-50 cursor-not-allowed"
+								: "border-primary/50 hover:bg-primary/5",
 							isConnecting && "opacity-50 cursor-not-allowed"
 						)}
 					>
-						<div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 shrink-0">
+						<div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-primary/10 shrink-0">
 							{isConnecting ? (
-								<Loader2 className="size-3.5 animate-spin text-primary" />
+								<Loader2 className="size-3 sm:size-3.5 animate-spin text-primary" />
 							) : (
-								<Plus className="size-3.5 text-primary" />
+								<Plus className="size-3 sm:size-3.5 text-primary" />
 							)}
 						</div>
-						<span className="text-[12px] font-medium">
+						<span className="text-[11px] sm:text-[12px] font-medium">
 							{isConnecting ? "Connecting..." : "Add Account"}
 						</span>
 					</button>
@@ -120,7 +132,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 			</div>
 
 			{/* Content */}
-			<div className="flex-1 overflow-y-auto px-4 sm:px-12 py-6 sm:py-8">
+			<div className="flex-1 overflow-y-auto px-6 sm:px-12 pt-0 sm:pt-6 pb-6 sm:pb-8">
 				{/* Connected Accounts Grid */}
 				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					{typeConnectors.map((connector) => {

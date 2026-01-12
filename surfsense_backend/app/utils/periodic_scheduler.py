@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Mapping of connector types to their corresponding Celery task names
 CONNECTOR_TASK_MAP = {
     SearchSourceConnectorType.SLACK_CONNECTOR: "index_slack_messages",
+    SearchSourceConnectorType.TEAMS_CONNECTOR: "index_teams_messages",
     SearchSourceConnectorType.NOTION_CONNECTOR: "index_notion_pages",
     SearchSourceConnectorType.GITHUB_CONNECTOR: "index_github_repos",
     SearchSourceConnectorType.LINEAR_CONNECTOR: "index_linear_issues",

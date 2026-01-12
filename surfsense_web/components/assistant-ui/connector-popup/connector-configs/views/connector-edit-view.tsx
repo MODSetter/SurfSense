@@ -211,6 +211,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 											endDate={endDate}
 											onStartDateChange={onStartDateChange}
 											onEndDateChange={onEndDateChange}
+											allowFutureDates={
+												connector.connector_type === "GOOGLE_CALENDAR_CONNECTOR" ||
+												connector.connector_type === "LUMA_CONNECTOR"
+											}
 										/>
 									)}
 

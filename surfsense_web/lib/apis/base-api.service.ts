@@ -129,20 +129,24 @@ class BaseApiService {
 					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
 
+				// Handle 401 first before other error handling - ensures token is cleared and user redirected
+				if (response.status === 401) {
+					handleUnauthorized();
+					throw new AuthenticationError(
+						typeof data === "object" && "detail" in data
+							? data.detail
+							: "You are not authenticated. Please login again.",
+						response.status,
+						response.statusText
+					);
+				}
+
 				// For fastapi errors response
 				if (typeof data === "object" && "detail" in data) {
 					throw new AppError(data.detail, response.status, response.statusText);
 				}
 
 				switch (response.status) {
-					case 401:
-						// Use centralized auth handler for 401 responses
-						handleUnauthorized();
-						throw new AuthenticationError(
-							"You are not authenticated. Please login again.",
-							response.status,
-							response.statusText
-						);
 					case 403:
 						throw new AuthorizationError(
 							"You don't have permission to access this resource.",
