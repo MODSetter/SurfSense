@@ -1,6 +1,6 @@
 """
 Surfsense documentation indexer.
-Indexes MDX documentation files at migration time.
+Indexes MDX documentation files at startup.
 """
 
 import hashlib
@@ -10,10 +10,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import config
-from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument
+from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument, async_session_maker
 
 logger = logging.getLogger(__name__)
 
@@ -89,12 +90,12 @@ def create_surfsense_docs_chunks(content: str) -> list[SurfsenseDocsChunk]:
     ]
 
 
-def index_surfsense_docs(session: Session) -> tuple[int, int, int, int]:
+async def index_surfsense_docs(session: AsyncSession) -> tuple[int, int, int, int]:
     """
     Index all Surfsense documentation files.
     
     Args:
-        session: SQLAlchemy sync session
+        session: SQLAlchemy async session
         
     Returns:
         Tuple of (created, updated, skipped, deleted) counts
@@ -105,7 +106,7 @@ def index_surfsense_docs(session: Session) -> tuple[int, int, int, int]:
     deleted = 0
     
     # Get all existing docs from database
-    existing_docs_result = session.execute(
+    existing_docs_result = await session.execute(
         select(SurfsenseDocsDocument).options(selectinload(SurfsenseDocsDocument.chunks))
     )
     existing_docs = {doc.source: doc for doc in existing_docs_result.scalars().all()}
@@ -178,11 +179,11 @@ def index_surfsense_docs(session: Session) -> tuple[int, int, int, int]:
     for source, doc in existing_docs.items():
         if source not in processed_sources:
             logger.info(f"Deleting removed document: {source}")
-            session.delete(doc)
+            await session.delete(doc)
             deleted += 1
     
     # Commit all changes
-    session.commit()
+    await session.commit()
     
     logger.info(
         f"Indexing complete: {created} created, {updated} updated, "
@@ -191,3 +192,31 @@ def index_surfsense_docs(session: Session) -> tuple[int, int, int, int]:
     
     return created, updated, skipped, deleted
 
+
+async def seed_surfsense_docs() -> tuple[int, int, int, int]:
+    """
+    Seed Surfsense documentation into the database.
+    
+    This function indexes all MDX files from the docs directory.
+    It handles creating, updating, and deleting docs based on content changes.
+    
+    Returns:
+        Tuple of (created, updated, skipped, deleted) counts
+        Returns (0, 0, 0, 0) if an error occurs
+    """
+    logger.info("Starting Surfsense docs indexing...")
+    
+    try:
+        async with async_session_maker() as session:
+            created, updated, skipped, deleted = await index_surfsense_docs(session)
+        
+        logger.info(
+            f"Surfsense docs indexing complete: "
+            f"created={created}, updated={updated}, skipped={skipped}, deleted={deleted}"
+        )
+        
+        return created, updated, skipped, deleted
+        
+    except Exception as e:
+        logger.error(f"Failed to seed Surfsense docs: {e}", exc_info=True)
+        return 0, 0, 0, 0

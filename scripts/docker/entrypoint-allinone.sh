@@ -145,36 +145,13 @@ run_migrations() {
     echo "✅ Database migrations complete"
 }
 
-# ================================================
-# Seed Surfsense documentation
-# ================================================
-seed_surfsense_docs() {
-    echo "📚 Seeding Surfsense documentation..."
-    
-    # Start PostgreSQL temporarily for seeding
-    su - postgres -c "/usr/lib/postgresql/14/bin/pg_ctl -D /data/postgres -l /tmp/postgres_seed.log start"
-    sleep 5
-    
-    cd /app/backend
-    python scripts/seed_surfsense_docs.py || echo "⚠️ Docs seeding may have already been done"
-    
-    # Stop PostgreSQL
-    su - postgres -c "/usr/lib/postgresql/14/bin/pg_ctl -D /data/postgres stop"
-    
-    echo "✅ Surfsense documentation seeded"
-}
-
 # Run migrations on first start or when explicitly requested
 if [ ! -f /data/.migrations_run ] || [ "${FORCE_MIGRATIONS:-false}" = "true" ]; then
     run_migrations
     touch /data/.migrations_run
 fi
 
-# Seed docs on first start or when explicitly requested
-if [ ! -f /data/.docs_seeded ] || [ "${FORCE_SEED_DOCS:-false}" = "true" ]; then
-    seed_surfsense_docs
-    touch /data/.docs_seeded
-fi
+# Note: Surfsense docs seeding is now handled by FastAPI startup (app.py lifespan)
 
 # ================================================
 # Environment Variables Info
