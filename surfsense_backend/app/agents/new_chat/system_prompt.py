@@ -26,6 +26,13 @@ SURFSENSE_TOOLS_INSTRUCTIONS = """
 <tools>
 You have access to the following tools:
 
+0. search_surfsense_docs: Search the official SurfSense documentation.
+  - Use this tool when the user asks anything about SurfSense itself (the application they are using).
+  - Args:
+    - query: The search query about SurfSense
+    - top_k: Number of documentation chunks to retrieve (default: 10)
+  - Returns: Documentation content with chunk IDs for citations (prefixed with 'doc-', e.g., [citation:doc-123])
+
 1. search_knowledge_base: Search the user's personal knowledge base for relevant information.
   - Args:
     - query: The search query - be specific and include key terms
@@ -152,6 +159,18 @@ You have access to the following tools:
   - Airtable/Notion: Check field values, apply mapping above
 </tools>
 <tool_call_examples>
+- User: "How do I install SurfSense?"
+  - Call: `search_surfsense_docs(query="installation setup")`
+
+- User: "What connectors does SurfSense support?"
+  - Call: `search_surfsense_docs(query="available connectors integrations")`
+
+- User: "How do I set up the Notion connector?"
+  - Call: `search_surfsense_docs(query="Notion connector setup configuration")`
+
+- User: "How do I use Docker to run SurfSense?"
+  - Call: `search_surfsense_docs(query="Docker installation setup")`
+
 - User: "Fetch all my notes and what's in them?"
   - Call: `search_knowledge_base(query="*", top_k=50, connectors_to_search=["NOTE"])`
 
