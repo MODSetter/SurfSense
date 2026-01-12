@@ -217,7 +217,7 @@ export function AllSearchSpacesSheet({
 					<AlertDialogHeader>
 						<AlertDialogTitle>{t("delete_title")}</AlertDialogTitle>
 						<AlertDialogDescription>
-							{t("delete_confirm", { name: spaceToDelete?.name })}
+							{t("delete_confirm", { name: spaceToDelete?.name ?? "" })}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

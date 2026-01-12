@@ -143,16 +143,11 @@ export function LayoutDataProvider({
 		}));
 	}, [searchSpacesData]);
 
-	// Use searchSpace query result for active search space (more reliable than finding in list)
-	const activeSearchSpace: SearchSpace | null = searchSpace
-		? {
-				id: searchSpace.id,
-				name: searchSpace.name,
-				description: searchSpace.description,
-				isOwner: searchSpace.is_owner,
-				memberCount: searchSpace.member_count || 0,
-			}
-		: null;
+	// Find active search space from list (has is_owner and member_count)
+	const activeSearchSpace: SearchSpace | null = useMemo(() => {
+		if (!searchSpaceId || !searchSpaces.length) return null;
+		return searchSpaces.find((s) => s.id === Number(searchSpaceId)) ?? null;
+	}, [searchSpaceId, searchSpaces]);
 
 	// Transform chats
 	const chats: ChatItem[] = useMemo(() => {
