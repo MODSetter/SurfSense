@@ -28,7 +28,8 @@
 		"info": "Information",
 		"required": "Required",
 		"optional": "Optional",
-		"retry": "Retry"
+		"retry": "Retry",
+		"owner": "Owner"
 	},
 	"auth": {
 		"login": "Login",
@@ -85,7 +86,13 @@
 		"description_label": "Description",
 		"description_placeholder": "What is this search space for?",
 		"create_button": "Create",
-		"creating": "Creating..."
+		"creating": "Creating...",
+		"all_search_spaces": "All Search Spaces",
+		"search_spaces_count": "{count, plural, =0 {No search spaces} =1 {1 search space} other {# search spaces}}",
+		"no_search_spaces": "No search spaces yet",
+		"create_first_search_space": "Create your first search space to get started",
+		"members_count": "{count, plural, =1 {1 member} other {# members}}",
+		"create_new_search_space": "Create new search space"
 	},
 	"dashboard": {
 		"title": "Dashboard",

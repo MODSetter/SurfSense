@@ -11,6 +11,7 @@ export type {
 	SearchSpace,
 } from "./types/layout.types";
 export {
+	AllSearchSpacesSheet,
 	ChatListItem,
 	CreateSearchSpaceDialog,
 	Header,

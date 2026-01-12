@@ -28,7 +28,8 @@
 		"info": "信息",
 		"required": "必填",
 		"optional": "可选",
-		"retry": "重试"
+		"retry": "重试",
+		"owner": "所有者"
 	},
 	"auth": {
 		"login": "登录",
@@ -85,7 +86,13 @@
 		"description_label": "描述",
 		"description_placeholder": "这个搜索空间是做什么的？",
 		"create_button": "创建",
-		"creating": "创建中..."
+		"creating": "创建中...",
+		"all_search_spaces": "所有搜索空间",
+		"search_spaces_count": "{count, plural, =0 {没有搜索空间} other {# 个搜索空间}}",
+		"no_search_spaces": "暂无搜索空间",
+		"create_first_search_space": "创建您的第一个搜索空间以开始使用",
+		"members_count": "{count, plural, other {# 位成员}}",
+		"create_new_search_space": "创建新的搜索空间"
 	},
 	"dashboard": {
 		"title": "仪表盘",
