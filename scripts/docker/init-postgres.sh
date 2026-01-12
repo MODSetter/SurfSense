@@ -23,8 +23,18 @@ fi
 # Configure PostgreSQL
 cat >> "$PGDATA/postgresql.conf" << EOF
 listen_addresses = '*'
-max_connections = 100
-shared_buffers = 128MB
+max_connections = 200
+shared_buffers = 256MB
+
+# Enable logical replication (required for Electric SQL)
+wal_level = logical
+max_replication_slots = 10
+max_wal_senders = 10
+
+# Performance settings
+checkpoint_timeout = 10min
+max_wal_size = 1GB
+min_wal_size = 80MB
 EOF
 
 cat >> "$PGDATA/pg_hba.conf" << EOF
@@ -45,6 +55,15 @@ CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD' SUPERUSER;
 CREATE DATABASE $POSTGRES_DB OWNER $POSTGRES_USER;
 \c $POSTGRES_DB
 CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Create Electric SQL replication user
+CREATE USER electric WITH REPLICATION PASSWORD 'electric_password';
+GRANT CONNECT ON DATABASE $POSTGRES_DB TO electric;
+GRANT USAGE ON SCHEMA public TO electric;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO electric;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO electric;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO electric;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO electric;
 EOF
 
 echo "PostgreSQL initialized successfully."

@@ -7,10 +7,12 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/docker/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-surfsense}
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
 
   pgadmin:
     image: dpage/pgadmin4
@@ -110,6 +112,24 @@ services:
   #     - redis
   #     - celery_worker
 
+  electric:
+    image: electricsql/electric:latest
+    ports:
+      - "${ELECTRIC_PORT:-5133}:5133"
+    environment:
+      - DATABASE_URL=postgresql://electric:electric_password@db:5432/${POSTGRES_DB:-surfsense}?sslmode=disable
+      - AUTH_MODE=insecure
+      - ELECTRIC_WRITE_TO_PG_MODE=direct
+      - ELECTRIC_READ_FROM_PG_MODE=direct
+    depends_on:
+      - db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5133/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   frontend:
     build:
       context: ./surfsense_web
@@ -122,8 +142,12 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     env_file:
       - ./surfsense_web/.env
+    environment:
+      - NEXT_PUBLIC_ELECTRIC_URL=${NEXT_PUBLIC_ELECTRIC_URL:-http://localhost:5133}
+      - NEXT_PUBLIC_ELECTRIC_AUTH_MODE=insecure
     depends_on:
       - backend
+      - electric
 
 volumes:
   postgres_data:
