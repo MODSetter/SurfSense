@@ -41,6 +41,7 @@ interface MobileSidebarProps {
 	onSettings?: () => void;
 	onManageMembers?: () => void;
 	onSeeAllSearchSpaces?: () => void;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 }
@@ -80,6 +81,7 @@ export function MobileSidebar({
 	onSettings,
 	onManageMembers,
 	onSeeAllSearchSpaces,
+	onUserSettings,
 	onLogout,
 	pageUsage,
 }: MobileSidebarProps) {
@@ -143,6 +145,7 @@ export function MobileSidebar({
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
 						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
+						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						className="w-full border-none"
