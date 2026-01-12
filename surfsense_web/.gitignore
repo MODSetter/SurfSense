@@ -50,3 +50,5 @@ next-env.d.ts
 
 .pnpm-store/
 
+# Connector status config (use .example.json as template)
+components/assistant-ui/connector-popup/config/connector-status-config.json
