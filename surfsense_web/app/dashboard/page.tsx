@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Plus, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -88,6 +88,37 @@ function ErrorScreen({ message }: { message: string }) {
 	);
 }
 
+function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
+	const t = useTranslations("searchSpace");
+
+	return (
+		<div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
+			<motion.div
+				initial={{ opacity: 0, y: 20 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.5 }}
+				className="flex flex-col items-center gap-6 text-center"
+			>
+				<div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+					<Search className="h-10 w-10 text-primary" />
+				</div>
+
+				<div className="flex flex-col gap-2">
+					<h1 className="text-2xl font-bold">{t("welcome_title")}</h1>
+					<p className="max-w-md text-muted-foreground">
+						{t("welcome_description")}
+					</p>
+				</div>
+
+				<Button size="lg" onClick={onCreateClick} className="gap-2">
+					<Plus className="h-5 w-5" />
+					{t("create_first_button")}
+				</Button>
+			</motion.div>
+		</div>
+	);
+}
+
 export default function DashboardPage() {
 	const router = useRouter();
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -101,16 +132,10 @@ export default function DashboardPage() {
 	useEffect(() => {
 		if (isLoading) return;
 
-		if (searchSpaces.length === 0) {
-			setShowCreateDialog(true);
-		} else {
+		if (searchSpaces.length > 0) {
 			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
 		}
 	}, [isLoading, searchSpaces, router]);
-
-	const handleDialogChange = (open: boolean) => {
-		setShowCreateDialog(open);
-	};
 
 	if (isLoading) return <LoadingScreen />;
 	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
@@ -120,8 +145,9 @@ export default function DashboardPage() {
 	}
 
 	return (
-		<div className="flex min-h-screen flex-col items-center justify-center">
-			<CreateSearchSpaceDialog open={showCreateDialog} onOpenChange={handleDialogChange} />
-		</div>
+		<>
+			<EmptyState onCreateClick={() => setShowCreateDialog(true)} />
+			<CreateSearchSpaceDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+		</>
 	);
 }

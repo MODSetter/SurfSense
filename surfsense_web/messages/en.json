@@ -96,7 +96,10 @@
 		"members_count": "{count, plural, =1 {1 member} other {# members}}",
 		"create_new_search_space": "Create new search space",
 		"delete_title": "Delete Search Space",
-		"delete_confirm": "Are you sure you want to delete \"{name}\"? This action cannot be undone and will permanently remove all data."
+		"delete_confirm": "Are you sure you want to delete \"{name}\"? This action cannot be undone and will permanently remove all data.",
+		"welcome_title": "Welcome to SurfSense",
+		"welcome_description": "Create your first search space to start organizing your knowledge, connecting sources, and chatting with AI.",
+		"create_first_button": "Create your first search space"
 	},
 	"dashboard": {
 		"title": "Dashboard",

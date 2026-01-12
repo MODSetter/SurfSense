@@ -96,7 +96,10 @@
 		"members_count": "{count, plural, other {# 位成员}}",
 		"create_new_search_space": "创建新的搜索空间",
 		"delete_title": "删除搜索空间",
-		"delete_confirm": "您确定要删除「{name}」吗？此操作无法撤销，将永久删除所有数据。"
+		"delete_confirm": "您确定要删除「{name}」吗？此操作无法撤销，将永久删除所有数据。",
+		"welcome_title": "欢迎使用 SurfSense",
+		"welcome_description": "创建您的第一个搜索空间，开始组织知识、连接数据源并与AI对话。",
+		"create_first_button": "创建第一个搜索空间"
 	},
 	"dashboard": {
 		"title": "仪表盘",
