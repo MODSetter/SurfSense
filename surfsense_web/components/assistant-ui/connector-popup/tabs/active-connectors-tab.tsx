@@ -192,19 +192,20 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 											</div>
 											<div className="flex-1 min-w-0">
 												<p className="text-[14px] font-semibold leading-tight truncate">{title}</p>
-												{isAnyIndexing && (
+												{isAnyIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
-														Indexing...
+														Syncing
+													</p>
+												) : (
+													<p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
+														<span>{formatDocumentCount(documentCount)}</span>
+														<span className="text-muted-foreground/50">•</span>
+														<span>
+															{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
+														</span>
 													</p>
 												)}
-												<p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
-													<span>{formatDocumentCount(documentCount)}</span>
-													<span className="text-muted-foreground/50">•</span>
-													<span>
-														{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
-													</span>
-												</p>
 											</div>
 											<Button
 												variant="secondary"
@@ -250,15 +251,16 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												<p className="text-[14px] font-semibold leading-tight truncate">
 													{connector.name}
 												</p>
-												{isIndexing && (
+												{isIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
-														Syncing...
+														Syncing
+													</p>
+												) : (
+													<p className="text-[10px] text-muted-foreground mt-1">
+														{formatDocumentCount(documentCount)}
 													</p>
 												)}
-												<p className="text-[10px] text-muted-foreground mt-1">
-													{formatDocumentCount(documentCount)}
-												</p>
 											</div>
 											<Button
 												variant="secondary"

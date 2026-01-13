@@ -61,20 +61,6 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 
 	// Determine the status content to display
 	const getStatusContent = () => {
-		if (isIndexing) {
-			return (
-				<div className="flex items-center gap-2 w-full max-w-[200px]">
-					<span className="text-[11px] text-primary font-medium whitespace-nowrap">
-						Syncing...
-					</span>
-					{/* Indeterminate progress bar with animation */}
-					<div className="relative flex-1 h-1 overflow-hidden rounded-full bg-primary/20">
-						<div className="absolute h-full bg-primary rounded-full animate-progress-indeterminate" />
-					</div>
-				</div>
-			);
-		}
-
 		if (isConnected) {
 			// Don't show last indexed in overview tabs - only show in accounts list view
 			return null;
@@ -120,7 +106,10 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 					)}
 				</div>
 				{isIndexing ? (
-					<div className="text-[10px] text-muted-foreground mt-1">{getStatusContent()}</div>
+					<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
+						<Loader2 className="size-3 animate-spin" />
+						Syncing
+					</p>
 				) : isConnected ? (
 					<p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
 						<span>{formatDocumentCount(documentCount)}</span>

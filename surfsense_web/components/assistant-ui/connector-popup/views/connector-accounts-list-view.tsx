@@ -162,7 +162,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 									{isIndexing ? (
 										<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 											<Loader2 className="size-3 animate-spin" />
-											Syncing...
+											Syncing
 										</p>
 									) : (
 										<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
