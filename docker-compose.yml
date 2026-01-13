@@ -118,11 +118,11 @@ services:
     ports:
       - "${ELECTRIC_PORT:-5133}:3000"
     environment:
-      - DATABASE_URL=postgresql://electric:electric_password@db:5432/${POSTGRES_DB:-surfsense}?sslmode=disable
+      - DATABASE_URL=${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-surfsense}?sslmode=disable}
       - ELECTRIC_INSECURE=true
       - ELECTRIC_WRITE_TO_PG_MODE=direct
-    depends_on:
-      - db
+    # depends_on:
+    #   - db
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
