@@ -16,7 +16,8 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { cn } from "@/lib/utils";
 
 // Citation pattern: [citation:CHUNK_ID] or [citation:doc-CHUNK_ID]
-const CITATION_REGEX = /\[citation:(doc-)?(\d+)\]/g;
+// Also matches Chinese brackets 【】 as LLM sometimes uses them
+const CITATION_REGEX = /[\[【]citation:(doc-)?(\d+)[\]】]/g;
 
 // Track chunk IDs to citation numbers mapping for consistent numbering
 // This map is reset when a new message starts rendering
