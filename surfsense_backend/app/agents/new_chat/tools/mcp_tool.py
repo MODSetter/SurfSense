@@ -20,63 +20,6 @@ from app.db import SearchSourceConnector, SearchSourceConnectorType
 logger = logging.getLogger(__name__)
 
 
-def _normalize_gemini_params(params: dict[str, Any], mcp_schema: dict[str, Any]) -> dict[str, Any]:
-    """Normalize Gemini-transformed parameter names back to MCP schema format.
-    
-    Gemini tends to transform field names like:
-    - entityType -> type
-    - from/to -> fromEntity/toEntity
-    - relationType -> relation
-    
-    This function maps them back to the original MCP schema field names.
-    """
-    schema_properties = mcp_schema.get("properties", {})
-    normalized = {}
-    
-    for param_key, param_value in params.items():
-        # Handle array parameters (need to normalize nested objects)
-        if isinstance(param_value, list) and len(param_value) > 0:
-            if isinstance(param_value[0], dict):
-                # Get the items schema to know what fields should be present
-                items_schema = schema_properties.get(param_key, {}).get("items", {})
-                items_properties = items_schema.get("properties", {})
-                
-                normalized_array = []
-                for item in param_value:
-                    normalized_item = {}
-                    for item_key, item_value in item.items():
-                        # Map common Gemini transformations back to MCP names
-                        if item_key == "type" and "entityType" in items_properties:
-                            normalized_item["entityType"] = item_value
-                        elif item_key == "fromEntity" and "from" in items_properties:
-                            normalized_item["from"] = item_value
-                        elif item_key == "toEntity" and "to" in items_properties:
-                            normalized_item["to"] = item_value
-                        elif item_key == "relation" and "relationType" in items_properties:
-                            normalized_item["relationType"] = item_value
-                        else:
-                            # Use the original key if it exists in schema
-                            normalized_item[item_key] = item_value
-                    
-                    # Add missing required fields with empty defaults if needed
-                    for required_field in items_properties:
-                        if required_field not in normalized_item:
-                            # For arrays like observations, default to empty array
-                            if items_properties[required_field].get("type") == "array":
-                                normalized_item[required_field] = []
-                            else:
-                                normalized_item[required_field] = ""
-                    
-                    normalized_array.append(normalized_item)
-                normalized[param_key] = normalized_array
-            else:
-                normalized[param_key] = param_value
-        else:
-            normalized[param_key] = param_value
-    
-    return normalized
-
-
 def _create_dynamic_input_model_from_schema(
     tool_name: str, input_schema: dict[str, Any],
 ) -> type[BaseModel]:
@@ -146,14 +89,10 @@ async def _create_mcp_tool_from_definition(
         """Execute the MCP tool call via the client."""
         logger.info(f"MCP tool '{tool_name}' called with params: {kwargs}")
         
-        # Normalize Gemini-transformed field names back to MCP schema
-        # Gemini transforms: entityType->type, from/to->fromEntity/toEntity, relationType->relation
-        normalized_kwargs = _normalize_gemini_params(kwargs, input_schema)
-        
         try:
             # Connect to server and call tool
             async with mcp_client.connect():
-                result = await mcp_client.call_tool(tool_name, normalized_kwargs)
+                result = await mcp_client.call_tool(tool_name, kwargs)
                 return str(result)
         except Exception as e:
             error_msg = f"MCP tool '{tool_name}' failed: {e!s}"
