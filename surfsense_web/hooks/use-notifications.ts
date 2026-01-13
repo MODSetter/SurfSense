@@ -2,19 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { initElectric, isElectricInitialized, type ElectricClient, type SyncHandle } from '@/lib/electric/client'
+import type { Notification } from '@/contracts/types/notification.types'
 
-export interface Notification {
-	id: number
-	user_id: string
-	search_space_id: number | null
-	type: string
-	title: string
-	message: string
-	read: boolean
-	metadata: Record<string, unknown>
-	created_at: string
-	updated_at: string | null
-}
+export type { Notification } from '@/contracts/types/notification.types'
 
 export function useNotifications(userId: string | null) {
 	const [electric, setElectric] = useState<ElectricClient | null>(null)
